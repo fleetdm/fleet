@@ -1,0 +1,13 @@
+{
+  "name": "Git",
+  "slug": "git/windows",
+  "package_identifier": "Git.Git",
+  "unique_identifier": "Git",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/git_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/git_uninstall.ps1"
+}

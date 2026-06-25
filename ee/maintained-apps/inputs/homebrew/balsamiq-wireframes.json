@@ -1,0 +1,10 @@
+{
+  "name": "Balsamiq Wireframes",
+  "unique_identifier": "com.balsamiq.wireframes",
+  "token": "balsamiq-wireframes",
+  "installer_format": "dmg",
+  "slug": "balsamiq-wireframes/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

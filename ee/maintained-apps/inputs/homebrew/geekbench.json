@@ -1,0 +1,10 @@
+{
+  "name": "Geekbench",
+  "unique_identifier": "com.primatelabs.Geekbench6",
+  "token": "geekbench",
+  "installer_format": "zip",
+  "slug": "geekbench/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

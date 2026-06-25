@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.40.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Termius' AND publisher = 'Termius Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Termius' AND publisher = 'Termius Corporation' AND version_compare(version, '9.40.1') < 0);"
+      },
+      "installer_url": "https://autoupdate.termius.com/windows/Install%20Termius.exe",
+      "install_script_ref": "df65625a",
+      "uninstall_script_ref": "362c320f",
+      "sha256": "0940d111c229fcf7310f836f1b625290f6a1b4b7fa080e79fa064ed9b9a14cee",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "362c320f": "# Uninstall script for NSIS (electron-builder) installer.\n$softwareName = \"Termius\"\n$softwareNameLike = \"*${softwareName}*\"\n$publisher = \"\"\n\n$keys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem -Path $keys -ErrorAction SilentlyContinue |\n  ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$found = $false\nforeach ($key in $uninstallKeys) {\n  if ($key.DisplayName -like $softwareNameLike -and ($publisher -eq \"\" -or $key.Publisher -like \"*$publisher*\")) {\n    $found = $true\n\n    $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n    # Parse the uninstaller exe path out of the command\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n      $uninstallExe = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n      $uninstallExe = $matches[1]\n    } else {\n      $uninstallExe = $uninstallCommand\n    }\n\n    # Determine the install directory\n    if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n      $installDir = $key.InstallLocation\n    } else {\n      $installDir = Split-Path -Parent $uninstallExe\n    }\n\n    Write-Host \"Uninstaller: $uninstallExe\"\n    Write-Host \"Install dir: $installDir\"\n\n    $process = Start-Process -FilePath $uninstallExe -ArgumentList @(\"/S\", \"_?=$installDir\") -PassThru -Wait -NoNewWindow\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n    break\n  }\n}\n\nif (-not $found) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\nExit $exitCode\n",
+    "df65625a": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# NSIS (electron-builder) installer: /S installs silently\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = @(\"/S\")\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "10.0.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader' AND version_compare(version, '10.0.0') < 0);"
+      },
+      "installer_url": "https://github.com/YACReader/yacreader/releases/download/10.0.0/YACReader-v10.0.0.260501214-winx64-7z-qt6.exe",
+      "install_script_ref": "128a9799",
+      "uninstall_script_ref": "ff48db76",
+      "sha256": "945b57496bb436c27b0ae017aa72c4aab006c0af94931f029603f9d3798df4da",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "128a9799": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nif (-not (Test-Path $exeFilePath)) {\n  Write-Host \"Installer not found at $exeFilePath\"\n}\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n",
+    "ff48db76": "$softwareName = \"YACReader\"\n$softwareNameLike = \"$softwareName*\"\n$publisherName = \"\"\n\n$hkcuKey      = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey   = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($hkcuKey, $machineKey, $machineKey32) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if (-not ($key.DisplayName -eq $softwareName -or $key.DisplayName -like $softwareNameLike)) {\n        continue\n    }\n    if (-not ($publisherName -eq \"\" -or $key.Publisher -like \"*$publisherName*\")) {\n        continue\n    }\n\n    $foundUninstaller = $true\n\n    $uninstallCommand = if ($key.QuietUninstallString) {\n        $key.QuietUninstallString\n    } else {\n        $key.UninstallString\n    }\n\n    # Parse the uninstaller exe path from the command string\n    $uninstallExe = $null\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n        $uninstallExe = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n        $uninstallExe = $matches[1]\n    } else {\n        $uninstallExe = $uninstallCommand\n    }\n\n    # Determine the install directory\n    if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n        $installDir = $key.InstallLocation\n    } else {\n        $installDir = Split-Path -Parent $uninstallExe\n    }\n\n    $uninstallArgs = @(\"/VERYSILENT\", \"/NORESTART\")\n\n    Write-Host \"Uninstall command: $uninstallExe\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $uninstallExe\n        ArgumentList = $uninstallArgs\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n\n    break\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n"
+  }
+}

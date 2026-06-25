@@ -1,0 +1,10 @@
+{
+  "name": "Low Profile",
+  "unique_identifier": "com.ninxsoft.lowprofile",
+  "token": "low-profile",
+  "installer_format": "pkg",
+  "slug": "low-profile/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

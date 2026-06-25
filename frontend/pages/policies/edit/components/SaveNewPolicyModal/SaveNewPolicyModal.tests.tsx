@@ -1,8 +1,9 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
@@ -57,12 +58,12 @@ describe("SaveNewPolicyModal", () => {
     isFetchingAutofillResolution: false,
     onClickAutofillDescription: jest.fn(),
     onClickAutofillResolution: jest.fn(),
-    labels: mockLabels,
     isGlobalPolicy: true,
     policyTeamId: undefined,
     automationsConfig: createMockConfig(),
     globalConfig: createMockConfig(),
     fleetName: "All fleets",
+    router: createMockRouter(),
   };
 
   it("should not show the target selector in the free tier", async () => {
@@ -86,6 +87,23 @@ describe("SaveNewPolicyModal", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
+  it("caps the policy name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewPolicyModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
   describe("in premium tier", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -98,6 +116,7 @@ describe("SaveNewPolicyModal", () => {
           isOnGlobalTeam: true,
           isPremiumTier: true,
           isSandboxMode: false,
+          currentTeam: createMockTeamSummary(),
           config: createMockConfig(),
         },
       },
@@ -184,28 +203,107 @@ describe("SaveNewPolicyModal", () => {
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(screen.getByText("Exclude"));
       await userEvent.click(
         await screen.findByRole("checkbox", { name: "Fun" })
       );
-
-      // Click "Include any" to open the dropdown.
-      const includeAnyOption = screen.getByRole("option", {
-        name: "Include any",
-      });
-      await userEvent.click(includeAnyOption);
-
-      // Click "Exclude any" to select it.
-      let excludeAnyOption: unknown;
-      await waitFor(() => {
-        excludeAnyOption = screen.getByRole("option", { name: "Exclude any" });
-      });
-      await userEvent.click(excludeAnyOption as Element);
 
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onCreatePolicy.mock.calls[0][0].labels_exclude_any).toEqual([
         "Fun",
       ]);
+    });
+
+    it("should send labels_include_all when the include mode is All", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(screen.getByLabelText("All"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const payload = onCreatePolicy.mock.calls[0][0];
+      expect(payload.labels_include_all).toEqual(["Fun"]);
+      expect(payload.labels_include_any).toEqual([]);
+    });
+
+    it("should send labels_exclude_all when the exclude mode is All", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(screen.getByText("Exclude"));
+      await userEvent.click(screen.getByLabelText("All"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const payload = onCreatePolicy.mock.calls[0][0];
+      expect(payload.labels_exclude_all).toEqual(["Fun"]);
+      expect(payload.labels_exclude_any).toEqual([]);
+    });
+
+    it("should send both include and exclude labels when both tabs have selections", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByText("Exclude"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fresh" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const payload = onCreatePolicy.mock.calls[0][0];
+      expect(payload.labels_include_any).toEqual(["Fun"]);
+      expect(payload.labels_exclude_any).toEqual(["Fresh"]);
     });
 
     it("should clear labels when saving a new policy in All hosts target mode", async () => {

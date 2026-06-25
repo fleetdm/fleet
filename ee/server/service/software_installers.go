@@ -14,13 +14,14 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -402,19 +403,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	dirty := make(map[string]bool)
 
 	if payload.Categories != nil {
-		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			return nil, ctxerr.Wrap(ctx, err, "filtering software installer categories")
 		}
-
-		if len(catIDs) != len(payload.Categories) {
-			return nil, &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-			}
-		}
-
+		payload.Categories = categories
 		payload.CategoryIDs = catIDs
 		dirty["Categories"] = true
 	}
@@ -916,7 +909,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		if err != nil {
 			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
 		}
@@ -1721,8 +1714,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -1831,8 +1823,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// Validate platform
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -2259,6 +2250,11 @@ const (
 	// batchSoftwareDeletedSuffix is appended to the batch status key to form the key holding
 	// the JSON-encoded list of packages the batch will delete (or, on a dry run, would delete).
 	batchSoftwareDeletedSuffix = ":deleted"
+	// batchSoftwareCategoriesSuffix is appended to the batch status key to form the key holding
+	// the JSON-encoded list of self-service categories this batch added. This is required because
+	// we can only be certain of all categories after downloading all FMA manifests and seeing
+	// which default categories we might need to add.
+	batchSoftwareCategoriesSuffix = ":categories"
 	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
 	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
 	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
@@ -2314,6 +2310,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var allScripts []string
+	var categoryNames []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
@@ -2343,7 +2340,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			)
 		}
 
-		if payload.URL != "" {
+		// Skip URL validation when it is empty or when it is for a script-only package,
+		// which uses a "script://" URL scheme to pass the filename
+		if payload.URL != "" && !strings.HasPrefix(payload.URL, "script://") {
 			if _, err := url.ParseRequestURI(payload.URL); err != nil {
 				return "", fleet.NewInvalidArgumentError(
 					"software.url",
@@ -2359,6 +2358,16 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			payload.ValidatedLabels = validatedLabels
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+
+		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "validating software categories")
+		}
+		categoryNames = append(categoryNames, payload.Categories.Value...)
+	}
+
+	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
+	if err != nil {
+		return "", err
 	}
 
 	if !dryRun {
@@ -2373,6 +2382,14 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	requestUUID := uuid.NewString()
 	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
+	}
+
+	categoriesJSON, err := json.Marshal(categories)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal self-service categories result")
+	}
+	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix, string(categoriesJSON), 10*time.Minute); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
 	}
 
 	svc.logger.InfoContext(ctx, "software batch start",
@@ -2486,8 +2503,8 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 	payload.FleetMaintained = true
 	payload.MaintainedApp = app
-	if len(payload.Categories) == 0 {
-		payload.Categories = app.Categories
+	if !payload.Categories.Set {
+		payload.Categories = optjson.SetSlice(app.Categories)
 	}
 	payload.MaintainedApp.PatchQuery = app.PatchQuery
 
@@ -2732,7 +2749,7 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				LabelsIncludeAll:   p.LabelsIncludeAll,
 				ValidatedLabels:    p.ValidatedLabels,
-				Categories:         p.Categories,
+				Categories:         p.Categories.Value,
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
 				AlwaysDownload:     p.AlwaysDownload,
@@ -2741,19 +2758,11 @@ func (svc *Service) softwareBatchUpload(
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
-			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
+			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories.Value)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
 			}
-
-			if len(catIDs) != len(p.Categories) {
-				return &fleet.BadRequestError{
-					Message:     "some or all of the categories provided don't exist",
-					InternalErr: fmt.Errorf("categories provided: %v", p.Categories),
-				}
-			}
-
+			installer.Categories = categories
 			installer.CategoryIDs = catIDs
 
 			// check if we already have the installer based on the SHA256 and URL
@@ -3322,19 +3331,19 @@ func validETag(etag string) bool {
 	return true
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	// We've already authorized in the POST /api/latest/fleet/software/batch,
 	// but adding it here so we don't need to worry about a special case endpoint.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return "", "", nil, nil, err
+		return "", "", nil, nil, nil, err
 	}
 
 	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
 	if err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "failed to get result")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
 	}
 
 	// getDeletedPackages loads the packages the batch deleted (dry run: would
@@ -3354,16 +3363,32 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return deletedPackages, nil
 	}
 
+	// getCategories loads the self-service categories the batch's software references
+	getCategories := func() ([]string, error) {
+		categoriesJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get categories result")
+		}
+		if categoriesJSON == nil || *categoriesJSON == "" {
+			return nil, nil
+		}
+		var categories []string
+		if err := json.Unmarshal([]byte(*categoriesJSON), &categories); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal categories result")
+		}
+		return categories, nil
+	}
+
 	switch {
 	case *result == batchSetCompleted:
 		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
-		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil
+		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
 		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
-		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil, nil
+		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil, nil, nil
 	default:
-		return "", "", nil, nil, ctxerr.New(ctx, "invalid status")
+		return "", "", nil, nil, nil, ctxerr.New(ctx, "invalid status")
 	}
 
 	var (
@@ -3373,7 +3398,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	if tmName != "" {
 		team, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			return "", "", nil, nil, ctxerr.Wrap(ctx, err, "load team by name")
+			return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "load team by name")
 		}
 		teamID = team.ID
 		ptrTeamID = &team.ID
@@ -3386,24 +3411,29 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	// /api/latest/fleet/software/batch. This applies to dry runs too, since the
 	// deleted-packages list exposes team-scoped software data.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	deletedPackages, err := getDeletedPackages()
 	if err != nil {
-		return "", "", nil, nil, err
+		return "", "", nil, nil, nil, err
+	}
+
+	categories, err := getCategories()
+	if err != nil {
+		return "", "", nil, nil, nil, err
 	}
 
 	if dryRun {
-		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, nil
+		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, categories, nil
 	}
 
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
 	if err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 
-	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, nil
+	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, categories, nil
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
@@ -3441,8 +3471,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		ext := filepath.Ext(installer.Name)
-		requiredPlatform := packageExtensionToPlatform(ext)
+		ext, requiredPlatform := installerRequiredPlatform(installer)
 		if requiredPlatform == "" {
 			// this should never happen
 			return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -3512,6 +3541,41 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return err
 }
 
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+	// get available self-service titles sorted by name
+	titles, categoryName, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get software titles for install all")
+	}
+
+	// Queue individual install activities for each title. If any errors occurred while
+	// queuing this title we log them and continue to the next software title.
+	var queuedCount uint
+	for _, title := range titles {
+		if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, title.ID); err != nil {
+			svc.logger.ErrorContext(ctx, "enqueuing software install", "title_id", title.ID, "err", err)
+			continue
+		}
+		queuedCount++
+	}
+
+	if queuedCount == 0 {
+		return nil
+	}
+
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledAllSelfServiceSoftware{
+		HostID:                  host.ID,
+		HostDisplayName:         host.DisplayName(),
+		SelfServiceCategoryID:   categoryID,
+		SelfServiceCategoryName: categoryName,
+		SoftwareTitlesCount:     queuedCount,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating installed all self-service software activity")
+	}
+
+	return nil
+}
+
 // branching out this call so it doesn't conflict with work in parallel in the
 // self-service install method, and it would be good to isolate the installers
 // and VPP apps logic too later on.
@@ -3567,18 +3631,37 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 	return ctxerr.Wrap(ctx, err, "insert in house app install")
 }
 
+// installerRequiredPlatform returns the file extension and the platform used for
+// platform validation. The installer's stored Platform is used when set (e.g.
+// .zip installers may target windows or darwin). Note that `.sh` installers are
+// stored as platform=linux but are allowed on any unix-like host by callers.
+func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
+	ext = filepath.Ext(installer.Name)
+	if installer.Platform != "" {
+		return ext, installer.Platform
+	}
+	return ext, packageExtensionToPlatform(ext)
+}
+
 // packageExtensionToPlatform returns the platform name based on the
-// package extension. Returns an empty string if there is no match.
+// package extension. Returns an empty string if there is no match. This is only
+// used as a fallback by installerRequiredPlatform when an installer has no
+// stored Platform; prefer the stored Platform, which is authoritative.
 //
 // .msix is included for Fleet-maintained Windows apps only; custom package
 // upload still rejects .msix (see addMetadataToSoftwarePayload and
 // SoftwareInstallerPlatformFromExtension).
+//
+// .zip is intentionally omitted: it is ambiguous across platforms (a Windows
+// installer or a macOS app bundle), so the stored Platform must be used. Both
+// FMAs and uploads always set Platform for .zip, so this fallback is never hit
+// for zip.
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
 	case ".msi", ".exe", ".ps1", ".msix":
 		requiredPlatform = "windows"
-	case ".pkg", ".dmg", ".zip":
+	case ".pkg", ".dmg":
 		requiredPlatform = "darwin"
 	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
 		requiredPlatform = "linux"
@@ -3791,4 +3874,47 @@ func getInstallScript(extension string, packageIDs []string, currentScript strin
 		return currentScript
 	}
 	return file.GetInstallScript(extension)
+}
+
+// batchAddSelfServiceCategories only adds categories, because it is used across both the installer and vpp
+// endpoints and we cannot know what categories to delete before those are both done.
+func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *uint, categoryNames []string, dryRun bool) ([]string, error) {
+	// Compare names with fleet.SoftwareCategoryNamesEqual rather than a plain
+	// case-insensitive comparison: the software_categories unique index uses the
+	// utf8mb4_unicode_ci collation, which ignores variation selectors, so two
+	// names Go considers distinct (e.g. "🖥️ Productivity" with vs. without U+FE0F)
+	// are the same row to MySQL. Deduping/matching on the DB's terms here avoids
+	// attempting an insert that would fail with a 1062 duplicate-entry error.
+	var allCategories []string
+	for _, name := range fleet.TranslateLegacySoftwareCategoryNames(categoryNames) {
+		if slices.ContainsFunc(allCategories, func(c string) bool { return fleet.SoftwareCategoryNamesEqual(c, name) }) {
+			continue
+		}
+		allCategories = append(allCategories, name)
+	}
+
+	if len(allCategories) == 0 {
+		return allCategories, nil
+	}
+
+	existingCategories, err := svc.ds.ListSoftwareCategories(ctxdb.RequirePrimary(ctx, true), ptr.ValOrZero(teamID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing existing software categories")
+	}
+
+	var categoriesToInsert []string
+	for _, name := range allCategories {
+		if !slices.ContainsFunc(existingCategories, func(c fleet.SoftwareCategory) bool { return fleet.SoftwareCategoryNamesEqual(c.Name, name) }) {
+			categoriesToInsert = append(categoriesToInsert, name)
+		}
+	}
+
+	if dryRun {
+		return allCategories, nil
+	}
+
+	if err := svc.ds.BatchNewSoftwareCategories(ctx, ptr.ValOrZero(teamID), categoriesToInsert); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating self-service categories")
+	}
+	return allCategories, nil
 }

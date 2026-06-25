@@ -1,0 +1,10 @@
+{
+  "name": "PowerPhotos",
+  "unique_identifier": "com.fatcatsoftware.PowerPhotos",
+  "token": "powerphotos",
+  "installer_format": "zip",
+  "slug": "powerphotos/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

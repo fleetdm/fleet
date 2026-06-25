@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -619,26 +620,26 @@ func (c *Client) ApplyGroup(
 			case macosSetup.BootstrapPackage.Value != "":
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, nil, fmt.Errorf("verifying bootstrap package: %w", err)
 				}
 				if err := c.UploadBootstrapPackageIfNeeded(pkg, uint(0), opts.DryRun); err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package: %w", err)
 				}
 			case macosSetup.BootstrapPackage.Valid && appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
 				// bootstrap package is explicitly empty (only for GitOps)
 				if err := c.DeleteBootstrapPackageIfNeeded(uint(0), opts.DryRun); err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, nil, err
 				}
 			}
 			switch {
 			case macosSetup.MacOSSetupAssistant.Value != "":
 				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
 				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, nil, fmt.Errorf("validating apple setup assistant: %w", err)
 				}
 				if !opts.DryRun {
-					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					if err := c.uploadMacOSSetupAssistant(content, nil, filepath.Base(macosSetup.MacOSSetupAssistant.Value)); err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("uploading apple setup assistant: %w", err)
 					}
 				}
 			case macosSetup.MacOSSetupAssistant.Valid && !opts.DryRun &&
@@ -841,7 +842,7 @@ func (c *Client) ApplyGroup(
 			for i, f := range paths {
 				b, err := os.ReadFile(f)
 				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, nil, fmt.Errorf("reading script file: %w", err)
 				}
 				scriptPayloads[i] = fleet.ScriptPayload{
 					ScriptContents: b,
@@ -1035,7 +1036,7 @@ func (c *Client) ApplyGroup(
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					switch {
 					case b != nil:
-						if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, filepath.Base(tmMacSetup[tmName].MacOSSetupAssistant.Value)); err != nil {
 							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
 								// "Couldn't add. CONFIG_NAME_INVALID"
@@ -1094,17 +1095,20 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
+		// Categories referenced across both the installer and app store batches, unused ones should be deleted.
+		categoriesByTeam := map[string][]string{}
 		if len(tmSoftwarePackagesPayloads) > 0 {
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
-				installers, deletedInstallers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
+				installers, deletedInstallers, categories, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for fleet %q: %w", tmName, err)
 				}
 				logSoftwareDeletions(logfn, deletedInstallers, opts.DryRun)
 				teamsSoftwareInstallers[tmName] = installers
+				categoriesByTeam[currentTeamName] = append(categoriesByTeam[currentTeamName], categories...)
 			}
 		}
 		if len(tmSoftwareAppsPayloads) > 0 {
@@ -1112,13 +1116,24 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn(format, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
-				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
+				appsResponse, categories, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for fleet: %q: %w", tmName, err)
 				}
 				teamsVPPApps[tmName] = appsResponse
+				categoriesByTeam[currentTeamName] = append(categoriesByTeam[currentTeamName], categories...)
 			}
 		}
+
+		// Delete categories no longer referenced by any of the fleet's software.
+		if viaGitOps && !opts.DryRun && !softwareExcepted {
+			for tmName, tmID := range teamIDsByName {
+				if err := c.deleteUnusedSelfServiceCategories(tmID, categoriesByTeam[tmName]); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("deleting unused self-service categories for fleet %q: %w", tmName, err)
+				}
+			}
+		}
+
 		if opts.DryRun {
 			logfn(dryRunAppliedFormat, numberWithPluralization(len(specs.Teams), "fleet", "fleets"))
 		} else {
@@ -2373,10 +2388,13 @@ func (c *Client) DoGitOps(
 			macOSUpdates["deadline"] = ""
 		}
 
-		// To keep things backward compatible, if a minimum_version and deadline are both set but the user hasn't set update_new_hosts,
-		// then we default update_new_hosts to true
-		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" && macOSUpdates["update_new_hosts"] == nil {
-			macOSUpdates["update_new_hosts"] = true
+		// When update_new_hosts isn't explicitly set, derive it from whether OS updates
+		// are configured: default to true when both minimum_version and deadline are set
+		// (kept for backward compatibility) and false otherwise. Defaulting to false when
+		// updates aren't configured prevents a previously stored "true" from sticking
+		// around once minimum_version/deadline are cleared.
+		if macOSUpdates["update_new_hosts"] == nil {
+			macOSUpdates["update_new_hosts"] = macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != ""
 		}
 
 		// Put in default values for ios_updates
@@ -2829,16 +2847,24 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 
 	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'Unassigned'")
-	softwareInstallers, deletedInstallers, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 	logSoftwareDeletions(logFn, deletedInstallers, dryRun)
 
 	logFn(format, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'Unassigned'")
-	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	vppApps, appCategories, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
+	}
+
+	// Delete categories not referenced by any software.
+	if !dryRun && !softwareExcepted {
+		categories := slices.Concat(installerCategories, appCategories)
+		if err := c.deleteUnusedSelfServiceCategories(0, categories); err != nil {
+			return nil, nil, fmt.Errorf("deleting unused self-service categories: %w", err)
+		}
 	}
 
 	if !dryRun {

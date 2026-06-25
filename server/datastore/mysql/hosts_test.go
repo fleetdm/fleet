@@ -100,8 +100,10 @@ func TestHosts(t *testing.T) {
 		{"SearchWildCards", testSearchHostsWildCards},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
+		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -109,6 +111,7 @@ func TestHosts(t *testing.T) {
 		{"IDsByIdentifier", testHostIDsByIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
+		{"ByUUID", testHostsByUUID},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
@@ -176,6 +179,7 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -2977,6 +2981,64 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
 }
 
+// testHostsGenerateStatusStatisticsMobileMDMSeenTime verifies that ios/ipados hosts, which never
+// report a host_seen_times entry (no osquery), are not flagged as "missing" when they have recently
+// checked in via the Apple MDM protocol (nano_enrollments.last_seen_at).
+func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	// An ios host that enrolled long ago (created_at/detail_updated_at both > 30 days) and never
+	// checks in via osquery, so it has no host_seen_times row. Without the MDM last_seen_at fallback
+	// it would be incorrectly counted as missing.
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "ios-device",
+		UUID:            "ios-device-uuid",
+		HardwareSerial:  "ios-serial",
+		Platform:        "ios",
+		DetailUpdatedAt: now.Add(-40 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-40 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-40 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	// Backdate created_at and remove the host_seen_times row to mimic a real ios host.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET created_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
+	require.NoError(t, err)
+
+	// Recent MDM check-in: device-channel nano enrollment with a fresh last_seen_at.
+	nanoEnroll(t, ds, h, false)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-1*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	missingFilter := fleet.HostListOptions{StatusFilter: fleet.StatusMissing}
+
+	// With a recent MDM last_seen_at, the host must NOT be counted/listed as missing.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), summary.Missing30DaysCount, "ios host with recent MDM check-in should not be missing")
+
+	hosts, err := ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	assert.Empty(t, hosts, "ios host with recent MDM check-in should not appear in missing list")
+
+	// Stale MDM check-in (> 30 days): the host should now be counted/listed as missing.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount, "ios host with stale MDM check-in should be missing")
+
+	hosts, err = ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1, "ios host with stale MDM check-in should appear in missing list")
+	assert.Equal(t, h.ID, hosts[0].ID)
+}
+
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3440,6 +3502,73 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), summary.DEPAssignErrorCount)
 }
 
+// testHostsGenerateStatusStatisticsDeletedDEPAssignment is a regression test for #47605: a host
+// whose DEP assignment has been soft-deleted (e.g. removed from ABM) is still enrolled and must
+// keep counting toward the totals and per-platform counts. The `hdep.deleted_at IS NULL` filter
+// used to live in the top-level WHERE clause, which excluded such hosts from TotalsHostsCount while
+// the per-platform query still counted them. That made the denominator smaller than the sum of the
+// platform counts, so the dashboard "Hosts enrolled" chart showed the largest platform as 100%.
+func testHostsGenerateStatusStatisticsDeletedDEPAssignment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "deleted-dep-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          now.Add(30 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	setSerial := func(h *fleet.Host, serial string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, h.ID)
+			return err
+		})
+		h.HardwareSerial = serial
+	}
+
+	// platformSum sums the per-platform counts, which is what the dashboard chart adds up as the
+	// bars. It must always equal TotalsHostsCount (the chart's denominator).
+	platformSum := func(s *fleet.HostSummary) uint {
+		var total uint
+		for _, p := range s.Platforms {
+			total += p.HostsCount
+		}
+		return total
+	}
+
+	// Two darwin hosts with active DEP assignments and one non-Apple host with none.
+	hostA := test.NewHost(t, ds, "dep-a.local", "1.1.1.1", "deldep-nk-1", "deldep-nk-1", now)
+	setSerial(hostA, "SN-DELDEP-001")
+	hostB := test.NewHost(t, ds, "dep-b.local", "1.1.1.2", "deldep-nk-2", "deldep-nk-2", now)
+	setSerial(hostB, "SN-DELDEP-002")
+	hostWin := test.NewHost(t, ds, "dep-win.local", "1.1.1.3", "deldep-nk-3", "deldep-nk-3", now)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET platform = 'windows' WHERE id = ?`, hostWin.ID)
+		return err
+	})
+
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hostA, *hostB}, abmToken.ID, make(map[uint]time.Time))
+	require.NoError(t, err)
+
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), summary.TotalsHostsCount)
+	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+
+	// Soft-delete hostA's DEP assignment (e.g. it was removed from ABM). The host is still enrolled,
+	// so it must keep counting toward the total and the per-platform counts.
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{hostA.HardwareSerial})
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), summary.TotalsHostsCount)
+	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+}
+
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
@@ -3847,6 +3976,42 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
+}
+
+func testHostsByUUID(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 1; i <= 5; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
+			OsqueryHostID:   new(fmt.Sprintf("osquery_host_id_%d", i)),
+			NodeKey:         new(fmt.Sprintf("node_key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	h, err := ds.HostByUUID(context.Background(), "uuid_3")
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), h.ID)
+	assert.Equal(t, "uuid_3", h.UUID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	for _, ident := range []string{
+		"hostname_1",
+		"serial_2",
+		"osquery_host_id_3",
+		"node_key_4",
+		"does-not-exist",
+	} {
+		h, err := ds.HostByUUID(context.Background(), ident)
+		assert.True(t, fleet.IsNotFound(err), "%q should not match: got %v", ident, err)
+		assert.Nil(t, h, "%q should not return a host", ident)
+	}
 }
 
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
@@ -10132,6 +10297,61 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	chk(hosts, "0003", "0004", "0001")
+
+	// Test sorting by "agent". The agent order key is
+	// COALESCE(NULLIF(hoi.version, ''), h.osquery_version): orbit-enrolled hosts
+	// sort by their orbit version, while hosts with no orbit row OR an empty
+	// orbit version fall back to their osquery version (host_orbit_info.version
+	// is NOT NULL, so absent orbit info is stored as '' for some hosts).
+	//   hostIDs[0] ("0001"): osquery 9.0.0, no orbit row  -> effective 9.0.0
+	//   hostIDs[1] ("0004"): osquery 9.9.9, orbit 1.0.0    -> effective 1.0.0 (orbit wins)
+	//   hostIDs[2] ("0003"): osquery 5.0.0, orbit ''       -> effective 5.0.0 (NULLIF fallback)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.0.0' WHERE id = ?`, hostIDs[0])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.9.9' WHERE id = ?`, hostIDs[1])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '5.0.0' WHERE id = ?`, hostIDs[2])
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[1], "1.0.0", sql.NullString{String: "1.0.0", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+	// Empty orbit version must still fall back to osquery_version (guards NULLIF);
+	// plain COALESCE would sort this host as '' and place it first.
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[2], "", sql.NullString{Valid: false}, sql.NullBool{Valid: false},
+	)
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHosts(
+		ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "agent",
+				OrderDirection: fleet.OrderAscending,
+			},
+		},
+	)
+	require.NoError(t, err)
+	chk(hosts, "0004", "0003", "0001")
+
+	// ListHosts must also populate the orbit/desktop version fields the Agent
+	// column tooltip relies on (these were previously only loaded by ds.Host).
+	var orbitHost, vanillaHost *fleet.Host
+	for _, h := range hosts {
+		switch h.DisplayName() {
+		case "0004":
+			orbitHost = h
+		case "0001":
+			vanillaHost = h
+		}
+	}
+	require.NotNil(t, orbitHost)
+	require.NotNil(t, vanillaHost)
+	assert.Equal(t, new("1.0.0"), orbitHost.OrbitVersion)
+	assert.Equal(t, new("1.0.0"), orbitHost.DesktopVersion)
+	// Vanilla osquery host: no orbit info loaded.
+	assert.Nil(t, vanillaHost.OrbitVersion)
+	assert.Nil(t, vanillaHost.DesktopVersion)
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {
@@ -11379,6 +11599,76 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
+	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(false),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: hostUUID,
+				Platform:     "windows",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: hostUUID, Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	// An unknown device (no matching row) is not reported as previously enrolled: it is a new enrollment, or a host moving to
+	// a different Fleet server.
+	t.Run("unknown host", func(t *testing.T) {
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A host row that exists but never orbit-enrolled (no orbit node key, e.g. a DEP-pre-created or osquery-only row) must not
+	// be reported as previously orbit-enrolled.
+	t.Run("host exists but never orbit-enrolled", func(t *testing.T) {
+		h := test.NewHost(t, ds, "no-orbit", "", "no-orbit-key", uuid.New().String(), time.Now())
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: *h.OsqueryHostID, Platform: "ubuntu"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A Windows enrollment must not be matched to an Apple host that shares a hardware serial: HostPreviouslyOrbitEnrolled
+	// forces serial matching off for Windows. Serial matching is enabled here (isMDMEnabled=true) so the skip is provably due
+	// to the Windows guard, not a disabled serial path.
+	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
+		serial := uuid.New().String()
+		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   uuid.New().String(),
+				HardwareSerial: serial,
+				Platform:       "darwin",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Same serial, different (unmatched) UUID, Windows platform: the serial must be ignored, so no match.
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), HardwareSerial: serial, Platform: "windows"}, true)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// An empty hardware UUID is an error (orbit always sends one).
+	t.Run("empty hardware uuid", func(t *testing.T) {
+		_, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{Platform: "windows"}, false)
+		require.Error(t, err)
+	})
 }
 
 func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {

@@ -1,0 +1,10 @@
+{
+  "name": "ExtraDock",
+  "unique_identifier": "dignicy.extraDock",
+  "token": "extradock",
+  "installer_format": "dmg",
+  "slug": "extradock/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

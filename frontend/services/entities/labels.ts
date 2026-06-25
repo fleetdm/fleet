@@ -98,6 +98,15 @@ export const getCustomLabels = <T extends { label_type: string; name: string }>(
     });
 };
 
+export const listNamesFromSelectedLabels = (dict: Record<string, boolean>) => {
+  return Object.entries(dict).reduce((acc, [labelName, isSelected]) => {
+    if (isSelected) {
+      acc.push(labelName);
+    }
+    return acc;
+  }, [] as string[]);
+};
+
 export default {
   create: (formData: INewLabelFormData): Promise<ICreateLabelResponse> => {
     const { LABELS } = endpoints;

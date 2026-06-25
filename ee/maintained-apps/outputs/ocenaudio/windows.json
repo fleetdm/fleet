@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.19.4",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'ocenaudio' AND publisher = 'Ocenaudio Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ocenaudio' AND publisher = 'Ocenaudio Team' AND version_compare(version, '3.19.4') < 0);"
+      },
+      "installer_url": "https://www.ocenaudio.com/downloads/index.php/ocenaudio_windows64.exe",
+      "install_script_ref": "ebf8794b",
+      "uninstall_script_ref": "7264fb50",
+      "sha256": "5154d7f161eeba2652ef0381f48a4811ed97df92d27d00342fdf0a30c98a1772",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "7264fb50": "# Learn more about .exe uninstall scripts:\n# http://fleetdm.com/learn-more-about/exe-uninstall-scripts\n\n$softwareName = \"ocenaudio\"\n$publisherMatch = \"Ocenaudio\"\n\ntry {\n  $uninstallKeys = @(\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n  )\n\n  $entries = Get-ChildItem -Path $uninstallKeys -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisherMatch -eq \"\" -or $_.Publisher -like \"*$publisherMatch*\")\n    }\n\n  if (-not $entries) {\n    Write-Host \"Uninstall entry not found for '$softwareName'\"\n    Exit 0\n  }\n\n  $key = $entries | Select-Object -First 1\n  $uninstallString = $key.UninstallString\n  if (-not $uninstallString) {\n    Write-Host \"No UninstallString found for '$softwareName'\"\n    Exit 0\n  }\n\n  # Parse the executable path from the UninstallString\n  if ($uninstallString -match '^\"([^\"]+)\"') {\n    $exePath = $matches[1]\n  } elseif ($uninstallString -match '^(.+?\\.exe)') {\n    $exePath = $matches[1]\n  } else {\n    $exePath = $uninstallString\n  }\n\n  # Determine install directory\n  $installDir = $key.InstallLocation\n  if ([string]::IsNullOrWhiteSpace($installDir) -or -not (Test-Path $installDir)) {\n    $installDir = Split-Path -Parent $exePath\n  }\n\n  $argumentList = @(\"/S\", \"_?=$installDir\")\n\n  Write-Host \"Uninstall exe: $exePath\"\n  Write-Host \"Uninstall args: $argumentList\"\n\n  $process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -PassThru -NoNewWindow\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n\n  if ($installDir -and (Test-Path $installDir)) {\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n  }\n\n  Exit $exitCode\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "ebf8794b": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n  # NSIS (Nullsoft) installer: silent install with /S\n  $processOptions = @{\n    FilePath     = \"$exeFilePath\"\n    ArgumentList = \"/S\"\n    PassThru     = $true\n    Wait         = $true\n    NoNewWindow  = $true\n  }\n\n  $process = Start-Process @processOptions\n  $exitCode = $process.ExitCode\n\n  Write-Host \"Install exit code: $exitCode\"\n  Exit $exitCode\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

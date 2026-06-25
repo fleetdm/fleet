@@ -74,7 +74,7 @@ paths:
 ## Imports & Utilities
 - Internal packages: `github.com/fleetdm/fleet/v4/server/` prefix
 - **HTTP clients**: Use `fleethttp.NewClient()` — never `http.Client{}` or `new(http.Client)` directly (custom linter rule)
-- **Pointers (Go 1.26+)**: Use `new(expression)` for pointer values: `new("value")`, `new(true)`, `new(yearsSince(born))`. Do NOT use the `server/ptr` package (`ptr.String()`, `ptr.Uint()`, etc.) in new code — it's legacy. You'll see it throughout the existing codebase but should not follow that pattern.
+- **Pointers**: Use Go 1.26 `new(expression)` (e.g., `new("value")`, `new(true)`, `new(42)`) — not `server/ptr`'s deprecated constructors. Non-deprecated helpers are still fine: `ptr.ValOrZero` (deref-or-zero), `ptr.Equal` (nil-safe equality), `ptr.UintOrNilIfZero` (nil for `0`).
 - **Random numbers**: use `math/rand/v2` instead of `math/rand`
 - Sets: use `map[T]struct{}`, convert to slice with `slices.Collect(maps.Keys(m))`
 - Flexible JSON: use `json.RawMessage` for configs stored as JSON blobs

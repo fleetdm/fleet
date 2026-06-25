@@ -20,6 +20,7 @@ import ViewedHostRecoveryLockPasswordActivityItem from "./ActivityItems/ViewedHo
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
 import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/RotatedHostRecoveryLockPassword";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
+import InstalledAllSelfServiceSoftwareActivityItem from "./ActivityItems/InstalledAllSelfServiceSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
 import CanceledSetupExperienceActivityItem from "./ActivityItems/CanceledSetupExperienceActivityItem";
@@ -34,6 +35,7 @@ import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/Rota
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
+import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -72,6 +74,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RotatedHostRecoveryLockPassword]: RotatedHostRecoveryLockPasswordActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.InstalledAllSelfServiceSoftware]: InstalledAllSelfServiceSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
   [ActivityType.CanceledRunScript]: CanceledRunScriptActivityItem,
@@ -88,6 +91,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
   [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
   [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
+  [ActivityType.RanCustomMdmCommand]: RanCustomMdmCommandActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

@@ -1,0 +1,10 @@
+{
+  "name": "Wins",
+  "unique_identifier": "cools.wins.main",
+  "token": "wins",
+  "installer_format": "zip",
+  "slug": "wins/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

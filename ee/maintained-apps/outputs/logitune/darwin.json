@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.14.72",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logitech.logitune';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.logitech.logitune' AND version_compare(bundle_short_version, '3.14.72') < 0);"
+      },
+      "installer_url": "https://software.vc.logitech.com/downloads/tune/LogiTuneInstaller.pkg",
+      "install_script_ref": "584e269e",
+      "uninstall_script_ref": "8a23a81e",
+      "sha256": "no_check",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "584e269e": "#!/bin/bash\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local console_user=\"$2\"\n  local timeout_duration=10\n\n  if [[ $EUID -eq 0 && \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n  fi\n\n  echo \"Quitting application '$bundle_id'...\"\n\n  # try to quit the application within the timeout period\n  local quit_success=false\n  SECONDS=0\n  while (( SECONDS < timeout_duration )); do\n    if osascript -e \"tell application id \\\"$bundle_id\\\" to quit\" >/dev/null 2>&1; then\n      if ! pgrep -f \"$bundle_id\" >/dev/null 2>&1; then\n        echo \"Application '$bundle_id' quit successfully.\"\n        quit_success=true\n        break\n      fi\n    fi\n    sleep 1\n  done\n\n  if [[ \"$quit_success\" = false ]]; then\n    echo \"Application '$bundle_id' did not quit.\"\n  fi\n}\n\nCONSOLE_USER=$(stat -f \"%Su\" /dev/console 2>/dev/null || echo \"\")\n\n# Quit Logi Tune gracefully before the PKG's preinstall force-kills it. The\n# PKG's default RUNAPP choice relaunches the app for logged-in console users\n# after installation, so no relaunch step is needed here.\nif osascript -e \"application id \\\"com.logitech.logitune\\\" is running\" 2>/dev/null; then\n  quit_application 'com.logitech.logitune' \"$CONSOLE_USER\"\nfi\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+    "8a23a81e": "#!/bin/bash\n\n# Logi Tune installs a vendor uninstall script that unloads its launchd\n# services, kills running processes, removes the RightSight daemon, and\n# deletes the app bundle, support files, and pkg receipts. Prefer it when\n# present (any install of Logi Tune 3.4+ has it).\nVENDOR_UNINSTALLER=\"/Library/Application Support/logitune/uninstall_app.sh\"\n\nif [ -f \"$VENDOR_UNINSTALLER\" ]; then\n  sh \"$VENDOR_UNINSTALLER\"\n  exit $?\nfi\n\n# Fallback cleanup for installs missing the vendor uninstaller.\n\n# stop and remove per-user launch agents\nfor agent in com.logitech.logitune.launcher com.logitech.logitune.agent; do\n  for user in $(who | grep console | awk '{print $1}'); do\n    user_id=$(id -u \"$user\")\n    launchctl asuser \"$user_id\" launchctl unload \"/Library/LaunchAgents/${agent}.plist\" 2>/dev/null\n  done\n  rm -f \"/Library/LaunchAgents/${agent}.plist\"\ndone\n\n# stop and remove launch daemons (incl. the bundled RightSight daemon)\nfor daemon in com.logitech.logitune.updater com.logitech.logitune.crashpad com.logitech.LogiRightSight; do\n  launchctl unload \"/Library/LaunchDaemons/${daemon}.plist\" 2>/dev/null\n  rm -f \"/Library/LaunchDaemons/${daemon}.plist\"\ndone\n\n# kill any remaining processes\nfor process in LogiTune LogiTuneAgent LogiTuneUpdater LogiTuneCrashpadHandler; do\n  pkill -9 -x \"$process\" 2>/dev/null\ndone\n\n# remove the app bundle (current and legacy install paths) and support files\nrm -rf \"/Applications/Logi Tune.app\"\nrm -rf \"/Applications/LogiTune.app\"\nrm -rf \"/Applications/LogiTuneInstaller.app\"\nrm -rf \"/Library/Application Support/logitune\"\nrm -rf \"/Users/Shared/logitune\"\nrm -f \"/Users/Shared/LogiTuneInstallerStarted.txt\"\n\n# forget pkg receipts\npkgutil --forget com.logitech.pkg.logitune 2>/dev/null\npkgutil --forget com.logitech.logitune.installer 2>/dev/null\n\nexit 0\n"
+  }
+}

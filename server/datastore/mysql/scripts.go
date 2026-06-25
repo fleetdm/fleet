@@ -36,6 +36,19 @@ var hostScriptDetailsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 }
 
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	return ds.newHostScriptExecutionRequestPublic(ctx, request, false)
+}
+
+// NewInternalHostScriptExecutionRequest enqueues a host script run flagged
+// as internal (fleet-initiated). Internal scripts run even when scripts
+// are globally disabled and do not appear in the user-facing host activity
+// feed. Use for server-driven follow-up actions (e.g. cleanup scripts
+// after MDM events) rather than user-requested runs.
+func (ds *Datastore) NewInternalHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	return ds.newHostScriptExecutionRequestPublic(ctx, request, true)
+}
+
+func (ds *Datastore) newHostScriptExecutionRequestPublic(ctx context.Context, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -49,7 +62,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, false)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, isInternal)
 		return err
 	})
 }
@@ -875,7 +888,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
 }
 
-// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+// deletePendingHostScriptExecutionsForPolicy should be called before a policy is deleted to remove any pending script executions
 func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
