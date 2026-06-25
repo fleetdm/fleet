@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -631,6 +632,23 @@ var hostRefs = []string{
 // above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
+//
+// Note on host_mdm_apple_enrollment_permissions: this row is hard-deleted here along
+// with the host_mdm row. This is safe even for a still-MDM-enrolled device that is
+// deleted in Fleet and later "comes back", because of how SCEP/ACME renewal is gated:
+//   - GetHostCertAssociationsToExpire JOINs the live hosts row, so a host with no hosts
+//     row is never selected for renewal. A deleted device therefore receives no renewal
+//     profile while it is gone.
+//   - The only checkin handler that recreates a deleted host is Authenticate, and the
+//     device hits it using its installed profile's ServerURL, which still carries byod=1
+//     for BYOD enrollments. That Authenticate (not a Fleet-issued SCEP renewal) re-runs
+//     SetHostMDMAppleEnrollmentPermissions with the correct narrowed bitmask before the
+//     host is ever eligible for renewal again.
+//
+// So by the time a returned device can be renewed, its permissions row is already
+// correct. The only residual gap is the narrow race where a renewal command is enqueued
+// while the device is offline and the host is then deleted/recreated; the enqueued
+// command already has the profile baked in, so it does not widen on its own.
 var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":               "host_uuid",
 	"host_mdm_apple_bootstrap_packages":     "host_uuid",
@@ -640,6 +658,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"setup_experience_status_results":       "host_uuid",
 	"host_mdm_android_profiles":             "host_uuid",
 	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_enrollment_permissions": "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -4587,6 +4606,45 @@ func (ds *Datastore) SetOrUpdateMDMData(
 		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, isPersonalEnrollment, hostID,
 	)
+}
+
+func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+	// Drive the lookup off host_mdm so we always learn the device's
+	// is_personal_enrollment (the authoritative BYOD signal needed by SCEP/ACME
+	// renewal to reconstruct the original ServerURL). The permissions row may
+	// be missing if a transient write failure during the initial Authenticate
+	// dropped it (the persist is non-fatal); in that case AccessRights falls
+	// back to the unrestricted default, matching pre-feature behavior, while
+	// IsPersonalEnrollment still reflects reality from host_mdm.
+	var p fleet.HostMDMApplePermissions
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &p,
+		`SELECT
+			h.uuid AS host_uuid,
+			COALESCE(p.access_rights, ?) AS access_rights,
+			COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+		 FROM hosts h
+		 LEFT JOIN host_mdm hm ON hm.host_id = h.id
+		 LEFT JOIN host_mdm_apple_enrollment_permissions p ON p.host_uuid = h.uuid
+		 WHERE h.uuid = ?`, apple_mdm.MDMAccessRightAll, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("HostMDMAppleEnrollmentPermissions").WithName(hostUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+	}
+	return &p, nil
+}
+
+func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid, access_rights)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights)
+	`, hostUUID, accessRights)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host mdm apple enrollment permissions")
+	}
+	return nil
 }
 
 func (ds *Datastore) UpdateMDMData(

@@ -1034,6 +1034,10 @@ type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID 
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error
 
+type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
+
+type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string, accessRights int) error
+
 type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
@@ -3599,6 +3603,12 @@ type DataStore struct {
 
 	MDMAppleUpsertHostFunc        MDMAppleUpsertHostFunc
 	MDMAppleUpsertHostFuncInvoked bool
+
+	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
+	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
+
+	SetHostMDMAppleEnrollmentPermissionsFunc        SetHostMDMAppleEnrollmentPermissionsFunc
+	SetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
 
 	RestoreMDMApplePendingDEPHostFunc        RestoreMDMApplePendingDEPHostFunc
 	RestoreMDMApplePendingDEPHostFuncInvoked bool
@@ -8711,6 +8721,20 @@ func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host,
 	s.MDMAppleUpsertHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleUpsertHostFunc(ctx, mdmHost, fromPersonalEnrollment)
+}
+
+func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+	s.mu.Lock()
+	s.GetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
+	s.mu.Lock()
+	s.SetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostUUID, accessRights)
 }
 
 func (s *DataStore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {

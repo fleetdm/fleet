@@ -2398,6 +2398,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		acmeIdent,
 		hardwareSerial,
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
@@ -2419,6 +2420,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
@@ -3652,8 +3654,6 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 // GET /mdm/manual_enrollment_profile
 ////////////////////////////////////////////////////////////////////////////////
 
-type getManualEnrollmentProfileRequest struct{}
-
 type getManualEnrollmentProfileResponse struct {
 	// Profile field is used in HijackRender for the response.
 	Profile []byte
@@ -3679,8 +3679,15 @@ func (r getManualEnrollmentProfileResponse) HijackRender(ctx context.Context, w 
 
 func (r getManualEnrollmentProfileResponse) Error() error { return r.Err }
 
+type getManualEnrollmentProfileRequest struct {
+	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
+	// Defaults to false (company-owned) when omitted to preserve backwards-compatibility.
+	Personal bool `query:"byod,optional"`
+}
+
 func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
+	req := request.(*getManualEnrollmentProfileRequest)
+	profile, err := svc.GetMDMManualEnrollmentProfile(ctx, req.Personal)
 	if err != nil {
 		return getManualEnrollmentProfileResponse{Err: err}, nil
 	}
@@ -3688,7 +3695,7 @@ func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}
 	return getManualEnrollmentProfileResponse{Profile: profile}, nil
 }
 
-func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -3792,6 +3799,11 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		m.Model = m.ProductName
 	}
 
+	// Read the personal enrollment flag from the MDM ServerURL query params.
+	// AddPersonalEnrollmentToFleetURL bakes "byod=1" into the ServerURL when
+	// the end user chose "Personal (BYOD)" on the /enroll page; nanomdm surfaces it here.
+	isPersonal := r.Params != nil && r.Params[apple_mdm.FleetPersonalEnrollmentKey] == "1"
+
 	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                mdmlifecycle.HostActionReset,
 		Platform:              platform,
@@ -3800,9 +3812,23 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		HardwareModel:         m.Model,
 		SCEPRenewalInProgress: scepRenewalInProgress,
 		UserEnrollmentID:      m.EnrollmentID,
+		IsPersonalEnrollment:  isPersonal,
 	}); err != nil {
 		svc.logger.WarnContext(r.Context, "could not reset Apple mdm information", "UDID", m.UDID, "EnrollmentID", m.EnrollmentID, "err", err)
 		return err
+	}
+
+	// Persist the access rights for this host so SCEP/ACME renewal can honour
+	// the monotonic-narrowing invariant (Apple disallows widening on replace).
+	// Skip during SCEP renewal: the renewed profile's ServerURL doesn't carry
+	// byod=1, so isPersonal would be false here and we'd widen the stored
+	// bitmask back to MDMAccessRightAll, breaking the next renewal.
+	if !scepRenewalInProgress {
+		accessRights := apple_mdm.AppleEnrollmentAccessRights(isPersonal)
+		if err := svc.ds.SetHostMDMAppleEnrollmentPermissions(r.Context, r.ID, accessRights); err != nil {
+			svc.logger.ErrorContext(r.Context, "failed to persist enrollment permissions", "host_uuid", r.ID, "err", err)
+			// Non-fatal: worst-case the next SCEP renewal uses MDMAccessRightAll (the pre-feature default).
+		}
 	}
 
 	if svc.keyValueStore != nil {
@@ -5769,17 +5795,59 @@ func RenewSCEPCertificates(
 		}
 
 		if len(filteredAssocs) > 0 {
-			profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-				appConfig.OrgInfo.OrgName,
-				appConfig.MDMUrl(),
-				scepChallenge,
-				mdmPushCertTopic,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+			// Bucket the renewals by their (personal, rights) tuple. Every host in
+			// a bucket gets a byte-identical enrollment profile, so we can collapse
+			// them into a single InstallProfile command instead of one per host.
+			// The nano command tables are hot, and in practice there are only two
+			// distinct buckets (company-owned vs. BYOD), so this keeps renewal write
+			// traffic close to the pre-BYOD single-command behaviour.
+			type renewalBucket struct {
+				personal bool
+				rights   int
 			}
-			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, filteredAssocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
-				return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+			buckets := make(map[renewalBucket][]fleet.SCEPIdentityAssociation)
+			// Preserve a deterministic order so the commands we enqueue don't depend
+			// on Go's randomized map iteration.
+			bucketOrder := make([]renewalBucket, 0, 2)
+			for _, assoc := range filteredAssocs {
+				personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal")
+				}
+				key := renewalBucket{personal: personal, rights: rights}
+				if _, ok := buckets[key]; !ok {
+					bucketOrder = append(bucketOrder, key)
+				}
+				buckets[key] = append(buckets[key], assoc)
+			}
+
+			for _, key := range bucketOrder {
+				assocs := buckets[key]
+				// Apple rejects ServerURL changes on profile replacement, so the
+				// renewed URL must match the URL the device was enrolled with.
+				// BYOD devices carry byod=1 in their initial ServerURL (set by
+				// AddPersonalEnrollmentToFleetURL on the OTA/EE path); reapply
+				// the same flag for personal enrollments. Pre-feature and
+				// company-owned devices have personal=false here, leaving
+				// MDMUrl unchanged.
+				renewURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), key.personal)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag")
+				}
+
+				profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+					appConfig.OrgInfo.OrgName,
+					renewURL,
+					scepChallenge,
+					mdmPushCertTopic,
+					key.rights,
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+				}
+				if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
+					return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+				}
 			}
 		}
 	}
@@ -5837,11 +5905,24 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
 
+		personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal with ref")
+		}
+		// Apple rejects ServerURL changes on profile replacement; preserve the
+		// byod=1 flag on the renewed URL for personal enrollments. See the
+		// matching block above (without ref) for the full rationale.
+		enrollURL, err = apple_mdm.AddPersonalEnrollmentToFleetURL(enrollURL, personal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag for ref renewal")
+		}
+
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
 			enrollURL,
 			scepChallenge,
 			mdmPushCertTopic,
+			rights,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -5875,12 +5956,25 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "creating new ACME enrollment")
 		}
 
+		personal, acmeRights, err := renewalEnrollmentParams(ctx, ds, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for ACME renewal")
+		}
+		// Defensive: BYOD enrolls only via OTA which doesn't use ACME, so this
+		// branch should never see a personal enrollment today. Still match the
+		// URL shape in case that combination becomes possible later.
+		enrollURL, err = apple_mdm.AddPersonalEnrollmentToFleetURL(enrollURL, personal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag for ACME renewal")
+		}
+
 		profile, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
 			enrollURL,
 			acmeIdent,
 			di.HardwareSerial,
 			mdmPushCertTopic,
+			acmeRights,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
@@ -5910,6 +6004,42 @@ func RenewSCEPCertificates(
 	}
 
 	return nil
+}
+
+// renewalEnrollmentParams loads the personal-enrollment flag and the access
+// rights bitmask that must be reused when generating a SCEP/ACME renewal
+// profile. Apple does not allow ServerURL changes or access-rights widening
+// on profile replacement, so the renewal must reuse the exact values the
+// device was originally enrolled with.
+//
+// The personal flag is sourced from host_mdm.is_personal_enrollment (set
+// during the initial Authenticate by the host upsert, which is fatal on
+// failure). The access rights default to MDMAccessRightAll unless a stored
+// row in host_mdm_apple_enrollment_permissions narrows them. As a safety
+// net for the rare case where the rights persist failed during the initial
+// Authenticate (it is logged but non-fatal), a personal device whose stored
+// rights came back unrestricted is renarrowed here.
+//
+// Pre-feature devices have is_personal_enrollment=0 (column default) and no
+// permissions row, so they return (personal=false, MDMAccessRightAll) —
+// matching their original raw ServerURL and full rights.
+func renewalEnrollmentParams(ctx context.Context, ds fleet.Datastore, hostUUID string) (personal bool, rights int, err error) {
+	stored, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, 0, err
+	}
+	rights = apple_mdm.MDMAccessRightAll
+	if stored != nil {
+		personal = stored.IsPersonalEnrollment
+		rights = stored.AccessRights
+		if personal && rights == apple_mdm.MDMAccessRightAll {
+			// Permissions row was missing or stale; re-derive the narrowed
+			// bitmask from the authoritative personal flag so the renewal
+			// doesn't attempt to widen.
+			rights = apple_mdm.AppleEnrollmentAccessRights(true)
+		}
+	}
+	return personal, rights, nil
 }
 
 func renewMDMAppleEnrollmentProfile(
@@ -6640,7 +6770,10 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 
 type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
-	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
+	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
+	// Defaults to false (company-owned) when omitted.
+	Personal bool   `query:"byod"`
+	IdpUUID  string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
 func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -6651,6 +6784,8 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
+	personal := r.URL.Query().Get("byod") == "true" || r.URL.Query().Get("byod") == "1"
+
 	boydIdpCookie, err := r.Cookie(shared_mdm.BYODIdpCookieName)
 	if err != nil {
 		// r.Cookie only return ErrNoCookie and no other errors.
@@ -6658,6 +6793,7 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		// We do not fail here if no cookie is found, we validate later down the line if it's required
 		return &getOTAProfileRequest{
 			EnrollSecret: enrollSecret,
+			Personal:     personal,
 			IdpUUID:      "",
 		}, nil
 	}
@@ -6671,13 +6807,14 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	return &getOTAProfileRequest{
 		EnrollSecret: enrollSecret,
+		Personal:     personal,
 		IdpUUID:      boydIdpCookie.Value,
 	}, nil
 }
 
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
-	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpUUID)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpUUID, req.Personal)
 	if err != nil {
 		return &getMDMAppleConfigProfileResponse{Err: err}, err
 	}
@@ -6686,7 +6823,7 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
 }
 
-func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error) {
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
 	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
 	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
@@ -6708,7 +6845,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 		)
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID, personal)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -6728,6 +6865,9 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 type mdmAppleOTARequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	IdpUUID      string `query:"idp_uuid"`
+	// Personal is set when the end user chose "Personal (BYOD)" on the /enroll page.
+	// It is propagated through the OTA mobileconfig POST-back URL by GetOTAProfile.
+	Personal     bool
 	Certificates []*x509.Certificate
 	RootSigner   *x509.Certificate
 	DeviceInfo   fleet.MDMAppleMachineInfo
@@ -6780,6 +6920,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 
 	request.EnrollSecret = enrollSecret
 	request.IdpUUID = idpUUID
+	request.Personal = r.URL.Query().Get("byod") == "true" || r.URL.Query().Get("byod") == "1"
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
 	return &request, nil
@@ -6804,7 +6945,7 @@ func (r mdmAppleOTAResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleOTARequest)
-	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpUUID, req.DeviceInfo)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpUUID, req.Personal, req.DeviceInfo)
 	if err != nil {
 		return mdmAppleGetInstallerResponse{Err: err}, nil
 	}
@@ -6818,6 +6959,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	rootSigner *x509.Certificate,
 	enrollSecret string,
 	idpUUID string,
+	personal bool,
 	deviceInfo fleet.MDMAppleMachineInfo,
 ) ([]byte, error) {
 	// authorization is performed via the enroll secret and the provided certificates
@@ -6888,12 +7030,20 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	// NOTE: we don't offer ACME enrollment via OTA
+	// NOTE: we don't offer ACME enrollment via OTA.
+	// Embed byod=1 in the MDM ServerURL so the Authenticate checkin handler
+	// can set is_personal_enrollment correctly on the host record.
+	enrollMDMURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(mdmURL, personal)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building MDM URL with personal enrollment flag for OTA")
+	}
+	accessRights := apple_mdm.AppleEnrollmentAccessRights(personal)
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
-		mdmURL,
+		enrollMDMURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		accessRights,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")

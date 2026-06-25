@@ -3719,11 +3719,11 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 		pending      fleet.PendingDeviceAction
 		wantSuppress bool
 	}{
-		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
-		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
-		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
 		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
-		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 	}
 	for _, tt := range cases {
@@ -3753,7 +3753,7 @@ func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 
 	const hostID = 1
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (manual - personal)")}}, nil
 	}
 	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 

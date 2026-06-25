@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -363,7 +364,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserTeamObserverPlusTeam1,
 	} {
 		usrctx := test.UserContext(ctx, user)
-		_, err = svc.GetMDMManualEnrollmentProfile(usrctx)
+		_, err = svc.GetMDMManualEnrollmentProfile(usrctx, false)
 		require.NoError(t, err)
 	}
 
@@ -1582,6 +1583,12 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		return nil
 	}
 
+	ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+		require.Equal(t, uuid, hostUUID)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, accessRights)
+		return nil
+	}
+
 	err := svc.Authenticate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.Authenticate{
@@ -1596,6 +1603,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
+	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
 }
 
 func TestMDMAuthenticateADE(t *testing.T) {
@@ -1632,6 +1640,12 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		return nil
 	}
 
+	ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+		require.Equal(t, uuid, hostUUID)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, accessRights)
+		return nil
+	}
+
 	err := svc.Authenticate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.Authenticate{
@@ -1646,6 +1660,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
+	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
 }
 
 func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
@@ -1685,6 +1700,10 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 		return nil
 	}
 
+	ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+		return nil
+	}
+
 	err := svc.Authenticate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.Authenticate{
@@ -1700,6 +1719,9 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.False(t, newActivityInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
+	// Permissions must NOT be rewritten during SCEP renewal — doing so would
+	// widen a personal enrollment's bitmask back to MDMAccessRightAll.
+	require.False(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
 }
 
 func TestAppleMDMUnenrollment(t *testing.T) {
@@ -3928,7 +3950,7 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic", apple_mdm.MDMAccessRightAll)
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
 }
@@ -4561,6 +4583,51 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			expectedError: true,
 		},
 		{
+			// Hosts without an enroll reference that share the same enrollment
+			// permissions must be collapsed into a single InstallProfile command,
+			// while a host with different (BYOD) permissions gets its own command.
+			name: "InstallProfile for hostsWithoutRefs buckets by permissions",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{
+						{HostUUID: "company1", EnrollReference: ""},
+						{HostUUID: "company2", EnrollReference: ""},
+						{HostUUID: "byod1", EnrollReference: ""},
+					}, nil
+				}
+
+				ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+					if hostUUID == "byod1" {
+						return &fleet.HostMDMApplePermissions{
+							HostUUID:             hostUUID,
+							IsPersonalEnrollment: true,
+							AccessRights:         apple_mdm.AppleEnrollmentAccessRights(true),
+						}, nil
+					}
+					return nil, nil
+				}
+
+				var enqueuedHostSets [][]string
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					set := append([]string(nil), id...)
+					sort.Strings(set)
+					enqueuedHostSets = append(enqueuedHostSets, set)
+					return map[string]error{}, nil
+				}
+
+				t.Cleanup(func() {
+					// Two buckets: {company1, company2} in one command, {byod1} in the other.
+					require.Len(t, enqueuedHostSets, 2)
+					require.Contains(t, enqueuedHostSets, []string{"company1", "company2"})
+					require.Contains(t, enqueuedHostSets, []string{"byod1"})
+				})
+			},
+			expectedError: false,
+		},
+		{
 			name: "InstallProfile for hostsWithRefs",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
 				var wantCommandUUID string
@@ -4773,6 +4840,13 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 
 			ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 				return []fleet.SCEPIdentityAssociation{}, nil
+			}
+
+			// Default to no stored permissions row, which renewalEnrollmentParams
+			// treats as a company-owned device with full access rights. Subtests
+			// that exercise BYOD renewal can override this.
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return nil, nil
 			}
 
 			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
@@ -5080,6 +5154,13 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 
 			ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 				return []fleet.SCEPIdentityAssociation{}, nil
+			}
+
+			// Default to no stored permissions row, which renewalEnrollmentParams
+			// treats as a company-owned device with full access rights. Subtests
+			// that exercise BYOD renewal can override this.
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return nil, nil
 			}
 
 			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
