@@ -359,7 +359,7 @@ func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("perms-1"),
+		NodeKey:         new("perms-1"),
 		UUID:            "perms-uuid-1",
 		Hostname:        "perms.local",
 		Platform:        "darwin",

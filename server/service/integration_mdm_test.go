@@ -16276,7 +16276,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		case oldUrlIphoneMdmDevice.EnrollmentID():
 			// Primarily assert it was enrolled correctly and fallback to unassigned
 			assert.Equal(t, "ios", host.Platform)
-			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			assert.Nil(t, host.TeamID)
 		}
