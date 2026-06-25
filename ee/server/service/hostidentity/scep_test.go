@@ -1,6 +1,7 @@
 package hostidentity
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -9,7 +10,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
-	"context"
 	"log/slog"
 	"math/big"
 	"testing"
