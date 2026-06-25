@@ -888,7 +888,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
 }
 
-// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+// deletePendingHostScriptExecutionsForPolicy should be called before a policy is deleted to remove any pending script executions
 func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {

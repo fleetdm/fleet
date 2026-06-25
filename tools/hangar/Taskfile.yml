@@ -1,0 +1,43 @@
+version: '3'
+
+vars:
+  # APP_NAME is the executable / binary name (hyphenated: reused for the
+  # `-server` binary and Docker image tags, where spaces would break things).
+  APP_NAME: "fleet-hangar"
+  # PRODUCT_NAME is the user-facing `.app` bundle name shown in Finder/Launchpad.
+  PRODUCT_NAME: "Fleet Hangar"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{OS}}:package"
+
+  dist:
+    summary: Zips the already-built .app into a single shareable archive (bin/Fleet Hangar.zip)
+    cmds:
+      - task: "{{OS}}:dist"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{OS}}:run"
+
+  dev:
+    summary: Runs the application in development mode (Ctrl+C also stops the Vite dev server)
+    cmds:
+      # Wrapper script (real bash) traps Ctrl+C and frees the Vite port, which
+      # wails3 dev otherwise orphans. See scripts/dev.sh.
+      - bash scripts/dev.sh {{.VITE_PORT}}

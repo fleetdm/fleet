@@ -9,11 +9,11 @@ import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 
+import { notify } from "components/ToastNotification";
 import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
@@ -41,7 +41,6 @@ const SoftwareCustomPackage = ({
   isSidePanelOpen,
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
@@ -109,10 +108,7 @@ const SoftwareCustomPackage = ({
 
   const onSubmit = async (formData: IPackageFormData) => {
     if (!formData.software) {
-      renderFlash(
-        "error",
-        `Couldn't add. Please refresh the page and try again.`
-      );
+      notify.error(`Couldn't add. Please refresh the page and try again.`);
       return;
     }
 
@@ -135,8 +131,7 @@ const SoftwareCustomPackage = ({
       });
 
       if (!gitOpsModeEnabled) {
-        renderFlash(
-          "success",
+        notify.success(
           <>
             <b>{formData.software?.name}</b> successfully added.
             {formData.selfService
@@ -164,7 +159,7 @@ const SoftwareCustomPackage = ({
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
     setUploadDetails(null);
   };
