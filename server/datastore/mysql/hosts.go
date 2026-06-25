@@ -4677,7 +4677,6 @@ func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, h
 		`SELECT
 			h.uuid AS host_uuid,
 			COALESCE(p.access_rights, ?) AS access_rights,
-			COALESCE(p.delivered_at, '1970-01-01 00:00:00') AS delivered_at,
 			COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 		 FROM hosts h
 		 LEFT JOIN host_mdm hm ON hm.host_id = h.id
