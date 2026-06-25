@@ -674,6 +674,12 @@ You can add multiple packages for the same software in a package YAML file. This
 
 `self_service`, `categories`, and labels are defined per package inside the package YAML file.
 
+If multiple packages target the same host, Fleet will install the one that was added first.
+
+In GitOps, the first package added is the first one in the package YAML file's list on the run that first adds the title's packages. Reordering the list on a later run doesn't change which package was added first. To change it, remove the package from the YAML and re-add it on a later run.
+
+You can always preview the order of the packages in the UI. The first package in the list is always a fallback in case of a conflict.
+
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
 ```yaml
@@ -701,10 +707,6 @@ software:
     - macOS
     - IT test team
 ```
-
-If multiple packages target the same host, Fleet will install the one that was added first.
-
-The first package added to a title is also returned in the `software_package` field of the API for backwards compatibility. For GitOps, the first package added is the first one in the package YAML file's list on the run that first adds the title's packages. Reordering the list on a later run does _not_ change which package was added first, because existing packages keep their original order. To change it, remove the package from the YAML and re-add it on a later run.
 
 ### app_store_apps
 
