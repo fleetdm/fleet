@@ -37,12 +37,11 @@ func TestUp_20260624152755(t *testing.T) {
 	err = db.QueryRow(`SELECT id FROM certificate_authorities WHERE name = 'test_ca'`).Scan(&caID)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`INSERT INTO certificate_templates (team_id, certificate_authority_id, name, subject_name) VALUES (?, ?, 'test_cert', 'CN=$FLEET_VAR_HOST_UUID')`, teamID, caID)
+	res, err := db.Exec(`INSERT INTO certificate_templates (team_id, certificate_authority_id, name, subject_name) VALUES (?, ?, 'test_cert', 'CN=$FLEET_VAR_HOST_UUID')`, teamID, caID)
 	require.NoError(t, err)
-
-	var certTemplateID uint
-	err = db.QueryRow(`SELECT id FROM certificate_templates WHERE name = 'test_cert'`).Scan(&certTemplateID)
+	certTemplateIDInt, err := res.LastInsertId()
 	require.NoError(t, err)
+	certTemplateID := uint(certTemplateIDInt) //nolint:gosec
 
 	// Insert and verify uniqueness.
 	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_variables (certificate_template_id, fleet_variable_id) VALUES (?, ?)`, certTemplateID, fleetVarID)
@@ -67,12 +66,11 @@ func TestUp_20260624152755(t *testing.T) {
 
 	// --- Android app configuration variable tracking ---
 
-	_, err = db.Exec(`INSERT INTO android_app_configurations (application_id, team_id, global_or_team_id, configuration) VALUES ('com.example.app', ?, ?, '{"managedConfiguration":{"key":"$FLEET_VAR_HOST_UUID"}}')`, teamID, teamID)
+	res, err = db.Exec(`INSERT INTO android_app_configurations (application_id, team_id, global_or_team_id, configuration) VALUES ('com.example.app', ?, ?, '{"managedConfiguration":{"key":"$FLEET_VAR_HOST_UUID"}}')`, teamID, teamID)
 	require.NoError(t, err)
-
-	var appConfigID uint
-	err = db.QueryRow(`SELECT id FROM android_app_configurations WHERE application_id = 'com.example.app'`).Scan(&appConfigID)
+	appConfigIDInt, err := res.LastInsertId()
 	require.NoError(t, err)
+	appConfigID := uint(appConfigIDInt) //nolint:gosec
 
 	// Insert and verify uniqueness.
 	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_variables (android_app_configuration_id, fleet_variable_id) VALUES (?, ?)`, appConfigID, fleetVarID)
