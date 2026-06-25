@@ -3324,6 +3324,8 @@ type Datastore interface {
 	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
 	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
+	// SetCertificateTemplateVariables replaces the variable associations for a certificate template.
+	SetCertificateTemplateVariables(ctx context.Context, certTemplateID uint, fleetVars []FleetVarName) error
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	// GetCertificateTemplateById gets a certificate template by its ID (without host-specific data).
