@@ -8,10 +8,10 @@ import Select, {
 } from "react-select-5";
 
 import { IUser } from "interfaces/user";
-import { ITeam, ITeamSummary } from "interfaces/team";
+import { ITeamSummary } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
-import { getSortedTeamOptions } from "utilities/helpers";
+import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
 import { PADDING } from "styles/var/padding";
@@ -96,7 +96,9 @@ const UserMenu = ({
   currentUser,
   currentTeam,
 }: IUserMenuProps): JSX.Element => {
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const { availableTeams, isPremiumTier, isSandboxMode } = useContext(
+    AppContext
+  );
 
   // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on keyboard tab only
   // Work around preventing react-select-5 from auto focusing first option unless using keyboard
@@ -168,16 +170,15 @@ const UserMenu = ({
       });
     }
   } else if (currentUser && isAnyTeamAdmin) {
-    const userAdminTeams = currentUser.teams.filter(
-      (thisTeam: ITeam) => thisTeam.role === "admin"
-    );
     const currentTeamIsAdmin =
-      currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
+      currentTeam && permissions.isTeamAdmin(currentUser, currentTeam.id);
     // Use the current team if the user is an admin of it, otherwise fall back
-    // to the first team the user is an admin of.
+    // to the first team (alphabetical) the user is an admin of.
+    // availableTeams is pre-sorted alphabetically by AppContext.
     const targetTeamId = currentTeamIsAdmin
       ? currentTeam.id
-      : getSortedTeamOptions(userAdminTeams)[0].value;
+      : availableTeams?.find((t) => permissions.isTeamAdmin(currentUser, t.id))
+          ?.id;
 
     dropdownItems.push({
       label: "Users",

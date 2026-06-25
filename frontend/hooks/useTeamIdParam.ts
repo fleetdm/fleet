@@ -157,15 +157,13 @@ const filterUserTeamsByRole = (
   userTeams: ITeam[],
   permittedAccessByUserRole?: Record<IUserRole, boolean>
 ) => {
-  if (!permittedAccessByUserRole) {
-    return userTeams;
-  }
+  const filtered = permittedAccessByUserRole
+    ? userTeams.filter(
+        ({ role }) => role && !!permittedAccessByUserRole[role as IUserRole]
+      )
+    : [...userTeams];
 
-  return userTeams
-    .filter(
-      ({ role }) => role && !!permittedAccessByUserRole[role as IUserRole]
-    )
-    .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name));
+  return filtered.sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name));
 };
 
 const getUserTeams = ({

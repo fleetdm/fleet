@@ -4,7 +4,6 @@ import {
   flatMap,
   omit,
   pick,
-  memoize,
   reduce,
   trim,
   trimEnd,
@@ -43,7 +42,6 @@ import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -826,18 +824,6 @@ export const tooltipTextWithLineBreaks = (lines: string[]) => {
     );
   });
 };
-
-export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
 
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
