@@ -703,6 +703,10 @@ software:
     - IT test team
 ```
 
+If multiple packages target the same host, Fleet will install the one that was added first.
+
+The first package added to a title is also returned in the `software_package` field of the API for backwards compatibility. For GitOps, the first package added is the first one in the package YAML file's list on the run that first adds the title's packages. Reordering the list on a later run does _not_ change which package was added first, because existing packages keep their original order. To change it, remove the package from the YAML and re-add it on a later run.
+
 ### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is "https://play.google.com/store/apps/details?id=com.android.chrome," so the `app_store_id` is "com.android.chrome."
