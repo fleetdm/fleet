@@ -825,6 +825,21 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 	return getSTSAuthContent(stsAuthContent), nil
 }
 
+// rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
+// carried a <wsse:Security> header but no <wsse:BinarySecurityToken>. That is the signature of a device following the
+// advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext password). Fleet only accepts a
+// BinarySecurityToken (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined /
+// Autopilot devices), so username/password enrollment is unsupported. Returning a clear reason here replaces the opaque
+// "binarySecurityToken is empty" error that otherwise surfaces on the device as 0x80180027. For any other token error
+// (a malformed or wrong-type BinarySecurityToken, or no Security header at all) the original error is returned.
+func rejectUnsupportedAuth(req *fleet.SoapRequest, err error) error {
+	if req != nil && req.Header.Security != nil && len(req.Header.Security.Security.Content) == 0 {
+		return errors.New("Username and password (OnPremise) enrollment is not supported. " +
+			"Join the device to Microsoft Entra ID, or enroll it with fleetd.")
+	}
+	return err
+}
+
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
 // GetPoliciesResponse message contains the certificate policies required for the next enrollment step. For more information about these messages, see [MS-XCEP] sections 3.1.4.1.1.1 and 3.1.4.1.1.2.
 func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
@@ -839,7 +854,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrSecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -884,7 +899,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrBinarySecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -1171,6 +1186,14 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
+	// Fleet always advertises the OnPremise auth policy. Its WSTEP handlers only accept a <wsse:BinarySecurityToken>
+	// (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined / Autopilot devices).
+	// A device that already has an Entra relationship attaches that AAD JWT even though discovery advertised OnPremise,
+	// so its enrollment succeeds. A device with no Entra relationship would instead follow OnPremise literally and send
+	// a <wsse:UsernameToken> (username + plaintext password), which Fleet does not support; that request is rejected
+	// with an actionable fault at the policy and enroll steps (see rejectUnsupportedAuth). We keep OnPremise here rather
+	// than faulting at discovery because the discovery request cannot distinguish an Entra-joined device (which
+	// succeeds) from a username/password device (which is unsupported): neither carries a token at the discovery step.
 	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
