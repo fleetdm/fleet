@@ -8224,6 +8224,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_team": {
       "name": "💻 Workstations",
       "id": 1
