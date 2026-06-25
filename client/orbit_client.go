@@ -333,9 +333,10 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 		case <-ticker.C:
 			if err := oc.RunConfigReceivers(); err != nil {
 				configBackoff.RecordFailure()
-				ticker.Reset(configBackoff.Interval())
+				nextRetry := configBackoff.Interval()
+				ticker.Reset(nextRetry)
 				log.Error().Err(err).
-					Str("next_retry", configBackoff.Interval().String()).
+					Str("next_retry", nextRetry.String()).
 					Msg("running config receivers, backing off")
 			} else {
 				if configBackoff.InBackoff() {
@@ -357,7 +358,9 @@ func (oc *OrbitClient) InterruptConfigReceivers(err error) {
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
 // Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
 // to reduce traffic to the Fleet server.
-// Upon network errors, this method will retry the get config request (every 30 seconds).
+// On network or 5XX errors the request is retried once before returning the error
+// to the caller. The caller (ExecuteConfigReceivers) handles sustained failures
+// with exponential backoff. See #45553.
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
@@ -370,7 +373,8 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 			resp fleet.OrbitConfig
 			err  error
 		)
-		// Retry until we don't get a network error or a 5XX error.
+		// Retry once on transient errors. Sustained failures are handled
+		// by the exponential backoff in ExecuteConfigReceivers.
 		_ = retry.Do(func() error {
 			err = oc.authenticatedRequest(verb, path, &fleet.OrbitGetConfigRequest{}, &resp)
 			var (
@@ -389,7 +393,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 				return err // retry on network or server 5XX errors
 			}
 			return nil
-		}, retry.WithInterval(configRetryOnNetworkError))
+		}, retry.WithInterval(configRetryOnNetworkError), retry.WithMaxAttempts(2))
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now

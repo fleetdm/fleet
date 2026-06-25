@@ -187,6 +187,7 @@ func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 
 	var callTimes []time.Time
 	callCount := 0
+	// 3 failures then cancel: intervals should be ~1s (base tick), ~2s, ~4s.
 	targetCalls := 4
 
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
@@ -200,17 +201,25 @@ func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 	})
 
 	client.RegisterConfigReceiver(rfunc)
-	err := client.ExecuteConfigReceivers()
-	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() { done <- client.ExecuteConfigReceivers() }()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("test timed out waiting for ExecuteConfigReceivers")
+	}
 	require.Equal(t, targetCalls, callCount)
 
-	// Verify intervals grew between calls (backoff).
-	// Call 1->2 should be ~2s (1s * 2^1), 2->3 should be ~4s (1s * 2^2).
-	for i := 2; i < len(callTimes)-1; i++ {
+	// Verify each successive interval is strictly longer than the previous.
+	// Call 0->1 is the base tick (~1s), 1->2 should be ~2s, 2->3 should be ~4s.
+	require.GreaterOrEqual(t, len(callTimes), 3, "need at least 3 calls to verify growth")
+	for i := 1; i < len(callTimes)-1; i++ {
 		prev := callTimes[i].Sub(callTimes[i-1])
 		curr := callTimes[i+1].Sub(callTimes[i])
-		assert.GreaterOrEqual(t, curr, prev/2,
-			"interval %d->%d (%v) should grow vs %d->%d (%v)",
+		assert.Greater(t, curr, prev,
+			"interval %d->%d (%v) should be greater than %d->%d (%v)",
 			i, i+1, curr, i-1, i, prev)
 	}
 }
@@ -243,11 +252,19 @@ func TestExecuteConfigReceiversResetOnSuccess(t *testing.T) {
 	})
 
 	client.RegisterConfigReceiver(rfunc)
-	err := client.ExecuteConfigReceivers()
-	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() { done <- client.ExecuteConfigReceivers() }()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("test timed out waiting for ExecuteConfigReceivers")
+	}
 	require.Equal(t, 4, callCount)
 
-	// After recovery, interval should be close to base (1s), not backed off
-	assert.Less(t, intervalAfterRecovery, 3*time.Second,
+	// After recovery, interval should be close to base (1s), not backed off.
+	// Use 2s as the upper bound: base (1s) + jitter (up to 10%) + scheduling slack.
+	assert.Less(t, intervalAfterRecovery, 2*time.Second,
 		"after success, interval should reset near base, got %v", intervalAfterRecovery)
 }
