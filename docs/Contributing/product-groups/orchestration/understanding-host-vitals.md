@@ -1307,4 +1307,3 @@ SELECT uid, username, email FROM users
 <br /><br />[^1]: Software override queries write over the default queries. They are used to populate the software inventory.
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">
-
