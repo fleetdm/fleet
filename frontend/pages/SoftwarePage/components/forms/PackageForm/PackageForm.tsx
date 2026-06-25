@@ -383,9 +383,8 @@ const PackageForm = ({
     onToggleAutomaticInstall,
   ]);
 
-  // Show advanced options when a package is selected that's not a script or ipa
-  const showAdvancedOptions =
-    formData.software && !isScriptPackage && !isIpaPackage;
+  // Show advanced options for any selected package except .ipa (includes script packages).
+  const showAdvancedOptions = formData.software && !isIpaPackage;
 
   const showDeploySoftwareSlider =
     !!formData.software && // show after selection

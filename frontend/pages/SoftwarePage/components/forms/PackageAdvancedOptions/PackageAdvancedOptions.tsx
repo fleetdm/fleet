@@ -23,6 +23,9 @@ const getSupportedScriptTypeText = (pkgType: PackageType) => {
   }hell scripts are supported.`;
 };
 
+const isScriptPackageType = (pkgType: PackageType) =>
+  pkgType === "sh" || pkgType === "ps1";
+
 const PKG_TYPE_TO_ID_TEXT = {
   pkg: "package IDs",
   deb: "package name",
@@ -49,6 +52,10 @@ const getInstallScriptTooltip = (pkgType: PackageType) => {
 };
 
 const getInstallHelpText = (pkgType: PackageType) => {
+  if (isScriptPackageType(pkgType)) {
+    return "The uploaded script's contents are used as the install script. To change it, upload a new file.";
+  }
+
   if (pkgType === "exe") {
     return (
       <>
@@ -110,6 +117,12 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 };
 
 const getUninstallHelpText = (pkgType: PackageType) => {
+  // Script-only packages have no installer metadata, so there's no $PACKAGE_ID
+  // to populate; the uninstall script runs as-is.
+  if (isScriptPackageType(pkgType)) {
+    return getSupportedScriptTypeText(pkgType);
+  }
+
   // Check for Windows zip files first (before isFleetMaintainedPackageType check)
   if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
     return (
@@ -239,6 +252,7 @@ const PackageAdvancedOptions = ({
         showSchemaButton={showSchemaButton}
         installScriptTooltip={getInstallScriptTooltip(ext)}
         installScriptHelpText={getInstallHelpText(ext)}
+        installScriptReadOnly={isScriptPackageType(ext)}
         postInstallScriptHelpText={getPostInstallHelpText(ext)}
         uninstallScriptTooltip={getUninstallScriptTooltip(ext)}
         uninstallScriptHelpText={getUninstallHelpText(ext)}

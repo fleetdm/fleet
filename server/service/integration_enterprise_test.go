@@ -16467,6 +16467,60 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 }
 
+func (s *integrationEnterpriseTestSuite) TestScriptOnlyPackageAdvancedOptions() {
+	t := s.T()
+
+	// Pre-install query, post-install, and uninstall scripts were previously
+	// stripped for script-only packages; they should now persist. The install
+	// script stays file-driven and isn't editable via PATCH.
+	teamID := uint(0)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		Filename:          "script.sh",
+		TeamID:            &teamID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1 FROM osquery_info;",
+		PostInstallScript: "#!/bin/sh\necho post-install\n",
+		UninstallScript:   "#!/bin/sh\necho uninstall\n",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	titleID := getSoftwareTitleID(t, s.ds, "script", "sh_packages")
+
+	getPackage := func() *fleet.SoftwareInstaller {
+		var resp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &resp, "team_id", "0")
+		require.NotNil(t, resp.SoftwareTitle)
+		require.NotNil(t, resp.SoftwareTitle.SoftwarePackage)
+		return resp.SoftwareTitle.SoftwarePackage
+	}
+
+	pkg := getPackage()
+	// The install script is the uploaded .sh file's contents.
+	require.Contains(t, pkg.InstallScript, `echo "script"`)
+	require.Equal(t, "SELECT 1 FROM osquery_info;", pkg.PreInstallQuery)
+	require.Contains(t, pkg.PostInstallScript, "echo post-install")
+	require.Contains(t, pkg.UninstallScript, "echo uninstall")
+
+	// PATCH new advanced-option values; they should persist. A PATCH to
+	// install_script is ignored for script-only packages (file-driven).
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"team_id":             {"0"},
+		"pre_install_query":   {"SELECT 2 FROM osquery_info;"},
+		"post_install_script": {"#!/bin/sh\necho post-install-2\n"},
+		"uninstall_script":    {"#!/bin/sh\necho uninstall-2\n"},
+		"install_script":      {"#!/bin/sh\necho ignored\n"},
+	})
+	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+	pkg = getPackage()
+	require.Equal(t, "SELECT 2 FROM osquery_info;", pkg.PreInstallQuery)
+	require.Contains(t, pkg.PostInstallScript, "echo post-install-2")
+	require.Contains(t, pkg.UninstallScript, "echo uninstall-2")
+	// Install script stays the uploaded file's contents; the PATCH is ignored.
+	require.Contains(t, pkg.InstallScript, `echo "script"`)
+	require.NotContains(t, pkg.InstallScript, "echo ignored")
+}
+
 func getSoftwareTitleID(t *testing.T, ds *mysql.Datastore, title, source string) uint {
 	var id uint
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

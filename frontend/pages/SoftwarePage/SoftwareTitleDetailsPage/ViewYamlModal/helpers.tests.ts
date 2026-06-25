@@ -146,9 +146,7 @@ describe("createPackageYaml", () => {
     path: ../scripts/install-empty-hash.sh`);
   });
 
-  it("omits script-only fields for script packages", () => {
-    // Script packages (.sh and .ps1) should not expose install_script,
-    // post_install_script, uninstall_script, or pre_install_query
+  it("omits only install_script for script packages, keeping advanced options", () => {
     const yaml = createPackageYaml({
       softwareTitle: "My Script Package",
       packageName: "my-script.sh",
@@ -164,16 +162,18 @@ describe("createPackageYaml", () => {
       isScriptPackage: true,
     });
 
-    // Should only include comment, url, and hash_sha256
     expect(yaml).toBe(`# My Script Package (my-script.sh) version 1.0.0
 - url: https://example.com/my-script.sh
-  hash_sha256: abc123`);
+  hash_sha256: abc123
+  pre_install_query:
+    path: ../queries/pre-install-query-my-script-package.yml
+  post_install_script:
+    path: ../scripts/post-install-my-script-package.sh
+  uninstall_script:
+    path: ../scripts/uninstall-my-script-package.sh`);
 
-    // Verify it doesn't contain any of the forbidden fields
-    expect(yaml).not.toContain("install_script");
-    expect(yaml).not.toContain("post_install_script");
-    expect(yaml).not.toContain("uninstall_script");
-    expect(yaml).not.toContain("pre_install_query");
+    // install_script is never emitted — the file is the install script.
+    expect(yaml).not.toContain("  install_script:");
   });
 
   it("generates icon url and display name", () => {
