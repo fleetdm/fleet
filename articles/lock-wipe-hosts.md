@@ -24,7 +24,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
-> **Android**: Lock action will enforce the host lock screen and require the user to enter their password or PIN. It is available on company-owned and BYOD Android hosts.
+> **Android**: The lock action will enforce the host lock screen and require the user to enter their password or PIN. It is available on company-owned and BYOD Android hosts.
 >
 > On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge.
 
@@ -116,7 +116,7 @@ If an iPhone/iPad is turned off or restarted while locked, it will disconnect fr
 You can remotely clear the passcode on an iOS, iPadOS, or Android device to help end users who have forgotten their passcode.
 
 > Clear passcode is only available for company-owned or manually enrolled iOS/iPadOS hosts. It is not available for hosts with a personal MDM enrollment status, or hosts that are in Lost Mode or pending wipe.
-> For Android hosts, action is available for both BYOD and company-owned hosts. On a BYOD, it removes the work profile passcode only (the user's personal device unlock is untouched). On a company-owned host, it removes the device passcode.
+> For Android hosts, the action is available for both BYOD and company-owned hosts. On a BYOD device, it removes the work profile passcode only (the user's personal device unlock is untouched). On a company-owned host, it removes the device passcode.
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS or iPadOS device you want to clear the passcode for.
 2. Click the host to open the **Host details** page.
