@@ -1417,8 +1417,9 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "execute resend certificate templates")
 	}
 
-	// Queue make_android_app_available jobs for managed app configs that use affected variables.
-	if err := queueManagedConfigResendJobs(ctx, tx, vars); err != nil {
+	// Queue make_android_app_available jobs for managed app configs that use affected variables,
+	// scoped to the teams of the affected hosts.
+	if err := queueManagedConfigResendJobs(ctx, tx, hostIDs, vars); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue managed config resend jobs")
 	}
 
@@ -1428,7 +1429,11 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 // queueManagedConfigResendJobs finds android app configs that reference any of
 // the affected fleet variables and inserts worker jobs to re-push the managed
 // configuration with the updated values.
-func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, affectedVars []any) error {
+func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
 	// Find app configs that use any of the affected variables.
 	const findAffectedApps = `
 	SELECT DISTINCT
@@ -1442,11 +1447,14 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, affec
 			ON mcpv.fleet_variable_id = fv.id
 		JOIN vpp_apps_teams vat
 			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
+		JOIN hosts h
+			ON aac.global_or_team_id = COALESCE(h.team_id, 0)
 	WHERE
-		fv.name IN (?)
+		fv.name IN (?) AND
+		h.id IN (?)
 `
 
-	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars)
+	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare find affected app configs")
 	}
