@@ -673,25 +673,27 @@ Perform a quick visual scan of the UI and confirm:
 
 <tr>
 <td>Baseline loadtest - minor releases only unless otherwise specified</td>
-<td>Verify load test metrics are within acceptable range on a fresh RC instance with no data.</td>
+<td>Verify load test metrics are within acceptable range on a fresh RC instance with no data, compared against the previous release.</td>
 <td>
 
-1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
-2. After all expected changes have been merged to the RC branch, set up a load test environment using the RC branch (new instance, no data) and allow it at least 24hrs of run time.
-3. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the run.
+1. After all expected changes have been merged to the RC branch, set up a load test environment using the RC branch (new instance, no data) and allow it at least 24hrs of run time.
+2. Collect metrics with the [`collect-metrics.sh`](https://github.com/fleetdm/fleet/blob/main/tools/loadtest/metrics/collect-metrics.sh) script under the `baseline` category (see the [metrics README](https://github.com/fleetdm/fleet/blob/main/tools/loadtest/metrics/README.md)), e.g. `./collect-metrics.sh --workspace <version>loadtest --category baseline`.
+3. Compare the run against the previous release (n-1) with [`compare-metrics.sh`](https://github.com/fleetdm/fleet/blob/main/tools/loadtest/metrics/compare-metrics.sh) and post the comparison output as a comment on this issue. All deltas should report `ok` — investigate any `WARN`/`ALERT`.
+4. Open a PR against `main` with the run artifacts (`.json` + `.md`) under `runs/baseline/<workspace>/`, and record the metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link).
 
 </td>
 </tr>
 
 <tr>
 <td>Migration loadtest - minor releases only unless otherwise specified</td>
-<td>Verify load test metrics are within acceptable range after migrating from the previous minor release to the RC.</td>
+<td>Verify load test metrics hold steady after migrating from the previous minor release (n-1) to the RC (n), comparing before vs. after the migration.</td>
 <td>
 
-1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
-2. After all expected changes have been merged to the RC branch, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch.
-3. Monitor the metrics post-migration to determine if any performance issues arise.
-4. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the run.
+1. Run a load test on the previous minor release (n-1). Right before migrating, collect the last 2 hours with [`collect-metrics.sh`](https://github.com/fleetdm/fleet/blob/main/tools/loadtest/metrics/collect-metrics.sh) under the `migration` category (see the [metrics README](https://github.com/fleetdm/fleet/blob/main/tools/loadtest/metrics/README.md)), e.g. `./collect-metrics.sh --workspace <n-1>to<n>mig --category migration --interval 2h`.
+2. Follow [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate the environment to the RC branch (n).
+3. Wait ~2 hours, then collect the past 2 hours with `collect-metrics.sh`, e.g. `./collect-metrics.sh --workspace <n-1>to<n>mig --category migration --interval 2h`.
+4. Compare the post-migration run against the pre-migration run with [`compare-metrics.sh`](https://github.com/fleetdm/fleet/blob/main/tools/loadtest/metrics/compare-metrics.sh) and post the comparison output as a comment on this issue. All deltas should report `ok` — investigate any `WARN`/`ALERT`.
+5. Open a PR against `main` with the run artifacts (`.json` + `.md`) under `runs/migration/<workspace>/`, and record the metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link).
 
 </td>
 </tr>
