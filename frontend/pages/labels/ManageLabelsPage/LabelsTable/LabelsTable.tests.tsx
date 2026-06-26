@@ -104,4 +104,29 @@ describe("LabelsTable", () => {
     expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Type")).toBeInTheDocument();
   });
+
+  it("Renders a 'View all hosts' button instead of an actions dropdown for users without edit permission", () => {
+    const labels = [
+      createMockLabel({
+        id: 1,
+        name: "Custom label 1",
+        label_type: "regular",
+        label_membership_type: "dynamic",
+      }),
+    ];
+
+    const observerUser = createMockUser({ global_role: "observer" });
+
+    const render = createCustomRenderer();
+    render(
+      <LabelsTable
+        labels={labels}
+        onClickAction={noop}
+        currentUser={observerUser}
+      />
+    );
+
+    expect(screen.getByText("View all hosts")).toBeInTheDocument();
+    expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+  });
 });
