@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,13 +69,4 @@ func TestUp_20260626120000(t *testing.T) {
 		require.NoError(t, gr.Close())
 		require.Equal(t, want, string(got), "round-trip mismatch for id %d", id)
 	}
-}
-
-// columnExistsDB checks for a column using the sqlx test handle (the package-level columnExists takes a *sql.Tx).
-func columnExistsDB(t *testing.T, db *sqlx.DB, table, column string) bool {
-	var count int
-	require.NoError(t, db.Get(&count, `
-SELECT COUNT(*) FROM information_schema.columns
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column))
-	return count > 0
 }
