@@ -3910,7 +3910,6 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 	})
 
 	t.Run("decompress passes through empty stored bytes", func(t *testing.T) {
-		// A LEFT JOIN miss is COALESCEd to empty bytes on read, which are not a valid gzip stream and must pass through unchanged.
 		out, err := decompressWindowsMDMResponse([]byte{})
 		require.NoError(t, err)
 		require.Empty(t, out)

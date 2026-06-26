@@ -4132,7 +4132,6 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 
 	var responseID int64
 	rawResponse := []byte("some-response")
-	// raw_response_gz stores the gzip-compressed envelope (#44188); the read path gunzips it, so the fixture must insert compressed bytes.
 	var rawResponseGz bytes.Buffer
 	gzw := gzip.NewWriter(&rawResponseGz)
 	_, gzErr := gzw.Write(rawResponse)
@@ -9098,7 +9097,6 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 			WHERE command_uuid = ?
 			`, cmdUUID)
 		})
-		// raw_response_gz stores the gzip-compressed envelope (#44188); decompress it so it matches the envelope the API returns in Result.
 		if len(fullResult) == 0 {
 			return fullResult
 		}
