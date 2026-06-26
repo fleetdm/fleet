@@ -3496,7 +3496,7 @@ CREATE TABLE `windows_mdm_responses` (
   `enrollment_id` int unsigned NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `raw_response_gz` mediumblob,
+  `raw_response_gz` mediumblob NOT NULL,
   PRIMARY KEY (`id`),
   KEY `enrollment_id` (`enrollment_id`),
   CONSTRAINT `windows_mdm_responses_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE

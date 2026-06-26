@@ -16,13 +16,12 @@ func init() {
 
 // Up_20260626120000 converts windows_mdm_responses.raw_response (a MEDIUMTEXT holding the plaintext SyncML envelope) into a new
 // raw_response_gz MEDIUMBLOB that stores the envelope gzip-compressed. This shrinks the row and the redo-log/commit-quorum pressure of the
-// Windows MDM check-in hot path (issue #44188). The text column could not hold raw gzip bytes (charset-constrained), which previously forced
-// a base64 wrapper; the blob column removes that overhead entirely.
+// Windows MDM check-in hot path (issue #44188). The text column could not hold raw gzip bytes (charset-constrained).
 //
-// The new column is added and the old one dropped via ALGORITHM=INSTANT (metadata-only, supported on Fleet's MySQL 8.0.44+ floor), so the
-// only work proportional to table size is the backfill. The backfill runs in id-keyed batches and reports progress so operators are not
-// staring at a frozen console; the server is down for migrations, so there is no concurrent write contention. Each step is guarded by a
-// column-existence check so a migration that is interrupted (DDL implicitly commits in MySQL) resumes cleanly on the next run.
+// The column is added nullable so the ADD is instant (a NOT NULL BLOB has no instant path: it cannot take a literal default, and an
+// expression default is not instant). After every row is backfilled and the legacy column is dropped, it is switched to NOT NULL to match
+// the original raw_response contract. That final switch is an INPLACE rebuild, but because the migration runs with the server down there is
+// no write contention, and dropping raw_response first lets the same rebuild reclaim its space.
 func Up_20260626120000(tx *sql.Tx) error {
 	if !columnExists(tx, "windows_mdm_responses", "raw_response_gz") {
 		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses ADD COLUMN raw_response_gz MEDIUMBLOB NULL, ALGORITHM=INSTANT`); err != nil {
@@ -30,7 +29,6 @@ func Up_20260626120000(tx *sql.Tx) error {
 		}
 	}
 
-	// Only backfill and drop while the legacy column is still present. Once it is gone the conversion is complete, so a re-run is a no-op.
 	if columnExists(tx, "windows_mdm_responses", "raw_response") {
 		backfill := incrementalMigrationStep(
 			func(tx *sql.Tx) (uint64, error) {
@@ -49,7 +47,28 @@ func Up_20260626120000(tx *sql.Tx) error {
 		}
 	}
 
+	// Enforce NOT NULL once every row is populated. Guarded on the current nullability so an interrupted-and-resumed run does not pay for
+	// the INPLACE rebuild twice.
+	if columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz") {
+		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses MODIFY raw_response_gz MEDIUMBLOB NOT NULL, ALGORITHM=INPLACE`); err != nil {
+			return fmt.Errorf("making raw_response_gz NOT NULL: %w", err)
+		}
+	}
+
 	return nil
+}
+
+// columnIsNullable reports whether the given column is currently nullable. Returns false if the column does not exist or the lookup fails,
+// so a missing column never triggers a needless ALTER.
+func columnIsNullable(tx *sql.Tx, table, column string) bool {
+	var isNullable string
+	err := tx.QueryRow(`
+SELECT IS_NULLABLE FROM information_schema.columns
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column).Scan(&isNullable)
+	if err != nil {
+		return false
+	}
+	return isNullable == "YES"
 }
 
 // backfillWindowsMDMResponsesGz gzip-compresses each existing plaintext raw_response into raw_response_gz, walking the table in id-keyed
@@ -92,6 +111,6 @@ func backfillWindowsMDMResponsesGz(tx *sql.Tx, increment incrementCountFn) error
 	}
 }
 
-func Down_20260626120000(tx *sql.Tx) error {
+func Down_20260626120000(_ *sql.Tx) error {
 	return nil
 }

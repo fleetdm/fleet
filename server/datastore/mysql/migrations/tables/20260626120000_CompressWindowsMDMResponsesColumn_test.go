@@ -44,9 +44,19 @@ func TestUp_20260626120000(t *testing.T) {
 
 	applyNext(t, db)
 
-	// The legacy text column must be gone and the new blob column present.
+	// The legacy text column must be gone and the new blob column present and NOT NULL.
 	require.False(t, columnExistsDB(t, db, "windows_mdm_responses", "raw_response"), "raw_response must be dropped")
 	require.True(t, columnExistsDB(t, db, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must exist")
+
+	var isNullable string
+	require.NoError(t, db.Get(&isNullable, `SELECT IS_NULLABLE FROM information_schema.columns
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'windows_mdm_responses' AND COLUMN_NAME = 'raw_response_gz'`))
+	require.Equal(t, "NO", isNullable, "raw_response_gz must be NOT NULL")
+
+	// The backfill must populate every row: no NULLs may remain.
+	var nullCount int
+	require.NoError(t, db.Get(&nullCount, `SELECT COUNT(*) FROM windows_mdm_responses WHERE raw_response_gz IS NULL`))
+	require.Zero(t, nullCount, "backfill must populate raw_response_gz for every row")
 
 	// Every backfilled row must gunzip back to its original plaintext.
 	for id, want := range responses {
