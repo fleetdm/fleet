@@ -80,8 +80,6 @@ export interface IZendeskJiraIntegrations {
   jira: IJiraIntegration[];
 }
 
-// reality is that IZendeskJiraIntegrations are optional – should be something like `extends
-// Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 // Google Workspace IdP integration: syncs IdP host vitals (users, groups,
 // departments) from Google Workspace via the Admin SDK Directory API using a
 // service account with domain-wide delegation. Mutually exclusive with SCIM.
@@ -91,6 +89,8 @@ export interface IGlobalGoogleWorkspaceIntegration {
   api_key_json: Record<string, string>;
 }
 
+// reality is that IZendeskJiraIntegrations are optional – should be something like `extends
+// Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
   google_workspace?: IGlobalGoogleWorkspaceIntegration[] | null;
