@@ -2122,6 +2122,7 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig, JSON (DDM declaration) file, or JSON asset declaration (`com.apple.asset`) file, and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to JSON asset declaration (`com.apple.asset`) file.   |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
@@ -2207,7 +2208,9 @@ If the `name` is not already associated with an existing fleet, this API route c
               "path": "path/to/profile2.json",
               "labels_exclude_any": ["Label 3", "Label 4"]
             },
-            {
+          ],
+          "assets": [
+			{
               "path": "path/to/assets/asset.json"
             },
           ],
