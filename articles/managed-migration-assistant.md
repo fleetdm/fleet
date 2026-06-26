@@ -80,4 +80,4 @@ Migration was the last unmanaged step in an otherwise governed deployment, and "
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-06-26">
-<meta name="description" value="For years, Mac-to-Mac migration was either blocked outright or left entirely to the person at the keyboard. macOS 26.4's Managed Migration Assistant makes it a declarative, auditable decision that IT controls — and that matters more than the feature name suggests.">
+<meta name="description" value="macOS 26.4's Managed Migration Assistant turns Mac-to-Mac migration into a declarative, auditable policy that IT controls.">
