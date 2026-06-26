@@ -13828,9 +13828,12 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	})
 
 	// Create Windows MDM response for the wipe command
+	compressedResponse, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+	require.NoError(t, err)
 	var responseID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "")
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID,
+			compressedResponse)
 		if err != nil {
 			return err
 		}
