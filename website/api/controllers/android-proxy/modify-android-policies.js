@@ -26,7 +26,7 @@ module.exports = {
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
     policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
-    managementApiError: { description: 'The Android management API returned a transient 5xx error.' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 

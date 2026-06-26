@@ -26,7 +26,7 @@ module.exports = {
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
     invalidPolicyName: {description: 'The specified policy_name is invalid', responseType: 'badRequest' },
-    managementApiError: { description: 'The Android management API returned a transient 5xx error.' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
