@@ -27,8 +27,18 @@ const fmaPackage = (overrides?: Partial<ISoftwarePackage>) =>
     fleet_maintained_app_id: 5,
     version: "149.0.2",
     fleet_maintained_versions: [
-      { id: 1, version: "149.0.2", uploaded_at: "2026-01-02T00:00:00Z" },
-      { id: 2, version: "148.0.1", uploaded_at: "2026-01-01T00:00:00Z" },
+      {
+        id: 1,
+        version: "149.0.2",
+        filename: "installer-149.0.2.pkg",
+        uploaded_at: "2026-01-02T00:00:00Z",
+      },
+      {
+        id: 2,
+        version: "148.0.1",
+        filename: "installer-148.0.1.pkg",
+        uploaded_at: "2026-01-01T00:00:00Z",
+      },
     ],
     ...overrides,
   });
@@ -84,8 +94,18 @@ describe("VersionsModal", () => {
     renderModal({
       pinned_version: "^149",
       fleet_maintained_versions: [
-        { id: 1, version: "149.0.2", uploaded_at: "2026-01-02T00:00:00Z" },
-        { id: 2, version: "149.0.1", uploaded_at: "2026-01-01T00:00:00Z" },
+        {
+          id: 1,
+          version: "149.0.2",
+          filename: "installer-149.0.2.pkg",
+          uploaded_at: "2026-01-02T00:00:00Z",
+        },
+        {
+          id: 2,
+          version: "149.0.1",
+          filename: "installer-149.0.1.pkg",
+          uploaded_at: "2026-01-01T00:00:00Z",
+        },
       ],
     });
     expect(
@@ -99,7 +119,12 @@ describe("VersionsModal", () => {
     renderModal({
       pinned_version: "^148",
       fleet_maintained_versions: [
-        { id: 1, version: "149.0.2", uploaded_at: "2026-01-02T00:00:00Z" },
+        {
+          id: 1,
+          version: "149.0.2",
+          filename: "installer-149.0.2.pkg",
+          uploaded_at: "2026-01-02T00:00:00Z",
+        },
       ],
     });
     expect(

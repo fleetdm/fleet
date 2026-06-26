@@ -299,7 +299,7 @@ const SoftwareTitleDetailsPage = ({
           {rows.map((row) => (
             <LibraryItemAccordion
               key={row.id}
-              filename={pkg.name}
+              filename={row.filename ?? pkg.name}
               version={row.version}
               addedAt={row.uploaded_at}
               installerType="package"
