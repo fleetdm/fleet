@@ -15,6 +15,7 @@ The cost of Windows MDM at scale is driven by a few axes, not by host count alon
 ### Prerequisites
 
 - A terraform load test environment per [readme.md](./readme.md), sized for 100k hosts (see the reference architecture).
+  - Use 150k sizing due to known issues, such as the [gorilla/mux route-matching CPU bottleneck](https://github.com/fleetdm/fleet/issues/48326).
 - `osquery-perf` containers launched with Windows templates and MDM enabled:
 ```
     "--orbit_prob", "1.0",
@@ -35,7 +36,7 @@ Use the real profiles under `it-and-security/lib/windows/configuration-profiles/
 
 Run these in order.
 
-1. Enrollment storm. Run this on 30k hosts, not the full fleet, and run it first during bring-up. Deploy the first 30k Windows hosts while Windows MDM is turned off in the UI, so they sit unenrolled. Then enable Windows MDM from the UI (this flips `WindowsEnabledAndConfigured`).
+1. (Optional) Enrollment storm. Run this on 20k hosts, not the full fleet, and run it first during bring-up. Deploy the first 20k Windows hosts while Windows MDM is turned off in the UI, so they sit unenrolled. Then enable Windows MDM from the UI (this flips `WindowsEnabledAndConfigured`). Note that this is unlikely to happen in production. If a customer is enrolling all their Windows hosts at once, they would need to scale their deployment to absorb the spike in load. Currently, the top bottleneck is the artificially low connection pool: https://github.com/fleetdm/fleet/issues/44802
 
 2. Ramp to 100k and steady-state baseline.
 
