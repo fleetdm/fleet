@@ -45,7 +45,8 @@ The declaration type is `com.apple.configuration.migration-assistant.settings`. 
   "Type": "com.apple.configuration.migration-assistant.settings",
   "Identifier": "com.example.migration-assistant",
   "Payload": {
-    "Enabled": true,
+    "ShouldDoManagedMigration": true,
+    "ShouldMigrateSecurityPrivacySettings": true,
     "RequiredPaths": [
       "Desktop/",
       "Documents/"
