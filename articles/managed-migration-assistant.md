@@ -74,7 +74,7 @@ Migration was the last unmanaged step in an otherwise governed deployment, and "
 
 The fastest way to see this in detail is to read Fleet's [Managed Migration Assistant guide](https://fleetdm.com/guides/managed-migration-assistant-mac-to-mac-migration-with-fleet) and adapt the example declaration to your environment. If you'd like a hand getting there, two good next steps:
 
-- [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through how managed migration works in your environment, from the declaration to the post-transfer report, against real machines.
+- [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through how managed migration could work in your environment.
 - [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Managing your migration policy as code is exactly what our hands-on workshop covers: declarations in Git, reviewed in pull requests, deployed through CI.
 
 *Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to manage Mac-to-Mac migration as code?* [*Get a demo*](https://fleetdm.com/contact) *or explore the* [*GitOps reference*](https://fleetdm.com/docs/configuration/yaml-files)*.*
