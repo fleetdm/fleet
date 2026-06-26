@@ -744,7 +744,9 @@
               el.hidden = el.getAttribute("data-byod-content") !== selection;
             });
           // Append byod=true to the OTA download URL for BYOD; remove it for
-          // company-owned. Using URL parsing keeps existing query params intact.
+          // company-owned. Routing the DOM-sourced href through the URL parser
+          // keeps existing query params intact, resolves relative URLs against
+          // the origin, and avoids reinterpreting that value unsafely.
           try {
             const downloadUrl = new URL(baseHref, window.location.origin);
             if (selection === "personal") {
@@ -754,12 +756,8 @@
             }
             downloadLink.setAttribute("href", downloadUrl.toString());
           } catch (e) {
-            // Fallback for non-absolute URLs; append manually.
-            const sep = baseHref.includes("?") ? "&" : "?";
-            downloadLink.setAttribute(
-              "href",
-              selection === "personal" ? `${baseHref}${sep}byod=true` : baseHref
-            );
+            // baseHref came from the DOM; if it can't be parsed as a URL, leave
+            // the server-rendered href untouched rather than reinterpreting it.
           }
         };
 
