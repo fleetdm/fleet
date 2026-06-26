@@ -59,7 +59,7 @@ The uninstallation process is also visible in the  **Activities** section on the
 
 ## Update apps automatically
 
-By default, Fleet keeps each Fleet-maintained app up to date. When the app's publisher releases a new version, Fleet downloads it and uses it for new installs. Hosts running an older version update to the latest version the next time the app is installed—for example, via [Self-service](https://fleetdm.com/guides/software-self-service) or [policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+By default, Fleet keeps each Fleet-maintained app up to date. When the app's publisher releases a new version, Fleet downloads it and uses it for new installs. Hosts running an older version update to the latest version the next time the app is installed, for example, via [Self-service](https://fleetdm.com/guides/software-self-service) or [policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
 This "Latest" behavior is the default. To control which version Fleet installs, pin the app to a specific or major version.
 
