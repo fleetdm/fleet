@@ -47,8 +47,7 @@ func Up_20260626120000(tx *sql.Tx) error {
 		}
 	}
 
-	// Enforce NOT NULL once every row is populated. Guarded on the current nullability so an interrupted-and-resumed run does not pay for
-	// the INPLACE rebuild twice.
+	// Enforce NOT NULL once every row is populated.
 	if columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz") {
 		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses MODIFY raw_response_gz MEDIUMBLOB NOT NULL, ALGORITHM=INPLACE`); err != nil {
 			return fmt.Errorf("making raw_response_gz NOT NULL: %w", err)
@@ -58,8 +57,7 @@ func Up_20260626120000(tx *sql.Tx) error {
 	return nil
 }
 
-// columnIsNullable reports whether the given column is currently nullable. Returns false if the column does not exist or the lookup fails,
-// so a missing column never triggers a needless ALTER.
+// columnIsNullable reports whether the given column is currently nullable.
 func columnIsNullable(tx *sql.Tx, table, column string) bool {
 	var isNullable string
 	err := tx.QueryRow(`
