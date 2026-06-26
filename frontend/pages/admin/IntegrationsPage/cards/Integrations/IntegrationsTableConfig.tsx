@@ -101,6 +101,7 @@ const generateTableHeaders = (
       Cell: (cellProps: IActionsDropdownProps) => (
         <Button
           variant="inverse-alert"
+          size="small"
           onClick={() =>
             actionSelectHandler(
               cellProps.cell.value[0].value as string,
