@@ -1619,9 +1619,6 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 // client IDs are both validated against this so the two checks cannot drift.
 var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
 
-// diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
-// current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
-// the incoming payload repeats an entry.
 // googleWorkspaceActivity returns the activity to record when the Google
 // Workspace IdP integration is added, edited, or removed, or nil when it is
 // unchanged. Only the (non-secret) domain is compared/recorded.
@@ -1641,6 +1638,9 @@ func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) f
 	return nil
 }
 
+// diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
+// current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
+// the incoming payload repeats an entry.
 func diffStringSlices(old, current []string) (added, removed []string) {
 	oldSet := make(map[string]struct{}, len(old))
 	for _, v := range old {

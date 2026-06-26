@@ -50,9 +50,9 @@ func gwAppConfig() *fleet.AppConfig {
 type syncRecorder struct {
 	ds *mock.Store
 
-	created      []*fleet.ScimUser
-	replaced     []*fleet.ScimUser
-	deletedUsers []uint
+	createdUsers  []*fleet.ScimUser
+	replacedUsers []*fleet.ScimUser
+	deletedUsers  []uint
 
 	createdGroups  []*fleet.ScimGroup
 	replacedGroups []*fleet.ScimGroup
@@ -77,11 +77,11 @@ func newSyncRecorder(appConfig *fleet.AppConfig, existingUsers []fleet.ScimUser,
 	r.ds.CreateScimUserFunc = func(_ context.Context, user *fleet.ScimUser) (uint, error) {
 		nextID++
 		user.ID = nextID
-		r.created = append(r.created, user)
+		r.createdUsers = append(r.createdUsers, user)
 		return nextID, nil
 	}
 	r.ds.ReplaceScimUserFunc = func(_ context.Context, user *fleet.ScimUser) error {
-		r.replaced = append(r.replaced, user)
+		r.replacedUsers = append(r.replacedUsers, user)
 		return nil
 	}
 	r.ds.DeleteScimUserFunc = func(_ context.Context, id uint) error {
@@ -143,14 +143,14 @@ func TestGoogleWorkspaceSyncCreatesUsersAndGroups(t *testing.T) {
 
 	require.NoError(t, runSync(t, r, dir))
 
-	require.Len(t, r.created, 2)
-	assert.Empty(t, r.replaced)
+	require.Len(t, r.createdUsers, 2)
+	assert.Empty(t, r.replacedUsers)
 	assert.Empty(t, r.deletedUsers)
 
 	require.Len(t, r.createdGroups, 1)
 	// Members resolved to the IDs returned by CreateScimUser.
 	require.Len(t, r.createdGroups[0].ScimUsers, 2)
-	assert.ElementsMatch(t, []uint{r.created[0].ID, r.created[1].ID}, r.createdGroups[0].ScimUsers)
+	assert.ElementsMatch(t, []uint{r.createdUsers[0].ID, r.createdUsers[1].ID}, r.createdGroups[0].ScimUsers)
 
 	require.NotNil(t, r.lastRequest)
 	assert.Equal(t, "success", r.lastRequest.Status)
@@ -166,9 +166,9 @@ func TestGoogleWorkspaceSyncUpdatesChangedUser(t *testing.T) {
 	}}
 
 	require.NoError(t, runSync(t, r, dir))
-	assert.Empty(t, r.created)
-	require.Len(t, r.replaced, 1)
-	assert.Equal(t, uint(1), r.replaced[0].ID)
+	assert.Empty(t, r.createdUsers)
+	require.Len(t, r.replacedUsers, 1)
+	assert.Equal(t, uint(1), r.replacedUsers[0].ID)
 	assert.Empty(t, r.deletedUsers)
 }
 
@@ -182,8 +182,8 @@ func TestGoogleWorkspaceSyncIsIdempotent(t *testing.T) {
 	}}
 
 	require.NoError(t, runSync(t, r, dir))
-	assert.Empty(t, r.created)
-	assert.Empty(t, r.replaced, "unchanged user must not be replaced")
+	assert.Empty(t, r.createdUsers)
+	assert.Empty(t, r.replacedUsers, "unchanged user must not be replaced")
 	assert.Empty(t, r.deletedUsers)
 	require.NotNil(t, r.lastRequest)
 	assert.Equal(t, "success", r.lastRequest.Status)
@@ -201,8 +201,8 @@ func TestGoogleWorkspaceSyncDeletesRemovedUser(t *testing.T) {
 	}}
 
 	require.NoError(t, runSync(t, r, dir))
-	assert.Empty(t, r.created)
-	assert.Empty(t, r.replaced)
+	assert.Empty(t, r.createdUsers)
+	assert.Empty(t, r.replacedUsers)
 	require.Equal(t, []uint{2}, r.deletedUsers)
 }
 
@@ -257,7 +257,7 @@ func TestGoogleWorkspaceSyncNotConfiguredNoOp(t *testing.T) {
 	dir := &fakeDirectory{users: []*fleet.ScimUser{gwUser("g1", "a@example.com", "Eng", true)}}
 
 	require.NoError(t, runSync(t, r, dir))
-	assert.Empty(t, r.created)
+	assert.Empty(t, r.createdUsers)
 	assert.Nil(t, r.lastRequest, "no status recorded when not configured")
 }
 

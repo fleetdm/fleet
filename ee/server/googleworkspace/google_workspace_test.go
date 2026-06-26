@@ -82,7 +82,8 @@ func TestMapUser(t *testing.T) {
 
 	t.Run("department falls back to first non-empty when no primary org", func(t *testing.T) {
 		su := mapUser(&directory.User{
-			Id: "1", PrimaryEmail: "x@example.com",
+			Id:           "1",
+			PrimaryEmail: "x@example.com",
 			Organizations: []map[string]any{
 				{"department": ""},
 				{"department": "Support"},
@@ -94,8 +95,9 @@ func TestMapUser(t *testing.T) {
 
 	t.Run("primary email synthesized when absent from emails array", func(t *testing.T) {
 		su := mapUser(&directory.User{
-			Id: "1", PrimaryEmail: "primary@example.com",
-			Emails: []map[string]any{{"address": "other@example.com", "type": "home"}},
+			Id:           "1",
+			PrimaryEmail: "primary@example.com",
+			Emails:       []map[string]any{{"address": "other@example.com", "type": "home"}},
 		})
 		require.Len(t, su.Emails, 2)
 		assert.Equal(t, "primary@example.com", su.Emails[0].Email)
@@ -105,7 +107,8 @@ func TestMapUser(t *testing.T) {
 
 	t.Run("duplicate email addresses are de-duplicated", func(t *testing.T) {
 		su := mapUser(&directory.User{
-			Id: "1", PrimaryEmail: "dup@example.com",
+			Id:           "1",
+			PrimaryEmail: "dup@example.com",
 			Emails: []map[string]any{
 				{"address": "dup@example.com", "type": "work"},
 				{"address": "DUP@example.com", "type": "home"},
@@ -126,7 +129,7 @@ func TestDirectoryListUsers(t *testing.T) {
 			{Id: "3", PrimaryEmail: "c@example.com"},
 		}},
 	}
-	users, err := dir.ListUsers(context.Background())
+	users, err := dir.ListUsers(t.Context())
 	require.NoError(t, err)
 	require.Len(t, users, 2)
 	assert.Equal(t, "a@example.com", users[0].UserName)
@@ -135,7 +138,7 @@ func TestDirectoryListUsers(t *testing.T) {
 
 func TestDirectoryListUsersError(t *testing.T) {
 	dir := &Directory{domain: "example.com", api: &fakeAPI{usersErr: errors.New("boom")}}
-	_, err := dir.ListUsers(context.Background())
+	_, err := dir.ListUsers(t.Context())
 	require.Error(t, err)
 }
 
@@ -159,7 +162,7 @@ func TestDirectoryListGroups(t *testing.T) {
 			},
 		},
 	}
-	groups, err := dir.ListGroups(context.Background())
+	groups, err := dir.ListGroups(t.Context())
 	require.NoError(t, err)
 	require.Len(t, groups, 2)
 
@@ -179,6 +182,6 @@ func TestDirectoryListGroupsMemberError(t *testing.T) {
 			memberErr: errors.New("members boom"),
 		},
 	}
-	_, err := dir.ListGroups(context.Background())
+	_, err := dir.ListGroups(t.Context())
 	require.Error(t, err)
 }

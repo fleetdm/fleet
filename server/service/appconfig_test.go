@@ -2324,20 +2324,22 @@ func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	gwIntegration := []*fleet.GoogleWorkspaceIntegration{
+		{
+			Domain:                "example.com",
+			ImpersonatedUserEmail: "admin@example.com",
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+				fleet.GoogleCalendarEmail:      "svc@example.com",
+				fleet.GoogleCalendarPrivateKey: "original-private-key",
+			}},
+		},
+	}
+
 	dsAppConfig := &fleet.AppConfig{
 		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
 		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
 		Integrations: fleet.Integrations{
-			GoogleWorkspace: []*fleet.GoogleWorkspaceIntegration{
-				{
-					Domain:                "example.com",
-					ImpersonatedUserEmail: "admin@example.com",
-					ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
-						fleet.GoogleCalendarEmail:      "svc@example.com",
-						fleet.GoogleCalendarPrivateKey: "original-private-key",
-					}},
-				},
-			},
+			GoogleWorkspace: gwIntegration,
 		},
 	}
 
@@ -2360,16 +2362,7 @@ func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	reset := func() {
-		dsAppConfig.Integrations.GoogleWorkspace = []*fleet.GoogleWorkspaceIntegration{
-			{
-				Domain:                "example.com",
-				ImpersonatedUserEmail: "admin@example.com",
-				ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
-					fleet.GoogleCalendarEmail:      "svc@example.com",
-					fleet.GoogleCalendarPrivateKey: "original-private-key",
-				}},
-			},
-		}
+		dsAppConfig.Integrations.GoogleWorkspace = gwIntegration
 	}
 
 	t.Run("preserve API key when omitted, update other fields", func(t *testing.T) {
