@@ -42,7 +42,7 @@ Run these in order.
 
 3. Profile batch fan-out (add) and reconcile throughput. Apply a single batch of 100 CSP profiles to all 100k hosts at once.
 
-4. Profile batch fan-out (replace). Replace the 100 profiles with 100 different profiles in one batch. This exercises the modify/Replace path at scale.
+4. Profile batch fan-out (replace). Replace the 100 profiles with 100 differently named profiles in one batch. This exercises the modify/Replace path at scale. Then modify the 100 profiles in one batch. Modification times out at 100 profiles: https://github.com/fleetdm/fleet/issues/48349
 
 5. Profile deletion. Delete the 100 profiles.
 
