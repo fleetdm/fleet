@@ -17022,7 +17022,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			FROM software_installers si
 			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
-			WHERE si.title_id = ?`, titleID)
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`, titleID, team.ID)
 	})
 	require.Equal(t, "echo 'uninstall'", scriptContents.UninstallScript)
 	require.Equal(t, "echo 'post'", scriptContents.PostInstallScript)
@@ -17047,7 +17047,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			FROM software_installers si
 			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
-			WHERE si.title_id = ?`, titleID)
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`, titleID, team.ID)
 	})
 	require.Equal(t, "echo 'updated uninstall'", scriptContents.UninstallScript)
 	require.Equal(t, "echo 'updated post'", scriptContents.PostInstallScript)
@@ -17076,7 +17076,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			SELECT COALESCE(inst.contents, '') AS install_script, si.storage_id
 			FROM software_installers si
 			LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
-			WHERE si.title_id = ?`, titleID)
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`, titleID, team.ID)
 	})
 	require.Equal(t, newSHContent, afterReplace.InstallScript, "replacing the file should update install_script")
 	expectedHash := sha256.Sum256([]byte(newSHContent))

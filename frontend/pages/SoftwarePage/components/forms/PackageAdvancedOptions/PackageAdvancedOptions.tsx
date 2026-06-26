@@ -18,8 +18,11 @@ import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
+  // .ps1 is a script-only package type, not a "windows package type", but it's
+  // still PowerShell.
+  const isPowerShell = isWindowsPackageType(pkgType) || pkgType === "ps1";
   return `Currently, ${
-    isWindowsPackageType(pkgType) ? "PowerS" : "s"
+    isPowerShell ? "PowerS" : "s"
   }hell scripts are supported.`;
 };
 
