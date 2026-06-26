@@ -913,6 +913,8 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+This section also lets you connect Google Workspace to sync identity provider (IdP) host vitals directly from your directory.
+
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
 #### Example
@@ -926,6 +928,10 @@ org_settings:
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com
+    google_workspace:
+      - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
+        domain: fleetdm.com
+        impersonated_user_email: admin@example.com
     jira:
       - url: https://example.atlassian.net
         username: user1
@@ -958,6 +964,18 @@ For specific fleets (`settings`):
 
 - `enable_calendar_events` to enable calendar events for a fleet (default: `false`).
 - `webhook_url` is the webhook URL triggered during a user's calendar event (default: `""`).
+
+#### google_workspace
+
+_Available in Fleet Premium._
+
+Connecting Google Workspace populates identity provider (IdP) host vitals directly from your directory. While Google Workspace is configured, SCIM provisioning (Okta, Entra ID, etc.) is ignored; configure one or the other, not both.
+
+- `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key. The service account must have domain-wide delegation enabled (default: `""`).
+- `domain` is your Google Workspace primary domain (default: `""`).
+- `impersonated_user_email` is a Google Workspace admin the service account impersonates via domain-wide delegation (default: `""`).
+
+Can be configured for "All fleets" (`org_settings`).
 
 #### jira
 

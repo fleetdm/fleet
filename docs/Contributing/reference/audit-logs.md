@@ -2547,6 +2547,48 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_google_workspace_integration
+
+Generated when a Google Workspace integration is configured to sync IdP host vitals.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was configured.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## edited_google_workspace_integration
+
+Generated when an existing Google Workspace integration is edited.
+
+This activity contains a `domain` field with the Google Workspace primary domain.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## deleted_google_workspace_integration
+
+Generated when a Google Workspace integration is removed.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was removed.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a fleet.
