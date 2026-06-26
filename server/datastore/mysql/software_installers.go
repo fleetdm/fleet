@@ -2609,6 +2609,14 @@ WHERE
   title_id NOT IN (?)
 `
 
+	// Fleet-maintained app pins are keyed by (team, title) and are not
+	// cascade-deleted when installer rows go away (the FK cascades only on title
+	// deletion, which BatchSet doesn't do), so clear pins for removed titles
+	// explicitly. Reused with a sentinel 0 to clear all pins for the team.
+	const deletePinnedVersionsNotInList = `
+DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id NOT IN (?)
+`
+
 	// ORDER BY is_active DESC, id DESC makes existing[0] the previously-active row.
 	const checkExistingInstaller = `
 SELECT
@@ -2869,6 +2877,11 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 			}
 
+			// reuse the NOT IN query with sentinel 0 to clear all FMA pins for the team
+			if _, err := tx.ExecContext(ctx, deletePinnedVersionsNotInList, globalOrTeamID, 0); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all FMA version pins")
+			}
+
 			return nil
 		}
 
@@ -3033,6 +3046,14 @@ WHERE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		stmt, args, err = sqlx.In(deletePinnedVersionsNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete FMA pins")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete FMA version pins")
 		}
 
 		// Fill a map of title IDs for this team that have a display name
