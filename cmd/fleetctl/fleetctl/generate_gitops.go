@@ -1943,6 +1943,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			continue
 		}
 
+		// Script packages (.sh/.ps1) have no version, and their script fields aren't
+		// user-configurable, so neither is written to the generated yaml.
+		isScriptPackage := sw.SoftwarePackage != nil &&
+			fleet.IsScriptPackage(strings.ToLower(filepath.Ext(sw.SoftwarePackage.Name)))
+
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
@@ -1950,7 +1955,12 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			var comment string
+			if isScriptPackage {
+				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s", sw.Name, pkgName))
+			} else {
+				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			}
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -1994,14 +2004,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-
-			// Detect if this is a script package (.sh or .ps1 file)
-			// Script packages have the file contents as the install script internally,
-			// but these fields should NOT be exposed in GitOps YAML as they are not
-			// user-configurable for script packages.
-			isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
-				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
-					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
