@@ -70,9 +70,14 @@ This is where [Fleet](https://fleetdm.com) fits the workflow. Fleet delivers App
 
 Migration was the last unmanaged step in an otherwise governed deployment, and "unmanaged" on the step that decides what data lands on a new corporate device was never a comfortable place to be. Managed Migration Assistant doesn't just make refreshes smoother, it brings the migration decision under the same policy, audit, and version control as everything else you deploy. The organizations that treat it as a governance capability, not just a convenience feature, are the ones who'll get the audit trail and the clean baseline at the same time.
 
----
+## See it live
 
-*See how Fleet delivers Apple's declarative configurations as version-controlled YAML. [Schedule a demo](https://fleetdm.com/contact) or read Fleet's [Managed Migration Assistant guide](https://fleetdm.com/guides/managed-migration-assistant-mac-to-mac-migration-with-fleet).*
+The fastest way to see this in detail is to read Fleet's [Managed Migration Assistant guide](https://fleetdm.com/guides/managed-migration-assistant-mac-to-mac-migration-with-fleet) and adapt the example declaration to your environment. If you'd like a hand getting there, two good next steps:
+
+- [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through how managed migration works in your environment, from the declaration to the post-transfer report, against real machines.
+- [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Managing your migration policy as code is exactly what our hands-on workshop covers: declarations in Git, reviewed in pull requests, deployed through CI.
+
+*Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to manage Mac-to-Mac migration as code?* [*Get a demo*](https://fleetdm.com/contact) *or explore the* [*GitOps reference*](https://fleetdm.com/docs/configuration/yaml-files)*.*
 
 
 <meta name="articleTitle" value="The riskiest step in a Mac refresh is finally manageable">
