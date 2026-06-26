@@ -1785,7 +1785,7 @@ describe("Host Actions Dropdown", () => {
     );
   });
 
-  describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {
+  describe("personally enrolled hosts (e.g. enrollment status => On (manual - personal))", () => {
     it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
       const render = createCustomRenderer({
         context: {
