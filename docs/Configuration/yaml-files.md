@@ -399,6 +399,7 @@ controls:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
       - path: ../lib/macos/profiles/my-declaration.json
+    assets:
       - path: ../lib/macos/assets/my-asset.json
   windows_settings:
     configuration_profiles:
