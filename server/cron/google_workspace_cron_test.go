@@ -252,6 +252,33 @@ func TestGoogleWorkspaceSyncLongErrorIsTruncated(t *testing.T) {
 	assert.True(t, utf8.ValidString(r.lastRequest.Details), "truncation must not split a multi-byte rune")
 }
 
+func TestGoogleWorkspaceSyncBestEffortContinuesPastFailedUser(t *testing.T) {
+	r := newSyncRecorder(gwAppConfig(), nil, nil)
+	// One user's creation fails (e.g. a unique-constraint conflict); the others
+	// must still be ingested rather than the whole sync aborting.
+	r.ds.CreateScimUserFunc = func(_ context.Context, user *fleet.ScimUser) (uint, error) {
+		if user.UserName == "bad@example.com" {
+			return 0, errors.New("ScimUser \"bad@example.com\" already exists")
+		}
+		r.createdUsers = append(r.createdUsers, user)
+		return uint(1000 + len(r.createdUsers)), nil
+	}
+	dir := &fakeDirectory{users: []*fleet.ScimUser{
+		gwUser("g1", "good1@example.com", "Eng", true),
+		gwUser("g2", "bad@example.com", "Eng", true),
+		gwUser("g3", "good2@example.com", "Eng", true),
+	}}
+
+	err := runSync(t, r, dir)
+	require.Error(t, err) // partial failure is surfaced...
+	assert.Contains(t, err.Error(), "partial sync")
+	// ...but the two good users were still created despite the one failure.
+	assert.Len(t, r.createdUsers, 2)
+	require.NotNil(t, r.lastRequest)
+	assert.Equal(t, "error", r.lastRequest.Status)
+	assert.Contains(t, r.lastRequest.Details, "partial sync")
+}
+
 func TestGoogleWorkspaceSyncNotConfiguredNoOp(t *testing.T) {
 	r := newSyncRecorder(&fleet.AppConfig{}, nil, nil) // no GoogleWorkspace integration
 	dir := &fakeDirectory{users: []*fleet.ScimUser{gwUser("g1", "a@example.com", "Eng", true)}}

@@ -125,25 +125,38 @@ func syncGoogleWorkspaceDirectory(
 		return ctxerr.Wrap(ctx, err, "list groups from google workspace")
 	}
 
-	extIDToScimUserID, err := syncGoogleWorkspaceUsers(ctx, ds, gwUsers, logger)
+	extIDToScimUserID, usersFailed, err := syncGoogleWorkspaceUsers(ctx, ds, gwUsers, logger)
 	if err != nil {
 		return err
 	}
 
-	if err := syncGoogleWorkspaceGroups(ctx, ds, gwGroups, extIDToScimUserID, logger); err != nil {
+	groupsFailed, err := syncGoogleWorkspaceGroups(ctx, ds, gwGroups, extIDToScimUserID, logger)
+	if err != nil {
 		return err
 	}
 
-	logger.InfoContext(ctx, "google workspace sync complete", "users", len(gwUsers), "groups", len(gwGroups))
+	logger.InfoContext(ctx, "google workspace sync complete",
+		"users", len(gwUsers), "users_failed", usersFailed,
+		"groups", len(gwGroups), "groups_failed", groupsFailed)
+
+	// Per-record failures don't abort the sync (one bad user/group shouldn't block
+	// the rest of the directory), but we surface them as an error so the sync status
+	// reflects the partial failure. Specifics are in the logs above.
+	if usersFailed > 0 || groupsFailed > 0 {
+		return ctxerr.Errorf(ctx, "partial sync: %d of %d users and %d of %d groups failed to ingest; see server logs for details",
+			usersFailed, len(gwUsers), groupsFailed, len(gwGroups))
+	}
 	return nil
 }
 
 // syncGoogleWorkspaceUsers reconciles users and returns a map of Google user ID
 // (external_id) -> scim_users.id, used to resolve group membership.
-func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers []*fleet.ScimUser, logger *slog.Logger) (map[string]uint, error) {
+func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers []*fleet.ScimUser, logger *slog.Logger) (map[string]uint, int, error) {
 	existing, err := listAllScimUsers(ctx, ds)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list existing scim users")
+		// Failing to load the current state is fatal: without it every user would
+		// look new and we'd attempt to recreate the entire directory.
+		return nil, 0, ctxerr.Wrap(ctx, err, "list existing scim users")
 	}
 	existingByExtID := make(map[string]*fleet.ScimUser, len(existing))
 	for i := range existing {
@@ -155,6 +168,7 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 
 	seen := make(map[string]struct{}, len(gwUsers))
 	extIDToScimUserID := make(map[string]uint, len(gwUsers))
+	failed := 0
 
 	for _, gu := range gwUsers {
 		if gu.ExternalID == nil || *gu.ExternalID == "" {
@@ -168,7 +182,11 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 			extIDToScimUserID[extID] = ex.ID
 			if scimUserNeedsUpdate(ex, gu) {
 				if err := ds.ReplaceScimUser(ctx, gu); err != nil {
-					return nil, ctxerr.Wrapf(ctx, err, "replace scim user %s", gu.UserName)
+					// Best-effort: log and skip this user so one bad record doesn't
+					// abort the whole sync.
+					failed++
+					logger.ErrorContext(ctx, "google workspace sync: skipping user that failed to update",
+						"user_name", gu.UserName, "external_id", extID, "err", err)
 				}
 			}
 			continue
@@ -176,7 +194,10 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 
 		id, err := ds.CreateScimUser(ctx, gu)
 		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create scim user %s", gu.UserName)
+			failed++
+			logger.ErrorContext(ctx, "google workspace sync: skipping user that failed to create",
+				"user_name", gu.UserName, "external_id", extID, "err", err)
+			continue
 		}
 		extIDToScimUserID[extID] = id
 	}
@@ -187,18 +208,20 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 	// returns zero users, which would otherwise wipe all IdP data.
 	if len(gwUsers) == 0 {
 		logger.WarnContext(ctx, "google workspace returned no users; skipping user deletion to avoid data loss")
-		return extIDToScimUserID, nil
+		return extIDToScimUserID, failed, nil
 	}
 	for extID, ex := range existingByExtID {
 		if _, ok := seen[extID]; ok {
 			continue
 		}
 		if err := ds.DeleteScimUser(ctx, ex.ID); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "delete scim user %d", ex.ID)
+			failed++
+			logger.ErrorContext(ctx, "google workspace sync: failed to delete user no longer in directory",
+				"scim_user_id", ex.ID, "external_id", extID, "err", err)
 		}
 	}
 
-	return extIDToScimUserID, nil
+	return extIDToScimUserID, failed, nil
 }
 
 // syncGoogleWorkspaceGroups reconciles groups and their memberships, resolving
@@ -209,10 +232,11 @@ func syncGoogleWorkspaceGroups(
 	gwGroups []*fleet.GoogleWorkspaceGroup,
 	extIDToScimUserID map[string]uint,
 	logger *slog.Logger,
-) error {
+) (int, error) {
 	existing, err := listAllScimGroups(ctx, ds)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list existing scim groups")
+		// Failing to load the current state is fatal (see syncGoogleWorkspaceUsers).
+		return 0, ctxerr.Wrap(ctx, err, "list existing scim groups")
 	}
 	existingByExtID := make(map[string]*fleet.ScimGroup, len(existing))
 	for i := range existing {
@@ -226,6 +250,7 @@ func syncGoogleWorkspaceGroups(
 	// scim_groups.display_name is UNIQUE; disambiguate collisions within the pull
 	// so one duplicate name can't fail the whole sync.
 	usedDisplayNames := make(map[string]struct{}, len(gwGroups))
+	failed := 0
 
 	for _, gg := range gwGroups {
 		if gg.ExternalID == "" {
@@ -251,32 +276,40 @@ func syncGoogleWorkspaceGroups(
 			desired.ID = ex.ID
 			if scimGroupNeedsUpdate(ex, desired) {
 				if err := ds.ReplaceScimGroup(ctx, desired); err != nil {
-					return ctxerr.Wrapf(ctx, err, "replace scim group %s", displayName)
+					// Best-effort: log and skip so one bad group doesn't abort the sync.
+					failed++
+					logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to update",
+						"display_name", displayName, "external_id", gg.ExternalID, "err", err)
 				}
 			}
 			continue
 		}
 
 		if _, err := ds.CreateScimGroup(ctx, desired); err != nil {
-			return ctxerr.Wrapf(ctx, err, "create scim group %s", displayName)
+			failed++
+			logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to create",
+				"display_name", displayName, "external_id", gg.ExternalID, "err", err)
+			continue
 		}
 	}
 
 	// Delete groups no longer in Google Workspace (guard against an empty pull).
 	if len(gwGroups) == 0 {
 		logger.WarnContext(ctx, "google workspace returned no groups; skipping group deletion to avoid data loss")
-		return nil
+		return failed, nil
 	}
 	for extID, ex := range existingByExtID {
 		if _, ok := seen[extID]; ok {
 			continue
 		}
 		if err := ds.DeleteScimGroup(ctx, ex.ID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete scim group %d", ex.ID)
+			failed++
+			logger.ErrorContext(ctx, "google workspace sync: failed to delete group no longer in directory",
+				"scim_group_id", ex.ID, "external_id", extID, "err", err)
 		}
 	}
 
-	return nil
+	return failed, nil
 }
 
 // uniqueDisplayName returns a display name guaranteed not to collide with one
