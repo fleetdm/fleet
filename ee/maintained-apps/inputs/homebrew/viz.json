@@ -1,0 +1,10 @@
+{
+  "name": "Viz",
+  "unique_identifier": "com.alienator88.Viz",
+  "token": "viz",
+  "installer_format": "zip",
+  "slug": "viz/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

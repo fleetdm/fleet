@@ -1108,6 +1108,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", err
 	}
 
+	// Authorize the actual execution with the script's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: script.TeamID}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
 	var userId *uint
 	ctxUser := authz.UserFromContext(ctx)
 	if ctxUser != nil {
@@ -1301,19 +1306,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		return fleet.ErrMissingLicense
 	}
 
-	// NOTE: keep this Android wipe flow in sync with the Premium implementation in ee/server/service/hosts.go
-	// (WipeHost + enqueueWipeHostRequest). Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE
-	// under the hood (see UnenrollAndroidHost), so routing BYO hosts through Wipe would be redundant + misleading.
-	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
-		return &fleet.BadRequestError{
-			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
-		}
-	}
-	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-		if errors.Is(err, fleet.ErrAndroidMDMNotConfigured) {
-			err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		}
-		return ctxerr.Wrap(ctx, err, "check android MDM enabled")
+	if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "validate android wipe request")
 	}
 
 	// the wipe command requires the host to be MDM-enrolled in Fleet

@@ -1,0 +1,10 @@
+{
+  "name": "Taskbar",
+  "unique_identifier": "com.fpfxtknjju.wbgcdolfev",
+  "token": "taskbar",
+  "installer_format": "zip",
+  "slug": "taskbar/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

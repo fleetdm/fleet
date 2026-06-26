@@ -39,7 +39,7 @@ The following terms were recently renamed. Use the new terms in conversation and
 - **Endpoint registration**: `ue.POST("/api/_version_/fleet/resource", fn, reqType{})`
 - **Authorization**: `svc.authz.Authorize(ctx, entity, fleet.ActionX)` at start of service methods
 - **Logging**: slog with `DebugContext/InfoContext/WarnContext/ErrorContext` — never bare slog.Debug/Info/Warn/Error
-- **Pointers**: Use Go 1.26 `new(expression)` for pointer values (e.g., `new("value")`, `new(true)`, `new(42)`). Do NOT use the legacy `server/ptr` package in new code — it exists throughout the codebase but is superseded by `new(expr)`.
+- **Pointers**: Use Go 1.26 `new(expression)` (e.g., `new("value")`, `new(true)`, `new(42)`) — not `server/ptr`'s deprecated constructors. Non-deprecated helpers (e.g., `ptr.ValOrZero`) are still fine.
 - **Reference example**: `server/service/vulnerabilities.go`
 
 ## Before writing a fix
@@ -51,6 +51,10 @@ The following terms were recently renamed. Use the new terms in conversation and
 - For declarative/batch endpoints, validate within the incoming payload, not against the DB.
 - When checking for duplicates, exclude the current entity to avoid false conflicts on upserts.
 - Run `go test ./server/service/` after adding new datastore interface methods — uninitialized mocks crash other tests.
+
+## Opening a pull request
+
+- The PR description MUST start from `.github/pull_request_template.md`. When creating a PR (e.g. `gh pr create`), use that file as the body and fill it in — do not open a PR with an empty or freeform description. A CI check (`check-pr-template`) fails PRs whose description is missing the template.
 
 ## Development commands
 

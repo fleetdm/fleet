@@ -1,0 +1,10 @@
+{
+  "name": "Clipy",
+  "unique_identifier": "com.clipy-app.Clipy",
+  "token": "clipy",
+  "installer_format": "dmg",
+  "slug": "clipy/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

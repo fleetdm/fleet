@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "151.0.3",
+      "version": "152.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '151.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '152.0.2') < 0);"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/151.0.3/mac/en-US/Firefox%20151.0.3.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/152.0.2/mac/en-US/Firefox%20152.0.2.dmg",
       "install_script_ref": "b5e4c76e",
       "uninstall_script_ref": "b85c0267",
-      "sha256": "60d5cb29412b161c76ecc58f3f8a960cd0048081cf84c6fe91579f1957564277",
+      "sha256": "36820598ede2790d59fc18dae96d0b6f7982106f125cdf5e1799ee75e1fb5278",
       "default_categories": [
         "Browsers"
       ]

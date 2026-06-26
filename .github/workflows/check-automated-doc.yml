@@ -41,7 +41,9 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0

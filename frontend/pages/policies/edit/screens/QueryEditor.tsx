@@ -6,7 +6,7 @@ import teamPoliciesAPI from "services/entities/team_policies";
 import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
@@ -54,7 +54,6 @@ const QueryEditor = ({
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
   );
-  const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -72,9 +71,9 @@ const QueryEditor = ({
 
   useEffect(() => {
     if (storedPolicyError) {
-      renderFlash(
-        "error",
-        "Something went wrong retrieving your policy. Please try again."
+      notify.error(
+        "Something went wrong retrieving your policy. Please try again.",
+        { response: storedPolicyError }
       );
     }
   }, []);
@@ -114,7 +113,7 @@ const QueryEditor = ({
         setLastEditedQueryDescription(autofillResponse.description);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.");
+        notify.error("Couldn't autofill policy data.", { response: error });
       }
       setIsFetchingAutofillDescription(false);
     }
@@ -137,7 +136,7 @@ const QueryEditor = ({
         setLastEditedQueryResolution(autofillResponse.resolution);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.");
+        notify.error("Couldn't autofill policy data.", { response: error });
       }
       setIsFetchingAutofillResolution(false);
     }
@@ -161,6 +160,7 @@ const QueryEditor = ({
         labels_include_any: formData.labels_include_any,
         labels_include_all: formData.labels_include_all,
         labels_exclude_any: formData.labels_exclude_any,
+        labels_exclude_all: formData.labels_exclude_all,
       };
       if (isPremiumTier) {
         payload.critical = formData.critical;
@@ -175,27 +175,27 @@ const QueryEditor = ({
           try {
             await saveAutomations(policy);
           } catch (automationsErr) {
-            renderFlash(
-              "error",
-              "Policy was created, but its automations couldn't be saved."
+            notify.error(
+              "Policy was created, but its automations couldn't be saved.",
+              { response: automationsErr }
             );
           }
         }
+        notify.success("Policy created.");
         router.push(
           getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
             fleet_id: policy.team_id,
           })
         );
-        renderFlash("success", "Policy created.");
       } catch (createError) {
         if (getErrorReason(createError).includes("already exists")) {
           setBackendValidators({
             name: "A policy with this name already exists",
           });
         } else {
-          renderFlash(
-            "error",
-            "Something went wrong creating your policy. Please try again."
+          notify.error(
+            "Something went wrong creating your policy. Please try again.",
+            { response: createError }
           );
         }
       } finally {
@@ -240,15 +240,17 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      renderFlash("success", "Policy updated.");
+      notify.success("Policy updated.");
     } catch (updateError) {
       console.error(updateError);
       if (getErrorReason(updateError).includes("Duplicate")) {
-        renderFlash("error", "A policy with this name already exists.");
+        notify.error("A policy with this name already exists.", {
+          response: updateError,
+        });
       } else {
-        renderFlash(
-          "error",
-          "Something went wrong updating your policy. Please try again."
+        notify.error(
+          "Something went wrong updating your policy. Please try again.",
+          { response: updateError }
         );
       }
     } finally {

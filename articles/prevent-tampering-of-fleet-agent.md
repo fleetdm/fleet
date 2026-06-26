@@ -16,7 +16,7 @@ Together, these components create a self-healing enforcement loop that ensures p
 
 One way to harden the installer is to apply registry values through a PowerShell script. These values help prevent uninstallation or tampering of protected applications.
 
-[Windows hardening PowerShell script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/prevent%20uninstall%20or%20modification%20of%20Fleet%20osquery%20%E2%80%93%20%5BNoRemove%2C%20NoModify%5D.ps1)
+[Windows hardening PowerShell script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/prevent-uninstall-or-modification-of-fleet-osquery.ps1)
 
 ## Policies in Fleet
 

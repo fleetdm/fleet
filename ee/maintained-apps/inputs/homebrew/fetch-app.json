@@ -1,0 +1,10 @@
+{
+  "name": "Fetch",
+  "unique_identifier": "com.fetchsoftworks.Fetch",
+  "token": "fetch-app",
+  "installer_format": "zip",
+  "slug": "fetch-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

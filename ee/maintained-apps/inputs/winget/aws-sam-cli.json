@@ -1,0 +1,10 @@
+{
+  "name": "AWS SAM Command Line Interface",
+  "slug": "aws-sam-cli/windows",
+  "package_identifier": "Amazon.SAM-CLI",
+  "unique_identifier": "AWS SAM Command Line Interface",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

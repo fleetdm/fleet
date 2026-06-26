@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "5.1.0-2993",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Vernier Spectral Analysis' AND publisher = 'Vernier Software & Technology';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Vernier Spectral Analysis' AND publisher = 'Vernier Software & Technology' AND version_compare(version, '5.1.0-2993') < 0);"
+      },
+      "installer_url": "https://software-releases.graphicalanalysis.com/sa/win/release/Vernier-Spectral-Analysis-5.1.0-2993.exe",
+      "install_script_ref": "9a0e8623",
+      "uninstall_script_ref": "0ffe5769",
+      "sha256": "565a2d2a5a0f1315203414ad7e904db79fd4235a93e3c51f846613fd5852ea92",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "0ffe5769": "# Locates Vernier Spectral Analysis's NSIS uninstaller from the registry and runs it silently.\n\n$displayName = \"Vernier Spectral Analysis\"\n$publisherLike = \"Vernier\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisherLike -eq \"\" -or $_.Publisher -like \"*$publisherLike*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n$uninstallCommand = $uninstall.UninstallString\n\n$exePath = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"') {\n  $exePath = $matches[1]\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)') {\n  $exePath = $matches[1]\n} else {\n  $exePath = $uninstallCommand.Trim()\n}\n\n$installDir = \"\"\nif ($uninstall.InstallLocation -and (Test-Path $uninstall.InstallLocation)) {\n  $installDir = $uninstall.InstallLocation.TrimEnd('\\')\n} else {\n  $installDir = Split-Path -Parent $exePath\n}\n\nWrite-Host \"Uninstall command: $exePath\"\n\ntry {\n  $processOptions = @{\n    FilePath = $exePath\n    ArgumentList = @(\"/S\", \"_?=$installDir\")\n    NoNewWindow = $true\n    PassThru = $true\n    Wait = $true\n  }\n\n  $process = Start-Process @processOptions\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n\n  Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n\n  Exit $exitCode\n} catch {\n  Write-Host \"Error running uninstaller: $_\"\n  Exit 1\n}\n",
+    "9a0e8623": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Vernier Spectral Analysis ships as a Nullsoft (NSIS) installer; /S runs silent.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nif (-not (Test-Path $exeFilePath)) {\n  Write-Host \"Installer not found at $exeFilePath\"\n}\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Zight",
+  "unique_identifier": "com.linebreak.CloudAppMacOSX",
+  "token": "zight",
+  "installer_format": "zip",
+  "slug": "zight/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

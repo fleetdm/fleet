@@ -1,0 +1,10 @@
+{
+  "name": "ActivityWatch",
+  "unique_identifier": "net.activitywatch.ActivityWatch",
+  "token": "activitywatch",
+  "installer_format": "dmg",
+  "slug": "activitywatch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

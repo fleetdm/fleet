@@ -1,0 +1,10 @@
+{
+  "name": "VPN Tracker 365",
+  "unique_identifier": "com.equinux.VPNTracker365",
+  "token": "vpn-tracker-365",
+  "installer_format": "zip",
+  "slug": "vpn-tracker-365/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}
