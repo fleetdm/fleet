@@ -116,6 +116,7 @@ type SoftwareInstaller struct {
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	PinnedVersion           *string                  `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -692,6 +693,8 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Pins a Fleet-maintained app to a specific or major version
+	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
 }
@@ -700,7 +703,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
+		u.PinnedVersion == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"html/template"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -57,7 +56,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &mail.SMTPTestMailer{
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 		SMTPSettings: smtpSettings,

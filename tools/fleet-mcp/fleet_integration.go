@@ -3,10 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,22 +26,6 @@ import (
 // us amortize the round-trip count without overwhelming Fleet with thousands
 // of simultaneous requests.
 const teamFanOutConcurrency = 8
-
-// tempQueryNamePrefix is the prefix used by all transient saved queries created
-// by runMultiHostQuery. Sweeping leftover queries at startup uses this prefix
-// to find them.
-const tempQueryNamePrefix = "fleet-mcp-temp-"
-
-// randomHexSuffix returns a hex-encoded random string for unique temp-query
-// names. Falls back to time.Now().UnixNano() if crypto/rand is unavailable
-// (extremely unlikely, but the fallback keeps runMultiHostQuery functional).
-func randomHexSuffix(nBytes int) string {
-	b := make([]byte, nBytes)
-	if _, err := rand.Read(b); err != nil {
-		return strconv.FormatInt(time.Now().UnixNano(), 16)
-	}
-	return hex.EncodeToString(b)
-}
 
 // FleetClient represents a client for interacting with Fleet API
 type FleetClient struct {
@@ -245,27 +227,7 @@ type AdHocQueryResponse struct {
 	Rows   []map[string]interface{} `json:"rows"`
 }
 
-// MultiQueryRunRequest is the body for running a saved query against multiple hosts
-type MultiQueryRunRequest struct {
-	HostIDs []uint `json:"host_ids,omitempty"`
-}
-
-// LiveQueryHostResult is a single host's result from a multi-host query run
-type LiveQueryHostResult struct {
-	HostID uint                     `json:"host_id"`
-	Rows   []map[string]interface{} `json:"rows"`
-	Error  *string                  `json:"error"`
-}
-
-// MultiQueryRunResponse is the response from POST /api/v1/fleet/queries/:id/run
-type MultiQueryRunResponse struct {
-	QueryID            uint                  `json:"query_id"`
-	TargetedHostCount  int                   `json:"targeted_host_count"`
-	RespondedHostCount int                   `json:"responded_host_count"`
-	Results            []LiveQueryHostResult `json:"results"`
-}
-
-// LiveQueryResult is a unified result returned from RunLiveQuery
+// LiveQueryResult is a unified result returned from a live query run.
 type LiveQueryResult struct {
 	TargetedHostCount  int                      `json:"targeted_host_count"`
 	RespondedHostCount int                      `json:"responded_host_count"`
@@ -1539,10 +1501,6 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 	return &result.Query, nil
 }
 
-// RunLiveQuery executes a live query against the specified targets using Fleet's modern REST API.
-// Uses targeted API calls per dimension to avoid fetching all hosts.
-// For single hosts: uses per-host ad hoc endpoint (POST /api/v1/fleet/hosts/:id/query).
-// For multiple hosts: creates a temp saved query → runs by ID → deletes it.
 // LiveQueryTargetSpec captures every dimension that scopes a live query.
 //
 // Filter dimensions (Fleet / Platform / Label / Status / Query / PolicyID /
@@ -1730,78 +1688,6 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 	return out
 }
 
-func (fc *FleetClient) RunLiveQuery(ctx context.Context, sql string, hostnames, labels, platforms, teams []string) (*LiveQueryResult, error) {
-	// Legacy entry point — preserved so existing callers keep working.
-	// New code should use RunLiveQueryWithSpec for full filter dimensions.
-	spec := LiveQueryTargetSpec{
-		Hostnames:       hostnames,
-		LegacyLabels:    labels,
-		LegacyPlatforms: platforms,
-		LegacyFleets:    teams,
-	}
-	return fc.RunLiveQueryWithSpec(ctx, sql, spec)
-}
-
-// RunLiveQueryWithSpec resolves the spec to an exact target host list using
-// the same intersection semantics as ResolveLiveQueryTargets, then dispatches
-// to single-host or multi-host osquery distribution.
-//
-// When spec.Fleet (or the legacy spec.LegacyFleets[0]) is set, the team is
-// resolved here and the team_id is threaded through runMultiHostQuery so the
-// transient saved query is created under that team instead of Global. The
-// host targeting itself is already team-scoped via ResolveLiveQueryTargets;
-// this additionally aligns the saved-query ownership / RBAC with the team.
-func (fc *FleetClient) RunLiveQueryWithSpec(ctx context.Context, sql string, spec LiveQueryTargetSpec) (*LiveQueryResult, error) {
-	targets, err := fc.ResolveLiveQueryTargets(ctx, spec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve target hosts: %w", err)
-	}
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("no matching hosts found for the provided targets")
-	}
-
-	teamID, err := fc.resolveLiveQueryTeamID(ctx, spec)
-	if err != nil {
-		return nil, err
-	}
-
-	hostIDs := make([]uint, 0, len(targets))
-	nameByID := make(map[uint]Endpoint, len(targets))
-	for _, t := range targets {
-		hostIDs = append(hostIDs, t.ID)
-		nameByID[t.ID] = t
-	}
-
-	if len(hostIDs) == 1 {
-		// Ad-hoc single-host path uses POST /hosts/:id/query directly — no
-		// saved query is created so team scoping does not apply.
-		return fc.runAdHocSingleHost(ctx, hostIDs[0], sql, nameByID)
-	}
-	return fc.runMultiHostQuery(ctx, hostIDs, sql, nameByID, teamID)
-}
-
-// resolveLiveQueryTeamID translates spec.Fleet (with LegacyFleets fallback)
-// into a *uint team_id suitable for CreateSavedQuery / CreateQueryRequest.
-// Returns (nil, nil) when no team is requested — that's the Global scope.
-func (fc *FleetClient) resolveLiveQueryTeamID(ctx context.Context, spec LiveQueryTargetSpec) (*uint, error) {
-	teamName := strings.TrimSpace(spec.Fleet)
-	if teamName == "" && len(spec.LegacyFleets) > 0 {
-		teamName = strings.TrimSpace(spec.LegacyFleets[0])
-	}
-	if teamName == "" {
-		return nil, nil
-	}
-	ids, err := fc.resolveTeamNames(ctx, []string{teamName})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve fleet %q for query scoping: %w", teamName, err)
-	}
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("fleet %q resolved to no team IDs", teamName)
-	}
-	id := ids[0]
-	return &id, nil
-}
-
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
@@ -1850,103 +1736,6 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 	}, nil
 }
 
-// runMultiHostQuery creates a temporary saved query, runs it by ID, then deletes it.
-// Uses POST /api/v1/fleet/queries/:id/run (Fleet 4.43+ synchronous REST).
-//
-// The temp query name pairs a millisecond timestamp with 8 random bytes — the
-// timestamp keeps lexical order useful for log scans, the random suffix makes
-// concurrent invocations from the same MCP process collision-proof. If the
-// DELETE in the deferred cleanup fails (network blip, Fleet 5xx, MCP killed),
-// the leftover is logged at error level so an operator can run the startup
-// sweeper or clean it up by hand. SweepLeftoverTempQueries() also removes any
-// such residue at next MCP boot.
-func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sql string, endpointByID map[uint]Endpoint, teamID *uint) (*LiveQueryResult, error) {
-	tempName := fmt.Sprintf("%s%d-%s", tempQueryNamePrefix, time.Now().UnixMilli(), randomHexSuffix(8))
-	// teamID propagates from the caller's spec.Fleet — when set, the temp
-	// saved query lives under that team (Fleet) instead of Global, so RBAC,
-	// listings, and audit trail all reflect the intended scope.
-	savedQuery, err := fc.CreateSavedQuery(ctx, tempName, "Temporary MCP live query", sql, "", teamID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary query: %w", err)
-	}
-	defer func() {
-		// Detach from the request ctx — if the caller cancelled (MCP client
-		// hung up, request timeout), we still want to clean up the temp
-		// query rather than wait for the next startup sweep. Bound the
-		// detached call with a short timeout so a wedged Fleet doesn't pin
-		// the goroutine forever.
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", savedQuery.ID)
-		r, delErr := fc.makeFleetRequest(cleanupCtx, "DELETE", delEndpoint, nil)
-		if r != nil {
-			r.Body.Close()
-		}
-		if delErr != nil {
-			logrus.Errorf("failed to delete temp query %s (id=%d): %v — will be swept on next startup", tempName, savedQuery.ID, delErr)
-		} else if r != nil && r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
-			logrus.Errorf("temp query DELETE returned status %d for %s (id=%d) — will be swept on next startup", r.StatusCode, tempName, savedQuery.ID)
-		}
-	}()
-
-	logrus.Infof("Created temp query ID=%d, running against %d hosts", savedQuery.ID, len(hostIDs))
-
-	runEndpoint := fmt.Sprintf("/api/v1/fleet/reports/%d/run", savedQuery.ID)
-	resp, err := fc.makeFleetRequest(ctx, "POST", runEndpoint, MultiQueryRunRequest{HostIDs: hostIDs})
-	if err != nil {
-		return nil, fmt.Errorf("failed to run live query: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("live query run failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var runResp MultiQueryRunResponse
-	if err := json.NewDecoder(resp.Body).Decode(&runResp); err != nil {
-		return nil, fmt.Errorf("failed to decode live query run response: %w", err)
-	}
-
-	var enriched []map[string]interface{}
-	for _, r := range runResp.Results {
-		row := map[string]interface{}{
-			"host_id": r.HostID,
-			"rows":    r.Rows,
-		}
-		if ep, ok := endpointByID[r.HostID]; ok {
-			name := ep.DisplayName
-			if name == "" {
-				name = ep.Name
-			}
-			row["host_name"] = name
-		}
-		if r.Error != nil {
-			row["error"] = *r.Error
-		}
-		enriched = append(enriched, row)
-	}
-
-	return &LiveQueryResult{
-		TargetedHostCount:  runResp.TargetedHostCount,
-		RespondedHostCount: runResp.RespondedHostCount,
-		Results:            enriched,
-	}, nil
-}
-
-// isTempQueryName reports whether name marks a transient saved query
-// created by runMultiHostQuery. Tolerates the "[<team>] " prefix that
-// GetQueries prepends to team-scoped queries so team-scoped temp queries
-// are detected alongside global ones.
-func isTempQueryName(name string) bool {
-	if strings.HasPrefix(name, "[") {
-		if idx := strings.Index(name, "] "); idx > 0 {
-			name = name[idx+2:]
-		}
-	}
-	return strings.HasPrefix(name, tempQueryNamePrefix)
-}
-
 // endpointMatchesHostname reports whether ep's hostname-like fields (Name,
 // ComputerName, DisplayName) equal name case-insensitively. Used to verify
 // a singleton substring hit from Fleet's /hosts?query= actually matched on
@@ -1955,38 +1744,6 @@ func endpointMatchesHostname(ep Endpoint, name string) bool {
 	return strings.EqualFold(ep.Name, name) ||
 		strings.EqualFold(ep.ComputerName, name) ||
 		strings.EqualFold(ep.DisplayName, name)
-}
-
-// SweepLeftoverTempQueries deletes any saved queries whose name begins with
-// tempQueryNamePrefix. Called once at MCP startup to clean up residue from
-// previous runMultiHostQuery invocations whose deferred DELETE failed (process
-// killed mid-run, Fleet 5xx, network partition). Best-effort: errors are
-// logged but do not block startup.
-func (fc *FleetClient) SweepLeftoverTempQueries(ctx context.Context) {
-	queries, err := fc.GetQueries(ctx)
-	if err != nil {
-		logrus.Warnf("temp-query sweep: failed to list queries: %v", err)
-		return
-	}
-	swept := 0
-	for _, q := range queries {
-		if !isTempQueryName(q.Name) {
-			continue
-		}
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", q.ID)
-		r, err := fc.makeFleetRequest(ctx, "DELETE", delEndpoint, nil)
-		if r != nil {
-			r.Body.Close()
-		}
-		if err != nil {
-			logrus.Warnf("temp-query sweep: failed to delete %s (id=%d): %v", q.Name, q.ID, err)
-			continue
-		}
-		swept++
-	}
-	if swept > 0 {
-		logrus.Infof("temp-query sweep: deleted %d leftover %s* queries", swept, tempQueryNamePrefix)
-	}
 }
 
 // makeFleetRequest builds and executes a Fleet API request bound to ctx.

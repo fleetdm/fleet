@@ -34,8 +34,10 @@ fleet_maintained_apps:
       - Label A
       - Label B
     self_service: true
+    version: "10.0"
   - slug: fma3/windows
     self_service: true
+    version: ^123
 app_store_apps:
   - app_store_id: "1234567890"
     labels_exclude_any:

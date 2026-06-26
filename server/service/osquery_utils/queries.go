@@ -3018,6 +3018,28 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	return query, true
 }
 
+// parseMacOSProfileInstallDate parses the install_date reported by the
+// macos_profiles and macos_user_profiles tables. The value comes straight from
+// `/usr/bin/profiles -o stdout-xml`, which seemingly formats it using the host's
+// locale in certain cases which have been observed but unfortunately not reproduced.
+// Depending on region and macOS version the time portion can be 24-hour
+// (NSDate.description, the common case) or 12-hour with an AM/PM marker, and on
+// macOS 14+ (CLDR 42) the AM/PM marker is preceded by a narrow no-break space
+// (U+202F) instead of an ASCII space.
+func parseMacOSProfileInstallDate(installDate string) (time.Time, error) {
+	// Replace narrow and standard-no-break spaces with a common ' ' space
+	normalized := strings.NewReplacer("\u202f", " ", "\u00a0", " ").Replace(installDate)
+	for _, layout := range []string{
+		"2006-01-02 15:04:05 -0700",   // 24-hour
+		"2006-01-02 3:04:05 PM -0700", // 12-hour with AM/PM
+	} {
+		if t, err := time.Parse(layout, normalized); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported install_date format %q", installDate)
+}
+
 func directIngestMacOSProfiles(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -3036,9 +3058,9 @@ func directIngestMacOSProfiles(
 
 	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
-		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		installDate, err := parseMacOSProfileInstallDate(row["install_date"])
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "directIngestMacOSProfiles parse install_date")
 		}
 		if installDate.IsZero() {
 			// this should never happen, but if it does, we should log it

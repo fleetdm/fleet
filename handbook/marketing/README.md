@@ -388,7 +388,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
     * title - make sure it is SEO friendly
     * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
     * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
-    * playlists - Add to appropiate one(s)
+    * playlists - Add to appropriate one(s)
     * audience - not "made for kids"
     * video details - allow auto chapters, no featured places or automatic concepts
     * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)

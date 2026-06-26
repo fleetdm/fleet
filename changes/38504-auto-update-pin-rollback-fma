@@ -1,0 +1,1 @@
+- Added the ability to keep Fleet-maintained apps automatically updated to the latest version, pin them to a specific version or major version, or roll back to a previously cached version, from the UI and via GitOps (Fleet Premium).

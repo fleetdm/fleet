@@ -7,11 +7,12 @@
 
   h2 {
     font-size: $small;
+    margin: 0;
   }
-}
 
-.software-summary-and-versions {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
 }

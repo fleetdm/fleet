@@ -55,6 +55,8 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
+	// Version pins a Fleet-maintained app to a cached version; empty means "Latest", omitted leaves it unchanged.
+	Version *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
 	Configuration []byte
 }
@@ -142,6 +144,11 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
 		decoded.Configuration = []byte(cfg[0])
+	}
+
+	// Only set Version when the field is present, so an omitted field stays nil and an empty value means "Latest".
+	if versionMultipart, ok := r.MultipartForm.Value["version"]; ok && len(versionMultipart) > 0 {
+		decoded.Version = &versionMultipart[0]
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -259,6 +266,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Categories:        req.Categories,
 		DisplayName:       req.DisplayName,
 		Configuration:     req.Configuration,
+		PinnedVersion:     req.Version,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()

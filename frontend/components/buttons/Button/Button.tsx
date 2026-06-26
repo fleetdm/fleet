@@ -11,9 +11,9 @@ export type ButtonVariant =
   | "grey-pill"
   | "link" // Looks like CustomLink with animated underline on hover
   | "brand-inverse-icon" // Green icon with text, no underline on hover
-  | "text-icon"
+  | "text-icon" // DEPRECATED — use "inverse" instead. Swept in the 2025-09 UI reskin (#33558); kept for legacy callers only. New code: always reach for "inverse".
   | "icon" // Buttons without text
-  | "inverse"
+  | "inverse" // Preferred secondary button. Use this anywhere you'd reflexively reach for "text-icon".
   | "inverse-alert"
   | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
