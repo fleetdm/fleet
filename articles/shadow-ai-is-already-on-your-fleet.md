@@ -1,5 +1,7 @@
 # Shadow AI is already on your fleet. Here's how to see it.
 
+*AI tooling lands on endpoints faster than teams can see it, let alone govern it. Here's how to find shadow AI across macOS, Windows, and Linux, and act on what you find.*
+
 I've spent the last few months talking with IT and security teams about AI tooling on their endpoints, and the pattern has been consistent: adoption is running well ahead of anyone's ability to see it, let alone govern it.
 
 It feels eerily similar to the early days of SaaS, when shadow IT spread faster than anyone could inventory it. But this wave is moving faster and with far fewer guardrails. A developer can install an AI coding assistant, wire it up to a handful of MCP servers, and start handing an agent real access to code, credentials, and internal systems all before lunch. No IT help ticket required.
@@ -13,9 +15,23 @@ So teams are stuck on two questions:
 
 You can't answer either one from a dashboard that only knows about sanctioned apps. You answer it from the endpoint, where the tools actually live.
 
+## Key takeaways
+
+- **Shadow AI is an endpoint problem, and the tools you already run don't catch it.** AI tooling leaves its footprint on disk and in process lists — installed apps, CLI binaries, IDE and browser extensions, MCP configs, local servers. An identity provider or SaaS catalog never sees it, because it was never a sanctioned app. And EDR tends to wave it through, because a signed AI assistant wiring up an MCP server isn't an attack — it's software behaving exactly as installed. Finding it takes an inventory of what's actually there, not an alert on what's malicious.
+
+- **Standardizing on one AI vendor doesn't contain the risk.** The fastest-moving agentic work happens outside that boundary, in native desktop apps, IDE forks, and the command line, so the boundary you drew doesn't cover what you're actually worried about.
+
+- **Fleet sees it across every OS, in real time.** Fleet's agent turns macOS, Windows, and Linux devices into a live database you can query for an instant, fleet-wide picture of what AI tooling is running, not a once-a-day snapshot.
+
+- **The agent is open source and transparent.** Anyone can read exactly what Fleet collects and what it doesn't, which matters when the machines you're auditing belong to the engineers most likely to scrutinize your tooling.
+
+- **Governance is code, not console clicks.** Reports and policies live in Git as YAML, get reviewed in a pull request, and deploy through CI, so your AI governance posture is auditable and reversible instead of a click someone made six months ago.
+
+- **One platform takes you from "see it" to "govern it."** The same tool that finds shadow AI rolls it into software inventory, matches it against CVE data, and lets you patch, enforce, and remediate across the fleet.
+
 ## Why this is an endpoint problem
 
-AI tooling leaves a very specific footprint on a device: an installed app, a CLI binary, an IDE extension, a browser extension, a config file pointing at one or more MCP servers, sometimes a local server listening on a port. None of that shows up reliably in an identity provider or a SaaS catalog. It shows up on disk and in process lists.
+AI tooling leaves a very specific footprint on a device: an installed app, a CLI binary, an IDE extension, a browser extension, a config file pointing at one or more MCP servers, sometimes a local server listening on a port. None of that shows up reliably in an identity provider or a SaaS catalog, because it was never a sanctioned app to begin with. And EDR tends to let it pass, because a signed AI assistant wiring up an MCP server isn't an attack — it's software doing exactly what it was installed to do. It shows up on disk and in process lists, which is why finding it takes an inventory of what's there, not an alert on what's malicious.
 
 That's the layer Fleet operates at. Fleet's agent turns every device into a live database you can ask questions of and run reports against, across all your macOS, Windows, and Linux devices in real time. AI governance shouldn't stop at your Macs, and with Fleet it doesn't.
 

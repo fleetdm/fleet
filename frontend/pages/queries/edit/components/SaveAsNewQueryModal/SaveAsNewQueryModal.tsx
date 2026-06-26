@@ -10,7 +10,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import { ICreateQueryFormData } from "interfaces/schedulable_query";
 
 import queryAPI from "services/entities/queries";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { getErrorReason } from "interfaces/errors";
 import {
@@ -65,7 +65,6 @@ const SaveAsNewQueryModal = ({
   hostId,
   onExit,
 }: ISaveAsNewQueryModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState<ISANQFormData>({
@@ -159,7 +158,7 @@ const SaveAsNewQueryModal = ({
     try {
       const { query: newQuery } = await queryAPI.create(createBody);
       setIsSaving(false);
-      renderFlash("success", `Successfully added report ${newQuery.name}.`);
+      notify.success(`Successfully added report ${newQuery.name}.`);
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(newQuery.id), {
           fleet_id: newQuery.team_id,
@@ -181,7 +180,7 @@ const SaveAsNewQueryModal = ({
         errFlash = INVALID_PLATFORMS_FLASH_MESSAGE;
       }
       setIsSaving(false);
-      renderFlash("error", errFlash);
+      notify.error(errFlash, { response: createError });
     }
   };
 

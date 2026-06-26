@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import classnames from "classnames";
 
@@ -9,7 +9,6 @@ import {
   isSoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import { NotificationContext } from "context/notification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -18,6 +17,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -72,7 +72,6 @@ const EditSoftwareModal = ({
   source,
   iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   // Viewing an FMA in GitOps mode only allows viewing options, not editing
@@ -226,8 +225,7 @@ const EditSoftwareModal = ({
         // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
         openViewYamlModal();
       } else {
-        renderFlash(
-          "success",
+        notify.success(
           <>
             Successfully edited <b>{formData.software?.name}</b>.
             {formData.selfService
@@ -247,10 +245,9 @@ const EditSoftwareModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      notify.error(getErrorMessage(e, softwareInstaller as IAppStoreApp), {
+        response: e,
+      });
     }
     setIsUpdatingSoftware(false);
   };
@@ -300,8 +297,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           Successfully edited <b>{softwareInstaller.name}</b>.
           {formData.selfService
@@ -320,10 +316,9 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      notify.error(getErrorMessage(e, softwareInstaller as IAppStoreApp), {
+        response: e,
+      });
     }
     setIsUpdatingSoftware(false);
   };

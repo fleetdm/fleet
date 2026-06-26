@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.1",
+      "version": "26.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.stellarium.Stellarium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.stellarium.Stellarium' AND version_compare(bundle_short_version, '26.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.stellarium.Stellarium' AND version_compare(bundle_short_version, '26.2') < 0);"
       },
-      "installer_url": "https://github.com/Stellarium/stellarium/releases/download/v26.1/Stellarium-26.1-qt6-macOS.zip",
+      "installer_url": "https://github.com/Stellarium/stellarium/releases/download/v26.2/Stellarium-26.2-qt6-macOS.zip",
       "install_script_ref": "2c78d6da",
       "uninstall_script_ref": "94549213",
-      "sha256": "97782f6ef214de8cb60e21209a0370b11c56a764a9fdef4a5ef78b1821e1e54d",
+      "sha256": "960cdf1526a2989d213bc2c75f4b5747fd77f5a580345286a4913825ad192978",
       "default_categories": [
         "Productivity"
       ]
