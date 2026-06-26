@@ -129,16 +129,6 @@ func execNoErr(t *testing.T, db *sqlx.DB, query string, args ...any) {
 	execNoErrLastID(t, db, query, args...)
 }
 
-// columnExistsDB reports whether a column exists on a table, using the *sqlx.DB test handle. The package-level columnExists takes a
-// *sql.Tx (for use inside migrations), so migration tests use this variant instead.
-func columnExistsDB(t *testing.T, db *sqlx.DB, table, column string) bool {
-	var count int
-	require.NoError(t, db.Get(&count, `
-SELECT COUNT(*) FROM information_schema.columns
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column))
-	return count > 0
-}
-
 // applyNext performs the next migration in the chain.
 func applyNext(t *testing.T, db *sqlx.DB) {
 	// gooseNoDir is the value to not parse local files and instead use

@@ -43,14 +43,16 @@ func TestUp_20260626120000(t *testing.T) {
 
 	applyNext(t, db)
 
+	// Assert the final schema by reusing the production helpers, which take a *sql.Tx. sqlx.DB embeds sql.DB, so db.Begin() yields one. The
+	// test DB is selected per-connection (USE in newDBConnForTests), so this read-only tx must be rolled back before any other db.* read to
+	// avoid forcing a second, database-less connection from the pool.
+	tx, err := db.Begin()
+	require.NoError(t, err)
 	// The legacy text column must be gone and the new blob column present and NOT NULL.
-	require.False(t, columnExistsDB(t, db, "windows_mdm_responses", "raw_response"), "raw_response must be dropped")
-	require.True(t, columnExistsDB(t, db, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must exist")
-
-	var isNullable string
-	require.NoError(t, db.Get(&isNullable, `SELECT IS_NULLABLE FROM information_schema.columns
-		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'windows_mdm_responses' AND COLUMN_NAME = 'raw_response_gz'`))
-	require.Equal(t, "NO", isNullable, "raw_response_gz must be NOT NULL")
+	require.False(t, columnExists(tx, "windows_mdm_responses", "raw_response"), "raw_response must be dropped")
+	require.True(t, columnExists(tx, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must exist")
+	require.False(t, columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must be NOT NULL")
+	require.NoError(t, tx.Rollback())
 
 	// The backfill must populate every row: no NULLs may remain.
 	var nullCount int
