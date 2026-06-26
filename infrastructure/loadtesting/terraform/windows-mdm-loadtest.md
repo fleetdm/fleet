@@ -15,7 +15,15 @@ The cost of Windows MDM at scale is driven by a few axes, not by host count alon
 ### Prerequisites
 
 - A terraform load test environment per [readme.md](./readme.md), sized for 100k hosts (see the reference architecture).
-- `osquery-perf` containers launched with Windows templates and MDM enabled: `-os_templates windows_11,windows_11_22H2_2861,windows_11_22H2_3007`, `-mdm_prob 1.0`, `-orbit_prob 1.0`, `--logger_tls_period 120s`, `--http_message_signature_prob 0`.
+- `osquery-perf` containers launched with Windows templates and MDM enabled:
+```
+    "--orbit_prob", "1.0",
+    "--mdm_prob", "1.0",
+    "--os_templates", "windows_11,windows_11_22H2_2861,windows_11_22H2_3007",
+    "--logger_tls_period", "120s",
+    "--http_message_signature_prob", "0",
+    "--start_period", "60m"
+```
 
 ### Profile realism
 
