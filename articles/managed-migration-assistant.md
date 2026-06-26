@@ -72,7 +72,7 @@ Migration was the last unmanaged step in an otherwise governed deployment, and "
 
 ---
 
-*See how Fleet delivers Apple's declarative configurations as version-controlled YAML — [schedule a demo](https://fleetdm.com) or read Fleet's [Managed Migration Assistant deployment guide](https://fleetdm.com/guides).*
+*See how Fleet delivers Apple's declarative configurations as version-controlled YAML — [schedule a demo](https://fleetdm.com/contact) or read Fleet's [Managed Migration Assistant guide]([https://fleetdm.com/guides](https://fleetdm.com/guides/articles/managed-migration-assistant-mac-to-mac-migration-with-fleet).*
 
 
 <meta name="articleTitle" value="The riskiest step in a Mac refresh is finally manageable">
