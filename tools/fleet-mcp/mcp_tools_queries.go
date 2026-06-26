@@ -285,7 +285,7 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logrus.Info("Tool invoked: run_live_query")
 		sql, err := request.RequireString("sql")
-		if err != nil || sql == "" {
+		if err != nil || strings.TrimSpace(sql) == "" {
 			return mcp.NewToolResultError("sql is required"), nil
 		}
 

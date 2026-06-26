@@ -584,23 +584,6 @@ func TestRunMultiHostCampaign_ServerErrorFrame(t *testing.T) {
 	}
 }
 
-// runMultiHostCampaign rejects empty inputs before issuing any request.
-func TestRunMultiHostCampaign_RejectsInvalidInput(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Errorf("no request should be made for invalid input, got %s %s", r.Method, r.URL.Path)
-		http.NotFound(w, r)
-	}))
-	defer srv.Close()
-	fc := newTestClient(srv.URL)
-
-	if _, err := fc.runMultiHostCampaign(t.Context(), nil, "SELECT 1;", map[uint]Endpoint{}); err == nil {
-		t.Error("expected error for empty hostIDs, got nil")
-	}
-	if _, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "   ", map[uint]Endpoint{}); err == nil {
-		t.Error("expected error for blank sql, got nil")
-	}
-}
-
 // A mid-stream read failure (connection dropped before a terminal status) must
 // surface as an error rather than masquerading as an empty successful result.
 func TestRunMultiHostCampaign_StreamReadError(t *testing.T) {

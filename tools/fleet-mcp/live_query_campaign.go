@@ -76,16 +76,6 @@ type wsStatus struct {
 // query campaign and returns the aggregated results. It is the multi-host live
 // query path for every role.
 func (fc *FleetClient) runMultiHostCampaign(ctx context.Context, hostIDs []uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
-	// Defensive guards: callers resolve targets and require sql before reaching
-	// here, but a future caller might not — fail clearly rather than send a
-	// doomed request the server would reject anyway.
-	if len(hostIDs) == 0 {
-		return nil, fmt.Errorf("no target hosts for live query")
-	}
-	if strings.TrimSpace(sql) == "" {
-		return nil, fmt.Errorf("sql is required")
-	}
-
 	resp, err := fc.makeFleetRequest(ctx, "POST", "/api/v1/fleet/reports/run", createCampaignRequest{
 		Query:    sql,
 		Selected: campaignTargets{Hosts: hostIDs},
@@ -116,12 +106,6 @@ func (fc *FleetClient) runMultiHostCampaign(ctx context.Context, hostIDs []uint,
 // and reads frames until all online hosts have reported or the live-query
 // deadline elapses. Partial results gathered before the deadline are returned.
 func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uint, hostIDs []uint, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
-	// Normalize a nil context (mirrors makeFleetRequest) so DialContext and the
-	// ctx.Done() watcher below never operate on a nil context.
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	wsURL, err := fc.campaignWebsocketURL()
 	if err != nil {
 		return nil, err
