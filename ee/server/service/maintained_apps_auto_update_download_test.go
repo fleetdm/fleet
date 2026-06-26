@@ -140,6 +140,12 @@ func baseDownloadStore(t *testing.T, activeVersion string, activeID uint) *mock.
 		return nil
 	}
 	ds.ProcessInstallerUpdateSideEffectsFunc = func(ctx context.Context, installerID uint, a, b bool) error { return nil }
+	// By default the active installer has no custom scripts to carry forward, so the
+	// cron keeps the manifest scripts. nil signals "nothing to preserve". Tests that
+	// exercise custom-script carry-forward override this.
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
 	return ds
 }
 
@@ -258,6 +264,9 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 		return nil
 	}
 	ds.ProcessInstallerUpdateSideEffectsFunc = func(ctx context.Context, installerID uint, a, b bool) error { return nil }
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
 
 	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
 
@@ -342,4 +351,29 @@ func TestAutoUpdateUnsubstitutedUninstallSkipsInsert(t *testing.T) {
 	// and the $PACKAGE_ID placeholder survives — the candidate must be skipped.
 	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
 	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
+// When the active installer has admin-customized scripts (differ from the
+// manifest defaults), the cron carries them forward to the newly downloaded
+// version instead of reverting to the manifest scripts.
+func TestAutoUpdatePreservesCustomScripts(t *testing.T) {
+	newFakeManifestServer(t)
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallScript:   "echo CUSTOM install",
+			UninstallScript: "echo CUSTOM uninstall",
+			Extension:       "pkg",
+		}, nil
+	}
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.NotNil(t, gotPayload)
+	require.Equal(t, "echo CUSTOM install", gotPayload.InstallScript, "custom install script carried forward")
+	require.Equal(t, "echo CUSTOM uninstall", gotPayload.UninstallScript, "custom uninstall script carried forward")
 }
