@@ -880,9 +880,13 @@ type MDMWindowsEnrolledDevice struct {
 	PollScheduleRelaxed bool `db:"poll_schedule_relaxed"`
 	// FleetdSyncCapable is the last-observed CapabilityWindowsMDMSync value for this enrollment, persisted by the orbit-config endpoint. The
 	// management session has no capability header, so it gates poll relaxation on this persisted flag rather than re-deriving the capability.
-	FleetdSyncCapable bool      `db:"fleetd_sync_capable"`
-	CreatedAt         time.Time `db:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at"`
+	FleetdSyncCapable bool `db:"fleetd_sync_capable"`
+	// HasPendingCommands is the denormalized pending-commands flag as loaded at session start. The management session uses it to gate the
+	// per-session refresh: when it is already false and the pending fetch is empty, the refresh is skipped so idle check-ins do zero
+	// writer-side statements.
+	HasPendingCommands bool      `db:"has_pending_commands"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
@@ -1816,7 +1820,7 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // targeted by other active profiles in the same team. These LocURIs will be
 // skipped when generating <Delete> commands, so that deleting one profile
 // does not undo settings enforced by a different profile.
-func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]bool) (*MDMWindowsCommand, error) {
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]struct{}) (*MDMWindowsCommand, error) {
 	// Substitute $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID with the profile UUID.
 	// This is the only Fleet variable that appears in LocURIs (enforced by
 	// upload validation). The install path replaces it with the profile UUID
@@ -1835,14 +1839,14 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 	}
 
 	// Filter out LocURIs that are still targeted by other active profiles.
-	inUse := make(map[string]bool)
+	inUse := make(map[string]struct{})
 	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
 		inUse = locURIsInUseByOtherProfiles[0]
 	}
 
 	var safeURIs []string
 	for _, uri := range allURIs {
-		if !inUse[uri] {
+		if _, ok := inUse[uri]; !ok {
 			safeURIs = append(safeURIs, uri)
 		}
 	}

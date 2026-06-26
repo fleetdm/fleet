@@ -41,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
-	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 )
 
@@ -159,7 +158,7 @@ func ParseMachineInfoFromPKCS7(buf []byte, verify bool) (*fleet.MDMAppleMachineI
 	}
 
 	info := new(fleet.MDMAppleMachineInfo)
-	if err = plist.Unmarshal(p7.Content, info); err != nil {
+	if err = BoundedPlistUnmarshal(p7.Content, info); err != nil {
 		return nil, fmt.Errorf("could not decode plist: %w", err)
 	}
 

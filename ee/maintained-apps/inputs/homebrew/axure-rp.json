@@ -1,0 +1,10 @@
+{
+  "name": "Axure RP",
+  "unique_identifier": "com.axure.AxureRP11",
+  "token": "axure-rp",
+  "installer_format": "dmg",
+  "slug": "axure-rp/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

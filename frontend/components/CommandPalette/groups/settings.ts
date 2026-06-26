@@ -143,12 +143,18 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           path: paths.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
           keywords: ["saml", "idp", "admin", "login"],
         },
-        {
-          id: "settings-int-sso-end-users",
-          label: "Single sign-on (SSO) for end users",
-          path: paths.ADMIN_INTEGRATIONS_SSO_END_USERS,
-          keywords: ["saml", "idp", "device user", "login"],
-        },
+        // End-users SSO tab renders <PremiumFeatureMessage /> on Free —
+        // hide the entry on Free.
+        ...(isPremiumTier
+          ? [
+              {
+                id: "settings-int-sso-end-users",
+                label: "Single sign-on (SSO) for end users",
+                path: paths.ADMIN_INTEGRATIONS_SSO_END_USERS,
+                keywords: ["saml", "idp", "device user", "login"],
+              },
+            ]
+          : []),
         // Certificate authorities pages are Premium-only.
         ...(isPremiumTier
           ? [
@@ -185,12 +191,18 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
               },
             ]
           : []),
-        {
-          id: "settings-int-identity-provider",
-          label: "Identity provider (IdP)",
-          path: paths.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
-          keywords: ["okta", "entra", "azure ad", "directory", "ldap"],
-        },
+        // IdentityProviderSection renders <PremiumFeatureMessage /> on
+        // Free — hide the entry on Free.
+        ...(isPremiumTier
+          ? [
+              {
+                id: "settings-int-identity-provider",
+                label: "Identity provider (IdP)",
+                path: paths.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
+                keywords: ["okta", "entra", "azure ad", "directory", "ldap"],
+              },
+            ]
+          : []),
         {
           id: "settings-int-host-status-webhook",
           label: "Host status webhook",

@@ -61,14 +61,14 @@ const buildMdmItems = (
               "macbook",
             ],
           },
-          // ABM and VPP pages are Premium-only.
+          // AB and VPP pages are Premium-only.
           ...(isPremiumTier
             ? [
                 {
                   id: isAbmConfigured ? "edit-abm" : "add-abm",
                   label: isAbmConfigured
-                    ? "Edit Apple Business Manager (ABM)"
-                    : "Add Apple Business Manager (ABM)",
+                    ? "Edit Apple Business (AB)"
+                    : "Add Apple Business (AB)",
                   group: "MDM" as const,
                   path: paths.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER,
                   keywords: [

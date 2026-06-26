@@ -1,0 +1,10 @@
+{
+  "name": "QSpace Pro",
+  "unique_identifier": "com.jinghaoshe.qspace.pro",
+  "token": "qspace-pro",
+  "installer_format": "dmg",
+  "slug": "qspace-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

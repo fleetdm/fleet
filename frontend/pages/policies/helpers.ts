@@ -1,6 +1,12 @@
 import { IConfig } from "interfaces/config";
+import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { TicketOrWebhookState } from "interfaces/policy";
+import {
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
+  ISoftwareTitle,
+} from "interfaces/software";
 import { ITeamConfig } from "interfaces/team";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 export interface ITicketOrWebhookInfo {
   /** "webhook" or "ticket" when an "other workflow" automation is configured
@@ -46,4 +52,31 @@ export const getTicketOrWebhookLabel = (
   if (state === "webhook") return "Send webhook";
   if (state === "ticket") return "Create ticket";
   return "Send webhook or create ticket";
+};
+
+export const generateSoftwareOptionHelpText = (
+  title: ISoftwareTitle
+): string => {
+  const isVppApp = title.source === "apps" && !!title.app_store_app;
+
+  if (isVppApp) {
+    const version = title.app_store_app?.version
+      ? ` • ${title.app_store_app.version}`
+      : "";
+    return `macOS (App Store)${version}`;
+  }
+
+  const platform: Platform | null =
+    INSTALLABLE_SOURCE_PLATFORM_CONVERSION[title.source] || null;
+  const extension = getExtensionFromFileName(
+    title.software_package?.name ?? ""
+  );
+  const platformString =
+    platform && extension
+      ? `${PLATFORM_DISPLAY_NAMES[platform]} (.${extension})`
+      : "";
+  const version = title.software_package?.version ?? "";
+  const separator = platformString && version ? " • " : "";
+
+  return `${platformString}${separator}${version}`;
 };

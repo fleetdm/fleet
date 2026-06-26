@@ -303,6 +303,7 @@ jobs:
         fetch-depth: 1
         sparse-checkout: |
           it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+        persist-credentials: false
 
     - name: Uninstall Orbit
       run: |
@@ -517,12 +518,13 @@ jobs:
       with:
         fetch-depth: 1
         sparse-checkout: |
-          it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+          docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1
+        persist-credentials: false
 
     - name: Uninstall Orbit
       shell: powershell
       run: |
-        .\it-and-security\lib\windows\scripts\uninstall-fleetd-windows.ps1
+        .\docs\solutions\windows\scripts\uninstall-fleetd-windows.ps1
 
   summary:
     needs: [fleetd-macos, fleetd-ubuntu, fleetd-windows]

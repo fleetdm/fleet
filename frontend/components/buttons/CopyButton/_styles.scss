@@ -1,0 +1,44 @@
+.copy-button {
+  display: inline-flex;
+
+  // Collapse Fleet Button's default 36px footprint down to a 20×20 hit area
+  // (16px icon + 2px padding) so the button fits inside a 21px line-height
+  // row without growing it.
+  &__button--compact.button {
+    height: auto;
+    min-height: 0;
+    width: auto;
+    padding: 2px;
+
+    // Fleet Button's focus indicator is a `::after` pseudo with a 1px
+    // border, which paints 1px past the 20×20 footprint. Swap it for an
+    // inset outline so the focus ring stays within the bounds.
+    &::after {
+      content: none;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: -1px;
+      border-radius: $border-radius;
+    }
+  }
+
+  // Chained with `.react-tooltip` so ancestor rules targeting the bare
+  // `.react-tooltip` class (e.g. min-width overrides inside modals) cannot
+  // bloat the confirmation badge.
+  &__tooltip.react-tooltip {
+    width: auto;
+    min-width: 0;
+    background-color: $ui-light-grey;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 10px;
+    padding: 2px 6px;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $regular;
+    line-height: 1.2;
+    white-space: nowrap;
+    z-index: 100;
+  }
+}

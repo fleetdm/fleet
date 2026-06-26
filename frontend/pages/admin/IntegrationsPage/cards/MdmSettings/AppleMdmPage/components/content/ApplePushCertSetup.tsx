@@ -1,12 +1,11 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
-import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import mdmAppleApi from "services/entities/mdm_apple";
 
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import ClickableUrls from "components/ClickableUrls";
+import { notify } from "components/ToastNotification";
 import DownloadCSR from "../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 interface IApplePushCertSetupProps {
@@ -17,50 +16,69 @@ const ApplePushCertSetup = ({
   baseClass,
   onSetupSuccess,
 }: IApplePushCertSetupProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
   const onFileUpload = useCallback(
     async (files: FileList | null) => {
       if (!files?.length) {
-        renderFlash("error", "No file selected");
+        notify.error("No file selected");
         return;
       }
       setIsUploading(true);
       try {
         await mdmAppleApi.uploadApplePushCertificate(files[0]);
-        renderFlash("success", "MDM turned on successfully.");
+        notify.success("MDM turned on successfully.");
         onSetupSuccess();
       } catch (e) {
         const msg = getErrorReason(e);
-        if (
-          msg.toLowerCase().includes("invalid certificate") ||
-          msg.toLowerCase().includes("download the certificate signing request")
-        ) {
-          renderFlash("error", msg);
+        if (msg.toLowerCase().includes("required private key")) {
+          notify.error(
+            <>
+              Couldn&apos;t add APNs certificate. Please configure a private
+              key.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+                text="Learn how"
+                newTab
+                variant="flash-message-link"
+              />
+            </>,
+            { response: e }
+          );
         } else {
-          renderFlash("error", "Couldn’t connect. Please try again.");
+          notify.error(msg || "Couldn’t connect. Please try again.", {
+            response: e,
+          });
         }
         setIsUploading(false);
       }
     },
-    [renderFlash, onSetupSuccess]
+    [onSetupSuccess]
   );
 
-  const onDownloadError = useCallback(
-    (e: unknown) => {
-      const msg = getErrorReason(e);
-      if (msg.includes("is not permitted for APNS certificate signing.")) {
-        renderFlash("error", msg);
-      } else if (msg.toLowerCase().includes("required private key")) {
-        // replace link with actually clickable link
-        renderFlash("error", ClickableUrls({ text: msg }));
-      } else {
-        renderFlash("error", "Something's gone wrong. Please try again.");
-      }
-    },
-    [renderFlash]
-  );
+  const onDownloadError = useCallback((e: unknown) => {
+    const msg = getErrorReason(e);
+    if (msg.includes("is not permitted for APNS certificate signing.")) {
+      notify.error(msg, { response: e });
+    } else if (msg.toLowerCase().includes("required private key")) {
+      notify.error(
+        <>
+          Couldn&apos;t download. Please configure a private key.{" "}
+          <CustomLink
+            url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+            text="Learn how"
+            newTab
+            variant="flash-message-link"
+          />
+        </>,
+        { response: e }
+      );
+    } else {
+      notify.error("Something's gone wrong. Please try again.", {
+        response: e,
+      });
+    }
+  }, []);
 
   return (
     <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>

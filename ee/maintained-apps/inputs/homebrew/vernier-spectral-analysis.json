@@ -1,0 +1,10 @@
+{
+  "name": "Vernier Spectral Analysis",
+  "unique_identifier": "Vernier.SpectralAnalysis",
+  "token": "vernier-spectral-analysis",
+  "installer_format": "dmg",
+  "slug": "vernier-spectral-analysis/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

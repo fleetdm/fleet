@@ -1,2 +1,2 @@
 export { default } from "./CommandDetailsModal";
-export { GetIconName } from "./CommandDetailsModal";
+export { getIconName, getVerbForCommandStatus } from "./CommandDetailsModal";

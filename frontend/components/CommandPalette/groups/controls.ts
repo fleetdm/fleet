@@ -16,23 +16,29 @@ const buildControlsItems = (
   if (!canAccessControls || !hasTeamOrUnassigned) return [];
 
   return [
-    {
-      id: "controls-os-updates",
-      label: "OS updates",
-      group: "Controls" as const,
-      path: withTeamId(paths.CONTROLS_OS_UPDATES),
-      keywords: [
-        "minimum version",
-        "deadline",
-        "nudge",
-        "macos",
-        "windows",
-        "ios",
-        "ipados",
-        "patch",
-      ],
-    },
-    // OS settings sub-pages
+    // OS updates is Premium-only — OSUpdates renders <PremiumFeatureMessage />
+    // on Free.
+    ...(isPremiumTier
+      ? [
+          {
+            id: "controls-os-updates",
+            label: "OS updates",
+            group: "Controls" as const,
+            path: withTeamId(paths.CONTROLS_OS_UPDATES),
+            keywords: [
+              "minimum version",
+              "deadline",
+              "nudge",
+              "macos",
+              "windows",
+              "ios",
+              "ipados",
+              "patch",
+            ],
+          },
+        ]
+      : []),
+    // OS settings sub-routes
     {
       id: "controls-os-settings",
       label: "OS settings",
@@ -101,7 +107,7 @@ const buildControlsItems = (
           : []),
       ],
     },
-    // Setup experience sub-pages — Premium-only.
+    // Setup experience sub-routes — Premium-only.
     ...(isPremiumTier
       ? [
           {

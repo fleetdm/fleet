@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.6.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz' AND version_compare(version, '4.6.0') < 0);"
+      },
+      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.6.0/Zettlr-4.6.0-x64.exe",
+      "install_script_ref": "64dd4e97",
+      "uninstall_script_ref": "5d3c0b64",
+      "sha256": "79670357c5badcc7bab7ff73ebc7f57d50647bd141ad655b94913010bd707874",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "5d3c0b64": "$softwareName = \"Zettlr\"\n$softwareNameLike = \"$softwareName*\"\n$publisherName = \"\"\n\n$hkcuKey      = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey   = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($hkcuKey, $machineKey, $machineKey32) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if (-not ($key.DisplayName -eq $softwareName -or $key.DisplayName -like $softwareNameLike)) {\n        continue\n    }\n    if (-not ($publisherName -eq \"\" -or $key.Publisher -like \"*$publisherName*\")) {\n        continue\n    }\n\n    $foundUninstaller = $true\n\n    $uninstallCommand = if ($key.QuietUninstallString) {\n        $key.QuietUninstallString\n    } else {\n        $key.UninstallString\n    }\n\n    # Parse the uninstaller exe path from the command string\n    $uninstallExe = $null\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n        $uninstallExe = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n        $uninstallExe = $matches[1]\n    } else {\n        $uninstallExe = $uninstallCommand\n    }\n\n    # Determine the install directory\n    if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n        $installDir = $key.InstallLocation\n    } else {\n        $installDir = Split-Path -Parent $uninstallExe\n    }\n\n    $uninstallArgs = @(\"/S\", \"_?=$installDir\")\n\n    Write-Host \"Uninstall command: $uninstallExe\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $uninstallExe\n        ArgumentList = $uninstallArgs\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n\n    break\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n",
+    "64dd4e97": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nif (-not (Test-Path $exeFilePath)) {\n  Write-Host \"Installer not found at $exeFilePath\"\n}\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n"
+  }
+}

@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.autoupdate2';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.autoupdate2' AND version_compare(bundle_short_version, '4.83') < 0);"
       },
-      "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_AutoUpdate_4.83.26040910_Updater.pkg",
+      "installer_url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_AutoUpdate_4.83.26040910_Updater.pkg",
       "install_script_ref": "64b51d51",
       "uninstall_script_ref": "24478eff",
       "sha256": "a307dc89adfd60c0f9d60ad869efd19e22798ec7fd11015a351378e0249325cd",
