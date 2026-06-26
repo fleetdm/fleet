@@ -1,0 +1,1 @@
+- Fixed an issue where an identity provider (IdP) user associated with multiple hosts only had IdP host vitals populated on one of them. All matching hosts are now linked when the SCIM/IdP user is created.
