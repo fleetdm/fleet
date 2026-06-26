@@ -2551,8 +2551,7 @@ This activity does not contain any detail fields.
 
 Generated when a Google Workspace integration is configured to sync IdP host vitals.
 
-This activity contains the following field:
-- "domain": The Google Workspace primary domain that was configured.
+This activity contains a `domain` field with the Google Workspace primary domain that was configured.
 
 #### Example
 
@@ -2566,8 +2565,7 @@ This activity contains the following field:
 
 Generated when an existing Google Workspace integration is edited.
 
-This activity contains the following field:
-- "domain": The Google Workspace primary domain.
+This activity contains a `domain` field with the Google Workspace primary domain.
 
 #### Example
 
@@ -2581,8 +2579,7 @@ This activity contains the following field:
 
 Generated when a Google Workspace integration is removed.
 
-This activity contains the following field:
-- "domain": The Google Workspace primary domain that was removed.
+This activity contains a `domain` field with the Google Workspace primary domain that was removed.
 
 #### Example
 
