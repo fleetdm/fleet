@@ -19,7 +19,7 @@ func init() {
 // Windows MDM check-in hot path (issue #44188). The text column could not hold raw gzip bytes (charset-constrained).
 func Up_20260626120000(tx *sql.Tx) error {
 	if !columnExists(tx, "windows_mdm_responses", "raw_response_gz") {
-		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses ADD COLUMN raw_response_gz MEDIUMBLOB NULL, ALGORITHM=INSTANT`); err != nil {
+		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses ADD COLUMN raw_response_gz MEDIUMBLOB NULL`); err != nil {
 			return fmt.Errorf("adding raw_response_gz column: %w", err)
 		}
 	}
@@ -37,14 +37,14 @@ func Up_20260626120000(tx *sql.Tx) error {
 			return fmt.Errorf("backfilling raw_response_gz: %w", err)
 		}
 
-		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses DROP COLUMN raw_response, ALGORITHM=INSTANT`); err != nil {
+		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses DROP COLUMN raw_response`); err != nil {
 			return fmt.Errorf("dropping raw_response column: %w", err)
 		}
 	}
 
 	// Enforce NOT NULL once every row is populated.
 	if columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz") {
-		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses MODIFY raw_response_gz MEDIUMBLOB NOT NULL, ALGORITHM=INPLACE`); err != nil {
+		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses MODIFY raw_response_gz MEDIUMBLOB NOT NULL`); err != nil {
 			return fmt.Errorf("making raw_response_gz NOT NULL: %w", err)
 		}
 	}
@@ -69,7 +69,8 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, 
 func backfillWindowsMDMResponsesGz(tx *sql.Tx, increment incrementCountFn) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
-	const batchSize = 500
+	// Keep the batch small: raw_response is MEDIUMTEXT (up to 16 MB per row), so a large batch could pull a lot of data into memory at once.
+	const batchSize = 100
 	var lastID uint64
 	for {
 		var batch []struct {
