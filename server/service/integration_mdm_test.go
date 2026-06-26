@@ -4132,8 +4132,14 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 
 	var responseID int64
 	rawResponse := []byte("some-response")
+	// raw_response_gz stores the gzip-compressed envelope (#44188); the read path gunzips it, so the fixture must insert compressed bytes.
+	var rawResponseGz bytes.Buffer
+	gzw := gzip.NewWriter(&rawResponseGz)
+	_, gzErr := gzw.Write(rawResponse)
+	require.NoError(t, gzErr)
+	require.NoError(t, gzw.Close())
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, rawResponseGz.Bytes())
 		if err != nil {
 			return err
 		}
@@ -9086,25 +9092,22 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		var fullResult []byte
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &fullResult, `
-			SELECT raw_response
+			SELECT raw_response_gz
 			FROM windows_mdm_responses wmr
 			JOIN windows_mdm_command_results wmcr ON wmcr.response_id = wmr.id
 			WHERE command_uuid = ?
 			`, cmdUUID)
 		})
-		// raw_response is stored gzip-compressed (see compressWindowsMDMResponse); decompress it so it matches the decompressed envelope the
-		// API returns in Result. Envelopes below the compression threshold are stored verbatim (no prefix) and pass through unchanged.
-		const gzipPrefix = "gz1:"
-		if bytes.HasPrefix(fullResult, []byte(gzipPrefix)) {
-			decoded, err := base64.StdEncoding.DecodeString(string(fullResult[len(gzipPrefix):]))
-			require.NoError(t, err)
-			gr, err := gzip.NewReader(bytes.NewReader(decoded))
-			require.NoError(t, err)
-			defer gr.Close()
-			fullResult, err = io.ReadAll(gr)
-			require.NoError(t, err)
+		// raw_response_gz stores the gzip-compressed envelope (#44188); decompress it so it matches the envelope the API returns in Result.
+		if len(fullResult) == 0 {
+			return fullResult
 		}
-		return fullResult
+		gr, err := gzip.NewReader(bytes.NewReader(fullResult))
+		require.NoError(t, err)
+		defer gr.Close()
+		out, err := io.ReadAll(gr)
+		require.NoError(t, err)
+		return out
 	}
 
 	var getMDMCmdResp getMDMCommandResultsResponse

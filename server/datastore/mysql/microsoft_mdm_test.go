@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"database/sql"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"sync"
@@ -2201,7 +2204,9 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	rawResponse := []byte("some-response")
-	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
+	compressedResponse, err := compressWindowsMDMResponse(rawResponse)
+	require.NoError(t, err)
+	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, compressedResponse)
 	require.NoError(t, err)
 
 	rawResult := []byte("some-result")
@@ -3874,28 +3879,22 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 
 func TestCompressWindowsMDMResponse(t *testing.T) {
 	t.Run("round-trip restores the original envelope", func(t *testing.T) {
-		// Pad past windowsMDMResponseCompressMinBytes so the value is actually compressed (and prefixed).
 		original := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody><Status><CmdID>1</CmdID><Data>200</Data></Status>` +
 			strings.Repeat("<Status><CmdID>2</CmdID><Data>200</Data></Status>", 10) + `</SyncBody></SyncML>`)
-		require.GreaterOrEqual(t, len(original), windowsMDMResponseCompressMinBytes)
 		compressed, err := compressWindowsMDMResponse(original)
 		require.NoError(t, err)
-		require.True(t, strings.HasPrefix(string(compressed), windowsMDMResponseCompressedPrefix))
 
 		decompressed, err := decompressWindowsMDMResponse(compressed)
 		require.NoError(t, err)
 		require.Equal(t, original, decompressed)
 	})
 
-	t.Run("small envelope is stored verbatim to avoid inflation", func(t *testing.T) {
+	t.Run("small envelope round-trips", func(t *testing.T) {
 		original := []byte(`<SyncML/>`)
-		require.Less(t, len(original), windowsMDMResponseCompressMinBytes)
-		stored, err := compressWindowsMDMResponse(original)
+		compressed, err := compressWindowsMDMResponse(original)
 		require.NoError(t, err)
-		require.Equal(t, original, stored, "small payloads must be stored uncompressed and unprefixed")
-		require.False(t, strings.HasPrefix(string(stored), windowsMDMResponseCompressedPrefix))
 
-		decompressed, err := decompressWindowsMDMResponse(stored)
+		decompressed, err := decompressWindowsMDMResponse(compressed)
 		require.NoError(t, err)
 		require.Equal(t, original, decompressed)
 	})
@@ -3912,18 +3911,11 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 
 		compressed, err := compressWindowsMDMResponse(original)
 		require.NoError(t, err)
-		require.Less(t, len(compressed), len(original), "compressed (incl. base64 + prefix) must be smaller than the original envelope")
+		require.Less(t, len(compressed), len(original), "compressed value must be smaller than the original envelope")
 
 		decompressed, err := decompressWindowsMDMResponse(compressed)
 		require.NoError(t, err)
 		require.Equal(t, original, decompressed)
-	})
-
-	t.Run("legacy uncompressed value passes through unchanged", func(t *testing.T) {
-		legacy := []byte("some-response")
-		out, err := decompressWindowsMDMResponse(legacy)
-		require.NoError(t, err)
-		require.Equal(t, legacy, out)
 	})
 
 	t.Run("empty value passes through unchanged", func(t *testing.T) {
@@ -3932,8 +3924,8 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 		require.Empty(t, out)
 	})
 
-	t.Run("prefixed but invalid payload errors", func(t *testing.T) {
-		_, err := decompressWindowsMDMResponse([]byte(windowsMDMResponseCompressedPrefix + "not-base64!!"))
+	t.Run("invalid (non-gzip) payload errors", func(t *testing.T) {
+		_, err := decompressWindowsMDMResponse([]byte("not-gzip-data"))
 		require.Error(t, err)
 	})
 }
@@ -4024,14 +4016,19 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	// The read path must transparently restore the original envelope even though it is stored gzip-compressed (#44188).
 	assert.Equal(t, enrichedSyncML.Raw, results[0].Result)
 
-	// And the row on disk must actually be compressed (carry the prefix), not the raw envelope.
-	var storedResp string
+	// And the row on disk must actually be gzip-compressed, not the raw envelope.
+	var storedResp []byte
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &storedResp,
-			`SELECT raw_response FROM windows_mdm_responses WHERE enrollment_id = ?`, enrolledDevice1.ID)
+			`SELECT raw_response_gz FROM windows_mdm_responses WHERE enrollment_id = ?`, enrolledDevice1.ID)
 	})
-	assert.True(t, strings.HasPrefix(storedResp, windowsMDMResponseCompressedPrefix), "stored raw_response must be compressed")
-	assert.NotContains(t, storedResp, "<SyncML", "stored raw_response must not contain the plaintext envelope")
+	assert.NotContains(t, string(storedResp), "<SyncML", "stored raw_response_gz must not contain the plaintext envelope")
+	gr, err := gzip.NewReader(bytes.NewReader(storedResp))
+	require.NoError(t, err, "stored raw_response_gz must be valid gzip")
+	roundTripped, err := io.ReadAll(gr)
+	require.NoError(t, err)
+	require.NoError(t, gr.Close())
+	assert.Equal(t, enrichedSyncML.Raw, roundTripped, "stored raw_response_gz must gunzip back to the original envelope")
 
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6067,9 +6064,11 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3, count)
 
 	// Insert a response row (required FK for command results).
+	compressedSyncML, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+	require.NoError(t, err)
 	var responseID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, '<SyncML/>')`, dev.ID)
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, dev.ID, compressedSyncML)
 		if err != nil {
 			return err
 		}
