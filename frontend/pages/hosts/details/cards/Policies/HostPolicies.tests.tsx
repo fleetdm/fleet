@@ -171,6 +171,11 @@ describe("HostPolicies", () => {
     expect(policyRow).not.toBeNull();
     await user.click(policyRow as HTMLElement);
 
+    // Confirm the click actually selected the policy and opened the modal —
+    // otherwise the page-retention assertions below could pass trivially.
+    // "Resolve:" only renders inside PolicyDetailsModal.
+    expect(screen.getByText("Resolve:")).toBeInTheDocument();
+
     // The table should still be on page 2 — Policy 21 belongs to page 2 and
     // is not rendered by the modal.
     expect(screen.queryAllByText("Policy 21").length).toBeGreaterThan(0);
