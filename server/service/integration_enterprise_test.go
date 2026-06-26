@@ -33525,6 +33525,35 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
 	require.Equal(t, 0, pinRowCount(), "deleting an FMA must delete its pin row")
+
+	// --- GitOps removal also clears the pin ---
+
+	// Re-add zoom (deleted above) and pin it via GitOps.
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "10.0"}})
+	require.Equal(t, 1, pinRowCount())
+
+	// Dropping zoom from the config (chrome stays) clears its pin via the
+	// title_id-NOT-IN removal path.
+	batchSet([]*fleet.SoftwareInstallerPayload{})
+	require.Equal(t, 0, pinRowCount(), "removing an FMA via GitOps must delete its pin row")
+
+	// An empty config (remove all software) clears every pin for the team,
+	// including chrome's "^149", via the delete-all path.
+	teamPinCount := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, "SELECT COUNT(*) FROM software_title_team_pins WHERE team_id = ?", team.ID)
+		})
+		return n
+	}
+	require.NotZero(t, teamPinCount()) // chrome's "^149" pin is present
+	var emptyResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}, TeamName: team.Name},
+		http.StatusAccepted, &emptyResp, "team_name", team.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, emptyResp.RequestUUID)
+	require.Zero(t, teamPinCount(), "removing all software via GitOps must delete all team pins")
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
