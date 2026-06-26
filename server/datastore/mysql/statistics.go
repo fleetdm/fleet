@@ -150,7 +150,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
 		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && !appConfig.Integrations.GoogleCalendar[0].ApiKey.IsEmpty()
-		stats.GoogleWorkspaceConfigured = len(appConfig.Integrations.GoogleWorkspace) > 0 && appConfig.Integrations.GoogleWorkspace[0].Domain != "" && !appConfig.Integrations.GoogleWorkspace[0].ApiKey.IsEmpty()
+		stats.GoogleWorkspaceConfigured = appConfig.Integrations.IsGoogleWorkspaceConfigured()
 
 		stats.MaintenanceWindowsEnabled = false
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
