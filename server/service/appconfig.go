@@ -1350,6 +1350,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		}
+	}
+
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
@@ -1699,6 +1711,11 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
+			invalid.Append("setup_experience.enable_managed_local_account",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}

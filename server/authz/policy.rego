@@ -89,10 +89,10 @@ allow {
   action == write
 }
 
-# Global admin, gitops, maintainer, technician, observer_plus and observer can read Okta IdP assets.
+# Global admin, gitops, maintainer, and technician can read Okta IdP assets.
 allow {
   object.type == "conditional_access_idp_assets"
-  subject.global_role == [admin, gitops, maintainer, technician, observer_plus, observer][_]
+  subject.global_role == [admin, gitops, maintainer, technician][_]
   action == read
 }
 

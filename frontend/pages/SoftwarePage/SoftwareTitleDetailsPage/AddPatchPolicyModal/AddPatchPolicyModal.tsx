@@ -67,6 +67,8 @@ const AddPatchPolicyModal = ({
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
             entityType="software"
+            position="top"
+            tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
                 onClick={onAddPatchPolicy}
