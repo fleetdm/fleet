@@ -1,4 +1,4 @@
-## Fleet 4.87.1 (Jun 25, 2026)
+## Fleet 4.87.1 (Jun 26, 2026)
 
 ### Bug fixes
 
