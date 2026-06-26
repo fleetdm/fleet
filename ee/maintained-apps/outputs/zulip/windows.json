@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.12.3",
+      "version": "5.12.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zulip' AND publisher = 'Kandra Labs, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zulip' AND publisher = 'Kandra Labs, Inc.' AND version_compare(version, '5.12.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zulip' AND publisher = 'Kandra Labs, Inc.' AND version_compare(version, '5.12.4') < 0);"
       },
-      "installer_url": "https://github.com/zulip/zulip-desktop/releases/download/v5.12.3/Zulip-5.12.3-x64.msi",
+      "installer_url": "https://github.com/zulip/zulip-desktop/releases/download/v5.12.4/Zulip-5.12.4-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5237b38e",
-      "sha256": "12bc49fde2758a81e4cd12d8c8f1ab13862af26608f3aefc37f9c1aaa5011972",
+      "sha256": "3ef9406996f2548e26902e332847270b5129c2d743cced77372b822667e7abec",
       "default_categories": [
         "Communication"
       ],
