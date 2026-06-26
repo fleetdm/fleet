@@ -36,6 +36,7 @@ export interface InstallerCardInfo {
 export interface ILibraryVersionRow {
   id: number;
   version: string;
+  filename?: string;
   uploaded_at: string;
   isActive: boolean;
   badgeState?: LibraryItemBadgeState;

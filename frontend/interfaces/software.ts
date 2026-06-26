@@ -119,6 +119,7 @@ export interface ISoftwareAppStoreAppStatus {
 export interface IFleetMaintainedVersion {
   id: number;
   version: string;
+  filename: string;
   uploaded_at: string;
 }
 

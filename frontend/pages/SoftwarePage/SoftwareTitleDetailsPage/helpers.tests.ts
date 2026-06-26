@@ -4,6 +4,7 @@ import { buildLibraryVersionRows, getInstallerCardInfo } from "./helpers";
 const v = (id: number, version: string) => ({
   id,
   version,
+  filename: `installer-${version}.pkg`,
   uploaded_at: "2026-01-01T00:00:00Z",
 });
 
@@ -41,6 +42,22 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       expect(rows.map((r) => [r.version, r.isActive, r.badgeState])).toEqual([
         ["149.0.7827.54", true, "latest"],
         ["148.0.7778.179", false, undefined],
+      ]);
+    });
+
+    it("carries each version's own filename through to its row", () => {
+      const rows = buildLibraryVersionRows({
+        fleetMaintainedVersions: [
+          v(1, "149.0.7827.54"),
+          v(2, "148.0.7778.179"),
+        ],
+        activeVersion: "149.0.7827.54",
+        pinnedVersion: null,
+        addedTimestamp: "x",
+      });
+      expect(rows.map((r) => r.filename)).toEqual([
+        "installer-149.0.7827.54.pkg",
+        "installer-148.0.7778.179.pkg",
       ]);
     });
 

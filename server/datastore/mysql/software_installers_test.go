@@ -6262,7 +6262,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers
 				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
 				 fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, is_active, package_ids, patch_query)
-			SELECT team_id, global_or_team_id, 'storageid2', filename, extension, '2.0', platform, title_id,
+			SELECT team_id, global_or_team_id, 'storageid2', 'test2.pkg', extension, '2.0', platform, title_id,
 				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, patch_query
 			FROM software_installers WHERE id = ?
 		`, v1ID)
@@ -6272,6 +6272,15 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &v2ID, `SELECT id FROM software_installers WHERE title_id=? AND global_or_team_id=0 AND version='2.0'`, titleID)
 	})
+
+	// GetFleetMaintainedVersionsByTitleID returns each cached version's own filename.
+	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, false)
+	require.NoError(t, err)
+	gotFilenames := map[string]string{}
+	for _, fv := range fmaVersions {
+		gotFilenames[fv.Version] = fv.Filename
+	}
+	require.Equal(t, map[string]string{"1.0": "test.pkg", "2.0": "test2.pkg"}, gotFilenames)
 
 	activeID := func() uint {
 		var id uint

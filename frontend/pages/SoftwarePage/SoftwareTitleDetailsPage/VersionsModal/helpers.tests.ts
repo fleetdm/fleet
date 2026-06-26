@@ -7,6 +7,7 @@ import {
 const v = (id: number, version: string) => ({
   id,
   version,
+  filename: `installer-${version}.pkg`,
   uploaded_at: "2026-01-01T00:00:00Z",
 });
 
