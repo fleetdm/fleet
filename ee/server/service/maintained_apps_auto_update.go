@@ -283,6 +283,35 @@ func downloadNewVersionIfEligible(
 		InstallerFile:   tfr,
 	}
 
+	// Preserve admin-customized scripts across auto-updates. The active installer
+	// (still the previous version here; promotion happens later) is the one to
+	// carry forward from. Detect customization per-script by comparing against the
+	// manifest: the install script is a version-independent template (direct
+	// compare), but the uninstall script is version-specific after $PACKAGE_ID /
+	// $UPGRADE_CODE substitution, so compare against the manifest template
+	// substituted with the active version's package IDs.
+	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
+	}
+	if active != nil {
+		if strings.TrimSpace(active.InstallScript) != strings.TrimSpace(app.InstallScript) {
+			payload.InstallScript = active.InstallScript
+		}
+		defaultUninstall := &fleet.UploadSoftwareInstallerPayload{
+			UninstallScript: app.UninstallScript,
+			PackageIDs:      active.PackageIDs(),
+			UpgradeCode:     active.UpgradeCode,
+			Extension:       active.Extension,
+		}
+		if err := preProcessUninstallScript(defaultUninstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "computing manifest uninstall script for comparison")
+		}
+		if strings.TrimSpace(active.UninstallScript) != strings.TrimSpace(defaultUninstall.UninstallScript) {
+			payload.UninstallScript = active.UninstallScript
+		}
+	}
+
 	// Substitute $PACKAGE_ID / $UPGRADE_CODE in the uninstall script, matching the
 	// GitOps materialization path (no-op when there are no package IDs).
 	if err := preProcessUninstallScript(payload); err != nil {

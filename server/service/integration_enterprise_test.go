@@ -27339,6 +27339,21 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		})
 		return ss
 	}
+	activeScripts := func(teamID, titleID uint) (install, uninstall string) {
+		var row struct {
+			Install   string `db:"install_script"`
+			Uninstall string `db:"uninstall_script"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT inst.contents AS install_script, COALESCE(uninst.contents, '') AS uninstall_script
+				FROM software_installers si
+				LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
+				LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
+				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
+		})
+		return row.Install, row.Uninstall
+	}
 	setPin := func(teamID, titleID uint, pin string) {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
@@ -27423,6 +27438,30 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// === Section D: a re-run with nothing new is a no-op ===
 	runCron()
 	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version)
+
+	// === Section E: admin-customized scripts are carried forward on auto-update ===
+	clearPin(team.ID, titleID)
+	const customInstall = "echo custom-install"
+	const customUninstall = "echo custom-uninstall"
+	var batchRespE batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+			{Slug: new(slug), SelfService: true, InstallScript: customInstall, UninstallScript: customUninstall},
+		}, TeamName: team.Name},
+		http.StatusAccepted, &batchRespE, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespE.RequestUUID)
+
+	gotInstall, gotUninstall := activeScripts(team.ID, titleID)
+	require.Equal(t, customInstall, gotInstall)
+	require.Equal(t, customUninstall, gotUninstall)
+
+	// A newly published version must keep the custom scripts, not revert to the manifest's.
+	setManifest("5.0", []byte("v50"))
+	runCron()
+	require.Equal(t, "5.0", activeTitle(team.ID).SoftwarePackage.Version)
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, customInstall, gotInstall, "custom install script must survive auto-update")
+	require.Equal(t, customUninstall, gotUninstall, "custom uninstall script must survive auto-update")
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
