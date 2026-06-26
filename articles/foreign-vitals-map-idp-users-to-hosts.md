@@ -138,7 +138,7 @@ To map users from Google Workspace to hosts in Fleet, complete the following ste
 
 1. Go to the [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) page in the Google Cloud console.
 2. Select or create a project, then select **Create service account**.
-3. Enter a name (e.g. "Fleet IdP sync") and select **Create and continue**, then **Done**.
+3. Enter a name (e.g., "Fleet IdP sync") and select **Create and continue**, then **Done**.
 4. Select the new service account, open the **Keys** tab, and select **Add key > Create new key**.
 5. Select the **JSON** key type and select **Create** to download the key file. You'll paste its contents into Fleet later.
 6. Enable the [Admin SDK API](https://console.cloud.google.com/apis/library/admin.googleapis.com) in the same project as the service account. This is required, and it's easy to miss. If it's not enabled, the sync fails with a 403 `SERVICE_DISABLED` error.
