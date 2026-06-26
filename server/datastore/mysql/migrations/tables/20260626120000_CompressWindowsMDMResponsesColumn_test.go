@@ -43,9 +43,8 @@ func TestUp_20260626120000(t *testing.T) {
 
 	applyNext(t, db)
 
-	// Assert the final schema by reusing the production helpers, which take a *sql.Tx. sqlx.DB embeds sql.DB, so db.Begin() yields one. The
-	// test DB is selected per-connection (USE in newDBConnForTests), so this read-only tx must be rolled back before any other db.* read to
-	// avoid forcing a second, database-less connection from the pool.
+	// Assert the final schema The test DB is selected per-connection (USE in newDBConnForTests), so this read-only tx must be rolled
+	// back before any other db.* read to avoid forcing a second, database-less connection from the pool.
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	// The legacy text column must be gone and the new blob column present and NOT NULL.
@@ -53,11 +52,6 @@ func TestUp_20260626120000(t *testing.T) {
 	require.True(t, columnExists(tx, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must exist")
 	require.False(t, columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must be NOT NULL")
 	require.NoError(t, tx.Rollback())
-
-	// The backfill must populate every row: no NULLs may remain.
-	var nullCount int
-	require.NoError(t, db.Get(&nullCount, `SELECT COUNT(*) FROM windows_mdm_responses WHERE raw_response_gz IS NULL`))
-	require.Zero(t, nullCount, "backfill must populate raw_response_gz for every row")
 
 	// Every backfilled row must gunzip back to its original plaintext.
 	for id, want := range responses {

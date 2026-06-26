@@ -17,11 +17,6 @@ func init() {
 // Up_20260626120000 converts windows_mdm_responses.raw_response (a MEDIUMTEXT holding the plaintext SyncML envelope) into a new
 // raw_response_gz MEDIUMBLOB that stores the envelope gzip-compressed. This shrinks the row and the redo-log/commit-quorum pressure of the
 // Windows MDM check-in hot path (issue #44188). The text column could not hold raw gzip bytes (charset-constrained).
-//
-// The column is added nullable so the ADD is instant (a NOT NULL BLOB has no instant path: it cannot take a literal default, and an
-// expression default is not instant). After every row is backfilled and the legacy column is dropped, it is switched to NOT NULL to match
-// the original raw_response contract. That final switch is an INPLACE rebuild, but because the migration runs with the server down there is
-// no write contention, and dropping raw_response first lets the same rebuild reclaim its space.
 func Up_20260626120000(tx *sql.Tx) error {
 	if !columnExists(tx, "windows_mdm_responses", "raw_response_gz") {
 		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses ADD COLUMN raw_response_gz MEDIUMBLOB NULL, ALGORITHM=INSTANT`); err != nil {

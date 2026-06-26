@@ -916,10 +916,7 @@ ORDER BY
 	return commands, nil
 }
 
-// compressWindowsMDMResponse gzip-compresses a full SyncML response envelope for storage in the windows_mdm_responses.raw_response_gz
-// MEDIUMBLOB column. SyncML envelopes are highly compressible XML (2-20 KB in practice, issue #44188); compressing them shrinks the row and
-// the redo-log/commit-quorum pressure of the Windows MDM check-in hot path. Every envelope is compressed unconditionally so the stored value
-// has a single, uniform format that decompressWindowsMDMResponse can always reverse.
+// compressWindowsMDMResponse gzip-compresses a full SyncML response envelope
 func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
@@ -932,8 +929,7 @@ func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// decompressWindowsMDMResponse reverses compressWindowsMDMResponse. An empty value (e.g. the empty bytes a LEFT JOIN miss yields through
-// COALESCE) is returned unchanged, since it is not a valid gzip stream.
+// decompressWindowsMDMResponse reverses compressWindowsMDMResponse.
 func decompressWindowsMDMResponse(stored []byte) ([]byte, error) {
 	if len(stored) == 0 {
 		return stored, nil
@@ -958,7 +954,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		result = nil
 
-		// store the full response, gzip-compressed to shrink the row and reduce redo-log/commit-quorum pressure on this hot path (#44188)
+		// store the full response, gzip-compressed to shrink the row and reduce redo-log/commit-quorum pressure on this hot path
 		compressedResp, err := compressWindowsMDMResponse(enrichedSyncML.Raw)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "compressing full response")
@@ -1322,8 +1318,7 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
 
-	// raw_response_gz is stored gzip-compressed (see compressWindowsMDMResponse); restore the original envelope for the API response. Empty
-	// (LEFT JOIN miss) values pass through unchanged.
+	// raw_response_gz is stored gzip-compressed; restore the original envelope for the API response.
 	for _, r := range results {
 		decompressed, err := decompressWindowsMDMResponse(r.Result)
 		if err != nil {
