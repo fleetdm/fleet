@@ -3878,53 +3878,45 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 }
 
 func TestCompressWindowsMDMResponse(t *testing.T) {
-	t.Run("round-trip restores the original envelope", func(t *testing.T) {
-		original := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody><Status><CmdID>1</CmdID><Data>200</Data></Status>` +
-			strings.Repeat("<Status><CmdID>2</CmdID><Data>200</Data></Status>", 10) + `</SyncBody></SyncML>`)
-		compressed, err := compressWindowsMDMResponse(original)
-		require.NoError(t, err)
+	// A representative SyncML envelope: highly compressible XML with repeated structure. Reused by the round-trip and shrink cases.
+	realisticEnvelope := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody>` +
+		strings.Repeat(`<Status><CmdID>1</CmdID><MsgRef>1</MsgRef><CmdRef>2</CmdRef><Cmd>Replace</Cmd><Data>200</Data></Status>`, 200) +
+		`</SyncBody></SyncML>`)
 
-		decompressed, err := decompressWindowsMDMResponse(compressed)
-		require.NoError(t, err)
-		require.Equal(t, original, decompressed)
-	})
+	t.Run("round-trip restores the input", func(t *testing.T) {
+		for _, tc := range []struct {
+			name  string
+			input []byte
+		}{
+			{"realistic envelope", realisticEnvelope},
+			{"small envelope", []byte(`<SyncML/>`)},
+			{"empty", []byte("")},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				compressed, err := compressWindowsMDMResponse(tc.input)
+				require.NoError(t, err)
 
-	t.Run("small envelope round-trips", func(t *testing.T) {
-		original := []byte(`<SyncML/>`)
-		compressed, err := compressWindowsMDMResponse(original)
-		require.NoError(t, err)
-
-		decompressed, err := decompressWindowsMDMResponse(compressed)
-		require.NoError(t, err)
-		require.Equal(t, original, decompressed)
+				decompressed, err := decompressWindowsMDMResponse(compressed)
+				require.NoError(t, err)
+				require.Equal(t, tc.input, decompressed)
+			})
+		}
 	})
 
 	t.Run("compression shrinks a realistic envelope", func(t *testing.T) {
-		// A typical SyncML envelope is highly compressible XML; build a representative one with repeated structure.
-		var sb strings.Builder
-		sb.WriteString(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody>`)
-		for range 200 {
-			sb.WriteString(`<Status><CmdID>1</CmdID><MsgRef>1</MsgRef><CmdRef>2</CmdRef><Cmd>Replace</Cmd><Data>200</Data></Status>`)
-		}
-		sb.WriteString(`</SyncBody></SyncML>`)
-		original := []byte(sb.String())
-
-		compressed, err := compressWindowsMDMResponse(original)
+		compressed, err := compressWindowsMDMResponse(realisticEnvelope)
 		require.NoError(t, err)
-		require.Less(t, len(compressed), len(original), "compressed value must be smaller than the original envelope")
-
-		decompressed, err := decompressWindowsMDMResponse(compressed)
-		require.NoError(t, err)
-		require.Equal(t, original, decompressed)
+		require.Less(t, len(compressed), len(realisticEnvelope), "compressed value must be smaller than the original envelope")
 	})
 
-	t.Run("empty value passes through unchanged", func(t *testing.T) {
+	t.Run("decompress passes through empty stored bytes", func(t *testing.T) {
+		// A LEFT JOIN miss is COALESCEd to empty bytes on read, which are not a valid gzip stream and must pass through unchanged.
 		out, err := decompressWindowsMDMResponse([]byte{})
 		require.NoError(t, err)
 		require.Empty(t, out)
 	})
 
-	t.Run("invalid (non-gzip) payload errors", func(t *testing.T) {
+	t.Run("decompress rejects non-gzip data", func(t *testing.T) {
 		_, err := decompressWindowsMDMResponse([]byte("not-gzip-data"))
 		require.Error(t, err)
 	})
@@ -4013,7 +4005,6 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
 	assert.Equal(t, cmd.CommandUUID, results[0].CommandUUID)
 	assert.Equal(t, "200", results[0].Status)
-	// The read path must transparently restore the original envelope even though it is stored gzip-compressed (#44188).
 	assert.Equal(t, enrichedSyncML.Raw, results[0].Result)
 
 	// And the row on disk must actually be gzip-compressed, not the raw envelope.

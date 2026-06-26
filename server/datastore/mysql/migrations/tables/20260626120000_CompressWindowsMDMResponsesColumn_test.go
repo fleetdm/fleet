@@ -43,8 +43,8 @@ func TestUp_20260626120000(t *testing.T) {
 
 	applyNext(t, db)
 
-	// Assert the final schema The test DB is selected per-connection (USE in newDBConnForTests), so this read-only tx must be rolled
-	// back before any other db.* read to avoid forcing a second, database-less connection from the pool.
+	// Assert the final schema using the production helpers. The test DB is selected per-connection (USE in newDBConnForTests), so this
+	// read-only tx must be rolled back before any other db.* read to avoid forcing a second, database-less connection from the pool.
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	// The legacy text column must be gone and the new blob column present and NOT NULL.
