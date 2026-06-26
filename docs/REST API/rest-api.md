@@ -6891,7 +6891,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 
 | Name                    | Type    | Description   |
 | -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile                | string   | Base64 encoded configuration profile (.mobileconfig), declaration (DDM) profile, or asset declaration (`com.apple.asset`) for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
+| profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
@@ -12866,6 +12866,11 @@ _Available in Fleet Premium_
           {
             "path": "path/to/assets/asset.json"
           }
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
         ]
       },
       "windows_settings": {
@@ -13366,6 +13371,11 @@ Returned when the requested name only differs from another fleet's name by lette
         {
           "path": "path/to/assets/asset.json"
         },
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
       ]
     },
     "windows_settings": {
@@ -13518,6 +13528,11 @@ _Available in Fleet Premium_
           },
           {
            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
           }
         ]
       },
