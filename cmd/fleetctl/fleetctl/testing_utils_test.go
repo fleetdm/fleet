@@ -289,6 +289,9 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
 	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
+	}
 	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, certTmplID uint) error {
 		return nil
 	}

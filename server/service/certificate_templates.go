@@ -46,6 +46,21 @@ var fleetVarsSupportedInCertificateTemplates = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPFullname,
 }
 
+// extractCertTemplateFleetVars returns the deduplicated fleet variables found in
+// the certificate template's subject_name and subject_alternative_name.
+func extractCertTemplateFleetVars(subjectName, subjectAlternativeName string) []fleet.FleetVarName {
+	combined := subjectName + " " + subjectAlternativeName
+	found := variables.Find(combined)
+	if len(found) == 0 {
+		return nil
+	}
+	result := make([]fleet.FleetVarName, len(found))
+	for i, v := range found {
+		result[i] = fleet.FleetVarName(v)
+	}
+	return result
+}
+
 // maxCertificateTemplateSubjectAlternativeNameLength caps the SAN string length to prevent
 // pathological inputs. 4096 bytes accommodates real-world SAN lists (a handful of DNS / UPN /
 // EMAIL / IP / URI entries) with comfortable headroom.
