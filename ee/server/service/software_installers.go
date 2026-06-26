@@ -506,6 +506,15 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
 
 			dirty["Package"] = true
+
+			// For script packages the uploaded file's contents are the install
+			// script, so replacing the file must update install_script too.
+			if fleet.IsScriptPackage(existingInstaller.Extension) {
+				payload.InstallScript = &payloadForNewInstallerFile.InstallScript
+				if payloadForNewInstallerFile.InstallScript != existingInstaller.InstallScript {
+					dirty["InstallScript"] = true
+				}
+			}
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
@@ -538,7 +547,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.InstallScript != nil {
 		if isScriptPackage {
-			payload.InstallScript = nil
+			// A script package's install script comes from the uploaded file.
+			// Ignore a user-provided install_script value, but keep one derived
+			// from a newly uploaded file (set above).
+			if payloadForNewInstallerFile == nil {
+				payload.InstallScript = nil
+			}
 		} else {
 			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
 			installScript = getInstallScript(existingInstaller.Extension, existingInstaller.PackageIDs(), installScript)

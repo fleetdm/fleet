@@ -17052,6 +17052,35 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	require.Equal(t, "echo 'updated uninstall'", scriptContents.UninstallScript)
 	require.Equal(t, "echo 'updated post'", scriptContents.PostInstallScript)
 	require.Equal(t, "SELECT 2", scriptContents.PreInstallQuery)
+
+	// Replacing the file updates the install script (the file is the install
+	// script), keeping install_script_content_id consistent with storage_id.
+	newSHContent := "#!/bin/bash\necho 'Installing v2...'\nexit 0\n"
+	newSHFile, err := fleet.NewTempFileReader(strings.NewReader(newSHContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer newSHFile.Close()
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		Filename:      "install-app.sh",
+		InstallerFile: newSHFile,
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	var afterReplace struct {
+		InstallScript string `db:"install_script"`
+		StorageID     string `db:"storage_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &afterReplace, `
+			SELECT COALESCE(inst.contents, '') AS install_script, si.storage_id
+			FROM software_installers si
+			LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
+			WHERE si.title_id = ?`, titleID)
+	})
+	require.Equal(t, newSHContent, afterReplace.InstallScript, "replacing the file should update install_script")
+	expectedHash := sha256.Sum256([]byte(newSHContent))
+	require.Equal(t, hex.EncodeToString(expectedHash[:]), afterReplace.StorageID, "storage_id should match the new file's contents")
 }
 
 // 1. host reports software
