@@ -647,6 +647,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	}
 
 	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
+	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
 		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
@@ -671,6 +672,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			b = emptyVal.ReplaceAll(b, []byte(":"))
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
+			// Keep software versions quoted so YAML treats them as strings (e.g. "10.0" must not become a float).
+			b = softwareVersion.ReplaceAll(b, []byte(`${1}"${2}"`))
 		} else {
 			switch fileToWrite := fileToWrite.(type) {
 			case []byte:
@@ -2263,6 +2266,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			delete(softwareSpec, "hash_sha256")
 			delete(softwareSpec, "url")
 			softwareSpec["slug"] = slug
+			if pv := softwareTitle.SoftwarePackage.PinnedVersion; pv != nil && *pv != "" {
+				softwareSpec["version"] = *pv
+			}
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
 		case sw.AppStoreApp != nil:

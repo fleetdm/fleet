@@ -112,7 +112,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	    "team_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
-		"software_display_name": "%s"
+		"software_display_name": "%s",
+		"pinned_version": null
 	}`,
 		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -168,7 +169,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	    "team_id": %d,
 		"self_service": true,
 		"software_title_id": %d,
-		"software_display_name": "%s"
+		"software_display_name": "%s",
+		"pinned_version": null
 	}`,
 		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -475,7 +477,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		    "team_id": %d,
 			"self_service": true,
 			"software_title_id": %d,
-			"software_display_name": "%s"
+			"software_display_name": "%s",
+			"pinned_version": null
 		}`,
 		team.Name, team.Name, team.ID, team.ID, titleID, "InHouseAppUpdate2")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)

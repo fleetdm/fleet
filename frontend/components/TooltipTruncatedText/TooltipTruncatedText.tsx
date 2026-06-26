@@ -16,6 +16,9 @@ interface ITooltipTruncatedTextCellProps {
    * lives inside an `overflow: hidden` ancestor — the default `absolute`
    * positioning can misplace the tooltip in that case. */
   fixedPositionStrategy?: boolean;
+  /** When `true`, suppress the tooltip even if the text is truncated. Useful
+   * when a parent surface owns the hover tooltip. */
+  disableTooltip?: boolean;
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -27,6 +30,7 @@ const TooltipTruncatedText = ({
   tooltipPosition = "top",
   isMobileView = false,
   fixedPositionStrategy = false,
+  disableTooltip = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
@@ -38,7 +42,7 @@ const TooltipTruncatedText = ({
   return (
     <TooltipWrapper
       className={classNames}
-      disableTooltip={!isTruncated}
+      disableTooltip={disableTooltip || !isTruncated}
       underline={false}
       position={tooltipPosition}
       showArrow

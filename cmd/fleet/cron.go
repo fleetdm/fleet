@@ -2263,6 +2263,33 @@ func newMaintainedAppSchedule(
 	return s, nil
 }
 
+func newMaintainedAppsAutoUpdateSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedAppsAutoUpdate)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
+			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
+		}),
+	)
+
+	return s, nil
+}
+
 func newRefreshVPPAppVersionsSchedule(
 	ctx context.Context,
 	instanceID string,
