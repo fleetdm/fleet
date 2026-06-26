@@ -281,6 +281,14 @@ func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask,
 
 		res, err := i.client.Do(req)
 		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying so
+			// we don't sleep through the backoff after the run was canceled.
+			// Checking ctx.Err() (rather than the returned error) avoids
+			// misclassifying the client's own request timeout, which we do
+			// want to retry.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
 			// Network-level failures are transient; retry.
 			i.logger.WarnContext(ctx, "brew API request failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
 			return &transientErr{ctxerr.Wrap(ctx, err, "execute http request")}
@@ -289,6 +297,10 @@ func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask,
 
 		body, err = io.ReadAll(res.Body)
 		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
 			// A truncated/interrupted read is transient; retry.
 			i.logger.WarnContext(ctx, "reading brew API response failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
 			return &transientErr{ctxerr.Wrap(ctx, err, "read http response body")}
