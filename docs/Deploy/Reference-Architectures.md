@@ -113,7 +113,8 @@ In order for osqueryd clients to connect, the connection to Fleet must use TLS. 
 
 ## Using a proxy
 
-In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
+In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables. `NO_PROXY` is an exclusion list — hosts listed here connect directly, bypassing the proxy. It does not provide a fallback.
+
 
 For example, to configure the proxy in a systemd service file:
 
