@@ -1943,8 +1943,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			continue
 		}
 
-		// Script packages (.sh/.ps1) have no version, and their script fields aren't
-		// user-configurable, so neither is written to the generated yaml.
+		// Detect if this is a script package (.sh or .ps1 file)
+		// Script packages have the file contents as the install script internally,
+		// but these fields should NOT be exposed in GitOps YAML as they are not
+		// user-configurable for script packages.
 		isScriptPackage := sw.SoftwarePackage != nil &&
 			fleet.IsScriptPackage(strings.ToLower(filepath.Ext(sw.SoftwarePackage.Name)))
 
