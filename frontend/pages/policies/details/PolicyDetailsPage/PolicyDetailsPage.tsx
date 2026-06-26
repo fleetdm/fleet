@@ -26,6 +26,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
+import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
@@ -342,12 +343,24 @@ const PolicyDetailsPage = ({
         title="Automations"
         value={
           <Button variant="link" onClick={openAutomationsModal}>
-            {firstAutomation.isSoftware && (
+            {firstAutomation.isSoftware ? (
               <SoftwareIcon
                 name={firstAutomation.iconName ?? firstAutomation.name}
                 url={firstAutomation.iconUrl}
                 size="small"
               />
+            ) : (
+              firstAutomation.graphicName && (
+                <Graphic
+                  name={firstAutomation.graphicName}
+                  className={
+                    firstAutomation.graphicName === "file-sh" ||
+                    firstAutomation.graphicName === "file-ps1"
+                      ? "scale-40-24"
+                      : ""
+                  }
+                />
+              )
             )}
             {firstAutomation.name}
             {moreCount > 0 && ` + ${moreCount} more`}
