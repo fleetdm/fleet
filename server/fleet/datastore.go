@@ -1552,6 +1552,16 @@ type Datastore interface {
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, fromPersonalEnrollment bool) error
 
+	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
+	// Apple host. Returns a NotFound error when no row exists; callers that
+	// need a default should treat NotFound as AccessRights=8191 (all rights).
+	GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*HostMDMApplePermissions, error)
+
+	// SetHostMDMAppleEnrollmentPermissions upserts the AccessRights record for an
+	// Apple host. It must be called whenever a new enrollment profile is delivered
+	// so SCEP/ACME renewal can honour the monotonic-narrowing invariant.
+	SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error
+
 	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
 	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
 
@@ -3011,9 +3021,14 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
-	// GetFMANamesByIdentifier returns a map of unique_identifier -> canonical name
-	// for all Fleet-maintained apps on macOS. This is used during software ingestion
-	// to use the FMA name instead of the osquery-reported name.
+	// ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software
+	// rows to the canonical FMA name. Called once per sync; set-based, idempotent,
+	// and ambiguity-aware for FMAs that share a bundle identifier.
+	ReconcileMaintainedAppSoftwareNames(ctx context.Context) error
+
+	// GetFMANamesByIdentifier returns unique_identifier -> canonical name for macOS
+	// FMAs, used during software ingestion. Identifiers shared by differently-named
+	// FMAs (e.g. Firefox and Firefox ESR) are omitted.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
@@ -3319,6 +3334,8 @@ type Datastore interface {
 	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
 	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
+	// SetCertificateTemplateVariables replaces the variable associations for a certificate template.
+	SetCertificateTemplateVariables(ctx context.Context, certTemplateID uint, fleetVars []FleetVarName) error
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	// GetCertificateTemplateById gets a certificate template by its ID (without host-specific data).

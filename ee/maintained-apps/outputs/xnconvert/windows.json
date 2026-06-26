@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.111.0.0",
+      "version": "1.112.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'XnConvert' AND publisher = 'Pierre-e Gougelet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnConvert' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.111.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnConvert' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.112.0.0') < 0);"
       },
-      "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.111.0-win-x64.exe",
+      "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.112.0-win-x64.exe",
       "install_script_ref": "7eb6b47e",
       "uninstall_script_ref": "1714e167",
-      "sha256": "0b2d085de2d791577a6c19dea54fd10d7573c24684aee1f5c329909e48386eaf",
+      "sha256": "aa9e31e7274e41e063dcae8dafe0df1a7e2b06d9d74791274d5ccabe81729504",
       "default_categories": [
         "Productivity"
       ]

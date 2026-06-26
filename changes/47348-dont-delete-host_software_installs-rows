@@ -1,0 +1,1 @@
+- Fixed a 500 error when a host reported a software install result for a deleted software installer. When an installer is deleted, records of its pending installations will be set to canceled instead of completely deleted.

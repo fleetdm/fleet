@@ -8,7 +8,7 @@ Every Windows PC built since 2012 has the same set of Secure Boot certificates b
 
 But what you lose matters: the ability to receive new signed updates, new boot manager versions, new dbx revocations of vulnerable boot components 💀, and new Defender anti-bootkit lists. This extension can help you understand the state of the (Windows) union.
 
-Grab the extension [here](https://github.com/allenhouchins/fleet-extensions/tree/main/secureboot_cert_update).
+[Grab the extension](https://github.com/allenhouchins/fleet-extensions/tree/main/secureboot_cert_update).
 
 ### What's expiring, and what's replacing it
 

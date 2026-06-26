@@ -1,5 +1,6 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor, act } from "@testing-library/react";
+import { focusManager } from "react-query";
 import { http, HttpResponse } from "msw";
 
 import {
@@ -12,6 +13,7 @@ import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 import createMockSchedulableQuery from "__mocks__/scheduleableQueryMock";
 import createMockQueryReport from "__mocks__/queryReportMock";
+import { IQueryReportResultRow } from "interfaces/query_report";
 
 import QueryDetailsPage from "./QueryDetailsPage";
 
@@ -245,5 +247,123 @@ describe("QueryDetailsPage - back navigation", () => {
     const back = await renderPage(app, hostId);
     expect(back).toHaveTextContent(expectText);
     expect(back.getAttribute("data-path")).toContain(expectPathContains);
+  });
+});
+
+const RESULT_ROW: IQueryReportResultRow = {
+  host_id: 1,
+  host_name: "alpha-host",
+  last_fetched: "2024-01-01T00:00:00Z",
+  columns: { model: "WIDGET-XYZ" },
+};
+
+// Sets up the metadata + report handlers, with the report results determined by
+// `reportSequence(callIndex)` so a test can return different results per fetch
+// (e.g. empty first, then populated).
+const setupReportHandlers = ({
+  queryOverrides = {},
+  reportSequence,
+}: {
+  queryOverrides?: Parameters<typeof createMockSchedulableQuery>[0];
+  reportSequence: (callIndex: number) => IQueryReportResultRow[];
+}) => {
+  let reportCalls = 0;
+  let metadataCalls = 0;
+  mockServer.use(
+    http.get(baseUrl(`/reports/${QUERY_ID}`), () => {
+      metadataCalls += 1;
+      return HttpResponse.json({
+        query: createMockSchedulableQuery({
+          id: QUERY_ID,
+          team_id: null,
+          ...queryOverrides,
+        }),
+      });
+    }),
+    http.get(baseUrl(`/reports/${QUERY_ID}/report`), () => {
+      const results = reportSequence(reportCalls);
+      reportCalls += 1;
+      return HttpResponse.json(
+        createMockQueryReport({ query_id: QUERY_ID, results })
+      );
+    })
+  );
+  return {
+    getReportCalls: () => reportCalls,
+    getMetadataCalls: () => metadataCalls,
+  };
+};
+
+const renderReportPage = () => {
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: { app: baseAppContext },
+  });
+  return render(<QueryDetailsPage {...createProps()} />);
+};
+
+describe("QueryDetailsPage - report results states", () => {
+  it("shows the no-results empty state when the report has no results", async () => {
+    setupReportHandlers({ reportSequence: () => [] });
+    renderReportPage();
+
+    expect(await screen.findByTestId("no-results")).toBeInTheDocument();
+    expect(screen.queryByText("WIDGET-XYZ")).not.toBeInTheDocument();
+  });
+
+  it("shows the results table when the report has results", async () => {
+    setupReportHandlers({ reportSequence: () => [RESULT_ROW] });
+    renderReportPage();
+
+    expect(await screen.findByText("WIDGET-XYZ")).toBeInTheDocument();
+    expect(screen.queryByTestId("no-results")).not.toBeInTheDocument();
+  });
+});
+
+describe("QueryDetailsPage - report refetching", () => {
+  afterEach(() => {
+    focusManager.setFocused(undefined);
+  });
+
+  it("shows results after a refetch when a previously-empty report returns rows", async () => {
+    // Empty on first load, populated on the second fetch.
+    setupReportHandlers({
+      reportSequence: (callIndex) => (callIndex === 0 ? [] : [RESULT_ROW]),
+    });
+    renderReportPage();
+
+    // Initially empty.
+    expect(await screen.findByTestId("no-results")).toBeInTheDocument();
+
+    // Trigger a window focus refetch.
+    act(() => {
+      focusManager.setFocused(true);
+    });
+
+    expect(await screen.findByText("WIDGET-XYZ")).toBeInTheDocument();
+    expect(screen.queryByTestId("no-results")).not.toBeInTheDocument();
+  });
+
+  it("does not refetch the report when caching is disabled (discard_data = true)", async () => {
+    // With caching disabled the report can never populate, so we must not keep
+    // hitting the report endpoint even though the next fetch would return rows.
+    const handlers = setupReportHandlers({
+      queryOverrides: { discard_data: true },
+      reportSequence: (callIndex) => (callIndex === 0 ? [] : [RESULT_ROW]),
+    });
+    renderReportPage();
+
+    expect(await screen.findByTestId("no-results")).toBeInTheDocument();
+    expect(handlers.getReportCalls()).toBe(1);
+
+    act(() => {
+      focusManager.setFocused(true);
+    });
+
+    await waitFor(() =>
+      expect(handlers.getMetadataCalls()).toBeGreaterThanOrEqual(2)
+    );
+    expect(handlers.getReportCalls()).toBe(1);
+    expect(screen.getByTestId("no-results")).toBeInTheDocument();
   });
 });

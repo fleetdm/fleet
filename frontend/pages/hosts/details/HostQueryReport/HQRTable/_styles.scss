@@ -17,14 +17,15 @@
 
   &__query-info {
     display: flex;
-    align-items: start;
+    align-items: baseline;
     justify-content: space-between;
-    gap: $pad-xsmall;
+    gap: $pad-medium;
 
     h2 {
       font-size: $small;
       font-weight: $bold;
       margin: 0;
+      overflow: hidden;
     }
     h3 {
       font-size: $x-small;
@@ -36,6 +37,11 @@
       flex-direction: column;
       gap: $pad-medium;
     }
+  }
+
+  &__query-info-text {
+    flex: 1;
+    min-width: 0;
   }
 
   .data-table {

@@ -3,9 +3,9 @@ import classnames from "classnames";
 import { toast } from "sonner";
 
 import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
 import { Colors } from "styles/var/colors";
 import { syntaxHighlight } from "utilities/helpers";
-import { stringToClipboard } from "utilities/copy_text";
 
 const baseClass = "toast-notification";
 
@@ -86,8 +86,6 @@ const ToastCard = ({
     }
   }
 
-  const [copied, setCopied] = useState(false);
-
   // Capture when the toast first rendered. Snapshotted once via the lazy
   // initializer so the timestamp stays stable across re-renders (toggling
   // the panel, clicking copy, etc.). Not shown in the UI — only included
@@ -102,17 +100,6 @@ const ToastCard = ({
   const copyText = [detailLabel, `Timestamp: ${timestamp}`, "", detailText]
     .filter((line) => line !== undefined)
     .join("\n");
-
-  const handleCopy = (): void => {
-    stringToClipboard(copyText)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {
-        // Clipboard API may reject in insecure contexts — stay silent.
-      });
-  };
 
   const panelId = `${baseClass}__panel-${toastId}`;
 
@@ -174,19 +161,11 @@ const ToastCard = ({
         >
           <div className={`${baseClass}__panel-header`}>
             <span className={`${baseClass}__panel-label`}>{detailLabel}</span>
-            <button
-              type="button"
-              className={`${baseClass}__copy-button`}
-              aria-label="Copy raw response to clipboard"
-              onClick={handleCopy}
-            >
-              {copied && (
-                <span className={`${baseClass}__copy-confirmation`}>
-                  Copied!
-                </span>
-              )}
-              <Icon name="copy" color="ui-fleet-black-75" />
-            </button>
+            <CopyButton
+              copyText={copyText}
+              size="small"
+              ariaLabel="Copy raw response to clipboard"
+            />
           </div>
           <pre
             className={`${baseClass}__json-block`}

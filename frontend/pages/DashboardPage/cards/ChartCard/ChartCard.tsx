@@ -28,6 +28,7 @@ import {
   HistoricalDataConfigKey,
   CVE_SOFTWARE_CATEGORIES,
   ALL_CVE_SOFTWARE_CATEGORY_VALUES,
+  IVulnExposureFilterDefaults,
 } from "interfaces/charts";
 
 import { AppContext } from "context/app";
@@ -47,9 +48,17 @@ const baseClass = "chart-card";
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
 
+// Mobile platforms (iOS, iPadOS, Android) are excluded from the chart by
+// default by seeding the platform filter with only the non-mobile platforms.
+// This is intentionally hard-coded to this chart for now rather than a general
+// per-chart "default filters" config. Because the platform filter is
+// inclusion-based, a non-empty default both excludes mobile and makes the
+// "Filtered" badge appear on load. Users can opt mobile back in via the filter.
+const DEFAULT_CHART_PLATFORMS = ["darwin", "windows", "linux", "chrome"];
+
 const DEFAULT_CHART_FILTERS: IChartFilterState = {
   labelIDs: [],
-  platforms: [],
+  platforms: DEFAULT_CHART_PLATFORMS,
   hostFilterMode: "none",
   selectedHosts: [],
   softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
@@ -57,6 +66,42 @@ const DEFAULT_CHART_FILTERS: IChartFilterState = {
   epssMin: "",
   epssMax: "",
   excludeCVEs: [],
+};
+
+// Seed the chart's initial filter state from the persisted, GitOps-managed
+// defaults. Sparse/per-field: an undefined field falls back to the built-in
+// DEFAULT_CHART_FILTERS value, while a present field (including an explicit
+// empty software_filters list, meaning "no categories") is respected. EPSS
+// bounds are numbers (0–100) in the config and strings in the filter state.
+// cvss_min/cvss_max are intentionally NOT wired — there is no severity control
+// yet (#47326).
+export const buildInitialChartFilters = (
+  defaults?: IVulnExposureFilterDefaults
+): IChartFilterState => {
+  if (!defaults) return DEFAULT_CHART_FILTERS;
+  return {
+    ...DEFAULT_CHART_FILTERS,
+    softwareFilters:
+      defaults.software_filters !== undefined
+        ? [...defaults.software_filters]
+        : DEFAULT_CHART_FILTERS.softwareFilters,
+    knownExploit:
+      defaults.has_known_exploit !== undefined
+        ? defaults.has_known_exploit
+        : DEFAULT_CHART_FILTERS.knownExploit,
+    epssMin:
+      defaults.epss_min !== undefined
+        ? String(defaults.epss_min)
+        : DEFAULT_CHART_FILTERS.epssMin,
+    epssMax:
+      defaults.epss_max !== undefined
+        ? String(defaults.epss_max)
+        : DEFAULT_CHART_FILTERS.epssMax,
+    excludeCVEs:
+      defaults.exclude_vulnerabilities !== undefined
+        ? [...defaults.exclude_vulnerabilities]
+        : DEFAULT_CHART_FILTERS.excludeCVEs,
+  };
 };
 
 const hasActiveHostFilters = (filters: IChartFilterState): boolean => {
@@ -166,17 +211,21 @@ const filterTooltip = (
 interface IChartCardProps {
   currentTeamId?: number;
   historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
+  // GitOps-managed default filter state for the current scope (org or fleet).
+  // Seeds the chart's filter controls on load; UI edits are not persisted.
+  filterDefaults?: IVulnExposureFilterDefaults;
 }
 
 const ChartCard = ({
   currentTeamId,
   historicalDataEnabled,
+  filterDefaults,
 }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [initialTab, setInitialTab] = useState<ChartFilterTab>("hosts");
-  const [chartFilters, setChartFilters] = useState<IChartFilterState>(
-    DEFAULT_CHART_FILTERS
+  const [chartFilters, setChartFilters] = useState<IChartFilterState>(() =>
+    buildInitialChartFilters(filterDefaults)
   );
 
   const openFilterModal = (tab: ChartFilterTab = "hosts") => {
@@ -197,7 +246,9 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          Currently, only macOS, Windows, Linux, and ChromeOS are supported.
+          iOS, iPadOS, and Android hosts are excluded by default; include them
+          in the filter settings. Locked iOS and iPadOS hosts count as online as
+          long as they have power and an internet connection.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -242,9 +293,12 @@ const ChartCard = ({
 
   // Labels and selected hosts are team-scoped, so clear filters when the
   // active fleet changes to avoid submitting stale IDs under the new scope.
+  // Re-seed from the persisted defaults when the scope changes (fleet switch)
+  // or once the config/fleet data finishes loading. This also discards any
+  // ephemeral UI edits, matching the "UI edits are not saved" behavior.
   useEffect(() => {
-    setChartFilters(DEFAULT_CHART_FILTERS);
-  }, [currentTeamId]);
+    setChartFilters(buildInitialChartFilters(filterDefaults));
+  }, [currentTeamId, filterDefaults]);
 
   const currentDataset = getDataset(selectedMetric);
 

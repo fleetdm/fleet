@@ -459,7 +459,10 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+		// a-profile-uuid is an Apple profile, so the expired-challenge resend
+		// routes through ResendHostCertificateProfile (resets retries + clears
+		// the stale command). Windows/Android profiles use ResendHostMDMProfile.
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)
 			return nil
@@ -470,8 +473,8 @@ func TestValidateIdentifier(t *testing.T) {
 		_, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "challenge password has expired")
-		assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
-		ds.ResendHostMDMProfileFuncInvoked = false
+		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		ds.ResendHostCertificateProfileFuncInvoked = false
 	})
 
 	t.Run("NDES challenge not expired", func(t *testing.T) {
@@ -822,7 +825,7 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			return errors.New("resend failed")
 		}
 		svc := newTestService(ds)
@@ -830,7 +833,7 @@ func TestValidateIdentifier(t *testing.T) {
 		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
 		_, err := svc.validateIdentifier(ctx, identifier, true)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "resending host mdm profile")
+		assert.Contains(t, err.Error(), "resending host profile after expired challenge")
 	})
 
 	t.Run("default CA name is NDES", func(t *testing.T) {

@@ -224,7 +224,7 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
-			expected: "On (personal)",
+			expected: "On (manual - personal)",
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
