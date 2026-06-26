@@ -3,7 +3,6 @@
 import React, { useCallback, useContext, useState } from "react";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import {
   ISoftwareTitleDetails,
   ISoftwarePackage,
@@ -19,6 +18,7 @@ import {
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 
+import { notify } from "components/ToastNotification";
 import Card from "components/Card";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -225,8 +225,6 @@ const SoftwareInstallerCard = ({
     isTeamTechnician,
   } = useContext(AppContext);
 
-  const { renderFlash } = useContext(NotificationContext);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const onDeleteClick = () => {
@@ -255,9 +253,9 @@ const SoftwareInstallerCard = ({
       // The download occurs without any additional authentication.
       downloadFile(url, name);
     } catch (e) {
-      renderFlash("error", "Couldn't download. Please try again.");
+      notify.error("Couldn't download. Please try again.", { response: e });
     }
-  }, [renderFlash, softwareId, name, teamId]);
+  }, [softwareId, name, teamId]);
 
   const showActions =
     isGlobalAdmin ||

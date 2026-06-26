@@ -1,0 +1,1 @@
+* Added `daemon_reachable` and `error` columns to the `santa_status` fleetd table so the table reports a row (with the santactl error) when the Santa daemon is unreachable instead of silently returning zero rows.

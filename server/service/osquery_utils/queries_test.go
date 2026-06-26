@@ -173,6 +173,62 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsToolbox, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2.6.2.38498", jetbrainsToolbox.Version)
 
+	// Test Python version sanitizer - recovers marketing version from the name
+	// (registry DisplayName "Python 3.14.5 (64-bit)" with DisplayVersion
+	// "3.14.5150.0").
+	pythonWin := &fleet.Software{
+		Name:    "Python 3.14.5 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Python Software Foundation",
+		Version: "3.14.5150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), pythonWin, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.5", pythonWin.Version)
+
+	// Test Python sanitizer handles the .0 micro collapse (3.14.0 -> "3.14.150.0")
+	pythonWinDotZero := &fleet.Software{
+		Name:    "Python 3.14.0 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Python Software Foundation",
+		Version: "3.14.150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), pythonWinDotZero, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.0", pythonWinDotZero.Version)
+
+	// Test Python sanitizer normalizes the component MSI ARP entries (which the
+	// python.org installer registers alongside the bundle, all sharing the same
+	// bogus DisplayVersion) to the same marketing version as the bundle, so a
+	// single install doesn't appear in inventory under two different versions.
+	for _, componentName := range []string{
+		"Python 3.14.5 Core Interpreter (64-bit)",
+		"Python 3.14.5 Standard Library (64-bit)",
+		"Python 3.14.5 Executables (64-bit)",
+		"Python 3.14.5 Tcl/Tk (64-bit)",
+		"Python 3.14.5 pip Bootstrap (64-bit)",
+		"Python 3.14.5 Development Libraries (64-bit)",
+		"Python 3.14.5 Documentation (64-bit)",
+		"Python 3.14.5 Utility Scripts (64-bit)",
+	} {
+		pythonComponent := &fleet.Software{
+			Name:    componentName,
+			Source:  "programs",
+			Vendor:  "Python Software Foundation",
+			Version: "3.14.5150.0",
+		}
+		MutateSoftwareOnIngestion(t.Context(), pythonComponent, slog.New(slog.DiscardHandler))
+		assert.Equal(t, "3.14.5", pythonComponent.Version, "component %q", componentName)
+	}
+
+	// Test Python sanitizer doesn't touch non-PSF software named like Python
+	notPython := &fleet.Software{
+		Name:    "Python 3.14.5 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Some Other Vendor",
+		Version: "3.14.5150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notPython, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.5150.0", notPython.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",

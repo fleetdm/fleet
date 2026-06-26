@@ -42,6 +42,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Generate swiftDialog.app.tar.gz
         run: make swift-dialog-app-tar-gz version=${SWIFT_DIALOG_VERSION} build=${SWIFT_DIALOG_BUILD} out-path=.

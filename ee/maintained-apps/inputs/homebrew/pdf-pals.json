@@ -1,0 +1,10 @@
+{
+  "name": "PDF Pals",
+  "unique_identifier": "co.podzim.PDFPals",
+  "token": "pdf-pals",
+  "installer_format": "dmg",
+  "slug": "pdf-pals/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

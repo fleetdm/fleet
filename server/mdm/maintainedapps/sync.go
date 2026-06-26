@@ -153,6 +153,12 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 		return ctxerr.Wrap(ctx, err, "clear removed maintained apps during refresh")
 	}
 
+	// Normalize software names to canonical FMA names. Runs after the loop so it
+	// sees every app at once, which matters for FMAs sharing a bundle identifier.
+	if err := ds.ReconcileMaintainedAppSoftwareNames(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile maintained app software names during refresh")
+	}
+
 	return nil
 }
 

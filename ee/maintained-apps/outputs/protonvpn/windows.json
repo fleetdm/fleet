@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.4.0",
+      "version": "4.4.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Proton VPN %' AND publisher = 'Proton AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Proton VPN %' AND publisher = 'Proton AG' AND version_compare(version, '4.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Proton VPN %' AND publisher = 'Proton AG' AND version_compare(version, '4.4.1') < 0);"
       },
-      "installer_url": "https://vpn.protondownload.com/download/ProtonVPN_v4.4.0_x64.exe",
+      "installer_url": "https://vpn.protondownload.com/download/ProtonVPN_v4.4.1_x64.exe",
       "install_script_ref": "db724da1",
       "uninstall_script_ref": "28451661",
-      "sha256": "f10daedbc1a7428b5a8c3d820a4076c580d26cbcaebe4fdf080f2bb1e669136c",
+      "sha256": "b0d9a4330712601fca4219508a12989fdb536779c93040832ff87559fccf4882",
       "default_categories": [
         "Productivity"
       ]

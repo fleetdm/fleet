@@ -2301,7 +2301,20 @@ var (
 	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
 	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
 	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
-	basicAppSanitizers   = []struct {
+	// pythonNameVersion extracts the marketing version from python.org Windows
+	// installer names like "Python 3.14.5 (64-bit)" -> "3.14.5". The registry
+	// DisplayVersion embeds the micro version in the third segment (e.g.
+	// "3.14.5150.0"), which neither matches the real version nor sorts correctly,
+	// so we recover the true version from the name instead.
+	//
+	// python.org's installer also registers the individual component MSIs as their
+	// own ARP entries ("Python 3.14.5 Core Interpreter (64-bit)", "...Standard
+	// Library (64-bit)", "...Executables (64-bit)", etc.), all sharing the same
+	// bogus DisplayVersion. The optional middle group lets those component names
+	// normalize to the same marketing version as the bundle, so a single install
+	// doesn't show up in inventory under two different versions.
+	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
+	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2445,6 +2458,23 @@ var (
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
 				s.Release = "" // Clear release to avoid issues with vulnerability matching
+			},
+		},
+		{
+			// python.org's Windows installer reports a registry DisplayVersion like
+			// "3.14.5150.0" (the micro version is encoded into the third segment),
+			// which doesn't match the real version "3.14.5" and breaks version
+			// ordering. Recover the marketing version from the product name, e.g.
+			// "Python 3.14.5 (64-bit)" -> "3.14.5".
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "python software foundation") &&
+					pythonNameVersion.MatchString(s.Name)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
+					s.Version = matches[1]
+				}
 			},
 		},
 		{

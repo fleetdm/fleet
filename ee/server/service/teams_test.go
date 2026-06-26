@@ -1235,3 +1235,80 @@ func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
 		require.Len(t, (*saved).Config.MDM.AndroidSettings.CustomSettings.Value, 1)
 	})
 }
+
+// TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted verifies that clearing
+// a bootstrap package via GitOps succeeds even when the actual package row has
+// already been deleted (e.g. via the GUI), leaving a stale URL in team config.
+func TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	const teamName = "TestTeam"
+	const teamID = uint(42)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, _ string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:   teamID,
+			Name: name,
+			Config: fleet.TeamConfig{
+				MDM: fleet.TeamMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						// Stale URL: the DB row is gone but team config still has it.
+						BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
+					},
+				},
+			},
+		}, nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	// The bootstrap package row was already deleted via the GUI.
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: teamName}, nil
+	}
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		return nil, &bootstrapNotFoundError{msg: "bootstrap package not found"}
+	}
+
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(ctx context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		return nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: "something"},
+		},
+		authz:  authorizer,
+		logger: slog.New(slog.DiscardHandler),
+	}
+
+	spec := &fleet.TeamSpec{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSetup: fleet.MacOSSetup{
+				// Clearing the bootstrap package (Set=true, Value="").
+				BootstrapPackage: optjson.SetString(""),
+			},
+		},
+	}
+
+	_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+	require.NoError(t, err)
+	require.True(t, ds.SaveTeamFuncInvoked)
+}

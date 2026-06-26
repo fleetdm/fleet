@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
@@ -617,9 +618,9 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string   `json:"sha256"`
-	Categories      []string `json:"categories"`
-	DisplayName     string   `json:"display_name"`
+	SHA256          string                `json:"sha256"`
+	Categories      optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName     string                `json:"display_name"`
 	// This is to support FMAs
 	Slug            *string        `json:"slug"`
 	MaintainedApp   *MaintainedApp `json:"-"`

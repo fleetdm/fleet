@@ -1,3 +1,7 @@
+## 1.56.3 (Jun 11, 2026)
+
+* Fixed fleetd clearing pre-packaged/user-provided osquery flagfiles (`osquery.flags`) when `command_line_flags` is unset in the agent settings. Setting `command_line_flags` to an empty document (`{}` or `null`) still explicitly clears the flagfile.
+
 ## 1.56.2 (Jun 04, 2026)
 
 * Added the `orbit.debug_logging_on_enroll_duration` agent option to allow enabling orbit debug logging for a specified time period after enrollment.

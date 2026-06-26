@@ -1,0 +1,10 @@
+{
+  "name": "superwhisper",
+  "unique_identifier": "com.superduper.superwhisper",
+  "token": "superwhisper",
+  "installer_format": "zip",
+  "slug": "superwhisper/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

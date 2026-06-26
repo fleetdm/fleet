@@ -1270,7 +1270,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	// In the case here where variable values change, we want a simple "resend"
 	// with the new values, so we don't need the complex diff logic, we only set
 	// to "pending" the profiles that depend on the variables that were already
-	// installed on the affected hosts. ReconcileAppleProfiles will take care of
+	// installed on the affected hosts. ReconcileAppleProfilesBatched will take care of
 	// resending as appropriate based on label membershup and all at the time it
 	// runs.
 	const appleUpdateStatusQuery = `

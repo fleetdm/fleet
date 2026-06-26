@@ -1,0 +1,11 @@
+{
+  "name": "Amazon Corretto 21",
+  "slug": "amazon-corretto-21/windows",
+  "package_identifier": "Amazon.Corretto.21.JDK",
+  "unique_identifier": "Amazon Corretto (x64)",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '21.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "DrawBot",
+  "unique_identifier": "com.drawbot",
+  "token": "drawbot",
+  "installer_format": "dmg",
+  "slug": "drawbot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

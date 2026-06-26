@@ -46,6 +46,7 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-sql-driver/mysql"
 )
@@ -578,13 +579,49 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 		}
 	}
 
+	// Use UUIDs from the resolved hosts so the enqueue and activity creation
+	// operate on the same validated set, not the raw (potentially duplicate or
+	// unknown) request input.
+	resolvedUUIDs := make([]string, len(hosts))
+	for i, h := range hosts {
+		resolvedUUIDs[i] = h.UUID
+	}
+
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
 	switch commandPlatform {
 	case "windows":
-		return svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, hostUUIDs)
+		result, err = svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, resolvedUUIDs)
 	default:
-		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, hostUUIDs)
+		result, err = svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, resolvedUUIDs)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	failedUUIDs := make(map[string]struct{}, len(result.FailedUUIDs))
+	for _, uuid := range result.FailedUUIDs {
+		failedUUIDs[uuid] = struct{}{}
+	}
+	for _, h := range hosts {
+		if _, failed := failedUUIDs[h.UUID]; failed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeRanCustomMDMCommand{
+			HostID:          h.ID,
+			HostDisplayName: h.DisplayName(),
+			HostUUID:        h.UUID,
+			CommandUUID:     result.CommandUUID,
+			RequestType:     result.RequestType,
+			Platform:        commandPlatform,
+		}); err != nil {
+			// Activity logging is best-effort: the command was already enqueued
+			// successfully, so returning an error here could cause clients to retry
+			// and send duplicate MDM commands to devices.
+			svc.logger.ErrorContext(ctx, "failed to log activity for ran custom mdm command", "err", err, "host_uuid", h.UUID)
+		}
+	}
+
+	return result, nil
 }
 
 // validateAppleMDMCommand validates an Apple MDM command before it is enqueued.
@@ -1701,7 +1738,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...) //nolint:gocritic
-	if overlap := fleet.ProfileLabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
 	}
 
@@ -1852,9 +1889,9 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")
 	}
 
+	lic, _ := license.FromContext(ctx)
 	var teamName string
 	if teamID > 0 {
-		lic, _ := license.FromContext(ctx)
 		if lic == nil || !lic.IsPremium() {
 			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 		}
@@ -1863,6 +1900,12 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 		teamName = tm.Name
+	}
+
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+		}
 	}
 
 	cp := fleet.MDMAndroidConfigProfile{
@@ -1875,7 +1918,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
 	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
@@ -2126,6 +2169,11 @@ func (svc *Service) BatchSetMDMProfiles(
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
 
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking license")
+	}
+
 	// Process labels first, since we do not need to expand secrets in the profiles for this validation.
 	labels := []string{}
 	for i := range profiles {
@@ -2141,6 +2189,11 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
+
+	if len(labels) > 0 && (lic == nil || !lic.IsPremium()) {
+		return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+	}
+
 	var labelMap map[string]fleet.ConfigurationProfileLabel
 	if !dryRun {
 		labelMap, err = svc.batchValidateProfileLabels(ctx, tmID, labels)
@@ -2200,13 +2253,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
-	// Get license for validation
-	lic, err := svc.License(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking license")
-	}
-
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls, androidProfiles)
 	if err != nil {
 		return err
 	}
@@ -2308,26 +2355,6 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
-	// set pending status for windows profiles
-	winProfUUIDs := []string{}
-	for _, p := range windowsProfiles {
-		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
-	}
-	winUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
-	}
-
-	// set pending status for apple profiles
-	appleProfUUIDs := []string{}
-	for _, p := range appleProfiles {
-		appleProfUUIDs = append(appleProfUUIDs, p.ProfileUUID)
-	}
-	appleUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
 	androidProfUUIDs := []string{}
 	for _, p := range androidProfiles {
 		androidProfUUIDs = append(androidProfUUIDs, p.ProfileUUID)
@@ -2338,9 +2365,9 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	updates := fleet.MDMProfilesUpdates{
-		AppleConfigProfile:   profUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
-		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile,
-		AppleDeclaration:     profUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+		AppleConfigProfile:   profUpdates.AppleConfigProfile,
+		WindowsConfigProfile: profUpdates.WindowsConfigProfile,
+		AppleDeclaration:     profUpdates.AppleDeclaration,
 		AndroidConfigProfile: profUpdates.AndroidConfigProfile || androidUpdates.AndroidConfigProfile,
 	}
 
@@ -2386,6 +2413,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
+	androidProfiles map[int]*fleet.MDMAndroidConfigProfile,
 ) (map[string][]string, error) {
 	var err error
 
@@ -2423,6 +2451,12 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		}
 		if len(declVars) > 0 {
 			profileVarsByProfIdentifier[fleet.MDMAppleDeclarationUUIDPrefix+p.Identifier] = declVars
+		}
+	}
+	for _, p := range androidProfiles {
+		androidVars := variables.Find(string(p.RawJSON))
+		if len(androidVars) > 0 {
+			profileVarsByProfIdentifier[fleet.MDMAndroidProfileUUIDPrefix+p.Name] = androidVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil
@@ -2850,7 +2884,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		}
 
 		includeLabels := append(profile.LabelsIncludeAll, append(profile.Labels, profile.LabelsIncludeAny...)...) //nolint:gocritic
-		if overlap := fleet.ProfileLabelOverlap(includeLabels, profile.LabelsExcludeAny); overlap != "" {
+		if overlap := fleet.LabelOverlap(includeLabels, profile.LabelsExcludeAny); overlap != "" {
 			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(`Couldn't edit configuration_profiles. Label %q cannot appear in both include and exclude lists.`, overlap))
 		}
 

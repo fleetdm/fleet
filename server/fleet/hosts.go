@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"time"
@@ -496,8 +497,16 @@ type HostVital struct {
 
 var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 	"idp": {
-		Name:  "Identity Provider",
-		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+		Name: "Identity Provider",
+		// NOTE: This must be an INNER JOIN (not RIGHT JOIN) on host_scim_user. A
+		// RIGHT JOIN keeps all host_scim_user rows even when the host side has been
+		// filtered out -- e.g. for fleet/team-scoped labels, where the hosts table
+		// is pre-filtered to the label's team. An out-of-team scim user that
+		// matches the criteria would then survive the join with hosts.id = NULL,
+		// which both leaks cross-team membership and breaks the INSERT into
+		// label_membership (NULL host_id, which is NOT NULL), rolling back the whole
+		// update so the fleet label gets zero hosts. See #46869.
+		Query: `JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
 	},
 }
 
@@ -1092,9 +1101,8 @@ type HostSummaryPlatform struct {
 // Status calculates the online status of the host
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
-	// GenerateHostStatusStatistics and CountHostsInTargets
+	// GenerateHostStatusStatistics and CountHostsInTargets - it can't stay in sync for MDM join, since that attribute is not available.
 	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
-
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
 		onlineInterval = h.DistributedInterval
@@ -1394,19 +1402,50 @@ func MDMNameFromServerURL(serverURL string) string {
 	return UnknownMDMName
 }
 
+// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
+const (
+	MDMEnrollmentStatusPersonal  = "On (personal)"
+	MDMEnrollmentStatusManual    = "On (manual)"
+	MDMEnrollmentStatusAutomatic = "On (automatic)"
+	MDMEnrollmentStatusPending   = "Pending"
+	MDMEnrollmentStatusOff       = "Off"
+)
+
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
 	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment:
-		return "On (personal)"
+		return MDMEnrollmentStatusPersonal
 	case h.Enrolled && !h.InstalledFromDep && !h.IsPersonalEnrollment:
-		return "On (manual)"
+		return MDMEnrollmentStatusManual
 	case h.Enrolled && h.InstalledFromDep:
-		return "On (automatic)"
+		return MDMEnrollmentStatusAutomatic
 	case !h.Enrolled && h.InstalledFromDep:
-		return "Pending"
+		return MDMEnrollmentStatusPending
 	default:
-		return "Off"
+		return MDMEnrollmentStatusOff
 	}
+}
+
+// ValidateAndroidWipeRequest performs the Android-specific Wipe validations shared by the Fleet Free and Premium WipeHost
+// implementations. Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE under the hood (see
+// UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity, so routing BYO hosts through the Wipe flow would be redundant
+// and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
+// returns the underlying datastore error. Callers wrap the result with ctxerr.
+func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == MDMEnrollmentStatusPersonal {
+		return &BadRequestError{
+			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
+		}
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !appCfg.MDM.AndroidEnabledAndConfigured {
+		return NewInvalidArgumentError("host_id", AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+	}
+	return nil
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {

@@ -56,6 +56,7 @@ func TestScripts(t *testing.T) {
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
+		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3251,4 +3252,42 @@ func testScriptModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, int64(0), *results[1].AttemptNumber)
 	require.True(t, results[1].Canceled)
+}
+
+func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	res, err := ds.NewInternalHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo internal",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, res.ID)
+	require.Nil(t, res.UserID)
+
+	// The internal-only filter on ListPendingHostScriptExecutions surfaces
+	// internal scripts; the default (all-pending) listing includes them
+	// alongside user-initiated ones.
+	pendingAll, err := ds.ListPendingHostScriptExecutions(ctx, 1, false)
+	require.NoError(t, err)
+	require.Len(t, pendingAll, 1)
+	require.Equal(t, res.ID, pendingAll[0].ID)
+
+	pendingInternal, err := ds.ListPendingHostScriptExecutions(ctx, 1, true)
+	require.NoError(t, err)
+	require.Len(t, pendingInternal, 1)
+	require.Equal(t, res.ID, pendingInternal[0].ID)
+
+	// A non-internal request should NOT appear under the internal-only filter,
+	// confirming the new entry routed through the internal codepath.
+	resUser, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         2,
+		ScriptContents: "echo user",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, resUser.ID)
+
+	pendingUserViaInternal, err := ds.ListPendingHostScriptExecutions(ctx, 2, true)
+	require.NoError(t, err)
+	require.Empty(t, pendingUserViaInternal)
 }

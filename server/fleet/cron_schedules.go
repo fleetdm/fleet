@@ -58,6 +58,7 @@ const (
 	CronSendManagedLocalAccountRotationCommands CronScheduleName = "send_managed_local_account_rotation_commands"
 	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
 )
 
 type CronSchedulesService interface {

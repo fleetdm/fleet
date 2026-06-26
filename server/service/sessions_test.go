@@ -2,6 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -651,4 +655,31 @@ func TestInitiateSSOWithInvalidURL(t *testing.T) {
 	var badReqErr *fleet.BadRequestError
 	require.ErrorAs(t, err, &badReqErr)
 	require.Contains(t, badReqErr.Message, "invalid SSO URL")
+}
+
+func TestDecodeCallbackRequestSAMLResponseSizeCap(t *testing.T) {
+	// The SSO callbacks read SAMLResponse from FormValue, which covers both the
+	// POST body and the URL query string. WithRequestBodySizeLimit only bounds
+	// the body, so the value-level cap must reject an oversized query argument.
+	t.Run("oversized SAMLResponse in query string is rejected", func(t *testing.T) {
+		oversized := strings.Repeat("A", int(fleet.MaxSSOCallbackSize)+1)
+		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+oversized, nil)
+
+		_, _, err := decodeCallbackRequest(t.Context(), r)
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, "too large")
+	})
+
+	t.Run("normally-sized SAMLResponse passes the size check", func(t *testing.T) {
+		small := base64.StdEncoding.EncodeToString([]byte("<x/>"))
+		form := url.Values{"SAMLResponse": {small}}
+		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		_, decoded, err := decodeCallbackRequest(t.Context(), r)
+		require.NoError(t, err)
+		require.Equal(t, "<x/>", string(decoded))
+	})
 }

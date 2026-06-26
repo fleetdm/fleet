@@ -1,0 +1,10 @@
+{
+  "name": "ScreenFocus",
+  "unique_identifier": "com.apptorium.ScreenFocus-dm",
+  "token": "screenfocus",
+  "installer_format": "zip",
+  "slug": "screenfocus/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -322,12 +322,13 @@ export const getDisplayedSoftwareName = (
   name?: string | null,
   display_name?: string | null
 ): string => {
-  // 1. End-user custom name always wins.
-  if (display_name) {
+  // 1. End-user custom name always wins. Treat whitespace-only as absent so
+  // an inadvertent " " from the backend doesn't render a blank label.
+  if (display_name?.trim()) {
     return display_name;
   }
 
-  if (name) {
+  if (name?.trim()) {
     // 2. Normalize known titles only from the raw name.
     const key = name.toLowerCase();
     if (WELL_KNOWN_SOFTWARE_TITLES[key]) {

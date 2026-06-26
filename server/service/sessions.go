@@ -574,6 +574,17 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 			Message: "missing SAMLResponse",
 		}, "missing SAMLResponse in SSO callback")
 	}
+	// Cap the SAMLResponse value itself, not just the request body. FormValue
+	// reads from both the POST body and the URL query string, and
+	// WithRequestBodySizeLimit only bounds the body — so without this check the
+	// body cap is trivially bypassed by sending the payload as a
+	// ?SAMLResponse= query argument. This guards both the regular and MDM SSO
+	// callbacks, which share this decoder.
+	if int64(len(samlResponseValue)) > fleet.MaxSSOCallbackSize {
+		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "SAMLResponse too large",
+		}, "SAMLResponse exceeds maximum size in SSO callback")
+	}
 	decodedSAMLResponseValue, err := sso.DecodeSAMLResponse(samlResponseValue)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

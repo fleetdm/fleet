@@ -20,6 +20,20 @@
   }
 }
 
+// Status cells inside BasicSoftwareTable. Defined outside the modal root so
+// they apply to both modals that render BasicSoftwareTable (Edit appearance
+// preview tab also uses it).
+.categories-end-user-experience-preview-modal__status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: $pad-xsmall;
+
+  &--never-installed {
+    color: $ui-fleet-black-50;
+    font-style: italic;
+  }
+}
+
 // Pop up preview immediately.
 .modal__background:has(.categories-end-user-experience-preview-modal) {
   transition: none;

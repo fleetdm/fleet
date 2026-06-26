@@ -363,25 +363,31 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically. IT admins can block end users from
-      turning MDM off.
+      MDM was turned on automatically (Apple ADE, Windows Autopilot, or
+      fully-managed Android). IT admins can block end users from turning MDM
+      off.
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
+    <span>
+      On Apple hosts, the enrollment profile was installed manually. Windows
+      hosts were enrolled without Autopilot. End users can turn MDM off.
+    </span>
   ),
   "On (personal)": (
     <span>
-      MDM was turned on by signing in with Managed Apple Account on iOS/iPadOS,
-      or by creating a work profile on Android. End users can turn MDM off.
+      MDM was turned on by signing in with a Managed Apple Account on
+      iOS/iPadOS, or by adding a work profile on Android. End users can turn MDM
+      off.
     </span>
   ),
   "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business <br /> (AB). These will automatically
-      enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.
+      Hosts ordered via Apple Business (AB).
+      <br /> These will automatically enroll to Fleet <br /> and turn on MDM
+      when they&apos;re unboxed.
     </span>
   ),
 };

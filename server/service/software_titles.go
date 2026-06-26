@@ -143,17 +143,19 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil && *teamID != 0 {
-		// This auth check ensures we return 403 if the user doesn't have access to the team
+	if teamID != nil {
+		// Verify the caller has permission for the requested scope (team or global).
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 

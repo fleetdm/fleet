@@ -515,14 +515,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		)
 	}
 
-	profilesMissingInstallation, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, args.HostUUID) // Get profiles that are missing to be installed on this host
+	profilesMissingInstallation, _, err := apple_mdm.PendingProfilesForHost(ctx, a.Datastore, args.HostUUID) // Get profiles that are missing to be installed on this host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if !isMacOS(args.Platform) {
-		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
-	}
 
 	if len(profilesMissingInstallation) > 0 {
 		a.Log.InfoContext(ctx, "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
