@@ -1056,6 +1056,12 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 					return ctxerr.Wrap(ctx, err, "deleting cached FMA version")
 				}
 			}
+			// The pin row is keyed by (team, title) and is not cascade-deleted when
+			// installer rows go away (only when the title row is deleted), so clear
+			// it explicitly to avoid a stale pin surviving a delete + re-add.
+			if err := svc.ds.DeletePinnedVersion(ctx, meta.TeamID, *meta.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting pinned version after FMA removal")
+			}
 		}
 	default:
 		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {

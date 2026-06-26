@@ -33501,6 +33501,30 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		"version": {"1.0"},
 	})
 	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", customTitleID), body.Bytes(), http.StatusBadRequest, headers)
+
+	// --- Deleting an FMA clears its pin row ---
+
+	// The pin row is keyed on (team, title); the title row outlives the installer
+	// rows, so without explicit cleanup a stale pin would resurface on re-add.
+	pinRowCount := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				"SELECT COUNT(*) FROM software_title_team_pins WHERE team_id = ? AND title_id = ?", team.ID, titleID)
+		})
+		return n
+	}
+	patchVersion("10.0")
+	require.Equal(t, new("10.0"), getPkg().PinnedVersion)
+	require.Equal(t, 1, pinRowCount())
+
+	// The policies attached above block a delete, so remove them first.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID),
+		fleet.DeleteTeamPoliciesRequest{IDs: []uint{installPol.Policy.ID, patchPol.Policy.ID}},
+		http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	require.Equal(t, 0, pinRowCount(), "deleting an FMA must delete its pin row")
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
