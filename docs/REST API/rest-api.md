@@ -14936,6 +14936,150 @@ Response:
 }
 ```
 
+## Custom host vitals
+
+- [List custom host vitals](#list-custom-host-vitals)
+- [Create custom host vital](#create-custom-host-vital)
+- [Update custom host vital](#create-custom-host-vital)
+- [Delete custom host vital](#delete-custom-host-vital)
+- [Update host's custom host vital value](#update-hosts-custom-host-vital-value)
+
+### List custom host vitals
+
+Lists all custom host vitals for displaying custom fields on individual hosts.
+
+`GET /api/v1/fleet/custom_host_vitals`
+
+Custom host vitals can be referenced in scripts and configuration profiles using custom variables formatted as `$FLEET_HOST_VITAL_<custom_host_vital_id>`.
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page. |
+| order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+
+#### Example
+
+`GET /api/v1/fleet/custom_host_vitals`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vitals": [
+    {
+      "id": 123,
+      "name": "Asset tag",
+      "created_at": "2021-12-15T15:23:57Z",
+      "updated_at": "2021-12-15T15:23:57Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
+
+```
+
+###  Create custom host vital
+
+Create custom host vitals for displaying custom fields on individual hosts.
+
+`POST /api/v1/fleet/custom_host_vitals`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| name            | string  | body  | **Required.** The desired variable name, without the `FLEET_SECRET_` prefix. |
+| value           | string  | body  | **Required.** The value for the custom variable. |
+
+#### Example
+
+`POST /api/v1/fleet/custom_host_vitals`
+
+##### Request body
+
+```json
+{
+  "name": "Asset tag",
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "name": "Asset tag",
+  "created_at": "2021-12-15T15:23:57Z",
+  "updated_at": "2021-12-15T15:23:57Z"
+}
+```
+
+###  Update custom host vital
+
+Create custom host vitals for displaying custom fields on individual hosts.
+
+`PATCH /api/v1/fleet/custom_host_vitals/:id`
+
+#### Example
+
+`PATCH /api/v1/fleet/custom_host_vitals/123`
+
+##### Request body
+
+```json
+{
+  "name": "New name"
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "name": "New name",
+  "created_at": "2021-12-15T15:23:57Z",
+  "updated_at": "2021-12-15T15:23:57Z"
+}
+```
+
+###  Delete custom host vital
+
+Delete a custom host vital and clear its value on all hosts.
+
+`DELETE /api/v1/fleet/custom_host_vitals/:id`
+
+#### Example
+
+`DELETE /api/v1/fleet/custom_host_vitals/123`
+
+##### Default response
+
+`Status: 200`
+
+### Update host's custom host vital value
+
+> TODO
+
+
 ---
 
 <meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">
