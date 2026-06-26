@@ -632,16 +632,33 @@ var hostRefs = []string{
 // above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
+//
+// Note on host_mdm_apple_enrollment_permissions: this row is hard-deleted here along
+// with the host_mdm row. This is safe even for a still-MDM-enrolled device that is
+// deleted in Fleet and later "comes back", because of how SCEP/ACME renewal is gated:
+//   - GetHostCertAssociationsToExpire JOINs the live hosts row, so a host with no hosts
+//     row is never selected for renewal. A deleted device therefore receives no renewal
+//     profile while it is gone.
+//   - The only checkin handler that recreates a deleted host is Authenticate, and the
+//     device hits it using its installed profile's ServerURL, which still carries byod=1
+//     for BYOD enrollments. That Authenticate (not a Fleet-issued SCEP renewal) re-runs
+//     SetHostMDMAppleEnrollmentPermissions with the correct narrowed bitmask before the
+//     host is ever eligible for renewal again.
+//
+// So by the time a returned device can be renewed, its permissions row is already
+// correct. The only residual gap is the narrow race where a renewal command is enqueued
+// while the device is offline and the host is then deleted/recreated; the enqueued
+// command already has the profile baked in, so it does not widen on its own.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles":                      "host_uuid",
-	"host_mdm_apple_bootstrap_packages":            "host_uuid",
-	"host_mdm_windows_profiles":                    "host_uuid",
-	"host_mdm_apple_declarations":                  "host_uuid",
-	"host_mdm_apple_awaiting_configuration":        "host_uuid",
-	"setup_experience_status_results":              "host_uuid",
-	"host_mdm_android_profiles":                    "host_uuid",
-	"host_certificate_templates":                   "host_uuid",
-	"host_mdm_apple_enrollment_permissions":        "host_uuid",
+	"host_mdm_apple_profiles":               "host_uuid",
+	"host_mdm_apple_bootstrap_packages":     "host_uuid",
+	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_apple_declarations":           "host_uuid",
+	"host_mdm_apple_awaiting_configuration": "host_uuid",
+	"setup_experience_status_results":       "host_uuid",
+	"host_mdm_android_profiles":             "host_uuid",
+	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_enrollment_permissions": "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -4660,7 +4677,6 @@ func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, h
 		`SELECT
 			h.uuid AS host_uuid,
 			COALESCE(p.access_rights, ?) AS access_rights,
-			COALESCE(p.delivered_at, '1970-01-01 00:00:00') AS delivered_at,
 			COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 		 FROM hosts h
 		 LEFT JOIN host_mdm hm ON hm.host_id = h.id

@@ -14,7 +14,16 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import { generateRole, generateTeam, readableDate } from "utilities/helpers";
+import {
+  generateRole,
+  generateRoleGroups,
+  generateTeam,
+  generateTeamNames,
+  readableDate,
+  ROLE_VARIOUS,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
+import TooltipWrapper from "components/TooltipWrapper";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
@@ -80,6 +89,9 @@ const AccountSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
+  const teamNames = generateTeamNames(teams);
+  const roleGroups = generateRoleGroups(teams);
+
   const lastUpdatedAt = updatedAt && (
     <HumanTimeDiffWithDateTip timeString={updatedAt} />
   );
@@ -125,8 +137,51 @@ const AccountSidePanel = ({
           onChange={onThemeSelect}
         />
       </div>
-      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
-      <DataSet title="Role" value={roleText} />
+      {isPremiumTier && (
+        <DataSet
+          title="Fleets"
+          value={
+            teamNames.length > 1 ? (
+              <TooltipWrapper
+                tipContent={tooltipTextWithLineBreaks(teamNames)}
+                underline={false}
+                showArrow
+                position="top"
+                tipOffset={10}
+                fixedPositionStrategy
+              >
+                {teamsText}
+              </TooltipWrapper>
+            ) : (
+              teamsText
+            )
+          }
+        />
+      )}
+      <DataSet
+        title="Role"
+        value={
+          roleText === ROLE_VARIOUS ? (
+            <TooltipWrapper
+              tipContent={roleGroups.map(({ role, names }) => (
+                <span key={role}>
+                  <b>{role}:</b> {names.join(", ")}
+                  <br />
+                </span>
+              ))}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              {roleText}
+            </TooltipWrapper>
+          ) : (
+            roleText
+          )
+        }
+      />
       {isPremiumTier && config && (
         <DataSet
           title="License expiration date"

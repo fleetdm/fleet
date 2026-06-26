@@ -1517,10 +1517,9 @@ type AggregatedMunkiVersion struct {
 // as BYOD, and SCEP/ACME renewal uses it to reconstruct the same ServerURL Apple
 // saw at initial enrollment (Apple rejects ServerURL changes on profile replacement).
 type HostMDMApplePermissions struct {
-	HostUUID             string    `db:"host_uuid"`
-	AccessRights         int       `db:"access_rights"`
-	DeliveredAt          time.Time `db:"delivered_at"`
-	IsPersonalEnrollment bool      `db:"is_personal_enrollment"`
+	HostUUID             string `db:"host_uuid"`
+	AccessRights         int    `db:"access_rights"`
+	IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 }
 
 // MunkiIssue represents a single munki issue, as returned by the list hosts

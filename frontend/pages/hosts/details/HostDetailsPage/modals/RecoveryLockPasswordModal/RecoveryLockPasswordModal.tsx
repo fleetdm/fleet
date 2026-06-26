@@ -1,11 +1,11 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { getErrorReason } from "interfaces/errors";
 import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
@@ -33,7 +33,6 @@ const RecoveryLockPasswordModal = ({
   canRotatePassword,
   onCancel,
 }: IRecoveryLockPasswordModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isRotating, setIsRotating] = useState(false);
 
   const {
@@ -59,8 +58,7 @@ const RecoveryLockPasswordModal = ({
     setIsRotating(true);
     try {
       await hostAPI.rotateRecoveryLockPassword(hostId);
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate Recovery Lock password."
       );
       onCancel();
@@ -69,7 +67,7 @@ const RecoveryLockPasswordModal = ({
         ? "Recovery lock password rotation is already in progress for this host."
         : "Couldn't send request to rotate Recovery Lock password. Please try again.";
 
-      renderFlash("error", msg);
+      notify.error(msg, { response: e });
     }
     setIsRotating(false);
   };

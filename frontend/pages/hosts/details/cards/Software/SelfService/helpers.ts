@@ -67,7 +67,8 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 3, label: "🧰 Developer tools", value: "Developer tools" },
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
   { id: 5, label: "🔐 Security", value: "Security" },
-  { id: 6, label: "🛠️ Utilities", value: "Utilities" },
+  { id: 6, label: "🛟 Support", value: "Support" },
+  { id: 7, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
 // Client-side category filter by name — both sides come from

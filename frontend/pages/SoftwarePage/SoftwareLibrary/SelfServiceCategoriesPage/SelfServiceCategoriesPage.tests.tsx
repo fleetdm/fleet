@@ -18,7 +18,18 @@ import {
   listSelfServiceCategoriesHandler,
 } from "test/handlers/self-service-categories-handlers";
 
+import { notify } from "components/ToastNotification";
+
 import SelfServiceCategoriesPage from "./SelfServiceCategoriesPage";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 const baseProps = {
   router: createMockRouter(),
@@ -30,8 +41,6 @@ const baseProps = {
   },
 };
 
-const renderFlash = jest.fn();
-
 const mockTeam = createMockTeamSummary({ id: 1, name: "Workstations" });
 
 const premiumAdminContext = {
@@ -42,7 +51,6 @@ const premiumAdminContext = {
     availableTeams: [mockTeam],
     setCurrentTeam: jest.fn(),
   },
-  notification: { renderFlash, hideFlash: jest.fn() },
 };
 
 // Returns the currently open modal element scoped for `within(...)` queries.
@@ -61,7 +69,7 @@ const getOpenModal = async () => {
 
 describe("SelfServiceCategoriesPage", () => {
   beforeEach(() => {
-    renderFlash.mockClear();
+    jest.clearAllMocks();
   });
 
   it("renders the premium gate on Fleet Free", () => {
@@ -73,7 +81,6 @@ describe("SelfServiceCategoriesPage", () => {
           isGlobalAdmin: true,
           currentUser: createMockUser({ global_role: "admin" }),
         },
-        notification: { renderFlash, hideFlash: jest.fn() },
       },
     });
 
@@ -129,7 +136,6 @@ describe("SelfServiceCategoriesPage", () => {
           availableTeams: [mockTeam],
           setCurrentTeam: jest.fn(),
         },
-        notification: { renderFlash, hideFlash: jest.fn() },
       },
     });
 
@@ -175,7 +181,6 @@ describe("SelfServiceCategoriesPage", () => {
           availableTeams: [mockTeam],
           setCurrentTeam: jest.fn(),
         },
-        notification: { renderFlash, hideFlash: jest.fn() },
       },
     });
 
@@ -214,8 +219,7 @@ describe("SelfServiceCategoriesPage", () => {
     await user.click(within(modal).getByRole("button", { name: /^Add$/ }));
 
     await waitFor(() => {
-      expect(renderFlash).toHaveBeenCalledWith(
-        "success",
+      expect(notify.success).toHaveBeenCalledWith(
         "Successfully added self-service category."
       );
     });
@@ -246,7 +250,8 @@ describe("SelfServiceCategoriesPage", () => {
         "A self-service category with this name already exists in this fleet."
       )
     ).toBeInTheDocument();
-    expect(renderFlash).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
   });
 
   it("shows inline generic error when add fails", async () => {
@@ -272,7 +277,8 @@ describe("SelfServiceCategoriesPage", () => {
     expect(
       await within(modal).findByText("Couldn't add self-service category.")
     ).toBeInTheDocument();
-    expect(renderFlash).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
   });
 
   it("shows inline 409 error on duplicate name when editing", async () => {
@@ -301,7 +307,8 @@ describe("SelfServiceCategoriesPage", () => {
         "A self-service category with this name already exists in this fleet."
       )
     ).toBeInTheDocument();
-    expect(renderFlash).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
   });
 
   it("shows inline generic error when edit fails", async () => {
@@ -328,7 +335,8 @@ describe("SelfServiceCategoriesPage", () => {
     expect(
       await within(modal).findByText("Couldn't update self-service category.")
     ).toBeInTheDocument();
-    expect(renderFlash).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
   });
 
   it("flashes an error and re-enables the Delete button when delete fails", async () => {
@@ -353,9 +361,11 @@ describe("SelfServiceCategoriesPage", () => {
     await user.click(deleteBtn);
 
     await waitFor(() => {
-      expect(renderFlash).toHaveBeenCalledWith(
-        "error",
-        "Couldn't delete self-service category."
+      expect(notify.error).toHaveBeenCalledWith(
+        "Couldn't delete self-service category.",
+        {
+          response: expect.anything(),
+        }
       );
     });
     expect(deleteBtn).not.toBeDisabled();
@@ -471,8 +481,7 @@ describe("SelfServiceCategoriesPage", () => {
     await user.click(within(modal).getByRole("button", { name: /Save/ }));
 
     await waitFor(() => {
-      expect(renderFlash).toHaveBeenCalledWith(
-        "success",
+      expect(notify.success).toHaveBeenCalledWith(
         "Successfully updated self-service category."
       );
     });
@@ -505,8 +514,7 @@ describe("SelfServiceCategoriesPage", () => {
     await user.click(within(modal).getByRole("button", { name: /^Delete$/ }));
 
     await waitFor(() => {
-      expect(renderFlash).toHaveBeenCalledWith(
-        "success",
+      expect(notify.success).toHaveBeenCalledWith(
         "Successfully deleted self-service category."
       );
     });
@@ -525,7 +533,7 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
   });
 
   beforeEach(() => {
-    renderFlash.mockClear();
+    jest.clearAllMocks();
   });
 
   it("opens the Add category modal for managers and strips the param", async () => {
@@ -600,7 +608,6 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
           availableTeams: [mockTeam],
           setCurrentTeam: jest.fn(),
         },
-        notification: { renderFlash, hideFlash: jest.fn() },
       },
     });
 

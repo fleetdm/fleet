@@ -7,6 +7,15 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import EndUserMigrationSection from "./EndUserMigrationSection";
 
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
+
 const createTestMockData = (
   configOverrides: Partial<IConfig>,
   isPremiumTier = true
@@ -19,9 +28,6 @@ const createTestMockData = (
           ...configOverrides,
         }),
         setConfig: jest.fn(),
-      },
-      notification: {
-        renderFlash: jest.fn(),
       },
     },
   };

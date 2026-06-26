@@ -12,7 +12,7 @@ import { pick } from "lodash";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
@@ -105,7 +105,6 @@ const ManageQueriesPage = ({
     QueryContext
   );
   const { setResetSelectedRows } = useContext(TableContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const {
     userTeams,
@@ -265,13 +264,13 @@ const ManageQueriesPage = ({
       } else {
         await queriesAPI.destroy(selectedQueryIds[0]);
       }
-      renderFlash("success", "Successfully deleted reports.");
+      notify.success("Successfully deleted reports.");
       setResetSelectedRows(true);
       refetchQueries();
     } catch (errorResponse) {
-      renderFlash(
-        "error",
-        "There was an error deleting your reports. Please try again later."
+      notify.error(
+        "There was an error deleting your reports. Please try again later.",
+        { response: errorResponse }
       );
     } finally {
       toggleDeleteQueryModal();
@@ -366,20 +365,20 @@ const ManageQueriesPage = ({
 
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
-          renderFlash("success", `Successfully updated report automations.`);
+          notify.success(`Successfully updated report automations.`);
           refetchQueries();
         });
       } catch (errorResponse) {
-        renderFlash(
-          "error",
-          `There was an error updating your report automations. Please try again later.`
+        notify.error(
+          `There was an error updating your report automations. Please try again later.`,
+          { response: errorResponse }
         );
       } finally {
         toggleManageAutomationsModal();
         setIsUpdatingAutomations(false);
       }
     },
-    [renderFlash, refetchQueries, toggleManageAutomationsModal]
+    [refetchQueries, toggleManageAutomationsModal]
   );
 
   const renderModals = () => {

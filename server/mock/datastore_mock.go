@@ -1764,6 +1764,8 @@ type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *u
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
+type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
+
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
@@ -2031,6 +2033,8 @@ type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates 
 type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 
 type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error)
+
+type SetCertificateTemplateVariablesFunc func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error
 
 type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 
@@ -4731,6 +4735,9 @@ type DataStore struct {
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
 
+	ReconcileMaintainedAppSoftwareNamesFunc        ReconcileMaintainedAppSoftwareNamesFunc
+	ReconcileMaintainedAppSoftwareNamesFuncInvoked bool
+
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
 
@@ -5132,6 +5139,9 @@ type DataStore struct {
 
 	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
 	CreateCertificateTemplateFuncInvoked bool
+
+	SetCertificateTemplateVariablesFunc        SetCertificateTemplateVariablesFunc
+	SetCertificateTemplateVariablesFuncInvoked bool
 
 	DeleteCertificateTemplateFunc        DeleteCertificateTemplateFunc
 	DeleteCertificateTemplateFuncInvoked bool
@@ -11358,6 +11368,13 @@ func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.Maintain
 	return s.UpsertMaintainedAppFunc(ctx, app)
 }
 
+func (s *DataStore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileMaintainedAppSoftwareNamesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileMaintainedAppSoftwareNamesFunc(ctx)
+}
+
 func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
 	s.mu.Lock()
 	s.GetFMANamesByIdentifierFuncInvoked = true
@@ -12294,6 +12311,13 @@ func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTe
 	s.CreateCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.CreateCertificateTemplateFunc(ctx, certificateTemplate)
+}
+
+func (s *DataStore) SetCertificateTemplateVariables(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+	s.mu.Lock()
+	s.SetCertificateTemplateVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetCertificateTemplateVariablesFunc(ctx, certTemplateID, fleetVars)
 }
 
 func (s *DataStore) DeleteCertificateTemplate(ctx context.Context, id uint) error {

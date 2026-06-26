@@ -964,6 +964,117 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)
 	})
+
+	t.Run("authorization checks", func(t *testing.T) {
+		checkAuthErr := func(t *testing.T, shouldFail bool, err error) {
+			if shouldFail {
+				require.Error(t, err)
+				require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+			} else if err != nil {
+				require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
+			}
+		}
+
+		// The script and the hosts it runs on all belong to team 1.
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, TeamID: new(uint(1))}, nil
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: new(uint(1))},
+				{ID: 2, TeamID: new(uint(1))},
+			}, nil
+		}
+		// Return a non-authorization error so an authorized caller gets past the
+		// authz checks; checkAuthErr only cares whether the error is Forbidden.
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+			return "", errors.New("ok")
+		}
+
+		testCases := []struct {
+			name       string
+			user       *fleet.User
+			shouldFail bool
+		}{
+			{
+				name:       "global admin",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+				shouldFail: false,
+			},
+			{
+				name:       "global maintainer",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
+				shouldFail: false,
+			},
+			{
+				name:       "global observer",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleObserver)},
+				shouldFail: true,
+			},
+			{
+				name:       "global observer+",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
+				shouldFail: true,
+			},
+			{
+				name:       "global gitops",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
+				shouldFail: true,
+			},
+			{
+				name:       "global technician",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleTechnician)},
+				shouldFail: true,
+			},
+			{
+				name:       "team admin, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+				shouldFail: false,
+			},
+			{
+				name:       "team maintainer, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				shouldFail: false,
+			},
+			{
+				name:       "team observer, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team observer+, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team gitops, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team technician, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team admin, does not belong to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team maintainer, does not belong to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+				shouldFail: true,
+			},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+				_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2}, nil, nil)
+				checkAuthErr(t, tt.shouldFail, err)
+			})
+		}
+	})
 }
 
 func TestWipeHostRequestDecodeBody(t *testing.T) {
