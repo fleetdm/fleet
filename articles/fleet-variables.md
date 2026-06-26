@@ -22,7 +22,7 @@ Built-in variables:
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware serial number. Not available for user-enrolled iOS and iPadOS hosts with Managed Apple Account. |
-| `$FLEET_VAR_HOST_UUID` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware UUID, or Enrollment ID for user enrolled iOS and iPadOS hosts. |
+| `$FLEET_VAR_HOST_UUID` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware UUID, or Enrollment ID for user-enrolled iOS and iPadOS hosts. |
 | `$FLEET_VAR_HOST_PLATFORM` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, `"windows"`, and `"android"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the custom SCEP certificate authority configured in **Settings > Integrations > Certificate authorities**. |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>` | macOS, iOS, iPadOS, Windows | None | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
