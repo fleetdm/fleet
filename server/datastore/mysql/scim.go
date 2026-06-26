@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -1341,17 +1342,47 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
+	const certTemplateUpdateStatusQuery = `
+	UPDATE
+		host_certificate_templates hct
+		JOIN hosts h
+			ON h.uuid = hct.host_uuid
+		JOIN certificate_templates ct
+			ON ct.id = hct.certificate_template_id AND
+			   ct.team_id = COALESCE(h.team_id, 0)
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.certificate_template_id = ct.id
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hct.status = :cert_pending_status,
+		hct.uuid = UUID_TO_BIN(UUID(), true),
+		hct.fleet_challenge = NULL,
+		hct.not_valid_before = NULL,
+		hct.not_valid_after = NULL,
+		hct.serial = NULL,
+		hct.detail = NULL,
+		hct.retry_count = 0
+	WHERE
+		h.id IN (:host_ids) AND
+		hct.operation_type = :operation_type_install AND
+		hct.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
 		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
+	namedParams := map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+	}
+
 	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery} {
-		updateStmt, args, err := sqlx.Named(query, map[string]any{
-			"host_ids":               hostIDs,
-			"operation_type_install": fleet.MDMOperationTypeInstall,
-			"affected_vars":          vars,
-		})
+		updateStmt, args, err := sqlx.Named(query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
 		}
@@ -1364,6 +1395,112 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		_, err = tx.ExecContext(ctx, updateStmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute resend profiles")
+		}
+	}
+
+	// Resend certificate templates that use affected variables.
+	certParams := map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+		"cert_pending_status":    fleet.CertificateTemplatePending,
+	}
+	certStmt, certArgs, err := sqlx.Named(certTemplateUpdateStatusQuery, certParams)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend certificate templates replace names")
+	}
+	certStmt, certArgs, err = sqlx.In(certStmt, certArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend certificate templates arguments")
+	}
+	if _, err = tx.ExecContext(ctx, certStmt, certArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "execute resend certificate templates")
+	}
+
+	// Queue make_android_app_available jobs for managed app configs that use affected variables,
+	// scoped to the teams of the affected hosts.
+	if err := queueManagedConfigResendJobs(ctx, tx, hostIDs, vars); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue managed config resend jobs")
+	}
+
+	return nil
+}
+
+// queueManagedConfigResendJobs finds android app configs that reference any of
+// the affected fleet variables and inserts worker jobs to re-push the managed
+// configuration with the updated values.
+func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Find app configs that use any of the affected variables.
+	const findAffectedApps = `
+	SELECT DISTINCT
+		aac.application_id,
+		vat.id AS app_team_id
+	FROM
+		mdm_configuration_profile_variables mcpv
+		JOIN android_app_configurations aac
+			ON mcpv.android_app_configuration_id = aac.id
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+		JOIN vpp_apps_teams vat
+			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
+		JOIN hosts h
+			ON aac.global_or_team_id = COALESCE(h.team_id, 0)
+	WHERE
+		fv.name IN (?) AND
+		h.id IN (?)
+`
+
+	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare find affected app configs")
+	}
+
+	type affectedApp struct {
+		ApplicationID string `db:"application_id"`
+		AppTeamID     uint   `db:"app_team_id"`
+	}
+	var apps []affectedApp
+	if err := sqlx.SelectContext(ctx, tx, &apps, findStmt, findArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "find affected app configs")
+	}
+
+	if len(apps) == 0 {
+		return nil
+	}
+
+	// Get the enterprise name from the DB.
+	var enterpriseID string
+	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises LIMIT 1`); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// No enterprise configured — nothing to do.
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get android enterprise id")
+	}
+	enterpriseName := "enterprises/" + enterpriseID
+
+	// Insert a job for each affected app config.
+	const insertJob = `
+	INSERT INTO jobs (name, args, state)
+	VALUES (?, ?, 'queued')
+`
+	for _, app := range apps {
+		args, err := json.Marshal(map[string]any{
+			"task":               "make_android_app_available",
+			"application_id":     app.ApplicationID,
+			"app_team_id":        app.AppTeamID,
+			"enterprise_name":    enterpriseName,
+			"app_config_changed": true,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal job args for managed config resend")
+		}
+		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert managed config resend job")
 		}
 	}
 

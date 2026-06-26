@@ -1552,6 +1552,16 @@ type Datastore interface {
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, fromPersonalEnrollment bool) error
 
+	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
+	// Apple host. Returns a NotFound error when no row exists; callers that
+	// need a default should treat NotFound as AccessRights=8191 (all rights).
+	GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*HostMDMApplePermissions, error)
+
+	// SetHostMDMAppleEnrollmentPermissions upserts the AccessRights record for an
+	// Apple host. It must be called whenever a new enrollment profile is delivered
+	// so SCEP/ACME renewal can honour the monotonic-narrowing invariant.
+	SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error
+
 	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
 	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
 
@@ -3324,6 +3334,8 @@ type Datastore interface {
 	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
 	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
+	// SetCertificateTemplateVariables replaces the variable associations for a certificate template.
+	SetCertificateTemplateVariables(ctx context.Context, certTemplateID uint, fleetVars []FleetVarName) error
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	// GetCertificateTemplateById gets a certificate template by its ID (without host-specific data).

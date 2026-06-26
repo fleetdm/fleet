@@ -59,6 +59,9 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
 	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
+	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: tid, Name: "Yellow jackets"}, nil
 	}
@@ -198,6 +201,9 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		}
 		ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 			return 0, nil
+		}
+		ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+			return nil
 		}
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{ID: tid, Name: "Yellow jackets"}, nil
@@ -426,6 +432,9 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
+	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
 	}
 
 	ds.GetCertificateTemplateByTeamIDAndNameFunc = func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
@@ -741,6 +750,77 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, `OU=group\<A\>\,group\"B\"`, result)
 	})
+}
+
+func TestExtractCertTemplateFleetVars(t *testing.T) {
+	t.Run("extracts from subject_name and SAN", func(t *testing.T) {
+		vars := extractCertTemplateFleetVars(
+			"CN=$FLEET_VAR_HOST_UUID",
+			"EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, DNS=$FLEET_VAR_HOST_PLATFORM",
+		)
+		require.ElementsMatch(t, []fleet.FleetVarName{
+			fleet.FleetVarHostUUID,
+			fleet.FleetVarHostEndUserIDPUsername,
+			fleet.FleetVarHostPlatform,
+		}, vars)
+	})
+
+	t.Run("returns nil for no variables", func(t *testing.T) {
+		vars := extractCertTemplateFleetVars("CN=static", "DNS=example.com")
+		require.Nil(t, vars)
+	})
+
+	t.Run("deduplicates across subject and SAN", func(t *testing.T) {
+		vars := extractCertTemplateFleetVars(
+			"CN=$FLEET_VAR_HOST_UUID",
+			"DNS=$FLEET_VAR_HOST_UUID",
+		)
+		require.Equal(t, []fleet.FleetVarName{fleet.FleetVarHostUUID}, vars)
+	})
+}
+
+func TestCreateCertificateTemplateVariableTracking(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+		return &fleet.CertificateAuthority{ID: id, Type: string(fleet.CATypeCustomSCEPProxy)}, nil
+	}
+	ds.CreateCertificateTemplateFunc = func(ctx context.Context, ct *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{ID: 42, Name: ct.Name},
+			TeamID:                             ct.TeamID,
+		}, nil
+	}
+	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certID uint, teamID uint) (int64, error) {
+		return 0, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team"}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var capturedVars []fleet.FleetVarName
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		require.Equal(t, uint(42), certTemplateID)
+		capturedVars = fleetVars
+		return nil
+	}
+
+	_, err := svc.CreateCertificateTemplate(ctx, "wifi-cert", 1, 1,
+		"CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+		"DNS=$FLEET_VAR_HOST_UUID, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
+	)
+	require.NoError(t, err)
+	require.True(t, ds.SetCertificateTemplateVariablesFuncInvoked)
+	require.ElementsMatch(t, []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostUUID,
+		fleet.FleetVarHostEndUserIDPDepartment,
+	}, capturedVars)
 }
 
 func TestResendHostCertificateTemplate(t *testing.T) {

@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "12.30",
+      "version": "12.31",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.publicspace.abfr12';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.publicspace.abfr12' AND version_compare(bundle_short_version, '12.30') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.publicspace.abfr12' AND version_compare(bundle_short_version, '12.31') < 0);"
       },
       "installer_url": "https://www.publicspace.net/download/ABFRX12.dmg",
       "install_script_ref": "1cbc7e4f",
