@@ -495,6 +495,15 @@ type Integrations struct {
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
 
+// IsGoogleWorkspaceConfigured reports whether a Google Workspace IdP integration
+// is fully set up: an entry exists with a domain and a non-empty service-account
+// API key.
+func (i Integrations) IsGoogleWorkspaceConfigured() bool {
+	return len(i.GoogleWorkspace) > 0 &&
+		i.GoogleWorkspace[0].Domain != "" &&
+		!i.GoogleWorkspace[0].ApiKey.IsEmpty()
+}
+
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
 // It checks the global setup of the feature has been made (either Microsoft Entra or Okta).
 func ValidateConditionalAccessIntegration(

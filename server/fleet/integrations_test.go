@@ -123,3 +123,49 @@ func TestGoogleWorkspaceObfuscateAndClone(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `"`+MaskedPassword+`"`, string(b))
 }
+
+func TestIntegrationsIsGoogleWorkspaceConfigured(t *testing.T) {
+	apiKey := GoogleCalendarApiKey{Values: map[string]string{
+		GoogleCalendarEmail:      "svc@project.iam.gserviceaccount.com",
+		GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+	}}
+
+	cases := []struct {
+		name     string
+		intg     Integrations
+		expected bool
+	}{
+		{
+			name:     "no integration",
+			intg:     Integrations{},
+			expected: false,
+		},
+		{
+			name: "missing domain",
+			intg: Integrations{GoogleWorkspace: []*GoogleWorkspaceIntegration{
+				{ImpersonatedUserEmail: "admin@example.com", ApiKey: apiKey},
+			}},
+			expected: false,
+		},
+		{
+			name: "empty api key",
+			intg: Integrations{GoogleWorkspace: []*GoogleWorkspaceIntegration{
+				{Domain: "example.com", ImpersonatedUserEmail: "admin@example.com"},
+			}},
+			expected: false,
+		},
+		{
+			name: "fully configured",
+			intg: Integrations{GoogleWorkspace: []*GoogleWorkspaceIntegration{
+				{Domain: "example.com", ImpersonatedUserEmail: "admin@example.com", ApiKey: apiKey},
+			}},
+			expected: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expected, c.intg.IsGoogleWorkspaceConfigured())
+		})
+	}
+}
