@@ -1,7 +1,7 @@
 import React from "react";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
+import Button from "components/buttons/Button";
 
 import {
   IJiraIntegration,
@@ -99,14 +99,17 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
+        <Button
+          variant="inverse-alert"
+          onClick={() =>
+            actionSelectHandler(
+              cellProps.cell.value[0].value as string,
+              cellProps.row.original
+            )
           }
-          placeholder="Actions"
-          variant="small-button"
-        />
+        >
+          {cellProps.cell.value[0].label}
+        </Button>
       ),
     },
   ];

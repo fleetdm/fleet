@@ -16,6 +16,16 @@
     max-width: 0;
   }
 
+  // Fixed width to accommodate ViewAllHostsButton and the ActionsDropdown,
+  // preventing them from overflowing the table container.
+  .data-table-block .actions__cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 170px;
+    min-width: 170px;
+  }
+
   // Roles swap at the narrowest viewport: description locks small so it
   // stays readable, name takes whatever's left.
   @media (max-width: $break-sm) {
