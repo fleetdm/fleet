@@ -3179,6 +3179,11 @@ func (svc *Service) softwareBatchUpload(
 				installer.PostInstallScript = ""
 				installer.UninstallScript = ""
 				installer.PreInstallQuery = ""
+				// Path-based script packages carry their filename in a "script://" url.
+				// It's an internal placeholder, not a real download url, so don't keep it.
+				if strings.HasPrefix(installer.URL, "script://") {
+					installer.URL = ""
+				}
 
 			case installer.Extension != "exe":
 				// custom scripts only for exe installers and non-script packages
