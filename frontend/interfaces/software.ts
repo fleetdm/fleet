@@ -99,6 +99,7 @@ export type SoftwareCategory =
   | "Developer tools"
   | "Productivity"
   | "Security"
+  | "Support"
   | "Utilities";
 
 export interface ISoftwarePackageStatus {

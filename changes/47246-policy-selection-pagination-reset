@@ -1,0 +1,1 @@
+- Fixed a bug where selecting a policy on the host details or self-service policies page reset the list back to the first page.

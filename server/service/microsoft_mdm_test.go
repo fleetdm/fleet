@@ -385,6 +385,21 @@ func TestValidSyncMLCmdText(t *testing.T) {
 	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">chr</Format>")
 }
 
+func TestSyncMLCmdTextEscapesXMLMetacharacters(t *testing.T) {
+	t.Parallel()
+	cmdMsg := newSyncMLCmdText(fleet.CmdReplace, "testuri", `AT&T <Reader>`)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	payload := string(outXML)
+
+	// The marshaled XML must be well-formed (parseable) and carry escaped entities, not raw metacharacters. A raw
+	// "&"/"<" here would make xml.Unmarshal fail, which is exactly the device-side rejection we are preventing.
+	require.NoError(t, xml.Unmarshal(outXML, new(fleet.SyncMLCmd)), "escaped command must be well-formed XML")
+	require.Contains(t, payload, "AT&amp;T")
+	require.Contains(t, payload, "&lt;Reader&gt;")
+	require.NotContains(t, payload, "AT&T", "raw ampersand must not appear unescaped")
+}
+
 func TestValidSyncMLCmdXml(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
@@ -1898,6 +1913,101 @@ func TestGetESPCommands(t *testing.T) {
 			"software failure error text takes precedence over profile/timeout text")
 	})
 
+	t.Run("software failure with require_all=false soft blocks with continue anyway", func(t *testing.T) {
+		// When software fails but "Cancel setup if software fails" is off, the device still surfaces the ESP failure
+		// UI listing the failed software by name, with a "Continue anyway" option so the user can proceed to the
+		// desktop and install the missing software via self-service.
+		ds, svc := newSvc(t)
+		hostTeamID := uint(9)
+		osqueryHostID := "osquery-" + hostUUID
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: &hostTeamID}, nil
+		}
+		// require_all_software_windows stays false via the team path (zero-value team config).
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			require.Equal(t, hostTeamID, teamID,
+				"list call must pass the host's team ID so display-name enrichment is team-scoped")
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "slack-installer", DisplayName: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
+				{Name: "Zoom", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(2))},
+				{Name: "Notepad++", Status: fleet.SetupExperienceStatusSuccess, SoftwareInstallerID: new(uint(3))},
+				{Name: "Docker", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(4))},
+			}, nil
+		}
+		activitySvc := &mock.MockActivityService{}
+		svc.SetActivityService(activitySvc)
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
+		require.NotNil(t, blockCmd, "soft block must surface the ESP failure UI")
+		require.NotNil(t, blockCmd.Items[0].Data)
+		assert.Equal(t, "5", blockCmd.Items[0].Data.Content,
+			"soft block must offer Reset PC and Continue Anyway (1|4) per DMClient CSP bit flags")
+
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t,
+			"Slack, Zoom, and Docker failed to install. "+
+				"Reset your device to try again, or proceed and install missing software via self-service. "+
+				"If unavailable, contact your IT admin.",
+			errCmd.Items[0].Data.Content,
+			"soft block must list only the failed software, in result order, preferring custom display names")
+
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"soft block must NOT signal ESP success")
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"soft block must not cancel setup experience steps")
+		assert.False(t, ds.CancelHostUpcomingActivityFuncInvoked,
+			"soft block must not cancel upcoming activities")
+		assert.False(t, activitySvc.NewActivityFuncInvoked,
+			"soft block must not emit canceled_setup_experience: setup was not cancelled")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"soft block finalizes: awaiting_configuration must transition out of Active")
+	})
+
+	t.Run("timeout with require_all=false and a failure soft blocks listing failed software", func(t *testing.T) {
+		// A failure that occurred before the 3-hour timeout (with a sibling still stuck) must still be surfaced: the
+		// timeout path scans for failures so it lists the failed software rather than releasing silently.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
+				{Name: "Stuck App", Status: fleet.SetupExperienceStatusPending, SoftwareInstallerID: new(uint(2)), HostSoftwareInstallsExecutionID: new("exec-stuck")},
+			}, nil
+		}
+		past := time.Now().Add(-4 * time.Hour)
+		device := newActiveDevice()
+		device.AwaitingConfigurationAt = &past
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
+		require.NotNil(t, blockCmd, "timeout with a failure must surface the ESP failure UI")
+		assert.Equal(t, "5", blockCmd.Items[0].Data.Content,
+			"timeout soft block must offer Reset PC and Continue Anyway")
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		assert.Equal(t,
+			"Slack failed to install. "+
+				"Reset your device to try again, or proceed and install missing software via self-service. "+
+				"If unavailable, contact your IT admin.",
+			errCmd.Items[0].Data.Content,
+			"timeout with a failure must list the failed software, not the timeout text")
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"timeout soft block must NOT signal ESP success")
+		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"timeout must cancel the still-pending sibling")
+	})
+
 	t.Run("timeout cancel tolerates upcoming activity already gone", func(t *testing.T) {
 		// CancelHostUpcomingActivity returns notFound when the row is already absent (e.g., a previous finalize
 		// attempt cancelled the queue row and crashed before the status table update; the retry sees status
@@ -2200,6 +2310,69 @@ func TestHasAuthorizedAzureTenant(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, hasAuthorizedAzureTenant(tc.tenantIDs, tc.token))
+		})
+	}
+}
+
+// TestIsFleetdPresentOnDevice covers the fleetd-presence decision for a Windows MDM session.
+func TestIsFleetdPresentOnDevice(t *testing.T) {
+	t.Parallel()
+
+	enrolledAt := time.Date(2026, 6, 10, 9, 36, 32, 0, time.UTC)
+
+	cases := []struct {
+		name        string
+		nonUPN      bool          // enroll_user_id is a device token (programmatic enrollment), not a UPN
+		unlinked    bool          // enrollment not yet linked to a host
+		noVersion   bool          // host_orbit_info has an empty version
+		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
+		wantPresent bool
+	}{
+		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
+		{name: "UPN not yet linked to a host", unlinked: true, wantPresent: false},
+		{name: "UPN with empty orbit version", noVersion: true, seenOffset: time.Minute, wantPresent: false},
+		{name: "UPN stale check-in before enrollment (wipe)", seenOffset: -20 * 24 * time.Hour, wantPresent: false},
+		{name: "UPN fresh check-in after enrollment", seenOffset: time.Minute, wantPresent: true},
+		{name: "UPN check-in within grace before enrollment", seenOffset: -fleetdPresenceGracePeriod / 2, wantPresent: true},
+		// Exactly on the threshold (seen_time == created_at - grace) must count as present: the check is inclusive
+		// ("at/after"). This fails under a strict After() comparison and passes under !Before().
+		{name: "UPN check-in exactly at grace boundary", seenOffset: -fleetdPresenceGracePeriod, wantPresent: true},
+		{name: "UPN check-in beyond grace before enrollment", seenOffset: -2 * fleetdPresenceGracePeriod, wantPresent: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			enrollUser := "alice@example.com"
+			if tc.nonUPN {
+				enrollUser = "device-token"
+			}
+			hostUUID := "host-1"
+			if tc.unlinked {
+				hostUUID = ""
+			}
+			version := "1.56.2"
+			if tc.noVersion {
+				version = ""
+			}
+
+			ds := new(mock.Store)
+			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
+			}
+			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
+				return &fleet.HostOrbitInfo{Version: version}, nil
+			}
+			svc := &Service{ds: ds}
+
+			present, err := svc.isFleetdPresentOnDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+				MDMEnrollUserID: enrollUser,
+				HostUUID:        hostUUID,
+				CreatedAt:       enrolledAt,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantPresent, present)
 		})
 	}
 }

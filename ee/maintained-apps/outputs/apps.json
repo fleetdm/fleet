@@ -1409,6 +1409,20 @@
       "description": "Cheetah3D is a 3D modelling, rendering and animation software."
     },
     {
+      "name": "Chef Workstation",
+      "slug": "chef-workstation/windows",
+      "platform": "windows",
+      "unique_identifier": "Chef Workstation",
+      "description": "Chef Workstation is a toolkit from Progress Chef for authoring, testing, and running infrastructure automation code."
+    },
+    {
+      "name": "Cherry Keys",
+      "slug": "cherry-keys/windows",
+      "platform": "windows",
+      "unique_identifier": "CHERRY KEYS",
+      "description": "Cherry Keys is a utility for individually reassigning the keys of Cherry keyboards, mice, and desktop sets."
+    },
+    {
       "name": "Cherry Studio",
       "slug": "cherry-studio/darwin",
       "platform": "darwin",
@@ -1598,18 +1612,18 @@
       "description": "Clop is an image, video and clipboard optimiser."
     },
     {
-      "name": "Cloudflare WARP",
+      "name": "Cloudflare One",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
-      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+      "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Cloudflare WARP",
+      "name": "Cloudflare One",
       "slug": "cloudflare-warp/windows",
       "platform": "windows",
       "unique_identifier": "Cloudflare One Client",
-      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+      "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
       "name": "Eltima CloudMounter",
@@ -1696,6 +1710,13 @@
       "description": "Colour Contrast Analyser is a colour contrast checker."
     },
     {
+      "name": "Colour Contrast Analyser",
+      "slug": "colour-contrast-analyser/windows",
+      "platform": "windows",
+      "unique_identifier": "Colour Contrast Analyser",
+      "description": "Colour Contrast Analyser is a tool for checking the contrast of text and visual elements against WCAG accessibility guidelines."
+    },
+    {
       "name": "Comet",
       "slug": "comet/darwin",
       "platform": "darwin",
@@ -1778,6 +1799,13 @@
       "platform": "windows",
       "unique_identifier": "CrashPlan",
       "description": "CrashPlan is backup and recovery software."
+    },
+    {
+      "name": "Cribl Edge",
+      "slug": "cribl-edge/windows",
+      "platform": "windows",
+      "unique_identifier": "Cribl Edge",
+      "description": "Cribl Edge is an observability agent for collecting and processing logs, metrics, and other telemetry at the edge."
     },
     {
       "name": "CrossOver",
@@ -3348,6 +3376,13 @@
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
     },
     {
+      "name": "Groove OmniDialer",
+      "slug": "groove-omnidialer/windows",
+      "platform": "windows",
+      "unique_identifier": "Groove OmniDialer",
+      "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
+    },
+    {
       "name": "Nota Gyazo GIF",
       "slug": "gyazo/darwin",
       "platform": "darwin",
@@ -3936,18 +3971,18 @@
       "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
     },
     {
-      "name": "kiro",
+      "name": "Kiro",
       "slug": "kiro/darwin",
       "platform": "darwin",
       "unique_identifier": "dev.kiro.desktop",
-      "description": "kiro is an agent-centric IDE with spec-driven development."
+      "description": "Kiro is an agent-centric IDE with spec-driven development."
     },
     {
       "name": "Kiro",
       "slug": "kiro/windows",
       "platform": "windows",
       "unique_identifier": "Kiro (User)",
-      "description": "kiro is an agent-centric IDE with spec-driven development."
+      "description": "Kiro is an agent-centric IDE with spec-driven development."
     },
     {
       "name": "kitty",
@@ -7107,6 +7142,13 @@
       "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
     },
     {
+      "name": "Spokenly",
+      "slug": "spokenly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.spokenly",
+      "description": "Spokenly is a dictation and transcription app with AI-powered editing."
+    },
+    {
       "name": "Spotify",
       "slug": "spotify/darwin",
       "platform": "darwin",
@@ -8108,6 +8150,20 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
+      "name": "Vivaldi",
+      "slug": "vivaldi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vivaldi.Vivaldi",
+      "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
+    },
+    {
+      "name": "Vivaldi",
+      "slug": "vivaldi/windows",
+      "platform": "windows",
+      "unique_identifier": "Vivaldi",
+      "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
+    },
+    {
       "name": "Vivid",
       "slug": "vivid-app/darwin",
       "platform": "darwin",
@@ -8150,18 +8206,18 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
-      "name": "VNC Viewer",
+      "name": "RealVNC Connect Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.realvnc.vncviewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
+      "unique_identifier": "com.realvnc.rvncconnect",
+      "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
-      "name": "VNC Viewer",
+      "name": "RealVNC Connect Viewer",
       "slug": "vnc-viewer/windows",
       "platform": "windows",
-      "unique_identifier": "RealVNC Viewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
+      "unique_identifier": "RealVNC Connect Viewer",
+      "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
       "name": "VoiceInk",

@@ -1709,6 +1709,43 @@ func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
 	require.Equal(t, wouldDelete, deletedPackages)
 }
 
+func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	// Script only packages use a "script://filename" url to pass the filename,
+	// so these should skip url validation
+	scriptFilenames := []string{
+		"install chatgpt.ps1",
+		"my script://app v2.ps1",
+		"sub dir/install.ps1",
+		`C:\Program Files\install.ps1`,
+		"install chatgpt.sh",
+		"my script://app v2.sh",
+		"sub dir/install.sh",
+	}
+
+	for _, name := range scriptFilenames {
+		// The trailing "not a url" payload is a tripwire: validation only reaches and
+		// rejects it if the script:// payload before it was accepted.
+		payloads := []*fleet.SoftwareInstallerPayload{
+			{URL: "script://" + name, InstallScript: "echo hi"},
+			{URL: "not a url"},
+		}
+		_, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+		require.ErrorContains(t, err, `URL ("not a url") is invalid`)
+		require.NotContains(t, err.Error(), name)
+		require.NotContains(t, err.Error(), "script://")
+	}
+}
+
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 	t.Parallel()
 

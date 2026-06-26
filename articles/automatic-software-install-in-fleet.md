@@ -37,7 +37,8 @@ If software has a custom target (labels), it will only be installed on hosts wit
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * The policy check mechanism runs on a typical one-hour cadence on all online hosts.
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Currently, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". By default, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* To send an install request on _every_ failing result, including consecutive failures ("No" -> "No"), set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_). Because this can retry an install that doesn't resolve the policy, it may cause a retry loop.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*

@@ -7,6 +7,7 @@
   var currentSection;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
+  var hideFooter;// Hides the footer.
   var showAdminLinks;// Shows links to admin pages to admin users.
   var showConfigurationProfileLayout;
   var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
@@ -33,6 +34,11 @@
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% if(typeof pageFaqForSeo !== 'undefined'){ %>
+    <script type="application/ld+json">
+      <%- pageFaqForSeo %>
+    </script>
+    <% } %>
     <% if (sails.config.environment === 'production') { %>
     <% /* ConsentMode */ %>
     <script>
@@ -162,7 +168,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : (showConfigurationProfileLayout || hideFooter) ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
@@ -758,6 +764,7 @@
       <% } %>
 
       <%- body %>
+      <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
@@ -881,6 +888,7 @@
           </div>
       <% } %>
       <% } %>
+      <% } %>
     </div>
     <% /*
       Client-side JavaScript
@@ -918,6 +926,7 @@
     <script src="/js/components/bar-chart.component.js"></script>
     <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
+    <script src="/js/components/cloud-city.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/code-block-copy-buttons.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
@@ -926,7 +935,6 @@
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/multifield.component.js"></script>
     <script src="/js/components/open-positions.component.js"></script>
-    <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>

@@ -1,19 +1,33 @@
 .gitops-mode-tooltip-wrapper {
+  // Arrow styles target the nested react-tooltip via descendant selectors (mirrors the
+  // shared TooltipWrapper, which this component no longer delegates to).
+  @include tooltip5-arrow-styles;
+  display: inline-flex;
+
   &__tooltip-content {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
-  &--inputfield {
-    .component__tooltip-wrapper__element {
-      width: 100%;
-    }
+  &__tip-text {
+    @include tooltip-text;
+    cursor: default;
   }
 
-  .component__tooltip-wrapper {
-    &__tip-text {
-      cursor: default;
-    }
+  // Inputs/dropdowns must stretch to full width.
+  &--inputfield {
+    display: block;
+    width: 100%;
+  }
+
+  // Hug the wrapped content so the tooltip arrow centers on the visible control (a button,
+  // checkbox row, or group) rather than drifting to the center of the full form row. Without
+  // this, the global `form > * { width: 100% }` rule (_global.scss) — or a checkbox's own
+  // full-width label row — stretches the anchor wider than the control. Inputs/dropdowns opt
+  // back into full width via `--inputfield`. (In GitOps mode the control is disabled, so the
+  // narrower hover area is moot.)
+  &--hug {
+    width: fit-content;
   }
 }

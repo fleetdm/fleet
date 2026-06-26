@@ -2,7 +2,7 @@
   "name": "Alcove",
   "unique_identifier": "com.henrikruscon.Alcove",
   "token": "alcove",
-  "installer_format": "zip",
+  "installer_format": "dmg",
   "slug": "alcove/darwin",
   "default_categories": [
     "Productivity"

@@ -95,6 +95,7 @@ Configure the server using environment variables or a `.env` file (in the same d
 | `LOG_LEVEL` | `info` | Log verbosity: `debug` / `info` / `warn` / `error`. Note: `debug` logs the route shape of every Fleet API call (path before query string only — no PII identifiers). Avoid `debug` in production deployments where logs are shipped to a centralized aggregator. |
 | `FLEET_TLS_SKIP_VERIFY` | `false` | Skip TLS certificate verification. **Hard-gated to localhost — the server refuses to start with this set and a non-loopback `FLEET_BASE_URL`.** Conflicts with `FLEET_CA_FILE`. |
 | `FLEET_CA_FILE` | *(optional)* | Path to a PEM CA certificate for self-signed Fleet instances |
+| `FLEET_LIVE_QUERY_REST_PERIOD` | `25s` | How long `run_live_query` waits for hosts to report before returning. Accepts any Go duration string (e.g. `25s`, `1m`). Multi-host runs stop early once every online host has responded; this is the upper bound for the wait. Mirrors the same variable on the Fleet server — keep this ≥ the server's value so the MCP doesn't give up before the server finishes the campaign. |
 
 Copy the provided template:
 

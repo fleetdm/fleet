@@ -897,9 +897,10 @@ var DefaultSelfServiceCategoryNames = []string{
 	"🌎 Browsers",
 	"👬 Communication",
 	"🧰 Developer tools",
-	"💻 Productivity",
+	"🖥️ Productivity",
 	"🔐 Security",
 	"🛟 Support",
+	"🛠️ Utilities",
 }
 
 // Map the old default category names that don't include emojis to the new ones
@@ -909,9 +910,10 @@ var LegacySoftwareCategoryNames = map[string]string{
 	"Browsers":        "🌎 Browsers",
 	"Communication":   "👬 Communication",
 	"Developer tools": "🧰 Developer tools",
-	"Productivity":    "💻 Productivity",
+	"Productivity":    "🖥️ Productivity",
 	"Security":        "🔐 Security",
-	"Utilities":       "🛟 Support",
+	"Support":         "🛟 Support",
+	"Utilities":       "🛠️ Utilities",
 }
 
 func TranslateLegacySoftwareCategoryNames(names []string) []string {
@@ -928,11 +930,38 @@ func TranslateLegacySoftwareCategoryNames(names []string) []string {
 	return out
 }
 
+// normalizeSoftwareCategoryName strips Unicode variation selectors (U+FE00–U+FE0F)
+// from a category name. These code points carry zero weight (they are ignorable)
+// under the utf8mb4_unicode_ci collation that backs the software_categories
+// (team_id, name) unique index, so names differing only by a variation selector —
+// e.g. "🖥️ Productivity" (U+1F5A5 U+FE0F) vs "🖥 Productivity" (U+1F5A5) — are the
+// SAME row to MySQL even though Go's byte/rune comparisons treat them as distinct.
+// Normalizing before comparing in Go keeps our notion of category identity aligned
+// with the database's, so we don't try to insert a name the DB already considers a
+// duplicate (which would fail with a 1062 error) and we correctly resolve such a
+// name back to its existing category.
+func normalizeSoftwareCategoryName(name string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 0xFE00 && r <= 0xFE0F { // variation selectors VS1-VS16 (ignorable in utf8mb4_unicode_ci)
+			return -1
+		}
+		return r
+	}, name)
+}
+
+// SoftwareCategoryNamesEqual reports whether two category names refer to the same
+// category as far as the software_categories unique index is concerned:
+// case-insensitive and ignoring variation selectors, matching the column's
+// utf8mb4_unicode_ci collation.
+func SoftwareCategoryNamesEqual(a, b string) bool {
+	return strings.EqualFold(normalizeSoftwareCategoryName(a), normalizeSoftwareCategoryName(b))
+}
+
 func SoftwareCategoryReferenceMatches(reference string, name string) bool {
-	if strings.EqualFold(reference, name) {
+	if SoftwareCategoryNamesEqual(reference, name) {
 		return true
 	}
-	if t, ok := LegacySoftwareCategoryNames[reference]; ok && strings.EqualFold(t, name) {
+	if t, ok := LegacySoftwareCategoryNames[reference]; ok && SoftwareCategoryNamesEqual(t, name) {
 		return true
 	}
 	return false

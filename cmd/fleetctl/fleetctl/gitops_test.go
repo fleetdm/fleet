@@ -2757,6 +2757,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
+	}
 	testing_utils.StartAndServeVPPServer(t)
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -3733,6 +3736,185 @@ software:
 		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsExcludeAny, 0)
 		assert.Equal(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny[0], "b")
 	})
+
+	// Reproduces issue #45661: apple_setup_assistant in unassigned.yml uses a
+	// relative path that climbs out of fleets/ into a sibling lib/ directory.
+	// Before the fix, the path resolved against the global file's baseDir and
+	// failed with "no such file or directory".
+	t.Run("unassigned.yml with apple_setup_assistant via ../ relative path", func(t *testing.T) {
+		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+			return nil, nil
+		}
+
+		tmpDir := t.TempDir()
+
+		// lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+		depDir := filepath.Join(tmpDir, "lib", "macos", "enrollment-profiles")
+		require.NoError(t, os.MkdirAll(depDir, 0o755))
+		depPath := filepath.Join(depDir, "automatic-enrollment.dep.json")
+		require.NoError(t, os.WriteFile(depPath, []byte(`{"profile_name":"test"}`), 0o644))
+
+		// fleets/
+		fleetsDir := filepath.Join(tmpDir, "fleets")
+		require.NoError(t, os.MkdirAll(fleetsDir, 0o755))
+
+		unassignedFile := filepath.Join(fleetsDir, "unassigned.yml")
+		require.NoError(t, os.WriteFile(unassignedFile, []byte(`
+name: Unassigned
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+software:
+`), 0o644))
+
+		workstationsFile := filepath.Join(fleetsDir, "workstations.yml")
+		require.NoError(t, os.WriteFile(workstationsFile, []byte(`
+name: Workstations
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+settings:
+  secrets:
+    - secret: workstations-secret
+software:
+`), 0o644))
+
+		globalFile := filepath.Join(tmpDir, "default.yml")
+		require.NoError(t, os.WriteFile(globalFile, []byte(fmt.Sprintf(`
+agent_options:
+labels:
+policies:
+reports:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: global-secret
+`, fleetServerURL, orgName)), 0o644))
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", unassignedFile, "-f", workstationsFile, "--dry-run"})
+		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in unassigned.yml uses a relative path that climbs out of the fleets/ directory")
+	})
+
+	// Same-directory layout (default.yml and no-team.yml side by side, path into
+	// a sibling lib/no-team/...). Guards against the double-anchoring regression
+	// (generated/generated/...) where the applied no-team control path was joined
+	// once at extraction and again at apply.
+	t.Run("no-team.yml with apple_setup_assistant in the same dir as default.yml", func(t *testing.T) {
+		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+			return nil, nil
+		}
+
+		tmpDir := t.TempDir()
+
+		depDir := filepath.Join(tmpDir, "lib", "no-team")
+		require.NoError(t, os.MkdirAll(depDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(depDir, "macos_enrollment.json"), []byte(`{"profile_name":"test"}`), 0o644))
+
+		noTeamFile := filepath.Join(tmpDir, "no-team.yml")
+		require.NoError(t, os.WriteFile(noTeamFile, []byte(`
+name: No team
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: lib/no-team/macos_enrollment.json
+software:
+`), 0o644))
+
+		globalFile := filepath.Join(tmpDir, "default.yml")
+		require.NoError(t, os.WriteFile(globalFile, []byte(fmt.Sprintf(`
+agent_options:
+labels:
+policies:
+reports:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: global-secret
+`, fleetServerURL, orgName)), 0o644))
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", noTeamFile, "--dry-run"})
+		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in no-team.yml lives in the same dir as default.yml")
+	})
+}
+
+func TestGitOpsUnassignedRelativePathsFromWorkingDir(t *testing.T) {
+	// Cannot run t.Parallel(): SetupFullGitOpsPremiumServer sets env vars and we t.Chdir.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+	testing_utils.StartSoftwareInstallerServer(t)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
+	root := t.TempDir()
+	// Layout under a "generated" subdir so the working dir sits one level above it,
+	// mirroring running `fleetctl gitops -f generated/fleets/...` from build/.
+	fleetsDir := filepath.Join(root, "generated", "fleets")
+	require.NoError(t, os.MkdirAll(fleetsDir, 0o755))
+
+	depDir := filepath.Join(root, "generated", "lib", "macos", "enrollment-profiles")
+	require.NoError(t, os.MkdirAll(depDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(depDir, "automatic-enrollment.dep.json"), []byte(`{"profile_name":"test"}`), 0o644))
+
+	scriptsDir := filepath.Join(root, "generated", "lib", "unassigned", "scripts")
+	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "turn-off-mdm.ps1"), []byte(`Write-Host "hi"`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "setup.sh"), []byte("#!/bin/sh\necho hi\n"), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(fleetsDir, "unassigned.yml"), []byte(`
+name: Unassigned
+policies:
+reports:
+agent_options:
+controls:
+  setup_experience:
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+    macos_script: ../lib/unassigned/scripts/setup.sh
+  scripts:
+    - path: ../lib/unassigned/scripts/turn-off-mdm.ps1
+software:
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(fleetsDir, "default.yml"), []byte(fmt.Sprintf(`
+agent_options:
+labels:
+policies:
+reports:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: global-secret
+`, fleetServerURL, orgName)), 0o644))
+
+	// Working dir is the parent of generated/, and -f paths are relative.
+	t.Chdir(root)
+
+	_, err := runAppNoChecks([]string{
+		"gitops",
+		"-f", "generated/fleets/default.yml",
+		"-f", "generated/fleets/unassigned.yml",
+		"--dry-run",
+	})
+	require.NoError(t, err, "gitops should resolve unassigned.yml relative paths from fleets/, not double-anchor under the working dir")
 }
 
 func TestGitOpsCustomSettings(t *testing.T) {
@@ -5468,6 +5650,9 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
+	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
 	}
 
 	// Mock for looking up certificate template by team ID and name
@@ -7707,12 +7892,12 @@ software:
 
 	teamExisting := []fleet.SoftwareCategory{
 		{ID: 100, Name: "🌎 Browsers", TeamID: 1},
-		{ID: 101, Name: "💻 Productivity", TeamID: 1},
+		{ID: 101, Name: "🖥️ Productivity", TeamID: 1},
 		{ID: 102, Name: "Stale Category", TeamID: 1},
 	}
 	noTeamExisting := []fleet.SoftwareCategory{
 		{ID: 200, Name: "🌎 Browsers", TeamID: 0},
-		{ID: 201, Name: "💻 Productivity", TeamID: 0},
+		{ID: 201, Name: "🖥️ Productivity", TeamID: 0},
 		{ID: 202, Name: "Stale No-team Category", TeamID: 0},
 	}
 
