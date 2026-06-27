@@ -22,10 +22,9 @@ describe("IdentityProviders", () => {
     expect(
       screen.getByText("This feature is included in Fleet Premium.")
     ).toBeInTheDocument();
-    // Neither section renders when not premium.
+    // The section title stays above the premium message (matching other sections).
+    expect(screen.getByText("Identity provider (IdP)")).toBeInTheDocument();
+    // The Google Workspace section does not render when not premium.
     expect(screen.queryByText("Google Workspace")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Identity provider (IdP)")
-    ).not.toBeInTheDocument();
   });
 });
