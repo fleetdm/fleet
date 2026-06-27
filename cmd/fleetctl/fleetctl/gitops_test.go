@@ -200,19 +200,22 @@ org_settings:
 	assert.Empty(t, enrolledSecrets)
 }
 
-func TestGitOpsGlobalGoogleWorkspace(t *testing.T) {
+func TestGitOpsGlobalGoogleWorkspaceRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables.
 
+	// Google Workspace IdP is premium-only. Applying it via GitOps on a free
+	// license must be rejected end to end (YAML parse -> PATCH /config ->
+	// ModifyAppConfig premium gate), and nothing must be persisted.
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	setupEmptyGitOpsMocks(ds)
 
-	var savedAppConfig *fleet.AppConfig
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	saveCalled := false
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
-		savedAppConfig = config
+		saveCalled = true
 		return nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -245,16 +248,10 @@ org_settings:
 `)
 	require.NoError(t, err)
 
-	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
-
-	// The Google Workspace integration from the YAML must be applied end to end.
-	require.NotNil(t, savedAppConfig)
-	require.Len(t, savedAppConfig.Integrations.GoogleWorkspace, 1)
-	gw := savedAppConfig.Integrations.GoogleWorkspace[0]
-	assert.Equal(t, "example.com", gw.Domain)
-	assert.Equal(t, "admin@example.com", gw.ImpersonatedUserEmail)
-	assert.Equal(t, "sa@example.com", gw.ApiKey.Values[fleet.GoogleCalendarEmail])
-	assert.Equal(t, "FAKE_PRIVATE_KEY", gw.ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "missing or invalid license")
+	assert.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
 }
 
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
