@@ -4,11 +4,6 @@
   align-items: center;
   font-size: $x-small;
 
-  &__align-left {
-    justify-content: left;
-    align-items: left;
-  }
-
   .premium-feature-message {
     display: flex;
     gap: 4px;
@@ -18,12 +13,6 @@
       // need to set line-height to normal for the icons and text to be aligned
       line-height: normal;
       margin: 0;
-    }
-
-    .external-link-and-icon {
-      display: flex;
-      gap: 4px;
-      align-items: center;
     }
   }
 }

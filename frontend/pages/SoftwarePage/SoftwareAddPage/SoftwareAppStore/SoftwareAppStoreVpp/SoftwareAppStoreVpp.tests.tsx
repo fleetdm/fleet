@@ -60,7 +60,7 @@ describe("SoftwareAppStoreVpp", () => {
     });
 
     expect(
-      screen.getByText("To add App Store apps, first enable VPP.")
+      screen.getByText("Enable VPP to add App Store apps (MDM required).")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Enable VPP" })

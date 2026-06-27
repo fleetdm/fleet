@@ -17,6 +17,7 @@ import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
@@ -86,17 +87,21 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       return <Spinner />;
     }
 
-    if (
-      !(
-        globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured
-      )
-    ) {
+    if (isScriptError && scriptError.status !== 404) {
+      return <DataError />;
+    }
+
+    const mdmNotConfigured = !(
+      globalConfig?.mdm.enabled_and_configured &&
+      globalConfig?.mdm.apple_bm_enabled_and_configured
+    );
+
+    if (mdmNotConfigured) {
       return (
         <EmptyState
           variant="list"
           header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          info="Supported on macOS. Turn on MDM and automatic enrollment to customize."
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on
@@ -106,44 +111,22 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       );
     }
 
-    if (isScriptError && scriptError.status !== 404) {
-      return <DataError />;
-    }
-
-    return (
-      <SetupExperienceContentContainer>
-        <div className={`${baseClass}__description-container`}>
-          <p className={`${baseClass}__description`}>
-            Upload a script to run on macOS hosts that automatically enroll to
-            Fleet.
-          </p>
-          {!script ? (
-            <SetupExperienceScriptUploader
-              currentTeamId={currentTeamId}
-              hasManualAgentInstall={hasManualAgentInstall}
-              onUpload={onUpload}
-            />
-          ) : (
-            <>
-              <p className={`${baseClass}__run-message`}>
-                Script will run during setup:
-              </p>
-              <SetupExperienceScriptCard
-                script={script}
-                onDelete={() => setShowDeleteScriptModal(true)}
-              />
-            </>
-          )}
-        </div>
-        {showDeleteScriptModal && script && (
-          <DeleteSetupExperienceScriptModal
-            currentTeamId={currentTeamId}
-            scriptName={script.name}
-            onDeleted={onDelete}
-            onExit={() => setShowDeleteScriptModal(false)}
-          />
-        )}
-      </SetupExperienceContentContainer>
+    return !script ? (
+      <SetupExperienceScriptUploader
+        currentTeamId={currentTeamId}
+        hasManualAgentInstall={hasManualAgentInstall}
+        onUpload={onUpload}
+      />
+    ) : (
+      <>
+        <p className={`${baseClass}__run-message`}>
+          Script will run during setup:
+        </p>
+        <SetupExperienceScriptCard
+          script={script}
+          onDelete={() => setShowDeleteScriptModal(true)}
+        />
+      </>
     );
   };
 
@@ -159,7 +142,21 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content="Upload a script to run on macOS hosts that automatically enroll to Fleet."
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
+      {showDeleteScriptModal && script && (
+        <DeleteSetupExperienceScriptModal
+          currentTeamId={currentTeamId}
+          scriptName={script.name}
+          onDeleted={onDelete}
+          onExit={() => setShowDeleteScriptModal(false)}
+        />
+      )}
     </section>
   );
 };

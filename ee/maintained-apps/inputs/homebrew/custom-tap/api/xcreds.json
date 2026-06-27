@@ -1,0 +1,85 @@
+{
+  "token": "xcreds",
+  "old_tokens": [],
+  "name": [
+    "XCreds"
+  ],
+  "desc": "Syncs the user's IdP password with their macOS login password",
+  "homepage": "https://twocanoes.com/products/mac/xcreds/",
+  "url": "https://github.com/twocanoes/xcreds/releases/download/tag-5.9(9148)/XCreds_Build-9148_Version-5.9.pkg",
+  "url_specs": {},
+  "version": "5.9,9148",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": true,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "sha256": "ab416a7d215029cfed6f292b176951ca614ce263c2b8923beee7fcf417de199a",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "launchctl": "com.twocanoes.xcreds-launchagent",
+          "quit": "com.twocanoes.xcreds",
+          "pkgutil": "com.twocanoes.pkg.secureremoteaccess",
+          "delete": [
+            "/Applications/XCreds.app",
+            "/Library/Security/SecurityAgentPlugins/XCredsLoginPlugin.bundle",
+            "/Library/LaunchAgents/com.twocanoes.xcreds-launchagent.plist"
+          ]
+        }
+      ]
+    },
+    {
+      "pkg": [
+        "XCreds_Build-9148_Version-5.9.pkg"
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Application Support/xcreds",
+            "~/Library/Caches/com.twocanoes.xcreds",
+            "~/Library/HTTPStorages/com.twocanoes.xcreds",
+            "~/Library/Preferences/com.twocanoes.xcreds.plist",
+            "~/Library/Saved Application State/com.twocanoes.xcreds.savedState",
+            "~/Library/WebKit/com.twocanoes.xcreds",
+            "/Library/Application Support/xcreds",
+            "/Library/Managed Preferences/com.twocanoes.xcreds.plist"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "11"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/xcreds.rb",
+  "ruby_source_checksum": {
+    "sha256": "37fed8dc1c0a4d404d6be172a465e6fe1f919a5b79200155923b2399001d6a54"
+  }
+}

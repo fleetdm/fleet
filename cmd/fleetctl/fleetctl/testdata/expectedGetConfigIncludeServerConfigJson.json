@@ -66,6 +66,7 @@
     },
     "mdm": {
       "android_enabled_and_configured": false,
+      "apple_business": null,
       "apple_business_manager": null,
       "apple_server_url": "",
       "volume_purchasing_program": null,
@@ -77,6 +78,7 @@
       "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
+      "windows_entra_client_ids": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,

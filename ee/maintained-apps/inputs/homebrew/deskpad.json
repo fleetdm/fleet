@@ -1,0 +1,10 @@
+{
+  "name": "DeskPad",
+  "unique_identifier": "com.stengo.DeskPad",
+  "token": "deskpad",
+  "installer_format": "zip",
+  "slug": "deskpad/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -44,6 +44,14 @@ github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[strin
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	VulnerabilityExposureHistoricalReporting	*fleet.VulnExposureFilterSettings
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	SoftwareFilters	*[]string
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	HasKnownExploit	*bool
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	ExcludeVulnerabilities	*[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	DeprecatedHostSettings	*fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	AgentOptions	*json.RawMessage
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPTest	bool
@@ -120,6 +128,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	OrganizationN
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	BYODTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnabledAndConfigured	bool
@@ -178,6 +187,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraClientIDs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableDiskEncryption	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableRecoveryLockPassword	optjson.Bool
@@ -203,6 +213,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	GitOpsConfig	fleet.GitOpsConfig
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	RepositoryURL	string

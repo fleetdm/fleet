@@ -1,0 +1,8 @@
+{
+  "name": "Spokenly",
+  "unique_identifier": "app.spokenly",
+  "token": "spokenly",
+  "installer_format": "dmg",
+  "slug": "spokenly/darwin",
+  "default_categories": ["Productivity"]
+}

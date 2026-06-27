@@ -228,10 +228,14 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 		if err != nil {
 			return fmt.Errorf("parsing media type from response header: %w", err)
 		}
-		filename = params["filename"]
+		// Strip any directory components from the server-supplied filename to
+		// prevent path traversal.
+		filename = filepath.Base(params["filename"])
 	}
 
-	if filename == "" {
+	// filepath.Base("") returns "." and filepath.Base("..") returns "..",
+	// neither of which is a valid installer filename.
+	if filename == "" || filename == "." || filename == ".." {
 		filename = f.DestFile
 	}
 	if filename == "" {

@@ -12,22 +12,16 @@ import (
 )
 
 func TestValidateAPIEndpoints(t *testing.T) {
-	originalYAML := apiEndpointsYAML
+	originalEndpoints := apiEndpoints
 	t.Cleanup(func() {
-		apiEndpointsYAML = originalYAML
+		apiEndpoints = originalEndpoints
 	})
 
 	endpoints := []fleet.APIEndpoint{
 		fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/hosts"),
 		fleet.NewAPIEndpointFromTpl("POST", "/api/v1/fleet/hosts/:id/refetch"),
 	}
-	apiEndpointsYAML = []byte(`
-- method: "GET"
-  path: "/api/v1/fleet/hosts"
-  display_name: "Route 1"
-- method: "POST"
-  path: "/api/v1/fleet/hosts/:id/refetch"
-  display_name: "Route 2"`)
+	apiEndpoints = endpoints
 
 	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *mux.Router {
 		r := mux.NewRouter()
@@ -39,28 +33,28 @@ func TestValidateAPIEndpoints(t *testing.T) {
 	}
 
 	t.Run("all routes present", func(t *testing.T) {
-		err := Init(routerWithEndpoints(endpoints))
+		err := Validate(routerWithEndpoints(endpoints))
 		require.NoError(t, err)
 	})
 
 	t.Run("missing route returns error", func(t *testing.T) {
-		err := Init(routerWithEndpoints(endpoints[:1]))
+		err := Validate(routerWithEndpoints(endpoints[:1]))
 		require.ErrorContains(t, err, endpoints[1].Method+" "+endpoints[1].Path)
 	})
 
 	t.Run("no routes registered returns error listing all missing", func(t *testing.T) {
-		err := Init(mux.NewRouter())
+		err := Validate(mux.NewRouter())
 		require.ErrorContains(t, err, "the following API endpoints are unknown")
 	})
 
 	t.Run("non-mux handler returns error", func(t *testing.T) {
-		err := Init(http.NewServeMux())
+		err := Validate(http.NewServeMux())
 		require.ErrorContains(t, err, "expected *mux.Router")
 	})
 
 	t.Run("empty endpoint list always passes", func(t *testing.T) {
-		apiEndpointsYAML = []byte(``)
-		err := Init(mux.NewRouter())
+		apiEndpoints = nil
+		err := Validate(mux.NewRouter())
 		require.NoError(t, err)
 	})
 }

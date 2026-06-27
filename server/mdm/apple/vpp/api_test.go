@@ -1,17 +1,21 @@
 package vpp
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,17 +31,36 @@ func TestGetConfig(t *testing.T) {
 		token          string
 		handler        http.HandlerFunc
 		wantName       string
+		wantCountry    string
 		expectedErrMsg string
+		expectMinCalls int
+		expectMaxCalls int
 	}{
 		{
-			name:  "valid token",
+			name:  "valid token US",
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				fmt.Fprintln(w, `{"locationName": "Test Location"}`)
+				fmt.Fprintln(w, `{"locationName": "Test Location", "countryISO2ACode": "US"}`)
 			},
 			wantName:       "Test Location",
+			wantCountry:    "us",
 			expectedErrMsg: "",
+			expectMinCalls: 1,
+			expectMaxCalls: 1,
+		},
+		{
+			name:  "valid token DE lowercased",
+			token: "valid_token",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, `{"locationName": "DE Org", "countryISO2ACode": "DE"}`)
+			},
+			wantName:       "DE Org",
+			wantCountry:    "de",
+			expectedErrMsg: "",
+			expectMinCalls: 1,
+			expectMaxCalls: 1,
 		},
 		{
 			name:  "invalid token",
@@ -47,34 +70,96 @@ func TestGetConfig(t *testing.T) {
 				fmt.Fprintln(w, `{"errorNumber": 9622}`)
 			},
 			wantName:       "",
+			wantCountry:    "",
 			expectedErrMsg: "making request to Apple VPP endpoint: Apple VPP endpoint returned error:  (error number: 9622)",
+			// Apple application errors should not be retried.
+			expectMinCalls: 1,
+			expectMaxCalls: 1,
 		},
 		{
-			name:  "server error",
+			name:  "server error retries up to 3 times",
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintln(w, `Internal Server Error`)
 			},
 			wantName:       "",
+			wantCountry:    "",
 			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
+			expectMinCalls: 3,
+			expectMaxCalls: 3,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupFakeServer(t, tt.handler)
+			var calls int
+			setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				tt.handler(w, r)
+			})
 
-			name, err := GetConfig(tt.token)
+			cfg, err := GetConfig(t.Context(), tt.token)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.wantName, name)
+			require.Equal(t, tt.wantName, cfg.LocationName)
+			require.Equal(t, tt.wantCountry, cfg.CountryCode)
+			if tt.expectMinCalls > 0 {
+				require.GreaterOrEqual(t, calls, tt.expectMinCalls)
+				require.LessOrEqual(t, calls, tt.expectMaxCalls)
+			}
 		})
 	}
+
+	t.Run("transient failure then success", func(t *testing.T) {
+		var calls int
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			if calls < 2 {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintln(w, `Internal Server Error`)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, `{"locationName": "Recovered", "countryISO2ACode": "FR"}`)
+		})
+
+		cfg, err := GetConfig(t.Context(), "token")
+		require.NoError(t, err)
+		require.Equal(t, "Recovered", cfg.LocationName)
+		require.Equal(t, "fr", cfg.CountryCode)
+		require.Equal(t, 2, calls)
+	})
+}
+
+func TestAssociateAssetsRequestValidate(t *testing.T) {
+	t.Run("serial numbers only is valid", func(t *testing.T) {
+		req := &AssociateAssetsRequest{SerialNumbers: []string{"SN1"}}
+		require.NoError(t, req.Validate())
+	})
+	t.Run("client user ids only is valid", func(t *testing.T) {
+		req := &AssociateAssetsRequest{ClientUserIds: []string{"user-1"}}
+		require.NoError(t, req.Validate())
+	})
+	t.Run("both populated is rejected", func(t *testing.T) {
+		req := &AssociateAssetsRequest{
+			SerialNumbers: []string{"SN1"},
+			ClientUserIds: []string{"user-1"},
+		}
+		err := req.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "mutually exclusive")
+	})
+	t.Run("neither populated is rejected", func(t *testing.T) {
+		req := &AssociateAssetsRequest{}
+		err := req.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "required")
+	})
 }
 
 func TestAssociateAssets(t *testing.T) {
@@ -93,23 +178,81 @@ func TestAssociateAssets(t *testing.T) {
 				SerialNumbers: []string{"SN12345"},
 			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, http.MethodPost, r.Method)
-				require.Equal(t, "/assets/associate", r.URL.Path)
-				require.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/assets/associate", r.URL.Path)
+				assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
 
 				body, err := io.ReadAll(r.Body)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 
 				var reqParams AssociateAssetsRequest
 				err = json.Unmarshal(body, &reqParams)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 
-				require.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
-				require.Equal(t, []string{"SN12345"}, reqParams.SerialNumbers)
+				assert.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
+				assert.Equal(t, []string{"SN12345"}, reqParams.SerialNumbers)
+				assert.Empty(t, reqParams.ClientUserIds)
+
+				// Verify omitempty: clientUserIds key should not appear in the wire payload.
+				assert.NotContains(t, string(body), "clientUserIds")
 
 				_, _ = w.Write([]byte(`{"eventId": "123"}`))
 			},
 			expectedErrMsg: "",
+		},
+		{
+			name:  "valid request with client user ids",
+			token: "valid_token",
+			params: &AssociateAssetsRequest{
+				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
+				ClientUserIds: []string{"user-uuid-1", "user-uuid-2"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/assets/associate", r.URL.Path)
+				assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+
+				body, err := io.ReadAll(r.Body)
+				assert.NoError(t, err)
+
+				var reqParams AssociateAssetsRequest
+				err = json.Unmarshal(body, &reqParams)
+				assert.NoError(t, err)
+
+				assert.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
+				assert.Empty(t, reqParams.SerialNumbers)
+				assert.Equal(t, []string{"user-uuid-1", "user-uuid-2"}, reqParams.ClientUserIds)
+
+				// Verify omitempty: serialNumbers key should not appear in the wire payload.
+				assert.NotContains(t, string(body), "serialNumbers")
+
+				_, _ = w.Write([]byte(`{"eventId": "456"}`))
+			},
+			expectedErrMsg: "",
+		},
+		{
+			name:  "rejects both serials and client user ids before HTTP",
+			token: "valid_token",
+			params: &AssociateAssetsRequest{
+				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
+				SerialNumbers: []string{"SN12345"},
+				ClientUserIds: []string{"user-uuid-1"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				t.Fatal("HTTP request must not be made when validation fails")
+			},
+			expectedErrMsg: "mutually exclusive",
+		},
+		{
+			name:  "rejects neither serials nor client user ids before HTTP",
+			token: "valid_token",
+			params: &AssociateAssetsRequest{
+				Assets: []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				t.Fatal("HTTP request must not be made when validation fails")
+			},
+			expectedErrMsg: "required",
 		},
 		{
 			name:  "server error",
@@ -143,7 +286,7 @@ func TestAssociateAssets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
-			_, err := AssociateAssets(tt.token, tt.params)
+			_, err := AssociateAssets(t.Context(), tt.token, tt.params)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
@@ -402,7 +545,7 @@ func TestDoRetry(t *testing.T) {
 			_, _ = w.Write([]byte(`{"eventId": "evt-123"}`))
 		})
 
-		eventID, err := AssociateAssets("test-token", &AssociateAssetsRequest{
+		eventID, err := AssociateAssets(t.Context(), "test-token", &AssociateAssetsRequest{
 			Assets:        []Asset{{AdamID: "462054704", PricingParam: "STDQ"}},
 			SerialNumbers: []string{"GXH409KH7X"},
 		})
@@ -443,7 +586,7 @@ func TestDoRetry(t *testing.T) {
 			_, _ = w.Write([]byte(`{"eventId": "evt-456"}`))
 		})
 
-		eventID, err := AssociateAssets("test-token", &AssociateAssetsRequest{
+		eventID, err := AssociateAssets(t.Context(), "test-token", &AssociateAssetsRequest{
 			Assets:        []Asset{{AdamID: "462054704", PricingParam: "STDQ"}},
 			SerialNumbers: []string{"GXH409KH7X"},
 		})
@@ -451,6 +594,298 @@ func TestDoRetry(t *testing.T) {
 		require.Equal(t, "evt-456", eventID)
 		require.GreaterOrEqual(t, calls, 2)
 	})
+}
+
+func TestRegisterUser(t *testing.T) {
+	t.Run("rejects empty client user id or managed apple id", func(t *testing.T) {
+		_, err := RegisterUser(t.Context(), "tok", "", "user@example.com")
+		require.Error(t, err)
+
+		_, err = RegisterUser(t.Context(), "tok", "uuid-1", "")
+		require.Error(t, err)
+	})
+
+	t.Run("success returns apple userId synchronously", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/registerVPPUserSrv", r.URL.Path)
+			// v1 carries the token in the body, not the Authorization header.
+			assert.Empty(t, r.Header.Get("Authorization"))
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+
+			var got struct {
+				SToken            string `json:"sToken"`
+				ClientUserIDStr   string `json:"clientUserIdStr"`
+				ManagedAppleIDStr string `json:"managedAppleIDStr"`
+				Email             string `json:"email"`
+			}
+			assert.NoError(t, json.Unmarshal(body, &got))
+			assert.Equal(t, "valid_token", got.SToken)
+			assert.Equal(t, "uuid-1", got.ClientUserIDStr)
+			assert.Equal(t, "user1@example.com", got.ManagedAppleIDStr)
+			// Apple keys on email — Fleet sends the Managed Apple ID for both.
+			assert.Equal(t, "user1@example.com", got.Email)
+
+			_, _ = w.Write([]byte(`{
+				"status": 0,
+				"user": {
+					"userId": 12345,
+					"status": "Registered",
+					"clientUserIdStr": "uuid-1",
+					"managedAppleIDStr": "user1@example.com"
+				}
+			}`))
+		})
+
+		appleUserID, err := RegisterUser(t.Context(), "valid_token", "uuid-1", "user1@example.com")
+		require.NoError(t, err)
+		require.Equal(t, "12345", appleUserID)
+	})
+
+	t.Run("apple application error surfaces as ErrorResponse", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// v1 application errors come back as HTTP 200 with status=-1.
+			_, _ = w.Write([]byte(`{
+				"status": -1,
+				"errorNumber": 9637,
+				"errorMessage": "Managed Apple ID not found"
+			}`))
+		})
+
+		_, err := RegisterUser(t.Context(), "valid_token", "uuid-1", "missing@example.com")
+		require.Error(t, err)
+
+		var appleErr *ErrorResponse
+		require.ErrorAs(t, err, &appleErr)
+		require.EqualValues(t, 9637, appleErr.ErrorNumber)
+		require.Equal(t, "Managed Apple ID not found", appleErr.ErrorMessage)
+	})
+
+	t.Run("apple transport-level error surfaces as ErrorResponse", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"errorMessage":"Bad Request","errorNumber":400}`))
+		})
+
+		_, err := RegisterUser(t.Context(), "valid_token", "uuid-1", "user1@example.com")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "error number: 400")
+	})
+
+	t.Run("success without user object is treated as error", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"status": 0}`))
+		})
+
+		_, err := RegisterUser(t.Context(), "valid_token", "uuid-1", "user1@example.com")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no user record")
+	})
+}
+
+// associateAssetsParams is a small valid request used by the retry tests below.
+func associateAssetsParams() *AssociateAssetsRequest {
+	return &AssociateAssetsRequest{
+		Assets:        []Asset{{AdamID: "1", PricingParam: "STDQ"}},
+		SerialNumbers: []string{"SN1"},
+	}
+}
+
+// TestDoRetryIsBoundedAndNonRecursive verifies that when Apple persistently
+// returns a retryable condition, do() retries a BOUNDED number of times and
+// returns — it must never recurse (which previously stacked open response
+// bodies / cancel-watcher goroutines / spans / timers per level and OOM'd the
+// server). It also verifies a sustained Retry-After stays bounded and that
+// context cancellation aborts the backoff promptly.
+// See https://github.com/fleetdm/fleet/issues/46656.
+func TestDoRetryIsBoundedAndNonRecursive(t *testing.T) {
+	// Shrink the retry knobs so the bounded loop runs fast.
+	origAttempts, origBackoff, origInterval, origMult := vppMaxAttempts, maxVPPBackoff, vppRateLimitInterval, vppRateLimitBackoffMultiplier
+	t.Cleanup(func() {
+		vppMaxAttempts, maxVPPBackoff, vppRateLimitInterval, vppRateLimitBackoffMultiplier = origAttempts, origBackoff, origInterval, origMult
+	})
+	vppMaxAttempts = 4
+	vppRateLimitInterval = 1 * time.Millisecond
+	maxVPPBackoff = 5 * time.Millisecond
+	vppRateLimitBackoffMultiplier = 2
+
+	t.Run("rate-limited (too many requests) retries a bounded number of times then fails", func(t *testing.T) {
+		var calls atomic.Int32
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
+		})
+
+		ctx := t.Context()
+		done := make(chan error, 1)
+		go func() {
+			_, err := AssociateAssets(ctx, "tok", associateAssetsParams())
+			done <- err
+		}()
+
+		select {
+		case err := <-done:
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "rate limited")
+		case <-time.After(5 * time.Second):
+			t.Fatal("AssociateAssets did not return — the retry loop is not bounded")
+		}
+
+		require.EqualValues(t, vppMaxAttempts, calls.Load(),
+			"expected exactly vppMaxAttempts requests; more means the retries are nesting/recursing")
+	})
+
+	t.Run("HTTP 500 + Retry-After is honored but capped and bounded", func(t *testing.T) {
+		var calls atomic.Int32
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			w.Header().Set("Retry-After", "600") // Apple asks for 10 minutes
+			w.WriteHeader(http.StatusInternalServerError)
+		})
+
+		start := time.Now()
+		_, err := AssociateAssets(t.Context(), "tok", associateAssetsParams())
+		require.Error(t, err)
+		// Bounded to vppMaxAttempts — a sustained Retry-After must NOT loop forever.
+		require.EqualValues(t, vppMaxAttempts, calls.Load())
+		// Retry-After is honored but capped at maxVPPBackoff (5ms here), so the
+		// call finishes far under the 600s Apple requested — a multi-minute value
+		// can't pin a synchronous request open.
+		require.Less(t, time.Since(start), 2*time.Second)
+	})
+
+	t.Run("context cancellation aborts the backoff promptly", func(t *testing.T) {
+		// Use a long backoff so that, without ctx cancellation, the call would block.
+		vppRateLimitInterval = 30 * time.Second
+		maxVPPBackoff = 30 * time.Second
+		t.Cleanup(func() {
+			vppRateLimitInterval = 1 * time.Millisecond
+			maxVPPBackoff = 5 * time.Millisecond
+		})
+
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
+		})
+
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+
+		start := time.Now()
+		_, err := AssociateAssets(ctx, "tok", associateAssetsParams())
+		require.Error(t, err)
+		require.ErrorContains(t, err, "context")
+		require.Less(t, time.Since(start), 2*time.Second, "ctx cancellation should abort the backoff sleep")
+	})
+
+	t.Run("applies a growing backoff between retries", func(t *testing.T) {
+		// Override for measurable, non-flaky spacing; restore afterward.
+		oa, oi, om, ob := vppMaxAttempts, vppRateLimitInterval, vppRateLimitBackoffMultiplier, maxVPPBackoff
+		t.Cleanup(func() {
+			vppMaxAttempts, vppRateLimitInterval, vppRateLimitBackoffMultiplier, maxVPPBackoff = oa, oi, om, ob
+		})
+		vppMaxAttempts = 3
+		vppRateLimitInterval = 30 * time.Millisecond
+		vppRateLimitBackoffMultiplier = 2
+		maxVPPBackoff = time.Second // generous, so capping doesn't interfere here
+
+		var mu sync.Mutex
+		var times []time.Time
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			times = append(times, time.Now())
+			mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
+		})
+
+		_, err := AssociateAssets(t.Context(), "tok", associateAssetsParams())
+		require.Error(t, err)
+
+		mu.Lock()
+		defer mu.Unlock()
+		require.Len(t, times, 3)
+		// The backoff is actually applied between attempts (not skipped) and
+		// grows (30ms, then 60ms). Timers fire at-or-after their interval, so
+		// these lower bounds are not flaky.
+		require.GreaterOrEqual(t, times[1].Sub(times[0]), 30*time.Millisecond)
+		require.GreaterOrEqual(t, times[2].Sub(times[1]), 60*time.Millisecond)
+	})
+}
+
+// TestDoVPPAttemptClampsRetryAfter verifies that an absurdly large Retry-After
+// value is clamped to the backoff cap before being scaled to a time.Duration,
+// rather than overflowing the int64 nanosecond math (which could wrap negative
+// and bypass the cap). Uses the default maxVPPBackoff and calls doVPPAttempt
+// directly (it doesn't sleep), so the test is instant.
+func TestDoVPPAttemptClampsRetryAfter(t *testing.T) {
+	setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		// ~1e14 seconds: seconds * 1e9 ns overflows int64 if not clamped first.
+		w.Header().Set("Retry-After", "99999999999999")
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, dev_mode.Env("FLEET_DEV_VPP_URL"), nil)
+	require.NoError(t, err)
+
+	done, retryAfter, err := doVPPAttempt[any](req, nil)
+	require.NoError(t, err)
+	require.False(t, done, "a 500 + Retry-After should be retryable, not terminal")
+	require.Greater(t, retryAfter, time.Duration(0), "clamped Retry-After must stay positive (no overflow to negative)")
+	require.Equal(t, maxVPPBackoff, retryAfter, "an over-cap Retry-After should clamp to the backoff cap")
+}
+
+func TestIsMaxDevicesPerUserError(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "non-VPP error",
+			err:      errors.New("network down"),
+			expected: false,
+		},
+		{
+			name:     "canonical numeric code 9622",
+			err:      &ErrorResponse{ErrorMessage: "License count exceeded", ErrorNumber: 9622},
+			expected: true,
+		},
+		{
+			name:     "matched by case-insensitive message",
+			err:      &ErrorResponse{ErrorMessage: "User has reached the Maximum Number of Devices for this license", ErrorNumber: 99999},
+			expected: true,
+		},
+		{
+			name:     "matched by 'device limit' phrasing",
+			err:      &ErrorResponse{ErrorMessage: "Device limit exceeded for this client user.", ErrorNumber: 0},
+			expected: true,
+		},
+		{
+			name:     "unrelated VPP error 9610",
+			err:      &ErrorResponse{ErrorMessage: "Cannot establish a connection.", ErrorNumber: 9610},
+			expected: false,
+		},
+		{
+			name:     "wrapped via fmt.Errorf %w still detected",
+			err:      fmt.Errorf("calling vpp: %w", &ErrorResponse{ErrorMessage: "User has reached the maximum number of devices.", ErrorNumber: 9622}),
+			expected: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, IsMaxDevicesPerUserError(tt.err))
+		})
+	}
 }
 
 func TestGetBaseURL(t *testing.T) {

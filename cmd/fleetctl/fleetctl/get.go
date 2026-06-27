@@ -15,9 +15,11 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -160,7 +162,7 @@ func printHost(c *cli.Context, host *fleet.HostResponse) error {
 	return printSpec(c, spec)
 }
 
-func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
+func printHostDetail(c *cli.Context, host *fleet.HostDetailResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
@@ -229,13 +231,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team"`
+	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams"`
+	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -266,15 +268,24 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 	return printSpec(c, spec)
 }
 
-func printTeams(c *cli.Context, teams []fleet.Team) error {
+func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) error {
 	for _, team := range teams {
-		var teamItem interface{} = team
+		software, err := getTeamSoftwareSpec(client, team.ID)
+		if err != nil {
+			return err
+		}
+
+		var teamItem any
 		if c.Bool(yamlFlagName) {
 			teamSpec, err := fleet.TeamSpecFromTeam(&team)
 			if err != nil {
 				return err
 			}
+			teamSpec.Software = software
 			teamItem = teamSpec
+		} else {
+			team.Config.Software = software
+			teamItem = team
 		}
 		spec := specGeneric{
 			Kind:    fleet.FleetKind,
@@ -289,6 +300,156 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 		}
 	}
 	return nil
+}
+
+// getTeamSoftwareSpec builds the software section of a team spec from the
+// authoritative software endpoints (software titles + setup experience).
+func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSpec, error) {
+	titles, err := client.ListSoftwareTitles(fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID))
+	if err != nil {
+		return nil, fmt.Errorf("could not list software titles for fleet %d: %w", teamID, err)
+	}
+	if len(titles) == 0 {
+		return nil, nil
+	}
+
+	// The setup experience membership is the source of truth in the setup
+	// experience tables, exposed via the setup experience endpoint.
+	setupSoftwareByTitleID := make(map[uint]struct{})
+	setupAppsByName := make(map[string]struct{})
+	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
+	}
+	for _, sw := range setupSoftware {
+		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareByTitleID[sw.ID] = struct{}{}
+		}
+		if app := sw.AppStoreApp; app != nil && app.InstallDuringSetup != nil && *app.InstallDuringSetup {
+			setupAppsByName[app.FullyQualifiedName()] = struct{}{}
+		}
+	}
+
+	var (
+		packages     []fleet.SoftwarePackageSpec
+		fmas         []fleet.MaintainedAppSpec
+		appStoreApps []fleet.TeamSpecAppStoreApp
+		seenInHouse  = make(map[string]struct{})
+		fmaSlugs     = make(map[uint]string)
+	)
+
+	resolveFMASlug := func(id uint) (string, error) {
+		if slug, ok := fmaSlugs[id]; ok {
+			return slug, nil
+		}
+		app, err := client.GetFleetMaintainedApp(id)
+		if err != nil {
+			return "", fmt.Errorf("could not resolve fleet-maintained app %d: %w", id, err)
+		}
+		fmaSlugs[id] = app.Slug
+		return app.Slug, nil
+	}
+
+	for _, title := range titles {
+		// In-house (.ipa) apps can appear once per platform; only emit them once.
+		if isDuplicateInHouseApp(title, seenInHouse) {
+			continue
+		}
+
+		// Fetch the full title so we get fields not present in the list result,
+		// such as the configured labels.
+		detail, err := client.GetSoftwareTitleByID(title.ID, &teamID)
+		if err != nil {
+			return nil, fmt.Errorf("could not get software title %d for fleet %d: %w", title.ID, teamID, err)
+		}
+
+		switch {
+		case detail.SoftwarePackage != nil:
+			pkg := detail.SoftwarePackage
+			if pkg.FleetMaintainedAppID != nil {
+				slug, err := resolveFMASlug(*pkg.FleetMaintainedAppID)
+				if err != nil {
+					return nil, err
+				}
+				fmas = append(fmas, fleet.MaintainedAppSpec{
+					Slug:               slug,
+					SelfService:        pkg.SelfService,
+					LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
+					LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
+					LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
+					Categories:         optjson.SetSlice(pkg.Categories),
+					InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+				})
+				continue
+			}
+			packages = append(packages, fleet.SoftwarePackageSpec{
+				URL:                pkg.URL,
+				SHA256:             pkg.StorageID,
+				SelfService:        pkg.SelfService,
+				LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
+				LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
+				LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
+				Categories:         optjson.SetSlice(pkg.Categories),
+				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+			})
+		case detail.AppStoreApp != nil:
+			app := detail.AppStoreApp
+			var installDuringSetup optjson.Bool
+			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
+				installDuringSetup = optjson.SetBool(true)
+			}
+			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
+				AppStoreID:         app.AdamID,
+				Platform:           string(app.Platform),
+				SelfService:        app.SelfService,
+				LabelsIncludeAny:   scopeLabelNames(app.LabelsIncludeAny),
+				LabelsExcludeAny:   scopeLabelNames(app.LabelsExcludeAny),
+				LabelsIncludeAll:   scopeLabelNames(app.LabelsIncludeAll),
+				Categories:         app.Categories,
+				InstallDuringSetup: installDuringSetup,
+			}
+			appStoreApps = append(appStoreApps, appStoreAppSpec)
+		}
+	}
+
+	if len(packages) == 0 && len(fmas) == 0 && len(appStoreApps) == 0 {
+		return nil, nil
+	}
+
+	spec := &fleet.SoftwareSpec{}
+	if len(packages) > 0 {
+		spec.Packages = optjson.SetSlice(packages)
+	}
+	if len(fmas) > 0 {
+		spec.FleetMaintainedApps = optjson.SetSlice(fmas)
+	}
+	if len(appStoreApps) > 0 {
+		spec.AppStoreApps = optjson.SetSlice(appStoreApps)
+	}
+	return spec, nil
+}
+
+// setupExperienceValue returns an optjson.Bool set to true when the given title
+// is part of the setup experience, and an unset value otherwise (so it is not
+// changed on re-apply).
+func setupExperienceValue(setupByTitleID map[uint]struct{}, titleID uint) optjson.Bool {
+	if _, ok := setupByTitleID[titleID]; ok {
+		return optjson.SetBool(true)
+	}
+	return optjson.Bool{}
+}
+
+// scopeLabelNames extracts the label names from a list of software scope labels.
+// It returns nil when there are no labels, so the field is omitted from output.
+func scopeLabelNames(labels []fleet.SoftwareScopeLabel) []string {
+	if len(labels) == 0 {
+		return nil
+	}
+	names := make([]string, len(labels))
+	for i, l := range labels {
+		names[i] = l.LabelName
+	}
+	return names
 }
 
 func printSpec(c *cli.Context, spec specGeneric) error {
@@ -334,6 +495,7 @@ func getCommand() *cli.Command {
 			getFleetsCommand(),
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
+			getMDMABCommand(),
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
 			getMDMCommandsCommand(),
@@ -1257,7 +1419,7 @@ func getFleetsCommand() *cli.Command {
 			}
 
 			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
-				err = printTeams(c, teams)
+				err = printTeams(c, client, teams)
 				if err != nil {
 					return err
 				}
@@ -1473,58 +1635,78 @@ func getMDMAppleCommand() *cli.Command {
 	}
 }
 
+func getMDMABCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-ab",
+		Aliases: []string{"mdm_ab"},
+		Usage:   "Show information about Apple Business (AB) for automatic enrollment",
+		Flags:   getMDMABFlags(),
+		Action:  runGetMDMAB,
+	}
+}
+
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-apple-bm",
 		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Show information about Apple Business for automatic enrollment",
-		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
-			debugFlag(),
-		},
+		Usage:   "Deprecated. Use mdm-ab instead.",
+		Flags:   getMDMABFlags(),
 		Action: func(c *cli.Context) error {
-			const expirationWarning = 30 * 24 * time.Hour // 30 days
-
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return err
+			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl get mdm-apple-bm' is deprecated; use 'fleetctl get mdm-ab' instead\n")
 			}
-
-			bm, err := client.GetAppleBM()
-			if err != nil {
-				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
-					log(c, "Error: No Apple Business server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
-					return nil
-				}
-				return fmt.Errorf("could not get Apple BM information: %w", err)
-			}
-
-			defaultTeam := bm.DefaultTeam
-			if defaultTeam == "" {
-				defaultTeam = "No team"
-			}
-			printKeyValueTable(c, [][]string{
-				{"Apple ID:", bm.AppleID},
-				{"Organization name:", bm.OrgName},
-				{"MDM server URL:", bm.MDMServerURL},
-				{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
-				{"Default team:", defaultTeam},
-			})
-
-			warnDate := time.Now().Add(expirationWarning)
-			if bm.RenewDate.Before(time.Now()) {
-				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
-			} else if bm.RenewDate.Before(warnDate) {
-				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
-			}
-
-			return nil
+			return runGetMDMAB(c)
 		},
 	}
+}
+
+func getMDMABFlags() []cli.Flag {
+	return []cli.Flag{
+		configFlag(),
+		contextFlag(),
+		debugFlag(),
+	}
+}
+
+func runGetMDMAB(c *cli.Context) error {
+	const expirationWarning = 30 * 24 * time.Hour // 30 days
+
+	client, err := clientFromCLI(c)
+	if err != nil {
+		return err
+	}
+
+	bm, err := client.GetAppleBM()
+	if err != nil {
+		if _, ok := errors.AsType[service.NotFoundErr](err); ok {
+			log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
+			return nil
+		}
+		return fmt.Errorf("could not get Apple Business information: %w", err)
+	}
+
+	defaultTeam := bm.DefaultTeam
+	if defaultTeam == "" {
+		defaultTeam = "Unassigned"
+	}
+	printKeyValueTable(c, [][]string{
+		{"Apple ID:", bm.AppleID},
+		{"Organization name:", bm.OrgName},
+		{"MDM server URL:", bm.MDMServerURL},
+		{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
+		{"Default fleet:", defaultTeam},
+	})
+
+	warnDate := time.Now().Add(expirationWarning)
+	if bm.RenewDate.Before(time.Now()) {
+		// certificate is expired, print an error
+		color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+	} else if bm.RenewDate.Before(warnDate) {
+		// certificate will soon expire, print a warning
+		color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+	}
+
+	return nil
 }
 
 func getMDMCommandResultsCommand() *cli.Command {
@@ -1631,16 +1813,25 @@ func getMDMCommandsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-commands",
 		Aliases: []string{"mdm_commands"},
-		Usage:   "List information about MDM commands that were run.",
+		Usage:   "List information about MDM commands that were run on a host.",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
-			byHostIdentifier(),
+			&cli.StringFlag{
+				Name:     "host",
+				Usage:    "Filter MDM commands by host specified by hostname, UUID, or serial number. (required)",
+				Required: true,
+			},
 			byMDMCommandRequestType(),
 			withMDMCommandStatusFilter(),
 		},
 		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+			if hostIdent == "" {
+				return errors.New("No host targeted. Please provide --host.")
+			}
+
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
@@ -1660,7 +1851,7 @@ func getMDMCommandsCommand() *cli.Command {
 
 			opts := fleet.MDMCommandListOptions{
 				Filters: fleet.MDMCommandFilters{
-					HostIdentifier:  c.String("host"),
+					HostIdentifier:  hostIdent,
 					RequestType:     c.String("type"),
 					CommandStatuses: commandStatuses,
 				},
@@ -1675,12 +1866,7 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			if len(results) == 0 {
-				if opts.Filters.HostIdentifier != "" {
-					log(c, "No MDM commands have been run on this host.\n")
-					return nil
-				}
-
-				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				log(c, "No MDM commands have been run on this host.\n")
 				return nil
 			}
 

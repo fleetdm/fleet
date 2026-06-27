@@ -22,6 +22,16 @@
   gap: $pad-large;
 }
 
+.gitops-mode-indicator__link {
+  text-decoration: none;
+  color: inherit;
+  border-bottom: none;
+
+  .gitops-mode-indicator__content {
+    cursor: pointer;
+  }
+}
+
 .gitops-mode-indicator__content {
   min-height: 38px;
   display: flex;

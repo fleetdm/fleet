@@ -329,6 +329,49 @@ func TestWritePathInvalidation(t *testing.T) {
 			assert.Equal(t, hostCacheLookupMiss, res)
 		})
 
+		t.Run("UpdateHost with NodeKey only clears osquery cache (osquery-only host)", func(t *testing.T) {
+			// Run osquery without Orbit: NodeKey is set, OrbitNodeKey is nil because the DB row truthfully has no orbit_node_key.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-osquery-only"
+			host := &fleet.Host{ID: 110, NodeKey: &nk, Hostname: "osquery-only"}
+			d.hostCachePutByNodeKey(ctx, host)
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, host))
+
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
+		t.Run("UpdateHost with NodeKey missing falls back to by-ID invalidation", func(t *testing.T) {
+			// NodeKey absent on the struct is anomalous
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-sparse"
+			onk := "onk-sparse"
+			d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 120, NodeKey: &nk})
+			d.hostCachePutByOrbitNodeKey(ctx, &fleet.Host{ID: 120, OrbitNodeKey: &onk})
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, &fleet.Host{ID: 120}))
+
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
 		t.Run("inner error preserves cache", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)

@@ -1,1 +1,1 @@
-export { default } from "./Integrations";
+export { default } from "./TicketDestinations";

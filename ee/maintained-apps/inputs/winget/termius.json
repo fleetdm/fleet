@@ -1,0 +1,12 @@
+{
+  "name": "Termius",
+  "slug": "termius/windows",
+  "package_identifier": "Termius.Termius",
+  "unique_identifier": "Termius",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/termius_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/termius_uninstall.ps1"
+}

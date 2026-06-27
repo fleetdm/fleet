@@ -2,13 +2,6 @@
   @include vertical-page-tab-panel-layout;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
-  &__copy-message {
-    @include copy-message;
-    vertical-align: bottom;
-    font-size: $xx-small;
-    margin-left: $pad-xsmall;
-  }
-
   &__page-header {
     display: flex;
     justify-content: space-between;
@@ -32,14 +25,6 @@
       }
     }
 
-    .variables__copy-secret-icon {
-      margin: -12px 0 -12px 4px;
-      vertical-align: bottom;
-      .children-wrapper {
-        opacity: 1;
-      }
-    }
-
     &:hover,
     &:focus-within {
       cursor: default;
@@ -53,6 +38,8 @@
       min-width: 0;
       > span {
         display: flex;
+        align-items: center;
+        gap: $pad-xsmall;
       }
     }
 
@@ -79,7 +66,7 @@
       min-width: 0;
     }
 
-    .secret-details__text {
+    .variable-details__text {
       flex: 1 1 auto;
       min-width: 0;
       white-space: nowrap;

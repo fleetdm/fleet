@@ -1,0 +1,10 @@
+{
+  "name": "Plex Media Server",
+  "unique_identifier": "com.plexapp.plexmediaserver",
+  "token": "plex-media-server",
+  "installer_format": "zip",
+  "slug": "plex-media-server/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

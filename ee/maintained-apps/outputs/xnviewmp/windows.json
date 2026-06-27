@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.11.4.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'XnView MP' AND publisher = 'Pierre-e Gougelet';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnView MP' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.11.4.0') < 0);"
+      },
+      "installer_url": "https://download.xnview.com/old_versions/XnView_MP/XnView_MP-1.11.4-win-x64.exe",
+      "install_script_ref": "7eb6b47e",
+      "uninstall_script_ref": "bfabc3a8",
+      "sha256": "a3c362df7d1589d1e1cee4cdac052e86479f4152cafe3e10acc9d58aafc00991",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "7eb6b47e": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Inno Setup installers use these flags for a silent, machine-wide install\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "bfabc3a8": "# Uninstall XnView MP (Inno Setup).\n\n$displayName = \"XnView MP\"\n$publisher = \"\"\n\n$machinePaths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n$userPath = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n\nfunction Find-UninstallEntry {\n    param([string[]]$Paths)\n    Get-ChildItem -Path $Paths -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |\n        Where-Object {\n            ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and\n            ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n        }\n}\n\ntry {\n\n# Search HKCU first, then HKLM (and WOW6432Node).\n$entry = Find-UninstallEntry -Paths $userPath | Select-Object -First 1\nif (-not $entry) {\n    $entry = Find-UninstallEntry -Paths $machinePaths | Select-Object -First 1\n}\n\nif (-not $entry) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }\n\n# Parse the uninstaller executable path.\n$exe = $null\nif ($uninstallCommand -match '^\"([^\"]+)\"') {\n    $exe = $matches[1]\n} elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n    $exe = $matches[1]\n} else {\n    Write-Host \"Could not parse uninstall command: $uninstallCommand\"\n    Exit 1\n}\n\n# Determine the install directory.\n$installDir = $null\nif ($entry.InstallLocation -and (Test-Path $entry.InstallLocation)) {\n    $installDir = $entry.InstallLocation\n} else {\n    $installDir = Split-Path -Parent $exe\n}\n\n$uninstallArgs = @(\"/VERYSILENT\", \"/NORESTART\")\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $($uninstallArgs -join ' ')\"\n\n$process = Start-Process -FilePath $exe -ArgumentList $uninstallArgs -Wait -PassThru\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($installDir -and (Test-Path $installDir)) {\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

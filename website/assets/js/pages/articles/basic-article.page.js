@@ -107,7 +107,20 @@ parasails.registerPage('basic-article', {
         debug: false,
         clickAnalytics: true,
         searchParameters: {
-          facetFilters: ['section:docs']
+          facetFilters: ['section:articles']
+        },
+      });
+      // For mobile search
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        container: '#mobile-docsearch',
+        placeholder: 'Search',
+        debug: false,
+        clickAnalytics: true,
+        searchParameters: {
+          facetFilters: ['section:articles']
         },
       });
     }

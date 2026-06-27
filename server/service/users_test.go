@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -729,7 +730,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 }
 
 func TestUsersWithDS(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
@@ -742,7 +743,7 @@ func TestUsersWithDS(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -885,7 +886,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 }
 
 func TestPerformRequiredPasswordReset(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -936,7 +937,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 }
 
 func TestResetPassword(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
@@ -1001,7 +1002,7 @@ func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Da
 }
 
 func TestAuthenticatedUser(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	createTestUsers(t, ds)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1853,7 +1854,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
 	})
 
-	t.Run("PerformRequiredPasswordReset clears reset tokens but not sessions", func(t *testing.T) {
+	t.Run("PerformRequiredPasswordReset clears other sessions but keeps current", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1865,10 +1866,13 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
 		require.NoError(t, err)
 
+		currentSession := &fleet.Session{ID: 1, UserID: targetUser.ID}
+		otherSession := &fleet.Session{ID: 2, UserID: targetUser.ID}
+
 		// CanPerformPasswordReset requires a session to be present.
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
 			User:    targetUser,
-			Session: &fleet.Session{ID: 1, UserID: targetUser.ID},
+			Session: currentSession,
 		})
 
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
@@ -1881,7 +1885,13 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 			return nil
 		}
 
-		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+		ds.ListSessionsForUserFunc = func(ctx context.Context, userID uint) ([]*fleet.Session, error) {
+			return []*fleet.Session{currentSession, otherSession}, nil
+		}
+
+		var destroyedSessionIDs []uint
+		ds.DestroySessionFunc = func(ctx context.Context, s *fleet.Session) error {
+			destroyedSessionIDs = append(destroyedSessionIDs, s.ID)
 			return nil
 		}
 
@@ -1891,6 +1901,9 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
 		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
 
-		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called for required password reset")
+		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called")
+		assert.True(t, ds.ListSessionsForUserFuncInvoked, "ListSessionsForUser should be called")
+		assert.True(t, ds.DestroySessionFuncInvoked, "DestroySession should be called")
+		assert.Equal(t, []uint{otherSession.ID}, destroyedSessionIDs, "should only destroy the other session, not the current one")
 	})
 }

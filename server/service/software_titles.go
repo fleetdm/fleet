@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -139,21 +142,22 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		fmt.Println("auth")
 		return nil, err
 	}
 
-	if teamID != nil && *teamID != 0 {
-		// This auth check ensures we return 403 if the user doesn't have access to the team
+	if teamID != nil {
+		// Verify the caller has permission for the requested scope (team or global).
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 
@@ -209,6 +213,13 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				}
 				meta.FleetMaintainedVersions = fmaVersions
 
+				// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
+				pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+				}
+				meta.PinnedVersion = pinnedVersion
+
 				// Populate PatchPolicy if there is one
 				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
 				if err != nil && !fleet.IsNotFound(err) {
@@ -230,6 +241,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 				}
 				meta.Status = summary
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					switch meta.Platform {
+					case fleet.IOSPlatform, fleet.IPadOSPlatform:
+						wrapped, err := json.Marshal(string(meta.Configuration))
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "wrapping VPP configuration for response")
+						}
+						meta.Configuration = wrapped
+					}
+				}
 			}
 			software.AppStoreApp = meta
 		}
@@ -249,6 +272,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					Installed:      summary.Installed,
 					PendingInstall: summary.Pending,
 					FailedInstall:  summary.Failed,
+				}
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					wrapped, err := json.Marshal(string(meta.Configuration))
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "wrapping in-house app configuration for response")
+					}
+					meta.Configuration = wrapped
 				}
 			}
 			software.SoftwarePackage = meta

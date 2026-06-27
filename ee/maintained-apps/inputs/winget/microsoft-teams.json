@@ -1,0 +1,12 @@
+{
+  "name": "Microsoft Teams",
+  "slug": "microsoft-teams/windows",
+  "package_identifier": "Microsoft.Teams",
+  "unique_identifier": "Microsoft Teams",
+  "installer_arch": "x64",
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft-teams_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft-teams_uninstall.ps1",
+  "default_categories": ["Communication"]
+}

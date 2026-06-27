@@ -1,4 +1,4 @@
-- name: DEX - Hardware inventory - system information
+- name: DEX - Hardware inventory - System information
   description: Comprehensive system hardware identification including model, serial, manufacturer, and form factor.
   query: |
     SELECT
@@ -90,7 +90,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 600
-- name: DEX - Hardware experience - device health
+- name: DEX - Hardware experience - Device health
   description: CPU class, RAM tier, swap/compression pressure, and battery condition in a single row. This is the physical-layer health signal — answers whether the hardware can keep up with what the user is asking it to do.
   query: |
     SELECT
@@ -218,7 +218,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - Application experience - process health
+- name: DEX - Application experience - Process health
   description: Top 25 processes by resident memory with classification into user_app, mgmt_agent, or system. Flags memory hogs and identifies whether pressure comes from productivity apps, security agents, or OS internals. Management agent stability matters — a crashing osqueryd or falcon-sensor means the fleet is flying blind.
   query: |
     SELECT
@@ -321,7 +321,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 600
-- name: DEX - Application experience - crash summary
+- name: DEX - Application experience - Crash summary
   description: Top 25 crashing apps in the last 7 days, grouped by identifier (SW-01). Prevents a single noisy crasher from blurring the picture — one row per app with total count, severity tier, and last crash time. Feeds software_score (50% weight) and crash baseline (CB-01/CB-02).
   query: |
     SELECT
@@ -354,7 +354,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - Application experience - crash detail
+- name: DEX - Application experience - Crash detail
   description: Last 5 crash events per app for the top 25 crashing apps (7-day window). Provides diagnostic detail (exception_type, responsible process) without letting a single noisy crasher dominate the results. Capped at 125 rows (25 apps × 5 each).
   query: |
     SELECT
@@ -405,7 +405,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - Application experience - adoption gap
+- name: DEX - Application experience - Adoption gap
   description: Managed app recency check (SW-02). Reports days_since_opened and usage_tier for all user-facing installed apps. The server-side scoring layer filters this against the dex_managed_apps registry to compute adoption_gap_count and the software_score penalty (35% weight).
   query: |
     SELECT
@@ -457,3 +457,317 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
+- name: DEX - System experience - Security posture
+  description: Verifying the following components are enabled on the host - filevault, sip, gatekeeper, firewall
+  query: |
+    SELECT
+      (SELECT 1 FROM filevault_status WHERE status LIKE '%on%')   AS filevault,
+      (SELECT 1 FROM alf WHERE global_state >= 1)                 AS firewall,
+      (SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1)    AS gatekeeper,
+      (SELECT 1 FROM sip_config WHERE config_flag = 'sip')        AS sip;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 3600
+- name: DEX - Application experience - Windows application crashes (7 days)
+  description: Application crashes and hangs from Windows Event Log. Identifies problematic applications affecting user productivity.
+  query: |
+    SELECT
+      datetime AS event_time,
+      provider_name AS source,
+      eventid,
+      CASE eventid
+        WHEN 1000 THEN 'Application Error'
+        WHEN 1001 THEN 'Windows Error Reporting'
+        WHEN 1002 THEN 'Application Hang'
+        ELSE 'Other'
+      END AS event_type,
+      data AS crash_details
+    FROM windows_eventlog
+    WHERE channel = 'Application'
+      AND eventid IN (1000, 1001, 1002)
+    ORDER BY datetime DESC
+    LIMIT 100;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Application experience - Windows installed applications
+  description: Inventory of installed Windows programs with version information.
+  query: |
+    SELECT
+      name,
+      version,
+      install_location AS path,
+      'windows_programs' AS source
+    FROM programs
+    WHERE name != '';
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Hardware inventory - Windows disk drive details
+  description: Physical disk drive information including type and size on Windows.
+  query: |
+    SELECT
+      name,
+      manufacturer,
+      hardware_model,
+      serial,
+      description,
+      disk_size,
+      ROUND(CAST(disk_size AS REAL) / 1073741824, 2) AS size_gb,
+      type
+    FROM disk_info
+    WHERE disk_size > 0;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Hardware inventory - Windows display information
+  description: Display adapter information on Windows.
+  query: |
+    SELECT
+      manufacturer,
+      model,
+      series,
+      video_mode,
+      color_depth,
+      driver,
+      driver_version,
+      driver_date
+    FROM video_info;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Password policy status
+  description: Password policy configuration for security compliance verification.
+  query: |
+    SELECT
+      minimum_password_age,
+      maximum_password_age,
+      minimum_password_length,
+      password_complexity,
+      password_history_size,
+      lockout_bad_count
+    FROM security_profile_info;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Scheduled tasks and cron jobs
+  description: Scheduled tasks and jobs that could indicate persistence mechanisms or maintenance activities.
+  query: |
+    SELECT
+      name,
+      action,
+      path,
+      enabled,
+      state,
+      next_run_time,
+      last_run_time
+    FROM scheduled_tasks
+    WHERE enabled = 1
+    ORDER BY next_run_time
+    LIMIT 100;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Secure Boot status (Windows)
+  description: Windows Secure Boot status for hardware security compliance.
+  query: |
+    SELECT
+      secure_boot AS secure_boot_enabled,
+      CASE secure_boot
+        WHEN 1 THEN 'enabled'
+        ELSE 'disabled'
+      END AS secure_boot_status
+    FROM secureboot;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - TPM status (Windows)
+  description: Trusted Platform Module status for hardware security compliance.
+  query: |
+    SELECT
+      activated,
+      enabled,
+      owned,
+      manufacturer_name,
+      manufacturer_version,
+      spec_version,
+      CASE
+        WHEN activated = 1 AND enabled = 1 THEN 'active'
+        WHEN enabled = 1 THEN 'enabled_not_activated'
+        ELSE 'disabled'
+      END AS tpm_status
+    FROM tpm_info;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Windows antivirus and security software
+  description: Detects installed antivirus and endpoint protection software on Windows.
+  query: |
+    SELECT
+      name,
+      version,
+      install_location
+    FROM programs
+    WHERE name LIKE '%Defender%'
+       OR name LIKE '%Norton%'
+       OR name LIKE '%McAfee%'
+       OR name LIKE '%Symantec%'
+       OR name LIKE '%CrowdStrike%'
+       OR name LIKE '%Carbon Black%'
+       OR name LIKE '%SentinelOne%'
+       OR name LIKE '%Sophos%'
+       OR name LIKE '%Trend Micro%'
+       OR name LIKE '%ESET%'
+       OR name LIKE '%Kaspersky%'
+       OR name LIKE '%Bitdefender%'
+       OR name LIKE '%Malwarebytes%'
+       OR name LIKE '%Webroot%';
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Windows BitLocker status
+  description: Windows BitLocker encryption status for all drives.
+  query: |
+    SELECT
+      drive_letter,
+      encryption_method,
+      protection_status,
+      CASE protection_status
+        WHEN 0 THEN 'Protection Off'
+        WHEN 1 THEN 'Protection On'
+        WHEN 2 THEN 'Protection Unknown'
+        ELSE 'Unknown'
+      END AS bitlocker_status,
+      conversion_status,
+      version
+    FROM bitlocker_info;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Windows firewall status
+  description: Windows firewall and security center status.
+  query: |
+    SELECT
+      firewall,
+      autoupdate,
+      antivirus,
+      antispyware,
+      windows_security_center_service,
+      user_account_control
+    FROM windows_security_center;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Windows services inventory
+  description: Windows services inventory for security and compliance auditing.
+  query: |
+    SELECT
+      name,
+      display_name,
+      status,
+      start_type,
+      path,
+      user_account,
+      CASE status
+        WHEN 'RUNNING' THEN 'running'
+        WHEN 'STOPPED' THEN 'stopped'
+        ELSE 'other'
+      END AS service_status,
+      CASE start_type
+        WHEN 'AUTO_START' THEN 'automatic'
+        WHEN 'DEMAND_START' THEN 'manual'
+        WHEN 'DISABLED' THEN 'disabled'
+        ELSE 'other'
+      END AS startup_type
+    FROM services
+    WHERE status = 'RUNNING'
+    ORDER BY name;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - Security compliance - Windows update status
+  description: Windows Update configuration and recent update history.
+  query: |
+    SELECT
+      title,
+      description,
+      date AS install_date,
+      operation,
+      result_code,
+      CASE result_code
+        WHEN 0 THEN 'Not Started'
+        WHEN 1 THEN 'In Progress'
+        WHEN 2 THEN 'Succeeded'
+        WHEN 3 THEN 'Succeeded With Errors'
+        WHEN 4 THEN 'Failed'
+        WHEN 5 THEN 'Aborted'
+        ELSE 'Unknown'
+      END AS update_status
+    FROM windows_update_history
+    ORDER BY date DESC
+    LIMIT 50;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - System performance - System crashes and unexpected shutdowns
+  description: Detects unexpected shutdowns and system crashes. Frequent crashes significantly degrade user experience.
+  query: |
+    SELECT
+      datetime AS event_time,
+      'unexpected_shutdown' AS event_type,
+      provider_name AS source,
+      COALESCE(data, 'No additional data') AS details
+    FROM windows_eventlog
+    WHERE channel = 'System'
+      AND provider_name = 'EventLog'
+      AND eventid = 6008
+    ORDER BY datetime DESC
+    LIMIT 25;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - System performance - Windows BSOD events (30 days)
+  description: Blue Screen of Death events from Windows Event Log. BSODs severely impact productivity and indicate system instability.
+  query: |
+    SELECT
+      datetime AS event_time,
+      provider_name AS source,
+      eventid,
+      data AS error_data
+    FROM windows_eventlog
+    WHERE channel = 'System'
+      AND (eventid = 1001 OR provider_name = 'Microsoft-Windows-WER-SystemErrorReporting')
+    ORDER BY datetime DESC
+    LIMIT 50;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - User sentiment proxy - Reboot frequency (90 days)
+  description: Counts system reboots over the past 90 days using log analysis. Frequent reboots indicate instability or forced updates.
+  query: |
+    SELECT
+      COUNT(*) AS reboot_count,
+      '90_days' AS period
+    FROM windows_eventlog
+    WHERE channel = 'System'
+      AND eventid = 6009;
+  interval: 900
+  platform: windows
+  automations_enabled: true
+  logging: snapshot

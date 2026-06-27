@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "24.3.965",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Tableau Software, LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Tableau Software, LLC' AND version_compare(version, '24.3.965') < 0);"
+      },
+      "installer_url": "https://downloads.tableau.com/esdalt/2024.3.4/TableauDesktop-64bit-2024-3-4.exe",
+      "install_script_ref": "e460cb4a",
+      "uninstall_script_ref": "e54d9df5",
+      "sha256": "fcf55eeb582b080af3480a1b41875abf0dd0e9913150c91c6d2c240514f2cf88",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "e460cb4a": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Tableau Desktop ships as a WiX Burn bundle.\n#   /quiet /norestart   - standard Burn silent install\n#   ACCEPTEULA=1        - required by Tableau (winget Custom switch)\n#   SKIPAPPLICATIONLAUNCH=1 - don't launch after install\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/quiet /norestart ACCEPTEULA=1 SKIPAPPLICATIONLAUNCH=1\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\n\n# msiexec reboot-required success codes (Burn bundles propagate these).\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n  Exit 0\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "e54d9df5": "# Tableau Desktop is a WiX Burn bundle. After install, the bundle EXE is cached\n# at C:\\ProgramData\\Package Cache\\<bundle-guid>\\tableau-setup-std-tableau-*.exe.\n# Running the cached bundle with /uninstall removes the product AND its ARP\n# registration in one shot. This avoids hunting the registry (per-machine vs\n# per-user hives, SYSTEM-context HKCU mismatch, etc.).\n#\n# Reference: https://silentinstallhq.com/tableau-desktop-2024-silent-uninstall-powershell/\n\ntry {\n    $bundle = Get-ChildItem -Path \"$env:ProgramData\\Package Cache\" `\n        -Recurse -Filter 'tableau-setup-std-tableau*.exe' -ErrorAction SilentlyContinue |\n        Select-Object -First 1\n\n    if (-not $bundle) {\n        Write-Host \"Tableau Desktop bundle not found in Package Cache.\"\n        Exit 1\n    }\n\n    Write-Host \"Uninstalling: $($bundle.FullName)\"\n    $p = Start-Process -FilePath $bundle.FullName `\n        -ArgumentList '/uninstall', '/quiet', '/norestart' `\n        -PassThru -Wait\n    $exitCode = $p.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

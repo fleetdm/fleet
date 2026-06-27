@@ -1,1 +1,0 @@
-- Fixed a server panic (502) when an Android pubsub status report arrived for a host that had been deleted from Fleet.

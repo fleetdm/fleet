@@ -17,13 +17,16 @@ $main-max-width-including-padding: 1280px + 32px + 32px; // Cannot use variables
   position: relative;
   width: 100%;
 
-  // Fixed side panel: always flush right, always 340px wide
+  // Fixed side panel: always flush right, always 340px wide. min-height
+  // (not height) so the panel background extends past the parent when the
+  // panel's own content (e.g. schema docs on Report/Label/Policy pages) is
+  // taller than main-content.
   .side-panel-content {
     position: absolute;
     top: 0;
     right: 0;
     width: $side-panel-width;
-    height: 100%;
+    min-height: 100%;
     z-index: 2;
   }
 

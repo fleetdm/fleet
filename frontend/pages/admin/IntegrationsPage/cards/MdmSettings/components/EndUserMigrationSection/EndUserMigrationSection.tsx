@@ -7,7 +7,6 @@ import isURL from "validator/lib/isURL";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -23,6 +22,9 @@ import SectionHeader from "components/SectionHeader";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify } from "components/ToastNotification";
+
+import CustomLink from "components/CustomLink";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
@@ -55,7 +57,6 @@ const validateWebhookUrl = (val: string) => {
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   const { config, isPremiumTier, setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: config?.mdm.macos_migration.enable || false,
@@ -115,7 +116,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           },
         },
       });
-      renderFlash("success", "Successfully updated end user migration.");
+      notify.success("Successfully updated end user migration.");
       setConfig(updatedConfig);
     } catch (err) {
       if (
@@ -126,7 +127,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         setIsValidWebhookUrl(false);
         return;
       }
-      renderFlash("error", "Could not update. Please try again.");
+      notify.error("Could not update. Please try again.", { response: err });
     }
   };
 
@@ -163,7 +164,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   return (
     <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
-        <p>Control the end user migration workflow for macOS hosts.</p>
+        <p>
+          Control the end user migration workflow for macOS hosts.{" "}
+          <CustomLink
+            url="https://fleetdm.com/learn-more-about/end-user-migration-workflow"
+            text="Learn more"
+            newTab
+          />
+        </p>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           src={MdmMigrationVideo}
@@ -236,7 +244,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           variant="inverse"
           onClick={toggleExamplePayloadModal}
         >
-          Preview payload
+          Example payload
         </Button>
         <GitOpsModeTooltipWrapper
           tipOffset={8}

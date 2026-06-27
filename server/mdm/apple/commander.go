@@ -343,10 +343,11 @@ type SSOAccountConfig struct {
 // AdminAccountConfig holds the parameters for an AutoSetupAdminAccounts entry
 // in an AccountConfiguration MDM command.
 type AdminAccountConfig struct {
-	ShortName    string // e.g. "_fleetadmin"
-	FullName     string // e.g. "Fleet Admin"
-	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
-	Hidden       bool   // true → hidden from login window
+	ShortName          string                   // e.g. "_fleetadmin"
+	FullName           string                   // e.g. "Fleet Admin"
+	PasswordHash       []byte                   // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
+	Hidden             bool                     // true → hidden from login window
+	PrimaryAccountType fleet.PrimaryAccountType // admin, standard, or none
 }
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
@@ -356,7 +357,8 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 ) error {
 	var payload string
 
-	if ssoAccount != nil {
+	// Send primary account info if we have an SSO account, and no adminAccount config or the primary account type is not "none"
+	if ssoAccount != nil && (adminAccount == nil || adminAccount.PrimaryAccountType != fleet.PrimaryAccountTypeNone) {
 		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
@@ -368,6 +370,21 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 	}
 
 	if adminAccount != nil {
+		switch adminAccount.PrimaryAccountType {
+		case fleet.PrimaryAccountTypeStandard:
+			payload += `
+      <key>SetPrimarySetupAccountAsRegularUser</key>
+      <true />
+		`
+		case fleet.PrimaryAccountTypeNone:
+			payload += `
+      <key>SkipPrimarySetupAccountCreation</key>
+      <true />
+		`
+		default:
+			// no-op for admin account type as that is default
+		}
+
 		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
 		payload += fmt.Sprintf(`
       <key>AutoSetupAdminAccounts</key>
@@ -456,6 +473,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>DeviceCapacity</string>
             <string>AvailableDeviceCapacity</string>
             <string>OSVersion</string>
+            <string>SupplementalOSVersionExtra</string>
             <string>WiFiMAC</string>
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
@@ -692,6 +710,42 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 		return ctxerr.Wrap(ctx, err, "enqueuing ClearRecoveryLock command")
 	}
 
+	return nil
+}
+
+// SetAutoAdminPassword sends the SetAutoAdminPassword command to rotate the password
+// of a managed local administrator account previously provisioned by an
+// AutoSetupAdminAccounts entry in an AccountConfiguration command.
+//
+// guid is the account UUID captured from osquery on this host (NOT the host UUID).
+// passwordHashPlist is the SALTED-SHA512-PBKDF2 plist returned by
+// GenerateSaltedSHA512PBKDF2Hash; we base64-encode it into the <data> field of the
+// outer command plist, matching how AccountConfiguration carries its passwordHash.
+//
+// See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
+func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>RequestType</key>
+      <string>SetAutoAdminPassword</string>
+      <key>GUID</key>
+      <string>%s</string>
+      <key>passwordHash</key>
+      <data>%s</data>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+  </dict>
+</plist>`, guid, passwordHashEncoded, cmdUUID)
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
+	}
 	return nil
 }
 

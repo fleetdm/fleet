@@ -381,6 +381,9 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label D",
 					}},
+					LabelsExcludeAll: []fleet.LabelIdent{{
+						LabelName: "Label E",
+					}},
 					Type: fleet.PolicyTypeDynamic,
 				},
 			},
@@ -584,13 +587,20 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 						LabelName: "Label D",
 					},
 				},
-				SelfService: true,
+				SelfService:   true,
+				Configuration: json.RawMessage(`{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`),
 			},
 			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
 	case 7:
 		if *teamID != 1 {
 			return nil, errors.New("team ID mismatch")
+		}
+		// The API wraps iOS/iPadOS configuration as a JSON-encoded string of
+		// XML; mirror that here so generate-gitops can unwrap it.
+		iosConfig, err := json.Marshal(`<dict><key>foo</key><string>bar</string></dict>`)
+		if err != nil {
+			return nil, err
 		}
 		return &fleet.SoftwareTitle{
 			ID: 7,
@@ -604,6 +614,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 						LabelName: "Label D",
 					},
 				},
+				Configuration: iosConfig,
 			},
 			IconUrl: ptr.String("/api/icon4.png"),
 			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
@@ -653,6 +664,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
+				PinnedVersion:        new("10.0"),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -666,6 +678,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
+				PinnedVersion:        new("^123"),
 			},
 		}, nil
 	default:
@@ -891,6 +904,7 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 				CertificateAuthorityName: "DIGIDOO",
 				Name:                     "my_certypoo",
 				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				SubjectAlternativeName:   "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 			},
 		}
 	}
@@ -1695,6 +1709,18 @@ func TestGenerateSoftware(t *testing.T) {
 	} else {
 		t.Fatalf("Expected file not found")
 	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
+		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
+	} else {
+		t.Fatalf("Expected android configuration file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-ios-auto-update-app-ios-config.xml"]; ok {
+		require.Equal(t, []byte(`<dict><key>foo</key><string>bar</string></dict>`), fileContents)
+	} else {
+		t.Fatalf("Expected iOS configuration file not found")
+	}
 }
 
 // TestGenerateSoftwareScriptPackages tests that script packages (.sh and .ps1)
@@ -1934,6 +1960,10 @@ func TestGeneratePolicies(t *testing.T) {
 			2: {
 				AppStoreId: "1234567890",
 			},
+			8: {
+				MaintainedAppID: 1,
+				Slug:            "fma1/darwin",
+			},
 		},
 		ScriptList: map[uint]string{
 			1: "/path/to/script1.sh",
@@ -2120,7 +2150,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	require.NoError(t, err)
 	// Verify all keys are set to empty.
 	for _, key := range []string{
-		"apple_business_manager",
+		"apple_business",
 		"apple_server_url",
 		"end_user_authentication",
 		"end_user_license_agreement",
@@ -2554,4 +2584,33 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// The team patch policy (title ID 8) references a software installer whose
+	// fleet_maintained_app_id was nulled when the app was removed from the
+	// catalog (the FK is ON DELETE SET NULL). The installer is still present as
+	// a custom package, so it appears in the software list with a zero
+	// MaintainedAppID.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: map[uint]Software{
+			8: {
+				Hash:            "demoted-installer-hash",
+				MaintainedAppID: 0,
+			},
+		},
+	}
+
+	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Team patch policy")
 }

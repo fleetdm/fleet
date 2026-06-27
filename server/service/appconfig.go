@@ -345,6 +345,135 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	return response, nil
 }
 
+// applyAndValidateConditionalAccessOktaFields merges incoming Okta conditional-access fields
+// into appConfig and validates the combination. Extracted from ModifyAppConfig so the parent
+// function's CFG block count stays under nilaway's limit.
+func applyAndValidateConditionalAccessOktaFields(
+	ctx context.Context,
+	appConfig *fleet.AppConfig,
+	newAppConfig *fleet.AppConfig,
+	invalid *fleet.InvalidArgumentError,
+	lic *fleet.LicenseInfo,
+) error {
+	if appConfig.ConditionalAccess == nil {
+		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+	if newAppConfig.ConditionalAccess == nil {
+		newAppConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+
+	// Normalize incoming Okta fields (trim whitespace) BEFORE the premium-license gate so a
+	// whitespace-only input that would persist as empty does not trip the license check.
+	normalizeOptString := func(src optjson.String) optjson.String {
+		if src.Set && src.Valid {
+			src.Value = strings.TrimSpace(src.Value)
+		}
+		return src
+	}
+	applyOptString := func(dest *optjson.String, src optjson.String) {
+		if src.Set {
+			*dest = src
+		}
+	}
+	oktaIDPID := normalizeOptString(newAppConfig.ConditionalAccess.OktaIDPID)
+	oktaACSURL := normalizeOptString(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
+	oktaAudienceURI := normalizeOptString(newAppConfig.ConditionalAccess.OktaAudienceURI)
+	oktaCert := normalizeOptString(newAppConfig.ConditionalAccess.OktaCertificate)
+	applyOptString(&appConfig.ConditionalAccess.OktaIDPID, oktaIDPID)
+	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, oktaACSURL)
+	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, oktaAudienceURI)
+	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, oktaCert)
+
+	isNonEmpty := func(s optjson.String) bool {
+		return s.Set && s.Valid && s.Value != ""
+	}
+	oktaFieldsBeingSet := isNonEmpty(oktaIDPID) ||
+		isNonEmpty(oktaACSURL) ||
+		isNonEmpty(oktaAudienceURI) ||
+		isNonEmpty(oktaCert)
+
+	if oktaFieldsBeingSet && !lic.IsPremium() {
+		invalid.Append("conditional_access", ErrMissingLicense.Error())
+		return ctxerr.Wrap(ctx, invalid)
+	}
+
+	oktaFieldsSet := 0
+	if appConfig.ConditionalAccess.OktaIDPID.Valid && appConfig.ConditionalAccess.OktaIDPID.Value != "" {
+		oktaFieldsSet++
+	}
+	if appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid &&
+		appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != "" {
+		oktaFieldsSet++
+	}
+	if appConfig.ConditionalAccess.OktaAudienceURI.Valid &&
+		appConfig.ConditionalAccess.OktaAudienceURI.Value != "" {
+		oktaFieldsSet++
+	}
+	if appConfig.ConditionalAccess.OktaCertificate.Valid &&
+		appConfig.ConditionalAccess.OktaCertificate.Value != "" {
+		oktaFieldsSet++
+	}
+
+	if oktaFieldsSet > 0 && oktaFieldsSet < 4 {
+		invalid.Append("conditional_access",
+			"all Okta fields must be set together (okta_idp_id, okta_assertion_consumer_service_url, okta_audience_uri, okta_certificate) or all must be empty")
+	}
+
+	if oktaFieldsSet == 4 {
+		const (
+			maxURLLength  = 2048
+			maxCertLength = 8192
+		)
+
+		if len(appConfig.ConditionalAccess.OktaIDPID.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_idp_id",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaAudienceURI.Value) > maxURLLength {
+			invalid.Append("conditional_access.okta_audience_uri",
+				fmt.Sprintf("must be %d characters or less", maxURLLength))
+		}
+		if len(appConfig.ConditionalAccess.OktaCertificate.Value) > maxCertLength {
+			invalid.Append("conditional_access.okta_certificate",
+				fmt.Sprintf("must be %d characters or less", maxCertLength))
+		}
+
+		acsURL, err := url.ParseRequestURI(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+		if err != nil || ((acsURL.Scheme != "http" && acsURL.Scheme != "https") || acsURL.Host == "") {
+			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
+				"must be a valid URL with http or https scheme and a host")
+		}
+
+		rest := []byte(appConfig.ConditionalAccess.OktaCertificate.Value)
+		certCount := 0
+		for {
+			block, r := pem.Decode(rest)
+			if block == nil {
+				break
+			}
+			rest = r
+			if block.Type != "CERTIFICATE" {
+				invalid.Append("conditional_access.okta_certificate", "PEM block must be a CERTIFICATE")
+				break
+			}
+			if _, err := x509.ParseCertificate(block.Bytes); err != nil {
+				invalid.Append("conditional_access.okta_certificate", "must be a valid x509 certificate")
+				break
+			}
+			certCount++
+		}
+		if certCount == 0 {
+			invalid.Append("conditional_access.okta_certificate", "must contain at least one PEM-encoded certificate")
+		}
+	}
+
+	return nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -431,9 +560,34 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
+	// In Overwrite mode (gitops), older clients (e.g. fleetctl <=4.84
+	// predating the field) omit features.historical_data entirely.
+	// Without defaulting here, the Overwrite branch below would persist
+	// those sub-keys as false because Go's bool zero value is
+	// indistinguishable from "absent".
+	if applyOpts.Overwrite {
+		applyHistoricalDataOverwriteDefaults(p, &newAppConfig)
+	}
+
 	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
 	if fleetDesktopSettingsInvalidErr.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
+	}
+
+	// Validate and premium-gate the vulnerability-exposure chart filter
+	// defaults. These are display-only defaults (they seed the dashboard
+	// chart's filter controls; they do not affect data collection) and are
+	// premium-only. Validation runs on the incoming payload with sparse/PATCH
+	// semantics: only fields explicitly present are checked.
+	if veFilters := newAppConfig.Features.VulnerabilityExposureHistoricalReporting; veFilters != nil {
+		if !lic.IsPremium() {
+			invalid.Append("org_settings.features.vulnerability_exposure_historical_reporting", ErrMissingLicense.Error())
+		} else {
+			veFilters.Validate("org_settings.features", invalid)
+		}
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
 	}
 
 	// Reject conflicting deprecated/new logo URL pairs and mirror them so
@@ -444,7 +598,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if newAppConfig.SSOSettings != nil {
-		validateSSOSettings(newAppConfig, appConfig, invalid, lic)
+		validateSSOSettings(newAppConfig, appConfig, invalid, lic, applyOpts.Overwrite)
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
@@ -495,9 +649,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
-		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraTenantIDs.Value) == 0 {
-		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
+	// When Windows MDM is being turned off and the incoming payload doesn't set the Entra allowlists, clear them.
+	clearEntraIDsIfWindowsTurnedOff := func(field *optjson.Slice[string], incomingLen int) {
+		if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+			!appConfig.MDM.WindowsEnabledAndConfigured && incomingLen == 0 {
+			*field = optjson.SetSlice([]string{})
+		}
+	}
+	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraTenantIDs, len(newAppConfig.MDM.WindowsEntraTenantIDs.Value))
+	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraClientIDs, len(newAppConfig.MDM.WindowsEntraClientIDs.Value))
+
+	// Normalize Entra client IDs to canonical lower-case and de-duplicate them. They are authorized
+	// case-insensitively (see hasAuthorizedAzureAudience), so storing them canonically prevents
+	// functionally-identical duplicates that differ only in case (for example, an upper-case ID added via
+	// GitOps or the API alongside a lower-case one added through the UI).
+	if appConfig.MDM.WindowsEntraClientIDs.Set && appConfig.MDM.WindowsEntraClientIDs.Valid {
+		seen := make(map[string]struct{}, len(appConfig.MDM.WindowsEntraClientIDs.Value))
+		normalized := make([]string, 0, len(appConfig.MDM.WindowsEntraClientIDs.Value))
+		for _, clientID := range appConfig.MDM.WindowsEntraClientIDs.Value {
+			id := strings.ToLower(strings.TrimSpace(clientID))
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			normalized = append(normalized, id)
+		}
+		appConfig.MDM.WindowsEntraClientIDs.Value = normalized
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
@@ -545,9 +722,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = oldAppConfig.MDM.MacOSSetup.LockEndUserInfo
 	}
 
-	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+	// Also sync when EUA was just disabled so the Lock-requires-EUA invariant stays satisfied.
 	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
-		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid &&
+		(oldAppConfig.MDM.EnabledAndConfigured || !appConfig.MDM.MacOSSetup.EnableEndUserAuthentication) {
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
@@ -573,6 +752,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if !lic.IsPremium() {
 			invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
+	if appConfig.MDM.MacOSUpdates.Configured() || appConfig.MDM.IOSUpdates.Configured() || appConfig.MDM.IPadOSUpdates.Configured() {
+		// Verify that we don't have a custom OS updates declaration
+		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+		}
+		if hasProfile {
+			return nil, &fleet.BadRequestError{
+				Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+			}
+		}
+	}
+
+	if appConfig.MDM.WindowsUpdates.Configured() {
+		// Verify that we don't have a custom Windows updates profile
+		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing custom Windows updates profile")
+		}
+		if hasProfile {
+			return nil, &fleet.BadRequestError{
+				Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+			}
 		}
 	}
 
@@ -640,120 +845,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
 
-	// Initialize ConditionalAccess if nil (it's a pointer type)
-	if appConfig.ConditionalAccess == nil {
-		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
-	}
-	if newAppConfig.ConditionalAccess == nil {
-		newAppConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
-	}
-
-	// Trim whitespace from all Okta fields before setting them
-	applyOptString := func(dest *optjson.String, src optjson.String) {
-		if src.Set {
-			if src.Valid {
-				src.Value = strings.TrimSpace(src.Value)
-			}
-			*dest = src
-		}
-	}
-	applyOptString(&appConfig.ConditionalAccess.OktaIDPID, newAppConfig.ConditionalAccess.OktaIDPID)
-	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
-	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, newAppConfig.ConditionalAccess.OktaAudienceURI)
-	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, newAppConfig.ConditionalAccess.OktaCertificate)
-	// Handle Okta conditional access fields - only update if Set=true (partial update support)
-	// Check if any Okta fields are being set with valid (non-null) non-empty values
-	isNonEmpty := func(s optjson.String) bool {
-		return s.Set && s.Valid && s.Value != ""
-	}
-	oktaFieldsBeingSet := isNonEmpty(newAppConfig.ConditionalAccess.OktaIDPID) ||
-		isNonEmpty(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL) ||
-		isNonEmpty(newAppConfig.ConditionalAccess.OktaAudienceURI) ||
-		isNonEmpty(newAppConfig.ConditionalAccess.OktaCertificate)
-
-	if oktaFieldsBeingSet && !lic.IsPremium() {
-		invalid.Append("conditional_access", ErrMissingLicense.Error())
-		return nil, ctxerr.Wrap(ctx, invalid)
-	}
-
-	// Validate Okta configuration - all fields must be set together or all must be empty
-	oktaFieldsSet := 0
-	if appConfig.ConditionalAccess.OktaIDPID.Valid && appConfig.ConditionalAccess.OktaIDPID.Value != "" {
-		oktaFieldsSet++
-	}
-	if appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid &&
-		appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != "" {
-		oktaFieldsSet++
-	}
-	if appConfig.ConditionalAccess.OktaAudienceURI.Valid &&
-		appConfig.ConditionalAccess.OktaAudienceURI.Value != "" {
-		oktaFieldsSet++
-	}
-	if appConfig.ConditionalAccess.OktaCertificate.Valid &&
-		appConfig.ConditionalAccess.OktaCertificate.Value != "" {
-		oktaFieldsSet++
-	}
-
-	// Either all 4 fields should be set, or none should be set
-	if oktaFieldsSet > 0 && oktaFieldsSet < 4 {
-		invalid.Append("conditional_access",
-			"all Okta fields must be set together (okta_idp_id, okta_assertion_consumer_service_url, okta_audience_uri, okta_certificate) or all must be empty")
-	}
-
-	// If all fields are set, validate them
-	if oktaFieldsSet == 4 {
-		// Validate max lengths for Okta fields
-		const (
-			maxURLLength  = 2048 // Standard max URL length supported by browsers
-			maxCertLength = 8192 // 8KB for PEM certificate (without private key)
-		)
-
-		if len(appConfig.ConditionalAccess.OktaIDPID.Value) > maxURLLength {
-			invalid.Append("conditional_access.okta_idp_id",
-				fmt.Sprintf("must be %d characters or less", maxURLLength))
-		}
-		if len(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value) > maxURLLength {
-			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
-				fmt.Sprintf("must be %d characters or less", maxURLLength))
-		}
-		if len(appConfig.ConditionalAccess.OktaAudienceURI.Value) > maxURLLength {
-			invalid.Append("conditional_access.okta_audience_uri",
-				fmt.Sprintf("must be %d characters or less", maxURLLength))
-		}
-		if len(appConfig.ConditionalAccess.OktaCertificate.Value) > maxCertLength {
-			invalid.Append("conditional_access.okta_certificate",
-				fmt.Sprintf("must be %d characters or less", maxCertLength))
-		}
-
-		// Validate URL format for ACS URL - must have http or https scheme and a host
-		acsURL, err := url.ParseRequestURI(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
-		if err != nil || ((acsURL.Scheme != "http" && acsURL.Scheme != "https") || acsURL.Host == "") {
-			invalid.Append("conditional_access.okta_assertion_consumer_service_url",
-				"must be a valid URL with http or https scheme and a host")
-		}
-
-		// Validate one or more PEM-encoded CERTIFICATE blocks and parse each
-		rest := []byte(appConfig.ConditionalAccess.OktaCertificate.Value)
-		certCount := 0
-		for {
-			block, r := pem.Decode(rest)
-			if block == nil {
-				break
-			}
-			rest = r
-			if block.Type != "CERTIFICATE" {
-				invalid.Append("conditional_access.okta_certificate", "PEM block must be a CERTIFICATE")
-				break
-			}
-			if _, err := x509.ParseCertificate(block.Bytes); err != nil {
-				invalid.Append("conditional_access.okta_certificate", "must be a valid x509 certificate")
-				break
-			}
-			certCount++
-		}
-		if certCount == 0 {
-			invalid.Append("conditional_access.okta_certificate", "must contain at least one PEM-encoded certificate")
-		}
+	if err := applyAndValidateConditionalAccessOktaFields(ctx, appConfig, &newAppConfig, invalid, lic); err != nil {
+		return nil, err
 	}
 
 	var conditionalAccessNoTeamUpdated bool
@@ -765,7 +858,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 	}
 
-	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
+	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, invalid, applyOpts.Overwrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
@@ -916,6 +1009,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// Best-effort: drop orphan blobs whose URL was just replaced with an
+	// external or empty value. Mirrors the explicit DELETE /logo endpoint's
+	// audit signal by emitting a deleted_org_logo activity per mode that
+	// actually had a blob removed.
+	if svc.orgLogoStore != nil {
+		for _, m := range []fleet.OrgLogoMode{fleet.OrgLogoModeLight, fleet.OrgLogoModeDark} {
+			oldURL := getOrgLogoURL(&oldAppConfig.OrgInfo, m)
+			newURL := getOrgLogoURL(&appConfig.OrgInfo, m)
+			if !fleet.IsFleetHostedLogoURL(oldURL) || fleet.IsFleetHostedLogoURL(newURL) {
+				continue
+			}
+			if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
+				svc.logger.WarnContext(ctx, "failed to delete orphan org logo blob",
+					"mode", string(m), "err", err.Error())
+				continue
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedOrgLogo{
+				Mode: string(m),
+			}); err != nil {
+				svc.logger.WarnContext(ctx, "failed to create deleted_org_logo activity for auto-cleanup",
+					"mode", string(m), "err", err.Error())
+			}
+		}
+	}
+
 	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
 	newExceptions := appConfig.GitOpsConfig.Exceptions
 	exceptionChanges := []struct {
@@ -942,38 +1060,27 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Emit one activity per historical_data sub-key whose value flipped.
-	// Dataset names are the public config sub-keys, not internal dataset names.
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped. SaveAppConfig (above) commits first; the worker
+	// that picks up scrub jobs will see the new config and the collection
+	// cron will already have stopped writing the disabled scope.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldAppConfig.Features.HistoricalData,
 		appConfig.Features.HistoricalData,
 		nil, nil,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
-	addedEntraTenantIDs := make([]string, 0)
-	removedEntraTenantIDs := make([]string, 0)
-	oldTenantIDSet := make(map[string]struct{})
-	newTenantIDSet := make(map[string]struct{})
-
-	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
-		oldTenantIDSet[tenantID] = struct{}{}
-	}
-	for _, tenantID := range appConfig.MDM.WindowsEntraTenantIDs.Value {
-		newTenantIDSet[tenantID] = struct{}{}
-		if _, found := oldTenantIDSet[tenantID]; !found {
-			addedEntraTenantIDs = append(addedEntraTenantIDs, tenantID)
-		}
-	}
-	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
-		if _, found := newTenantIDSet[tenantID]; !found {
-			removedEntraTenantIDs = append(removedEntraTenantIDs, tenantID)
-		}
-	}
+	// Emit one activity per Entra tenant ID / client ID added or removed. diffStringSlices deduplicates, so a payload
+	// that repeats an ID does not produce duplicate activities.
+	addedEntraTenantIDs, removedEntraTenantIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraTenantIDs.Value, appConfig.MDM.WindowsEntraTenantIDs.Value)
 	for _, tenantID := range addedEntraTenantIDs {
 		act := fleet.ActivityTypeAddedMicrosoftEntraTenant{TenantID: tenantID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -984,6 +1091,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		act := fleet.ActivityTypeDeletedMicrosoftEntraTenant{TenantID: tenantID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra tenant")
+		}
+	}
+
+	addedEntraClientIDs, removedEntraClientIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraClientIDs.Value, appConfig.MDM.WindowsEntraClientIDs.Value)
+	for _, clientID := range addedEntraClientIDs {
+		act := fleet.ActivityTypeAddedMicrosoftEntraClientID{ClientID: clientID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added Microsoft Entra client ID")
+		}
+	}
+	for _, clientID := range removedEntraClientIDs {
+		act := fleet.ActivityTypeDeletedMicrosoftEntraClientID{ClientID: clientID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra client ID")
 		}
 	}
 
@@ -1028,7 +1149,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+			// The package may have already been deleted via the GUI while the
+			// appconfig JSON still had the stale URL; ignore not-found.
+			if !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+			}
 		}
 	}
 
@@ -1048,6 +1173,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				tok.MacOSDefaultTeamID = nil
 				tok.IOSDefaultTeamID = nil
 				tok.IPadOSDefaultTeamID = nil
+				tok.BYODDefaultTeamID = nil
 				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 				}
@@ -1224,6 +1350,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		}
+	}
+
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
@@ -1325,8 +1463,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
 			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
 
-		// Only create an activity if bypass is changed after otka has already been initially configured
-		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != newAppConfig.ConditionalAccess.BypassDisabled.Value
+		// Only create an activity if bypass is actually changed
+		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != appConfig.ConditionalAccess.BypassDisabled.Value
 	}
 
 	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
@@ -1473,12 +1611,51 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 	return ok, nil
 }
 
+// windowsEntraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in
+// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison time
+// instead. We can't use the standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application
+// client IDs are both validated against this so the two checks cannot drift.
+var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
+
+// diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
+// current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
+// the incoming payload repeats an entry.
+func diffStringSlices(old, current []string) (added, removed []string) {
+	oldSet := make(map[string]struct{}, len(old))
+	for _, v := range old {
+		oldSet[v] = struct{}{}
+	}
+	currentSet := make(map[string]struct{}, len(current))
+	for _, v := range current {
+		if _, seen := currentSet[v]; seen {
+			continue
+		}
+		currentSet[v] = struct{}{}
+		if _, found := oldSet[v]; !found {
+			added = append(added, v)
+		}
+	}
+	removedSeen := make(map[string]struct{})
+	for _, v := range old {
+		if _, found := currentSet[v]; found {
+			continue
+		}
+		if _, seen := removedSeen[v]; seen {
+			continue
+		}
+		removedSeen[v] = struct{}{}
+		removed = append(removed, v)
+	}
+	return added, removed
+}
+
 func (svc *Service) validateMDM(
 	ctx context.Context,
 	lic *fleet.LicenseInfo,
 	oldMdm *fleet.MDM,
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
+	overwrite bool,
 ) error {
 	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
 		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
@@ -1507,6 +1684,9 @@ func (svc *Service) validateMDM(
 	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
 		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
 	}
+	if len(mdm.WindowsEntraClientIDs.Value) > 0 && !lic.IsPremium() {
+		invalid.Append("windows_entra_client_ids", ErrMissingLicense.Error())
+	}
 	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
 	}
@@ -1533,35 +1713,13 @@ func (svc *Service) validateMDM(
 			invalid.Append("setup_experience.macos_bootstrap_package",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
-		if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
-			invalid.Append("setup_experience.enable_end_user_authentication",
+
+		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
+			invalid.Append("setup_experience.enable_managed_local_account",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
-	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
-		for i, prof := range customSettings {
-			count := 0
-			for _, b := range []bool{
-				len(prof.Labels) > 0,
-				len(prof.LabelsIncludeAll) > 0,
-				len(prof.LabelsIncludeAny) > 0,
-				len(prof.LabelsExcludeAny) > 0,
-			} {
-				if b {
-					count++
-				}
-			}
-			if count > 1 {
-				invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
-					fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
-			}
-			if len(prof.Labels) > 0 {
-				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
-				customSettings[i].Labels = nil
-			}
-		}
-	}
-	checkCustomSettings("macos", mdm.MacOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "macos", mdm.MacOSSettings.CustomSettings)
 
 	if !mdm.WindowsEnabledAndConfigured {
 		if mdm.WindowsSettings.CustomSettings.Set &&
@@ -1571,7 +1729,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
 
 	// Check oldMdm as we bypass the patching of this value, as it's enabled and disabled elsewhere.
 	if !oldMdm.AndroidEnabledAndConfigured {
@@ -1582,7 +1740,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit android_settings.configuration_profiles. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-	checkCustomSettings("android", mdm.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", mdm.AndroidSettings.CustomSettings.Value)
 
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
@@ -1640,7 +1798,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates.minimum_version", v)
 	}
 
-	if err := mdm.MacOSSetup.Validate(); err != nil {
+	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
 		var invalidArgErr *fleet.InvalidArgumentError
 		if errors.As(err, &invalidArgErr) {
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
@@ -1671,7 +1829,16 @@ func (svc *Service) validateMDM(
 			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
 			return nil
 		}
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
+		// In GitOps (overwrite=true), strict validation only fires when EUA is
+		// being enabled at the global/no-team level in this same request, because
+		// we can't tell if teams are changing their EUA settings in the same GitOps run.
+		// We rely on client-side validation in GitOps to catch cases of teams keeping EUA enabled
+		// while the global/no-team setting is disabled/cleared in the same run.
+		//
+		// TODO: look into blocking the case of a user-created API call that clears required EUA
+		// settings while a team still has EUA enabled.
+		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
+		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation
@@ -1757,18 +1924,24 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
 	}
 
+	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format.
+	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
+		if !windowsEntraGUIDRegex.MatchString(tenantID) {
+			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
+		}
+	}
+	for _, clientID := range mdm.WindowsEntraClientIDs.Value {
+		if !windowsEntraGUIDRegex.MatchString(clientID) {
+			invalid.Append("mdm.windows_entra_client_ids", fmt.Sprintf("Invalid Entra client ID: %s", clientID))
+		}
+	}
+
 	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
 		invalid.Append("mdm.windows_entra_tenant_ids", "Couldn't set Windows Entra tenant IDs, Windows MDM is not enabled.")
 	}
 
-	// validate Windows Entra tenant IDs are in the correct format (GUIDs). We can't use the standard UUID parser here
-	// as Azure tenants should be in the 8-4-4-4-12 format but the usual UUID parser will allow certain non-standard
-	// forms
-	guidRegex := regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
-	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
-		if !guidRegex.MatchString(tenantID) {
-			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
-		}
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraClientIDs.Value) > 0 {
+		invalid.Append("mdm.windows_entra_client_ids", "Couldn't set Windows Entra client IDs, Windows MDM is not enabled.")
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
@@ -1833,13 +2006,13 @@ func (svc *Service) validateABMAssignments(
 		tok.MacOSDefaultTeamID = &team.ID
 		tok.IOSDefaultTeamID = &team.ID
 		tok.IPadOSDefaultTeamID = &team.ID
-
+		tok.BYODDefaultTeamID = &team.ID
 		return []*fleet.ABMToken{tok}, nil
 	}
 
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
+			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())
 			return nil, nil
 		}
 
@@ -1865,20 +2038,21 @@ func (svc *Service) validateABMAssignments(
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
+			token.BYODDefaultTeamID = nil
 			tokensByName[token.OrganizationName] = token
 		}
 
 		var tokensToSave []*fleet.ABMToken
 		for _, bm := range mdm.AppleBusinessManager.Value {
-			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
-					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
+					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
 					return nil, nil
 				}
 			}
 
 			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
-				invalid.Appendf("mdm.apple_business_manager", "token with organization name %s doesn't exist", bm.OrganizationName)
+				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
 				return nil, nil
 			}
 
@@ -1886,6 +2060,7 @@ func (svc *Service) validateABMAssignments(
 			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
 			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
 			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tok.BYODDefaultTeamID = teamsByName[bm.BYODTeam]
 			tokensToSave = append(tokensToSave, tok)
 		}
 
@@ -1937,6 +2112,9 @@ func (svc *Service) validateVPPAssignments(
 	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
+			if tmName == fleet.DisplayNameAllTeams {
+				tmName = fleet.TeamNameAllTeams
+			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
 				return nil, nil
@@ -1945,15 +2123,18 @@ func (svc *Service) validateVPPAssignments(
 
 		loc := norm.NFC.String(vpp.Location)
 		if _, ok := tokensByLocation[loc]; !ok {
-			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+			invalid.Appendf("mdm.volume_purchasing_program", "token with organization unit %s doesn't exist", vpp.Location)
 			return nil, nil
 		}
 
 		var tokenTeams []uint
 		for _, teamName := range vpp.Teams {
+			if teamName == fleet.DisplayNameAllTeams {
+				teamName = fleet.TeamNameAllTeams
+			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
-					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
+					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other fleets", fleet.DisplayNameAllTeams)
 					return nil, nil
 				}
 				tokenTeams = []uint{}
@@ -1970,19 +2151,23 @@ func (svc *Service) validateVPPAssignments(
 	return tokensToSave, nil
 }
 
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
+// Validate incoming SSO provider settings.
+// If this is a GitOps run (overwrite=true), all required fields must be present.
+// Otherwise we're doing a patch, so it's ok for fields to be missing as long
+// as we have persisted values for them.
+func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
-		if existing.Metadata == "" && existing.MetadataURL == "" {
+		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
 		}
 	}
 	if incoming.EntityID == "" {
-		if existing.EntityID == "" {
+		if overwrite || existing.EntityID == "" {
 			invalid.Append("entity_id", "required")
 		}
 	}
 	if incoming.IDPName == "" {
-		if existing.IDPName == "" {
+		if overwrite || existing.IDPName == "" {
 			invalid.Append("idp_name", "required")
 		}
 	}
@@ -1996,20 +2181,62 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 	}
 }
 
-func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, lic *fleet.LicenseInfo) {
+func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, lic *fleet.LicenseInfo, overwrite bool) {
 	if p.SSOSettings != nil && p.SSOSettings.EnableSSO {
 
 		var existingSSOProviderSettings fleet.SSOProviderSettings
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
+		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 			}
 		}
+	}
+}
+
+// gitopsHistoricalDataView is the narrow tri-state view of
+// features.historical_data used to detect which sub-keys were absent
+// from a gitops payload. Pointer fields distinguish "absent" from
+// "false" — something the fleet.HistoricalDataSettings plain bools
+// cannot do once unmarshaled.
+//
+// Only used by applyHistoricalDataOverwriteDefaults below.
+type gitopsHistoricalDataView struct {
+	Features struct {
+		HistoricalData struct {
+			Uptime          *bool `json:"uptime"`
+			Vulnerabilities *bool `json:"vulnerabilities"`
+		} `json:"historical_data"`
+	} `json:"features"`
+}
+
+// applyHistoricalDataOverwriteDefaults defaults absent
+// features.historical_data sub-keys to true.
+// Older clients will not send values for these keys,
+// and in Overwrite mode we want to preserve the default
+// "enabled" state so that we don't disable data collection
+// and wipe data incorrectly.
+func applyHistoricalDataOverwriteDefaults(p []byte, cfg *fleet.AppConfig) {
+	var view gitopsHistoricalDataView
+	if err := json.Unmarshal(p, &view); err != nil {
+		return // main decode path will surface the typed error
+	}
+	var defaults fleet.Features
+	defaults.ApplyDefaults()
+	// For each sub-key, check if the incoming data provided a value (true or false).
+	// If not, then set the config to the default value we want rather than
+	// the Go default for bools (false).
+	cfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+	if v := view.Features.HistoricalData.Uptime; v != nil {
+		cfg.Features.HistoricalData.Uptime = *v
+	}
+	cfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+	if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
+		cfg.Features.HistoricalData.Vulnerabilities = *v
 	}
 }
 

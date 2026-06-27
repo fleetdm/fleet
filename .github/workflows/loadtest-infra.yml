@@ -47,6 +47,24 @@ on:
         type: string
         default: 3
         required: true
+      fleet_redis_engine:
+        description: "Elasticache engine to deploy"
+        type: choice
+        options:
+        - redis
+        - valkey
+        default: redis
+        required: false
+      fleet_redis_engine_version:
+        description: "Elasticache engine version (must match the engine, e.g. 7.1 for redis, 8.0 for valkey)"
+        type: string
+        default: "7.1"
+        required: false
+      fleet_redis_parameter_group_family:
+        description: "Elasticache parameter group family (must match engine+version, e.g. redis7, valkey7, valkey8)"
+        type: string
+        default: "redis7"
+        required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -79,6 +97,9 @@ env:
   TF_VAR_database_instance_count: "${{ inputs.fleet_database_instance_count }}"
   TF_VAR_redis_instance_size: "${{ inputs.fleet_redis_instance_size }}"
   TF_VAR_redis_instance_count: "${{ inputs.fleet_redis_instance_count }}"
+  TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"
+  TF_VAR_redis_engine_version: "${{ inputs.fleet_redis_engine_version }}"
+  TF_VAR_redis_parameter_group_family: "${{ inputs.fleet_redis_parameter_group_family }}"
 
 permissions:
   id-token: write
@@ -91,10 +112,12 @@ jobs:
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          persist-credentials: false
       - id: fail-on-main
         run: "false"
         if: ${{ github.ref == 'main' }}
@@ -116,7 +139,7 @@ jobs:
       - name: Terraform workspace
         id: workspace
         run: |
-          if terraform workspace list | grep -q ${{ inputs.terraform_workspace }};
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}";
           then
             echo "MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
@@ -176,10 +199,24 @@ jobs:
           else
             echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi
-      - name: Terraform Destroy
+      - name: Check osquery-perf workspace
         if: inputs.terraform_action == 'destroy'
+        id: check-osquery-perf
+        working-directory: infrastructure/loadtesting/terraform/osquery_perf
+        run: |
+          echo "osquery_perf_block=true" >> $GITHUB_OUTPUT
+          terraform init
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}"; then
+            echo -e "\n\nBLOCK: matching osquery-perf workspace '${{ inputs.terraform_workspace }}' exists."
+            echo "Destroy the osquery-perf workspace first."
+          else
+            echo -e "\n\nOK: no matching osquery-perf workspace '${{ inputs.terraform_workspace }}' found."
+            echo "osquery_perf_block=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Terraform Destroy
+        if: inputs.terraform_action == 'destroy' && steps.check-osquery-perf.outputs.osquery_perf_block == 'false'
         id: destroy
-        run: | 
+        run: |
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"

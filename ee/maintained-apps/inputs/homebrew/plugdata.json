@@ -1,0 +1,8 @@
+{
+   "name": "PlugData",
+   "slug": "plugdata/darwin",
+   "unique_identifier": "com.plugdata.plugdata",
+   "token": "plugdata",
+   "installer_format": "pkg",
+   "default_categories": ["Developer tools"]
+}

@@ -22,6 +22,7 @@ controls:
     certificates:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
+      subject_alternative_name: DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   apple_settings:
     configuration_profiles:
@@ -52,6 +53,7 @@ name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -62,6 +64,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
@@ -72,6 +75,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
   install_software:
@@ -84,6 +88,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with FMA install automation
   install_software:
@@ -96,6 +101,7 @@ policies:
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with custom package install automation
   install_software:
@@ -159,6 +165,8 @@ software:
     platform: darwin
     self_service: true
   - app_store_id: "55566677778"
+    configuration:
+      path: "../lib/team-a-👍/software/my-setup-experience-app-android-config.json"
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
     labels_include_all:
@@ -171,6 +179,8 @@ software:
     auto_update_enabled: true
     auto_update_window_end: "03:00"
     auto_update_window_start: "01:00"
+    configuration:
+      path: "../lib/team-a-👍/software/my-ios-auto-update-app-ios-config.xml"
     icon:
       path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
     labels_include_all:
@@ -199,8 +209,10 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+    version: "10.0"
   - self_service: true
     slug: fma3/windows
+    version: "^123"
   packages:
   - categories:
     - Browsers

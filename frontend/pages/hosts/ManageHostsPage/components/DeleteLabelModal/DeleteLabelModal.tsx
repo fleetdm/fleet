@@ -30,8 +30,8 @@ const DeleteLabelModal = ({
       {isPremiumTier && (
         <ul>
           <li>
-            Configuration profiles that target this label will not be applied to
-            new hosts.
+            Labels that are targeted in a configuration profile will not be
+            deleted. You will need to delete the configuration profile first.
           </li>
           <li>
             Reports and policies that target this label will continue to run,

@@ -171,9 +171,6 @@ const LabelForm = ({
       {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
-        <Button onClick={onCancel} variant="inverse">
-          Cancel
-        </Button>
         <GitOpsModeTooltipWrapper
           entityType="labels"
           renderChildren={(disableChildren) => (
@@ -186,6 +183,9 @@ const LabelForm = ({
             </Button>
           )}
         />
+        <Button onClick={onCancel} variant="inverse">
+          Cancel
+        </Button>
       </div>
     </form>
   );

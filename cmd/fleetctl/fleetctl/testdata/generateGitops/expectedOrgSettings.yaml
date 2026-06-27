@@ -76,8 +76,9 @@ integrations:
       group_id: 123456789
       url: https://some-zendesk-url.com
 mdm:
-  apple_business_manager:
-    - ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+  apple_business:
+    - byod_fleet: "\U0001F4F1\U0001F510 Personal mobile devices"
+      ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       ipados_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       macos_fleet: "\U0001F4BB Workstations"
       organization_name: Fleet Device Management Inc.

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/bzip2"
+	"context"
 	cryptorand "crypto/rand"
 	"crypto/sha1" // nolint:gosec
 	"crypto/sha256"
@@ -345,15 +346,17 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex            int
-	MDMCheckInInterval    time.Duration
-	model                 string
-	serverAddress         string
-	softwareCount         softwareEntityCount
-	stats                 *osquery_perf.Stats
-	strings               map[string]string
-	softwareVersionMap    map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
-	mdmProfileFailureProb float64
+	agentIndex                 int
+	MDMCheckInInterval         time.Duration
+	model                      string
+	serverAddress              string
+	softwareCount              softwareEntityCount
+	stats                      *osquery_perf.Stats
+	strings                    map[string]string
+	softwareVersionMap         map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
+	mdmProfileFailureProb      float64
+	osVersion                  string
+	supplementalOSVersionExtra string
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -459,6 +462,11 @@ type agent struct {
 	// (client side) against Fleet MDM.
 	macMDMClient *mdmtest.TestAppleMDMClient
 	winMDMClient *mdmtest.TestWindowsMDMClient
+
+	// winMDMWake signals the Windows MDM loop to start an OMA-DM session on demand (in response to the server's
+	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
+	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
+	winMDMWake chan struct{}
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -724,6 +732,11 @@ func newAgent(
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+	}
+
+	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
+	if winMDMClient != nil {
+		agent.winMDMWake = make(chan struct{}, 1)
 	}
 
 	// Initialize host identity client
@@ -1010,6 +1023,16 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
+	// Simulated Windows MDM hosts advertise CapabilityWindowsMDMSync, like real Windows fleetd, so the server relaxes
+	// their DMClient poll schedule (via a Replace on the poll node) and wakes them on demand via WindowsMDMSyncRequest
+	// instead of relying on frequent polling. Real fleetd adds this at construction (GetOrbitClientCapabilities gates it
+	// on GOOS=windows); osquery-perf simulates Windows on a non-Windows GOOS, so we add it here. Mutating the map directly
+	// is safe: GetOrbitClientCapabilities returns a fresh per-client map (not shared), and this runs during setup before
+	// the first request or any concurrent goroutine, so there is no copy needed.
+	if a.winMDMClient != nil {
+		orbitClient.ClientCapabilities[fleet.CapabilityWindowsMDMSync] = struct{}{}
+	}
+
 	deviceClient, err := fleetclient.NewDeviceClient(a.serverAddress, true, "", nil, "")
 	if err != nil {
 		log.Fatal("creating device client: ", err)
@@ -1116,6 +1139,14 @@ func (a *agent) runOrbitLoop() {
 					a.setMDMEnrolled()
 					a.stats.IncrementMDMEnrollments()
 					go a.runWindowsMDMLoop()
+				}
+			}
+			if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
+				// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
+				// session now.
+				select {
+				case a.winMDMWake <- struct{}{}:
+				default:
 				}
 			}
 		case <-orbitTokenRemoteCheckTicker:
@@ -1523,54 +1554,126 @@ func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse) 
 }
 
 func (a *agent) runWindowsMDMLoop() {
-	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+	pollInterval := a.MDMCheckInInterval
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
 
-	for range mdmCheckInTicker {
-		cmds, err := a.winMDMClient.StartManagementSession()
-		if err != nil {
-			log.Printf("MDM check-in start session request failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			continue
-		}
-		a.stats.IncrementMDMSessions()
-
-		// send a successful ack for each command
-		msgID, err := a.winMDMClient.GetCurrentMsgID()
-		if err != nil {
-			log.Printf("MDM get current MsgID failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			continue
-		}
-
-		for _, c := range cmds {
-			// Skip the server's own <Status> entries. MS-MDM's "Status on a Status" is only for auth-renegotiation edge cases (see
-			// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
-			// "While this case is not usually encountered"); real Windows does not emit Status-on-Status during normal check-ins.
-			if c.Verb == fleet.CmdStatus {
-				continue
+	for {
+		onDemand := false
+		select {
+		case <-a.winMDMWake:
+			// The server asked us (via WindowsMDMSyncRequest) to start a session now, without waiting for the poll.
+			onDemand = true
+		case <-ticker.C:
+			// A wake may have arrived at almost the same time as this tick; select picks at random when both are ready,
+			// which could miscount a wake-triggered session as poll-triggered. Drain any buffered wake first so the
+			// on-demand metric is deterministic (and a coincident tick+wake collapses into a single on-demand session).
+			select {
+			case <-a.winMDMWake:
+				onDemand = true
+			default:
 			}
-			a.stats.IncrementMDMCommandsReceived()
-
-			status := syncml.CmdStatusOK
-			if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
-				status = syncml.CmdStatusBadRequest
-			}
-			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &c.Cmd.CmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    &status,
-				Items:   nil,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
 		}
-		if _, err := a.winMDMClient.SendResponse(); err != nil {
-			log.Printf("MDM send response request failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			continue
+
+		// If the server relaxed (or restored) our DMClient poll schedule via a Replace on the poll node, match it so our
+		// scheduled polling slows down. Steady-state command delivery is then driven by the on-demand wake rather than
+		// frequent polling, which is the behavior this load test exercises.
+		if relaxedInterval := a.doWindowsMDMCheckIn(onDemand); relaxedInterval > 0 && relaxedInterval != pollInterval {
+			pollInterval = relaxedInterval
+			ticker.Reset(pollInterval)
+			log.Printf("host %d: Windows MDM poll schedule set to %s", a.agentIndex, pollInterval)
 		}
 	}
+}
+
+// doWindowsMDMCheckIn runs a single OMA-DM management session: it starts the session, acknowledges every command the
+// server sends, and returns the new scheduled poll interval if the server sent a Replace on the DMClient poll node
+// (0 otherwise). onDemand reports whether the session was triggered by a WindowsMDMSyncRequest wake instead of the poll
+// ticker, for stats purposes.
+func (a *agent) doWindowsMDMCheckIn(onDemand bool) (newPollInterval time.Duration) {
+	cmds, err := a.winMDMClient.StartManagementSession()
+	if err != nil {
+		log.Printf("MDM check-in start session request failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return 0
+	}
+	a.stats.IncrementMDMSessions()
+	if onDemand {
+		a.stats.IncrementMDMOnDemandSyncs()
+	}
+
+	// send a successful ack for each command
+	msgID, err := a.winMDMClient.GetCurrentMsgID()
+	if err != nil {
+		log.Printf("MDM get current MsgID failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return 0
+	}
+
+	// Detect SCEP CertificateInstall CSPs and ACK them now while kicking off the SCEP exchange in the background.
+	scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
+	handled, scepResults, hasWork := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+	if hasWork {
+		go func() {
+			defer cancelSCEP()
+			// One SCEPResult is emitted per CSP; increment per-result so the request counter
+			// matches the per-CSP success/error counters even when multiple CSPs ride one SyncML.
+			for res := range scepResults {
+				a.stats.IncrementMDMSCEPRequests()
+				if res.Err != nil {
+					log.Printf("MDM SCEP exchange failed: %s", res.Err)
+					a.stats.IncrementMDMSCEPErrors()
+					continue
+				}
+				a.stats.IncrementMDMSCEPSuccess()
+			}
+		}()
+	} else {
+		cancelSCEP()
+	}
+
+	for _, c := range cmds {
+		// Skip the server's own <Status> entries. MS-MDM's "Status on a Status" is only for auth-renegotiation edge cases (see
+		// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
+		// "While this case is not usually encountered"); real Windows does not emit Status-on-Status during normal check-ins.
+		if c.Verb == fleet.CmdStatus {
+			continue
+		}
+		// When the server relaxes (or restores) our poll schedule it sends a Replace on the DMClient poll node. Honor it
+		// by adjusting our scheduled poll interval, mirroring how the real Windows DMClient applies the Replace. We still
+		// ACK it below like any other command.
+		if c.Verb == fleet.CmdReplace && c.Cmd.GetTargetURI() == syncml.DMClientPollIntervalLocURI {
+			if mins, err := strconv.Atoi(strings.TrimSpace(c.Cmd.GetTargetData())); err == nil && mins > 0 {
+				newPollInterval = time.Duration(mins) * time.Minute
+			}
+		}
+		if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+			// Already ACKed by AppendSCEPInstallResponses.
+			a.stats.IncrementMDMCommandsReceived()
+			continue
+		}
+		a.stats.IncrementMDMCommandsReceived()
+
+		status := syncml.CmdStatusOK
+		if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+			status = syncml.CmdStatusBadRequest
+		}
+		a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &c.Cmd.CmdID.Value,
+			Cmd:     ptr.String(c.Verb),
+			Data:    &status,
+			Items:   nil,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	if _, err := a.winMDMClient.SendResponse(); err != nil {
+		log.Printf("MDM send response request failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return 0
+	}
+	return newPollInterval
 }
 
 func (a *agent) execScripts(execIDs []string, orbitClient *fleetclient.OrbitClient) {
@@ -2681,6 +2784,21 @@ func (a *agent) diskEncryption() []map[string]string {
 	return []map[string]string{}
 }
 
+func (a *agent) diskEncryptionWindows() []map[string]string {
+	// 50% of results have encryption enabled
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
+		return []map[string]string{{
+			"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOn),
+			"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted),
+		}}
+	}
+	return []map[string]string{{
+		"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff),
+		"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted),
+	}}
+}
+
 func (a *agent) diskEncryptionLinux() []map[string]string {
 	// 50% of results have encryption enabled
 	a.DiskEncryptionEnabled = rand.Intn(2) == 1
@@ -3334,11 +3452,16 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.diskEncryptionLinux()
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
-		name == hostDetailQueryPrefix+"disk_encryption_windows":
+	case name == hostDetailQueryPrefix+"disk_encryption_darwin":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"disk_encryption_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryptionWindows()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
@@ -3576,8 +3699,8 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName, "America/Los_Angeles")
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -3659,6 +3782,7 @@ func main() {
 		"rhel_10.tmpl":              true,
 		"iphone_14.6.tmpl":          true,
 		"ipad_13.18.tmpl":           true,
+		"iphone_17.tmpl":            true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -3882,16 +4006,26 @@ func main() {
 			tmpl = tmplss[i%len(tmplss)]
 		}
 
-		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
 			model := "iPhone 14,6"
-			if tmpl.Name() == "ipad_13.18.tmpl" {
+			var osVersion, supplementalOSVersionExtra string
+			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
+			// which adds a SupplementalOSVersionExtra suffix to the OS version (e.g. "26.3.1 (a)").
+			switch tmpl.Name() {
+			case "ipad_13.18.tmpl":
 				model = "iPad 13,18"
+			case "iphone_17.tmpl":
+				model = "iPhone 17"
+				osVersion = "26.3.1"
+				supplementalOSVersionExtra = "(a)"
 			}
 			mobileDevice := mdmAgent{
-				agentIndex:         i + 1,
-				MDMCheckInInterval: *mdmCheckInInterval,
-				model:              model,
-				serverAddress:      *serverURL,
+				agentIndex:                 i + 1,
+				MDMCheckInInterval:         *mdmCheckInInterval,
+				model:                      model,
+				serverAddress:              *serverURL,
+				osVersion:                  osVersion,
+				supplementalOSVersionExtra: supplementalOSVersionExtra,
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,

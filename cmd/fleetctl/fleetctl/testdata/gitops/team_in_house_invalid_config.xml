@@ -1,0 +1,4 @@
+<dict>
+  <key>SCEPChallenge</key>
+  <string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>
+</dict>

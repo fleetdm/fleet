@@ -34,7 +34,7 @@ func TestConfigCommand(t *testing.T) {
 				configFile := filepath.Join(dir, "config")
 
 				baseFlags := []string{"config", "set", "--config", configFile}
-				RunAppCheckErr(t, append(baseFlags, c.setFlags...), c.wantErr)
+				runAppCheckErr(t, append(baseFlags, c.setFlags...), c.wantErr)
 			})
 		}
 	})
@@ -129,7 +129,7 @@ func TestConfigCommand(t *testing.T) {
 				} else {
 					c.context = "default"
 				}
-				RunAppForTest(t, append(baseFlags, c.setFlags...))
+				runAppForTest(t, append(baseFlags, c.setFlags...))
 
 				cfg, err := readConfig(configFile)
 				require.NoError(t, err)
@@ -156,7 +156,7 @@ func TestCustomHeadersConfig(t *testing.T) {
 	defer srv.Close()
 	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
-	RunAppForTest(t, []string{
+	runAppForTest(t, []string{
 		"config", "set",
 		"--config", configFile,
 		"--token", "abcd",
@@ -164,13 +164,13 @@ func TestCustomHeadersConfig(t *testing.T) {
 		"--custom-header", "X-Fleet-MoreTest:another",
 		"--address", srv.URL,
 	})
-	RunAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
+	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
 }
 
 func TestConfigGetShowsHelp(t *testing.T) {
 	t.Run("config get without args shows help", func(t *testing.T) {
-		w, err := RunAppNoChecks([]string{"config", "get"})
+		w, err := runAppNoChecks([]string{"config", "get"})
 		require.NoError(t, err)
 		output := w.String()
 		require.Contains(t, output, "NAME:")
@@ -179,7 +179,7 @@ func TestConfigGetShowsHelp(t *testing.T) {
 	})
 
 	t.Run("config get with invalid key shows help", func(t *testing.T) {
-		w, err := RunAppNoChecks([]string{"config", "get", "invalidkey"})
+		w, err := runAppNoChecks([]string{"config", "get", "invalidkey"})
 		require.NoError(t, err)
 		output := w.String()
 		require.Contains(t, output, "NAME:")
@@ -188,7 +188,7 @@ func TestConfigGetShowsHelp(t *testing.T) {
 	})
 
 	t.Run("config set without flags shows help", func(t *testing.T) {
-		w, err := RunAppNoChecks([]string{"config", "set"})
+		w, err := runAppNoChecks([]string{"config", "set"})
 		require.NoError(t, err)
 		output := w.String()
 		require.Contains(t, output, "NAME:")

@@ -1,6 +1,6 @@
 # Fleet product groups
 
-Fleet is organized into three main product groups:
+Fleet is organized into four main product groups:
 
 ## MDM
 
@@ -26,12 +26,22 @@ The [Orchestration product group](orchestration/README.md) focuses on device orc
 - Policies
 - Scripts
 
+## Security & Compliance
+
+The [Security & Compliance product group](security-compliance/README.md) focuses on security and compliance, including:
+
+- Software inventory
+- Vulnerability management
+- Conditional access
+- Certificate authorities
+- Certificate delivery and renewal
+- Host disk encryption
+- CIS benchmarks
+
 ## Software
 
 The [Software product group](software/README.md) focuses on software management, including:
 
-- Software inventory
-- Vulnerability management
 - Software installation
 - Software updates
 - Software policies

@@ -120,7 +120,7 @@ func ServeEndUserEnrollOTA(
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce, ""); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -128,7 +128,7 @@ func ServeEndUserEnrollOTA(
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce, ""); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -171,7 +171,24 @@ func ServeEndUserEnrollOTA(
 		// if we get here, IdP SSO authentication is either not required, or has
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
-		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce); err != nil {
+
+		// Clear the BYOD IdP cookie now that we are about to render the enrollment page.
+		var idpUUID string
+		fullyManaged := r.URL.Query().Get("fully_managed")
+		if authRequired && (fullyManaged == "true" || fullyManaged == "1") {
+			idpUUID = r.URL.Query().Get("enrollment_reference")
+			http.SetCookie(w, &http.Cookie{
+				Name:     shared_mdm.BYODIdpCookieName,
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				Secure:   cookieSecure,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce, idpUUID); err != nil {
 			herr(ctx, w, err.Error())
 			return
 		}
@@ -195,7 +212,7 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string) error {
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce, idpUUID string) error {
 	fs := newBinaryFileSystem("/frontend")
 	file, err := fs.Open("templates/enroll-ota.html")
 	if err != nil {
@@ -224,6 +241,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		MacMDMEnabled         bool
 		AndroidFeatureEnabled bool
 		CSPNonce              string
+		IdpUUID               string
 	}{
 		URLPrefix:             urlPrefix,
 		EnrollURL:             enrollURL,
@@ -232,6 +250,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
 		AndroidFeatureEnabled: true,
 		CSPNonce:              nonce,
+		IdpUUID:               idpUUID,
 	}); err != nil {
 		return fmt.Errorf("execute react template: %w", err)
 	}
@@ -245,7 +264,7 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	if r.URL.Query().Get("fully_managed") == "true" {
 		requestURL += "&fully_managed=true"
 	}
-	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), "ota_enroll", requestURL, "")
+	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), fleet.SSOInitiatorOTAEnroll, requestURL, "")
 	if err != nil {
 		return err
 	}

@@ -56,7 +56,8 @@
     "backend": "ses",
     "config": {
       "region": "",
-      "source_arn": "some-ses-arn"
+      "source_arn": "some-ses-arn",
+      "sender_domain": "mailer.example.com"
     }
   },
   "org_info": {
@@ -218,7 +219,8 @@
         "organization_name": "Fleet Device Management Inc.",
         "macos_team": "💻 Workstations",
         "ios_team": "📱🏢 Company-owned mobile devices",
-        "ipados_team": "📱🏢 Company-owned mobile devices"
+        "ipados_team": "📱🏢 Company-owned mobile devices",
+        "byod_team": "📱🔐 Personal mobile devices"
       }
     ],
     "apple_bm_enabled_and_configured": true,
@@ -261,6 +263,9 @@
     "windows_entra_tenant_ids": [
       "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
       "9d30f55f-d117-4574-acf0-ff593e3e06e3"
+    ],
+    "windows_entra_client_ids": [
+      "7c1de9aa-9b2c-4d3e-8f10-2233445566aa"
     ],
     "apple_require_hardware_attestation": false,
     "end_user_authentication": {

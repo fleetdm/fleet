@@ -153,6 +153,68 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
+// vulnerability-exposure chart filter defaults: the premium gate and the
+// payload validation, both of which reject the apply before persisting. The
+// happy-path persist round-trip is covered by integration tests.
+func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
+	setup := func(t *testing.T, tier string) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: tier},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+		return svc, ctx, ds
+	}
+
+	payload := `{"features":{"vulnerability_exposure_historical_reporting":{%s}}}`
+
+	t.Run("free tier rejects the feature", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierFree)
+		body := fmt.Sprintf(payload, `"has_known_exploit":true`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vulnerability_exposure_historical_reporting")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects an invalid software category", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":["os","bogus"]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects inverted EPSS bounds", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"epss_min":80,"epss_max":20`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "epss_min")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects an empty software_filters list", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":[]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.Contains(t, err.Error(), "at least one")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+}
+
 // TestVersion tests that all users can access the version endpoint.
 func TestVersion(t *testing.T) {
 	ds := new(mock.Store)
@@ -397,7 +459,7 @@ func setupCertificateChain(t *testing.T) (server *httptest.Server, teardown func
 func TestSSONotPresent(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	var p fleet.AppConfig
-	validateSSOSettings(p, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+	validateSSOSettings(p, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -413,7 +475,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 			},
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -430,7 +492,7 @@ func TestShortIDPName(t *testing.T) {
 			},
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -445,10 +507,114 @@ func TestMissingMetadata(t *testing.T) {
 			},
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	require.True(t, invalid.HasErrors())
 	assert.Contains(t, invalid.Error(), "metadata")
 	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
+}
+
+// TestSSOOverwrite verifies the partial-update vs declarative-overwrite split
+// introduced for issue #43371. REST PATCH (overwrite=false) permits empty
+// incoming required fields when the existing server value is set — that's
+// how the UI can send {enable_sso_idp_login: true} without repeating
+// metadata. GitOps (overwrite=true) rejects them, preventing the silent
+// SSO wipe described in the issue.
+func TestSSOOverwrite(t *testing.T) {
+	existing := &fleet.AppConfig{
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IDPName:     "onelogin",
+				MetadataURL: "https://idp.example.com/metadata",
+			},
+		},
+	}
+	incomingMissingMetadata := fleet.AppConfig{
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO: true,
+			// No metadata, no metadata_url — and no entity_id / idp_name either,
+			// matching the partial-update shape a UI PATCH might send.
+		},
+	}
+
+	t.Run("REST PATCH preserves partial-update behavior", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOSettings(incomingMissingMetadata, existing, invalid, &fleet.LicenseInfo{}, false /* overwrite */)
+		assert.False(t, invalid.HasErrors(), "PATCH with partial update should succeed; existing metadata fills the gap")
+	})
+
+	t.Run("GitOps overwrite rejects empty metadata", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOSettings(incomingMissingMetadata, existing, invalid, &fleet.LicenseInfo{}, true /* overwrite */)
+		require.True(t, invalid.HasErrors(), "GitOps overwrite must reject the broken declaration")
+		// InvalidArgumentError.Error() truncates after the first error; check the
+		// underlying field list via Invalid() so we can assert all three required
+		// fields fail when the existing-state fallback is disabled.
+		fields := make(map[string]string)
+		for _, m := range invalid.Invalid() {
+			fields[m["name"]] = m["reason"]
+		}
+		require.Contains(t, fields, "metadata")
+		assert.Equal(t, "either metadata or metadata_url must be defined", fields["metadata"])
+		assert.Contains(t, fields, "entity_id")
+		assert.Contains(t, fields, "idp_name")
+	})
+
+	t.Run("GitOps overwrite accepts sso_settings absent (validator no-op)", func(t *testing.T) {
+		// When the GitOps YAML omits sso_settings entirely, ModifyAppConfig
+		// short-circuits before reaching validateSSOSettings (see appconfig.go
+		// `if newAppConfig.SSOSettings != nil`). At the validator level this
+		// translates to "validator is a no-op when SSOSettings is nil"; assert
+		// that contract here.
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOSettings(fleet.AppConfig{SSOSettings: nil}, existing, invalid, &fleet.LicenseInfo{}, true /* overwrite */)
+		assert.False(t, invalid.HasErrors())
+	})
+
+	t.Run("GitOps overwrite accepts valid full declaration", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		fullConfig := fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IDPName:     "onelogin",
+					MetadataURL: "https://idp.example.com/metadata",
+				},
+			},
+		}
+		validateSSOSettings(fullConfig, existing, invalid, &fleet.LicenseInfo{}, true /* overwrite */)
+		assert.False(t, invalid.HasErrors())
+	})
+}
+
+// TestSSOProviderSettingsOverwriteMDM exercises the same split for the MDM
+// end-user authentication SSO code path, which goes through
+// validateSSOProviderSettings directly (no validateSSOSettings wrapper).
+func TestSSOProviderSettingsOverwriteMDM(t *testing.T) {
+	existing := fleet.SSOProviderSettings{
+		EntityID:    "fleet",
+		IDPName:     "onelogin",
+		MetadataURL: "https://idp.example.com/metadata",
+	}
+	incomingMissingMetadata := fleet.SSOProviderSettings{
+		// All fields empty — simulating a GitOps overwrite that clears MDM EUA
+		// metadata while leaving the flag on.
+	}
+
+	t.Run("REST PATCH preserves partial-update behavior", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, false /* overwrite */)
+		assert.False(t, invalid.HasErrors())
+	})
+
+	t.Run("GitOps overwrite rejects empty metadata", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, true /* overwrite */)
+		require.True(t, invalid.HasErrors())
+		assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
+	})
 }
 
 func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
@@ -469,7 +635,7 @@ func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
 			},
 		}
 
-		validateSSOSettings(sut, &fleet.AppConfig{}, actual, &fleet.LicenseInfo{})
+		validateSSOSettings(sut, &fleet.AppConfig{}, actual, &fleet.LicenseInfo{}, false)
 
 		require.Equal(t, scheme == "http" || scheme == "https", !actual.HasErrors())
 		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "metadata_url"))
@@ -492,7 +658,7 @@ func TestJITProvisioning(t *testing.T) {
 
 	t.Run("doesn't allow to enable JIT provisioning without a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 		require.True(t, invalid.HasErrors())
 		assert.Contains(t, invalid.Error(), "enable_jit_provisioning")
 		assert.Contains(t, invalid.Error(), "missing or invalid license")
@@ -500,7 +666,7 @@ func TestJITProvisioning(t *testing.T) {
 
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
 		require.False(t, invalid.HasErrors())
 	})
 
@@ -512,7 +678,7 @@ func TestJITProvisioning(t *testing.T) {
 			},
 		}
 		config.SSOSettings.EnableJITProvisioning = false
-		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
+		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{}, false)
 		require.False(t, invalid.HasErrors())
 	})
 }
@@ -981,6 +1147,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1036,6 +1203,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1073,6 +1241,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1117,6 +1286,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1161,6 +1331,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1205,6 +1376,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1274,6 +1446,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1331,6 +1504,30 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
 		},
 		{
+			name:        "windows entra client IDs require premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"11111111-1111-1111-1111-111111111111"}),
+			},
+			expectedError: licenseErr,
+		},
+		{
+			name:        "windows entra client IDs require Windows MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"11111111-1111-1111-1111-111111111111"}),
+			},
+			expectedError: "Couldn't set Windows Entra client IDs, Windows MDM is not enabled.",
+		},
+		{
+			name:        "windows entra client ID must be a valid GUID",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"not-a-guid"}),
+			},
+			expectedError: "Invalid Entra client ID: not-a-guid",
+		},
+		{
 			name:        "try to disable End User Authentication with Lock End User Info enabled",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
@@ -1377,6 +1574,28 @@ func TestMDMConfig(t *testing.T) {
 				AppleServerURL: "http:///path-only",
 			},
 			expectedError: "mdmAppleServerURL must include a host",
+		},
+		{
+			name:        "end user account type standard with disabled managed local account",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					EndUserLocalAccountType:   optjson.SetString("standard"),
+					EnableManagedLocalAccount: optjson.SetBool(false),
+				},
+			},
+			expectedError: `is required to be enabled when using "standard" for the end_user_local_account_type`,
+		},
+		{
+			name:        "end user account type none with disabled managed local account",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					EndUserLocalAccountType:   optjson.SetString("none"),
+					EnableManagedLocalAccount: optjson.SetBool(false),
+				},
+			},
+			expectedError: `is required to be enabled when using "none" for the end_user_local_account_type`,
 		},
 	}
 
@@ -1460,6 +1679,121 @@ func TestMDMConfig(t *testing.T) {
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})
 	}
+}
+
+func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
+	ds := new(mock.Store)
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	// Windows MDM must be enabled to set client IDs, which requires a configured WSTEP cert/key pair.
+	cfg := config.TestConfig()
+	cfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
+	cfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	var saved *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		saved = conf
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	// Mixed case plus a case-only duplicate. They should be normalized to lower-case and de-duplicated.
+	raw := []byte(`{"mdm":{"windows_entra_client_ids":[` +
+		`"AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",` +
+		`"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",` +
+		`"BBBBBBBB-bbbb-BBBB-bbbb-BBBBBBBBBBBB"]}}`)
+	modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	want := []string{
+		"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+	}
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.Equal(t, want, saved.MDM.WindowsEntraClientIDs.Value)
+	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
+}
+
+// TestValidateMDMEndUserAuthScope exercises the GitOps (overwrite) MDM
+// end-user-auth IdP validation. Strict validation is keyed on the incoming
+// global/no-team EUA flag only — NOT on stored team state, because
+// ApplyAppConfig runs before ApplyTeams so stored team EUA is stale here. The
+// cross-file/stored-team invariant lives client-side in validateGitOpsGroupEUA.
+// See issue #43371.
+func TestValidateMDMEndUserAuthScope(t *testing.T) {
+	ds := new(mock.Store)
+	// validateMDM only touches svc.ds, so a minimal core *Service is enough
+	// (newTestService returns the EE-wrapped service, whose unexported core
+	// isn't reachable for calling the unexported validateMDM).
+	svc := &Service{ds: ds}
+	ctx := t.Context()
+	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	completeIdP := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta", MetadataURL: "https://idp.example.com/metadata"}
+	// errFields renders all (name: reason) pairs since Error() only summarizes.
+	errFields := func(e *fleet.InvalidArgumentError) string { return fmt.Sprintf("%+v", e.Errors) }
+	mkMDM := func(sso fleet.SSOProviderSettings, noTeamEUA bool) *fleet.MDM {
+		return &fleet.MDM{
+			EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: sso},
+			MacOSSetup:            fleet.MacOSSetup{EnableEndUserAuthentication: noTeamEUA},
+		}
+	}
+
+	t.Run("overwrite enables global EUA with incomplete IdP: rejected", func(t *testing.T) {
+		// metadata_url present but missing entity_id and idp_name, with global
+		// EUA on (unchanged true->true, to avoid the setup-assistant web URL
+		// check that fires only when the flag changes) -> euaStrict fires.
+		incoming := fleet.SSOProviderSettings{MetadataURL: "https://idp.example.com/metadata"}
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, true), mkMDM(incoming, true), invalid, true)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+		require.Contains(t, errFields(invalid), "entity_id")
+		require.Contains(t, errFields(invalid), "idp_name")
+	})
+
+	t.Run("overwrite degrades IdP, global EUA off, stored team EUA on: accepted (no false reject)", func(t *testing.T) {
+		// Regression guard for the apply-ordering false positive: ApplyAppConfig
+		// runs before ApplyTeams, so a run that degrades the IdP while disabling
+		// a team's EUA in the same plan must NOT be rejected server-side based on
+		// stale stored team state. validateMDM should not consult stored team EUA
+		// for the SSO-settings check at all.
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{1}, nil // a stored team has EUA (stale)
+		}
+		degraded := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta"} // metadata/url blank
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), invalid, true)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors())
+	})
+
+	t.Run("overwrite clears IdP with no scope enabled: accepted", func(t *testing.T) {
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{}, nil
+		}
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), invalid, true)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors())
+	})
 }
 
 func TestDiskEncryptionSetting(t *testing.T) {
@@ -2178,4 +2512,264 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 		require.Error(t, err)
 		require.Empty(t, fired, "no exception activity should be emitted when SaveAppConfig fails")
 	})
+}
+
+// TestModifyAppConfigGitOpsHistoricalDataDefaults guards against the bug
+// where an older fleetctl (<=4.84) running gitops would wipe a deployment's
+// previously-persisted historical_data sub-keys to false because the field
+// was absent from its payload and the Overwrite branch couldn't tell
+// "absent" from "false". Per policy, absent must always mean true.
+func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name      string
+		initial   fleet.HistoricalDataSettings
+		payload   string
+		overwrite bool
+		expected  fleet.HistoricalDataSettings
+	}{
+		{
+			name:      "overwrite: payload omits historical_data entirely (old fleetctl)",
+			initial:   fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			payload:   `{"features":{"enable_software_inventory":true}}`,
+			overwrite: true,
+			expected:  fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+		},
+		{
+			name:      "overwrite: payload omits historical_data, prior values were false",
+			initial:   fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: false},
+			payload:   `{"features":{"enable_software_inventory":true}}`,
+			overwrite: true,
+			expected:  fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+		},
+		{
+			name:      "overwrite: payload sets historical_data to empty map",
+			initial:   fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			payload:   `{"features":{"historical_data":{}}}`,
+			overwrite: true,
+			expected:  fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+		},
+		{
+			name:      "overwrite: payload partially specifies historical_data (uptime false)",
+			initial:   fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			payload:   `{"features":{"historical_data":{"uptime":false}}}`,
+			overwrite: true,
+			expected:  fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: true},
+		},
+		{
+			name:      "overwrite: payload fully specifies historical_data",
+			initial:   fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			payload:   `{"features":{"historical_data":{"uptime":false,"vulnerabilities":false}}}`,
+			overwrite: true,
+			expected:  fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: false},
+		},
+		{
+			name:      "patch (non-overwrite): payload omits historical_data, prior values preserved",
+			initial:   fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: true},
+			payload:   `{"org_info":{"org_name":"Renamed"}}`,
+			overwrite: false,
+			expected:  fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: true},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				Features: fleet.Features{
+					EnableHostUsers:         true,
+					EnableSoftwareInventory: true,
+					HistoricalData:          tt.initial,
+				},
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			// historical_data disable flips enqueue a scrub job.
+			ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+				return false, nil
+			}
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: tt.overwrite})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, updated.Features.HistoricalData)
+			require.Equal(t, tt.expected, dsAppConfig.Features.HistoricalData)
+		})
+	}
+}
+
+// TestDiffStringSlices covers the helper that computes per-value added/removed activity emissions for the Entra
+// tenant ID and client ID allowlists, including the deduplication that prevents a repeated config entry from
+// producing duplicate activities.
+func TestDiffStringSlices(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		old         []string
+		current     []string
+		wantAdded   []string
+		wantRemoved []string
+	}{
+		{"both empty", nil, nil, nil, nil},
+		{"add one", nil, []string{"a"}, []string{"a"}, nil},
+		{"remove one", []string{"a"}, nil, nil, []string{"a"}},
+		{"no change", []string{"a", "b"}, []string{"a", "b"}, nil, nil},
+		{"add and remove", []string{"a", "b"}, []string{"b", "c"}, []string{"c"}, []string{"a"}},
+		{"order preserved", []string{}, []string{"c", "a", "b"}, []string{"c", "a", "b"}, nil},
+		{"dedup added (repeated new entry)", nil, []string{"a", "a", "b", "a"}, []string{"a", "b"}, nil},
+		{"dedup removed (repeated old entry)", []string{"a", "a", "b"}, []string{"b"}, nil, []string{"a"}},
+		{"repeated unchanged entry yields nothing", []string{"a"}, []string{"a", "a"}, nil, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			added, removed := diffStringSlices(tc.old, tc.current)
+			assert.Equal(t, tc.wantAdded, added)
+			assert.Equal(t, tc.wantRemoved, removed)
+		})
+	}
+}
+
+// TestModifyAppConfigClearBootstrapPackageAlreadyDeleted verifies that clearing
+// a bootstrap package via ModifyAppConfig succeeds even when the actual package
+// row has already been deleted (e.g. via the GUI), leaving a stale URL in
+// appconfig.
+func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
+	ds := new(mock.Store)
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		MDM: fleet.MDM{
+			MacOSSetup: fleet.MacOSSetup{
+				// Stale URL: the DB row is gone but appconfig still has it.
+				BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	// The bootstrap package row was already deleted via the GUI.
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		return nil, newNotFoundError()
+	}
+
+	raw := []byte(`{"mdm":{"macos_setup":{"bootstrap_package":""}}}`)
+	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+}
+
+// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path
+// through PATCH /config, which ModifyTeam doesn't handle.
+func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name          string
+		mdmConfigured bool
+		startEnabled  bool
+		patch         string
+		wantErr       string
+		wantActivity  string
+	}{
+		{
+			name:    "MDM not configured rejects the change",
+			patch:   `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantErr: "setup_experience.enable_managed_local_account",
+		},
+		{
+			name:          "enabling emits the enabled activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantActivity:  fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "disabling emits the disabled activity",
+			mdmConfigured: true,
+			startEnabled:  true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			wantActivity:  fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "no-op change emits no activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			dsAppConfig.MDM.EnabledAndConfigured = tt.mdmConfigured
+			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startEnabled)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			var gotActivities []string
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, act.ActivityName())
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+				require.Empty(t, gotActivities)
+				return
+			}
+			require.NoError(t, err)
+
+			var wantActivities []string
+			if tt.wantActivity != "" {
+				wantActivities = []string{tt.wantActivity}
+			}
+			require.Equal(t, wantActivities, gotActivities)
+		})
+	}
 }

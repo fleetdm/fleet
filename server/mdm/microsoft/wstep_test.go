@@ -306,3 +306,68 @@ oHwpyQbv9Qs+3bjPOQ7DkwekT+w1cptEKudBCC3WQKui1P0NNL0R
 // prevent static analysis tools from raising issues due to detection of private key
 // in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+// TestAzureDataFromClaims covers the claim extraction (separated from JWKS signature verification), in particular the
+// upn -> preferred_username fallback that lets v2 access tokens enroll.
+func TestAzureDataFromClaims(t *testing.T) {
+	ctx := t.Context()
+	const tid = "6d8769e6-0f8b-418d-b385-1a53968781c9"
+
+	// validClaims returns a fresh, fully-valid claim set (minus the user-identity claim, which each subtest sets).
+	validClaims := func() jwt.MapClaims {
+		return jwt.MapClaims{
+			"tid":         tid,
+			"iss":         "https://sts.windows.net/" + tid + "/",
+			"aud":         "https://fleet.example.com",
+			"unique_name": "user@example.com",
+			"scp":         "mdm_delegation",
+		}
+	}
+
+	t.Run("uses upn when present, ignoring preferred_username", func(t *testing.T) {
+		c := validClaims()
+		c["upn"] = "upn-user@example.com"
+		c["preferred_username"] = "pref-user@example.com"
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Equal(t, "upn-user@example.com", data.UPN)
+	})
+
+	t.Run("falls back to preferred_username when upn is absent (v2 token)", func(t *testing.T) {
+		c := validClaims()
+		c["iss"] = "https://login.microsoftonline.com/" + tid + "/v2.0" // v2 issuer form
+		c["preferred_username"] = "pref-user@example.com"
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Equal(t, "pref-user@example.com", data.UPN)
+	})
+
+	t.Run("falls back to preferred_username when upn is empty", func(t *testing.T) {
+		c := validClaims()
+		c["upn"] = ""
+		c["preferred_username"] = "pref-user@example.com"
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Equal(t, "pref-user@example.com", data.UPN)
+	})
+
+	t.Run("succeeds with empty UPN when neither upn nor preferred_username is present", func(t *testing.T) {
+		// The UPN is not part of the enrollment authorization decision (aud/tid/iss/scp are), and a v2 token
+		// may carry neither claim when the `profile` scope is absent. Downstream identity correlation guards
+		// against an empty UPN, so an otherwise-authorized token must not be rejected for lacking one.
+		data, err := azureDataFromClaims(ctx, validClaims())
+		require.NoError(t, err)
+		require.Empty(t, data.UPN)
+	})
+
+	t.Run("succeeds without unique_name (v2 token)", func(t *testing.T) {
+		// v2 access tokens omit the v1-only `unique_name` claim; that must not block enrollment.
+		c := validClaims()
+		c["upn"] = "user@example.com"
+		delete(c, "unique_name")
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Empty(t, data.UniqueName)
+		require.Equal(t, "user@example.com", data.UPN)
+	})
+}

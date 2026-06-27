@@ -128,17 +128,13 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 			require.Equal(t, testUPN, account.Email)
 			return nil
 		}
-		ds.AssociateHostMDMIdPAccountDBFunc = func(ctx context.Context, hostUUID, acctUUID string) error {
-			require.Equal(t, testHostUUID, hostUUID)
-			require.Equal(t, testAcctUUID, acctUUID)
-			return nil
-		}
 
-		upn, deviceID, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
+		upn, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
 		require.NoError(t, err)
 		require.Equal(t, testUPN, upn)
 		require.Equal(t, testDeviceID, deviceID)
-		require.True(t, ds.AssociateHostMDMIdPAccountDBFuncInvoked)
+		require.Equal(t, testAcctUUID, idpAcctUUID, "must return idp account uuid so caller can associate after EnrollOrbit creates the host row")
+		require.False(t, ds.AssociateHostMDMIdPAccountFuncInvoked, "association is deferred until after EnrollOrbit (issue #45066)")
 	})
 
 	t.Run("valid token, account already exists in db", func(t *testing.T) {
@@ -153,17 +149,14 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 		ds.GetMDMIdPAccountByEmailFunc = func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{UUID: testAcctUUID, Email: testUPN, Username: "existing-username", Fullname: "Existing Name"}, nil
 		}
-		ds.AssociateHostMDMIdPAccountDBFunc = func(ctx context.Context, hostUUID, acctUUID string) error {
-			return nil
-		}
 
-		_, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
+		_, _, idpAcctUUID, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
 		require.NoError(t, err)
 		require.False(t, ds.InsertMDMIdPAccountFuncInvoked, "should not insert when account already exists")
-		require.True(t, ds.AssociateHostMDMIdPAccountDBFuncInvoked)
+		require.Equal(t, testAcctUUID, idpAcctUUID)
 	})
 
-	t.Run("valid token, enrollment already has host_uuid — still links idp account", func(t *testing.T) {
+	t.Run("valid token, enrollment already has host_uuid — still returns idp account uuid", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newTestServiceWithWSTEP(t, ds)
 		token := makeToken(t, svc, testUPN, testDeviceID)
@@ -177,25 +170,20 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 		ds.GetMDMIdPAccountByEmailFunc = func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{UUID: testAcctUUID, Email: testUPN, Username: testUPN}, nil
 		}
-		ds.AssociateHostMDMIdPAccountDBFunc = func(ctx context.Context, hostUUID, acctUUID string) error {
-			require.Equal(t, testHostUUID, hostUUID)
-			require.Equal(t, testAcctUUID, acctUUID)
-			return nil
-		}
 
-		upn, deviceID, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
+		upn, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
 		require.NoError(t, err)
 		require.Equal(t, testUPN, upn)
 		require.Equal(t, testDeviceID, deviceID)
+		require.Equal(t, testAcctUUID, idpAcctUUID)
 		require.True(t, ds.GetMDMIdPAccountByEmailFuncInvoked, "should still fetch idp account even when enrollment has host_uuid")
-		require.True(t, ds.AssociateHostMDMIdPAccountDBFuncInvoked, "should still link idp account even when enrollment has host_uuid")
 	})
 
 	t.Run("invalid token falls back to END_USER_AUTH_REQUIRED", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newTestServiceWithWSTEP(t, ds)
 
-		_, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, "this.is.not.a.valid.token")
+		_, _, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, "this.is.not.a.valid.token")
 		require.Error(t, err)
 		var orbitErr *fleet.OrbitError
 		require.ErrorAs(t, err, &orbitErr)
@@ -207,7 +195,7 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 		ds := new(mock.Store)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, "any.token.value")
+		_, _, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, "any.token.value")
 		require.Error(t, err)
 		var orbitErr *fleet.OrbitError
 		require.ErrorAs(t, err, &orbitErr)
@@ -224,7 +212,7 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 			return nil, mysql_errors.NotFound("MDMWindowsEnrolledDevice")
 		}
 
-		_, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
+		_, _, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
 		require.Error(t, err)
 		var orbitErr *fleet.OrbitError
 		require.ErrorAs(t, err, &orbitErr)

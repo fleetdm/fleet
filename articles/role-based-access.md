@@ -52,10 +52,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            |            | ✅         | ✅    |         |
-| Transfer hosts between fleets\*                                                                                                             |          |            |            | ✅         | ✅    | ✅      |
+| Transfer hosts between fleets\*                                                                                                            |          |            | ✅         | ✅         | ✅    | ✅      |
 | Add user information from IdP to hosts\*                                                                                                   |          |            |            | ✅         | ✅    |         |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅         | ✅    | ✅      |
-| View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    |         |
+| View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Add, edit, and delete software                                                                                                             |          |            |            | ✅         | ✅    | ✅      |
 | Download added software                                                                                                                    |          |            | ✅         | ✅         | ✅    |         |
 | Install/uninstall software on hosts                                                                                                        |          |            | ✅         | ✅         | ✅    |         |
@@ -109,7 +109,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                                 |          |            |            | ✅         | ✅    | ✅      |
 | View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                             |          |            | ✅         | ✅         | ✅    | ✅      |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
-| Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
+| Add and edit identity provider for IdP authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                                                |          |            |            |            | ✅    | ✅      |
 | View certificate authorities (CA)\*                                                                                                        |          |            |            | ✅         | ✅    | ✅      |
 | View certificate authority secrets (CA)\*                                                                                                  |          |            |            |            | ✅    | ✅      |
@@ -122,8 +122,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Turn off MDM for specific hosts                                                                                                            |          |            |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |            |            | ✅    |         |
 | Add Microsoft Entra tenant                                                                                                                 |          |            |            |            | ✅    |         |
-| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
-| Create, edit, and delete custom variables                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
+| Create, edit, and delete custom variables                                                                                                  |          |            |            | ✅         | ✅    | ✅      |
 
 \* Applies only to Fleet Premium
 
@@ -153,8 +153,8 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅              | ✅         | ✅          |
 | Create and edit self-authored labels                                                                                             |               |                | ✅              | ✅              | ✅         | ✅          |
 | Add and delete hosts                                                                                                             |               |                |                 | ✅              | ✅         |             |
-| Transfer hosts between fleets\*                                                                                                             |          |            |            | ✅         | ✅    | ✅      |
-| View software                                                                                                                    | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Transfer hosts between fleets\*                                                                                                  |               |                | ✅              | ✅              | ✅         | ✅          |
+| View software                                                                                                                    | ✅            | ✅             | ✅              | ✅              | ✅         | ✅          |
 | Add, edit, and delete software                                                                                                   |               |                |                 | ✅              | ✅         | ✅          |
 | Download added software                                                                                                          |               |                | ✅              | ✅              | ✅         |             |
 | Install/uninstall software on hosts                                                                                              |               |                | ✅              | ✅              | ✅         |             |

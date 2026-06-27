@@ -114,7 +114,9 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 					return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "storing icon")
 				}
 			} else {
-				return fleet.SoftwareTitleIcon{}, ctxerr.New(ctx, fmt.Sprintf("software title icon with hash '%s' does not exist", payload.StorageID))
+				return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, &fleet.ConflictError{
+					Message: fmt.Sprintf("software title icon with hash '%s' does not exist in the icon store", payload.StorageID),
+				}, "icon bytes missing for metadata-only update")
 			}
 		}
 	}

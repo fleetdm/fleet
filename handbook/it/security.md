@@ -325,6 +325,50 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and incident response when necessary.
 
 
+### Read-only external storage
+
+We enforce read-only mounting of external/removable storage (USB sticks, external HDDs/SSDs presented as removable, SD cards) on every Fleet-managed workstation. Team members can still **read** from a connected drive, but cannot **write** to it.
+
+| Platform | Enforcement mechanism                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| macOS    | DDM declaration `com.apple.configuration.diskmanagement.settings` with `Restrictions.ExternalStorage = ReadOnly` (macOS 15+) |
+| Windows  | Storage Policy CSP `RemovableDiskDenyWriteAccess = 1`                                                            |
+| Linux    | udev rule that flags USB removable block devices read-only at the kernel layer, deployed via a Fleet policy with auto-remediation |
+
+**Why?**
+
+* External storage is one of the most common vectors for both **data exfiltration** (sensitive files copied off a managed device) and **malware introduction** (an untrusted USB device dropping payloads onto a workstation). Blocking writes neutralizes the exfiltration vector while still preserving the legitimate read use cases (loading conference materials, reading vendor-provided files, recovering data from a personal drive).
+* Our [acceptable use of end-user computing policy](#acceptable-use-of-end-user-computing) already prohibits storing sensitive data on external storage devices. This control enforces that policy at the OS level rather than relying on individual judgment.
+* It complements [whole-disk encryption](#encryption-policy) by ensuring that company data — even non-sensitive data — does not silently leave a managed device on an unencrypted thumb drive.
+
+**User experience impacts**
+
+* Plugging in a USB drive, external SSD, or SD card still mounts the device and exposes its files in Finder / File Explorer / your file manager — read access is unchanged.
+* Attempting to copy a file *to* the drive, save a file onto it, or rename/delete files on it will fail with a "read-only" or "permission denied" style error from the OS.
+* Drives that are physically write-protected, network shares, optical media, and Thunderbolt/PCIe drives presenting as fixed disks are unaffected.
+* On Linux, the rule applies as soon as the host receives the policy and reattaches the device (or reboots); already-mounted drives keep their existing mount until reattached.
+
+#### Requesting an exception
+
+Some legitimate workflows need write access — for example, building bootable installers, transferring files to a vendor-provided device, or recovering data to an external drive. Exceptions are granted per-host via a manual exclusion label, and the change goes through code review like any other configuration change.
+
+To request an exception:
+
+1. Find your host's **Fleet ID** (visible in the URL on your host's details page in dogfood).
+2. Open a pull request against [`fleetdm/fleet`](https://github.com/fleetdm/fleet) that adds your host's Fleet ID under `hosts:` of the label file matching your platform:
+
+   | Platform | Label file                                                                                       |
+   | -------- | ------------------------------------------------------------------------------------------------ |
+   | macOS    | `it-and-security/lib/all/labels/macs-excluded-from-external-storage-restrictions.yml`            |
+   | Windows  | `it-and-security/lib/all/labels/windows-excluded-from-external-storage-restrictions.yml`         |
+   | Linux    | `it-and-security/lib/all/labels/linux-excluded-from-external-storage-restrictions.yml`           |
+
+3. In the PR description, briefly state **what you need write access for** and **for how long** (permanent vs. time-bound). If the exception is temporary, open a follow-up issue to remove yourself when you're done.
+4. Tag the IT/security team for review. Once merged and GitOps syncs, the profile (macOS/Windows) or remediation policy (Linux) stops applying to your host.
+
+> **Linux note:** because the udev rule lives on disk, exclusion stops Fleet from re-applying it but does not remove an already-installed rule. After your PR merges, also delete `/etc/udev/rules.d/99-fleet-readonly-removable-storage.rules` on the affected host and run `sudo udevadm control --reload-rules` to revert. Reach out in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) if you'd like help.
+
+
 ### Chrome configuration
 
 We configure Chrome on company-owned devices with a basic policy.
@@ -352,128 +396,6 @@ We configure Chrome on company-owned devices with a basic policy.
 
 The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
 is kept up to date.
-
-
-### Hardware security keys
-
-We strongly recommend using hardware security keys. Fleet configures privileged user accounts with a policy that enforces the use of hardware security keys. This prevents credential theft better than other methods of 2FA/2-SV. If you do not already have a pair of hardware security keys, order [two YubiKey 5C NFC security
-keys](https://www.yubico.com/us/product/yubikey-5-nfc/) with your company card, or ask
-for help in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to get one if you do not have a company card.
-
-
-#### Are they YubiKeys or security keys?
-
-We use YubiKeys, a hardware security key brand that supports the FIDO U2F protocol. You can use
-both terms interchangeably at Fleet. We use YubiKeys because they support more authentication protocols than regular
-security keys.
-
-
-#### Who has to use security keys and why?
-
-Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
-
-Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
-phishing, we will make them **mandatory for everyone** soon. 
-
-See the [Google Workspace security
-section](https://fleetdm.com/handbook/it/security#2-step-verification) for more
-information on the security of different types of 2FA.
-
-
-#### Goals
-
-Our goals with security keys are to
-
-1. eliminate the risk of credential phishing.
-2. maintain the best user experience possible.
-3. make sure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
-4. make sure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
-
-
-#### Setting up security keys on Google
-
-We recommend setting up **three** security keys on your Google account for redundancy purposes: two
-YubiKeys and your phone as the third key.
-
-If you get a warning during this process about your keyboard not being identified, this is due to
-YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
-identified" warning.
-
-1. Set up your first YubiKey by following [Google's
-   instructions](https://support.google.com/accounts/answer/6103523?hl=En). The instructions make
-   you enroll the key by following [this
-   link](https://myaccount.google.com/signinoptions/two-step-verification?flow=sk&opendialog=addsk).
-   When it comes to naming your keys, that is a name only used so you can identify which key was
-   registered. You can name them Key1 and Key2.
-2. Repeat the process with your 2nd YubiKey. 
-3. Configure your phone as [a security key](https://support.google.com/accounts/answer/9289445)  
-
-
-#### Optional: getting rid of keyboard warnings
-
-1. Install YubiKey manager. You can do this from the **Managed Software Center** on managed Macs.
-   On other platforms, download it [from the official
-   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
-2. Open the YubiKey manager with one of your keys connected.
-3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
-5. Unplug your key and connect your 2nd one to repeat the process.
-
-
-#### Optional: setting up security keys on GitHub
-
-1. Configure your two security keys to [access
-   GitHub](https://github.com/settings/two_factor_authentication/configure).
-2. If you use a Mac, feel free to add it as a security key on GitHub. This brings most of the
-   advantages of the hardware security key but allows you to log in by simply touching Touch ID as
-   your second factor.
-
-
-## FAQ
-
-1. Can I use my Fleet YubiKeys with personal accounts?
-
-**Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
-cryptocurrency trading sites, and many more support FIDO U2F authentication, the standard used by
-security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
-can.
-
-2. Can I use my phone as a security key?
-
-**Answer**: Yes. Google [provides
-instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
-and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
-to access Google applications from your phone. 
-Since it requires Bluetooth, this option is also less reliable than the USB-C security key.
-
-3. Can I leave my YubiKey connected to my laptop?
-
-**Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
-attackers to phish our credentials remotely, not as any type of local security improvement. That
-being said, keeping it separate from the laptop when traveling means they are unlikely to be
-lost or stolen simultaneously.
-
-4. I've lost one of my keys, what do I do?
-
-**Answer**: Post in the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) channel ASAP so we can disable the key. If you find it later, no
-worries, just enroll it again!
-
-5. I lost all of my keys, and I'm locked out! What do I do?
-
-**Answer**: Post in the `#help-login` channel, or contact your manager if you find yourself locked out of Slack. You will be provided a way to log back in and make your phone your security key until you
-receive new ones.
-
-6. Can I use security keys to log in from any device?
-
-**Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
-Mac/PC, Android, iPhone, and iPad Pro with USB-C port. If some application or device does
-not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that supports
-security keys to generate a temporary code for the device that does not.
-
-7. Will I need my YubiKey every time I want to check my email?
-
-**Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
-mobile, you'd need the keys to set up the app only.
 
 
 ## GitHub security
@@ -644,7 +566,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type six digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
 | App-based push notifications                                                  | These are harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
-| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
+| Okta Verify with FastPass                                                     | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) phishing-resistant authentication tied to your enrolled device. Configure Okta Verify with FastPass as soon as you've enrolled your device.                                                                |
 
 
 ##### 2-Step verification in Google Workspace
@@ -1980,7 +1902,9 @@ When using externally provided CVSSv4 scores, Fleet maps them like this:
 
 ### Disclosure
 
-Researchers who discover vulnerabilities in Fleet can disclose them as per the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy).
+Researchers who discover vulnerabilities in Fleet can disclose them through Fleet's [Vulnerability Disclosure Program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3) or by following the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy). Coordinated, non-public disclosures can also be sent to security@ (fleetdm.com) (PGP key on the repository security policy).
+
+The VDP scope covers the Fleet product source ([github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)) and the [REST API](https://fleetdm.com/docs/rest-api/rest-api). Marketing pages on fleetdm.com, third-party hosted services, and theoretical findings without a demonstrated exploit are out of scope.
 
 If Fleet confirms the vulnerability:
 

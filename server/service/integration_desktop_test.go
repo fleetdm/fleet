@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -48,7 +48,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 
 	// create an auth token for hosts[0]
 	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
 		return err
 	})
@@ -174,6 +174,18 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.Nil(t, getDesktopResp.FailingPolicies)
+
+	// vulnerability severity filters (CVSS score, known exploit) are premium-only and must be
+	// rejected with a missing-license error on the free-tier device software endpoint, rather
+	// than being silently served.
+	for _, premiumFilter := range []string{"min_cvss_score=1", "max_cvss_score=10", "exploit=true"} {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?vulnerable=true&"+premiumFilter, nil, http.StatusPaymentRequired)
+		require.NoError(t, res.Body.Close())
+	}
+
+	// the (non-premium) vulnerable filter is still served on the free tier.
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?vulnerable=true", nil, http.StatusOK)
+	require.NoError(t, res.Body.Close())
 }
 
 // TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.
@@ -195,7 +207,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 
 	// create device token for host
 	token := "token_test_default_transparency_url"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
 		return err
 	})
@@ -305,7 +317,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 
 	hosts := s.createHosts(t)
 	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
 		return err
 	})

@@ -45,7 +45,7 @@ config:
  Provide YARA rules to Fleet that will be served to agents. This can be performed via GitOps, or the
  [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration). Reference each rule file by path under the main `org_settings` configuration. In this example,
  we assume the rule files are in a `/lib/` subdirectory. This is a directory structure like the
- [Fleet GitOps recommendations](https://github.com/fleetdm/fleet-gitops).
+ [GitOps best practice](https://fleetdm.com/docs/configuration/yaml-files).
 
 ```
 org_settings:

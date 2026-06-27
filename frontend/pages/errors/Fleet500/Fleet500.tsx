@@ -4,11 +4,14 @@ import { Link } from "react-router";
 import PATHS from "router/paths";
 
 import { SUPPORT_LINK } from "utilities/constants";
+import { isDarkMode } from "utilities/theme";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
 // @ts-ignore
 import backgroundImg from "../../../../assets/images/500.svg";
+// @ts-ignore
+import backgroundImgDark from "../../../../assets/images/500-dark.svg";
 import githubLogo from "../../../../assets/images/github-mark-white-24x24@2x.png";
 import slackLogo from "../../../../assets/images/logo-slack-24x24@2x.png";
 
@@ -27,7 +30,7 @@ const Fleet500 = () => (
     </header>
     <img
       className="background-image"
-      src={backgroundImg}
+      src={isDarkMode() ? backgroundImgDark : backgroundImg}
       alt="500 background"
     />
     <main>

@@ -74,9 +74,45 @@ updates:
     assignees:
       - lucasmrod
 
+# Maintain dependencies for fleet-mcp Go module
+  - package-ecosystem: "gomod"
+    directory: "/tools/fleet-mcp"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    reviewers:
+      - lukeheath
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - lukeheath
+
 # Maintain dependencies for npm
   - package-ecosystem: "npm"
     directory: "/"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    reviewers:
+      - lukeheath
+    allow:
+      - dependency-type: "production"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - lukeheath
+
+# Maintain dependencies for fleet-slackbot NPM
+  - package-ecosystem: "npm"
+    directory: "/tools/fleet-slackbot"
     schedule:
       interval: "daily"
     # Disable version updates

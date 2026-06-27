@@ -31,7 +31,7 @@ export interface IGetDeviceSoftwareResponse {
   };
 }
 
-interface IGetDeviceDetailsRequest {
+interface IGetDeviceDetailsApiParams {
   token: string;
   exclude_software?: boolean;
 }
@@ -45,7 +45,7 @@ export interface IGetDeviceCertificatesResponse {
   count: number;
 }
 
-export interface IGetDeviceCertsRequestParams extends IListOptions {
+export interface IGetDeviceCertsApiParams extends IListOptions {
   token: string;
 }
 
@@ -67,7 +67,7 @@ export default {
   loadHostDetails: ({
     token,
     exclude_software,
-  }: IGetDeviceDetailsRequest): Promise<IDUPDetails> => {
+  }: IGetDeviceDetailsApiParams): Promise<IDUPDetails> => {
     const { DEVICE_USER_DETAILS } = endpoints;
     let path = `${DEVICE_USER_DETAILS}/${token}`;
     if (exclude_software) {
@@ -112,6 +112,21 @@ export default {
     const { DEVICE_SOFTWARE_INSTALL } = endpoints;
     const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
 
+    return sendRequest("POST", path);
+  },
+
+  installAllSelfServiceSoftwareInCategory: (
+    deviceToken: string,
+    categoryId?: number
+  ) => {
+    const { DEVICE_SOFTWARE_INSTALL_ALL } = endpoints;
+    // When categoryId is undefined ("All" selected) we omit the query param;
+    // getPathWithQueryParams already drops undefined values, so the BE
+    // receives a bare POST and installs every uninstalled item.
+    const path = getPathWithQueryParams(
+      DEVICE_SOFTWARE_INSTALL_ALL(deviceToken),
+      { category_id: categoryId }
+    );
     return sendRequest("POST", path);
   },
 
@@ -165,7 +180,7 @@ export default {
     per_page,
     order_key,
     order_direction,
-  }: IGetDeviceCertsRequestParams): Promise<IGetDeviceCertificatesResponse> => {
+  }: IGetDeviceCertsApiParams): Promise<IGetDeviceCertificatesResponse> => {
     const { DEVICE_CERTIFICATES } = endpoints;
     const path = `${DEVICE_CERTIFICATES(token)}?${buildQueryStringFromParams({
       page,

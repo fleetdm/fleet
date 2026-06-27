@@ -89,6 +89,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
@@ -97,6 +98,14 @@ github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[strin
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	VulnerabilityExposureHistoricalReporting	*fleet.VulnExposureFilterSettings
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	SoftwareFilters	*[]string
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	HasKnownExploit	*bool
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	ExcludeVulnerabilities	*[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
@@ -118,11 +127,12 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsExcludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Icon	fleet.TeamSpecSoftwareAsset
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Configuration	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Version	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	ReferencedYamlPath	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	SHA256	string
-github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Categories	[]string
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Categories	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	DisplayName	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	AlwaysDownload	bool
 github.com/fleetdm/fleet/v4/server/fleet/SoftwareSpec	FleetMaintainedApps	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]
@@ -139,7 +149,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	UninstallScript	fleet
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAll	[]string
-github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Categories	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Categories	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwareSpec	AppStoreApps	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.TeamSpecAppStoreApp]

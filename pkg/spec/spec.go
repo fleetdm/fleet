@@ -234,7 +234,12 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
+			// Support `team` (for backwards compatibility) but defer to `fleet` if available.
 			teamRaw := rawTeam["team"]
+			if fleetRaw, ok := rawTeam["fleet"]; ok {
+				teamRaw = fleetRaw
+			}
+
 			var err error
 			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
 			if err != nil {
@@ -379,7 +384,13 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 		v, ok := lookupEnv(env)
 		if !ok {
-			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+			// If the source used ${var} braced syntax, the hint should reflect that.
+			ref := "$" + env
+			if startPos+1 < len(s) && s[startPos+1] == '{' {
+				ref = "${" + env + "}"
+			}
+			err = multierror.Append(err, fmt.Errorf("environment variable %q not set; if you intended the literal string %s then please escape it as \\%s.",
+				env, ref, ref))
 			return "", false
 		}
 		escaped, escErr := escapeValue(v, env)

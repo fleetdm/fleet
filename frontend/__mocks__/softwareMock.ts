@@ -194,6 +194,31 @@ export const createMockAppStoreAppAndroid = (
   return { ...DEFAULT_APP_STORE_APP_ANDROID_MOCK, ...overrides };
 };
 
+const DEFAULT_APP_STORE_APP_IOS_MOCK: IAppStoreApp = {
+  name: "Zoom",
+  display_name: "Zoom Workplace",
+  app_store_id: "546505307",
+  created_at: "2020-01-01T00:00:00.000Z",
+  platform: "ios",
+  icon_url: "https://via.placeholder.com/512",
+  latest_version: "6.4.0",
+  self_service: true,
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+  categories: null,
+  labels_include_any: null,
+  labels_exclude_any: null,
+  labels_include_all: null,
+  configuration: "<dict>\n\t<key>ForceLoginWithSSO</key>\n\t<true/>\n</dict>",
+};
+
+export const createMockAppStoreAppIos = (overrides?: Partial<IAppStoreApp>) => {
+  return { ...DEFAULT_APP_STORE_APP_IOS_MOCK, ...overrides };
+};
+
 const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   id: 1,
   name: "test.app",
@@ -267,6 +292,38 @@ export const createMockSoftwarePackage = (
   overrides?: Partial<ISoftwarePackage>
 ) => {
   return { ...DEFAULT_SOFTWARE_PACKAGE_MOCK, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_PACKAGE_IOS_MOCK: ISoftwarePackage = {
+  name: "MyApp-2.0.0.ipa",
+  title_id: 10,
+  version: "2.0.0",
+  uploaded_at: "2020-01-01T00:00:00.000Z",
+  install_script: "",
+  uninstall_script: "",
+  self_service: false,
+  icon_url: null,
+  display_name: "My iOS App",
+  status: {
+    installed: 1,
+    pending_install: 0,
+    failed_install: 0,
+    pending_uninstall: 0,
+    failed_uninstall: 0,
+  },
+  automatic_install_policies: [],
+  url: "",
+  labels_include_any: null,
+  labels_include_all: null,
+  labels_exclude_any: null,
+  configuration:
+    "<dict>\n\t<key>ServerURL</key>\n\t<string>https://example.com</string>\n</dict>",
+};
+
+export const createMockSoftwarePackageIos = (
+  overrides?: Partial<ISoftwarePackage>
+) => {
+  return { ...DEFAULT_SOFTWARE_PACKAGE_IOS_MOCK, ...overrides };
 };
 
 const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {

@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble help
 
 export GO111MODULE=on
 
@@ -58,7 +58,9 @@ ifdef CIRCLE_TAG
 	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
 endif
 
+# -s and -w reduce binary size by stripping debug symbols.
 LDFLAGS_VERSION_RAW = \
+	-s -w \
 	-X github.com/fleetdm/fleet/v4/server/version.appName=${APP_NAME} \
 	-X github.com/fleetdm/fleet/v4/server/version.version=${VERSION} \
 	-X github.com/fleetdm/fleet/v4/server/version.branch=${BRANCH} \
@@ -132,6 +134,11 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
+.help-short--dibble:
+	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
+dibble:
+	cd tools/dibble && go build -o dibble ./cmd/dibble
+
 .help-short--serve:
 	@echo "Start the fleet server"
 .help-short--up:
@@ -180,6 +187,7 @@ else
 serve:
 	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
 	$(call filter_args)
+	@mkdir -p ~/.fleet
 # If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
 # Unless NO_SAVE is set to true, save the command to the last invocation file.
 # IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.
@@ -222,11 +230,16 @@ lint-js:
 
 .help-short--lint-go:
 	@echo "Run the Go linters"
-lint-go:
+lint-go: check-no-testing-in-prod
 	golangci-lint run --allow-serial-runners --timeout 15m
 ifndef SKIP_INCREMENTAL
 	$(MAKE) lint-go-incremental
 endif
+
+.help-short--check-no-testing-in-prod:
+	@echo "Fail if any Fleet-owned package reachable from cmd/fleet, cmd/fleetctl, or orbit/cmd/orbit imports \"testing\". See https://github.com/fleetdm/fleet/issues/45220."
+check-no-testing-in-prod:
+	go run ./tools/check-no-testing-in-prod
 
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
@@ -595,7 +608,7 @@ changelog:
 
 changelog-orbit:
 	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
-	@echo -e "## Orbit $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	@echo -e "## $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
 	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {} | sed -E "s/^-/*/"; echo' >> new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md orbit/CHANGELOG.md"
 	sh -c "git rm orbit/changes/*"

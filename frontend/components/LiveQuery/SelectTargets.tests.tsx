@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
+import createMockHost from "__mocks__/hostMock";
+import { IHost } from "interfaces/host";
+import QueryProvider, { QueryContext } from "context/query";
 
 import SelectTargets from "./SelectTargets";
 
@@ -534,6 +537,112 @@ describe("SelectTargets - team disabling", () => {
         expect(getTeamButton("Team Alpha")).toBeEnabled();
         expect(getTeamButton("Team Beta")).toBeEnabled();
       });
+    });
+  });
+});
+
+describe("SelectTargets - host selection (real QueryContext)", () => {
+  const SEARCH_HOST = createMockHost({
+    id: 99,
+    display_name: "searched-host",
+    status: "online",
+  });
+
+  beforeEach(() => {
+    mockServer.use(
+      labelSummariesHandler,
+      teamsHandler,
+      http.post(baseUrl("/hosts/search"), () =>
+        HttpResponse.json({ hosts: [SEARCH_HOST] })
+      ),
+      http.post(baseUrl("/targets/count"), () =>
+        HttpResponse.json({
+          targets_count: 1,
+          targets_online: 1,
+          targets_offline: 0,
+        })
+      )
+    );
+  });
+
+  // Mimics LiveQueryPage: holds the targeted hosts in local state and reads the
+  // (unmemoized) target setter from the real QueryContext. This is what surfaces
+  // the regression: an effect depending on the unstable setter renders forever.
+  // Like LiveQueryPage, label/team targets are kept in stable references so they
+  // don't themselves churn the effect.
+  const STABLE_LABELS: never[] = [];
+  const STABLE_TEAMS: never[] = [];
+  const LiveTargetsHarness = () => {
+    const { selectedQueryTargets, setSelectedQueryTargets } = useContext(
+      QueryContext
+    );
+    const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+    return (
+      <SelectTargets
+        baseClass="select-targets"
+        selectedTargets={selectedQueryTargets}
+        targetedHosts={targetedHosts}
+        targetedLabels={STABLE_LABELS}
+        targetedTeams={STABLE_TEAMS}
+        goToQueryEditor={jest.fn()}
+        goToRunQuery={jest.fn()}
+        setSelectedTargets={setSelectedQueryTargets}
+        setTargetedHosts={setTargetedHosts}
+        setTargetedLabels={jest.fn()}
+        setTargetedTeams={jest.fn()}
+        setTargetsTotalCount={jest.fn()}
+      />
+    );
+  };
+
+  // Regression test for #46299: selecting a host and then clicking the "X" must
+  // remove it. A bad effect dependency previously caused an infinite render loop
+  // that froze the UI so the X did nothing.
+  it("removes a selected host when the X is clicked", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          isPremiumTier: true,
+          isOnGlobalTeam: true,
+        },
+      },
+    });
+
+    render(
+      <QueryProvider>
+        <LiveTargetsHarness />
+      </QueryProvider>
+    );
+
+    const searchBox = await screen.findByPlaceholderText(
+      /Search name/i,
+      {},
+      { timeout: 3000 }
+    );
+    fireEvent.change(searchBox, { target: { value: "searched" } });
+
+    // Result shows up in the search dropdown; click it to select the host.
+    const resultCell = await screen.findByText(
+      "searched-host",
+      {},
+      { timeout: 3000 }
+    );
+    fireEvent.click(resultCell);
+
+    // Host is now in the selected-hosts table with a remove (X) button.
+    await waitFor(() => {
+      expect(document.querySelectorAll(".delete__cell button")).toHaveLength(1);
+    });
+
+    fireEvent.click(
+      document.querySelectorAll(".delete__cell button")[0] as HTMLElement
+    );
+
+    // The X removes the host from the selection.
+    await waitFor(() => {
+      expect(document.querySelectorAll(".delete__cell button")).toHaveLength(0);
     });
   });
 });

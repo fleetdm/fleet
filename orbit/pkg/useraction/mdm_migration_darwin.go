@@ -271,11 +271,17 @@ func isDarkMode() bool {
 }
 
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
-	icon := m.props.OrgInfo.OrgLogoURL
-
-	// If the user is using light mode we will set the icon to use the light background logo
-	if !isDarkMode() {
-		icon = m.props.OrgInfo.OrgLogoURLLightBackground
+	var icon string
+	if isDarkMode() {
+		icon = m.props.OrgInfo.OrgLogoURLDarkMode
+		if icon == "" {
+			icon = m.props.OrgInfo.OrgLogoURL
+		}
+	} else {
+		icon = m.props.OrgInfo.OrgLogoURLLightMode
+		if icon == "" {
+			icon = m.props.OrgInfo.OrgLogoURLLightBackground
+		}
 	}
 
 	// If the user has not set an org logo url, we will use the default fleet logo.

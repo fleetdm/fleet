@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
@@ -6,13 +6,13 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import paths from "router/paths";
 
-import { NotificationContext } from "context/notification";
-import certificatesAPI, { ICertificate } from "services/entities/certificates";
+import { notify } from "components/ToastNotification";
+import certificatesAPI from "services/entities/certificates";
+import { getErrorReason } from "interfaces/errors";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
@@ -31,37 +31,44 @@ export interface IAddCertFormData {
   name: string;
   certAuthorityId: string;
   subjectName: string;
+  subjectAlternativeName: string;
 }
 
 interface IAddCertModalProps {
-  existingCerts: ICertificate[];
   onExit: () => void;
   onSuccess: () => void;
   currentTeamId?: number;
 }
 
 const AddCertModal = ({
-  existingCerts: existingCTs,
   onExit,
   onSuccess,
   currentTeamId,
 }: IAddCertModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isUpdating, setIsUpdating] = useState(false);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [formData, setFormData] = useState<IAddCertFormData>({
     name: "",
     certAuthorityId: "",
     subjectName: "",
+    subjectAlternativeName: "",
   });
+  // Server-side validation errors keyed by form field; cleared when the user
+  // edits the corresponding input.
+  const [serverErrors, setServerErrors] = useState<{
+    name?: string;
+    subjectAlternativeName?: string;
+  }>({});
 
-  const validations = useMemo(
-    () => generateFormValidations(existingCTs || []),
-    [existingCTs]
-  );
+  const validations = useMemo(() => generateFormValidations(), []);
 
-  const [formValidation, setFormValidation] = useState<IAddCertFormValidation>(
-    () => validateFormData(formData, validations)
+  // formValidation is derived from formData + attemptedSubmit; computing it during render via
+  // useMemo keeps it in lockstep with its inputs without scattering setFormValidation calls
+  // across handlers.
+  // See https://react.dev/learn/choosing-the-state-structure#avoid-redundant-state.
+  const formValidation: IAddCertFormValidation = useMemo(
+    () => validateFormData(formData, validations, attemptedSubmit),
+    [formData, validations, attemptedSubmit]
   );
 
   const {
@@ -88,7 +95,18 @@ const AddCertModal = ({
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
     setFormData(updatedFormData);
-    setFormValidation(validateFormData(updatedFormData, validations));
+    if (update.name === "name" && serverErrors.name) {
+      setServerErrors((prev) => ({ ...prev, name: undefined }));
+    }
+    if (
+      update.name === "subjectAlternativeName" &&
+      serverErrors.subjectAlternativeName
+    ) {
+      setServerErrors((prev) => ({
+        ...prev,
+        subjectAlternativeName: undefined,
+      }));
+    }
   };
 
   const onChangeCA = (newValue: SingleValue<CustomOptionType>) => {
@@ -97,11 +115,15 @@ const AddCertModal = ({
       certAuthorityId: newValue?.value ?? "",
     };
     setFormData(updatedFormData);
-    setFormValidation(validateFormData(updatedFormData, validations));
   };
 
   const onSubmitForm = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    if (!formValidation.isValid) {
+      setAttemptedSubmit(true);
+      return;
+    }
 
     setIsUpdating(true);
     try {
@@ -109,13 +131,30 @@ const AddCertModal = ({
         name: formData.name,
         certAuthorityId: parseInt(formData.certAuthorityId, 10),
         subjectName: formData.subjectName,
+        subjectAlternativeName: formData.subjectAlternativeName,
         teamId: currentTeamId,
       });
-      renderFlash("success", "Successfully added your certificate.");
+      notify.success("Successfully added your certificate.");
       onSuccess();
       onExit();
     } catch (e) {
-      renderFlash("error", "Couldn't add certificate. Please try again.");
+      const sanReason = getErrorReason(e, {
+        nameEquals: "subject_alternative_name",
+      });
+      const nameConflict = getErrorReason(e, {
+        reasonIncludes: "already exists",
+      });
+      if (sanReason) {
+        setServerErrors({ subjectAlternativeName: sanReason });
+      } else if (nameConflict) {
+        setServerErrors({
+          name: "Name is already used by another certificate.",
+        });
+      } else {
+        notify.error("Couldn't add certificate. Please try again.", {
+          response: e,
+        });
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -136,7 +175,7 @@ const AddCertModal = ({
           label="Name"
           value={formData.name}
           onChange={onInputChange}
-          error={formValidation.name?.message}
+          error={serverErrors.name ?? formValidation.name?.message}
           helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
           parseTarget
           placeholder="VPN certificate"
@@ -174,22 +213,24 @@ const AddCertModal = ({
           parseTarget
           placeholder="CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
         />
+        <InputField
+          name="subjectAlternativeName"
+          label="Subject alternative name (SAN)"
+          type="textarea"
+          value={formData.subjectAlternativeName}
+          onChange={onInputChange}
+          error={
+            serverErrors.subjectAlternativeName ??
+            formValidation.subjectAlternativeName?.message
+          }
+          helpText='Optional. Separate fields by ", " using format KEY=value. Allowed keys: DNS, EMAIL, UPN, IP, URI.'
+          parseTarget
+          placeholder="UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+        />
         <div className="modal-cta-wrap">
-          <TooltipWrapper
-            tipContent="Complete all fields to save."
-            underline={false}
-            position="top"
-            disableTooltip={formValidation.isValid}
-            showArrow
-          >
-            <Button
-              isLoading={isUpdating}
-              disabled={!formValidation.isValid || isUpdating}
-              type="submit"
-            >
-              Add
-            </Button>
-          </TooltipWrapper>
+          <Button isLoading={isUpdating} disabled={isUpdating} type="submit">
+            Add
+          </Button>
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>

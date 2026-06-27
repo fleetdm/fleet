@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 
 import { getErrorReason, IApiError } from "interfaces/errors";
@@ -11,7 +11,7 @@ import scriptsAPI, {
   IHostScriptsResponse,
 } from "services/entities/scripts";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
@@ -40,7 +40,6 @@ const ScriptModalGroup = ({
   onCloseScriptModalGroup,
   teamIdForApi,
 }: IScriptsProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [previousModal, setPreviousModal] = useState<ModalGroupOption | null>(
     null
   );
@@ -124,26 +123,43 @@ const ScriptModalGroup = ({
           // will be defined when this is being called
           script_id: selectedScript.script_id,
         });
-        renderFlash(
-          "success",
+        notify.success(
           "Script is running or will run when the host comes online."
         );
         refetchHostScripts();
       } catch (e) {
-        renderFlash("error", getErrorReason(e));
+        notify.error(getErrorReason(e), { response: e });
       } finally {
         setIsRunningScript(false);
         setSelectedScript(null);
         setCurrentModal(ModalGroupOption.Run);
       }
     }
-  }, [host.id, refetchHostScripts, renderFlash, selectedScript]);
+  }, [host.id, refetchHostScripts, selectedScript]);
 
   const onClikRunBeforeConfirmation = useCallback(
     (script: IHostScript) => {
       setPreviousModal(currentModal);
       setCurrentModal(ModalGroupOption.ConfirmRun);
       setSelectedScript(script);
+    },
+    [currentModal]
+  );
+
+  const onClickViewScript = useCallback(
+    (script: IHostScript) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ViewScriptDetails);
+      setSelectedScript(script);
+    },
+    [currentModal]
+  );
+
+  const onClickRunDetails = useCallback(
+    (scriptExecutionId: string) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ViewRunDetails);
+      setSelectedExecutionId(scriptExecutionId);
     },
     [currentModal]
   );
@@ -155,16 +171,8 @@ const ScriptModalGroup = ({
         hostTeamId={host.team_id}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
-        onClickViewScript={(script: IHostScript) => {
-          setPreviousModal(currentModal);
-          setCurrentModal(ModalGroupOption.ViewScriptDetails);
-          setSelectedScript(script);
-        }}
-        onClickRunDetails={(scriptExecutionId: string) => {
-          setPreviousModal(currentModal);
-          setCurrentModal(ModalGroupOption.ViewRunDetails);
-          setSelectedExecutionId(scriptExecutionId);
-        }}
+        onClickViewScript={onClickViewScript}
+        onClickRunDetails={onClickRunDetails}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
         hostScriptResponse={runScriptTableResponse}
