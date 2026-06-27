@@ -2322,7 +2322,8 @@ func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
 
 func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	// Google Workspace IdP is premium-only.
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	gwIntegration := []*fleet.GoogleWorkspaceIntegration{
 		{
@@ -2414,6 +2415,43 @@ func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "google_workspace")
 	})
+}
+
+func TestModifyAppConfigGoogleWorkspaceRequiresPremium(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	saveCalled := false
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		saveCalled = true
+		*dsAppConfig = *conf
+		return nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	updateJSON := `{
+		"integrations": {
+			"google_workspace": [{
+				"domain": "example.com",
+				"impersonated_user_email": "admin@example.com",
+				"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+			}]
+		}
+	}`
+	_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "integrations.google_workspace")
+	require.Contains(t, err.Error(), "missing or invalid license")
+	require.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
 }
 
 func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {

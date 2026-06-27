@@ -624,6 +624,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Google Workspace IdP is a premium-only feature.
+	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
+		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
 	// Handle Google Workspace API key preservation/replacement (same masking
 	// semantics as Google Calendar): a masked or omitted api_key_json means
 	// "keep the existing service account credentials".
