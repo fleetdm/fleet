@@ -254,6 +254,80 @@ org_settings:
 	assert.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
 }
 
+func TestGitOpsGlobalGoogleWorkspaceCleared(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// GitOps is declarative: a Google Workspace integration that is absent, set to
+	// empty, or has only empty fields must be cleared on the server. Clearing is
+	// allowed on a free license (the premium gate only blocks *setting* it).
+	existingGW := []*fleet.GoogleWorkspaceIntegration{{
+		Domain:                "example.com",
+		ImpersonatedUserEmail: "admin@example.com",
+		ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "sa@example.com",
+			fleet.GoogleCalendarPrivateKey: "k",
+		}},
+	}}
+
+	cases := []struct {
+		name         string
+		integrations string
+	}{
+		{"absent", "  integrations:"},
+		{"empty list", "  integrations:\n    google_workspace: []"},
+		{
+			"all empty fields",
+			"  integrations:\n    google_workspace:\n      - domain: \"\"\n        impersonated_user_email: \"\"\n        api_key_json: \"\"",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t)
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleWorkspace = existingGW
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			content := fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Clear Test
+%s
+  secrets:
+`, c.integrations)
+			_, err = tmpFile.WriteString(content)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			assert.Empty(t, savedAppConfig.Integrations.GoogleWorkspace, "google_workspace should be cleared")
+		})
+	}
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
