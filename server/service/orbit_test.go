@@ -346,6 +346,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -424,6 +425,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -587,6 +589,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
@@ -776,6 +779,7 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -1130,7 +1134,7 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 			return false
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil

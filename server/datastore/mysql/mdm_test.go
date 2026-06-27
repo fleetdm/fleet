@@ -4023,6 +4023,28 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 
 func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	// requireConnected asserts that IsHostConnectedToFleetMDM and the
+	// connected_to_fleet flag computed by GetHostMDM agree with the expected
+	// value. GetOrbitConfig derives the connection state from GetHostMDM instead
+	// of a separate IsHostConnectedToFleetMDM query, so the two must stay in
+	// lockstep across every enrollment state. When the host has no host_mdm row,
+	// GetHostMDM returns NotFound and the host cannot be connected.
+	requireConnected := func(t *testing.T, h *fleet.Host, want bool) {
+		t.Helper()
+		connected, err := ds.IsHostConnectedToFleetMDM(ctx, h)
+		require.NoError(t, err)
+		require.Equal(t, want, connected)
+
+		mdmInfo, err := ds.GetHostMDM(ctx, h.ID)
+		if err != nil {
+			require.True(t, fleet.IsNotFound(err))
+			require.False(t, want, "host without a host_mdm row cannot be connected to Fleet MDM")
+			return
+		}
+		require.Equal(t, want, mdmInfo.ConnectedToFleet)
+	}
+
 	macH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "macos-test",
 		OsqueryHostID: ptr.String("osquery-macos"),
@@ -4032,17 +4054,13 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	connected, err := ds.IsHostConnectedToFleetMDM(ctx, macH)
-	require.NoError(t, err)
-	require.False(t, connected)
+	requireConnected(t, macH, false)
 
 	nanoEnroll(t, ds, macH, false)
 	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
-	require.NoError(t, err)
-	require.True(t, connected)
+	requireConnected(t, macH, true)
 
 	byodIpadH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "ipados-test",
@@ -4057,9 +4075,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
-	require.NoError(t, err)
-	require.True(t, connected)
+	requireConnected(t, byodIpadH, true)
 
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "windows-test",
@@ -4069,9 +4085,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "windows",
 	})
 	require.NoError(t, err)
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
-	require.NoError(t, err)
-	require.False(t, connected)
+	requireConnected(t, windowsH, false)
 
 	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
@@ -4091,9 +4105,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
-	require.NoError(t, err)
-	require.True(t, connected)
+	requireConnected(t, windowsH, true)
 
 	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
 	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", false)
@@ -4101,13 +4113,8 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
-	require.NoError(t, err)
-	require.False(t, connected)
-
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
-	require.NoError(t, err)
-	require.False(t, connected)
+	requireConnected(t, macH, false)
+	requireConnected(t, windowsH, false)
 
 	// Simulate the ipad checking out(user removing work account)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4115,9 +4122,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
-	require.NoError(t, err)
-	require.False(t, connected)
+	requireConnected(t, byodIpadH, false)
 }
 
 // This test now only covers android, as the other platforms no longer rely on the BulkSetPendingMDMHostProfiles,

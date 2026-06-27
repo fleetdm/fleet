@@ -491,15 +491,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
-	if err != nil {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
-	}
-
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
 	}
+
+	// Derive the Fleet-MDM connection state from the host_mdm data fetched above
+	// rather than issuing a separate IsHostConnectedToFleetMDM query. That query
+	// runs a 3-table JOIN on every orbit check-in for every host (including
+	// Linux/ChromeOS, which never use the result); GetHostMDM already computes the
+	// equivalent connected_to_fleet flag. mdmInfo is nil when the host has no
+	// host_mdm row, in which case it is, by definition, not connected to Fleet MDM.
+	isConnectedToFleetMDM := mdmInfo != nil && mdmInfo.ConnectedToFleet
 
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
