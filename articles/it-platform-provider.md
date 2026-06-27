@@ -4,14 +4,16 @@ An all-in-one platform for identity, MDM, and procurement needed a programmable 
 
 ## At a glance
 
-- **Endpoints:** thousands across managed accounts  
-- **Primary requirement:** robust API and patch management automation.  
-- **Key integrations:** Brew and Winget.  
-- **Previous solution:** manual, "point-and-click" workflows.  
+- **Endpoints:** Thousands across managed accounts
+- **Primary requirement:** Robust API and patch management automation
+- **Key integrations:** Brew and Winget
+- **Previous solution:** ManageEngine
 
 ## The challenge
 
-Managing cross-platform patches and verifying device states in real-time was a significant hurdle before integrating Fleet.
+Before Fleet, the company relied on ManageEngine to handle cross-platform patches and verify device state. As the platform's own automation ambitions grew, the team needed a more programmable foundation — one they could plug directly into the customer-facing services they were building, rather than a separate system to operate alongside them.
+
+Managing cross-platform patches and verifying device state in real time across thousands of endpoints was a significant hurdle, especially when reliable, programmatic device data needed to feed automation downstream.
 
 ## The solution
 
@@ -22,6 +24,10 @@ They chose Fleet for its deep GitOps integration, allowing them to build their o
 - **Automated app patching:** Using the API, they programmatically updates fleet-maintained apps via GitOps.  
 - **Consolidated stack:** Consolidation allowed them to replace 4+ legacy tools with one system, reducing vendor sprawl.  
 - **AI-driven insights:** Real-time telemetry is fed into their own orchestration engine to proactively detect and remediate issues.
+
+## Why they recommend Fleet
+
+For this company, the key advantage is a platform that behaves like infrastructure. Where their previous tool was a destination to operate inside of, Fleet is a programmable layer they can build directly into their own services — turning device state into something their automation can act on, not something their team has to chase.
 
 
 <meta name="articleTitle" value="IT platform provider automates patching across thousands of Mac, Windows, and Linux devices">
