@@ -4123,6 +4123,30 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 
 	requireConnected(t, byodIpadH, false)
+
+	// Android: connection is determined solely by host_mdm.enrolled, so the
+	// connected_to_fleet column must track enrollment without any separate
+	// enrollment record.
+	androidH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test",
+		OsqueryHostID: new("osquery-android"),
+		NodeKey:       new("node-key-android"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	requireConnected(t, androidH, false)
+
+	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, true, "http://foo.com", false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	requireConnected(t, androidH, true)
+
+	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, false, "", false, "", "", false)
+	require.NoError(t, err)
+
+	requireConnected(t, androidH, false)
 }
 
 // This test now only covers android, as the other platforms no longer rely on the BulkSetPendingMDMHostProfiles,

@@ -5154,6 +5154,9 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			END AS connected_to_fleet
 		FROM
 			host_mdm hm
+		-- LEFT JOIN (not INNER) so an orphaned host_mdm row with no matching hosts
+		-- row is still returned, matching this method's existing contract;
+		-- connected_to_fleet then degrades to false because h.platform is NULL.
 		LEFT OUTER JOIN
 			hosts h
 			ON h.id = hm.host_id
