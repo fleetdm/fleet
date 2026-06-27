@@ -1104,17 +1104,22 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), createPayload, http.StatusCreated, &createResp)
 
-	// Both hosts must now resolve to the provisioned SCIM user.
-	u1, err := s.DS.ScimUserByHostID(ctx, host1.ID)
-	require.NoError(t, err, "host1 should be linked to the scim user")
-	require.NotNil(t, u1)
-	u2, err := s.DS.ScimUserByHostID(ctx, host2.ID)
-	require.NoError(t, err, "host2 should be linked to the scim user")
-	require.NotNil(t, u2)
-
-	assert.Equal(t, u1.ID, u2.ID, "both hosts should link to the same scim user")
-	assert.Equal(t, userName, u1.UserName)
-	assert.Equal(t, userName, u2.UserName)
+	// Both hosts must expose the user's IdP host vitals through the host detail API
+	// (end_users) — the surface end users actually see. Note: device_mapping is not
+	// asserted here on purpose; its IdP email comes from host_emails/mdm_idp_accounts
+	// and would appear on both hosts regardless of the SCIM association, so it wouldn't
+	// exercise this fix.
+	for _, hostID := range []uint{host1.ID, host2.ID} {
+		var resp struct {
+			Host struct {
+				EndUsers []fleet.HostEndUser `json:"end_users"`
+			} `json:"host"`
+		}
+		s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Host.EndUsers, 1, "host %d should expose one IdP end user", hostID)
+		assert.Equal(t, userName, resp.Host.EndUsers[0].IdpUserName, "host %d idp_username", hostID)
+		assert.Equal(t, "SCIM Multi", resp.Host.EndUsers[0].IdpFullName, "host %d idp_full_name", hostID)
+	}
 }
 
 func testUpdateUser(t *testing.T, s *Suite) {
