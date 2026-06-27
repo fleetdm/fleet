@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.4.30",
+      "version": "26.6.25",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Shotcut' AND publisher = 'Meltytech';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shotcut' AND publisher = 'Meltytech' AND version_compare(version, '26.4.30') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shotcut' AND publisher = 'Meltytech' AND version_compare(version, '26.6.25') < 0);"
       },
-      "installer_url": "https://github.com/mltframework/shotcut/releases/download/v26.4.30/shotcut-win64-26.4.30.exe",
+      "installer_url": "https://github.com/mltframework/shotcut/releases/download/v26.6.25/shotcut-win64-26.6.25.exe",
       "install_script_ref": "fbf50bbc",
       "uninstall_script_ref": "664e5a3e",
-      "sha256": "7a710c3e7ac14bbab91bc2c96c54b5f906e2183f5264f4cbd65411a1a7943b22",
+      "sha256": "94daad5ffca5d54cdb62b320c19e8fec05e5e5f7572ed287340135c6416843f3",
       "default_categories": [
         "Developer tools"
       ]
