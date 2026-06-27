@@ -115,6 +115,21 @@ export default {
     return sendRequest("POST", path);
   },
 
+  installAllSelfServiceSoftwareInCategory: (
+    deviceToken: string,
+    categoryId?: number
+  ) => {
+    const { DEVICE_SOFTWARE_INSTALL_ALL } = endpoints;
+    // When categoryId is undefined ("All" selected) we omit the query param;
+    // getPathWithQueryParams already drops undefined values, so the BE
+    // receives a bare POST and installs every uninstalled item.
+    const path = getPathWithQueryParams(
+      DEVICE_SOFTWARE_INSTALL_ALL(deviceToken),
+      { category_id: categoryId }
+    );
+    return sendRequest("POST", path);
+  },
+
   uninstallSelfServiceSoftware: (
     deviceToken: string,
     softwareTitleId: number

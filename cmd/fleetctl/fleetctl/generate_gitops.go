@@ -277,6 +277,7 @@ type GenerateGitopsCommand struct {
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
+		Hidden:      true,
 		Usage:       "Generate GitOps configuration files for Fleet.",
 		Description: "This command generates GitOps configuration files for Fleet.",
 		Action:      createGenerateGitopsAction(nil),
@@ -646,6 +647,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	}
 
 	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
+	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
 		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
@@ -670,6 +672,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			b = emptyVal.ReplaceAll(b, []byte(":"))
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
+			// Keep software versions quoted so YAML treats them as strings (e.g. "10.0" must not become a float).
+			b = softwareVersion.ReplaceAll(b, []byte(`${1}"${2}"`))
 		} else {
 			switch fileToWrite := fileToWrite.(type) {
 			case []byte:
@@ -1613,6 +1617,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 
 		if policy.PatchSoftware != nil {
 			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+			if cachedSWTitle.MaintainedAppID == 0 {
+				return nil, fmt.Errorf("The patch policy %q references a software installer that is no longer a Fleet-maintained app. Please delete the policy manually.", policy.Name)
+			}
 
 			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
 			if err != nil {
@@ -1662,14 +1669,17 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 		}
 		// Parse any labels.
-		if policy.LabelsIncludeAny != nil {
+		if policy.LabelsIncludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
 		}
 		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
-		if policy.LabelsExcludeAny != nil {
+		if policy.LabelsExcludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
+		}
+		if policy.LabelsExcludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_exclude_all"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAll)
 		}
 		result[i] = policySpec
 	}
@@ -2256,6 +2266,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			delete(softwareSpec, "hash_sha256")
 			delete(softwareSpec, "url")
 			softwareSpec["slug"] = slug
+			if pv := softwareTitle.SoftwarePackage.PinnedVersion; pv != nil && *pv != "" {
+				softwareSpec["version"] = *pv
+			}
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
 		case sw.AppStoreApp != nil:

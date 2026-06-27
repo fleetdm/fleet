@@ -1,0 +1,10 @@
+{
+  "name": "Helium",
+  "unique_identifier": "com.koushikdutta.Helium",
+  "token": "helium",
+  "installer_format": "zip",
+  "slug": "helium/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

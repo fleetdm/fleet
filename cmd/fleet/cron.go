@@ -891,6 +891,7 @@ func newAutomationsSchedule(
 	logger *slog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -929,7 +930,7 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet)
+				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet, newActivitySvc)
 			},
 		),
 	)
@@ -966,6 +967,7 @@ func triggerFailingPoliciesAutomation(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -980,7 +982,7 @@ func triggerFailingPoliciesAutomation(
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger, newActivitySvc)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
@@ -1024,6 +1026,8 @@ func newWorkerIntegrationsSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	androidModule android.Service,
 	chartSvc chart_api.Service,
+	androidBatchSize int,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1045,14 +1049,16 @@ func newWorkerIntegrationsSchedule(
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newJiraClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newJiraClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	zendesk := &worker.Zendesk{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newZendeskClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newZendeskClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	var (
 		depSvc *apple_mdm.DEPService
@@ -1082,9 +1088,10 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 	}
 	softwareWorker := &worker.SoftwareWorker{
-		Datastore:     ds,
-		Log:           logger,
-		AndroidModule: androidModule,
+		Datastore:        ds,
+		Log:              logger,
+		AndroidModule:    androidModule,
+		AndroidBatchSize: androidBatchSize,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,
@@ -1357,6 +1364,13 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			},
 		),
+		schedule.WithJob(
+			"expired_in_house_app_install_tokens",
+			func(ctx context.Context) error {
+				_, err := ds.DeleteExpiredInHouseAppInstallTokens(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -1470,6 +1484,11 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
 			return ds.CleanupWindowsMDMCommandQueue(ctx)
+		}),
+		schedule.WithJob("cleanup_windows_mdm_pending_delete_profiles", func(ctx context.Context) error {
+			// Retained content for deleted Windows profiles is GC'd (reference-counted) once no host still references the profile, so
+			// the content survives exactly as long as some host still needs its <Delete>.
+			return ds.CleanupWindowsMDMPendingDeleteProfiles(ctx)
 		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
@@ -1918,6 +1937,7 @@ func newAndroidMDMProfileManagerSchedule(
 	logger *slog.Logger,
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1929,7 +1949,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
 		}),
 	)
 
@@ -2061,7 +2081,12 @@ func cronHostVitalsLabelMembership(
 ) error {
 	// Get all labels. We don't have a function for labels by membership type
 	// so we'll filter them later.
-	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
+	//
+	// We use a global admin filter so that fleet/team-scoped labels are included.
+	// An empty TeamFilter (nil User) falls back to the "global-only" filter
+	// (l.team_id IS NULL), which would silently exclude every fleet-scoped host
+	// vitals label and leave them unpopulated. See #46869.
+	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{
 		PerPage: 0, // No limit.
 	}, false)
 	if err != nil {
@@ -2232,6 +2257,33 @@ func newMaintainedAppSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMaintainedAppsAutoUpdateSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedAppsAutoUpdate)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
+			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
 		}),
 	)
 
@@ -2469,6 +2521,31 @@ func newManagedLocalAccountRotationSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
 			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newCleanupExpiredADUEChallengesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronCleanupExpiredADUEChallenges)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
 		}),
 	)
 

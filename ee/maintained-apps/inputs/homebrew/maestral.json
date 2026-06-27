@@ -1,0 +1,10 @@
+{
+  "name": "Maestral",
+  "unique_identifier": "com.samschott.maestral",
+  "token": "maestral",
+  "installer_format": "dmg",
+  "slug": "maestral/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

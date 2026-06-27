@@ -270,8 +270,19 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
 				default:
-					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-					return "", fleet.NewOrbitIDPAuthRequiredError()
+					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
+					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+					if err != nil {
+						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
+					}
+					if !previouslyEnrolled {
+						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						return "", fleet.NewOrbitIDPAuthRequiredError()
+					}
+					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+						"host_uuid", hostInfo.HardwareUUID)
 				}
 			}
 		}

@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import teamPoliciesAPI from "services/entities/team_policies";
-import { NotificationContext } from "context/notification";
 
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -26,7 +26,6 @@ const AddPatchPolicyModal = ({
   onExit,
   onSuccess,
 }: IAddPatchPolicyModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isAddingPatchPolicy, setIsAddingPatchPolicy] = useState(false);
 
   const onAddPatchPolicy = useCallback(async () => {
@@ -37,18 +36,21 @@ const AddPatchPolicyModal = ({
         patch_software_title_id: softwareId,
         team_id: teamId,
       });
-      renderFlash("success", "Successfully added patch policy.");
+      notify.success("Successfully added patch policy.");
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
       if (reason.includes("already has a policy")) {
-        renderFlash("error", EXISTING_PATCH_POLICY_ERROR_MSG);
+        notify.error(EXISTING_PATCH_POLICY_ERROR_MSG, { response: error });
+      } else {
+        notify.error("Couldn't add patch policy. Please try again.", {
+          response: error,
+        });
       }
-      renderFlash("error", "Couldn't add patch policy. Please try again.");
     }
     setIsAddingPatchPolicy(false);
     onExit();
-  }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
+  }, [softwareId, teamId, onSuccess, onExit]);
 
   return (
     <Modal
@@ -65,6 +67,8 @@ const AddPatchPolicyModal = ({
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
             entityType="software"
+            position="top"
+            tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
                 onClick={onAddPatchPolicy}

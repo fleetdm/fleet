@@ -44,6 +44,14 @@ github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[strin
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	VulnerabilityExposureHistoricalReporting	*fleet.VulnExposureFilterSettings
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	SoftwareFilters	*[]string
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	HasKnownExploit	*bool
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	ExcludeVulnerabilities	*[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	DeprecatedHostSettings	*fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	AgentOptions	*json.RawMessage
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPTest	bool
@@ -120,6 +128,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	OrganizationN
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	BYODTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnabledAndConfigured	bool

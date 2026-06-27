@@ -1,0 +1,10 @@
+{
+  "name": "Vellum",
+  "unique_identifier": "co.180g.Vellum",
+  "token": "vellum",
+  "installer_format": "zip",
+  "slug": "vellum/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -9,6 +9,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -86,41 +88,76 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	return nil, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
-func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {
-		return nil, nil
+		return nil, nil, nil, nil
 	}
 
 	requestUUID := resp.RequestUUID
 	for {
 		var resp batchSetSoftwareInstallersResultResponse
 		if err := c.authenticatedRequestWithQuery(nil, "GET", path+"/"+requestUUID, &resp, query.Encode()); err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
-			return nil, errors.New(resp.Message)
+			return nil, nil, nil, errors.New(resp.Message)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusCompleted:
-			return matchPackageIcons(softwareInstallers, resp.Packages), nil
+			return matchPackageIcons(softwareInstallers, resp.Packages), resp.DeletedPackages, resp.Categories, nil
 		default:
-			return nil, fmt.Errorf("unknown status: %q", resp.Status)
+			return nil, nil, nil, fmt.Errorf("unknown status: %q", resp.Status)
 		}
 	}
+}
+
+func (c *Client) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	verb, path := "GET", "/api/latest/fleet/software/self_service_categories"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+	var responseBody getSelfServiceCategoriesResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategories, nil
+}
+
+func (c *Client) DeleteSelfServiceCategory(id uint) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", id)
+	var responseBody deleteSelfServiceCategoriesResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
+}
+
+// deleteUnusedSelfServiceCategories deletes the team's existing self-service categories that aren't
+// in keep. Categories are created server-side by the software/VPP batch endpoints; keep is the
+// union of categories those batches reported, so anything not in it is no longer needed
+func (c *Client) deleteUnusedSelfServiceCategories(teamID uint, keep []string) error {
+	existing, err := c.ListSelfServiceCategories(teamID)
+	if err != nil {
+		return fmt.Errorf("listing existing self-service categories: %w", err)
+	}
+	for _, cat := range existing {
+		if slices.ContainsFunc(keep, func(name string) bool { return strings.EqualFold(name, cat.Name) }) {
+			continue
+		}
+		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
+			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
+		}
+	}
+	return nil
 }
 
 // matchPackageIcons hydrates software responses with references to icons in the request payload, so we can track

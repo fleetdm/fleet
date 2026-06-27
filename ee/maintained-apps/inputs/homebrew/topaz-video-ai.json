@@ -1,0 +1,10 @@
+{
+  "name": "Topaz Video AI",
+  "unique_identifier": "com.topazlabs.Topaz-Video-AI",
+  "token": "topaz-video-ai",
+  "installer_format": "pkg",
+  "slug": "topaz-video-ai/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

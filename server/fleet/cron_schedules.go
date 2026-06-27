@@ -32,6 +32,10 @@ const (
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
+	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
+	// installer to the newest cached version its pin state allows. Premium only;
+	// runs every 1h.
+	CronMaintainedAppsAutoUpdate CronScheduleName = "maintained_apps_auto_update"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
 	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
@@ -58,6 +62,7 @@ const (
 	CronSendManagedLocalAccountRotationCommands CronScheduleName = "send_managed_local_account_rotation_commands"
 	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
 	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
 )
 
 type CronSchedulesService interface {

@@ -1,9 +1,8 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useContext, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   getExtensionFromFileName,
@@ -13,9 +12,9 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
-import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
+import { SoftwareCategory } from "interfaces/software";
 
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
@@ -26,25 +25,19 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import {
-  createTooltipContent,
-  generateFormValidation,
-  sortByVersionLatestFirst,
-} from "./helpers";
-import PackageVersionSelector from "../PackageVersionSelector";
+import { createTooltipContent, generateFormValidation } from "./helpers";
 import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 export const baseClass = "package-form";
 
 export interface IPackageFormData {
   software: File | null;
-  version?: string;
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
@@ -108,31 +101,6 @@ const renderFileTypeMessage = () => {
   );
 };
 
-/** Returns the version value to use as the dropdown's default:
-/ 1) If a previously selected version is still present in the options, reuse it.
-/ 2) Otherwise, fall back to the first option, which is assumed to be the latest.
-/ 3) Safe fallback if no options exist which should never happen */
-const getDefaultVersion = (
-  versionOptions: CustomOptionType[],
-  selectedVersion?: string
-) => {
-  // This shouldn't happen
-  if (!versionOptions.length) {
-    return "";
-  }
-
-  // If we already have a selected version and it exists in options, keep it
-  if (selectedVersion) {
-    const match = versionOptions.find((opt) => opt.value === selectedVersion);
-    if (match) {
-      return match.value;
-    }
-  }
-
-  // Otherwise, default to the first option (which should be latest)
-  return versionOptions[0].value;
-};
-
 interface IPackageFormProps {
   labels: ILabelSummary[];
   showSchemaButton?: boolean;
@@ -152,6 +120,8 @@ interface IPackageFormProps {
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -175,13 +145,12 @@ const PackageForm = ({
   defaultCategories,
   className,
   gitopsCompatible = false,
+  teamId,
 }: IPackageFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
-    version: defaultSoftware?.version || "",
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
@@ -215,7 +184,7 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          notify.error(`${e}`, { response: e });
           return;
         }
 
@@ -223,7 +192,7 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          notify.error(`${e}`, { response: e });
           return;
         }
 
@@ -333,17 +302,6 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onSelectVersion = (version: string) => {
-    // For now we can only update version in GitOps
-    // Selection is currently disabled in the UI
-    const newData = {
-      ...formData,
-      version,
-    };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
-  };
-
   const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
   const isSubmitDisabled = !formValidation.isValid || disableFieldsForGitOps;
   const submitTooltipContent = createTooltipContent(
@@ -359,8 +317,10 @@ const PackageForm = ({
   const isTarballPackage = ext === "tar.gz";
   const isScriptPackage = ext === "sh" || ext === "ps1";
   const isIpaPackage = ext === "ipa";
-  // We currently don't support replacing a tarball package
-  const canEditFile = isEditingSoftware && !isTarballPackage;
+  // We currently don't support replacing a tarball package, and FMAs use the
+  // page-level Versions modal to switch versions rather than a file replace.
+  const canEditFile =
+    isEditingSoftware && !isTarballPackage && !isFleetMaintainedApp;
 
   // If a user preselects automatic install and then uploads a:
   // exe, tarball, script, or ipa which automatic install is not supported,
@@ -420,11 +380,12 @@ const PackageForm = ({
       onClickPreviewEndUserExperience={() =>
         onClickPreviewEndUserExperience(isIpaPackage)
       }
+      teamId={teamId}
     />
   );
 
   const renderTargetLabelSelector = () => (
-    <TargetLabelSelector
+    <DropdownTargetLabelSelector
       selectedTargetType={formData.targetType}
       selectedCustomTarget={formData.customTarget}
       selectedLabels={formData.labelTargets}
@@ -441,41 +402,11 @@ const PackageForm = ({
     />
   );
 
-  const renderCustomEditor = () => {
-    const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
-      defaultSoftware.fleet_maintained_versions || []
-    );
-    const hasMultipleVersions = fmaVersionsSortedByLatestFirst.length > 1;
-
-    const versionOptions = fmaVersionsSortedByLatestFirst.map(
-      (v: ISoftwareVersion, index: number) => {
-        // If multiple versions, only adds "Latest" label to the first option
-        const labelLatestVersion = hasMultipleVersions && index === 0;
-
-        return {
-          label: labelLatestVersion ? `Latest (${v.version})` : `${v.version}`,
-          value: v.version,
-        };
-      }
-    );
-
-    return (
-      <PackageVersionSelector
-        selectedVersion={getDefaultVersion(versionOptions, formData.version)}
-        versionOptions={versionOptions}
-        onSelectVersion={onSelectVersion}
-        className={`${baseClass}__version-selector`}
-        isGitOpsMode={gitOpsModeEnabled}
-      />
-    );
-  };
-
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
-          customEditor={isFleetMaintainedApp ? renderCustomEditor : undefined}
           graphicName={getGraphicName(ext || "")}
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}

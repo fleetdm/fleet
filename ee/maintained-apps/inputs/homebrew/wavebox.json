@@ -1,0 +1,10 @@
+{
+  "name": "Wavebox",
+  "unique_identifier": "io.wavebox.wavebox",
+  "token": "wavebox",
+  "installer_format": "zip",
+  "slug": "wavebox/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

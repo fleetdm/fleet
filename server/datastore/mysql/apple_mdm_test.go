@@ -52,6 +52,11 @@ func TestMDMApple(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"GetABMTokenByUniqueToken", testGetABMTokenByUniqueToken},
+		{"InsertADUEEnrollmentChallenge", testInsertADUEEnrollmentChallenge},
+		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
+		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
+		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
@@ -64,9 +69,6 @@ func TestMDMApple(t *testing.T) {
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestBatchSetMDMAppleProfilesClearsStaleBrokenLabels", testBatchSetMDMAppleProfilesClearsStaleBrokenLabels},
-		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
-		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
-		{"TestMDMAppleProfileManagementBatch3", testMDMAppleProfileManagementBatch3},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
@@ -81,6 +83,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
+		{"TestReconcileDuplicateDEPHostOnDelete", testReconcileDuplicateDEPHostOnDelete},
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
@@ -110,7 +113,6 @@ func TestMDMApple(t *testing.T) {
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
-		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
@@ -1915,453 +1917,6 @@ func teamConfigProfileForTest(t *testing.T, name, identifier, uuid string, teamI
 	return cp
 }
 
-func testMDMAppleProfileManagementBatch2(t *testing.T, ds *Datastore) {
-	ds.testSelectMDMProfilesBatchSize = 2
-	ds.testUpsertMDMDesiredProfilesBatchSize = 2
-	t.Cleanup(func() {
-		ds.testSelectMDMProfilesBatchSize = 0
-		ds.testUpsertMDMDesiredProfilesBatchSize = 0
-	})
-	testMDMAppleProfileManagement(t, ds)
-}
-
-func testMDMAppleProfileManagementBatch3(t *testing.T, ds *Datastore) {
-	ds.testSelectMDMProfilesBatchSize = 3
-	ds.testUpsertMDMDesiredProfilesBatchSize = 3
-	t.Cleanup(func() {
-		ds.testSelectMDMProfilesBatchSize = 0
-		ds.testUpsertMDMDesiredProfilesBatchSize = 0
-	})
-	testMDMAppleProfileManagement(t, ds)
-}
-
-func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	matchProfiles := func(want, got []*fleet.MDMAppleProfilePayload) {
-		// match only the fields we care about
-		for _, p := range got {
-			require.NotEmpty(t, p.Checksum)
-			p.Checksum = nil
-			p.SecretsUpdatedAt = nil
-			p.DeviceEnrolledAt = nil
-		}
-		require.ElementsMatch(t, want, got)
-	}
-
-	// Helper function to ensure the "combined" ToInstallAndRemove function matches the output
-	// of the individual functions
-	matchCombinedProfiles := func(toInstall, toRemove []*fleet.MDMAppleProfilePayload) {
-		combinedToInstall, combinedToRemove, err := ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
-		require.NoError(t, err)
-		matchProfiles(toInstall, combinedToInstall)
-		matchProfiles(toRemove, combinedToRemove)
-	}
-
-	globalProfiles := []*fleet.MDMAppleConfigProfile{
-		scopedConfigProfileForTest(t, "N1", "I1", "z", fleet.PayloadScopeSystem),
-		scopedConfigProfileForTest(t, "N2", "I2", "b", fleet.PayloadScopeSystem),
-		scopedConfigProfileForTest(t, "N3", "I3", "c", fleet.PayloadScopeUser),
-	}
-	err := ds.BatchSetMDMAppleProfiles(ctx, nil, globalProfiles)
-	require.NoError(t, err)
-
-	globalPfs, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
-	require.NoError(t, err)
-	require.Len(t, globalPfs, len(globalProfiles))
-
-	_, err = ds.writer(ctx).Exec(`
-          INSERT INTO nano_commands (command_uuid, request_type, command)
-          VALUES ('command-uuid', 'foo', '<?xml')
-	`)
-	require.NoError(t, err)
-
-	// if there are no hosts, then no profilesToInstall need to be installed
-	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	require.Empty(t, profilesToInstall)
-	profilesToRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
-	require.NoError(t, err)
-	require.Empty(t, profilesToRemove)
-	// Both should return empty
-	matchCombinedProfiles(profilesToInstall, profilesToRemove)
-
-	host1, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-host1-name",
-		OsqueryHostID: ptr.String("1337"),
-		NodeKey:       ptr.String("1337"),
-		UUID:          "test-uuid-1",
-		TeamID:        nil,
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-	// add a user enrollment for this device, nothing else should be modified
-	nanoEnroll(t, ds, host1, true)
-
-	// non-macOS hosts shouldn't modify any of the results below
-	_, err = ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-windows-host",
-		OsqueryHostID: ptr.String("4824"),
-		NodeKey:       ptr.String("4824"),
-		UUID:          "test-windows-host",
-		TeamID:        nil,
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	// a macOS host that's not MDM enrolled into Fleet shouldn't
-	// modify any of the results below
-	_, err = ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-non-mdm-host",
-		OsqueryHostID: ptr.String("4825"),
-		NodeKey:       ptr.String("4825"),
-		UUID:          "test-non-mdm-host",
-		TeamID:        nil,
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-
-	// global profiles to install on the newly added host
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	matchCombinedProfiles(profilesToInstall, profilesToRemove)
-
-	// add another host, it belongs to a team
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
-	require.NoError(t, err)
-	host2, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-host2-name",
-		OsqueryHostID: ptr.String("1338"),
-		NodeKey:       ptr.String("1338"),
-		UUID:          "test-uuid-2",
-		TeamID:        &team.ID,
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-	nanoEnroll(t, ds, host2, false) // no user-channel enrollment for this host yet
-
-	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-
-	// all profiles of host1 for now, host2 has no profiles yet
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profiles)
-
-	matchCombinedProfiles(profiles, profilesToRemove)
-
-	// assign profiles to team 1
-	teamProfiles := []*fleet.MDMAppleConfigProfile{
-		scopedConfigProfileForTest(t, "N4", "I4", "x", fleet.PayloadScopeSystem),
-		scopedConfigProfileForTest(t, "N5", "I5", "y", fleet.PayloadScopeUser),
-	}
-	err = ds.BatchSetMDMAppleProfiles(ctx, &team.ID, teamProfiles)
-	require.NoError(t, err)
-
-	globalPfs, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
-	require.NoError(t, err)
-	require.Len(t, globalPfs, 3)
-	teamPfs, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
-	require.NoError(t, err)
-	require.Len(t, teamPfs, 2)
-
-	// new profiles, this time for host2 belonging to team 1
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	matchCombinedProfiles(profilesToInstall, profilesToRemove)
-
-	// create the user enrollment for host2
-	nanoEnrollUserOnly(t, ds, host2)
-
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	matchCombinedProfiles(profilesToInstall, profilesToRemove)
-
-	// add another global host
-	host3, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-host3-name",
-		OsqueryHostID: ptr.String("1339"),
-		NodeKey:       ptr.String("1339"),
-		UUID:          "test-uuid-3",
-		TeamID:        nil,
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-	nanoEnroll(t, ds, host3, false) // no user enrollment
-
-	// global profiles to install on host3
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	matchCombinedProfiles(profilesToInstall, profilesToRemove)
-
-	// cron runs and updates the status
-	err = ds.BulkUpsertMDMAppleHostProfiles(
-		ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-			{
-				ProfileUUID:       globalPfs[0].ProfileUUID,
-				ProfileIdentifier: globalPfs[0].Identifier,
-				ProfileName:       globalPfs[0].Name,
-				Checksum:          globalProfiles[0].Checksum,
-				HostUUID:          "test-uuid-1",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeSystem,
-			},
-			{
-				ProfileUUID:       globalPfs[0].ProfileUUID,
-				ProfileIdentifier: globalPfs[0].Identifier,
-				ProfileName:       globalPfs[0].Name,
-				Checksum:          globalProfiles[0].Checksum,
-				HostUUID:          "test-uuid-3",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeSystem,
-			},
-			{
-				ProfileUUID:       globalPfs[1].ProfileUUID,
-				ProfileIdentifier: globalPfs[1].Identifier,
-				ProfileName:       globalPfs[1].Name,
-				Checksum:          globalProfiles[1].Checksum,
-				HostUUID:          "test-uuid-1",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeSystem,
-			},
-			{
-				ProfileUUID:       globalPfs[1].ProfileUUID,
-				ProfileIdentifier: globalPfs[1].Identifier,
-				ProfileName:       globalPfs[1].Name,
-				Checksum:          globalProfiles[1].Checksum,
-				HostUUID:          "test-uuid-3",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeSystem,
-			},
-			{
-				ProfileUUID:       globalPfs[2].ProfileUUID,
-				ProfileIdentifier: globalPfs[2].Identifier,
-				ProfileName:       globalPfs[2].Name,
-				Checksum:          globalProfiles[2].Checksum,
-				HostUUID:          "test-uuid-1",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeUser,
-			},
-			{
-				ProfileUUID:       teamPfs[0].ProfileUUID,
-				ProfileIdentifier: teamPfs[0].Identifier,
-				ProfileName:       teamPfs[0].Name,
-				Checksum:          teamProfiles[0].Checksum,
-				HostUUID:          "test-uuid-2",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeSystem,
-			},
-			{
-				ProfileUUID:       teamPfs[1].ProfileUUID,
-				ProfileIdentifier: teamPfs[1].Identifier,
-				ProfileName:       teamPfs[1].Name,
-				Checksum:          teamProfiles[1].Checksum,
-				HostUUID:          "test-uuid-2",
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Scope:             fleet.PayloadScopeUser,
-			},
-		},
-	)
-	require.NoError(t, err)
-
-	// user profile N3 on host3 is still pending install (no user enrollment)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	// no profiles to remove yet
-	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
-	require.NoError(t, err)
-	require.Empty(t, toRemove)
-
-	matchCombinedProfiles(profilesToInstall, toRemove)
-
-	// set host1 and host 3 to verified status, leave host2 as verifying
-	verified1 := []*fleet.HostMacOSProfile{
-		{Identifier: globalPfs[0].Identifier, DisplayName: globalPfs[0].Name, InstallDate: time.Now()},
-		{Identifier: globalPfs[1].Identifier, DisplayName: globalPfs[1].Name, InstallDate: time.Now()},
-		{Identifier: globalPfs[2].Identifier, DisplayName: globalPfs[2].Name, InstallDate: time.Now()},
-	}
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, host1, profilesByIdentifier(verified1)))
-	verified3 := []*fleet.HostMacOSProfile{
-		{Identifier: globalPfs[0].Identifier, DisplayName: globalPfs[0].Name, InstallDate: time.Now()},
-		{Identifier: globalPfs[1].Identifier, DisplayName: globalPfs[1].Name, InstallDate: time.Now()},
-	}
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, host3, profilesByIdentifier(verified3)))
-
-	// still no profiles to remove
-	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
-	require.NoError(t, err)
-	require.Empty(t, toRemove)
-
-	// add host1 to team
-	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
-	require.NoError(t, err)
-
-	// simulate an update that bulk-sets the no team's profiles to NULL pending
-	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil)
-	require.NoError(t, err)
-
-	// profiles to be added are host1's team profiles and the user profile for host3
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	// profiles to be removed includes host1's old profiles
-	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{
-			ProfileUUID:       globalPfs[0].ProfileUUID,
-			ProfileIdentifier: globalPfs[0].Identifier,
-			ProfileName:       globalPfs[0].Name,
-			Status:            &fleet.MDMDeliveryVerified,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			HostUUID:          "test-uuid-1",
-			CommandUUID:       "command-uuid",
-			Scope:             fleet.PayloadScopeSystem,
-		},
-		{
-			ProfileUUID:       globalPfs[1].ProfileUUID,
-			ProfileIdentifier: globalPfs[1].Identifier,
-			ProfileName:       globalPfs[1].Name,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryVerified,
-			HostUUID:          "test-uuid-1",
-			CommandUUID:       "command-uuid",
-			Scope:             fleet.PayloadScopeSystem,
-		},
-		{
-			ProfileUUID:       globalPfs[2].ProfileUUID,
-			ProfileIdentifier: globalPfs[2].Identifier,
-			ProfileName:       globalPfs[2].Name,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryVerified,
-			HostUUID:          "test-uuid-1",
-			CommandUUID:       "command-uuid",
-			Scope:             fleet.PayloadScopeUser,
-		},
-	}, toRemove)
-
-	matchCombinedProfiles(profilesToInstall, toRemove)
-
-	// update host3's device enrollment so that it looks like it was enrolled a day ago
-	setNanoDeviceEnrolledAt(t, ds, host3, time.Now().Add(-24*time.Hour))
-
-	// user-scoped profile for host3 is still listed as to install
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	// delete global profile N3 (the user-scoped one)
-	err = ds.BatchSetMDMAppleProfiles(ctx, nil, globalProfiles[:2])
-	require.NoError(t, err)
-
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
-	}, profilesToInstall)
-
-	// the to remove profiles are the same but N3 is now pending remove for host1
-	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{
-			ProfileUUID:       globalPfs[0].ProfileUUID,
-			ProfileIdentifier: globalPfs[0].Identifier,
-			ProfileName:       globalPfs[0].Name,
-			Status:            &fleet.MDMDeliveryVerified,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			HostUUID:          "test-uuid-1",
-			CommandUUID:       "command-uuid",
-			Scope:             fleet.PayloadScopeSystem,
-		},
-		{
-			ProfileUUID:       globalPfs[1].ProfileUUID,
-			ProfileIdentifier: globalPfs[1].Identifier,
-			ProfileName:       globalPfs[1].Name,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryVerified,
-			HostUUID:          "test-uuid-1",
-			CommandUUID:       "command-uuid",
-			Scope:             fleet.PayloadScopeSystem,
-		},
-		{
-			ProfileUUID:       globalPfs[2].ProfileUUID,
-			ProfileIdentifier: globalPfs[2].Identifier,
-			ProfileName:       globalPfs[2].Name,
-			OperationType:     fleet.MDMOperationTypeRemove,
-			Status:            nil,
-			HostUUID:          "test-uuid-1",
-			CommandUUID:       "command-uuid",
-			Scope:             fleet.PayloadScopeUser,
-		},
-	}, toRemove)
-
-	matchCombinedProfiles(profilesToInstall, toRemove)
-}
-
 // checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in
 // each of host_display_names, host_seen_times, and label_membership. Note that
 // related tables records for pre-existing hosts are created outside of the MDM
@@ -2586,14 +2141,6 @@ VALUES
 		host.UUID,
 		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
-	require.NoError(t, err)
-}
-
-func setNanoDeviceEnrolledAt(t *testing.T, ds *Datastore, host *fleet.Host, enrolledAt time.Time) {
-	_, err := ds.writer(t.Context()).Exec(`
-UPDATE nano_devices
-	SET authenticate_at = ?
-WHERE id = ?`, enrolledAt, host.UUID)
 	require.NoError(t, err)
 }
 
@@ -4635,6 +4182,140 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	require.Equal(t, profMan, getProf)
 }
 
+func testReconcileDuplicateDEPHostOnDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHostPlatform := func(name, serial, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  ptr.String("osquery-" + name),
+			NodeKey:        ptr.String("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			Platform:       platform,
+			HardwareSerial: serial,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	newHost := func(name, serial string) *fleet.Host {
+		return newHostPlatform(name, serial, "darwin")
+	}
+	assignDEP := func(h *fleet.Host) {
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, make(map[uint]time.Time)))
+	}
+	hasAssignment := func(hostID uint) bool {
+		_, err := ds.GetHostDEPAssignment(ctx, hostID)
+		if err != nil {
+			require.True(t, fleet.IsNotFound(err))
+			return false
+		}
+		return true
+	}
+
+	t.Run("no duplicate, assignment untouched", func(t *testing.T) {
+		serial := "solo-serial"
+		deleted := newHost("solo-deleted", serial)
+		assignDEP(deleted)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.False(t, dup)
+		require.True(t, hasAssignment(deleted.ID))
+	})
+
+	t.Run("survivor already assigned, no transfer", func(t *testing.T) {
+		serial := "dup-serial"
+		deleted := newHost("dup-deleted", serial)
+		survivor := newHost("dup-survivor", serial)
+		assignDEP(deleted)
+		assignDEP(survivor)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		// Both rows remain in place; the deleted host's row becomes a phantom.
+		require.True(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(survivor.ID))
+	})
+
+	t.Run("survivor unassigned, assignment transferred", func(t *testing.T) {
+		serial := "xfer-serial"
+		deleted := newHost("xfer-deleted", serial)
+		survivor := newHost("xfer-survivor", serial)
+		assignDEP(deleted)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		// The deleted host's assignment moved to the surviving host.
+		require.False(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(survivor.ID))
+
+		transferred, err := ds.GetHostDEPAssignment(ctx, survivor.ID)
+		require.NoError(t, err)
+		require.Equal(t, survivor.ID, transferred.HostID)
+	})
+
+	t.Run("survivor has soft-deleted assignment, no transfer", func(t *testing.T) {
+		serial := "softdel-serial"
+		deleted := newHost("softdel-deleted", serial)
+		survivor := newHost("softdel-survivor", serial)
+		assignDEP(deleted)
+		assignDEP(survivor)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?`, survivor.ID)
+			return err
+		})
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		// No transfer: the survivor already has a (soft-deleted) row, so moving
+		// the deleted host's row would collide on the primary key.
+		require.True(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(survivor.ID))
+	})
+
+	t.Run("survivor assignment serial mismatch, no transfer", func(t *testing.T) {
+		serial := "mismatch-serial"
+		deleted := newHost("mm-deleted", serial)
+		assignDEP(deleted)
+		// Survivor's host row has the serial, but its assignment row carries a
+		// stale serial, so it is neither an active match nor a transfer target.
+		survivor := newHost("mm-survivor", "mm-temp-serial")
+		assignDEP(survivor)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, survivor.ID)
+			return err
+		})
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		require.True(t, hasAssignment(deleted.ID))
+	})
+
+	t.Run("same serial different platform is not a duplicate", func(t *testing.T) {
+		serial := "platform-serial"
+		deleted := newHost("plat-deleted", serial)
+		assignDEP(deleted)
+		// Same serial but a different platform (e.g. a stale iOS record) must not
+		// be treated as a duplicate of the darwin host being deleted.
+		other := newHostPlatform("plat-other", serial, "ios")
+		assignDEP(other)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.False(t, dup)
+		require.True(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(other.ID))
+	})
+}
+
 func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -6183,7 +5864,7 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
-	// backdate unlock_ref to simulate the device having been locked for more than 5 minutes
+	// backdate unlock_ref to simulate the device having been locked for more than the MDMLockCleanupMinutes
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
@@ -6678,9 +6359,17 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, h, true)
 
-	uuids, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
-	require.NoError(t, err)
-	require.Equal(t, h.UUID, uuids[0])
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := range 10 {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_apple_declarations (host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope) VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), ?, ?, ?, ?)`,
+				h.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fmt.Sprintf("decl-%d", i), uuid.NewString(), fmt.Sprintf("decl-%d", i), "System")
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	})
 
 	profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 	require.NoError(t, err)
@@ -8480,6 +8169,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
+	tm4, err := ds.NewTeam(ctx, &fleet.Team{Name: "team4"})
+	require.NoError(t, err)
 
 	toks, err := ds.ListABMTokens(ctx)
 	require.NoError(t, err)
@@ -8517,12 +8208,14 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.BYODTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
 	tok.AppleID = "name@example.com"
 	tok.MacOSDefaultTeamID = &tm1.ID
 	tok.IOSDefaultTeamID = &tm2.ID
+	tok.BYODDefaultTeamID = &tm4.ID
 	err = ds.SaveABMToken(ctx, tok)
 	require.NoError(t, err)
 
@@ -8542,6 +8235,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
+	require.Equal(t, tm4.ID, tokReload.BYODTeam.ID)
 
 	// empty name token now doesn't exist
 	_, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -8565,6 +8261,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
 
 	// change just the encrypted token
 	encTok2 := uuid.NewString()
@@ -8587,6 +8284,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeam.Name)
 	require.Equal(t, tm3.ID, tokReload.IPadOSTeam.ID)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
+	require.Equal(t, tm4.ID, tokReload.BYODTeam.ID)
 
 	// Remove unused token
 	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
@@ -8602,6 +8302,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
+	require.Equal(t, tm4.Name, expTok.BYODTeamName) // nolint:testifylint // tm4 is the actual value.
 
 	tokCount, err = ds.GetABMTokenCount(ctx)
 	require.NoError(t, err)
@@ -10047,260 +9748,6 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, nanoenroll_username, username)
 	require.Equal(t, nanoenroll_useruuid_prefix+host.UUID, uuid)
-}
-
-func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	// Explicitly set the labelUpdatedAt very slightly in the past for testing dynamic label logic
-	fiveSecondsAgo := time.Now().Add(-5 * time.Second).UTC().Round(time.Microsecond)
-
-	matchProfiles := func(want, got []*fleet.MDMAppleProfilePayload) {
-		// match only the fields we care about
-		for _, p := range got {
-			assert.NotEmpty(t, p.Checksum)
-			p.Checksum = nil
-			p.SecretsUpdatedAt = nil
-			p.DeviceEnrolledAt = nil
-		}
-		require.ElementsMatch(t, want, got)
-	}
-
-	globProf1, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "N1", "I1", "z"), nil)
-	require.NoError(t, err)
-	globProf2, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "N2", "I2", "x"), nil)
-	require.NoError(t, err)
-
-	globalPfs, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
-	require.NoError(t, err)
-	require.Len(t, globalPfs, 2)
-
-	// if there are no hosts, then no profilesToInstall need to be installed
-	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	require.Empty(t, profilesToInstall)
-
-	host1, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "test-host1-name",
-		OsqueryHostID:  ptr.String("1337"),
-		NodeKey:        ptr.String("1337"),
-		UUID:           "test-uuid-1",
-		TeamID:         nil,
-		Platform:       "darwin",
-		LabelUpdatedAt: fiveSecondsAgo,
-	})
-	require.NoError(t, err)
-	// add a user enrollment for this device, nothing else should be modified
-	nanoEnroll(t, ds, host1, true)
-
-	// non-macOS hosts shouldn't modify any of the results below
-	_, err = ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "test-windows-host",
-		OsqueryHostID:  ptr.String("4824"),
-		NodeKey:        ptr.String("4824"),
-		UUID:           "test-windows-host",
-		TeamID:         nil,
-		Platform:       "windows",
-		LabelUpdatedAt: fiveSecondsAgo,
-	})
-	require.NoError(t, err)
-
-	// a macOS host that's not MDM enrolled into Fleet shouldn't
-	// modify any of the results below
-	_, err = ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "test-non-mdm-host",
-		OsqueryHostID:  ptr.String("4825"),
-		NodeKey:        ptr.String("4825"),
-		UUID:           "test-non-mdm-host",
-		TeamID:         nil,
-		Platform:       "darwin",
-		LabelUpdatedAt: fiveSecondsAgo,
-	})
-	require.NoError(t, err)
-
-	// global profiles to install on the newly added host
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
-
-	hostLabel, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "test-host-name-label",
-		OsqueryHostID:  ptr.String("1337_label"),
-		NodeKey:        ptr.String("1337_label"),
-		UUID:           "test-uuid-1-label",
-		TeamID:         nil,
-		Platform:       "darwin",
-		LabelUpdatedAt: fiveSecondsAgo,
-	})
-	require.NoError(t, err)
-	// add a user enrollment for this device, nothing else should be modified
-	nanoEnroll(t, ds, hostLabel, true)
-
-	// include-any labels
-	l1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
-	require.NoError(t, err)
-
-	l2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-2", Query: "select 1"})
-	require.NoError(t, err)
-
-	l3, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-3", Query: "select 1"})
-	require.NoError(t, err)
-
-	// include-all labels
-	l4, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-4", Query: "select 1"})
-	require.NoError(t, err)
-
-	l5, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-5", Query: "select 1"})
-	require.NoError(t, err)
-
-	// exclude-any labels
-	l6, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-any-6", Query: "select 1"})
-	require.NoError(t, err)
-
-	l7, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-any-7", LabelMembershipType: fleet.LabelMembershipTypeManual})
-	require.NoError(t, err)
-
-	profIncludeAny, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-include-any", "prof-include-any", "prof-include-any", l1, l2, l3), nil)
-	require.NoError(t, err)
-	profIncludeAll, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-include-all", "prof-include-all", "prof-include-all", l4, l5), nil)
-	require.NoError(t, err)
-	profExcludeAny, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-exclude-any", "prof-exclude-any", "prof-exclude-any", l6, l7), nil)
-	require.NoError(t, err)
-	profExcludeAnyManualOnly, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-exclude-any-manual", "prof-exclude-any-manual", "prof-exclude-any-manual", l7), nil)
-	require.NoError(t, err)
-
-	// hostLabel is a member of l1, l4, l5
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}, {l4.ID, hostLabel.ID}, {l5.ID, hostLabel.ID}})
-	require.NoError(t, err)
-
-	globalPfs, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
-	require.NoError(t, err)
-	require.Len(t, globalPfs, 6)
-
-	// still the same profiles to assign (plus the one for hostLabel) as there are no profiles for team 1
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAny.ProfileUUID, ProfileIdentifier: profIncludeAny.Identifier, ProfileName: profIncludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
-
-	// Update hosts' labels updated at timestamp so that the exclude any profile with a dynamic label shows up
-	hostLabel.LabelUpdatedAt = time.Now().Add(1 * time.Second)
-	err = ds.UpdateHost(ctx, hostLabel)
-	require.NoError(t, err)
-
-	host1.LabelUpdatedAt = time.Now().Add(1 * time.Second)
-	err = ds.UpdateHost(ctx, host1)
-	require.NoError(t, err)
-
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAny.ProfileUUID, ProfileIdentifier: profIncludeAny.Identifier, ProfileName: profIncludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
-
-	// Remove the l1<->hostLabel relationship, but add l2<->hostLabel. The profile should still show
-	// up since it's "include any"
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
-	require.NoError(t, err)
-
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
-	require.NoError(t, err)
-
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-
-	require.NoError(t, err)
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAny.ProfileUUID, ProfileIdentifier: profIncludeAny.Identifier, ProfileName: profIncludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
-
-	// Remove the l2<->hostLabel relationship. The profie should no longer show up since it's
-	// include-any
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
-	require.NoError(t, err)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
-
-	// Remove the l4<->hostLabel relationship. Since the profile is "include-all", it should no longer show
-	// up even though the l5<->hostLabel connection is still there.
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l4.ID, hostLabel.ID}})
-	require.NoError(t, err)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
-
-	// Add a l6<->host relationship. The dynamic exclude-any profile should no longer be assigned to hostLabel but manual still will
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, hostLabel.ID}})
-	require.NoError(t, err)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
-	require.NoError(t, err)
-
-	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: host1.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-
-		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-		{ProfileUUID: profExcludeAnyManualOnly.ProfileUUID, ProfileIdentifier: profExcludeAnyManualOnly.Identifier, ProfileName: profExcludeAnyManualOnly.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
-	}, profilesToInstall)
 }
 
 func testAggregateMacOSSettingsAllPlatforms(t *testing.T, ds *Datastore) {
@@ -13375,4 +12822,299 @@ func testRecoveryLockReadersReturnNotFoundForSoftDeleted(t *testing.T, ds *Datas
 	got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Nil(t, got)
+}
+
+func testGetABMTokenByUniqueToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Insert an ABM token.
+	encTok := uuid.NewString()
+	inserted, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "unique-token-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inserted.ID)
+
+	// Fetch the enrollment_url_token that was generated during insert.
+	var urlToken string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &urlToken, `SELECT enrollment_url_token FROM abm_tokens WHERE id = ?`, inserted.ID)
+	})
+	require.NotEmpty(t, urlToken)
+
+	// Fetch by the unique token – should succeed and return the correct token.
+	tok, err := ds.GetABMTokenByUniqueToken(ctx, urlToken)
+	require.NoError(t, err)
+	require.NotNil(t, tok)
+	require.Equal(t, inserted.ID, tok.ID)
+	require.Equal(t, "unique-token-org", tok.OrganizationName)
+
+	// Fetch with a non-existent unique token – should return a not-found error.
+	_, err = ds.GetABMTokenByUniqueToken(ctx, "no-such-token")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testInsertADUEEnrollmentChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "adue-org",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	idpUUID := uuid.NewString()
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "adue-user",
+		Fullname: "ADUE User",
+		Email:    "adue-user@example.com",
+	})
+	require.NoError(t, err)
+
+	challenge, err := ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, time.Hour)
+	require.NoError(t, err)
+	require.NotEmpty(t, challenge)
+
+	var row struct {
+		Challenge    string    `db:"challenge"`
+		ABMTokenID   *uint     `db:"abm_token_id"`
+		IDPAccountID string    `db:"idp_account_uuid"`
+		ExpiresAt    time.Time `db:"expires_at"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &row, `
+			SELECT challenge, abm_token_id, idp_account_uuid, expires_at
+			FROM mdm_adue_enrollment_challenges
+			WHERE challenge = ?
+		`, challenge)
+	})
+	require.Equal(t, challenge, row.Challenge)
+	require.Equal(t, &abmTok.ID, row.ABMTokenID)
+	require.Equal(t, idpUUID, row.IDPAccountID)
+	require.True(t, row.ExpiresAt.After(time.Now()))
+
+	// Fails with empty expiration duration
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, 0)
+	require.Error(t, err)
+
+	// Fails with invalid abm token
+	invalidABMTokenID := uint(9999)
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &invalidABMTokenID, idpUUID, time.Hour)
+	require.Error(t, err)
+
+	// Fails with empty/invalid idpUUID
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, "", time.Hour)
+	require.Error(t, err)
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, "invalid-uuid", time.Hour)
+	require.Error(t, err)
+
+	// Succeeds with nil abmTokenID
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, nil, idpUUID, time.Hour)
+	require.NoError(t, err)
+}
+
+func testConsumeADUEEnrollmentChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Shared prerequisites.
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "adue-consume-org",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	idpUUID := uuid.NewString()
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "adue-consume-user",
+		Fullname: "ADUE Consume User",
+		Email:    "adue-consume-user@example.com",
+	})
+	require.NoError(t, err)
+
+	// insertExpiredChallenge bypasses InsertADUEEnrollmentChallenge's positive-duration guard
+	// to create a challenge that is already past its expires_at.
+	insertExpiredChallenge := func(t *testing.T) string {
+		t.Helper()
+		challenge := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at) VALUES (?, ?, ?, ?)`,
+				challenge, abmTok.ID, idpUUID, time.Now().Add(-time.Hour))
+			return err
+		})
+		return challenge
+	}
+
+	t.Run("happy path: marks used_at and returns challenge", func(t *testing.T) {
+		challenge, err := ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, time.Hour)
+		require.NoError(t, err)
+
+		before, err := ds.GetADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.Nil(t, before.UsedAt)
+
+		got, err := ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, before.ID, got.ID)
+
+		after, err := ds.GetADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.NotNil(t, after.UsedAt)
+	})
+
+	t.Run("already used: returns BadRequestError", func(t *testing.T) {
+		challenge, err := ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, time.Hour)
+		require.NoError(t, err)
+
+		// First consume succeeds.
+		_, err = ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+
+		// Second consume must fail because used_at is now set.
+		_, err = ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.Error(t, err)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, badReqErr.Message, "can only be used once")
+	})
+
+	t.Run("expired: returns BadRequestError", func(t *testing.T) {
+		challenge := insertExpiredChallenge(t)
+
+		_, err := ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.Error(t, err)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, badReqErr.Message, "has expired")
+	})
+
+	t.Run("unknown challenge: returns not-found error", func(t *testing.T) {
+		_, err := ds.ConsumeADUEEnrollmentChallenge(ctx, "no-such-challenge-string")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testCleanupExpiredADUEEnrollmentChallenges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "adue-cleanup-org",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	idpUUID := uuid.NewString()
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "adue-cleanup-user",
+		Fullname: "ADUE Cleanup User",
+		Email:    "adue-cleanup-user@example.com",
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	pastUsedAt := now.Add(-26 * time.Hour)
+
+	insertChallenge := func(t *testing.T, challenge string, expiresAt time.Time, usedAt *time.Time) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if usedAt != nil {
+				_, err := q.ExecContext(ctx,
+					`INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at, used_at) VALUES (?, ?, ?, ?, ?)`,
+					challenge, abmTok.ID, idpUUID, expiresAt, usedAt)
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at) VALUES (?, ?, ?, ?)`,
+				challenge, abmTok.ID, idpUUID, expiresAt)
+			return err
+		})
+	}
+
+	countChallenge := func(t *testing.T, challenge string) int {
+		t.Helper()
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM mdm_adue_enrollment_challenges WHERE challenge = ?`, challenge)
+		})
+		return count
+	}
+
+	// Non-expired, no used_at — must NOT be deleted.
+	insertChallenge(t, "non-expired-no-used", now.Add(2*time.Hour), nil)
+
+	// Non-expired, has used_at — must NOT be deleted.
+	insertChallenge(t, "non-expired-with-used", now.Add(2*time.Hour), &pastUsedAt)
+
+	// Expired more than 24 hours ago, no used_at — must be deleted.
+	insertChallenge(t, "expired-no-used", now.Add(-25*time.Hour), nil)
+
+	// Expired more than 24 hours ago, has used_at — must be deleted.
+	insertChallenge(t, "expired-with-used", now.Add(-25*time.Hour), &pastUsedAt)
+
+	require.NoError(t, ds.CleanupExpiredADUEEnrollmentChallenges(ctx))
+
+	assert.Equal(t, 1, countChallenge(t, "non-expired-no-used"), "non-expired challenge without used_at should not be deleted")
+	assert.Equal(t, 1, countChallenge(t, "non-expired-with-used"), "non-expired challenge with used_at should not be deleted")
+	assert.Equal(t, 0, countChallenge(t, "expired-no-used"), "challenge expired >24h ago without used_at should be deleted")
+	assert.Equal(t, 0, countChallenge(t, "expired-with-used"), "challenge expired >24h ago with used_at should be deleted")
+}
+
+func testGetABMOrganizationNamesAssociatedByDefaultTeams(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newTeam := func(name string) uint {
+		t.Helper()
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		return tm.ID
+	}
+	insertToken := func(org string, teamSetter func(*fleet.ABMToken)) {
+		t.Helper()
+		tok := &fleet.ABMToken{
+			OrganizationName: org,
+			EncryptedToken:   []byte(uuid.NewString()),
+			RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+		}
+		if teamSetter != nil {
+			teamSetter(tok)
+		}
+		_, err := ds.InsertABMToken(ctx, tok)
+		require.NoError(t, err)
+	}
+	assertOrgNames := func(teamID *uint, want []string) {
+		t.Helper()
+		got, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, teamID)
+		require.NoError(t, err)
+		sort.Strings(got)
+		require.Equal(t, want, got)
+	}
+
+	tm1 := newTeam("abm-default-team-1")
+	tm2 := newTeam("abm-default-team-2")
+	tm3 := newTeam("abm-default-team-3")
+
+	insertToken("org-macos", func(tok *fleet.ABMToken) { tok.MacOSDefaultTeamID = &tm1 })
+	insertToken("org-ios", func(tok *fleet.ABMToken) { tok.IOSDefaultTeamID = &tm1 })
+	insertToken("org-ipados", func(tok *fleet.ABMToken) { tok.IPadOSDefaultTeamID = &tm2 })
+	insertToken("org-byod", func(tok *fleet.ABMToken) { tok.BYODDefaultTeamID = &tm1 })
+	insertToken("org-unassigned", nil)
+
+	assertOrgNames(&tm1, []string{"org-byod", "org-ios", "org-macos"})
+	assertOrgNames(&tm2, []string{"org-ipados"})
+	assertOrgNames(&tm3, nil)
+
+	_, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, nil)
+	require.Error(t, err)
 }

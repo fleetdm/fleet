@@ -422,10 +422,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /orchestration': {
-    action: 'view-observability',
+  'GET /visibility-and-reporting': {
+    action: 'view-visibility-and-reporting',
     locals: {
-      pageTitleForMeta: 'Orchestration',
+      pageTitleForMeta: 'Visibility and reporting',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
       currentSection: 'platform',
     }
@@ -640,6 +640,14 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Download fleetctl',
       pageDescriptionForMeta: 'Download fleetctl, Fleet\'s CLI for managing hosts, applying configurations, running reports, and interacting with the Fleet API.'
+    }
+  },
+
+  'GET /security-and-control': {
+    action: 'view-security-and-control',
+    locals: {
+      pageTitleForMeta: 'Security & control',
+      pageDescriptionForMeta: 'Control what belongs on your devices and detect vulnerabilities automatically.',
     }
   },
 
@@ -879,8 +887,8 @@ module.exports.routes = {
       return res.redirect('/tables/' + req.param('tableName'));
     }
   },
-  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/queries'); },
-  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/queries'); },
+  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/reports'); },
+  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/reports'); },
   'GET /docs/using-fleet/fleetctl-cli': (req, res) => { return res.redirect(301, '/guides/fleetctl'); },
   'GET /docs/using-fleet/fleet-desktop': (req, res) => { return res.redirect(301, '/guides/fleet-desktop'); },
   'GET /docs/using-fleet/enroll-hosts': (req, res) => { return res.redirect(301, '/guides/enroll-hosts'); },
@@ -907,7 +915,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
   'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
   'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
-  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/standard-query-library'); },
+  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
   'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
@@ -916,6 +924,8 @@ module.exports.routes = {
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
+  'GET /guides/queries': '/guides/reports',
+  'GET /guides/standard-query-library': '/guides/report-library',
   'GET /app-library': '/software-catalog',
   'GET /app-library/:appIdentifier': {
     fn: (req, res) => {
@@ -1165,7 +1175,7 @@ module.exports.routes = {
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
-
+  'GET /orchestration': '/visibility-and-reporting',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1264,6 +1274,7 @@ module.exports.routes = {
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
+  'GET /learn-more-about/end-user-migration-workflow': '/guides/mdm-migration#end-user-workflow',
   'GET /learn-more-about/turn-on-apple-mdm': '/guides/apple-mdm-setup#turn-on-apple-mdm',
   'GET /learn-more-about/setup-abm': '/guides/apple-mdm-setup#apple-business-ab',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
@@ -1278,9 +1289,9 @@ module.exports.routes = {
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
   'GET /learn-more-about/dep-profile': 'https://developer.apple.com/documentation/devicemanagement/define_a_profile',
-  'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-manager-abm-tokens',
+  'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-ab-tokens',
   'GET /learn-more-about/apple-business-manager-teams-api': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#update-abm-tokens-teams',
-  'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business-manager',
+  'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business',
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
   'GET /learn-more-about/available-os-update-versions': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
   'GET /learn-more-about/apple-available-os-updates': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
@@ -1300,7 +1311,7 @@ module.exports.routes = {
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/setup-experience#end-user-license-agreement-eula',
-  'GET /learn-more-about/end-user-authentication': '/guides/setup-experience#end-user-authentication',
+  'GET /learn-more-about/end-user-authentication': '/guides/setup-experience#require-idp-authentication',
   'GET /learn-more-about/yaml-setup-experience-software': '/docs/configuration/yaml-files#software',
   'GET /learn-more-about/policy-templates': '/policies',
   'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
@@ -1315,6 +1326,7 @@ module.exports.routes = {
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
+  'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
   'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
@@ -1361,10 +1373,13 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
-  'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
+  'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
+  'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
+  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
 
   // Sitemap
   // =============================================================================================================

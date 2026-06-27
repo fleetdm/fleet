@@ -1,0 +1,10 @@
+{
+  "name": "NotesOllama",
+  "unique_identifier": "app.smallest.NotesOllama",
+  "token": "notesollama",
+  "installer_format": "zip",
+  "slug": "notesollama/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

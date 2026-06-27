@@ -29,7 +29,17 @@ const buildMdmItems = (
             label: "Turn on Apple (macOS, iOS, iPadOS) MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_APPLE,
-            keywords: ["enable", "apns", "dep"],
+            keywords: [
+              "enable",
+              "activate",
+              "set up apple mdm",
+              "configure apple mdm",
+              "apns",
+              "dep",
+              "iphone",
+              "ipad",
+              "macbook",
+            ],
           },
         ]
       : [
@@ -38,19 +48,37 @@ const buildMdmItems = (
             label: "Edit Apple (macOS, iOS, iPadOS) MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_APPLE,
-            keywords: ["apns", "certificate", "renew"],
+            keywords: [
+              "update apple mdm",
+              "change apple mdm",
+              "modify apple mdm",
+              "configure apple mdm",
+              "apns",
+              "certificate",
+              "renew",
+              "iphone",
+              "ipad",
+              "macbook",
+            ],
           },
-          // ABM and VPP pages are Premium-only.
+          // AB and VPP pages are Premium-only.
           ...(isPremiumTier
             ? [
                 {
                   id: isAbmConfigured ? "edit-abm" : "add-abm",
                   label: isAbmConfigured
-                    ? "Edit Apple Business Manager (ABM)"
-                    : "Add Apple Business Manager (ABM)",
+                    ? "Edit Apple Business (AB)"
+                    : "Add Apple Business (AB)",
                   group: "MDM" as const,
                   path: paths.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER,
-                  keywords: ["dep", "automated enrollment", "apple"],
+                  keywords: [
+                    "dep",
+                    "automated enrollment",
+                    "apple",
+                    ...(isAbmConfigured
+                      ? ["update abm", "change abm", "modify abm", "configure"]
+                      : ["create abm", "new abm", "configure", "set up abm"]),
+                  ],
                 },
                 {
                   id: isVppEnabled ? "edit-vpp" : "add-vpp",
@@ -59,7 +87,14 @@ const buildMdmItems = (
                     : "Add Volume Purchasing Program (VPP)",
                   group: "MDM" as const,
                   path: paths.ADMIN_INTEGRATIONS_VPP,
-                  keywords: ["app store", "apple", "token"],
+                  keywords: [
+                    "app store",
+                    "apple",
+                    "token",
+                    ...(isVppEnabled
+                      ? ["update vpp", "change vpp", "modify vpp", "configure"]
+                      : ["create vpp", "new vpp", "configure", "set up vpp"]),
+                  ],
                 },
               ]
             : []),
@@ -72,7 +107,16 @@ const buildMdmItems = (
             label: "Turn on Windows MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_WINDOWS,
-            keywords: ["enable", "microsoft"],
+            keywords: [
+              "enable",
+              "activate",
+              "set up windows mdm",
+              "configure windows mdm",
+              "microsoft",
+              "pc",
+              "win10",
+              "win11",
+            ],
           },
         ]
       : [
@@ -81,14 +125,30 @@ const buildMdmItems = (
             label: "Edit Windows MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_WINDOWS,
-            keywords: ["microsoft", "enrollment"],
+            keywords: [
+              "update windows mdm",
+              "change windows mdm",
+              "modify windows mdm",
+              "configure windows mdm",
+              "microsoft",
+              "enrollment",
+              "pc",
+              "win10",
+              "win11",
+            ],
           },
           {
             id: "windows-automatic-enrollment",
             label: "Windows automatic enrollment (Entra)",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS,
-            keywords: ["entra", "azure ad", "microsoft"],
+            keywords: [
+              "entra",
+              "azure ad",
+              "microsoft",
+              "autopilot",
+              "active directory",
+            ],
           },
         ]),
     // Android MDM — turn on or edit
@@ -99,7 +159,16 @@ const buildMdmItems = (
             label: "Turn on Android MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_ANDROID,
-            keywords: ["enable", "google", "enterprise"],
+            keywords: [
+              "enable",
+              "activate",
+              "set up android mdm",
+              "configure android mdm",
+              "google",
+              "enterprise",
+              "phone",
+              "tablet",
+            ],
           },
         ]
       : [
@@ -108,7 +177,16 @@ const buildMdmItems = (
             label: "Edit Android MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_ANDROID,
-            keywords: ["google", "enterprise"],
+            keywords: [
+              "update android mdm",
+              "change android mdm",
+              "modify android mdm",
+              "configure android mdm",
+              "google",
+              "enterprise",
+              "phone",
+              "tablet",
+            ],
           },
         ]),
   ];

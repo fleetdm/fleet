@@ -1,0 +1,10 @@
+{
+  "name": "Optimus Player",
+  "unique_identifier": "mo.darren.optimus.player.mac",
+  "token": "optimus-player",
+  "installer_format": "dmg",
+  "slug": "optimus-player/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

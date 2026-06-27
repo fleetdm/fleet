@@ -1,0 +1,12 @@
+{
+  "name": "PostgreSQL 17",
+  "slug": "postgresql-17/windows",
+  "package_identifier": "PostgreSQL.PostgreSQL.17",
+  "unique_identifier": "PostgreSQL 17",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/postgresql-17_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/postgresql-17_uninstall.ps1"
+}

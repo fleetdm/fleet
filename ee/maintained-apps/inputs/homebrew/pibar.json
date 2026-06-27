@@ -1,0 +1,10 @@
+{
+  "name": "PiBar",
+  "unique_identifier": "net.amiantos.PiBar",
+  "token": "pibar",
+  "installer_format": "zip",
+  "slug": "pibar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

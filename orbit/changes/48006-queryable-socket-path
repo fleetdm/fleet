@@ -1,0 +1,2 @@
+* Adds an optional, queryable socket_path column to both containerd_containers and containerd_mounts. 
+* Defaults to /run/containerd/containerd.sock when no value is specified, maintaining backwards compatibility.
