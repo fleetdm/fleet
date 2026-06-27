@@ -217,7 +217,7 @@ const InstallSoftwareForm = ({
     const orderTooltip =
       platform === "android"
         ? "Software order will vary."
-        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
+        : "Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy.";
 
     return (
       <div>
