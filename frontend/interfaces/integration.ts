@@ -93,7 +93,7 @@ export interface IGlobalGoogleWorkspaceIntegration {
 // Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
-  google_workspace?: IGlobalGoogleWorkspaceIntegration[] | null;
+  google_workspace?: IGlobalGoogleWorkspaceIntegration[];
   // whether or not conditional access is enabled for "No team"
   conditional_access_enabled?: boolean;
 }

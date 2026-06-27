@@ -1,9 +1,8 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "react-query";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { IConfig } from "interfaces/config";
-import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
@@ -65,7 +64,6 @@ interface IGoogleWorkspaceSectionProps {
 const GoogleWorkspaceSection = ({
   appConfig,
 }: IGoogleWorkspaceSectionProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<IGoogleWorkspaceFormData>({
@@ -139,11 +137,6 @@ const GoogleWorkspaceSection = ({
     [formData]
   );
 
-  if (!isPremiumTier) {
-    // The parent SCIM/IdP section already renders the premium message.
-    return <></>;
-  }
-
   const onFormSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -155,25 +148,24 @@ const GoogleWorkspaceSection = ({
 
     setIsUpdatingSettings(true);
 
-    // Disconnect: all fields cleared -> send empty array.
-    const isDisconnect = !domain && !impersonatedUserEmail && !apiKeyJson;
-
-    let googleWorkspace: Record<string, unknown>[] = [];
-    if (isDisconnect) {
-      googleWorkspace = [];
-    } else {
-      const entry: Record<string, unknown> = {
-        domain,
-        impersonated_user_email: impersonatedUserEmail,
-      };
-      // Only send api_key_json when it changed (masked value => preserve existing).
-      if (apiKeyJson && apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
-        entry.api_key_json = JSON.parse(apiKeyJson);
-      }
-      googleWorkspace = [entry];
-    }
-
     try {
+      // Disconnect: all fields cleared -> send empty array.
+      const isDisconnect = !domain && !impersonatedUserEmail && !apiKeyJson;
+
+      let googleWorkspace: Record<string, unknown>[] = [];
+      if (!isDisconnect) {
+        const entry: Record<string, unknown> = {
+          domain,
+          impersonated_user_email: impersonatedUserEmail,
+        };
+        // Only send api_key_json when it changed (masked value => preserve existing).
+        // JSON.parse is inside the try so a malformed key can't throw uncaught.
+        if (apiKeyJson && apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
+          entry.api_key_json = JSON.parse(apiKeyJson);
+        }
+        googleWorkspace = [entry];
+      }
+
       await configAPI.update({
         integrations: { google_workspace: googleWorkspace },
       });

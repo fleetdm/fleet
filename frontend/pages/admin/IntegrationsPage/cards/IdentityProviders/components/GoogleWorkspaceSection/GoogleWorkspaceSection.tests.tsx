@@ -6,17 +6,17 @@ import { createCustomRenderer } from "test/test-utils";
 
 import GoogleWorkspaceSection from "./GoogleWorkspaceSection";
 
-const renderWith = (isPremiumTier: boolean) =>
+// Premium gating now lives in the parent IdentityProviders component, so this
+// section always renders its form.
+const renderWith = () =>
   createCustomRenderer({
     withBackendMock: true,
-    context: {
-      app: { isPremiumTier, config: createMockConfig() },
-    },
+    context: { app: { config: createMockConfig() } },
   });
 
 describe("GoogleWorkspaceSection", () => {
-  it("renders the connect form for premium users", () => {
-    const render = renderWith(true);
+  it("renders the connect form", () => {
+    const render = renderWith();
     render(<GoogleWorkspaceSection appConfig={createMockConfig()} />);
 
     expect(screen.getByText("Google Workspace")).toBeInTheDocument();
@@ -29,14 +29,6 @@ describe("GoogleWorkspaceSection", () => {
     expect(screen.getByText(/SCIM provisioning/i)).toBeInTheDocument();
   });
 
-  it("renders nothing for non-premium users (parent shows the premium message)", () => {
-    const render = renderWith(false);
-    const { container } = render(
-      <GoogleWorkspaceSection appConfig={createMockConfig()} />
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
   it("pre-fills the form and masks the API key from existing config", () => {
     const config = createMockConfig();
     config.integrations.google_workspace = [
@@ -47,7 +39,7 @@ describe("GoogleWorkspaceSection", () => {
       },
     ];
 
-    const render = renderWith(true);
+    const render = renderWith();
     render(<GoogleWorkspaceSection appConfig={config} />);
 
     expect(screen.getByDisplayValue("example.com")).toBeInTheDocument();
