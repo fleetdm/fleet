@@ -87,7 +87,7 @@ describe("InstallSoftware", () => {
 
     await waitFor(() => {
       const tooltip = screen.getByText(
-        /Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy./i
+        "Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy."
       );
       expect(tooltip).toBeInTheDocument();
     });
