@@ -200,6 +200,63 @@ org_settings:
 	assert.Empty(t, enrolledSecrets)
 }
 
+func TestGitOpsGlobalGoogleWorkspace(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	setupEmptyGitOpsMocks(ds)
+
+	var savedAppConfig *fleet.AppConfig
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Test
+  integrations:
+    google_workspace:
+      - domain: example.com
+        impersonated_user_email: admin@example.com
+        api_key_json:
+          client_email: sa@example.com
+          private_key: FAKE_PRIVATE_KEY
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+	// The Google Workspace integration from the YAML must be applied end to end.
+	require.NotNil(t, savedAppConfig)
+	require.Len(t, savedAppConfig.Integrations.GoogleWorkspace, 1)
+	gw := savedAppConfig.Integrations.GoogleWorkspace[0]
+	assert.Equal(t, "example.com", gw.Domain)
+	assert.Equal(t, "admin@example.com", gw.ImpersonatedUserEmail)
+	assert.Equal(t, "sa@example.com", gw.ApiKey.Values[fleet.GoogleCalendarEmail])
+	assert.Equal(t, "FAKE_PRIVATE_KEY", gw.ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
