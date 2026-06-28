@@ -159,7 +159,15 @@ const SoftwareTitleDetailsPage = ({
       retry: false,
       select: (data) => data.software_title,
       onError: (error) => {
-        if (!ignoreAxiosError(error, [403, 404])) {
+        if (error.status === 404) {
+          router.push(
+            getPathWithQueryParams(paths.SOFTWARE, {
+              fleet_id: teamIdForApi,
+            })
+          );
+          return;
+        }
+        if (!ignoreAxiosError(error, [403])) {
           handlePageError(error);
         }
       },
