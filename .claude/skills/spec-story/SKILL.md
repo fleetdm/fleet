@@ -1,7 +1,7 @@
 ---
 name: spec-story
 description: Break down a Fleet GitHub story issue into implementable sub-issues with technical specs. Use when asked to "spec", "break down", or "analyze" a story or issue.
-allowed-tools: Bash(gh *), Bash(git log*), Bash(git blame*), Bash(git show*), Bash(git diff*), Read, Grep, Glob, Write, Edit, WebFetch(domain:github.com), WebFetch(domain:fleetdm.com), WebSearch, mcp__claude_ai_Figma__*, mcp__claude_ai_Slack__*, mcp__claude_ai_Gong__*
+allowed-tools: Bash(gh *), Bash(git log*), Bash(git blame*), Bash(git show*), Bash(git diff*), Read, Grep, Glob, Write, Edit, Agent, WebFetch(domain:github.com), WebFetch(domain:fleetdm.com), WebSearch, mcp__claude_ai_Figma__*, mcp__claude_ai_Slack__*, mcp__claude_ai_Gong__*
 model: opus
 effort: high
 argument-hint: "<issue-number-or-url>"
@@ -291,7 +291,21 @@ The spec document the user reviews follows this structure. Sections marked "(whe
 15. **Resolved questions** — decisions made during spec review (often via SME consultation), preserved as a record. Each entry pairs the question with the decision and the rationale, sometimes with forward-compatibility notes ("adding Secure Token later does not require account deletion or recreation because…"). This section prevents re-litigation when implementers ask "wait, why don't we do X?".
 16. **Testing tips** (when applicable) — concrete CLI snippets for manually verifying the feature once implemented: `fleetctl api -X PATCH ...`, `dscl . -read /Users/...`, `sysadminctl -secureTokenStatus ...`, `gh issue view ...`. Numbered steps the engineer or QA can follow on a real device.
 
-### 3.4 Stage 3 gate — pause for approval
+### 3.4 Verify the draft with an independent subagent
+
+Before presenting, verify the draft's concrete claims using a **separate verification subagent** (via the `Agent` tool) — not an in-context re-read. A fresh agent doesn't share the drafting context's assumptions and has no stake in the draft being right, so it starts skeptical; that independence is what makes the check catch real errors instead of rubber-stamping them.
+
+Spawn one read-only subagent (a general-purpose or `Explore` agent). Give it the drafted spec and this instruction: *treat every concrete claim as wrong until re-confirmed against the source — re-read the actual files, schema, and GitHub; do not trust the spec's prose. Return only what fails or is uncertain.* It must check:
+- **References resolve.** Every `file:line` and symbol still exists in current code (Read/Grep); every datastore method named exists in `server/fleet/datastore.go`.
+- **Schema is accurate.** Every table and column cited exists in `server/datastore/mysql/schema.sql` with the stated type/constraints, and every proposed migration is consistent with the current table shape.
+- **GitHub claims exist.** Every referenced issue/PR number resolves (`gh`); in-flight doc-PR field names match what the spec assumes.
+- **Decomposition holds.** The dependency graph is acyclic; no sub-issue mixes backend and frontend; each is a clean vertical slice; the mandatory `Documentation and engineering QA` sub-issue is present.
+- **Conflicts resolved.** Every doc-PR / field-name conflict surfaced in research has an explicit resolution in the spec — none silently dropped.
+- **Completeness.** Name any affected surface (UI page, endpoint, service, datastore method, migration, MDM command, CLI/GitOps, agent) the decomposition does not cover. Phrase this to find gaps, not to bless coverage.
+
+Fix everything the subagent flags before the gate. If a claim cannot be confirmed, present it as an open question rather than as fact.
+
+### 3.5 Stage 3 gate — pause for approval
 
 Present the full spec to the user. Wait for explicit approval. **Do not create any GitHub issues until the user explicitly approves the drafted sub-issues.** If they ask for revisions, stay in Stage 3 and iterate.
 
@@ -364,7 +378,7 @@ Finally, report each created issue with its number and URL.
 
 ### Process gating
 - **Always** gate the entire process on Stage 1.1: ask for the Figma link(s) and documentation change PR(s) up front, and stop until the user provides them or explicitly confirms none exist. Do not start codebase mapping, history search, or spec drafting before this is settled.
-- **Always** stop at each stage gate (1.5, 2.4, 3.4, 4.2) and wait for explicit user approval before advancing. Do not collapse stages, do not advance on implicit cues, and do not create GitHub issues until Stage 4.2 approval is given.
+- **Always** stop at each stage gate (1.5, 2.4, 3.5, 4.2) and wait for explicit user approval before advancing. Do not collapse stages, do not advance on implicit cues, and do not create GitHub issues until Stage 4.2 approval is given.
 - **Always** research prior art before finalizing sub-issues: inspect Figma carefully via the Figma MCP, search GitHub issues/PRs/discussions, Slack, and Gong calls for prior mentions, and read git history (`git log`, `git blame`) for every codepath you expect to touch.
 - **Always** consult the relevant SME(s) (Apple/Windows MDM lead, agent lead, frontend lead, etc.) in Stage 2.3 before finalizing the spec, and preserve their feedback verbatim in an "Expert review notes" section. If consultation is deferred, document why in one line.
 
