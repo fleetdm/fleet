@@ -53,10 +53,15 @@ Once inputs are provided:
 - **Find the t-shirt size on the parent story.** Check the issue's labels (e.g. `~size:s`, `~size:m`, `~size:l`) and body for an explicit t-shirt estimate. If none is present, flag it as an open question — do not invent one. Capture the size only; do not derive or assign story points from it.
 
 ### 1.3 Map the codebase impact
-Search the codebase to understand what exists and what needs to change:
+
+**Always start here — read the schema and migrations FIRST, before grepping code paths.** Fleet's database shape dictates everything downstream, so grounding the spec in the real table structure (rather than inferring it from scattered Go code) is faster and more accurate, and anchors every later decision (sub-issue boundaries, migration scope, conditions of satisfaction) in actual columns, types, and constraints. Stories that touch no tables are extremely rare; do this regardless:
+
+- **Schema.** Grep the affected tables in `server/datastore/mysql/schema.sql` — the generated, always-current dump of every table (regenerated from migrations by `make dump-test-schema`). Pull the exact columns, types, indexes, and foreign keys for each table the story touches, e.g. ``grep -A40 'CREATE TABLE `software_installers`' server/datastore/mysql/schema.sql``. Grep the specific tables; do not load the whole file.
+- **Migrations.** Skim the most recent files in `server/datastore/mysql/migrations/tables/` (sorted by timestamp) for in-flight or adjacent schema changes the dump may not reflect yet, and to read the *intent* behind recent columns (the `Up` function and its comments).
+
+Then map the rest of the surface:
 - Find existing implementations of related features (Grep for key terms)
-- Identify the tables, service methods, API endpoints, and frontend pages involved
-- Check migration files and `server/fleet/datastore.go` for relevant schema
+- Identify the service methods, API endpoints, and frontend pages involved; use `server/fleet/datastore.go` for the datastore interface (what methods exist)
 - Trace the request flow: API endpoint → service method → datastore → frontend
 
 ### 1.4 Research prior art and history
