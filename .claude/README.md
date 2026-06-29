@@ -1,6 +1,6 @@
 # Fleet Claude Code configuration
 
-This directory contains team-shared [Claude Code](https://claude.ai/code) configuration for the Fleet project. The core setup works out of the box with no MCP servers, plugins, or external dependencies required (a couple of skills can optionally use MCP servers or external CLIs — noted in the table below). The full setup adds a few thousand tokens at startup — CLAUDE.md and skill descriptions load up front; rule bodies, skill bodies, and agent bodies only load on demand. Run `/context` to see the current breakdown.
+This directory contains team-shared [Claude Code](https://claude.ai/code) configuration for the Fleet project. The core setup works out of the box with no plugins or external services required. Most GitHub-related skills use the `gh` CLI, and a few skills can optionally use MCP servers — both noted in the table below. The full setup adds a few thousand tokens at startup — CLAUDE.md and skill descriptions load up front; rule bodies, skill bodies, and agent bodies only load on demand. Run `/context` to see the current breakdown.
 
 This setup is a starting point. You can customize it by creating `.claude/settings.local.json` (gitignored) to add your own permissions, MCP servers, and plugins. See [Customize your setup](#customize-your-setup) for details.
 
@@ -156,19 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # Workflow skills (invoke with /) — see "Skills reference" for the full list
-│   ├── review-pr/             #   Code review, CI, tests, lint
-│   ├── fix-ci/                #   (review-pr, fix-ci, test, find-related-tests, lint)
-│   ├── test/                  #   Scaffolding & DB
-│   ├── new-endpoint/          #   (new-endpoint, new-migration, bump-migration)
-│   ├── spec-story/            #   Issues, releases, GitOps
-│   ├── cherry-pick/           #   (spec-story, cherry-pick, fleet-gitops, push-reference-docs,
-│   ├── release-retro/         #    release-retro, who-blocks-this-pr, vuln-triage)
-│   ├── new-fma/               #   Frontend & content
-│   ├── command-palette/       #   (command-palette, tier-modes, content-style)
-│   ├── content-style/         #   Context & OpenSpec
-│   ├── project/               #   (project, openspec-* — openspec-* are vendored by the openspec CLI)
-│   └── ...                    #   (24 skills total)
+├── skills/                    # 24 workflow skills (invoke with /) — see "Skills reference" below
+│   ├── review-pr/             #   Review a PR
+│   ├── test/                  #   Run tests for recent changes
+│   ├── fix-ci/                #   Diagnose CI failures
+│   ├── spec-story/            #   Break a story into sub-issues
+│   ├── new-migration/         #   Scaffold a DB migration
+│   └── ...                    #   + 19 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
