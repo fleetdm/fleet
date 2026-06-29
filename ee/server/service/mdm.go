@@ -154,10 +154,30 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	}
 
 	var contents bytes.Buffer
+
+	// Resolve prompt_enablement_at team-over-global; defaults to "login".
+	promptAt := fleet.FileVaultPromptEnablementAtLogin
+	if teamID != nil {
+		tmMDM, err := svc.ds.TeamMDMConfig(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team MDM config")
+		}
+		if tmMDM != nil {
+			promptAt = tmMDM.FileVaultPromptEnablementAt()
+		}
+	} else {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		promptAt = ac.MDM.FileVaultPromptEnablementAt()
+	}
+
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 		PayloadName:          mdm.FleetFileVaultProfileName,
 		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		PromptEnablementAt:   promptAt,
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
