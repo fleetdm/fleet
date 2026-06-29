@@ -118,11 +118,11 @@ func TestCheckResultCount(t *testing.T) {
 	}
 }
 
-// TestGetCPEsToleratesShortfall exercises the full path: NVD reports totalResults=40
-// but returns only 39 products (a ~2.5% shortfall, within tolerance), so generation
-// should succeed and write all 39 rather than aborting.
+// TestGetCPEsToleratesShortfall exercises the full path: NVD reports totalResults=20
+// but returns only 19 products, exactly the 95% tolerance boundary, so generation
+// should succeed and write all 19 rather than aborting.
 func TestGetCPEsToleratesShortfall(t *testing.T) {
-	const total, returned = 40, 39
+	const total, returned = 20, 19
 	products := make([]string, returned)
 	for i := range products {
 		products[i] = fmt.Sprintf(
