@@ -141,9 +141,7 @@ Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-
 
 ## Automatic renewal
 
-Include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the SubjectName OU of your SCEP profile to opt into auto-renewal. Fleet renews certificates about 30 days before expiration; new profiles deployed without this variable continue to work but renew manually.
-
-The legacy name `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted for back-compat. Both substitute to the same value.
+Include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the SubjectName OU of your SCEP profile to opt into auto-renewal. Fleet renews certificates about 30 days before expiration; new profiles deployed without this variable continue to work but must be renewed manually.
 
 **Example SubjectName containing the marker:**
 
