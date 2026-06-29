@@ -49,6 +49,35 @@ func TestServeFrontend(t *testing.T) {
 	require.Equal(t, http.StatusMethodNotAllowed, response.StatusCode)
 }
 
+func TestAssetCacheControl(t *testing.T) {
+	handler := assetCacheControl(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		// Content-hashed build output (JS/CSS, fonts, images) is safe to cache
+		// forever — webpack emits everything as [name]@[hash][ext].
+		{"/bundle-3ccf015bc0fac64b4ce8.js", "public, max-age=31536000, immutable"},
+		{"/bundle-1e51316ac7963e1112c1.css", "public, max-age=31536000, immutable"},
+		{"/Inter-Bold@1a2b3c4d5e6f7890.woff2", "public, max-age=31536000, immutable"},
+		{"/404-dark@1a2b3c4d5e6f7890.svg", "public, max-age=31536000, immutable"},
+		{"/jira-preview-400x419@2x@1a2b3c4d5e6f7890.png", "public, max-age=31536000, immutable"},
+		// Unhashed (dev builds, favicon, static scripts) must keep revalidating.
+		{"/bundle.js", "no-cache"},
+		{"/bundle.css", "no-cache"},
+		{"/favicon.ico", "no-cache"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			require.Equal(t, tc.want, rec.Header().Get("Cache-Control"))
+		})
+	}
+}
+
 func TestServeEndUserEnrollOTA(t *testing.T) {
 	if !hasBuildTag("full") {
 		t.Skip("This test requires running with -tags full")

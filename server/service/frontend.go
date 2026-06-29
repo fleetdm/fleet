@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -273,10 +274,16 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+// hashedAssetRe matches build-output filenames that embed a content hash, e.g.
+// "bundle-3ccf015bc0fac64b4ce8.js" or "logo@1a2b3c4d.png". A content change
+// produces a new hash and therefore a new URL, so these are safe to cache
+// forever. Unhashed names (dev builds like "bundle.js") must keep revalidating.
+var hashedAssetRe = regexp.MustCompile(`[-@][0-9a-f]{8,}\.[a-z0-9]+$`)
+
 func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	contentTypes := []string{"text/javascript", "text/css"}
 	staticAssetsServer := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.FileServer(newBinaryFileSystem("/assets")))
-	withoutGzip := http.StripPrefix(path, staticAssetsServer)
+	withoutGzip := http.StripPrefix(path, assetCacheControl(staticAssetsServer))
 
 	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
 	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
@@ -284,4 +291,15 @@ func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	}
 
 	return withOpts(withoutGzip)
+}
+
+func assetCacheControl(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hashedAssetRe.MatchString(r.URL.Path) {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
