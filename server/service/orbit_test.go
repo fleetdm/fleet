@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -502,7 +501,9 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
+			// Mirror the real datastore, which wraps a missing host_mdm row as a
+			// Fleet NotFound error rather than returning a bare sql.ErrNoRows.
+			return nil, newNotFoundError()
 		}
 		var isHostConnectedToFleet bool
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
@@ -689,7 +690,9 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 			return false, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
+			// Mirror the real datastore, which wraps a missing host_mdm row as a
+			// Fleet NotFound error rather than returning a bare sql.ErrNoRows.
+			return nil, newNotFoundError()
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
