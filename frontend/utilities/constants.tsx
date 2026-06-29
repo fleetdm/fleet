@@ -368,12 +368,15 @@ export const MDM_STATUS_TOOLTIP: Record<
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
-  ),
-  "On (personal)": (
     <span>
-      MDM was turned on by signing in with Managed Apple Account on iOS/iPadOS,
-      or by creating a work profile on Android. End users can turn MDM off.
+      Enrolled with a manual enrollment profile as a company-owned device. IT
+      admins can wipe this device and enforce all MDM restrictions.
+    </span>
+  ),
+  "On (manual - personal)": (
+    <span>
+      Enrolled with a manual enrollment profile as a personal (BYOD) device. IT
+      admins cannot wipe this device or lock the end user out.
     </span>
   ),
   "On (company-owned)": null,
