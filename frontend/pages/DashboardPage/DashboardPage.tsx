@@ -940,6 +940,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}
+              filterDefaults={
+                featuresConfig?.vulnerability_exposure_historical_reporting
+              }
             />
           </Card>
         </div>

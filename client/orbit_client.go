@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/backoff"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
@@ -191,6 +192,7 @@ var (
 	netErrInterval                     = 5 * time.Minute
 	configRetryOnNetworkError          = 30 * time.Second
 	defaultOrbitConfigReceiverInterval = 30 * time.Second
+	maxConfigBackoff                   = 5 * time.Minute
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -335,13 +337,29 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 	ticker := time.NewTicker(oc.ReceiverUpdateInterval)
 	defer ticker.Stop()
 
+	// Backoff tracker for the config polling loop. See #45553.
+	configBackoff := backoff.New(oc.ReceiverUpdateInterval, maxConfigBackoff)
+
 	for {
 		select {
 		case <-oc.receiverUpdateContext.Done():
 			return nil
 		case <-ticker.C:
 			if err := oc.RunConfigReceivers(); err != nil {
-				log.Error().Err(err).Msg("running config receivers")
+				configBackoff.RecordFailure()
+				nextRetry := configBackoff.Interval()
+				ticker.Reset(nextRetry)
+				log.Error().Err(err).
+					Str("next_retry", nextRetry.String()).
+					Msg("running config receivers, backing off")
+			} else {
+				if configBackoff.InBackoff() {
+					log.Info().
+						Str("backoff_duration", configBackoff.TimeSinceBackoffStarted().String()).
+						Msg("config receivers succeeded, exiting backoff")
+				}
+				configBackoff.RecordSuccess()
+				ticker.Reset(oc.ReceiverUpdateInterval)
 			}
 		}
 	}
@@ -354,7 +372,9 @@ func (oc *OrbitClient) InterruptConfigReceivers(err error) {
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
 // Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
 // to reduce traffic to the Fleet server.
-// Upon network errors, this method will retry the get config request (every 30 seconds).
+// On network or 5XX errors the request is retried once before returning the error
+// to the caller. The caller (ExecuteConfigReceivers) handles sustained failures
+// with exponential backoff. See #45553.
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
@@ -367,7 +387,8 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 			resp fleet.OrbitConfig
 			err  error
 		)
-		// Retry until we don't get a network error or a 5XX error.
+		// Retry once on transient errors. Sustained failures are handled
+		// by the exponential backoff in ExecuteConfigReceivers.
 		_ = retry.Do(func() error {
 			err = oc.authenticatedRequest(verb, path, &fleet.OrbitGetConfigRequest{}, &resp)
 			var (
@@ -386,7 +407,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 				return err // retry on network or server 5XX errors
 			}
 			return nil
-		}, retry.WithInterval(configRetryOnNetworkError))
+		}, retry.WithInterval(configRetryOnNetworkError), retry.WithMaxAttempts(2))
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now

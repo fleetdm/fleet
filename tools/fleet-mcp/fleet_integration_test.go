@@ -9,6 +9,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func newTestClient(serverURL string) *FleetClient {
@@ -16,30 +19,6 @@ func newTestClient(serverURL string) *FleetClient {
 		baseURL:    serverURL,
 		apiKey:     "test",
 		httpClient: http.DefaultClient,
-	}
-}
-
-func TestIsTempQueryName(t *testing.T) {
-	cases := []struct {
-		name string
-		in   string
-		want bool
-	}{
-		{"global temp", tempQueryNamePrefix + "1234-abc", true},
-		{"team-scoped temp", "[Workstations] " + tempQueryNamePrefix + "1234-abc", true},
-		{"team-scoped temp with emoji", "[💻 Workstations] " + tempQueryNamePrefix + "1234-abc", true},
-		{"unrelated global query", "Top-level CPU usage", false},
-		{"unrelated team query", "[Servers] Disk space check", false},
-		{"prefix substring not at start", "prefixed-" + tempQueryNamePrefix + "abc", false},
-		{"empty", "", false},
-		{"just brackets", "[abc]", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := isTempQueryName(tc.in); got != tc.want {
-				t.Errorf("isTempQueryName(%q) = %v, want %v", tc.in, got, tc.want)
-			}
-		})
 	}
 }
 
@@ -297,16 +276,16 @@ func TestValidateCVEID(t *testing.T) {
 		wantErr bool
 	}{
 		{"CVE-2026-12345", false},
-		{"CVE-1999-0001", false},     // 4-digit minimum
+		{"CVE-1999-0001", false},      // 4-digit minimum
 		{"  CVE-2026-12345  ", false}, // trims
 		{"", true},
 		{"   ", true},
-		{"cve-2026-12345", true},   // case-sensitive
-		{"CVE-26-12345", true},     // year too short
-		{"CVE-2026-123", true},     // suffix too short
-		{"CVE-2026-12345x", true},  // trailing junk
-		{"CVE-2026", true},         // missing suffix
-		{"<script>", true},         // injection-shaped junk
+		{"cve-2026-12345", true},  // case-sensitive
+		{"CVE-26-12345", true},    // year too short
+		{"CVE-2026-123", true},    // suffix too short
+		{"CVE-2026-12345x", true}, // trailing junk
+		{"CVE-2026", true},        // missing suffix
+		{"<script>", true},        // injection-shaped junk
 	}
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {
@@ -401,5 +380,250 @@ func TestGetHostsForCVE_PaginatesTitles(t *testing.T) {
 	}
 	if got := titlesCalls.Load(); got != 2 {
 		t.Errorf("expected 2 titles pages (100 + 30 short page), got %d", got)
+	}
+}
+
+// campaignTestServer stands up an httptest server that answers the campaign
+// create POST and upgrades the results websocket, then hands the connection to
+// drive() (after consuming the auth + select_campaign handshake) so each test
+// can script the frames the server sends back.
+func campaignTestServer(t *testing.T, campaignID uint, drive func(conn *websocket.Conn)) *httptest.Server {
+	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/fleet/reports/run":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"campaign": map[string]interface{}{"id": campaignID},
+			})
+		case r.URL.Path == "/api/v1/fleet/results/websocket":
+			conn, err := up.Upgrade(w, r, nil)
+			if err != nil {
+				t.Errorf("websocket upgrade: %v", err)
+				return
+			}
+			defer conn.Close()
+			// Validate the client speaks the handshake protocol the real server
+			// enforces: an auth frame carrying a token, then a select_campaign
+			// frame naming this campaign.
+			var msg map[string]interface{}
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Errorf("read auth frame: %v", err)
+				return
+			}
+			if msg["type"] != "auth" {
+				t.Errorf("first frame type = %v, want auth", msg["type"])
+			}
+			if data, _ := msg["data"].(map[string]interface{}); data["token"] == "" || data["token"] == nil {
+				t.Errorf("auth frame missing token, got %v", msg["data"])
+			}
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Errorf("read select_campaign frame: %v", err)
+				return
+			}
+			if msg["type"] != "select_campaign" {
+				t.Errorf("second frame type = %v, want select_campaign", msg["type"])
+			}
+			// JSON numbers decode to float64 in an interface{} map.
+			if data, _ := msg["data"].(map[string]interface{}); data["campaign_id"] != float64(campaignID) {
+				t.Errorf("select_campaign campaign_id = %v, want %d", data["campaign_id"], campaignID)
+			}
+			drive(conn)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func writeWSFrame(t *testing.T, conn *websocket.Conn, typ string, data interface{}) {
+	if err := conn.WriteJSON(map[string]interface{}{"type": typ, "data": data}); err != nil {
+		t.Errorf("server write %s frame: %v", typ, err)
+	}
+}
+
+// runMultiHostCampaign creates an ad-hoc campaign and streams results over the
+// websocket, aggregating each host's rows into one result.
+func TestRunMultiHostCampaign_AggregatesResults(t *testing.T) {
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
+	srv := campaignTestServer(t, 42, func(conn *websocket.Conn) {
+		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 2, "online": 2})
+		writeWSFrame(t, conn, "result", map[string]interface{}{
+			"host": map[string]interface{}{"id": 10, "hostname": "h10", "display_name": "Host 10"},
+			"rows": []map[string]string{{"answer": "42"}},
+		})
+		writeWSFrame(t, conn, "result", map[string]interface{}{
+			"host": map[string]interface{}{"id": 20, "hostname": "h20", "display_name": "Host 20"},
+			"rows": []map[string]string{{"answer": "43"}},
+		})
+		writeWSFrame(t, conn, "status", map[string]interface{}{"expected_results": 2, "actual_results": 2, "status": "finished"})
+	})
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	nameByID := map[uint]Endpoint{10: {ID: 10, Name: "host-10"}, 20: {ID: 20, Name: "host-20"}}
+	res, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", nameByID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.TargetedHostCount != 2 {
+		t.Errorf("TargetedHostCount = %d, want 2 (from totals)", res.TargetedHostCount)
+	}
+	if res.RespondedHostCount != 2 {
+		t.Errorf("RespondedHostCount = %d, want 2 (from status.actual_results)", res.RespondedHostCount)
+	}
+	if len(res.Results) != 2 {
+		t.Fatalf("len(Results) = %d, want 2", len(res.Results))
+	}
+	// The locally-resolved host name wins over the server-reported one.
+	for _, row := range res.Results {
+		if row["host_id"] == uint(10) && row["host_name"] != "host-10" {
+			t.Errorf("host 10 name = %v, want host-10", row["host_name"])
+		}
+	}
+}
+
+// Offline hosts never report, so the stream stops once every online host has
+// responded rather than waiting out the deadline.
+func TestRunMultiHostCampaign_StopsWhenOnlineHostsRespond(t *testing.T) {
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
+	srv := campaignTestServer(t, 7, func(conn *websocket.Conn) {
+		// 3 targeted, only 2 online; host 30 is offline and silent.
+		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 3, "online": 2})
+		writeWSFrame(t, conn, "result", map[string]interface{}{
+			"host": map[string]interface{}{"id": 10}, "rows": []map[string]string{{"k": "v"}},
+		})
+		writeWSFrame(t, conn, "result", map[string]interface{}{
+			"host": map[string]interface{}{"id": 20}, "rows": []map[string]string{{"k": "v"}},
+		})
+		writeWSFrame(t, conn, "status", map[string]interface{}{"expected_results": 2, "actual_results": 2, "status": "finished"})
+	})
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	nameByID := map[uint]Endpoint{10: {ID: 10}, 20: {ID: 20}, 30: {ID: 30}}
+	start := time.Now()
+	res, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20, 30}, "SELECT 1;", nameByID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 4*time.Second {
+		t.Errorf("expected prompt return once online hosts responded, took %s", elapsed)
+	}
+	if res.TargetedHostCount != 3 {
+		t.Errorf("TargetedHostCount = %d, want 3", res.TargetedHostCount)
+	}
+	if res.RespondedHostCount != 2 {
+		t.Errorf("RespondedHostCount = %d, want 2", res.RespondedHostCount)
+	}
+	if len(res.Results) != 2 {
+		t.Errorf("len(Results) = %d, want 2 (offline host produced no row)", len(res.Results))
+	}
+}
+
+// A per-host osquery error in a result frame surfaces as an error on that host's
+// row without failing the whole query.
+func TestRunMultiHostCampaign_HostErrorRow(t *testing.T) {
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
+	srv := campaignTestServer(t, 1, func(conn *websocket.Conn) {
+		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 1, "online": 1})
+		writeWSFrame(t, conn, "result", map[string]interface{}{
+			"host":  map[string]interface{}{"id": 10},
+			"rows":  []map[string]string{},
+			"error": "no such table: bogus",
+		})
+		writeWSFrame(t, conn, "status", map[string]interface{}{"expected_results": 1, "actual_results": 1, "status": "finished"})
+	})
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	res, err := fc.runMultiHostCampaign(t.Context(), []uint{10}, "SELECT * FROM bogus;", map[uint]Endpoint{10: {ID: 10}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Results) != 1 {
+		t.Fatalf("len(Results) = %d, want 1", len(res.Results))
+	}
+	if res.Results[0]["error"] != "no such table: bogus" {
+		t.Errorf("expected host error row, got %+v", res.Results[0])
+	}
+}
+
+// A failed campaign creation surfaces as an error (no websocket is opened).
+func TestRunMultiHostCampaign_CreateFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/fleet/results/websocket" {
+			t.Errorf("websocket must not be dialed when campaign creation fails")
+		}
+		http.Error(w, `{"message":"boom"}`, http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	_, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{})
+	if err == nil {
+		t.Fatal("expected error on failed campaign creation, got nil")
+	}
+}
+
+// An "error" frame from the server (campaign not found, unauthorized, pubsub
+// failure) must surface as an error, not a silent empty result.
+func TestRunMultiHostCampaign_ServerErrorFrame(t *testing.T) {
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
+	srv := campaignTestServer(t, 99, func(conn *websocket.Conn) {
+		writeWSFrame(t, conn, "error", "cannot find campaign for ID 99")
+	})
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	_, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{})
+	if err == nil {
+		t.Fatal("expected error from server error frame, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot find campaign") {
+		t.Errorf("error %q should include the server's message", err)
+	}
+}
+
+// A mid-stream read failure (connection dropped before a terminal status) must
+// surface as an error rather than masquerading as an empty successful result.
+func TestRunMultiHostCampaign_StreamReadError(t *testing.T) {
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
+	srv := campaignTestServer(t, 5, func(conn *websocket.Conn) {
+		// Two hosts online but only one responds, then the connection drops
+		// abruptly (no "finished" status, no clean close handshake).
+		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 2, "online": 2})
+		writeWSFrame(t, conn, "result", map[string]interface{}{
+			"host": map[string]interface{}{"id": 10}, "rows": []map[string]string{{"k": "v"}},
+		})
+		conn.Close()
+	})
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	_, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{10: {ID: 10}, 20: {ID: 20}})
+	if err == nil {
+		t.Fatal("expected error on abrupt stream drop, got nil")
+	}
+}
+
+func TestCampaignWebsocketURL(t *testing.T) {
+	cases := []struct {
+		base string
+		want string
+	}{
+		{"http://localhost:8080", "ws://localhost:8080/api/v1/fleet/results/websocket"},
+		{"https://fleet.example.com", "wss://fleet.example.com/api/v1/fleet/results/websocket"},
+		{"https://fleet.example.com/", "wss://fleet.example.com/api/v1/fleet/results/websocket"},
+	}
+	for _, tc := range cases {
+		fc := newTestClient(tc.base)
+		got, err := fc.campaignWebsocketURL()
+		if err != nil {
+			t.Errorf("campaignWebsocketURL(%q) error: %v", tc.base, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("campaignWebsocketURL(%q) = %q, want %q", tc.base, got, tc.want)
+		}
 	}
 }

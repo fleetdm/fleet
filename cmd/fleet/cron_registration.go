@@ -306,6 +306,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newMaintainedAppSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
+	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {
+		return newMaintainedAppsAutoUpdateSchedule(ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.logger)
+	})
+
 	deps.register("failed to register refresh vpp app versions schedule", func() (fleet.CronSchedule, error) {
 		return newRefreshVPPAppVersionsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, apple_apps.Configure(ctx, deps.ds, deps.config.License.Key, deps.config.MDM.AppleConnectJWT))
 	})

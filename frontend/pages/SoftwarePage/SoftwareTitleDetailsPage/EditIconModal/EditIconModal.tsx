@@ -39,7 +39,7 @@ import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/Software
 import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
 import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
 
-import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
+import { TitleVersionsLastUpdatedInfo } from "../TitleVersionsTable/TitleVersionsTable";
 
 const baseClass = "edit-icon-modal";
 
