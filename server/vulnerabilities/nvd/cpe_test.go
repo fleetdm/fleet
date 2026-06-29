@@ -2656,6 +2656,17 @@ func TestCitrixWorkspaceLTSR(t *testing.T) {
 			wantCPE: "cpe:2.3:a:citrix:workspace:2203.1.41:*:*:*:ltsr:windows:*:*",
 		},
 		{
+			// #41790: cumulative updates (e.g. CU4 = 22.3.4000.4080) must be LTSR too.
+			name: "Citrix Workspace 2203 LTSR CU4 on Windows (#41790)",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2203",
+				Version: "22.3.4000.4080",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2203.4000.4080:*:*:*:ltsr:windows:*:*",
+		},
+		{
 			name: "Citrix Workspace 2402 LTSR on Windows",
 			software: fleet.Software{
 				Name:    "Citrix Workspace 2402",
