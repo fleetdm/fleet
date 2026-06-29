@@ -24,8 +24,8 @@ const EmailTokenRedirect = ({
       if (currentUser && token) {
         try {
           await usersAPI.confirmEmailChange(currentUser, token);
-          router.push(PATHS.ACCOUNT);
           notify.success("Email updated successfully.");
+          router.push(PATHS.ACCOUNT);
         } catch (error) {
           console.log(error);
           router.push(PATHS.LOGIN);

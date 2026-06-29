@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.6.8",
+      "version": "26.6.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.requestly.beta';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.requestly.beta' AND version_compare(bundle_short_version, '26.6.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.requestly.beta' AND version_compare(bundle_short_version, '26.6.22') < 0);"
       },
-      "installer_url": "https://github.com/requestly/requestly-desktop-app/releases/download/v26.6.8/Requestly-26.6.8-arm64.dmg",
+      "installer_url": "https://github.com/requestly/requestly-desktop-app/releases/download/v26.6.22/Requestly-26.6.22-arm64.dmg",
       "install_script_ref": "73f86cf3",
       "uninstall_script_ref": "66a21db5",
-      "sha256": "097a483f32f19a2f471a3bc3a81b0e05076c9a85f9c727daf056e5521d84d935",
+      "sha256": "07f6db3612f8bd321243b4a91fb60cb1759c90b0ec047f050e31026e10ec35d9",
       "default_categories": [
         "Productivity"
       ]

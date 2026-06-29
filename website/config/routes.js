@@ -887,8 +887,8 @@ module.exports.routes = {
       return res.redirect('/tables/' + req.param('tableName'));
     }
   },
-  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/queries'); },
-  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/queries'); },
+  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/reports'); },
+  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/reports'); },
   'GET /docs/using-fleet/fleetctl-cli': (req, res) => { return res.redirect(301, '/guides/fleetctl'); },
   'GET /docs/using-fleet/fleet-desktop': (req, res) => { return res.redirect(301, '/guides/fleet-desktop'); },
   'GET /docs/using-fleet/enroll-hosts': (req, res) => { return res.redirect(301, '/guides/enroll-hosts'); },
@@ -915,7 +915,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
   'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
   'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
-  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/standard-query-library'); },
+  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
   'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
@@ -924,6 +924,8 @@ module.exports.routes = {
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
+  'GET /guides/queries': '/guides/reports',
+  'GET /guides/standard-query-library': '/guides/report-library',
   'GET /app-library': '/software-catalog',
   'GET /app-library/:appIdentifier': {
     fn: (req, res) => {
@@ -1377,6 +1379,7 @@ module.exports.routes = {
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
+  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
 
   // Sitemap
   // =============================================================================================================

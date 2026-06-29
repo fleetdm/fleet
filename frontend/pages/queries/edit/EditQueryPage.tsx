@@ -262,13 +262,13 @@ const EditQueryPage = ({
     setIsQuerySaving(true);
     try {
       const { query } = await queryAPI.create(formData);
+      notify.success("Report created.");
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
           fleet_id: query.team_id,
           host_id: hostId,
         })
       );
-      notify.success("Report created.");
       setBackendValidators({});
     } catch (createError) {
       if (getErrorReason(createError).includes("already exists")) {

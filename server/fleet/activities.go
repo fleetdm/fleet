@@ -1218,6 +1218,7 @@ type ActivityTypeEditedSoftware struct {
 	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
+	PinnedVersion       *string                 `json:"pinned_version"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1720,6 +1721,30 @@ type ActivityTypeDeletedConditionalAccessOkta struct{}
 
 func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
 	return "deleted_conditional_access_okta"
+}
+
+type ActivityTypeAddedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeAddedGoogleWorkspaceIntegration) ActivityName() string {
+	return "added_google_workspace_integration"
+}
+
+type ActivityTypeEditedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeEditedGoogleWorkspaceIntegration) ActivityName() string {
+	return "edited_google_workspace_integration"
+}
+
+type ActivityTypeDeletedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeDeletedGoogleWorkspaceIntegration) ActivityName() string {
+	return "deleted_google_workspace_integration"
 }
 
 type ActivityTypeEnabledConditionalAccessAutomations struct {

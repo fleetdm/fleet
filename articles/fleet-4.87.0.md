@@ -8,12 +8,12 @@ Fleet 4.87.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- [800+ new Fleet-maintained apps](#800--new-fleet-maintained-apps)
+- [800+ new Fleet-maintained apps](#800-new-fleet-maintained-apps)
 - [Custom OS update profiles](#custom-os-update-profiles)
-- [Configuration profiles: Include + exclude](#configuration-profiles-include--exclude)
+- [Configuration profiles: Include + exclude](#configuration-profiles-include-exclude)
 - [macOS local account: non-admin (standard) or skip](#macos-local-account-non-admin-standard-or-skip)
 - [Self-service software categories](#self-service-software-categories)
-- [Android commands: Lock, wipe, & clear passcode](#android-commands-lock-wipe--clear-passcode)
+- [Android commands: Lock, wipe, & clear passcode](#android-commands-lock-wipe-clear-passcode)
 - [Policy automation continuous retry](#policy-automation-continuous-retry)
 - [Command palette](#command-palette)
 
