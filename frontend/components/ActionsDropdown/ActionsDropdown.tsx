@@ -343,7 +343,11 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
-        menuPortalTarget={document.body}
+        // Skip the portal for brand-button: it nulls out Control, and
+        // react-select's MenuPortal bails when controlElement is missing,
+        // leaving no menu to render. Brand-button is only used outside the
+        // data-table wrapper anyway, so it doesn't need the portal.
+        menuPortalTarget={isBrandButton ? undefined : document.body}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>
