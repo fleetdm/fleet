@@ -1974,41 +1974,6 @@ func allGoogleWorkspaceEntriesEmpty(entries []any) bool {
 	return true
 }
 
-// DoGitOps applies the GitOps config to Fleet.
-// allGoogleWorkspaceEntriesEmpty reports whether every google_workspace entry in
-// a GitOps org_settings.integrations payload has only empty fields. Such entries
-// (e.g. produced by unset GitOps variables) are treated as "not configured" so
-// the integration is cleared rather than failing validation. An empty list also
-// returns true.
-func allGoogleWorkspaceEntriesEmpty(entries []any) bool {
-	for _, e := range entries {
-		m, ok := e.(map[string]any)
-		if !ok {
-			return false
-		}
-		for _, v := range m {
-			switch t := v.(type) {
-			case nil:
-			case string:
-				if strings.TrimSpace(t) != "" {
-					return false
-				}
-			case map[string]any:
-				if len(t) != 0 {
-					return false
-				}
-			case []any:
-				if len(t) != 0 {
-					return false
-				}
-			default:
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func (c *Client) DoGitOps(
 	ctx context.Context,
 	incoming *spec.GitOps,
