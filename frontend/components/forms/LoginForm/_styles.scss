@@ -42,21 +42,23 @@
     align-self: flex-start;
   }
 
+  &__sso-btn.button {
+    border: 1px solid $core-fleet-black;
+    white-space: nowrap;
+  }
+
   &__sso-tooltip.component__tooltip-wrapper {
     display: block;
     width: 100%;
 
     .component__tooltip-wrapper__element {
-      width: 100%;
+      display: flex;
+
+      > .button {
+        flex: 1;
+      }
     }
   }
-
-  &__sso-tooltip.component__tooltip-wrapper .component__tooltip-wrapper__element &__sso-btn.button {
-    width: 100%;
-    border: 1px solid $core-fleet-black;
-    white-space: nowrap;
-  }
-  // End login button styles
 }
 
 .two-factor-check-email {
