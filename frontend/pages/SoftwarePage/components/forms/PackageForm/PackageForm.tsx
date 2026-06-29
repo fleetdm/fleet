@@ -13,6 +13,7 @@ import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
 import { SoftwareCategory } from "interfaces/software";
+import { isScriptOnlyPackageType } from "interfaces/package_type";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
@@ -315,7 +316,7 @@ const PackageForm = ({
   const ext = getExtensionFromFileName(formData?.software?.name || "");
   const isExePackage = ext === "exe";
   const isTarballPackage = ext === "tar.gz";
-  const isScriptPackage = ext === "sh" || ext === "ps1";
+  const isScriptPackage = isScriptOnlyPackageType(ext);
   const isIpaPackage = ext === "ipa";
   // We currently don't support replacing a tarball package, and FMAs use the
   // page-level Versions modal to switch versions rather than a file replace.
@@ -341,9 +342,8 @@ const PackageForm = ({
     onToggleAutomaticInstall,
   ]);
 
-  // Show advanced options when a package is selected that's not a script or ipa
-  const showAdvancedOptions =
-    formData.software && !isScriptPackage && !isIpaPackage;
+  // Show advanced options for any selected package except .ipa (includes script packages).
+  const showAdvancedOptions = formData.software && !isIpaPackage;
 
   const showDeploySoftwareSlider =
     !!formData.software && // show after selection

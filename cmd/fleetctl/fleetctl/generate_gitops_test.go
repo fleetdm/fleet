@@ -1813,6 +1813,19 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	require.Contains(t, regularPkg, "uninstall_script", "regular package should have uninstall_script")
 	require.Contains(t, regularPkg, "pre_install_query", "regular package should have pre_install_query")
 
+	// Only the regular package keeps a version in its generated comment.
+	commentFor := func(name string) string {
+		for _, c := range cmd.Comments {
+			if strings.Contains(c.Comment, name) {
+				return c.Comment
+			}
+		}
+		return ""
+	}
+	require.NotContains(t, commentFor("my-script.sh"), "version", ".sh script package comment should not mention version")
+	require.NotContains(t, commentFor("setup.ps1"), "version", ".ps1 script package comment should not mention version")
+	require.Contains(t, commentFor("regular-package.deb"), "version", "regular package comment should still mention version")
+
 	for filename := range cmd.FilesToWrite {
 		require.NotContains(t, filename, "my-script-linux-install", "should not write install script file for .sh script package")
 		require.NotContains(t, filename, "my-script-linux-postinstall", "should not write post-install script file for .sh script package")

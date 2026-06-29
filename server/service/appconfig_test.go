@@ -2382,6 +2382,140 @@ func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
+	ds := new(mock.Store)
+	// Google Workspace IdP is premium-only.
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	gwIntegration := []*fleet.GoogleWorkspaceIntegration{
+		{
+			Domain:                "example.com",
+			ImpersonatedUserEmail: "admin@example.com",
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+				fleet.GoogleCalendarEmail:      "svc@example.com",
+				fleet.GoogleCalendarPrivateKey: "original-private-key",
+			}},
+		},
+	}
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		Integrations: fleet.Integrations{
+			GoogleWorkspace: gwIntegration,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	reset := func() {
+		dsAppConfig.Integrations.GoogleWorkspace = gwIntegration
+	}
+
+	t.Run("preserve API key when omitted, update other fields", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [{
+					"domain": "newdomain.com",
+					"impersonated_user_email": "newadmin@example.com"
+				}]
+			}
+		}`
+		updated, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.Len(t, dsAppConfig.Integrations.GoogleWorkspace, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleWorkspace[0].Domain)
+		require.Equal(t, "newadmin@example.com", dsAppConfig.Integrations.GoogleWorkspace[0].ImpersonatedUserEmail)
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleWorkspace[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.True(t, updated.Integrations.GoogleWorkspace[0].ApiKey.IsMasked())
+	})
+
+	t.Run("validation rejects missing impersonated_user_email", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [{
+					"domain": "example.com",
+					"impersonated_user_email": "",
+					"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+				}]
+			}
+		}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "impersonated_user_email")
+	})
+
+	t.Run("validation rejects more than one integration", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [
+					{"domain": "a.com", "impersonated_user_email": "admin@a.com", "api_key_json": {"client_email": "s@a.com", "private_key": "k"}},
+					{"domain": "b.com", "impersonated_user_email": "admin@b.com", "api_key_json": {"client_email": "s@b.com", "private_key": "k"}}
+				]
+			}
+		}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "google_workspace")
+	})
+}
+
+func TestModifyAppConfigGoogleWorkspaceRequiresPremium(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	saveCalled := false
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		saveCalled = true
+		*dsAppConfig = *conf
+		return nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	updateJSON := `{
+		"integrations": {
+			"google_workspace": [{
+				"domain": "example.com",
+				"impersonated_user_email": "admin@example.com",
+				"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+			}]
+		}
+	}`
+	_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "integrations.google_workspace")
+	require.Contains(t, err.Error(), "missing or invalid license")
+	require.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
+}
+
 func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 

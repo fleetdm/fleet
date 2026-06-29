@@ -1723,6 +1723,30 @@ func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
 	return "deleted_conditional_access_okta"
 }
 
+type ActivityTypeAddedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeAddedGoogleWorkspaceIntegration) ActivityName() string {
+	return "added_google_workspace_integration"
+}
+
+type ActivityTypeEditedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeEditedGoogleWorkspaceIntegration) ActivityName() string {
+	return "edited_google_workspace_integration"
+}
+
+type ActivityTypeDeletedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeDeletedGoogleWorkspaceIntegration) ActivityName() string {
+	return "deleted_google_workspace_integration"
+}
+
 type ActivityTypeEnabledConditionalAccessAutomations struct {
 	TeamID   *uint  `json:"team_id" renameto:"fleet_id"`
 	TeamName string `json:"team_name" renameto:"fleet_name"`
