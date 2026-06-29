@@ -123,7 +123,17 @@ export interface IFleetMaintainedVersion {
   uploaded_at: string;
 }
 
+// TODO(48400, before merge to main): strip the (#48396/#48397/#48400) issue
+// refs sprinkled through this PR's comments — git blame is the audit trail.
+
 export interface ISoftwarePackage {
+  /** Per-installer id — distinct from `title_id`. Used by per-package edit/delete
+   * endpoints so the request targets one specific package on a title that may
+   * have several. Optional during the transition; #48397 sets the canonical
+   * server-side name (could land as `id`, `package_id`, etc. — search-replace
+   * when locked).
+   * TODO(48400): make required once #48397 ships. */
+  installer_id?: number;
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
    * Custom name set per team by admin
@@ -212,7 +222,11 @@ export interface ISoftwareTitle {
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title (trimmed shape on list responses). `null`
+   * until the server is on the multi-package contract (#48397). */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   /** @deprecated Use extension_for instead */
   browser?: string;
@@ -225,7 +239,12 @@ export interface ISoftwareTitleDetails {
   /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title, in first-added order. `null` until the
+   * server is on the multi-package contract (#48397). When present, treat it
+   * as the source of truth; `software_package` is a convenience alias. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;

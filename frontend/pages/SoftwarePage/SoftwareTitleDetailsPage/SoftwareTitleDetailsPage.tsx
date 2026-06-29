@@ -229,7 +229,29 @@ const SoftwareTitleDetailsPage = ({
       return null;
     }
 
+    // Prefer the multi-package array (#48397). Fall back to the single-package
+    // alias when the server hasn't moved to the multi-package contract yet, so
+    // back-compat titles render identically to before.
+    // TODO(48400): drop the `software_package` fallback once #48397 ships and
+    // `packages` is always present.
+    const packages =
+      title.packages ??
+      (title.software_package ? [title.software_package] : []);
+    const appStore = title.app_store_app;
+
+    // No installable to render at all.
+    if (packages.length === 0 && !appStore) {
+      return null;
+    }
+
+    // Per-row edit/delete callbacks are intentionally page-level for this
+    // slice — multi-package titles still open the legacy single-package modals
+    // (which target `software_package`). The modal slice introduces
+    // `selectedInstallerId` state plus per-row threading so add/edit/delete
+    // target one specific package on titles with several. Avoid wiring dead
+    // state here so this slice stays honest about what works.
     const openEditModal = () => setShowLibraryEditModal(true);
+    const openDeleteModal = () => setShowDeleteModal(true);
 
     const statusPath = (software_status: "installed" | "pending" | "failed") =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
@@ -238,45 +260,44 @@ const SoftwareTitleDetailsPage = ({
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
-    const libraryAccordionList = () => {
-      const pkg = title.software_package;
-      const appStore = title.app_store_app;
+    const renderAppStoreRow = () => {
+      if (!appStore) return null;
+      const { labels, kind } = pickLabels(appStore);
+      const isAndroidPlayStoreApp = appStore.platform === "android";
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      return (
+        <LibraryItemAccordion
+          filename={appStore.name}
+          version={appStore.latest_version}
+          addedAt={appStore.created_at}
+          installerType="app-store"
+          androidPlayStoreId={
+            isAndroidPlayStoreApp ? appStore.app_store_id : undefined
+          }
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          isActive
+          badgeState="latest"
+          labels={labels}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={appStore.status?.installed ?? 0}
+          pending={appStore.status?.pending ?? 0}
+          failed={appStore.status?.failed ?? 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          onLabelCountClick={openEditModal}
+          onLabelsClick={openEditModal}
+          onTrashClick={openDeleteModal}
+        />
+      );
+    };
 
-      if (appStore) {
-        const { labels, kind } = pickLabels(appStore);
-        const isAndroidPlayStoreApp = appStore.platform === "android";
-        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
-        return (
-          <LibraryItemAccordionList>
-            <LibraryItemAccordion
-              filename={appStore.name}
-              version={appStore.latest_version}
-              addedAt={appStore.created_at}
-              installerType="app-store"
-              androidPlayStoreId={
-                isAndroidPlayStoreApp ? appStore.app_store_id : undefined
-              }
-              isIosOrIpadosApp={isIosOrIpadosApp}
-              isActive
-              badgeState="latest"
-              labels={labels}
-              labelKind={kind}
-              canEditSoftware={canEditSoftware}
-              installed={appStore.status?.installed ?? 0}
-              pending={appStore.status?.pending ?? 0}
-              failed={appStore.status?.failed ?? 0}
-              installedPath={statusPath("installed")}
-              pendingPath={statusPath("pending")}
-              failedPath={statusPath("failed")}
-              onLabelCountClick={openEditModal}
-              onLabelsClick={openEditModal}
-              onTrashClick={() => setShowDeleteModal(true)}
-            />
-          </LibraryItemAccordionList>
-        );
-      }
-
-      if (!pkg) return null;
+    // FMAs expand a single package into one badged "active" row plus dimmed
+    // rollback rows for every cached version. Custom packages render exactly
+    // one row each. With multi-package titles we run this per `pkg` so each
+    // top-level entry stays addressable by its own `installer_id`.
+    const renderPackageRows = (pkg: ISoftwarePackage) => {
       const { labels, kind } = pickLabels(pkg);
       const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
       const isLatestFmaVersion =
@@ -286,61 +307,60 @@ const SoftwareTitleDetailsPage = ({
       const { installed, pending, failed } = aggregateInstallStatusCounts(
         pkg.status
       );
-      // FMAs list every cached version (active row badged from the pin, the
-      // rest dimmed rollback candidates); other packages render a single row.
       const rows = buildLibraryVersionRows({
         fleetMaintainedVersions: pkg.fleet_maintained_versions,
         activeVersion: pkg.version,
         pinnedVersion: pkg.pinned_version,
         addedTimestamp: pkg.uploaded_at,
       });
-      return (
-        <LibraryItemAccordionList>
-          {rows.map((row) => (
-            <LibraryItemAccordion
-              key={row.id}
-              filename={row.filename ?? pkg.name}
-              version={row.version}
-              addedAt={row.uploaded_at}
-              installerType="package"
-              isFma={isFma}
-              isLatestFmaVersion={row.isActive && isLatestFmaVersion}
-              isScriptPackage={isScriptPackage}
-              isTarballPackage={title.source === "tgz_packages"}
-              isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
-              isActive={row.isActive}
-              badgeState={row.badgeState}
-              labels={row.isActive ? labels : null}
-              labelKind={kind}
-              canEditSoftware={canEditSoftware}
-              installed={row.isActive ? installed : 0}
-              pending={row.isActive ? pending : 0}
-              failed={row.isActive ? failed : 0}
-              installedPath={statusPath("installed")}
-              pendingPath={statusPath("pending")}
-              failedPath={statusPath("failed")}
-              hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
-              downloadUrl={row.isActive ? pkg.url : undefined}
-              onBadgeClick={
-                isFma && canEditSoftware
-                  ? () => setShowVersionsModal(true)
-                  : undefined
-              }
-              onLabelCountClick={openEditModal}
-              onLabelsClick={openEditModal}
-              onDownloadClick={onDownloadInstaller}
-              onTrashClick={() => setShowDeleteModal(true)}
-            />
-          ))}
-        </LibraryItemAccordionList>
-      );
+      return rows.map((row) => (
+        <LibraryItemAccordion
+          key={`${pkg.installer_id}-${row.id}`}
+          filename={row.filename ?? pkg.name}
+          version={row.version}
+          addedAt={row.uploaded_at}
+          installerType="package"
+          isFma={isFma}
+          isLatestFmaVersion={row.isActive && isLatestFmaVersion}
+          isScriptPackage={isScriptPackage}
+          isTarballPackage={title.source === "tgz_packages"}
+          isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
+          isActive={row.isActive}
+          badgeState={row.badgeState}
+          labels={row.isActive ? labels : null}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={row.isActive ? installed : 0}
+          pending={row.isActive ? pending : 0}
+          failed={row.isActive ? failed : 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
+          downloadUrl={row.isActive ? pkg.url : undefined}
+          onBadgeClick={
+            isFma && canEditSoftware
+              ? () => setShowVersionsModal(true)
+              : undefined
+          }
+          onLabelCountClick={openEditModal}
+          onLabelsClick={openEditModal}
+          onDownloadClick={onDownloadInstaller}
+          onTrashClick={openDeleteModal}
+        />
+      ));
     };
 
+    // App-store and custom-package paths are mutually exclusive at the data
+    // layer (the backend rejects custom uploads against an FMA/VPP title), so
+    // only one branch ever renders rows. The wrapper stays the same shape.
     return (
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
-        <PageDescription content="Software available to be installed" />
-        {libraryAccordionList()}
+        <PageDescription content="Add packages for a staged rollout or to support multiple architectures." />
+        <LibraryItemAccordionList>
+          {appStore ? renderAppStoreRow() : packages.map(renderPackageRows)}
+        </LibraryItemAccordionList>
       </section>
     );
   };

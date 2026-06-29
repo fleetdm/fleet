@@ -518,12 +518,16 @@ export default {
   addSoftwarePackage: ({
     data,
     teamId,
+    softwareTitleId,
     timeout,
     onUploadProgress,
     signal,
   }: {
     data: IPackageFormData;
     teamId?: number;
+    /** When set, add this package to an existing software title (multi-package flow, #48397).
+     * When omitted, the server creates a new title for the uploaded file (original flow). */
+    softwareTitleId?: number;
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
@@ -536,6 +540,8 @@ export default {
 
     const formData = new FormData();
     formData.append("software", data.software);
+    softwareTitleId !== undefined &&
+      formData.append("software_title_id", softwareTitleId.toString());
     formData.append("self_service", data.selfService.toString());
     // Base64 encode script fields to bypass WAF rules that block script patterns
     data.installScript &&
@@ -598,6 +604,7 @@ export default {
     data,
     orignalPackage,
     softwareId,
+    installerId,
     teamId,
     timeout,
     onUploadProgress,
@@ -610,6 +617,9 @@ export default {
       | IVersionPinFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
+    /** Targets one specific package on a multi-package title (#48397). Omit on
+     * single-package titles to keep the legacy single-package edit behavior. */
+    installerId?: number;
     teamId: number;
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
@@ -618,6 +628,8 @@ export default {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
     const formData = new FormData();
     formData.append("fleet_id", teamId.toString());
+    installerId !== undefined &&
+      formData.append("installer_id", installerId.toString());
 
     if ("configuration" in data) {
       // Handles Edit configuration form (iOS/iPadOS in-house apps)
@@ -759,12 +771,19 @@ export default {
     return sendRequest("PUT", path, formData);
   },
 
-  // Endpoint for deleting packages or VPP
-  deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
+  // Endpoint for deleting packages or VPP. Pass `installerId` to delete one
+  // specific package on a multi-package title (#48397); omit to keep the legacy
+  // single-package / VPP behavior (deletes the whole installer slot).
+  deleteSoftwareInstaller: (
+    softwareId: number,
+    teamId: number,
+    installerId?: number
+  ) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
-    const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
-      softwareId
-    )}?fleet_id=${teamId}`;
+    const path = getPathWithQueryParams(
+      SOFTWARE_AVAILABLE_FOR_INSTALL(softwareId),
+      { fleet_id: teamId, installer_id: installerId }
+    );
     return sendRequest("DELETE", path);
   },
 
