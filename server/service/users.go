@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strings"
 	"time"
@@ -1303,7 +1302,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}
@@ -1382,9 +1381,23 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password, true)
+	err := svc.setNewPassword(ctx, user, password, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
+	}
+
+	// Destroy all other sessions but keep the current one so the user
+	// completing the reset is not logged out.
+	sessions, err := svc.ds.ListSessionsForUser(ctx, user.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing user sessions")
+	}
+	for _, s := range sessions {
+		if s.ID != vc.Session.ID {
+			if err := svc.ds.DestroySession(ctx, s); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "destroying session")
+			}
+		}
 	}
 
 	return user, nil
@@ -1561,7 +1574,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		SMTPSettings: smtpSettings,
 		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.PasswordResetMailer{
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 			Token:    token,
 		},

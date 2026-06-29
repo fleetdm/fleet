@@ -10,7 +10,6 @@ import { IVariable } from "interfaces/variables";
 
 import { AppContext } from "context/app";
 
-import { stringToClipboard } from "utilities/copy_text";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   FLEET_WEBSITE_URL,
@@ -20,6 +19,7 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -42,10 +42,6 @@ interface IVariablesProps {
 
 const Variables = ({ router, location }: IVariablesProps) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
-
-  const [copyMessage, setCopyMessage] = useState("");
-  const [copiedVariableName, setCopiedVariableName] = useState("");
-  const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [variableToDelete, setVariableToDelete] = useState<
@@ -105,36 +101,6 @@ const Variables = ({ router, location }: IVariablesProps) => {
     return `$FLEET_SECRET_${variableName.toUpperCase()}`;
   };
 
-  const onCopyVariableName = (evt: React.MouseEvent, variableName: string) => {
-    evt.preventDefault();
-
-    if (copyMessageTimeoutIdRef.current) {
-      clearTimeout(copyMessageTimeoutIdRef.current);
-    }
-
-    setCopiedVariableName(variableName);
-    stringToClipboard(getTokenFromVariableName(variableName))
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    copyMessageTimeoutIdRef.current = setTimeout(() => {
-      setCopyMessage("");
-      setCopiedVariableName("");
-    }, 1000);
-
-    return false;
-  };
-
-  // Cleanup timeout on unmount.
-  useEffect(() => {
-    return () => {
-      if (copyMessageTimeoutIdRef.current) {
-        clearTimeout(copyMessageTimeoutIdRef.current);
-      }
-    };
-  }, []);
-
   const renderVariableRow = (variable: IVariable) => (
     <>
       <ListItem
@@ -146,20 +112,10 @@ const Variables = ({ router, location }: IVariablesProps) => {
               <HumanTimeDiffWithDateTip timeString={variable.updated_at} />{" "}
               &bull; {getTokenFromVariableName(variable.name)}
             </span>
-            <Button
-              variant="unstyled"
-              className={`${baseClass}__copy-variable-icon`}
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
-                onCopyVariableName(e, variable.name)
-              }
-            >
-              <Icon name="copy" />
-            </Button>
-            {copyMessage && copiedVariableName === variable.name && (
-              <span
-                className={`${baseClass}__copy-message`}
-              >{`${copyMessage} `}</span>
-            )}
+            <CopyButton
+              copyText={getTokenFromVariableName(variable.name)}
+              variant="compact"
+            />
           </span>
         }
       />

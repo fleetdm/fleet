@@ -186,33 +186,6 @@ $toast-notification-width: 500px;
     color: $core-fleet-black;
   }
 
-  &__copy-button {
-    appearance: none;
-    background: transparent;
-    border: 0;
-    padding: $pad-xsmall;
-    margin: 0;
-    cursor: pointer;
-    color: $ui-fleet-black-75;
-    display: inline-flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    border-radius: $border-radius;
-    transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
-
-    &:hover,
-    &:focus-visible {
-      background-color: $ui-fleet-black-5;
-      color: $core-fleet-black;
-      outline: none;
-    }
-  }
-
-  &__copy-confirmation {
-    font-size: $xx-small;
-    color: $ui-fleet-black-75;
-  }
-
   // Light JSON block — overrides the global dark `pre` to match the ace-fleet
   // editor theme.
   &__json-block {

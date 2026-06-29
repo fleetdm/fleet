@@ -350,7 +350,7 @@ const SoftwareVppForm = ({
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
             entityType="software"
-            position="bottom"
+            position="top"
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button

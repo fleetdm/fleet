@@ -53,11 +53,6 @@ func main() {
 
 	fleetClient := NewFleetClient(config.FleetBaseURL, config.FleetAPIKey, config.TLSSkipVerify, config.TLSCAFile)
 
-	// Best-effort cleanup of any fleet-mcp-temp-* saved queries left over from
-	// previous runs whose DELETE failed. Synchronous so any temporary cleanup
-	// failures show up immediately in startup logs; errors are logged not fatal.
-	fleetClient.SweepLeftoverTempQueries(context.Background())
-
 	if *seed {
 		SeedFleet(config, fleetClient)
 		return

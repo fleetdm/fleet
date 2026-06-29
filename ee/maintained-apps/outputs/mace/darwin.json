@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.2.3-beta",
+      "version": "1.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app' AND version_compare(bundle_short_version, '0.2.3-beta') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app' AND version_compare(bundle_short_version, '1.0.0') < 0);"
       },
-      "installer_url": "https://github.com/MACE-App/MACE/releases/download/v0.2.3-beta/M.A.C.E.V0.2.3-beta.dmg",
+      "installer_url": "https://github.com/MACE-App/MACE/releases/download/v1.0.0/M.A.C.E.V1.0.0.dmg",
       "install_script_ref": "e194b881",
       "uninstall_script_ref": "672b1fee",
-      "sha256": "4392aa6ef5647156c2f950d0b0c7e3b958c60b76c0cc1fe4a41bbd9781d7bf8c",
+      "sha256": "a24d47f5c26d43ba673ed05ed5dcdd24025405790e82f10ce77c374ce9411577",
       "default_categories": [
         "Productivity"
       ]

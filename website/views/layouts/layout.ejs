@@ -34,6 +34,11 @@
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% if(typeof pageFaqForSeo !== 'undefined'){ %>
+    <script type="application/ld+json">
+      <%- pageFaqForSeo %>
+    </script>
+    <% } %>
     <% if (sails.config.environment === 'production') { %>
     <% /* ConsentMode */ %>
     <script>
