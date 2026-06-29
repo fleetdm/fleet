@@ -1633,6 +1633,25 @@ func TestGenerateControls(t *testing.T) {
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
 
+	// FileVault (prompt_enablement_at) is exported only when explicitly set.
+	mdmConfig = fleet.TeamMDM{
+		FileVault: fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")},
+	}
+	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	fvRaw, ok := controlsRaw["filevault"]
+	require.True(t, ok, "expected filevault block to be exported when prompt_enablement_at is set")
+	fvJSON, err := json.Marshal(fvRaw)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"prompt_enablement_at":"logout"}`, string(fvJSON))
+
+	// Unset prompt_enablement_at is omitted from the generated controls.
+	mdmConfig = fleet.TeamMDM{}
+	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	_, ok = controlsRaw["filevault"]
+	require.False(t, ok, "expected no filevault block when prompt_enablement_at is unset")
+
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
