@@ -2633,6 +2633,16 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				continue
 			}
 
+			// The host may have moved to a different team since the batch was
+			// scheduled, so re-check it still matches the script's team before running.
+			if !teamIDEq(host.TeamID, script.TeamID) {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  &fleet.BatchExecuteIncompatibleTeam,
+				})
+				continue
+			}
+
 			// Non-orbit-enrolled host (iOS, android)
 			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
 			// Scripts disabled on host

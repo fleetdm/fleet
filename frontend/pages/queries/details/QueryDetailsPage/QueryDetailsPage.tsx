@@ -128,7 +128,6 @@ const QueryDetailsPage = ({
     () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
       select: (data) => data.query,
       onError: (error) => handlePageError(error),
     }
@@ -154,6 +153,11 @@ const QueryDetailsPage = ({
     );
   }
 
+  const discardData = !!storedQuery?.discard_data;
+  const loggingSnapshot = storedQuery?.logging === "snapshot";
+  const reportCachingDisabled =
+    disabledCachingGlobally || discardData || !loggingSnapshot;
+
   const {
     isLoading: isQueryReportLoading,
     data: queryReport,
@@ -170,7 +174,9 @@ const QueryDetailsPage = ({
       }),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: !reportCachingDisabled,
+      refetchInterval: (data) =>
+        !reportCachingDisabled && data?.results?.length === 0 ? 5000 : false,
       onError: (error) => handlePageError(error),
     }
   );
@@ -378,10 +384,6 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const discardData = !!storedQuery?.discard_data;
-    const loggingSnapshot = storedQuery?.logging === "snapshot";
-    const disabledCaching =
-      disabledCachingGlobally || discardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     if (isLoading) {
@@ -399,7 +401,7 @@ const QueryDetailsPage = ({
           queryId={queryId}
           queryInterval={storedQuery?.interval}
           queryUpdatedAt={storedQuery?.updated_at}
-          disabledCaching={disabledCaching}
+          disabledCaching={reportCachingDisabled}
           disabledCachingGlobally={disabledCachingGlobally}
           discardDataEnabled={discardData}
           loggingSnapshot={loggingSnapshot}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.4.2",
+      "version": "2.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.galliumdigital.Modern-CSV';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.galliumdigital.Modern-CSV' AND version_compare(bundle_short_version, '2.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.galliumdigital.Modern-CSV' AND version_compare(bundle_short_version, '2.4.3') < 0);"
       },
-      "installer_url": "https://www.moderncsv.com/release/ModernCSV-Mac-v2.4.2.dmg",
+      "installer_url": "https://www.moderncsv.com/release/ModernCSV-Mac-v2.4.3.dmg",
       "install_script_ref": "bfa91515",
       "uninstall_script_ref": "3f855c52",
-      "sha256": "8949933a6e69fef39bb24a7d87881bc9e2196e3ae3405c01436cce19d983eae4",
+      "sha256": "37b0dd253a9c390b20da15518c4b2cd423fdc0a5e1edbe2266950e5fcca84433",
       "default_categories": [
         "Productivity"
       ]
