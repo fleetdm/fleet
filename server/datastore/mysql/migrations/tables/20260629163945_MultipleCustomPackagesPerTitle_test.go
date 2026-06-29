@@ -50,13 +50,13 @@ func TestUp_20260629163945(t *testing.T) {
 		var ids []int64
 		r, err := db.Query(`SELECT id FROM software_installers WHERE title_id = ? ORDER BY id`, titleID)
 		require.NoError(t, err)
+		defer r.Close()
 		for r.Next() {
 			var id int64
 			require.NoError(t, r.Scan(&id))
 			ids = append(ids, id)
 		}
 		require.NoError(t, r.Err())
-		require.NoError(t, r.Close())
 		return ids
 	}
 
@@ -108,13 +108,13 @@ func TestUp_20260629163945(t *testing.T) {
 			AND index_name = 'idx_software_installers_dedup'
 		ORDER BY seq_in_index`)
 	require.NoError(t, err)
+	defer rows.Close()
 	for rows.Next() {
 		var col string
 		require.NoError(t, rows.Scan(&col))
 		dedupCols = append(dedupCols, col)
 	}
 	require.NoError(t, rows.Err())
-	require.NoError(t, rows.Close())
 	require.Equal(t, []string{"global_or_team_id", "title_id", "dedup_token"}, dedupCols)
 
 	// Single-package title untouched.
