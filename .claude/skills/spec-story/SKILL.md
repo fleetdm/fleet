@@ -1,7 +1,7 @@
 ---
 name: spec-story
 description: Break down a Fleet GitHub story issue into implementable sub-issues with technical specs. Use when asked to "spec", "break down", or "analyze" a story or issue.
-allowed-tools: Bash(gh *), Bash(git log*), Bash(git blame*), Bash(git show*), Bash(git diff*), Read, Grep, Glob, Write, Edit, WebFetch(domain:github.com), WebFetch(domain:fleetdm.com), WebSearch, mcp__claude_ai_Figma__*, mcp__claude_ai_Slack__*
+allowed-tools: Bash(gh *), Bash(git log*), Bash(git blame*), Bash(git show*), Bash(git diff*), Read, Grep, Glob, Write, Edit, WebFetch(domain:github.com), WebFetch(domain:fleetdm.com), WebSearch, mcp__claude_ai_Figma__*, mcp__claude_ai_Slack__*, mcp__claude_ai_Gong__*
 model: opus
 effort: high
 argument-hint: "<issue-number-or-url>"
@@ -50,6 +50,7 @@ Once inputs are provided:
 - Read the full description, acceptance criteria, and any linked issues
 - Identify the user-facing goal and success criteria
 - If the issue references Figma designs, API docs, or external specs, fetch them
+- **Find the t-shirt size on the parent story.** Check the issue's labels (e.g. `~size:s`, `~size:m`, `~size:l`) and body for an explicit t-shirt estimate. If none is present, flag it as an open question — do not invent one. Capture the size only; do not derive or assign story points from it.
 
 ### 1.3 Map the codebase impact
 Search the codebase to understand what exists and what needs to change:
@@ -69,6 +70,7 @@ For each relevant codepath identified in 1.3, and for the feature concept itself
   - Pay special attention to **in-flight doc PRs** (REST API, GitOps YAML, audit log, usage stats) — they often define field names and shapes that the implementation must match. Identify all of them; note which fields they introduce and where they place them. Conflicts between doc PRs are common and require explicit reconciliation in Stage 3.
   - Read the most relevant results in full; capture any decisions, constraints, or rejected approaches.
 - **Slack.** Use `mcp__claude_ai_Slack__slack_search_public_and_private` (or `slack_search_public` if private access is unavailable) to find conversations about the feature. Look for product, eng, and customer threads. Read full threads with `slack_read_thread` when something looks load-bearing — design rationale, customer asks, or pushback worth surfacing.
+- **Gong.** Find related meetings where the feature, customer ask, or its constraints were discussed. Use `mcp__claude_ai_Gong__search_calls` to locate sales, customer success, or product calls by keyword, then `mcp__claude_ai_Gong__search_transcript` or `summarize_transcript` to pull the relevant moments (and `retrieve_transcripts` for the full text when a call is load-bearing). Customer rationale, commitments, and prioritization context often live in calls, not in the issue or Slack — surface anything that reshapes scope.
 - **Git history.** For every file or directory you expect to touch, inspect history to understand why the current shape exists:
   - `git log --oneline -- <path>` for the change list
   - `git log -p -- <path>` for the full diff history when scoping a refactor
@@ -88,6 +90,7 @@ Write an understanding summary that proves you have **synthesized** the inputs �
   - **No Secure Token in v1.** Apple grants Secure Token only when plaintext is sent. We send a hash; this is acceptable because <reason>. May revisit post-v1.
 - **Affected surfaces** — UI pages, API endpoints, services, datastore methods, migrations, MDM commands, CLI/GitOps, agent — listed concretely.
 - **Mermaid sequence diagram** — required for any feature spanning multiple systems (UI ↔ API ↔ DB ↔ worker ↔ external service ↔ device). Show every actor on its own swimlane and the operations between them in order. Group operations under `note over X,Y: <step>` blocks. For pure-frontend or pure-backend single-surface stories where a sequence diagram adds no information, document why it was omitted; otherwise produce one.
+- **Parent t-shirt size** — the parent story's t-shirt size from its labels/body (or "not set — open question"). Do not convert it to points.
 - **Prior decisions, constraints, and related work** surfaced in 1.4 — including in-flight doc PRs and known field-name conflicts.
 - **SMEs to consult in Stage 2.3** — by name and area.
 - **Open questions** that block decomposition.
@@ -99,7 +102,7 @@ Write an understanding summary that proves you have **synthesized** the inputs �
 ## Stage 2 — Iterate on the spec skeleton
 
 **Goal:** agree with the user on the sub-issue breakdown and dependency graph before writing any prose.
-**Output:** an approved skeleton — sub-issue index (titles, layers, labels, type, depends-on) and dependency graph. **No full sub-issue bodies yet.** Fleet does not estimate sub-tasks, so the skeleton carries no story points or t-shirt sizes.
+**Output:** an approved skeleton — sub-issue index (titles, layers, labels, type, depends-on) and dependency graph. **No full sub-issue bodies yet.** Sub-issues are not pointed — the skeleton carries no story-point estimates. The parent story's t-shirt size, if set, is captured for context.
 
 ### 2.1 Identify sub-issues
 
@@ -171,6 +174,7 @@ If the user indicates SME consultation is unnecessary (e.g., the change is trivi
 ### 2.4 Stage 2 gate — present the skeleton and iterate
 
 Present the skeleton to the user as a draft:
+- **Parent t-shirt size** — note the parent story's t-shirt size (or "not set"). No story points anywhere — sub-issues are not pointed.
 - **Sub-issue index** — title (using the `<feature>: <area>` format from 3.2), layer (`backend`, `frontend`, `backend/CLI`, or `docs/QA`), labels (`#g-software` and `~sub-task` always; plus `~frontend` or `~backend` for implementation sub-issues; the `docs/QA` sub-issue gets neither surface label), type (`Task`), depends-on, parallel-with
 - **Dependency graph** — ordering and parallelism
 - **Multi-engineer plan** — for stories spanning ≥4 sub-issues, sketch how the work parallelizes for the realistic team sizes (typically 2 and 3 engineers) so the user can validate the plan against actual headcount
@@ -356,7 +360,7 @@ Finally, report each created issue with its number and URL.
 ### Process gating
 - **Always** gate the entire process on Stage 1.1: ask for the Figma link(s) and documentation change PR(s) up front, and stop until the user provides them or explicitly confirms none exist. Do not start codebase mapping, history search, or spec drafting before this is settled.
 - **Always** stop at each stage gate (1.5, 2.4, 3.4, 4.2) and wait for explicit user approval before advancing. Do not collapse stages, do not advance on implicit cues, and do not create GitHub issues until Stage 4.2 approval is given.
-- **Always** research prior art before finalizing sub-issues: inspect Figma carefully via the Figma MCP, search GitHub issues/PRs/discussions and Slack for prior mentions, and read git history (`git log`, `git blame`) for every codepath you expect to touch.
+- **Always** research prior art before finalizing sub-issues: inspect Figma carefully via the Figma MCP, search GitHub issues/PRs/discussions, Slack, and Gong calls for prior mentions, and read git history (`git log`, `git blame`) for every codepath you expect to touch.
 - **Always** consult the relevant SME(s) (Apple/Windows MDM lead, agent lead, frontend lead, etc.) in Stage 2.3 before finalizing the spec, and preserve their feedback verbatim in an "Expert review notes" section. If consultation is deferred, document why in one line.
 
 ### Decomposition
@@ -365,6 +369,10 @@ Finally, report each created issue with its number and URL.
 - **Always** include a single combined `Documentation and engineering QA` sub-issue (layer `docs/QA`, no `~frontend`/`~backend` label) as the final-gate sub-issue in every spec.
 - **Always** prefix sub-issue titles with a common feature short-name and a colon (e.g., `"<feature>: <specific area>"`).
 - For stories spanning ≥4 sub-issues, **always** include a "With 2 engineers" multi-engineer plan; produce "With 3 engineers" when the story can absorb a third.
+
+### Estimation
+- **Capture the parent story's t-shirt size** from its labels/body. If it has none, do not invent one — flag it as an open question.
+- **Do not assign story points.** Fleet does not point sub-tasks, and this skill does not produce point estimates or t-shirt-to-point conversions.
 
 ### Spec doc structure
 - **Always** include a Mermaid sequence diagram in the Feature design section for any feature spanning multiple systems (UI ↔ API ↔ DB ↔ worker ↔ external service ↔ device). Show every actor and the order of operations, with `note over X,Y` blocks marking phase transitions. Omit only when the flow is genuinely single-surface trivial; document why.
