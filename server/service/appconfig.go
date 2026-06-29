@@ -1726,7 +1726,9 @@ func (svc *Service) validateMDM(
 	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
 		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
-	if !lic.IsPremium() && mdm.FileVault.PromptEnablementAt.Valid && mdm.FileVault.PromptEnablementAt.Value != "" {
+	if !lic.IsPremium() && mdm.FileVault.PromptEnablementAt.Valid && mdm.FileVault.PromptEnablementAt.Value != "" &&
+		oldMdm.FileVault.PromptEnablementAt.Value != mdm.FileVault.PromptEnablementAt.Value {
+		// Only reject when the PATCH actually modifies the value (like adjacent SSO/setup checks).
 		invalid.Append("filevault.prompt_enablement_at", ErrMissingLicense.Error())
 	}
 	if mdm.FileVault.PromptEnablementAt.Valid && !fleet.ValidFileVaultPromptEnablementAt(mdm.FileVault.PromptEnablementAt.Value) {

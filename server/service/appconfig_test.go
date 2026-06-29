@@ -221,7 +221,7 @@ func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
 // stays on re-pushes the FileVault profile; turning the shorthand off skips the
 // profile regardless of the prompt value.
 func TestModifyAppConfigFileVaultPromptReconcile(t *testing.T) {
-	setup := func(t *testing.T, oldEnabled bool) (fleet.Service, context.Context, *mock.Store) {
+	setup := func(t *testing.T, oldEnabled bool) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "something"
@@ -229,9 +229,10 @@ func TestModifyAppConfigFileVaultPromptReconcile(t *testing.T) {
 		require.NoError(t, err)
 		// Premium wires the real EE MDMAppleEnableFileVaultAndEscrow, which creates
 		// the FileVault config profile via the datastore when invoked.
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+		opts := &TestServerOpts{
 			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
-		})
+		}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			ac := &fleet.AppConfig{
@@ -259,26 +260,70 @@ func TestModifyAppConfigFileVaultPromptReconcile(t *testing.T) {
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
 			return nil
 		}
-		return svc, ctx, ds
+		return svc, ctx, ds, opts
 	}
 
 	t.Run("prompt-only change with disk encryption on re-pushes", func(t *testing.T) {
-		svc, ctx, ds := setup(t, true)
+		svc, ctx, ds, opts := setup(t, true)
 		body := `{"mdm":{"filevault":{"prompt_enablement_at":"logout"}}}`
 		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveAppConfigFuncInvoked)
 		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked,
 			"a prompt-only change must re-push the FileVault profile")
+		// A prompt-only change must NOT emit enabled/disabled disk encryption activities.
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked,
+			"prompt-only change must not trigger any activity")
 	})
 
 	t.Run("prompt change with disk encryption off skips the profile", func(t *testing.T) {
-		svc, ctx, ds := setup(t, false)
+		svc, ctx, ds, opts := setup(t, false)
 		body := `{"mdm":{"filevault":{"prompt_enablement_at":"logout"}}}`
 		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
 		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked,
 			"disk encryption off must not push the FileVault profile")
+		// With disk encryption off, no disk-encryption activity should fire either.
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked,
+			"disk encryption off must not trigger any activity")
+	})
+}
+
+// TestModifyAppConfigFileVaultPromptPremiumGate verifies the premium check on
+// filevault.prompt_enablement_at is change-sensitive: a PATCH that does not
+// modify the value passes even on a downgraded (free-tier) license.
+func TestModifyAppConfigFileVaultPromptPremiumGate(t *testing.T) {
+	ds := new(mock.Store)
+	cfg := config.TestConfig()
+	cfg.Server.PrivateKey = "something"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+	})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ac := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		// Simulate a previously-set prompt value from when the license was premium.
+		ac.MDM.FileVault.PromptEnablementAt = optjson.SetString("logout")
+		return ac, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+
+	t.Run("free tier allows unrelated PATCH when prompt already set", func(t *testing.T) {
+		// Patching an unrelated field should not trigger the premium gate.
+		body := `{"org_info":{"org_name":"NewName"}}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+	})
+
+	t.Run("free tier rejects PATCH that changes prompt", func(t *testing.T) {
+		body := `{"mdm":{"filevault":{"prompt_enablement_at":"login"}}}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "filevault.prompt_enablement_at")
 	})
 }
 
