@@ -88,7 +88,6 @@ const LoginForm = ({
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
-        title="Single sign-on"
         variant="inverse"
         onClick={handleSSOSignOn}
         tabIndex={0}
