@@ -67,7 +67,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run any report as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                |          | ✅         | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete reports                                                                                                           |          |            |            | ✅         | ✅    | ✅      |
 | View all reports and their results                                                                                                         | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
-| Manage [report automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                |          |            |            | ✅         | ✅    | ✅      |
+| Manage [report automations](https://fleetdm.com/guides/reports#schedule-a-report)                                                |          |            |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Run all policies                                                                                                                           |          | ✅         | ✅         | ✅         | ✅    |         |
