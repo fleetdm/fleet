@@ -136,13 +136,15 @@ const ActionsDropdown = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!menuIsOpen || !wrapperRef.current) return;
-      const target = event.target as Element | null;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
       // Trigger button (wrapper) or portaled menu both count as "inside" —
       // since menuPortalTarget renders the menu in document.body, a contains()
       // check on wrapperRef alone would treat option clicks as outside.
+      if (wrapperRef.current.contains(target)) return;
       if (
-        wrapperRef.current.contains(target) ||
-        target?.closest(`.${baseClass}-select__menu-portal`)
+        target instanceof Element &&
+        target.closest(`.${baseClass}-select__menu-portal`)
       ) {
         return;
       }
@@ -272,10 +274,12 @@ const ActionsDropdown = ({
       animation: "fade-in 150ms ease-out",
     }),
     // Portal the menu to document.body so it isn't clipped by a scrollable
-    // ancestor (notably .data-table__wrapper's overflow-x: auto).
+    // ancestor (notably .data-table__wrapper's overflow-x: auto). zIndex must
+    // clear .site-nav-container (100) and Modal (101) since ActionsDropdown
+    // can render inside a modal (e.g. ScriptDetailsModal).
     menuPortal: (provided) => ({
       ...provided,
-      zIndex: 6,
+      zIndex: 999,
     }),
     menuList: (provided) => ({
       ...provided,
