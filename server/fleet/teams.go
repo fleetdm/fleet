@@ -81,9 +81,9 @@ type HistoricalDataPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption       optjson.Bool         `json:"enable_disk_encryption"`
+	EnableDiskEncryption       optjson.Bool          `json:"enable_disk_encryption"`
 	FileVault                  *MDMFileVaultSettings `json:"filevault,omitempty"`
-	EnableRecoveryLockPassword optjson.Bool         `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool          `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -408,11 +408,10 @@ func (t TeamMDM) FileVaultPromptEnablementAt() string {
 	return MDM{FileVault: t.FileVault}.FileVaultPromptEnablementAt()
 }
 
-
 type TeamSpecMDM struct {
-	EnableDiskEncryption       optjson.Bool         `json:"enable_disk_encryption"`
+	EnableDiskEncryption       optjson.Bool          `json:"enable_disk_encryption"`
 	FileVault                  *MDMFileVaultSettings `json:"filevault,omitempty"`
-	EnableRecoveryLockPassword optjson.Bool         `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool          `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`

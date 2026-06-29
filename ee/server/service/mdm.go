@@ -188,6 +188,10 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
+	// Delete any existing profile before inserting the updated one, so a
+	// prompt-only re-push doesn't 409 on the unique identifier constraint.
+	_ = svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+
 	// filevault profile is a fleet-controlled profile that doesn't use any Fleet variables
 	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")

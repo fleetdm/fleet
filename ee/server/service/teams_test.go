@@ -749,6 +749,9 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 				) (*fleet.MDMAppleConfigProfile, error) {
 					return &p, nil
 				}
+				ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
+					return nil
+				}
 			}
 
 			svc := &Service{
@@ -821,7 +824,7 @@ func TestModifyTeamFileVaultPromptEnablementAt(t *testing.T) {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	ctx := test.UserContext(context.Background(),
-		&fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)})
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -864,6 +867,9 @@ func TestModifyTeamFileVaultPromptEnablementAt(t *testing.T) {
 				_ []fleet.FleetVarName,
 			) (*fleet.MDMAppleConfigProfile, error) {
 				return &p, nil
+			}
+			ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
+				return nil
 			}
 
 			svc := &Service{
