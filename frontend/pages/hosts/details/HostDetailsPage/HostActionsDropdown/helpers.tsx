@@ -551,9 +551,27 @@ const removeUnavailableOptions = (
 // Tooltip copy for the BYOD-disabled state per issue #23242. Shown when the
 // host's stored AccessRights bitmask omits the relevant bit.
 const BYOD_DISABLED_TOOLTIPS: Record<string, JSX.Element> = {
-  wipe: <>Wipe permissions are disabled for this host.</>,
-  lock: <>Lock permissions are disabled for this host.</>,
-  clearPasscode: <>Clear passcode permissions are disabled for this host.</>,
+  wipe: (
+    <>
+      Wipe permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  lock: (
+    <>
+      Lock permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  clearPasscode: (
+    <>
+      Clear passcode permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
 };
 
 // Available tooltips for disabled options

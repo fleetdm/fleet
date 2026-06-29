@@ -3,22 +3,12 @@ import React, { useContext, useState } from "react";
 import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { getPathWithQueryParams } from "utilities/url";
 
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 
 type EnrollmentType = "personal" | "companyOwned";
-
-const generateUrl = (
-  serverUrl: string,
-  enrollSecret: string,
-  enrollmentType: EnrollmentType
-) => {
-  const secretParam = `enroll_secret=${encodeURIComponent(enrollSecret)}`;
-  return enrollmentType === "personal"
-    ? `${serverUrl}/enroll?byod=true&${secretParam}`
-    : `${serverUrl}/enroll?${secretParam}`;
-};
 
 const baseClass = "ios-ipados-panel";
 
@@ -53,10 +43,12 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
     );
   }
 
-  const url = generateUrl(
-    config.server_settings.server_url,
-    enrollSecret,
-    enrollmentType
+  const url = getPathWithQueryParams(
+    `${config.server_settings.server_url}/enroll`,
+    {
+      enroll_secret: enrollSecret,
+      byod: enrollmentType === "personal" ? "true" : undefined,
+    }
   );
 
   return (
