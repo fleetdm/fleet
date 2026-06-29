@@ -116,8 +116,11 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 	// than the number of CPEs it actually returns (e.g. 1761245 reported vs 1760806
 	// returned). Requiring an exact match makes this job fail on every run, so we
 	// tolerate a small shortfall but still reject a grossly incomplete pull.
-	if totalResults <= 1 || len(cpes) < totalResults*minCompleteFraction/100 {
-		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
+	minResults := totalResults * minCompleteFraction / 100
+	if totalResults <= 1 || len(cpes) < minResults {
+		//nolint:gosec // G706 false positive: all interpolated values are integer counts, not tainted strings
+		log.Fatalf("Incomplete CPE pull: got %v results, need at least %v (%v%% of reported total %v)",
+			len(cpes), minResults, minCompleteFraction, totalResults)
 	}
 
 	slog.Info("Generating CPE sqlite DB...")
