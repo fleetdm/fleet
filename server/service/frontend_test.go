@@ -50,27 +50,33 @@ func TestServeFrontend(t *testing.T) {
 }
 
 func TestAssetCacheControl(t *testing.T) {
-	handler := assetCacheControl(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
 	for _, tc := range []struct {
-		path string
-		want string
+		path   string
+		status int
+		want   string
 	}{
 		// Content-hashed build output (JS/CSS, fonts, images) is safe to cache
 		// forever — webpack emits everything as [name]@[hash][ext].
-		{"/bundle-3ccf015bc0fac64b4ce8.js", "public, max-age=31536000, immutable"},
-		{"/bundle-1e51316ac7963e1112c1.css", "public, max-age=31536000, immutable"},
-		{"/Inter-Bold@1a2b3c4d5e6f7890.woff2", "public, max-age=31536000, immutable"},
-		{"/404-dark@1a2b3c4d5e6f7890.svg", "public, max-age=31536000, immutable"},
-		{"/jira-preview-400x419@2x@1a2b3c4d5e6f7890.png", "public, max-age=31536000, immutable"},
+		{"/bundle-3ccf015bc0fac64b4ce8.js", http.StatusOK, "public, max-age=31536000, immutable"},
+		{"/bundle-1e51316ac7963e1112c1.css", http.StatusOK, "public, max-age=31536000, immutable"},
+		{"/Inter-Bold@1a2b3c4d5e6f7890.woff2", http.StatusOK, "public, max-age=31536000, immutable"},
+		{"/404-dark@1a2b3c4d5e6f7890.svg", http.StatusOK, "public, max-age=31536000, immutable"},
+		{"/jira-preview-400x419@2x@1a2b3c4d5e6f7890.png", http.StatusOK, "public, max-age=31536000, immutable"},
+		// A 304 keeps the immutable header (the cached copy is still valid).
+		{"/bundle-3ccf015bc0fac64b4ce8.js", http.StatusNotModified, "public, max-age=31536000, immutable"},
+		// A missing/errored hashed asset (deploy race) must NOT be cached for a
+		// year, or a transient failure would pin a broken asset at the CDN/browser.
+		{"/bundle-deadbeefdeadbeef.js", http.StatusNotFound, "no-cache"},
+		{"/Inter-Bold@deadbeef12345678.woff2", http.StatusInternalServerError, "no-cache"},
 		// Unhashed (dev builds, favicon, static scripts) must keep revalidating.
-		{"/bundle.js", "no-cache"},
-		{"/bundle.css", "no-cache"},
-		{"/favicon.ico", "no-cache"},
+		{"/bundle.js", http.StatusOK, "no-cache"},
+		{"/bundle.css", http.StatusOK, "no-cache"},
+		{"/favicon.ico", http.StatusOK, "no-cache"},
 	} {
-		t.Run(tc.path, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s_%d", tc.path, tc.status), func(t *testing.T) {
+			handler := assetCacheControl(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+			}))
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
 			require.Equal(t, tc.want, rec.Header().Get("Cache-Control"))

@@ -295,11 +295,38 @@ func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 
 func assetCacheControl(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if hashedAssetRe.MatchString(r.URL.Path) {
+		next.ServeHTTP(&cacheControlResponseWriter{ResponseWriter: w, path: r.URL.Path}, r)
+	})
+}
+
+type cacheControlResponseWriter struct {
+	http.ResponseWriter
+	path        string
+	wroteHeader bool
+}
+
+// WriteHeader decides Cache-Control from the final status so the long-lived
+// immutable cache is applied only to successful responses for hashed assets.
+// Caching a transient 404/500 would otherwise pin a broken asset at the browser/CDN.
+func (w *cacheControlResponseWriter) WriteHeader(status int) {
+	if !w.wroteHeader {
+		w.wroteHeader = true
+		if (status == http.StatusOK || status == http.StatusNotModified) && hashedAssetRe.MatchString(w.path) {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {
 			w.Header().Set("Cache-Control", "no-cache")
 		}
-		next.ServeHTTP(w, r)
-	})
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *cacheControlResponseWriter) Write(b []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *cacheControlResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
