@@ -28,10 +28,10 @@ const (
 	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
 
-	// minCompleteFraction is the minimum percentage of NVD's reported totalResults that
+	// minCompletePercent is the minimum percentage of NVD's reported totalResults that
 	// must be retrieved for the pull to be accepted. It tolerates NVD's small, persistent
 	// overcount (~0.025%) while still failing on a grossly incomplete result.
-	minCompleteFraction = 95
+	minCompletePercent = 95
 )
 
 func panicIf(err error) {
@@ -128,13 +128,13 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 // checkResultCount verifies that enough CPEs were retrieved. NVD's reported
 // totalResults is consistently a few hundred higher than the number of CPEs it
 // actually returns (e.g. 1761245 reported vs 1760806 returned), so an exact match is
-// not required; only a shortfall below minCompleteFraction percent of the reported
-// total is treated as an incomplete pull.
+// not required; only a shortfall below minCompletePercent of the reported total is
+// treated as an incomplete pull.
 func checkResultCount(got, totalResults int) error {
-	minResults := totalResults * minCompleteFraction / 100
+	minResults := totalResults * minCompletePercent / 100
 	if totalResults <= 1 || got < minResults {
 		return fmt.Errorf("incomplete CPE pull: got %v results, need at least %v (%v%% of reported total %v)",
-			got, minResults, minCompleteFraction, totalResults)
+			got, minResults, minCompletePercent, totalResults)
 	}
 	return nil
 }
