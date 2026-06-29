@@ -1656,16 +1656,39 @@ module.exports = {
         });
         let downloadAssets = latestFleetReleaseDetails.assets;
         let macOsInstaller = _.find(downloadAssets, (asset)=> { return  _.endsWith(asset.browser_download_url, '_mac.pkg');});
-        if(!macOsInstaller) {
-          throw new Error(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for macOS was found in the release assets.`);
-        }
         let windowsInstaller = _.find(downloadAssets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');});
-        if(!windowsInstaller) {
-          throw new Error(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (amd64) was found in the release assets.`);
-        }
         let windowsArmInstaller = _.find(downloadAssets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
-        if(!windowsArmInstaller) {
-          throw new Error(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (arm64) was found in the release assets.`);
+        if(!macOsInstaller || !windowsInstaller || !windowsArmInstaller) {
+          let otherRecentFleetReleases = await sails.helpers.http.get.with({
+            url: 'https://api.github.com/repos/fleetdm/fleet/releases',
+            headers: baseHeadersForGithubRequests,
+          }).intercept((err) =>{
+            return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occurred. Full error: ${util.inspect(err)}`);
+          });
+
+          // Find all releases that contains all three installer assets.
+          let completeReleases = _.filter(otherRecentFleetReleases, (release)=>{
+            return _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_mac.pkg');}) &&
+              _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');}) &&
+              _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
+          });
+          // Get the latest "complete" release to use.
+          let latestCompleteRelease = _.last(_.sortBy(completeReleases, (release)=>{ return new Date(release.published_at).getTime(); }));
+          if(!latestCompleteRelease) {
+            throw new Error(`When getting information about recent Fleet releases to find installers for the download page, no release containing macOS, Windows (amd64), and Windows (arm64) installers was found in the GitHub API response.`);
+          }
+          if(!macOsInstaller) {
+            sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for macOS was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for macOS.`);
+            macOsInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_mac.pkg');});
+          }
+          if(!windowsInstaller) {
+            sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (amd64) was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for Windows (amd64).`);
+            windowsInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');});
+          }
+          if(!windowsArmInstaller) {
+            sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (arm64) was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for Windows (arm64).`);
+            windowsArmInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
+          }
         }
         builtStaticContent.fleetctlDownloadUrls = {
           macOs: macOsInstaller.browser_download_url,
