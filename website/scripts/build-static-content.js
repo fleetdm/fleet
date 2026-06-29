@@ -1674,7 +1674,9 @@ module.exports = {
           });
           // Get the latest "complete" release to use.
           let latestCompleteRelease = _.last(_.sortBy(completeReleases, (release)=>{ return new Date(release.published_at).getTime(); }));
-
+          if(!latestCompleteRelease) {
+            throw new Error(`When getting information about recent Fleet releases to find installers for the download page, no release containing macOS, Windows (amd64), and Windows (arm64) installers was found in the GitHub API response.`);
+          }
           if(!macOsInstaller) {
             sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for macOS was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for macOS.`);
             macOsInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_mac.pkg');});
