@@ -3777,16 +3777,28 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 
 	// Simulate the scenario from issue #42260: an FMA version update creates
 	// a second row with the same storage_id but different version and is_active = 0.
+	// FMA rows dedupe by version, so the same bytes can back more than one version.
 	// GetTeamsWithInstallerByHash must only return the active row.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('installer1', 'installer1/darwin', 'darwin', 'com.installer1.fma')`)
+		if err != nil {
+			return err
+		}
+		fmaID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
 				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
-				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query)
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query,
+				 fleet_maintained_app_id)
 			SELECT team_id, global_or_team_id, storage_id, filename, extension, 'old_version', platform, title_id,
-				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query, ?
 			FROM software_installers WHERE id = ?
-		`, installer1NoTeam)
+		`, fmaID, installer1NoTeam)
 		return err
 	})
 
@@ -5520,9 +5532,10 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, initialDisplayNameID, afterDisplayNameID, "display_name row should be upserted in place, not deleted and re-inserted")
 
-	// Same-version case: custom installer and incoming FMA share a version
-	// string. ON DUPLICATE KEY UPDATE on (team, title, version) upserts in
-	// place; the row must be converted to FMA, not deleted.
+	// Same-version case: the custom installer and the incoming FMA share a
+	// version string. Converting a custom package to an FMA replaces the row and
+	// re-points its FKs (same as the different-version case above), leaving the
+	// FMA as the single active row for the title.
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_custom_to_fma_same_version"})
 	require.NoError(t, err)
 
@@ -5578,7 +5591,7 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	tmFilter2 := fleet.TeamFilter{User: test.UserAdmin, TeamID: new(team2.ID)}
 	titles2, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(team2.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter2)
 	require.NoError(t, err)
-	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA upsert")
+	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA conversion")
 
 	var installerRows []struct {
 		ID       uint  `db:"id"`
@@ -5592,8 +5605,8 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 		`, team2.ID, titles2[0].ID)
 	})
 	require.Len(t, installerRows, 1)
-	require.Equal(t, customInstallerID2, installerRows[0].ID, "row should be updated in place, not deleted+re-inserted")
-	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA via ON DUPLICATE KEY UPDATE")
+	require.NotEqual(t, customInstallerID2, installerRows[0].ID, "custom row should be replaced by the FMA row")
+	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA")
 	require.Equal(t, fma2.ID, *installerRows[0].FMAID)
 	require.True(t, installerRows[0].IsActive)
 }
