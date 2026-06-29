@@ -5118,13 +5118,9 @@ func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (stri
 
 func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
-	// connected_to_fleet mirrors IsHostConnectedToFleetMDM (and the
-	// connected_to_fleet condition in hostMDMSelect): the host_mdm row must be
-	// enrolled and the platform-specific enrollment record must be active. Folding
-	// it into this query lets callers that already fetch HostMDM (e.g. the orbit
-	// config hot path) avoid a separate 3-table-JOIN connection-state query.
-	// NOTE: if you change any of these conditions, also update
-	// IsHostConnectedToFleetMDM and the hostMDMSelect constant.
+	// connected_to_fleet field mirrors IsHostConnectedToFleetMDM (and the connected_to_fleet condition in hostMDMSelect): the
+	// host_mdm row must be enrolled and the platform-specific enrollment record must be active. NOTE: if you change any of these
+	// conditions, also update IsHostConnectedToFleetMDM and the hostMDMSelect constant.
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hmdm, `
 		SELECT
 			hm.host_id,
@@ -5154,9 +5150,6 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			END AS connected_to_fleet
 		FROM
 			host_mdm hm
-		-- LEFT JOIN (not INNER) so an orphaned host_mdm row with no matching hosts
-		-- row is still returned, matching this method's existing contract;
-		-- connected_to_fleet then degrades to false because h.platform is NULL.
 		LEFT OUTER JOIN
 			hosts h
 			ON h.id = hm.host_id

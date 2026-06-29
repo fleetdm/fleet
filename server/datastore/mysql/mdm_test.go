@@ -4024,12 +4024,10 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// requireConnected asserts that IsHostConnectedToFleetMDM and the
-	// connected_to_fleet flag computed by GetHostMDM agree with the expected
-	// value. GetOrbitConfig derives the connection state from GetHostMDM instead
-	// of a separate IsHostConnectedToFleetMDM query, so the two must stay in
-	// lockstep across every enrollment state. When the host has no host_mdm row,
-	// GetHostMDM returns NotFound and the host cannot be connected.
+	// requireConnected asserts that IsHostConnectedToFleetMDM and the connected_to_fleet flag computed by GetHostMDM agree with the
+	// expected value. GetOrbitConfig derives the connection state from GetHostMDM instead of a separate IsHostConnectedToFleetMDM
+	// query, so the two must stay in lockstep across every enrollment state. When the host has no host_mdm row, GetHostMDM returns
+	// NotFound and the host cannot be connected.
 	requireConnected := func(t *testing.T, h *fleet.Host, want bool) {
 		t.Helper()
 		connected, err := ds.IsHostConnectedToFleetMDM(ctx, h)
@@ -4124,9 +4122,8 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 
 	requireConnected(t, byodIpadH, false)
 
-	// Android: connection is determined solely by host_mdm.enrolled, so the
-	// connected_to_fleet column must track enrollment without any separate
-	// enrollment record.
+	// Android: connection is determined solely by host_mdm.enrolled, so the connected_to_fleet column must track enrollment without
+	// any separate enrollment record.
 	androidH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "android-test",
 		OsqueryHostID: new("osquery-android"),
