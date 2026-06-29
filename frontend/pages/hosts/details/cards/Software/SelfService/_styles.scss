@@ -1,13 +1,3 @@
-// Sandbox mode was removed years ago but .main-content still carries
-// `overflow: auto` for it. On the self-service page, that overflow
-// container catches the absolutely-positioned category dropdown when it
-// extends past the page bottom, producing an inner scrollbar instead of
-// the document scrollbar at the viewport edge. TODO: revisit removing
-// overflow: auto from .main-content globally.
-.main-content:has(.software-self-service) {
-  overflow: initial;
-}
-
 .software-self-service {
   @include vertical-page-tab-panel-layout;
 
