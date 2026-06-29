@@ -684,6 +684,15 @@ type KafkaRESTConfig struct {
 	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
+// SplunkConfig defines configs for the Splunk HEC logging plugin.
+type SplunkConfig struct {
+	URL        string `json:"url" yaml:"url"`
+	Token      string `json:"token" yaml:"token"`
+	Index      string `json:"index" yaml:"index"`
+	Source     string `json:"source" yaml:"source"`
+	SourceType string `json:"source_type" yaml:"source_type"`
+}
+
 // NatsConfig defines configs for the NATS logging plugin.
 type NatsConfig struct {
 	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
@@ -796,6 +805,7 @@ type FleetConfig struct {
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
 	Nats                       NatsConfig
+	Splunk                     SplunkConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -1683,6 +1693,13 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
 	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
 
+	// Splunk
+	man.addConfigString("splunk.url", "", "Splunk HEC URL (e.g. https://splunk.example.com:8088)")
+	man.addConfigString("splunk.token", "", "Splunk HEC authentication token")
+	man.addConfigString("splunk.index", "", "Splunk index to send events to")
+	man.addConfigString("splunk.source", "", "Splunk source value for events")
+	man.addConfigString("splunk.source_type", "", "Splunk sourcetype value for events")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 	man.addConfigBool("license.enforce_host_limit", false, "Enforce license limit of enrolled hosts")
@@ -2055,6 +2072,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			Compression:      man.getConfigString("nats.compression"),
 			JetStream:        man.getConfigBool("nats.jetstream"),
 			Timeout:          man.getConfigDuration("nats.timeout"),
+		},
+		Splunk: SplunkConfig{
+			URL:        man.getConfigString("splunk.url"),
+			Token:      man.getConfigString("splunk.token"),
+			Index:      man.getConfigString("splunk.index"),
+			Source:     man.getConfigString("splunk.source"),
+			SourceType: man.getConfigString("splunk.source_type"),
 		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
