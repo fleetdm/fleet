@@ -1,6 +1,6 @@
 # Fleet Claude Code configuration
 
-This directory contains team-shared [Claude Code](https://claude.ai/code) configuration for the Fleet project. Everything here works out of the box with no MCP servers, plugins, or external dependencies required. The full setup adds ~2,500 tokens at startup — rules, skill bodies, and agent bodies only load on demand.
+This directory contains team-shared [Claude Code](https://claude.ai/code) configuration for the Fleet project. The core setup works out of the box with no MCP servers, plugins, or external dependencies required (a couple of skills can optionally use MCP servers or external CLIs — noted in the table below). The full setup adds a few thousand tokens at startup — CLAUDE.md and skill descriptions load up front; rule bodies, skill bodies, and agent bodies only load on demand. Run `/context` to see the current breakdown.
 
 This setup is a starting point. You can customize it by creating `.claude/settings.local.json` (gitignored) to add your own permissions, MCP servers, and plugins. See [Customize your setup](#customize-your-setup) for details.
 
@@ -49,7 +49,7 @@ Claude Code is an AI coding assistant that runs in your terminal, VS Code, JetBr
 
 **CLAUDE.md** — Project instructions loaded at session start, like a `.editorconfig` for AI. Claude reads these automatically to understand your project's conventions, architecture, and workflows. There can be multiple: root-level, `.claude/CLAUDE.md`, and user-level `~/.claude/CLAUDE.md`.
 
-**Skills** — Reusable workflows invoked with `/` (e.g., `/test`, `/fix-ci`). Each skill is a `SKILL.md` file with YAML frontmatter that controls when it triggers, which tools it can use, and whether it runs in an isolated context. Skills replace the older `.claude/commands/` format, adding auto-invocation, tool restrictions, and isolated execution.
+**Skills** — Reusable workflows invoked with `/` (e.g., `/test`, `/fix-ci`). Each skill is a `SKILL.md` file with YAML frontmatter that controls when it triggers, which tools it can use, and whether it runs in an isolated context. Skills are the successor to the older `.claude/commands/` format, adding auto-invocation, tool restrictions, and isolated execution.
 
 **Agents (subagents)** — Specialized AI assistants that run in isolated contexts with their own tools and model. Claude can delegate to them automatically (if their description includes "PROACTIVELY") or you can invoke them by name.
 
@@ -156,19 +156,19 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # Workflow skills (invoke with /)
-│   ├── review-pr/             #   /review-pr <PR#>
-│   ├── fix-ci/                #   /fix-ci <run-url>
-│   ├── test/                  #   /test [filter]
-│   ├── find-related-tests/    #   /find-related-tests
-│   ├── lint/                  #   /lint [go|frontend]
-│   ├── fleet-gitops/          #   /fleet-gitops
-│   ├── project/               #   /project <name>
-│   ├── new-endpoint/          #   /new-endpoint
-│   ├── new-migration/         #   /new-migration
-│   ├── bump-migration/        #   /bump-migration <filename>
-│   ├── spec-story/            #   /spec-story <issue#>
-│   └── cherry-pick/           #   /cherry-pick <PR#> [RC_BRANCH]
+├── skills/                    # Workflow skills (invoke with /) — see "Skills reference" for the full list
+│   ├── review-pr/             #   Code review, CI, tests, lint
+│   ├── fix-ci/                #   (review-pr, fix-ci, test, find-related-tests, lint)
+│   ├── test/                  #   Scaffolding & DB
+│   ├── new-endpoint/          #   (new-endpoint, new-migration, bump-migration)
+│   ├── spec-story/            #   Issues, releases, GitOps
+│   ├── cherry-pick/           #   (spec-story, cherry-pick, fleet-gitops, push-reference-docs,
+│   ├── release-retro/         #    release-retro, who-blocks-this-pr, vuln-triage)
+│   ├── new-fma/               #   Frontend & content
+│   ├── command-palette/       #   (command-palette, tier-modes, content-style)
+│   ├── content-style/         #   Context & OpenSpec
+│   ├── project/               #   (project, openspec-* — openspec-* are vendored by the openspec CLI)
+│   └── ...                    #   (24 skills total)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -192,12 +192,21 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/find-related-tests` | `/find-related-tests` | Maps changed files to their `_test.go` files, integration tests, and test helpers. Outputs exact `go test` commands. |
 | `/fleet-gitops` | `/fleet-gitops` | Validates GitOps YAML: osquery queries against Fleet schema, Apple/Windows/Android profiles against upstream references, and software against the Fleet-maintained app catalog. |
 | `/project` | `/project android-mdm` | Loads or creates a workstream context file in your Claude memory directory. Includes a minimal self-improvement mechanism — Claude adds discoveries, gotchas, and key file paths as you work, so each session starts with slightly richer context than the last. |
-| `/new-endpoint` | `/new-endpoint` | Scaffolds a Fleet API endpoint: request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs. |
+| `/new-endpoint` | `/new-endpoint` | Scaffolds a Fleet API endpoint: request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs. User-invoked only (no auto-trigger). |
 | `/new-migration` | `/new-migration` | Creates a timestamped migration file and test file with proper naming, init registration, and Up function (Down is always a no-op). |
 | `/bump-migration` | `/bump-migration YYYYMMDDHHMMSS_Name.go` | Bumps a migration's timestamp to current time when it conflicts with a migration already merged to main. Renames files and updates function names in both migration and test files. |
 | `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into implementable sub-issues: maps codebase impact, decomposes into atomic tasks per layer (migration/datastore/service/API/frontend), and writes specs with acceptance criteria and a dependency graph. Requires `gh`. |
 | `/lint` | `/lint` or `/lint go` | Runs the appropriate linters (golangci-lint, eslint, prettier) on recently changed files. Accepts `go`, `frontend`, or a file path to narrow scope. |
 | `/cherry-pick` | `/cherry-pick 43082` or `/cherry-pick 43082 rc-minor-fleet-v4.83.0` | Cherry-picks a merged PR into an RC branch. Auto-detects the latest `rc-minor-fleet-v*` or `rc-patch-fleet-v*` branch, or accepts an explicit target. Handles squash-merged and merge commits. Requires `gh`. |
+| `/push-reference-docs` | `/push-reference-docs` | Moves reference-doc updates from one release docs branch to another (e.g., 4.89 → 4.90) when a feature slips to a later release. Handles open/closed/merged PR states. Requires `gh`. |
+| `/who-blocks-this-pr` | `/who-blocks-this-pr 12345` | Determines which files still need approval and from whom, based on CODEOWNERS and `website/config/custom.js`. Requires `gh`. |
+| `/release-retro` | `/release-retro` | Formats release retro notes into a Slack recap post and `~timebox` GitHub issues. Requires `gh` **and** the Slack MCP server (not part of the out-of-box setup). |
+| `/vuln-triage` | `/vuln-triage CVE-2024-1234` | Triages vulnerability false positives/negatives across NVD, OSV, OVAL, MSRC, and Office data sources. Uses the `nvdvuln` tool and WebFetch. |
+| `/new-fma` | `/new-fma` | Adds a Fleet-maintained app for macOS (Homebrew) and/or Windows (winget); verifies installer metadata with real tools and debugs FMA validator failures. Uses WebFetch. |
+| `/command-palette` | `/command-palette` | Authoring guide for the Fleet command palette — adding/editing items in `frontend/components/CommandPalette/groups/`, router paths, and new pages/actions that need a palette entry. |
+| `/tier-modes` | `/tier-modes` | Authoring guide for Fleet Free (`!isPremiumTier`) and Primo (`isPrimoMode`) gating in the frontend — for new pages/surfaces or when introducing new tier gating. |
+| `/content-style` | `/content-style` | Writes, edits, and reviews public-facing Fleet content (website, handbook, docs, articles, release notes, UI copy) to follow Fleet's voice and style guidelines. |
+| `/openspec-*` | `/openspec-propose` | OpenSpec spec-driven workflow for larger changes (explore → propose → apply → archive). Four skills: `openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`. Vendored by the `openspec` CLI — see `openspec/README.md`. |
 
 ### Using `/project` for workstream context
 
