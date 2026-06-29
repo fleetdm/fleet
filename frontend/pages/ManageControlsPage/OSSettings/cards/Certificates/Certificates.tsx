@@ -90,9 +90,6 @@ const Certificates = ({
     }
   );
 
-  // Certificates require a custom SCEP CA to be configured. We fetch the list
-  // of certificate authorities to decide whether to prompt the admin to add a
-  // CA before they can add certificates.
   const {
     data: certAuthorities,
     isLoading: isLoadingCAs,

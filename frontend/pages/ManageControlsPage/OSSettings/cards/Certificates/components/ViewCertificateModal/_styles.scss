@@ -10,8 +10,6 @@
     gap: $pad-xxlarge;
   }
 
-  // Match Fleet's code-box treatment (Textarea, SQLEditor, etc.) so the
-  // subject fields render in SourceCodePro as designed.
   textarea {
     font-family: "SourceCodePro", $monospace;
   }
