@@ -132,6 +132,10 @@ func doWithRetry(fn func() (*jira.Response, error)) error {
 			}
 		}
 
+		if resp == nil {
+			return backoff.Permanent(err)
+		}
+
 		if resp.StatusCode >= http.StatusInternalServerError {
 			// 500+ status, can be worth retrying
 			return err

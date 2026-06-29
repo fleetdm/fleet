@@ -2,11 +2,13 @@ package mysql
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"slices"
 	"strings"
@@ -914,6 +916,32 @@ ORDER BY
 	return commands, nil
 }
 
+// compressWindowsMDMResponse gzip-compresses a full SyncML response envelope
+func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	if _, err := gw.Write(raw); err != nil {
+		return nil, err
+	}
+	if err := gw.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// decompressWindowsMDMResponse reverses compressWindowsMDMResponse.
+func decompressWindowsMDMResponse(stored []byte) ([]byte, error) {
+	if len(stored) == 0 {
+		return stored, nil
+	}
+	gr, err := gzip.NewReader(bytes.NewReader(stored))
+	if err != nil {
+		return nil, err
+	}
+	defer gr.Close()
+	return io.ReadAll(gr)
+}
+
 func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 	if len(enrichedSyncML.Raw) == 0 {
 		return nil, ctxerr.New(ctx, "empty raw response")
@@ -926,9 +954,13 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		result = nil
 
-		// store the full response
-		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
+		// store the full response, gzip-compressed to shrink the row and reduce redo-log/commit-quorum pressure on this hot path
+		compressedResp, err := compressWindowsMDMResponse(enrichedSyncML.Raw)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "compressing full response")
+		}
+		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`
+		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, compressedResp)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving full response")
 		}
@@ -1254,7 +1286,7 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
         wmc.updated_at
     ) as updated_at,
     wmc.target_loc_uri AS request_type,
-    COALESCE(wmr.raw_response, '') AS result,
+    COALESCE(wmr.raw_response_gz, '') AS result,
     wmc.raw_command AS payload
 FROM
     windows_mdm_commands wmc
@@ -1284,6 +1316,15 @@ WHERE
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
+	}
+
+	// raw_response_gz is stored gzip-compressed; restore the original envelope for the API response.
+	for _, r := range results {
+		decompressed, err := decompressWindowsMDMResponse(r.Result)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decompressing windows mdm response")
+		}
+		r.Result = decompressed
 	}
 
 	return results, nil

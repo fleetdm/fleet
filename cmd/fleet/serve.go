@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -153,6 +154,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
+	}
+
+	// Set network blocking mode for outbound integration requests.
+	switch {
+	case dev_mode.IsEnabled:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingBypassAll)
+	case config.Server.AllowPrivateNetworkIntegrations:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingPrivateAllowed)
+	default:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingFull)
 	}
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
@@ -278,7 +289,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
-	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
+	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
+		config.Redis.LiveQuerySmallTargetThreshold)
 	ssoSessionStore := sso.NewSessionStore(redisPool)
 
 	osquerydStatusLogger, osquerydResultLogger, auditLogger := initOsqueryLogging(cmd.Context(), config, license, logger, initFatal)

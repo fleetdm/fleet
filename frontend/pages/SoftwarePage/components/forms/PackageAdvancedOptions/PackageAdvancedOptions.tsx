@@ -8,6 +8,7 @@ import {
   isPackageType,
   isWindowsPackageType,
   isFleetMaintainedPackageType,
+  isScriptOnlyPackageType,
   PackageType,
 } from "interfaces/package_type";
 
@@ -25,9 +26,6 @@ const getSupportedScriptTypeText = (pkgType: PackageType) => {
     isPowerShell ? "PowerS" : "s"
   }hell scripts are supported.`;
 };
-
-const isScriptPackageType = (pkgType: PackageType) =>
-  pkgType === "sh" || pkgType === "ps1";
 
 const PKG_TYPE_TO_ID_TEXT = {
   pkg: "package IDs",
@@ -55,7 +53,7 @@ const getInstallScriptTooltip = (pkgType: PackageType) => {
 };
 
 const getInstallHelpText = (pkgType: PackageType) => {
-  if (isScriptPackageType(pkgType)) {
+  if (isScriptOnlyPackageType(pkgType)) {
     return "The uploaded script's contents are used as the install script. To change it, upload a new file.";
   }
 
@@ -122,7 +120,7 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 const getUninstallHelpText = (pkgType: PackageType) => {
   // Script-only packages have no installer metadata, so there's no $PACKAGE_ID
   // to populate; the uninstall script runs as-is.
-  if (isScriptPackageType(pkgType)) {
+  if (isScriptOnlyPackageType(pkgType)) {
     return getSupportedScriptTypeText(pkgType);
   }
 
@@ -255,7 +253,7 @@ const PackageAdvancedOptions = ({
         showSchemaButton={showSchemaButton}
         installScriptTooltip={getInstallScriptTooltip(ext)}
         installScriptHelpText={getInstallHelpText(ext)}
-        installScriptReadOnly={isScriptPackageType(ext)}
+        installScriptReadOnly={isScriptOnlyPackageType(ext)}
         postInstallScriptHelpText={getPostInstallHelpText(ext)}
         uninstallScriptTooltip={getUninstallScriptTooltip(ext)}
         uninstallScriptHelpText={getUninstallHelpText(ext)}
