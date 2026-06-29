@@ -17002,6 +17002,40 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should still be empty")
 	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should still be empty")
 	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should still be empty")
+
+	// GitOps adds a path-based script package by sending a "script://filename" placeholder
+	// url plus the script hash. The placeholder must not be persisted.
+	installScript := "echo 'hello world'"
+	scriptSum := sha256.Sum256([]byte(installScript))
+	scriptPkg := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://hello world.sh", SHA256: hex.EncodeToString(scriptSum[:]), InstallScript: installScript},
+	}
+
+	// First apply: no matching installer yet, so this exercises the download path.
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptPkg}, http.StatusAccepted, &batchResp, "team_name", team.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+	require.Len(t, packages, 1)
+
+	var storedURL string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
+	})
+	require.Empty(t, storedURL, "script:// placeholder url must not be persisted")
+
+	// Seed a stale placeholder url like an older Fleet would, then re-apply. The hash and
+	// url now match an existing installer, so this hits the cache-hit path, which must
+	// also drop the placeholder.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET url = ? WHERE global_or_team_id = ? AND filename = ?`, "script://hello world.sh", &team.ID, "hello world.sh")
+		return err
+	})
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptPkg}, http.StatusAccepted, &batchResp, "team_name", team.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
+	})
+	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
 }
 
 // 1. host reports software
