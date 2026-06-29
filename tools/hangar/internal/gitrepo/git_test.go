@@ -138,7 +138,7 @@ func TestParseBranchesRCGrouping(t *testing.T) {
 	}
 	// Keep 2 most-recent minor lines (4.88, 4.87) incl. the patch on 4.88,
 	// plus the current branch (4.86). Drop 4.85.
-	for _, want := range []string{"rc-minor-fleet-v4.88.0", "rc-patch-fleet-v4.88.1", "rc-minor-fleet-v4.87.1", "rc-minor-fleet-v4.86.0"} {
+	for _, want := range []string{"rc-minor-fleet-v4.88.0", "rc-patch-fleet-v4.88.1", "rc-minor-fleet-v4.87.0", "rc-minor-fleet-v4.86.0"} {
 		if !names[want] {
 			t.Errorf("expected %q in RC result, got %v", want, names)
 		}
