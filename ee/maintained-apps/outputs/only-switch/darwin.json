@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.6.7",
+      "version": "2.6.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'jacklandrin.OnlySwitch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jacklandrin.OnlySwitch' AND version_compare(bundle_short_version, '2.6.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jacklandrin.OnlySwitch' AND version_compare(bundle_short_version, '2.6.8') < 0);"
       },
-      "installer_url": "https://github.com/jacklandrin/OnlySwitch/releases/download/release_2.6.7/OnlySwitch.dmg",
+      "installer_url": "https://github.com/jacklandrin/OnlySwitch/releases/download/release_2.6.8/OnlySwitch.dmg",
       "install_script_ref": "42848bd5",
       "uninstall_script_ref": "c3c2aa39",
-      "sha256": "828a14173f7ac0bbe0b89d5528d956e406ea50091330e7c50dfa010c042b5b49",
+      "sha256": "c4ded32119fa1c81f41c4ed325cadb5431cb49ba54a28e605f7f5824346da06e",
       "default_categories": [
         "Utilities"
       ]

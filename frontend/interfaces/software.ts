@@ -116,9 +116,11 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
-interface IFleetMaintainedVersion {
+export interface IFleetMaintainedVersion {
   id: number;
   version: string;
+  filename: string;
+  uploaded_at: string;
 }
 
 export interface ISoftwarePackage {
@@ -148,6 +150,9 @@ export interface ISoftwarePackage {
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
+  /** Version pin: null/absent = Latest, exact version = exact pin, caret
+   * ("^149") = major-version pin. */
+  pinned_version?: string | null;
   hash_sha256?: string | null;
   /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
   configuration?: string;

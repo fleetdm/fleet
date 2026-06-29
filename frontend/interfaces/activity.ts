@@ -108,6 +108,7 @@ export enum ActivityType {
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
+  RanCustomMdmCommand = "ran_custom_mdm_command",
   RanScriptBatch = "ran_script_batch",
   ScheduledScriptBatch = "scheduled_script_batch",
   CanceledScriptBatch = "canceled_script_batch",
@@ -226,7 +227,8 @@ export type IHostPastActivityType =
   | ActivityType.CreatedManagedLocalAccount
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
-  | ActivityType.FailedEnrollmentProfileRenewal;
+  | ActivityType.FailedEnrollmentProfileRenewal
+  | ActivityType.RanCustomMdmCommand;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -308,6 +310,7 @@ export interface IActivityDetails {
   query_ids?: number[];
   query_name?: string;
   query_sql?: string;
+  request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
   script_name?: string;
@@ -488,6 +491,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
   mdm_unenrolled: "MDM turned off",
+  ran_custom_mdm_command: "Ran custom MDM command",
   ran_script: "Ran script",
   ran_script_batch: "Bulk ran script",
   scheduled_script_batch: "Scheduled script batch",
