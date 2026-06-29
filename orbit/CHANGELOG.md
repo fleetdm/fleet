@@ -1,3 +1,29 @@
+## 1.57.0 (Jun 29, 2026)
+
+* Bumped github.com/containerd/containerd from 1.7.32 to 1.7.33.
+
+* Added exponential backoff with jitter to Fleet Desktop's server polling. On error (401, 5xx, network failure), Desktop now doubles its retry interval (capped at 30 minutes) instead of retrying at a fixed rate. A single success resets to the normal interval. This prevents request storms that can overwhelm the database when many hosts have expired tokens.
+
+* Added support for on-demand Windows MDM sync. When the Fleet server requests it, fleetd now starts an OMA-DM management session so queued Windows MDM commands are delivered promptly even when the device's MDM poll schedule has been relaxed. This lets the server reduce the Windows MDM poll frequency without increasing command latency.
+
+* Added `daemon_reachable` and `error` columns to the `santa_status` fleetd table so the table reports a row (with the santactl error) when the Santa daemon is unreachable instead of silently returning zero rows.
+
+* Fixed confusing keychain error logs (`secret cannot be empty` and `failed to retrieve enroll secret from default keychain: %!w(<nil>)`) emitted by fleetd during ABM enrollment of packages built with `--use-system-configuration`. Such packages no longer ship an empty `/opt/orbit/secret.txt`.
+
+* Updated go to 1.26.4
+
+* Fixed fleetd leaving thousands of zombie `sudo` processes on Linux when Fleet Desktop repeatedly failed to start.
+
+* Added INFO-level orbit logging that records why a host (re-)enrolls: when the node key file is missing or empty, when the server rejects the node key with a 401 (including the request path), and which server is being enrolled against.
+* Hardened orbit against unexpected re-enrollments: a transient or spurious 401 no longer immediately discards a valid node key. Orbit now waits until 401s have persisted for a grace period before re-enrolling, and writes the new node key atomically so an existing key is never deleted or truncated until a replacement has been obtained.
+
+* Fixed a macOS detail query error caused by app bundles (such as Apple's XProtect) that declare an executable in their Info.plist but ship no binary at that path; the executable SHA256 is now left empty instead of failing the query.
+
+* Adds an optional, queryable socket_path column to both containerd_containers and containerd_mounts. 
+* Defaults to /run/containerd/containerd.sock when no value is specified, maintaining backwards compatibility.
+
+* Fixed an issue where a corrupt osqueryd or Fleet Desktop binary (e.g. from a truncated update download) would cause orbit to crash-loop indefinitely. Orbit now detects an executable that fails to run, removes the corrupt component, and re-downloads it from the update server.
+
 ## 1.56.3 (Jun 11, 2026)
 
 * Fixed fleetd clearing pre-packaged/user-provided osquery flagfiles (`osquery.flags`) when `command_line_flags` is unset in the agent settings. Setting `command_line_flags` to an empty document (`{}` or `null`) still explicitly clears the flagfile.
