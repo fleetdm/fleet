@@ -196,6 +196,19 @@ module "loadtest" {
       enabled = true
     }
     idle_timeout = 905
+    https_listener_rules = [{
+      https_listener_index = 0
+      priority             = 1
+      actions = [{
+        type         = "fixed-response"
+        content_type = "text/plain"
+        status_code  = "200"
+        message_body = "OK"
+      }]
+      conditions = [{
+        path_patterns = ["/version"]
+      }]
+    }]
   }
 }
 

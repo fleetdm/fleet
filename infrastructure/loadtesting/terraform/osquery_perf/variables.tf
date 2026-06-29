@@ -12,7 +12,7 @@ variable "loadtest_containers" {
 variable "extra_flags" {
   description = "Comma delimited list (string) for passing extra flags to osquery-perf containers"
   type        = list(string)
-  default     = ["--orbit_prob", "0.0"]
+  default     = ["--orbit_prob", "0.0", "--config_interval", "864000s", "--query_interval", "864000s", "--log_interval", "864000s", "--mdm_checkin_interval", "864000s"]
 }
 
 variable "task_size" {

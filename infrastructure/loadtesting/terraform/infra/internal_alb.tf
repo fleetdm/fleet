@@ -61,6 +61,26 @@ resource "aws_lb_listener" "internal_https" {
   }
 }
 
+resource "aws_lb_listener_rule" "internal_version" {
+  listener_arn = aws_lb_listener.internal.arn
+  priority     = 1
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "OK"
+      status_code  = "200"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/version"]
+    }
+  }
+}
+
 resource "aws_lb_target_group" "internal" {
   name                 = "${local.prefix}-int"
   protocol             = "HTTP"
