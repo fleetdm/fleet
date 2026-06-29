@@ -48,6 +48,13 @@ func TestUrlGeneration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/subpath/test/path", bc.URL("test/path", "").String())
 	})
+
+	t.Run("with subpath in base URL and a prefix", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/prefix/test/path", bc.URL("test/path", "").String())
+		require.Equal(t, "https://test.com/subpath/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
 }
 
 func TestParseResponseKnownErrors(t *testing.T) {
