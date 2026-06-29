@@ -274,6 +274,10 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	// FileVault holds macOS-only FileVault overrides layered on the
+	// enable_disk_encryption shorthand.
+	FileVault MDMFileVaultSettings `json:"filevault"`
+
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -290,6 +294,39 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// MDMFileVaultSettings holds macOS-only FileVault overrides layered on the
+// enable_disk_encryption shorthand.
+type MDMFileVaultSettings struct {
+	// PromptEnablementAt controls when macOS prompts/forces FileVault enablement.
+	// "login" (default) keeps Fleet's force-at-login + Setup-Assistant keys;
+	// "logout" drops the force keys so an external login-time enabler (e.g.
+	// XCreds) owns turning FileVault on. Unset or empty is treated as "login".
+	PromptEnablementAt optjson.String `json:"prompt_enablement_at"`
+}
+
+const (
+	FileVaultPromptEnablementAtLogin  = "login"
+	FileVaultPromptEnablementAtLogout = "logout"
+)
+
+// FileVaultPromptEnablementAt resolves the effective value (default "login").
+func (m MDM) FileVaultPromptEnablementAt() string {
+	if m.FileVault.PromptEnablementAt.Valid && m.FileVault.PromptEnablementAt.Value != "" {
+		return m.FileVault.PromptEnablementAt.Value
+	}
+	return FileVaultPromptEnablementAtLogin
+}
+
+// ValidFileVaultPromptEnablementAt reports whether v is accepted (empty == default).
+func ValidFileVaultPromptEnablementAt(v string) bool {
+	switch v {
+	case "", FileVaultPromptEnablementAtLogin, FileVaultPromptEnablementAtLogout:
+		return true
+	default:
+		return false
+	}
 }
 
 type DiskEncryptionConfig struct {
@@ -840,6 +877,7 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	// OrgInfo: nothing needs cloning
 	// FleetDesktopSettings: nothing needs cloning
+	// MDM.FileVault: all value types (optjson.String), value copy suffices
 
 	if c.ServerSettings.DebugHostIDs != nil {
 		clone.ServerSettings.DebugHostIDs = make([]uint, len(c.ServerSettings.DebugHostIDs))

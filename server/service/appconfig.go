@@ -1715,6 +1715,12 @@ func (svc *Service) validateMDM(
 	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
 		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
+	if !lic.IsPremium() && mdm.FileVault.PromptEnablementAt.Valid && mdm.FileVault.PromptEnablementAt.Value != "" {
+		invalid.Append("filevault.prompt_enablement_at", ErrMissingLicense.Error())
+	}
+	if mdm.FileVault.PromptEnablementAt.Valid && !fleet.ValidFileVaultPromptEnablementAt(mdm.FileVault.PromptEnablementAt.Value) {
+		invalid.Append("filevault.prompt_enablement_at", `must be "login" or "logout"`)
+	}
 	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())
 	}

@@ -81,8 +81,9 @@ type HistoricalDataPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableDiskEncryption       optjson.Bool         `json:"enable_disk_encryption"`
+	FileVault                  MDMFileVaultSettings `json:"filevault"`
+	EnableRecoveryLockPassword optjson.Bool         `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -323,6 +324,7 @@ func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp
 
 type TeamMDM struct {
 	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
+	FileVault                  MDMFileVaultSettings  `json:"filevault"`
 	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
@@ -356,7 +358,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 	clone := *t
 
-	// EnableDiskEncryption, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
+	// EnableDiskEncryption, FileVault, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 
@@ -394,9 +396,16 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	return &clone
 }
 
+// FileVaultPromptEnablementAt resolves the effective FileVault prompt setting
+// for this team (default "login").
+func (t TeamMDM) FileVaultPromptEnablementAt() string {
+	return MDM{FileVault: t.FileVault}.FileVaultPromptEnablementAt()
+}
+
 type TeamSpecMDM struct {
-	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableDiskEncryption       optjson.Bool         `json:"enable_disk_encryption"`
+	FileVault                  MDMFileVaultSettings `json:"filevault"`
+	EnableRecoveryLockPassword optjson.Bool         `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -748,6 +757,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
+	mdmSpec.FileVault = t.Config.MDM.FileVault
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
