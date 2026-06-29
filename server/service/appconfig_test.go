@@ -25,6 +25,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -212,6 +213,72 @@ func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
 		require.Contains(t, err.Error(), "software_filters")
 		require.Contains(t, err.Error(), "at least one")
 		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+}
+
+// TestModifyAppConfigFileVaultPromptReconcile covers the global PATCH /config
+// path: changing only filevault.prompt_enablement_at while enable_disk_encryption
+// stays on re-pushes the FileVault profile; turning the shorthand off skips the
+// profile regardless of the prompt value.
+func TestModifyAppConfigFileVaultPromptReconcile(t *testing.T) {
+	setup := func(t *testing.T, oldEnabled bool) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "something"
+		caCertPEM, _, err := generateCertWithAPNsTopic()
+		require.NoError(t, err)
+		// Premium wires the real EE MDMAppleEnableFileVaultAndEscrow, which creates
+		// the FileVault config profile via the datastore when invoked.
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			ac.MDM.EnabledAndConfigured = true
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(oldEnabled)
+			return ac, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+		ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Value: caCertPEM},
+			}, nil
+		}
+		ds.NewMDMAppleConfigProfileFunc = func(_ context.Context, p fleet.MDMAppleConfigProfile,
+			_ []fleet.FleetVarName,
+		) (*fleet.MDMAppleConfigProfile, error) {
+			return &p, nil
+		}
+		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
+			return nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("prompt-only change with disk encryption on re-pushes", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		body := `{"mdm":{"filevault":{"prompt_enablement_at":"logout"}}}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked,
+			"a prompt-only change must re-push the FileVault profile")
+	})
+
+	t.Run("prompt change with disk encryption off skips the profile", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+		body := `{"mdm":{"filevault":{"prompt_enablement_at":"logout"}}}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked,
+			"disk encryption off must not push the FileVault profile")
 	})
 }
 
@@ -1145,6 +1212,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1201,6 +1269,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1239,6 +1308,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1284,6 +1354,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1329,6 +1400,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1374,6 +1446,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1444,6 +1517,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},

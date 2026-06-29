@@ -3168,6 +3168,10 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 		return fleet.DiskEncryptionConfig{Enabled: false}, nil
 	}
+	// FileVault enable resolves prompt_enablement_at; default to login.
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &fleet.TeamMDM{}, nil
+	}
 
 	deleteCalls := uint(0)
 	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
