@@ -1666,7 +1666,7 @@ module.exports = {
             return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occurred. Full error: ${util.inspect(err)}`);
           });
 
-          // Find all relases that contains all three installer assets.
+          // Find all releases that contains all three installer assets.
           let completeReleases = _.filter(otherRecentFleetReleases, (release)=>{
             return _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_mac.pkg');}) &&
               _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');}) &&
