@@ -1557,7 +1557,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="android"
-          hostMdmEnrollmentStatus="On (personal)"
+          hostMdmEnrollmentStatus="On (manual - personal)"
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1785,7 +1785,7 @@ describe("Host Actions Dropdown", () => {
     );
   });
 
-  describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {
+  describe("personally enrolled hosts (e.g. enrollment status => On (manual - personal))", () => {
     it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1803,7 +1803,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmEnrollmentStatus={"On (manual - personal)"}
           hostMdmDeviceStatus="unlocked"
           isConnectedToFleetMdm
           hostScriptsEnabled
@@ -1843,7 +1843,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmEnrollmentStatus={"On (manual - personal)"}
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
