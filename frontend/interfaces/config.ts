@@ -99,6 +99,7 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  apple_account_provisioning?: IAppleAccountProvisioning;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -245,6 +246,12 @@ export interface IConfig {
 
 interface IFleetPartnerships {
   enable_primo: boolean;
+}
+
+export interface IAppleAccountProvisioning {
+  oauth_idp_token_url: string;
+  oauth_idp_client_id: string;
+  oauth_idp_client_secret: string;
 }
 
 export interface IWebhookSettings {
