@@ -125,7 +125,7 @@ func TestParseBranchesRCGrouping(t *testing.T) {
 	raw := strings.Join([]string{
 		ref("rc-minor-fleet-v4.88.0", "a", "s", "me", "1d", "refs/heads/rc-minor-fleet-v4.88.0"),
 		ref("rc-patch-fleet-v4.88.1", "a", "s", "me", "2d", "refs/heads/rc-patch-fleet-v4.88.1"),
-		ref("rc-minor-fleet-v4.87.1", "a", "s", "me", "3d", "refs/heads/rc-minor-fleet-v4.87.1"),
+		ref("rc-minor-fleet-v4.87.0", "a", "s", "me", "3d", "refs/heads/rc-minor-fleet-v4.87.0"),
 		ref("rc-minor-fleet-v4.86.0", "a", "s", "me", "4d", "refs/heads/rc-minor-fleet-v4.86.0"), // current
 		ref("rc-minor-fleet-v4.85.0", "a", "s", "me", "5d", "refs/heads/rc-minor-fleet-v4.85.0"),
 	}, "\n")
