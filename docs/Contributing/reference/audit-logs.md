@@ -3008,6 +3008,54 @@ This activity contains the following fields:
 }
 ```
 
+## edited_configuration_profile
+
+Generated when a configuration profile is edited.
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "profile_identifier": Identifier of the profile.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "platform": The platform the configuration profile is targeting.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "platform": "windows"
+}
+```
+
+## ran_custom_mdm_command
+
+Generated when a user runs a custom MDM command via API or the fleetctl CLI.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_uuid": UUID of the host.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "request_type": the type of custom MDM command.
+- "platform": the platform of the host ("darwin" or "windows").
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_uuid": "1b3d5e7f-9a2c-4e6d-8b0a-1c3d5e7f9a2b",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "request_type": "EraseDevice",
+  "platform": "darwin"
+}
+```
+
 ## added_label_to_host
 
 Generated when a label is added to a host.

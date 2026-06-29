@@ -713,6 +713,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null
@@ -724,6 +725,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -810,6 +812,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3
@@ -821,6 +824,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
@@ -877,6 +881,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2025-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null
@@ -888,6 +893,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2025-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -1392,7 +1398,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business.
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business. If there is an error communicating with the DEP APIs, `dep_device` will be null and `dep_device_error` will contain human-readable error details.
 
 `GET /api/v1/fleet/hosts/:id/dep_assignment`
 
@@ -1437,7 +1443,8 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "ab_token_id": 1,
     "mdm_migration_deadline": "2025-12-05T00:00:00Z",
     "mdm_migration_completed": "2025-12-05T00:00:00Z"
-  }
+  },
+  "dep_device_error": null
 }
 ```
 
