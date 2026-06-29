@@ -1940,7 +1940,6 @@ func (c *Client) SaveEnvSecrets(alreadySaved map[string]string, toSave map[strin
 	return c.SaveSecretVariables(secretsToSave, dryRun)
 }
 
-// DoGitOps applies the GitOps config to Fleet.
 // allGoogleWorkspaceEntriesEmpty reports whether every google_workspace entry in
 // a GitOps org_settings.integrations payload has only empty fields. Such entries
 // (e.g. produced by unset GitOps variables) are treated as "not configured" so
@@ -1975,6 +1974,7 @@ func allGoogleWorkspaceEntriesEmpty(entries []any) bool {
 	return true
 }
 
+// DoGitOps applies the GitOps config to Fleet.
 func (c *Client) DoGitOps(
 	ctx context.Context,
 	incoming *spec.GitOps,
