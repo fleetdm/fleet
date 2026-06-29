@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -16,6 +16,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
+import TableLayoutContext from "components/TableContainer/TableLayoutContext";
 
 const baseClass = "actions-dropdown";
 
@@ -126,6 +127,13 @@ const ActionsDropdown = ({
   buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
+
+  // Portal the menu only when rendered inside a TableContainer's data-table
+  // block, where .data-table__wrapper's overflow-x: auto would otherwise clip
+  // the menu vertically. The brand-button variant nulls out react-select's
+  // Control, and MenuPortal bails when controlElement is missing — so don't
+  // use brand-button inside a table cell.
+  const { insideTable } = useContext(TableLayoutContext);
 
   // Used for brand Action button
   const [menuIsOpen, setMenuIsOpen] = useState(false);
@@ -273,10 +281,9 @@ const ActionsDropdown = ({
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
     }),
-    // Portal the menu to document.body so it isn't clipped by a scrollable
-    // ancestor (notably .data-table__wrapper's overflow-x: auto). zIndex must
-    // clear .site-nav-container (100) and Modal (101) since ActionsDropdown
-    // can render inside a modal (e.g. ScriptDetailsModal).
+    // zIndex 999 (document-portal tier) so the portaled menu clears
+    // .site-nav-container and Modal — ActionsDropdown can render inside a
+    // TableContainer that lives inside a modal (e.g. ScriptDetailsModal).
     menuPortal: (provided) => ({
       ...provided,
       zIndex: 999,
@@ -343,11 +350,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
-        // Skip the portal for brand-button: it nulls out Control, and
-        // react-select's MenuPortal bails when controlElement is missing,
-        // leaving no menu to render. Brand-button is only used outside the
-        // data-table wrapper anyway, so it doesn't need the portal.
-        menuPortalTarget={isBrandButton ? undefined : document.body}
+        menuPortalTarget={insideTable ? document.body : undefined}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>
