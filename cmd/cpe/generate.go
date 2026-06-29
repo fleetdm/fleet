@@ -27,6 +27,11 @@ const (
 	waitTimeForRetry        = 10 * time.Second
 	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
+
+	// minCompleteFraction is the minimum percentage of NVD's reported totalResults that
+	// must be retrieved for the pull to be accepted. It tolerates NVD's small, persistent
+	// overcount (~0.025%) while still failing on a grossly incomplete result.
+	minCompleteFraction = 95
 )
 
 func panicIf(err error) {
@@ -107,8 +112,11 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 		}
 	}
 
-	// Sanity check
-	if totalResults <= 1 || len(cpes) != totalResults {
+	// Sanity check. NVD's reported totalResults is consistently a few hundred higher
+	// than the number of CPEs it actually returns (e.g. 1761245 reported vs 1760806
+	// returned). Requiring an exact match makes this job fail on every run, so we
+	// tolerate a small shortfall but still reject a grossly incomplete pull.
+	if totalResults <= 1 || len(cpes) < totalResults*minCompleteFraction/100 {
 		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
 	}
 
