@@ -181,4 +181,4 @@ With Fleet, blocking and monitoring the attack is a reviewed, version-controlled
 <meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-06-29">
-<meta name="description" value="Learn how EDR Freeze works on macOS, how Santa 2026.3 blocks it with AntiSuspendSigningIDs, and how to monitor for it using Fleet's Santa osquery tables.">
+<meta name="description" value="Learn how EDR Freeze works on macOS, how Santa 2026.3 blocks it with AntiSuspendSigningIDs, and using Fleet's Santa osquery tables to monitor it.">
