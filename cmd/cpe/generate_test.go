@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -82,6 +84,15 @@ func feedClient(archive []byte) *mockClient {
 	return &mockClient{response: recorder.Result()}
 }
 
+// jsonClient returns a mock HTTP client whose body is the given raw JSON, mimicking a
+// single NVD API CPE page.
+func jsonClient(jsonData []byte) *mockClient {
+	recorder := httptest.NewRecorder()
+	recorder.Header().Add("Content-Type", "application/json")
+	_, _ = recorder.Write(jsonData)
+	return &mockClient{response: recorder.Result()}
+}
+
 // readCPERows returns every row of the cpe_2 table as string slices.
 func readCPERows(t *testing.T, dbPath string) [][]string {
 	t.Helper()
@@ -108,43 +119,57 @@ func readCPERows(t *testing.T, dbPath string) [][]string {
 }
 
 func TestCPEDB(t *testing.T) {
-	// Find the paths of all input files in the testdata directory.
-	paths, err := filepath.Glob(filepath.Join("testdata", "*.json"))
-	if err != nil {
-		t.Fatal(err)
+	// Each source delivers the same NVD 2.0 payload over a different transport (the feed
+	// wraps it in a gzipped tar chunk; the API serves it as a raw JSON page). Both must
+	// decode to identical CPE items, so the same golden file applies to both.
+	sources := []struct {
+		name  string
+		fetch func(t *testing.T, jsonData []byte) ([]cpedict.CPEItem, error)
+	}{
+		{
+			name: cpeSourceFeed,
+			fetch: func(t *testing.T, jsonData []byte) ([]cpedict.CPEItem, error) {
+				return fetchCPEFeed(feedClient(tarGzFeed(t, map[string][]byte{
+					"nvdcpe-2.0-chunks/nvdcpe-2.0-chunk-00001.json": jsonData,
+				})))
+			},
+		},
+		{
+			name: cpeSourceAPI,
+			fetch: func(t *testing.T, jsonData []byte) ([]cpedict.CPEItem, error) {
+				return fetchCPEsFromAPI(jsonClient(jsonData), "API_KEY")
+			},
+		},
 	}
 
-	for _, p := range paths {
-		path := p
-		_, filename := filepath.Split(path)
-		testName := filename[:len(filename)-len(filepath.Ext(path))]
+	// Find the paths of all input files in the testdata directory.
+	paths, err := filepath.Glob(filepath.Join("testdata", "*.json"))
+	require.NoError(t, err)
 
-		// Each path turns into a test: the test name is the filename without the extension.
-		t.Run(
-			testName, func(t *testing.T) {
+	for _, source := range sources {
+		for _, p := range paths {
+			source, path := source, p
+			_, filename := filepath.Split(path)
+			testName := filename[:len(filename)-len(filepath.Ext(path))]
+
+			// e.g. "feed/test1", "api/test1" — both compared against test1.golden.
+			t.Run(source.name+"/"+testName, func(t *testing.T) {
 				t.Parallel()
 				jsonData, err := os.ReadFile(path)
 				require.NoError(t, err)
 
-				// Serve the JSON as a single-chunk feed archive.
-				client := feedClient(tarGzFeed(t, map[string][]byte{
-					"nvdcpe-2.0-chunks/nvdcpe-2.0-chunk-00001.json": jsonData,
-				}))
+				cpes, err := source.fetch(t, jsonData)
+				require.NoError(t, err)
 
-				// Temporary directory, which will be automatically cleaned up
-				dir := t.TempDir()
+				dbPath := filepath.Join(t.TempDir(), "cpe.sqlite")
+				require.NoError(t, nvd.GenerateCPEDB(dbPath, cpes))
 
-				// Call the function under test
-				dbPath := getCPEs(client, dir)
-
-				// Compare result to the <testName>.golden file
 				result := readCPERows(t, dbPath)
-				goldenFile := filepath.Join("testdata", testName+".golden")
-				golden, err := os.ReadFile(goldenFile)
+				golden, err := os.ReadFile(filepath.Join("testdata", testName+".golden"))
 				require.NoError(t, err)
 				require.Equal(t, string(golden), fmt.Sprintf("%s", result))
-			},
-		)
+			})
+		}
 	}
 }
 
@@ -197,22 +222,6 @@ func TestFetchCPEFeedIncomplete(t *testing.T) {
 	_, err := fetchCPEFeed(client)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "incomplete result")
-}
-
-// TestFetchCPEsFromAPI exercises the API fallback source: paginate a (single-page)
-// response and convert it to CPE items.
-func TestFetchCPEsFromAPI(t *testing.T) {
-	jsonData, err := os.ReadFile(filepath.Join("testdata", "test1.json"))
-	require.NoError(t, err)
-
-	recorder := httptest.NewRecorder()
-	recorder.Header().Add("Content-Type", "application/json")
-	_, _ = recorder.Write(jsonData)
-	client := &mockClient{response: recorder.Result()}
-
-	cpes, err := fetchCPEsFromAPI(client, "API_KEY")
-	require.NoError(t, err)
-	require.Len(t, cpes, 6) // test1.json has totalResults=6 with 6 products
 }
 
 // TestFetchCPEsFromAPIRequiresKey verifies the API source fails fast without a key.
