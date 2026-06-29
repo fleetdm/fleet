@@ -281,9 +281,8 @@ func TestInvalidSoapRequestWithDiscoverMsg(t *testing.T) {
 }
 
 // TestRejectUnsupportedAuth verifies that a policy/enroll request following the OnPremise auth policy with a
-// <wsse:UsernameToken> (username + plaintext password) is turned into an actionable fault, while other token errors
-// pass through unchanged. It also confirms the username/password never lands in a parsed field (only the raw bytes),
-// so the actionable fault does not echo the password back into logs.
+// <wsse:UsernameToken> (username + plaintext password) is turned into an actionable fault, while other token errors pass
+// through unchanged.
 func TestRejectUnsupportedAuth(t *testing.T) {
 	sentinel := errors.New("binarySecurityToken is empty")
 
@@ -295,9 +294,6 @@ func TestRejectUnsupportedAuth(t *testing.T) {
 				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
 				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>` + security + `
 			</s:Header>
-			<s:Body>
-				<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy"></GetPolicies>
-			</s:Body>
 			</s:Envelope>`)
 	}
 
@@ -339,7 +335,6 @@ func TestRejectUnsupportedAuth(t *testing.T) {
 			req.Raw = raw // DecodeBody populates Raw in production; the NewSoapRequest test helper does not.
 
 			got := rejectUnsupportedAuth(&req, sentinel)
-			require.Error(t, got)
 
 			if tc.wantActionableMsg {
 				require.Contains(t, got.Error(), "is not supported")

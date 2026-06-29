@@ -1,1 +1,1 @@
-- Improved the Windows MDM enrollment error for unsupported username and password (OnPremise) enrollment: a device that is not joined to Microsoft Entra ID now receives a clear message to join Microsoft Entra ID or enroll with fleetd, instead of failing with the opaque `0x80180027` error.
+- Improved the Windows MDM enrollment server log for unsupported username and password (OnPremise) enrollment: a device that is not joined to Microsoft Entra ID now receives a clear server log message to join Microsoft Entra ID or enroll with fleetd.

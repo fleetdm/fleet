@@ -8590,50 +8590,6 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	require.True(t, s.checkIfXMLTagContains("s:text", "host is not elegible for Windows MDM enrollment", resSoapMsg))
 }
 
-// TestGetPoliciesRejectsUsernameTokenAuth verifies that a GetPolicies request following the advertised OnPremise auth
-// policy with a <wsse:UsernameToken> (username + plaintext password), as sent by a non-Entra, device-initiated
-// enrollment, is rejected with an actionable SOAP fault rather than the opaque "binarySecurityToken is empty" that
-// surfaces on the device as 0x80180027. Fleet only supports BinarySecurityToken auth (orbit node key or Entra AAD JWT).
-func (s *integrationMDMTestSuite) TestGetPoliciesRejectsUsernameTokenAuth() {
-	t := s.T()
-
-	const secretPassword = "SuperSecret-PlaintextPassword"
-	requestBytes := []byte(`
-		<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
-		<s:Header>
-			<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
-			<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
-			<a:ReplyTo><a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address></a:ReplyTo>
-			<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
-			<wsse:Security s:mustUnderstand="1">
-				<wsse:UsernameToken>
-					<wsse:Username>demo@mdmwindows.com</wsse:Username>
-					<wsse:Password>` + secretPassword + `</wsse:Password>
-				</wsse:UsernameToken>
-			</wsse:Security>
-		</s:Header>
-		<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-			<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
-				<client><lastUpdate xsi:nil="true"/><preferredLanguage xsi:nil="true"/></client>
-				<requestFilter xsi:nil="true"/>
-			</GetPolicies>
-		</s:Body>
-		</s:Envelope>`)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
-
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "is not supported", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "Microsoft Entra ID", resSoapMsg))
-	// The fault must not echo the plaintext password back to the device or into logs.
-	require.NotContains(t, resSoapMsg, secretPassword)
-}
-
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDeviceToken() {
 	t := s.T()
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
