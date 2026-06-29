@@ -644,7 +644,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 1. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
 3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 

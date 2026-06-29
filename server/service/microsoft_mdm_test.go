@@ -2313,3 +2313,66 @@ func TestHasAuthorizedAzureTenant(t *testing.T) {
 		})
 	}
 }
+
+// TestIsFleetdPresentOnDevice covers the fleetd-presence decision for a Windows MDM session.
+func TestIsFleetdPresentOnDevice(t *testing.T) {
+	t.Parallel()
+
+	enrolledAt := time.Date(2026, 6, 10, 9, 36, 32, 0, time.UTC)
+
+	cases := []struct {
+		name        string
+		nonUPN      bool          // enroll_user_id is a device token (programmatic enrollment), not a UPN
+		unlinked    bool          // enrollment not yet linked to a host
+		noVersion   bool          // host_orbit_info has an empty version
+		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
+		wantPresent bool
+	}{
+		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
+		{name: "UPN not yet linked to a host", unlinked: true, wantPresent: false},
+		{name: "UPN with empty orbit version", noVersion: true, seenOffset: time.Minute, wantPresent: false},
+		{name: "UPN stale check-in before enrollment (wipe)", seenOffset: -20 * 24 * time.Hour, wantPresent: false},
+		{name: "UPN fresh check-in after enrollment", seenOffset: time.Minute, wantPresent: true},
+		{name: "UPN check-in within grace before enrollment", seenOffset: -fleetdPresenceGracePeriod / 2, wantPresent: true},
+		// Exactly on the threshold (seen_time == created_at - grace) must count as present: the check is inclusive
+		// ("at/after"). This fails under a strict After() comparison and passes under !Before().
+		{name: "UPN check-in exactly at grace boundary", seenOffset: -fleetdPresenceGracePeriod, wantPresent: true},
+		{name: "UPN check-in beyond grace before enrollment", seenOffset: -2 * fleetdPresenceGracePeriod, wantPresent: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			enrollUser := "alice@example.com"
+			if tc.nonUPN {
+				enrollUser = "device-token"
+			}
+			hostUUID := "host-1"
+			if tc.unlinked {
+				hostUUID = ""
+			}
+			version := "1.56.2"
+			if tc.noVersion {
+				version = ""
+			}
+
+			ds := new(mock.Store)
+			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
+			}
+			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
+				return &fleet.HostOrbitInfo{Version: version}, nil
+			}
+			svc := &Service{ds: ds}
+
+			present, err := svc.isFleetdPresentOnDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+				MDMEnrollUserID: enrollUser,
+				HostUUID:        hostUUID,
+				CreatedAt:       enrolledAt,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantPresent, present)
+		})
+	}
+}

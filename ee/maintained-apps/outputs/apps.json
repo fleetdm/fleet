@@ -1409,6 +1409,20 @@
       "description": "Cheetah3D is a 3D modelling, rendering and animation software."
     },
     {
+      "name": "Chef Workstation",
+      "slug": "chef-workstation/windows",
+      "platform": "windows",
+      "unique_identifier": "Chef Workstation",
+      "description": "Chef Workstation is a toolkit from Progress Chef for authoring, testing, and running infrastructure automation code."
+    },
+    {
+      "name": "Cherry Keys",
+      "slug": "cherry-keys/windows",
+      "platform": "windows",
+      "unique_identifier": "CHERRY KEYS",
+      "description": "Cherry Keys is a utility for individually reassigning the keys of Cherry keyboards, mice, and desktop sets."
+    },
+    {
       "name": "Cherry Studio",
       "slug": "cherry-studio/darwin",
       "platform": "darwin",
@@ -1696,6 +1710,13 @@
       "description": "Colour Contrast Analyser is a colour contrast checker."
     },
     {
+      "name": "Colour Contrast Analyser",
+      "slug": "colour-contrast-analyser/windows",
+      "platform": "windows",
+      "unique_identifier": "Colour Contrast Analyser",
+      "description": "Colour Contrast Analyser is a tool for checking the contrast of text and visual elements against WCAG accessibility guidelines."
+    },
+    {
       "name": "Comet",
       "slug": "comet/darwin",
       "platform": "darwin",
@@ -1778,6 +1799,13 @@
       "platform": "windows",
       "unique_identifier": "CrashPlan",
       "description": "CrashPlan is backup and recovery software."
+    },
+    {
+      "name": "Cribl Edge",
+      "slug": "cribl-edge/windows",
+      "platform": "windows",
+      "unique_identifier": "Cribl Edge",
+      "description": "Cribl Edge is an observability agent for collecting and processing logs, metrics, and other telemetry at the edge."
     },
     {
       "name": "CrossOver",
@@ -8113,6 +8141,20 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Vivaldi",
+      "slug": "vivaldi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vivaldi.Vivaldi",
+      "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
+    },
+    {
+      "name": "Vivaldi",
+      "slug": "vivaldi/windows",
+      "platform": "windows",
+      "unique_identifier": "Vivaldi",
+      "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
     },
     {
       "name": "Vivid",

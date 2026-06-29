@@ -25,6 +25,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
+	"vivaldi/darwin":                {VivaldiDMGInstaller},
 	"warp/darwin":                   {WarpDirectInstaller},
 	"android-studio/darwin":         {AndroidStudioVersionShortener},
 	"microsoft-auto-update/darwin":  {MicrosoftAutoUpdateVersionShortener},

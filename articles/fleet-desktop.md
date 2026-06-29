@@ -2,7 +2,7 @@
 
 Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux.
 
-> See [our FAQ](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support) for more details about Linux OS and desktop manager support.
+> See [our FAQ](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support) for more details about Linux OS and desktop environment support.
 
 Fleet Desktop unlocks two key benefits:
 

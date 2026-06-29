@@ -836,6 +836,27 @@ func (a ActivityTypeRanScript) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
 
+type ActivityTypeRanCustomMDMCommand struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostUUID        string `json:"host_uuid"`
+	CommandUUID     string `json:"command_uuid"`
+	RequestType     string `json:"request_type"`
+	Platform        string `json:"platform"`
+}
+
+func (a ActivityTypeRanCustomMDMCommand) ActivityName() string {
+	return "ran_custom_mdm_command"
+}
+
+func (a ActivityTypeRanCustomMDMCommand) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRanCustomMDMCommand) HostOnly() bool {
+	return false
+}
+
 type ActivityTypeAddedScript struct {
 	ScriptName string  `json:"script_name"`
 	TeamID     *uint   `json:"team_id" renameto:"fleet_id"`

@@ -1382,7 +1382,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password, false)
+	err := svc.setNewPassword(ctx, user, password, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}

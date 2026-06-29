@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.9.1.1",
+      "version": "6.10.0.252.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Creative Cloud' AND publisher = 'Adobe Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Creative Cloud' AND publisher = 'Adobe Inc.' AND version_compare(version, '6.9.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Creative Cloud' AND publisher = 'Adobe Inc.' AND version_compare(version, '6.10.0.252.3') < 0);"
       },
       "installer_url": "https://prod-rel-ffc-ccm.oobesaas.adobe.com/adobe-ffc-external/core/v1/wam/download?sapCode=KCCC&wamFeature=nuj-live",
       "install_script_ref": "a4660692",

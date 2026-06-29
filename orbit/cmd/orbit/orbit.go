@@ -282,6 +282,117 @@ func main() {
 	}
 }
 
+// enrollSecretKeystore abstracts orbit/pkg/keystore so the enroll secret
+// loading logic can be unit tested.
+type enrollSecretKeystore interface {
+	Supported() bool
+	Name() string
+	GetSecret() (string, error)
+	AddSecret(secret string) error
+	UpdateSecret(secret string) error
+}
+
+// realKeystore delegates to the orbit/pkg/keystore package.
+type realKeystore struct{}
+
+func (realKeystore) Supported() bool                  { return keystore.Supported() }
+func (realKeystore) Name() string                     { return keystore.Name() }
+func (realKeystore) GetSecret() (string, error)       { return keystore.GetSecret() }
+func (realKeystore) AddSecret(secret string) error    { return keystore.AddSecret(secret) }
+func (realKeystore) UpdateSecret(secret string) error { return keystore.UpdateSecret(secret) }
+
+// readEnrollSecretFromFile reads the enroll secret from enrollSecretPath. If the
+// secret is found and the keystore is enabled, it writes/overwrites the secret
+// in the keystore and deletes the file. An empty (or missing) secret file is a
+// no-op: there's nothing to load, so the keystore is not touched.
+func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) error {
+	b, err := os.ReadFile(enrollSecretPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) || !ks.Supported() || disableKeystore {
+			return fmt.Errorf("read enroll secret file: %w", err)
+		}
+		return nil
+	}
+	secret := strings.TrimSpace(string(b))
+	// An empty secret file means there's nothing to load. Don't set the secret
+	// or attempt to add it to the keystore (otherwise the keystore rejects it
+	// with "secret cannot be empty"). This happens during ABM enrollment of a
+	// package built with --use-system-configuration, before the configuration
+	// profile is available.
+	if secret == "" {
+		return nil
+	}
+	if err = setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret from file: %w", err)
+	}
+	if !ks.Supported() || disableKeystore {
+		return nil
+	}
+	// Check if secret is already in the keystore.
+	secretFromKeystore, err := ks.GetSecret()
+	if err != nil { //nolint:gocritic // ignore ifElseChain
+		log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", ks.Name())
+	} else if secretFromKeystore == "" {
+		// Keystore secret not found, so we will add it to the keystore.
+		if err = ks.AddSecret(secret); err != nil {
+			log.Warn().Err(err).Msgf("failed to add enroll secret to %v", ks.Name())
+		} else {
+			// Sanity check that the secret was added to the keystore.
+			checkSecret, err := ks.GetSecret()
+			if err != nil { //nolint:gocritic // ignore ifElseChain
+				log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", ks.Name())
+			} else if checkSecret != secret {
+				log.Warn().Msgf("enroll secret was not saved correctly in %v", ks.Name())
+			} else {
+				log.Info().Msgf("added enroll secret to keystore: %v", ks.Name())
+				deleteSecretPathIfExists(enrollSecretPath)
+			}
+		}
+	} else if secretFromKeystore != secret {
+		// Keystore secret found, but needs to be updated.
+		if err = ks.UpdateSecret(secret); err != nil {
+			log.Warn().Err(err).Msgf("failed to update enroll secret in %v", ks.Name())
+		} else {
+			// Sanity check that the secret was updated in the keystore.
+			checkSecret, err := ks.GetSecret()
+			if err != nil { //nolint:gocritic // ignore ifElseChain
+				log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", ks.Name())
+			} else if checkSecret != secret {
+				log.Warn().Msgf("enroll secret was not updated correctly in %v", ks.Name())
+			} else {
+				log.Info().Msgf("updated enroll secret in keystore: %v", ks.Name())
+				deleteSecretPathIfExists(enrollSecretPath)
+			}
+		}
+	} else {
+		// Keystore secret found, and it matches the secret from the file.
+		deleteSecretPathIfExists(enrollSecretPath)
+	}
+	return nil
+}
+
+// tryReadEnrollSecretFromKeystore loads the enroll secret from the keystore via
+// setSecret when one isn't already set and the keystore is enabled. A keystore
+// that holds no secret yet is not an error: there's simply nothing to load.
+func tryReadEnrollSecretFromKeystore(currentSecret string, ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) error {
+	if currentSecret != "" || !ks.Supported() || disableKeystore {
+		return nil
+	}
+	secret, err := ks.GetSecret()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve enroll secret from %v: %w", ks.Name(), err)
+	}
+	if secret == "" {
+		// No secret stored in the keystore yet; nothing to load.
+		return nil
+	}
+	log.Info().Msgf("found enroll secret in keystore: %v", ks.Name())
+	if err = setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret from keystore: %w", err)
+	}
+	return nil
+}
+
 // orbitAction is a named function so that NilAway can analyze it for nil-safety.
 func orbitAction(c *cli.Context) error {
 	if c.Bool("version") {
@@ -349,87 +460,19 @@ func orbitAction(c *cli.Context) error {
 		return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 	}
 
-	readEnrollSecretFromFile := func(enrollSecretPath string) error {
-		// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
-		b, err := os.ReadFile(enrollSecretPath)
-		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
-				return fmt.Errorf("read enroll secret file: %w", err)
-			}
-		} else {
-			secret := strings.TrimSpace(string(b))
-			if err = c.Set("enroll-secret", secret); err != nil {
-				return fmt.Errorf("set enroll secret from file: %w", err)
-			}
-			if keystore.Supported() && !c.Bool("disable-keystore") {
-				// Check if secret is already in the keystore.
-				secretFromKeystore, err := keystore.GetSecret()
-				if err != nil { //nolint:gocritic // ignore ifElseChain
-					log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
-				} else if secretFromKeystore == "" {
-					// Keystore secret not found, so we will add it to the keystore.
-					if err = keystore.AddSecret(secret); err != nil {
-						log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
-					} else {
-						// Sanity check that the secret was added to the keystore.
-						checkSecret, err := keystore.GetSecret()
-						if err != nil { //nolint:gocritic // ignore ifElseChain
-							log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
-						} else if checkSecret != secret {
-							log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
-						} else {
-							log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
-							deleteSecretPathIfExists(enrollSecretPath)
-						}
-					}
-				} else if secretFromKeystore != secret {
-					// Keystore secret found, but needs to be updated.
-					if err = keystore.UpdateSecret(secret); err != nil {
-						log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
-					} else {
-						// Sanity check that the secret was updated in the keystore.
-						checkSecret, err := keystore.GetSecret()
-						if err != nil { //nolint:gocritic // ignore ifElseChain
-							log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
-						} else if checkSecret != secret {
-							log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
-						} else {
-							log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
-							deleteSecretPathIfExists(enrollSecretPath)
-						}
-					}
-				} else {
-					// Keystore secret found, and it matches the secret from the file.
-					deleteSecretPathIfExists(enrollSecretPath)
-				}
-			}
-		}
-		return nil
-	}
+	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
+	disableKeystore := c.Bool("disable-keystore")
 	enrollSecretPath := c.String("enroll-secret-path")
 	if enrollSecretPath != "" {
 		if c.String("enroll-secret") != "" {
 			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 		}
-		if err := readEnrollSecretFromFile(enrollSecretPath); err != nil {
+		if err := readEnrollSecretFromFile(enrollSecretPath, realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
 			return err
 		}
 	}
-	tryReadEnrollSecretFromKeystore := func() error {
-		if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") {
-			secret, err := keystore.GetSecret()
-			if err != nil || secret == "" {
-				return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
-			}
-			log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
-			if err = c.Set("enroll-secret", secret); err != nil {
-				return fmt.Errorf("set enroll secret from keystore: %w", err)
-			}
-		}
-		return nil
-	}
 	if !(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
-		if err := tryReadEnrollSecretFromKeystore(); err != nil {
+		if err := tryReadEnrollSecretFromKeystore(c.String("enroll-secret"), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
 			return err
 		}
 	}
@@ -495,13 +538,19 @@ func orbitAction(c *cli.Context) error {
 					return fmt.Errorf("set fleet URL from file: %w", err)
 				}
 			}
-			// Now, get enroll secret
-			if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName)); err != nil {
-				return err
+			// Now, get enroll secret. During initial ABM/profile bootstrap the local
+			// secret file is expected to be absent (it's written once the configuration
+			// profile is read). When the keystore is disabled, readEnrollSecretFromFile
+			// reports a missing file as an error; ignore that here so the loop keeps
+			// polling for the configuration profile instead of exiting.
+			if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
+				if !(disableKeystore && errors.Is(err, os.ErrNotExist)) {
+					return err
+				}
 			}
 			// Since the normal enroll secret flow supports keychain, we can use it here as well.
 			// The story to remove the enroll secret from macOS MDM profile is: https://github.com/fleetdm/fleet/issues/16118
-			if err := tryReadEnrollSecretFromKeystore(); err != nil {
+			if err := tryReadEnrollSecretFromKeystore(c.String("enroll-secret"), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
 				// Log the error but don't return it, as we want to keep trying to read the configuration
 				// from the system profile.
 				log.Error().Err(err).Msg("failed to read enroll secret from keystore")

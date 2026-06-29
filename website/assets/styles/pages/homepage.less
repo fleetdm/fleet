@@ -29,17 +29,16 @@
 
   [purpose='hero-background-image'] {
     background: url('/images/homepage-hero-2500x420@2x.png');
-    background-size: auto 433px;
+    background-size: auto 329px;
     background-repeat: no-repeat;
     background-position-x: calc(~'100% + -56%');
     background-position-y: top;
   }
+
   [purpose='homepage-hero'] {
-    padding-top: 64px;
-    padding-left: 64px;
-    padding-bottom: 120px;
+    padding: 64px;
     max-width: 1200px;
-    height: 448px;
+    // height: 448px;
   }
   [purpose='ticker-container'] {
     overflow: hidden;
@@ -69,12 +68,12 @@
     }
   }
   [purpose='hero-text'] {
-    max-width: 500px;
+    max-width: 490px;
     text-align: left;
     h1 {
       max-width: 640px;
-      font-size: 48px;
-      margin-bottom: 16px;
+      font-size: 32px;
+      margin-bottom: 32px;
     }
     [purpose='hero-subtitle'] {
       color: #515774;
@@ -115,17 +114,15 @@
     margin-left: auto;
     margin-right: auto;
   }
-  [purpose='hero-quote-author'] {
+  [purpose='hero-quote'] {
     display: flex;
     flex-direction: row;
     align-items: center;
-    margin-bottom: 32px;
-    margin-top: 24px;
     [purpose='hero-quote-profile-image'] {
 
-      margin-right: 16px;
+      margin-right: 24px;
       img {
-        height: 72px;
+        height: 60px;
       }
     }
     [purpose='quote-author-info'] {
@@ -922,6 +919,49 @@
       padding-left: 64px;
     }
 
+    [purpose='hero-text'] {
+      max-width: 380px;
+    }
+    [purpose='hero-quote'] {
+      [purpose='hero-quote-profile-image'] {
+
+        img {
+          height: 60px;
+        }
+      }
+      [purpose='quote-author-info'] {
+        [purpose='quote-text'] {
+          font-size: 15px;
+        }
+
+        [purpose='quote-author-name'] {
+          font-size: 10px;
+        }
+        [purpose='quote-author-title'] {
+          font-size: 12px;
+        }
+
+      }
+    }
+    [purpose='statistics'] {
+      [purpose='statistics-column'] {
+        display: flex;
+        flex-direction: row;
+      }
+      [purpose='customers'] {
+        padding: 8px 16px;
+      }
+      [purpose='devices'] {
+        padding: 8px 16px;
+      }
+      [purpose='countries'] {
+        padding: 8px 16px;
+      }
+      [purpose='response-time'] {
+        padding: 8px 16px;
+      }
+    }
+
     [purpose='page-section'] {
       margin-bottom: 120px;
     }
@@ -1172,7 +1212,7 @@
     [purpose='homepage-hero'] {
       // height: 100%;
       // padding: 48px 27px 330px 24px;
-      height: 720px;
+      height: 540px;
     }
     [purpose='hero-container'] {
       background: linear-gradient(180deg, #FFF 0%, #EEF7F8 150px);
@@ -1185,7 +1225,7 @@
     }
     [purpose='hero-text'] {
       width: 100%;
-      // max-width: 100%;
+      max-width: 100%;
       [purpose='button-row'] {
         [purpose='cta-button'] {
           width: unset;
@@ -1360,15 +1400,15 @@
       margin-bottom: 80px;
     }
     [purpose='homepage-hero'] {
-      padding-bottom: 307px;
-      padding-top: 48px;
+      padding-top: 32px;
       padding-left: 16px;
       padding-right: 16px;
+      height: 600px;
     }
 
     [purpose='hero-text'] {
       h1 {
-        font-size: 32px;
+        font-size: 24px;
       }
     }
     [purpose='homepage-content'] {
@@ -1517,11 +1557,7 @@
   //  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
   //
   @media (max-width: 375px) {
-    [purpose='hero-text'] {
-      h1 {
-        font-size: 28px;
-      }
-    }
+
     h1 {
       font-size: 28px;
       line-height: 120%;
@@ -1552,7 +1588,7 @@
     }
 
     [purpose='hero-background-image'] {
-      background-size: auto 220px;
+      background-size: auto 265px;
     }
     [purpose='ticker-container'] {
       white-space: unset;

@@ -1514,6 +1514,10 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 	})
 }
 
+// fleetdPresenceGracePeriod is how far before the current MDM enrollment's created_at an orbit/osquery check-in still
+// counts as "fleetd present". It absorbs a relaxed agent check-in interval.
+const fleetdPresenceGracePeriod = 90 * time.Second
+
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed.
 // The enrolled device is resolved upstream (by isTrustedRequest) and threaded
 // in to avoid a duplicate lookup on every session-start alert.
@@ -1533,7 +1537,11 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
 				}
 				if orbitInfo != nil {
-					isPresent = orbitInfo.Version != ""
+					// Require a recent orbit/osquery check-in (seen_time at/after the enrollment, minus a grace window)
+					// so a host that has not checked in since re-enrollment gets the fleetd install (re)enqueued.
+					// seen_time only moves forward, so once fleetd checks in after install this stays true.
+					isPresent = orbitInfo.Version != "" &&
+						!host.SeenTime.Before(enrolledDevice.CreatedAt.Add(-fleetdPresenceGracePeriod))
 				}
 			}
 		}

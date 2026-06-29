@@ -7889,12 +7889,12 @@ software:
 
 	teamExisting := []fleet.SoftwareCategory{
 		{ID: 100, Name: "🌎 Browsers", TeamID: 1},
-		{ID: 101, Name: "💻 Productivity", TeamID: 1},
+		{ID: 101, Name: "🖥️ Productivity", TeamID: 1},
 		{ID: 102, Name: "Stale Category", TeamID: 1},
 	}
 	noTeamExisting := []fleet.SoftwareCategory{
 		{ID: 200, Name: "🌎 Browsers", TeamID: 0},
-		{ID: 201, Name: "💻 Productivity", TeamID: 0},
+		{ID: 201, Name: "🖥️ Productivity", TeamID: 0},
 		{ID: 202, Name: "Stale No-team Category", TeamID: 0},
 	}
 
