@@ -827,15 +827,7 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 
 // rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
 // is a device following the advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext
-// password): a <wsse:Security> header that carries a UsernameToken and no <wsse:BinarySecurityToken>. Fleet only accepts
-// a BinarySecurityToken (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined /
-// Autopilot devices), so username/password enrollment is unsupported. Returning a clear reason here replaces the opaque
-// "binarySecurityToken is empty" error that otherwise surfaces on the device as 0x80180027.
-//
-// The BinarySecurityToken element must be truly absent before we rewrite: a present-but-empty
-// <wsse:BinarySecurityToken ValueType="..." EncodingType="..."></wsse:BinarySecurityToken> sets ValueType/EncodingType
-// (parsed into Value/Encoding) even with empty Content, and must keep its original "binarySecurityToken is empty" error.
-// Any other token error (a malformed or wrong-type BinarySecurityToken, or no Security header) also returns err.
+// password) and NO <wsse:BinarySecurityToken>.
 func rejectUnsupportedAuth(req *fleet.SoapRequest, err error) error {
 	if req != nil && req.Header.Security != nil &&
 		len(req.Header.Security.Security.Content) == 0 &&
@@ -1194,14 +1186,8 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	// Fleet always advertises the OnPremise auth policy. Its WSTEP handlers only accept a <wsse:BinarySecurityToken>
+	// Fleet always advertises the OnPremise auth policy. But its WSTEP handlers only accept a <wsse:BinarySecurityToken>
 	// (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined / Autopilot devices).
-	// A device that already has an Entra relationship attaches that AAD JWT even though discovery advertised OnPremise,
-	// so its enrollment succeeds. A device with no Entra relationship would instead follow OnPremise literally and send
-	// a <wsse:UsernameToken> (username + plaintext password), which Fleet does not support; that request is rejected
-	// with an actionable fault at the policy and enroll steps (see rejectUnsupportedAuth). We keep OnPremise here rather
-	// than faulting at discovery because the discovery request cannot distinguish an Entra-joined device (which
-	// succeeds) from a username/password device (which is unsupported): neither carries a token at the discovery step.
 	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
