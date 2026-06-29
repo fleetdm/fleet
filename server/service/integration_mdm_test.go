@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -4131,8 +4132,13 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 
 	var responseID int64
 	rawResponse := []byte("some-response")
+	var rawResponseGz bytes.Buffer
+	gzw := gzip.NewWriter(&rawResponseGz)
+	_, gzErr := gzw.Write(rawResponse)
+	require.NoError(t, gzErr)
+	require.NoError(t, gzw.Close())
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, rawResponseGz.Bytes())
 		if err != nil {
 			return err
 		}
@@ -9129,13 +9135,21 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		var fullResult []byte
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &fullResult, `
-			SELECT raw_response
+			SELECT raw_response_gz
 			FROM windows_mdm_responses wmr
 			JOIN windows_mdm_command_results wmcr ON wmcr.response_id = wmr.id
 			WHERE command_uuid = ?
 			`, cmdUUID)
 		})
-		return fullResult
+		if len(fullResult) == 0 {
+			return fullResult
+		}
+		gr, err := gzip.NewReader(bytes.NewReader(fullResult))
+		require.NoError(t, err)
+		defer gr.Close()
+		out, err := io.ReadAll(gr)
+		require.NoError(t, err)
+		return out
 	}
 
 	var getMDMCmdResp getMDMCommandResultsResponse
@@ -16301,7 +16315,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.UUID)
 			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.HardwareSerial)
 			require.NotNil(t, host.MDM.EnrollmentStatus)
-			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			assert.Nil(t, host.TeamID)
 			id := host.ID
@@ -16312,7 +16326,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.HardwareSerial)
 			assert.Equal(t, iPadHwModel, host.HardwareModel)
 			require.NotNil(t, host.MDM.EnrollmentStatus)
-			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			assert.Equal(t, team.ID, *host.TeamID)
 			id := host.ID
@@ -16320,7 +16334,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		case oldUrlIphoneMdmDevice.EnrollmentID():
 			// Primarily assert it was enrolled correctly and fallback to unassigned
 			assert.Equal(t, "ios", host.Platform)
-			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			assert.Nil(t, host.TeamID)
 		}
@@ -16333,7 +16347,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	getHostResp := getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", *iPhoneHostID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
-	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", *getHostResp.Host.MDM.EnrollmentStatus)
 	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
 	assert.Equal(t, iPhoneHwModel, getHostResp.Host.HardwareModel)
 	assert.Nil(t, getHostResp.Host.HostDetail.TeamID)
@@ -16347,19 +16361,19 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		ID               uint   `json:"id"`
 	}{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPhoneHostID), nil, http.StatusOK, &getHostMDMResponse)
-	assert.Equal(t, "On (personal)", getHostMDMResponse.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", getHostMDMResponse.EnrollmentStatus)
 	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
 
 	// Confirm that host details endpoint contains the expected values for the iPad
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", *iPadHostID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
-	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", *getHostResp.Host.MDM.EnrollmentStatus)
 	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
 	assert.Equal(t, team.ID, *getHostResp.Host.TeamID)
 
 	// Confirm that the host MDM endpoint contains the expected values for the iPad
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPadHostID), nil, http.StatusOK, &getHostMDMResponse)
-	assert.Equal(t, "On (personal)", getHostMDMResponse.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", getHostMDMResponse.EnrollmentStatus)
 	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
 }
 
@@ -16412,7 +16426,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	host := listHostsRes.Hosts[0]
 	assert.Equal(t, host.UUID, iPhoneMdmDevice.EnrollmentID())
 	require.NotNil(t, host.MDM.EnrollmentStatus)
-	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 	assert.True(t, *host.MDM.ConnectedToFleet)
 
 	// Confirm that locking or wiping the host fails with an appropriate error
@@ -22466,7 +22480,7 @@ func (s *integrationMDMTestSuite) TestAndroidEnroll() {
 	require.NotNil(t, host1.MDM.EnrollmentStatus)
 	require.Equal(t, "On (automatic)", *host1.MDM.EnrollmentStatus)
 	require.NotNil(t, host2.MDM.EnrollmentStatus)
-	require.Equal(t, "On (personal)", *host2.MDM.EnrollmentStatus)
+	require.Equal(t, "On (manual - personal)", *host2.MDM.EnrollmentStatus)
 
 	// Do the same but with a team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test team", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
@@ -22478,7 +22492,7 @@ func (s *integrationMDMTestSuite) TestAndroidEnroll() {
 	require.NotNil(t, host3.MDM.EnrollmentStatus)
 	require.Equal(t, "On (automatic)", *host3.MDM.EnrollmentStatus)
 	require.NotNil(t, host4.MDM.EnrollmentStatus)
-	require.Equal(t, "On (personal)", *host4.MDM.EnrollmentStatus)
+	require.Equal(t, "On (manual - personal)", *host4.MDM.EnrollmentStatus)
 }
 
 // TestTechnicianPermissions tests the permissions listed in ../../docs/Using\ Fleet/manage-access.md
@@ -25194,6 +25208,40 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			expectedDetail, 0), lastActivityID)
+	})
+
+	t.Run("Setup experience team config via Update fleet endpoint", func(t *testing.T) {
+		// Create a team
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		tm := createTeamResp.Team
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
+
+		// Enable via PATCH /teams/:id
+		var tmResp teamResponse
+		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+		}, http.StatusOK, &tmResp)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			expectedDetail, 0)
+
+		// Patching same value again should not create a new activity
+		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+		}, http.StatusOK, &tmResp)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			``, lastActivityID)
+
+		// Disable
+		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}},
+		}, http.StatusOK, &tmResp)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(), expectedDetail, 0)
 	})
 }
 

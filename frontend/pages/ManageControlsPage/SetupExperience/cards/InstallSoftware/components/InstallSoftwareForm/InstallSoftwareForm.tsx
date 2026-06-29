@@ -214,10 +214,16 @@ const InstallSoftwareForm = ({
   };
 
   const renderCustomCount = () => {
-    const orderTooltip =
-      platform === "android"
-        ? "Software order will vary."
-        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
+    let orderTooltip: string;
+    if (platform === "android") {
+      orderTooltip = "Software order will vary.";
+    } else if (platform === "windows" || platform === "linux") {
+      orderTooltip =
+        "Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy.";
+    } else {
+      orderTooltip =
+        "Installation order will depend on software name, starting with 0-9 then A-Z.";
+    }
 
     return (
       <div>
@@ -280,7 +286,7 @@ const InstallSoftwareForm = ({
           <div className={`${baseClass}__macos_options`}>
             <GitOpsModeTooltipWrapper
               tipOffset={6}
-              position="bottom-start"
+              position="left"
               entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
@@ -305,7 +311,7 @@ const InstallSoftwareForm = ({
           <div className={`${baseClass}__windows_options`}>
             <GitOpsModeTooltipWrapper
               tipOffset={6}
-              position="bottom-start"
+              position="left"
               entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox

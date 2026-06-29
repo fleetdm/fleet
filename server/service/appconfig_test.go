@@ -2684,3 +2684,92 @@ func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 }
+
+// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path
+// through PATCH /config, which ModifyTeam doesn't handle.
+func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name          string
+		mdmConfigured bool
+		startEnabled  bool
+		patch         string
+		wantErr       string
+		wantActivity  string
+	}{
+		{
+			name:    "MDM not configured rejects the change",
+			patch:   `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantErr: "setup_experience.enable_managed_local_account",
+		},
+		{
+			name:          "enabling emits the enabled activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantActivity:  fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "disabling emits the disabled activity",
+			mdmConfigured: true,
+			startEnabled:  true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			wantActivity:  fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "no-op change emits no activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			dsAppConfig.MDM.EnabledAndConfigured = tt.mdmConfigured
+			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startEnabled)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			var gotActivities []string
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, act.ActivityName())
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+				require.Empty(t, gotActivities)
+				return
+			}
+			require.NoError(t, err)
+
+			var wantActivities []string
+			if tt.wantActivity != "" {
+				wantActivities = []string{tt.wantActivity}
+			}
+			require.Equal(t, wantActivities, gotActivities)
+		})
+	}
+}
