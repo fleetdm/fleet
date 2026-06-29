@@ -3606,6 +3606,79 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 	})
 }
 
+// TestGetMDMCommandResultsTeamScoping verifies that GetMDMCommandResults, called
+// without a host identifier, returns results only for hosts the caller is
+// authorized to see. A single command UUID can be enqueued to hosts on several
+// teams, so a caller who shares only one team with the command must not receive
+// the results of hosts on the other teams.
+func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil,
+		&TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	const commandUUID = "cmd-uuid-mixed-teams"
+	hostUUIDToTeam := map[string]uint{
+		"host-team1": 1,
+		"host-team2": 2,
+	}
+
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		return "darwin", nil
+	}
+
+	// The datastore loads every row for the command UUID (no host filtering),
+	// including the result and payload of hosts on teams the caller cannot see.
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, cmdUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+		return []*fleet.MDMCommandResult{
+			{HostUUID: "host-team1", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team1")},
+			{HostUUID: "host-team2", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team2")},
+		}, nil
+	}
+
+	// Mimic the real datastore's team scoping: a non-global user only sees hosts
+	// on the teams they belong to.
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		allowed := make(map[uint]struct{})
+		for _, ut := range filter.User.Teams {
+			allowed[ut.Team.ID] = struct{}{}
+		}
+		global := filter.User.GlobalRole != nil
+
+		var hosts []*fleet.Host
+		for _, u := range uuids {
+			tmID := hostUUIDToTeam[u]
+			if _, ok := allowed[tmID]; !global && !ok {
+				continue
+			}
+			h := &fleet.Host{UUID: u, Hostname: u + "-name"}
+			if tmID != 0 {
+				id := tmID
+				h.TeamID = &id
+			}
+			hosts = append(hosts, h)
+		}
+		return hosts, nil
+	}
+
+	// A team-1 observer (lowest privilege on the only team it shares with the
+	// command) must receive its own host's result and nothing from team 2.
+	teamCtx := test.UserContext(ctx, test.UserTeamObserverTeam1)
+	results, err := svc.GetMDMCommandResults(teamCtx, commandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "host-team1", results[0].HostUUID)
+	require.Equal(t, []byte("result-team1"), results[0].Result)
+	for _, res := range results {
+		require.NotEqual(t, "host-team2", res.HostUUID)
+	}
+
+	// A global admin still sees every host's result.
+	adminCtx := test.UserContext(ctx, test.UserAdmin)
+	results, err = svc.GetMDMCommandResults(adminCtx, commandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+}
+
 // TestProcessIncomingMDMCmdsDevDetailLinkage exercises the OMA-DM DevDetail-based linkage path that closes the race
 // where mdm_windows_enrollments.host_uuid stays empty after a Windows BYOD enrollment (Settings > Access work or
 // school > Connect). BYOD is an Azure/automatic enrollment under the hood: the WSTEP RST carries only

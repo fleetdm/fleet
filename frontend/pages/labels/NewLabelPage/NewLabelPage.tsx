@@ -337,8 +337,8 @@ const NewLabelPage = ({
     setIsUpdating(true);
     try {
       await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_LABELS);
       notify.success("Label added successfully.");
+      router.push(PATHS.MANAGE_LABELS);
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't add label. Please try again.";

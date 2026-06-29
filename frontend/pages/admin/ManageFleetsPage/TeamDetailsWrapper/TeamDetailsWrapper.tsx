@@ -300,8 +300,8 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
+      notify.success(`Successfully deleted ${currentTeamName}.`);
       router.push(PATHS.ADMIN_FLEETS);
-      notify.success("Fleet removed");
     } catch (response) {
       notify.error("Something went wrong removing the fleet", { response });
       console.error(response);
@@ -309,7 +309,7 @@ const TeamDetailsWrapper = ({
       toggleDeleteFleetModal();
       setIsUpdatingTeams(false);
     }
-  }, [teamIdForApi, router, toggleDeleteFleetModal]);
+  }, [teamIdForApi, currentTeamName, router, toggleDeleteFleetModal]);
 
   const onEditSubmit = useCallback(
     async (formData: ITeamFormData) => {

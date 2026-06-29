@@ -31,12 +31,20 @@ const ToastNotification = ({
     : `${baseClass} ${baseClass}__wrapper`;
 
   // Dismiss visible toasts on route change, matching 4.86 flash behavior.
-  // The listener fires synchronously during router.push; because `notify`
-  // defers creation by a tick (see below), a toast triggered alongside a
-  // navigation is created afterward and lands on the destination page.
+  // Only fires when the pathname actually changes — query-param `replace`s
+  // (e.g. TableContainer's onQueryChange URL sync on initial render) are
+  // ignored so they don't kill a toast that just landed on the destination
+  // page (#48180). The listener fires synchronously during router.push;
+  // because `notify` defers creation by a tick (see below), a toast
+  // triggered alongside a navigation is created afterward and lands on the
+  // destination page.
   useEffect(() => {
-    const unlisten = browserHistory.listen(() => {
-      toast.dismiss();
+    let prevPathname = window.location.pathname;
+    const unlisten = browserHistory.listen((location) => {
+      if (location.pathname !== prevPathname) {
+        prevPathname = location.pathname;
+        toast.dismiss();
+      }
     });
     return unlisten;
   }, []);
@@ -239,10 +247,10 @@ const nextToastId = (): ToastId => {
 export const notify: INotify = {
   success: (message, options) => {
     const id = options?.id ?? nextToastId();
-    // Defer one tick:
-    // Toast fired in the same handler as a router.push is then created AFTER the
-    // route change — and after the route-change dismiss — so it lands on the
-    // destination page whether the caller notifies before or after navigating.
+    // Defer one tick so the toast is created after the route-change
+    // dismiss above, landing it on the destination page. When a handler
+    // both navigates and shows a success toast, call notify.success
+    // before router.push — the reverse order can break auto-dismiss (#48088).
     setTimeout(() => {
       toast.custom(
         (sonnerId) => (

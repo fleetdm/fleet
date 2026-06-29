@@ -575,7 +575,6 @@ initialized. View currently working contexts in the [context directory](../conte
 
 ```typescript
 // Consuming a context — destructure what you need from useContext
-const { renderFlash } = useContext(NotificationContext);
 const { currentUser, isPremiumTier } = useContext(AppContext);
 ```
 
@@ -584,7 +583,6 @@ const { currentUser, isPremiumTier } = useContext(AppContext);
 | Context | Purpose | Use this when |
 |---|---|---|
 | `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
-| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
 | `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
 | `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
 | `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
@@ -615,7 +613,7 @@ const PageOrComponent = (props) => {
       // do something
     } catch(error) {
       console.error(error);
-      // maybe trigger renderFlash
+      // maybe trigger notify.error
     }
   };
 
@@ -695,7 +693,7 @@ try {
   await softwareAPI.install()
   // successful messgae
 } catch (e) {
-  renderFlash("error", getErrorMessage(e))
+  notify.error(getErrorMessage(e))
 }
 
 /* in helpers.tsx */
@@ -1067,20 +1065,17 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, set the local
 config with the response of your update call to make sure it has the latest.
 
-### Rendering flash messages
+### Toast notifications
 
-Flash messages by default will be hidden when the user performs any navigation that changes the URL,
-in addition to the timeout set for success messages. The `renderFlash` method from notification
-context accepts an optional third `options` argument which contains an optional
-`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
+Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from
+`components/ToastNotification`. Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
+Visible toasts are dismissed automatically on URL change.
 
-If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
-calling `renderFlash`. If the push comes after the `renderFlash` call,
-the flash message may register the `push` and immediately hide itself.
+**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
 
 ```tsx
-// first push
+// first notify
+notify.error("Something went wrong");
+// then push
 router.push(newPath);
-// then flash
-renderFlash("error", "Something went wrong");
 ```
