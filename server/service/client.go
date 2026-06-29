@@ -1974,6 +1974,7 @@ func allGoogleWorkspaceEntriesEmpty(entries []any) bool {
 	return true
 }
 
+// DoGitOps applies the GitOps config to Fleet.
 func (c *Client) DoGitOps(
 	ctx context.Context,
 	incoming *spec.GitOps,
