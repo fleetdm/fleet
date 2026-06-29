@@ -845,7 +845,9 @@ func TestModifyTeamFileVaultPromptEnablementAt(t *testing.T) {
 					// existing prompt defaults to login (unset)
 				}}}, nil
 			}
+			var savedTeam *fleet.Team
 			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				savedTeam = team
 				return team, nil
 			}
 			ds.TeamMDMConfigFunc = func(_ context.Context, _ uint) (*fleet.TeamMDM, error) {
@@ -887,6 +889,9 @@ func TestModifyTeamFileVaultPromptEnablementAt(t *testing.T) {
 			// A prompt-only change must never emit an enabled/disabled activity.
 			require.Zero(t, diskEncryptionActivities,
 				"prompt-only change must not emit a disk encryption on/off activity")
+			// Verify the requested prompt value was persisted on the team.
+			require.NotNil(t, savedTeam)
+			require.Equal(t, tc.newPrompt, savedTeam.Config.MDM.FileVault.PromptEnablementAt.Value)
 		})
 	}
 }
