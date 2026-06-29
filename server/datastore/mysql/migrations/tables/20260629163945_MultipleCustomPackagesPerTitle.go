@@ -16,10 +16,12 @@ func Up_20260629163945(tx *sql.Tx) error {
 	// FMA rows resolve it to version, so version-uniqueness is unchanged and the same
 	// bytes can back several versions. A title holds only one kind, and a hash never
 	// equals a version string, so the two token spaces don't collide. The column is
-	// VIRTUAL so the add is in-place and its only consumer is the unique key below.
+	// VIRTUAL so the add is in-place and its only consumer is the unique key below. Its
+	// collation is pinned to match storage_id and version so the migration path does not
+	// inherit the server default collation that fresh installs never see.
 	if _, err := tx.Exec(`
 		ALTER TABLE software_installers
-			ADD COLUMN dedup_token VARCHAR(255)
+			ADD COLUMN dedup_token VARCHAR(255) COLLATE utf8mb4_unicode_ci
 				GENERATED ALWAYS AS (IF(fleet_maintained_app_id IS NULL, storage_id, version)) VIRTUAL
 	`); err != nil {
 		return fmt.Errorf("adding dedup_token column: %w", err)
