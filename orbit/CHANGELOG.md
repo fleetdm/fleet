@@ -10,17 +10,17 @@
 
 * Fixed confusing keychain error logs (`secret cannot be empty` and `failed to retrieve enroll secret from default keychain: %!w(<nil>)`) emitted by fleetd during ABM enrollment of packages built with `--use-system-configuration`. Such packages no longer ship an empty `/opt/orbit/secret.txt`.
 
-* Updated go to 1.26.4
+* Updated go to 1.26.4.
 
 * Fixed fleetd leaving thousands of zombie `sudo` processes on Linux when Fleet Desktop repeatedly failed to start.
 
 * Added INFO-level orbit logging that records why a host (re-)enrolls: when the node key file is missing or empty, when the server rejects the node key with a 401 (including the request path), and which server is being enrolled against.
+
 * Hardened orbit against unexpected re-enrollments: a transient or spurious 401 no longer immediately discards a valid node key. Orbit now waits until 401s have persisted for a grace period before re-enrolling, and writes the new node key atomically so an existing key is never deleted or truncated until a replacement has been obtained.
 
-* Fixed a macOS detail query error caused by app bundles (such as Apple's XProtect) that declare an executable in their Info.plist but ship no binary at that path; the executable SHA256 is now left empty instead of failing the query.
+* Fixed a macOS detail query error caused by app bundles (such as Apple's `XProtect`) that declare an executable in their `Info.plist` but ship no binary at that path; the executable SHA256 is now left empty instead of failing the query.
 
-* Adds an optional, queryable socket_path column to both containerd_containers and containerd_mounts. 
-* Defaults to /run/containerd/containerd.sock when no value is specified, maintaining backwards compatibility.
+* Adds an optional, queryable `socket_path` column to both `containerd_containers` and `containerd_mounts` (defaults to /run/containerd/containerd.sock when no value is specified, maintaining backwards compatibility).
 
 * Fixed an issue where a corrupt osqueryd or Fleet Desktop binary (e.g. from a truncated update download) would cause orbit to crash-loop indefinitely. Orbit now detects an executable that fails to run, removes the corrupt component, and re-downloads it from the update server.
 
