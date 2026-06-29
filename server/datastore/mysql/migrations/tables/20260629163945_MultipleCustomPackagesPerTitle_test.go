@@ -24,7 +24,7 @@ func TestUp_20260629163945(t *testing.T) {
 		return execNoErrLastID(t, db, `INSERT INTO script_contents (contents, md5_checksum) VALUES ('#!/bin/sh', UNHEX(MD5(?)))`, seed)
 	}
 
-	// teamID nil means no-team (global_or_team_id 0); fmaID nil means a custom package.
+	// teamID nil means no-team with global_or_team_id 0, fmaID nil means a custom package.
 	args := func(titleID int64, teamID *int64, platform string, version string, storage string, fmaID *int64, active int) []any {
 		script := insertScript(storage + version)
 		var globalOrTeamID int64
@@ -96,7 +96,7 @@ func TestUp_20260629163945(t *testing.T) {
 
 	applyNext(t, db)
 
-	// The version key is gone, replaced by the regime-aware dedup key.
+	// The version key is gone, replaced by the dedup_token key.
 	require.Zero(t, countRows(`
 		SELECT COUNT(*) FROM information_schema.statistics
 		WHERE table_schema = DATABASE() AND table_name = 'software_installers'
@@ -127,7 +127,7 @@ func TestUp_20260629163945(t *testing.T) {
 	require.Equal(t, 1, countRows(`SELECT is_active FROM software_installers WHERE id = ?`, keepB))
 	require.Equal(t, 1, countRows(`SELECT is_active FROM software_installers WHERE id = ?`, keepC))
 
-	// The survivor keeps its label and category; the deleted row's cascade away.
+	// The survivor keeps its label and category. The deleted row's cascade away.
 	require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM software_installer_labels WHERE software_installer_id = ?`, keepB))
 	require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM software_installer_software_categories WHERE software_installer_id = ?`, keepB))
 	require.Zero(t, countRows(`SELECT COUNT(*) FROM software_installer_labels WHERE software_installer_id = ?`, dupB))
@@ -141,9 +141,9 @@ func TestUp_20260629163945(t *testing.T) {
 	// FMA same-hash-different-version rows both survive.
 	require.Equal(t, []int64{fmaOld, fmaActive}, remainingIDs(titleD))
 
-	// New key behavior. Custom same-version-different-hash (Arm vs Intel) is accepted;
-	// these could not be seeded before the migration because the old version key blocked
-	// two rows sharing a version.
+	// New key behavior. Custom same-version-different-hash is accepted, and these could not
+	// be seeded before the migration because the old version key blocked two rows sharing a
+	// version.
 	titleE := insertTitle("AppE", "apps")
 	require.NoError(t, tryInsertInstaller(titleE, nil, "darwin", "9.0", "hash-e1", nil, 1))
 	require.NoError(t, tryInsertInstaller(titleE, nil, "darwin", "9.0", "hash-e2", nil, 1))
