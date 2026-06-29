@@ -32,6 +32,7 @@ const (
 	transferHost       = fleet.ActionTransferHost
 	create             = fleet.ActionCreate
 	readSecrets        = fleet.ActionReadSecrets
+	writeMembers       = fleet.ActionWriteMembers
 )
 
 var auth *Authorizer
@@ -584,6 +585,49 @@ func TestAuthorizeTeam(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam1, object: team1, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team2, action: read, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team2, action: write, allow: false},
+
+		// write_members action
+		{user: nil, object: team1, action: writeMembers, allow: false},
+		{user: nil, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserNoRoles, object: team1, action: writeMembers, allow: false},
+		{user: test.UserNoRoles, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserAdmin, object: team1, action: writeMembers, allow: true},
+		{user: test.UserAdmin, object: team2, action: writeMembers, allow: true},
+
+		{user: test.UserMaintainer, object: team1, action: writeMembers, allow: false},
+		{user: test.UserMaintainer, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserObserver, object: team1, action: writeMembers, allow: false},
+		{user: test.UserObserver, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserObserverPlus, object: team1, action: writeMembers, allow: false},
+		{user: test.UserObserverPlus, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTechnician, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTechnician, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserGitOps, object: team1, action: writeMembers, allow: false},
+		{user: test.UserGitOps, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: team1, action: writeMembers, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2, action: writeMembers, allow: false},
 	})
 }
 

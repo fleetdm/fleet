@@ -244,8 +244,8 @@ module.exports.custom = {
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
-    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath', 'allenhouchins'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'allenhouchins'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)

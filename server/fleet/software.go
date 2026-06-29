@@ -380,6 +380,30 @@ type FleetMaintainedVersion struct {
 	ID uint `json:"id" db:"id"`
 	// Version is the version string.
 	Version string `json:"version" db:"version"`
+	// Filename is the installer filename for this version.
+	Filename string `json:"filename" db:"filename"`
+	// UploadedAt is when this version was added to the database.
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
+}
+
+// FMAAutoUpdateCandidate is the active installer for one (team, title) backed
+// by a Fleet-maintained app. The auto-update cron uses it to decide whether to
+// advance the active version among the team's cached versions.
+type FMAAutoUpdateCandidate struct {
+	// TeamID is nil for the no-team scope (the team_id column is NULL there).
+	TeamID *uint `db:"team_id"`
+	// TitleID is the software_titles.id.
+	TitleID uint `db:"title_id"`
+	// FleetMaintainedAppID is the fleet_maintained_apps.id backing this title,
+	// used to hydrate the latest manifest and check the cache without a second
+	// lookup.
+	FleetMaintainedAppID uint `db:"fleet_maintained_app_id"`
+	// InstallerID is the currently active software_installers.id.
+	InstallerID uint `db:"installer_id"`
+	// Version is the currently active version (for logging).
+	Version string `db:"version"`
+	// Slug is the Fleet-maintained app slug (for logging).
+	Slug string `db:"slug"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.
