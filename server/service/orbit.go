@@ -492,8 +492,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	// GetHostMDM maps a missing host_mdm row to a NotFound error; treat that as "no MDM data" so non-MDM hosts proceed with
-	// mdmInfo == nil instead of failing the check-in.
 	if err != nil && !fleet.IsNotFound(err) {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
 	}

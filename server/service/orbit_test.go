@@ -501,8 +501,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			// Mirror the real datastore, which wraps a missing host_mdm row as a
-			// Fleet NotFound error rather than returning a bare sql.ErrNoRows.
 			return nil, newNotFoundError()
 		}
 		var isHostConnectedToFleet bool
@@ -690,8 +688,6 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 			return false, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			// Mirror the real datastore, which wraps a missing host_mdm row as a
-			// Fleet NotFound error rather than returning a bare sql.ErrNoRows.
 			return nil, newNotFoundError()
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
