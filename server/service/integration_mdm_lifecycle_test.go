@@ -1648,6 +1648,26 @@ func (s *integrationMDMTestSuite) TestFileVaultPromptEnablementAt() {
 		return string(prof.Mobileconfig)
 	}
 
+	// This suite shares state across tests, and an earlier test may have already
+	// enabled disk encryption (leaving the FileVault profile in place). Reset to a
+	// known-clean slate so the enable below pushes a fresh profile rather than
+	// hitting a "profile already exists" conflict.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": false }
+	}`), http.StatusOK)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`DELETE FROM mdm_apple_configuration_profiles WHERE identifier = ? AND team_id = 0`,
+			mobileconfig.FleetFileVaultPayloadIdentifier)
+		return err
+	})
+	// Leave disk encryption off for subsequent tests in the shared suite.
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "enable_disk_encryption": false }
+		}`), http.StatusOK)
+	})
+
 	// Enable disk encryption with the default (login): byte-stable, force keys present.
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
