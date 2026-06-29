@@ -10,13 +10,13 @@ func init() {
 }
 
 func Up_20260629163945(tx *sql.Tx) error {
-	// A title may now have more than one package. dedup_token makes uniqueness
-	// regime-aware: custom rows resolve it to storage_id so they dedupe by content hash
-	// (Arm and Intel of the same version coexist, identical bytes are rejected), while
-	// FMA rows resolve it to version so version-uniqueness is unchanged and the same
-	// bytes can back several versions. A (team, title) is single-regime, and a hash
-	// never equals a version string, so the two token spaces don't collide. The column
-	// is VIRTUAL so the add is in-place; its only consumer is the unique key below.
+	// A title may now have more than one package. dedup_token makes uniqueness depend on
+	// the kind of package: custom rows resolve it to storage_id so they dedupe by content
+	// hash, so Arm and Intel of one version coexist while identical bytes are rejected.
+	// FMA rows resolve it to version, so version-uniqueness is unchanged and the same
+	// bytes can back several versions. A title holds only one kind, and a hash never
+	// equals a version string, so the two token spaces don't collide. The column is
+	// VIRTUAL so the add is in-place and its only consumer is the unique key below.
 	if _, err := tx.Exec(`
 		ALTER TABLE software_installers
 			ADD COLUMN dedup_token VARCHAR(255)
@@ -27,10 +27,9 @@ func Up_20260629163945(tx *sql.Tx) error {
 
 	// Where a (global_or_team_id, title_id, dedup_token) has more than one row, keep the
 	// first-added (smallest id) as the survivor and delete the rest, so the unique key
-	// below can be added. This collapses the duplicate-active custom rows from the P1 bug
-	// and any custom same-hash duplicates. FMA rows already satisfy version-uniqueness.
-	// Re-point policies off the deleted rows first, since policies.software_installer_id
-	// is RESTRICT.
+	// below can be added. This collapses duplicate-active custom rows and any custom
+	// same-hash duplicates. FMA rows already satisfy version-uniqueness. Re-point policies
+	// off the deleted rows first, since policies.software_installer_id is RESTRICT.
 	const dupGroups = `
 		SELECT global_or_team_id, title_id, dedup_token, MIN(id) AS keep_id
 		FROM software_installers

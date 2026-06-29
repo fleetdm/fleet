@@ -40,6 +40,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersWithUpgradeCodes", testBatchSetSoftwareInstallersWithUpgradeCodes},
 		{"GetSoftwareInstallersPendingDeletion", testGetSoftwareInstallersPendingDeletion},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
+		{"GetSoftwarePackagesByTeamAndTitleID", testGetSoftwarePackagesByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
@@ -4442,6 +4443,59 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.Contains(t, names, "ipa_foo")
 }
 
+func testGetSoftwarePackagesByTeamAndTitleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Pkg Lister", "pkglister@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-lbl", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	mk := func(storage string, filename string, labels *fleet.LabelIdentsWithScope) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "Multi App",
+			BundleIdentifier: "com.example.multi",
+			Extension:        "pkg",
+			Source:           "apps",
+			Platform:         "darwin",
+			Version:          "1.0",
+			UserID:           user.ID,
+			ValidatedLabels:  labels,
+			TeamID:           &team.ID,
+		}
+	}
+
+	// Two custom packages of the same version but different content on one title; only
+	// the first is scoped to a label.
+	withLabel := &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
+	}
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-1", "multi-1.pkg", withLabel))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-2", "multi-2.pkg", &fleet.LabelIdentsWithScope{}))
+	require.NoError(t, err)
+
+	pkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, pkgs, 2)
+	// returned first-added first, each with its own label scope
+	require.Equal(t, "multi-1.pkg", pkgs[0].Name)
+	require.Equal(t, "multi-1", pkgs[0].StorageID)
+	require.Len(t, pkgs[0].LabelsIncludeAny, 1)
+	require.Equal(t, lbl.ID, pkgs[0].LabelsIncludeAny[0].LabelID)
+	require.Equal(t, "multi-2.pkg", pkgs[1].Name)
+	require.Empty(t, pkgs[1].LabelsIncludeAny)
+
+	// a title with no packages returns none
+	none, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID+1000)
+	require.NoError(t, err)
+	require.Empty(t, none)
+}
+
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -6075,7 +6129,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 
-	// A title holds at most maxPackagesPerTitle packages; the next one is rejected.
+	// A title holds at most maxPackagesPerTitle packages, so the next one is rejected.
 	for i := range maxPackagesPerTitle {
 		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 			StorageID:       fmt.Sprintf("limit-storage-%d", i),
