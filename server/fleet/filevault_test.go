@@ -20,10 +20,10 @@ func TestFileVaultPromptEnablementAt(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			m := MDM{FileVault: MDMFileVaultSettings{PromptEnablementAt: c.in}}
+			m := MDM{FileVault: &MDMFileVaultSettings{PromptEnablementAt: c.in}}
 			require.Equal(t, c.want, m.FileVaultPromptEnablementAt())
 
-			tm := TeamMDM{FileVault: MDMFileVaultSettings{PromptEnablementAt: c.in}}
+			tm := TeamMDM{FileVault: &MDMFileVaultSettings{PromptEnablementAt: c.in}}
 			require.Equal(t, c.want, tm.FileVaultPromptEnablementAt())
 		})
 	}

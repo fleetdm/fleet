@@ -276,7 +276,7 @@ type MDM struct {
 
 	// FileVault holds macOS-only FileVault overrides layered on the
 	// enable_disk_encryption shorthand.
-	FileVault MDMFileVaultSettings `json:"filevault"`
+	FileVault *MDMFileVaultSettings `json:"filevault,omitempty"`
 
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
@@ -313,7 +313,7 @@ const (
 
 // FileVaultPromptEnablementAt resolves the effective value (default "login").
 func (m MDM) FileVaultPromptEnablementAt() string {
-	if m.FileVault.PromptEnablementAt.Valid && m.FileVault.PromptEnablementAt.Value != "" {
+	if m.FileVault != nil && m.FileVault.PromptEnablementAt.Valid && m.FileVault.PromptEnablementAt.Value != "" {
 		return m.FileVault.PromptEnablementAt.Value
 	}
 	return FileVaultPromptEnablementAtLogin
@@ -877,7 +877,11 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	// OrgInfo: nothing needs cloning
 	// FleetDesktopSettings: nothing needs cloning
-	// MDM.FileVault: all value types (optjson.String), value copy suffices
+	// MDM.FileVault: deep-copy the pointer so clones don't alias
+	if c.MDM.FileVault != nil {
+		fv := *c.MDM.FileVault
+		clone.MDM.FileVault = &fv
+	}
 
 	if c.ServerSettings.DebugHostIDs != nil {
 		clone.ServerSettings.DebugHostIDs = make([]uint, len(c.ServerSettings.DebugHostIDs))

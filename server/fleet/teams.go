@@ -82,7 +82,7 @@ type HistoricalDataPayload struct {
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
 	EnableDiskEncryption       optjson.Bool         `json:"enable_disk_encryption"`
-	FileVault                  MDMFileVaultSettings `json:"filevault"`
+	FileVault                  *MDMFileVaultSettings `json:"filevault,omitempty"`
 	EnableRecoveryLockPassword optjson.Bool         `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
@@ -324,7 +324,7 @@ func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp
 
 type TeamMDM struct {
 	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
-	FileVault                  MDMFileVaultSettings  `json:"filevault"`
+	FileVault                  *MDMFileVaultSettings `json:"filevault,omitempty"`
 	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
@@ -358,9 +358,15 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 	clone := *t
 
-	// EnableDiskEncryption, FileVault, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
+	// EnableDiskEncryption, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
+
+	// FileVault: deep-copy the pointer so clones don't alias.
+	if t.FileVault != nil {
+		fv := *t.FileVault
+		clone.FileVault = &fv
+	}
 
 	if t.MacOSSettings.CustomSettings != nil {
 		clone.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(t.MacOSSettings.CustomSettings))
@@ -402,9 +408,10 @@ func (t TeamMDM) FileVaultPromptEnablementAt() string {
 	return MDM{FileVault: t.FileVault}.FileVaultPromptEnablementAt()
 }
 
+
 type TeamSpecMDM struct {
 	EnableDiskEncryption       optjson.Bool         `json:"enable_disk_encryption"`
-	FileVault                  MDMFileVaultSettings `json:"filevault"`
+	FileVault                  *MDMFileVaultSettings `json:"filevault,omitempty"`
 	EnableRecoveryLockPassword optjson.Bool         `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.

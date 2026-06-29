@@ -3077,7 +3077,7 @@ func TestGitOpsControlsFileVaultPromptEnablementAt(t *testing.T) {
   filevault:
     prompt_enablement_at: logout
 `)
-		fv, ok := result.Controls.FileVault.(map[string]interface{})
+		fv, ok := result.Controls.FileVault.(map[string]any)
 		require.True(t, ok, "filevault block not parsed")
 		assert.Equal(t, "logout", fv["prompt_enablement_at"])
 		assert.True(t, result.Controls.Set())

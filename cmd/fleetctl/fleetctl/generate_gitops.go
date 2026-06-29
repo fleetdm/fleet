@@ -1417,7 +1417,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
 			// FileVault is a macOS-only override; only emit it when prompt_enablement_at
 			// is explicitly set so omitted/default (login) stays out of the generated YAML.
-			if teamMdm.FileVault.PromptEnablementAt.Valid && teamMdm.FileVault.PromptEnablementAt.Value != "" {
+			if teamMdm.FileVault != nil && teamMdm.FileVault.PromptEnablementAt.Valid && teamMdm.FileVault.PromptEnablementAt.Value != "" {
 				result[jsonFieldName(mdmT, "FileVault")] = teamMdm.FileVault
 			}
 		}

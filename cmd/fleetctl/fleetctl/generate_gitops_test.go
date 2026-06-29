@@ -1591,7 +1591,7 @@ func TestGenerateControls(t *testing.T) {
 	// Global path: filevault is exported when prompt_enablement_at is explicitly set.
 	mdmConfigWithFV := fleet.TeamMDM{
 		EnableDiskEncryption: appConfig.MDM.EnableDiskEncryption.Value,
-		FileVault:            fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")},
+		FileVault:            &fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")},
 		MacOSUpdates:         appConfig.MDM.MacOSUpdates,
 		IOSUpdates:           appConfig.MDM.IOSUpdates,
 		IPadOSUpdates:        appConfig.MDM.IPadOSUpdates,
@@ -1638,7 +1638,7 @@ func TestGenerateControls(t *testing.T) {
 			EnableEndUserAuthentication: false,
 		},
 	}
-	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do not contain a setup_experience section
 	_, ok = controlsRaw["setup_experience"]
@@ -1650,16 +1650,16 @@ func TestGenerateControls(t *testing.T) {
 			EnableEndUserAuthentication: true,
 		},
 	}
-	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
 
 	// FileVault (prompt_enablement_at) is exported only when explicitly set.
 	mdmConfig = fleet.TeamMDM{
-		FileVault: fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")},
+		FileVault: &fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")},
 	}
-	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	fvRaw, ok := controlsRaw["filevault"]
 	require.True(t, ok, "expected filevault block to be exported when prompt_enablement_at is set")
@@ -1669,7 +1669,7 @@ func TestGenerateControls(t *testing.T) {
 
 	// Unset prompt_enablement_at is omitted from the generated controls.
 	mdmConfig = fleet.TeamMDM{}
-	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	_, ok = controlsRaw["filevault"]
 	require.False(t, ok, "expected no filevault block when prompt_enablement_at is unset")

@@ -1,5 +1,5 @@
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableDiskEncryption	bool
-github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	FileVault	fleet.MDMFileVaultSettings
+github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	FileVault	*fleet.MDMFileVaultSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDMFileVaultSettings	PromptEnablementAt	optjson.String
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Valid	bool

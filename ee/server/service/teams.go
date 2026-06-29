@@ -311,12 +311,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.MDM.EnableDiskEncryption = payload.MDM.EnableDiskEncryption.Value
 		}
 
-		if payload.MDM.FileVault.PromptEnablementAt.Valid {
+		if payload.MDM.FileVault != nil && payload.MDM.FileVault.PromptEnablementAt.Valid {
 			if !fleet.ValidFileVaultPromptEnablementAt(payload.MDM.FileVault.PromptEnablementAt.Value) {
 				return nil, fleet.NewInvalidArgumentError("mdm.filevault.prompt_enablement_at",
 					`must be "login" or "logout"`)
 			}
 			promptUpdated := team.Config.MDM.FileVaultPromptEnablementAt() != payload.MDM.FileVault.PromptEnablementAt.Value
+			if team.Config.MDM.FileVault == nil {
+				team.Config.MDM.FileVault = &fleet.MDMFileVaultSettings{}
+			}
 			team.Config.MDM.FileVault.PromptEnablementAt = payload.MDM.FileVault.PromptEnablementAt
 			// A prompt-only change re-pushes the macOS FileVault profile when disk
 			// encryption is on and Apple MDM is configured. It does not toggle on/off.
@@ -1531,7 +1534,7 @@ func (svc *Service) createTeamFromSpec(
 	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
 	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
-	if spec.MDM.FileVault.PromptEnablementAt.Valid && !fleet.ValidFileVaultPromptEnablementAt(spec.MDM.FileVault.PromptEnablementAt.Value) {
+	if spec.MDM.FileVault != nil && spec.MDM.FileVault.PromptEnablementAt.Valid && !fleet.ValidFileVaultPromptEnablementAt(spec.MDM.FileVault.PromptEnablementAt.Value) {
 		invalid.Append("mdm.filevault.prompt_enablement_at", `must be "login" or "logout"`)
 	}
 
@@ -1781,12 +1784,15 @@ func (svc *Service) editTeamFromSpec(
 	// macOS-only FileVault prompt override. Validate, apply, and detect a change
 	// so a prompt-only edit re-pushes the profile when disk encryption is on.
 	var didUpdateFileVaultPrompt bool
-	if spec.MDM.FileVault.PromptEnablementAt.Valid {
+	if spec.MDM.FileVault != nil && spec.MDM.FileVault.PromptEnablementAt.Valid {
 		if !fleet.ValidFileVaultPromptEnablementAt(spec.MDM.FileVault.PromptEnablementAt.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.filevault.prompt_enablement_at",
 				`must be "login" or "logout"`))
 		}
 		didUpdateFileVaultPrompt = team.Config.MDM.FileVaultPromptEnablementAt() != spec.MDM.FileVault.PromptEnablementAt.Value
+		if team.Config.MDM.FileVault == nil {
+			team.Config.MDM.FileVault = &fleet.MDMFileVaultSettings{}
+		}
 		team.Config.MDM.FileVault.PromptEnablementAt = spec.MDM.FileVault.PromptEnablementAt
 	}
 

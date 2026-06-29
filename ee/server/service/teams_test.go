@@ -711,7 +711,7 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 		return nil
 	}
 	ctx := test.UserContext(context.Background(),
-		&fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)})
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -874,7 +874,7 @@ func TestModifyTeamFileVaultPromptEnablementAt(t *testing.T) {
 			}
 
 			payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
-				FileVault: fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString(tc.newPrompt)},
+				FileVault: &fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString(tc.newPrompt)},
 			}}
 			_, err := svc.ModifyTeam(ctx, 1, payload)
 

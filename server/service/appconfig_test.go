@@ -306,7 +306,7 @@ func TestModifyAppConfigFileVaultPromptPremiumGate(t *testing.T) {
 			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
 		}
 		// Simulate a previously-set prompt value from when the license was premium.
-		ac.MDM.FileVault.PromptEnablementAt = optjson.SetString("logout")
+		ac.MDM.FileVault = &fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")}
 		return ac, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
@@ -1257,7 +1257,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1314,7 +1314,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1353,7 +1353,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1399,7 +1399,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1445,7 +1445,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1491,7 +1491,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1562,7 +1562,7 @@ func TestMDMConfig(t *testing.T) {
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				FileVault:                  fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.String{Set: true}},
+				FileVault:                  nil,
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
