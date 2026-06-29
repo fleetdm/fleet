@@ -79,7 +79,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit any fleet's policy automations: other workflows (tickets and webhooks)\*                                                                     |          |            |            |            | ✅    | ✅      |
 | Edit "Unassigned" policy automations                                                                                                          |          |            |            |            | ✅    | ✅      |
 | View users\**                                                                                                                              | ✅       | ✅        | ✅         |  ✅        | ✅    |         |
-| Create, edit, view, and delete users\***                                                                                                       |          |            |            |            | ✅    |         |
+| Create, edit, view, and delete users                                                                                                       |          |            |            |            | ✅    |         |
 | Add and remove a fleet's users\*                                                                                                                |          |            |            |            | ✅    | ✅      |
 | Create, edit, and delete fleets\*                                                                                                           |          |            |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            |            | ✅         | ✅    | ✅      |
