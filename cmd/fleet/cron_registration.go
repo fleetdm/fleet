@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/googleworkspace"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -343,6 +344,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.config.Calendar.Periodicity = 5 * time.Minute
 		}
 		return cron.NewCalendarSchedule(ctx, deps.instanceID, deps.ds, deps.distributedLock, deps.config.Calendar, deps.logger, deps.activitySvc)
+	})
+
+	deps.register("failed to register google workspace sync schedule", func() (fleet.CronSchedule, error) {
+		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, googleworkspace.NewDirectory, deps.logger)
 	})
 }
 
