@@ -37,6 +37,11 @@ var (
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
+	SoftwarePackageHashConflictMessage           = "Couldn't add. %s package is already added (same SHA-256 hash)."
+	SoftwareAlreadyHasVPPAppMessage              = "Couldn't add. %s already has an Apple App Store (VPP) on the %s fleet."
+	SoftwareAlreadyHasFleetMaintainedAppMessage  = "Couldn't add. %s already has a Fleet-maintained app on the %s fleet."
+	SoftwareAlreadyHasPackageMessage             = "Couldn't add. %s already has a software package on the %s fleet."
+	SoftwarePackageLimitMessage                  = "Couldn't add. %s already has %d packages. Before adding, delete one you no longer use."
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 )
 
