@@ -1280,7 +1280,7 @@ FROM
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?
   AND si.is_active = 1
-ORDER BY si.uploaded_at DESC, si.id DESC
+ORDER BY si.id ASC
 LIMIT 1`,
 		scriptContentsSelect, scriptContentsFrom)
 
@@ -1300,36 +1300,10 @@ LIMIT 1`,
 
 	// TODO: do we want to include labels on other queries that return software installer metadata
 	// (e.g., GetSoftwareInstallerMetadataByID)?
-	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID, softwareTypeInstaller)
+	dest.LabelsExcludeAny, dest.LabelsIncludeAny, dest.LabelsIncludeAll, err = ds.scopedSoftwareInstallerLabels(ctx, dest.InstallerID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+		return nil, err
 	}
-	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
-	for _, l := range labels {
-		switch {
-		case l.Exclude && !l.RequireAll:
-			exclAny = append(exclAny, l)
-		case !l.Exclude && l.RequireAll:
-			inclAll = append(inclAll, l)
-		case !l.Exclude && !l.RequireAll:
-			inclAny = append(inclAny, l)
-		default:
-			ds.logger.WarnContext(ctx, "software installer has an unsupported label scope", "installer_id", dest.InstallerID, "invalid_label", fmt.Sprintf("%#v", l))
-		}
-	}
-
-	var count int
-	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
-	}
-	dest.LabelsExcludeAny = exclAny
-	dest.LabelsIncludeAny = inclAny
-	dest.LabelsIncludeAll = inclAll
 
 	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {
@@ -1364,6 +1338,91 @@ LIMIT 1`,
 	}
 
 	return &dest, nil
+}
+
+func (ds *Datastore) GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+	const query = `
+SELECT
+  si.id,
+  si.team_id,
+  si.title_id,
+  si.storage_id,
+  si.fleet_maintained_app_id,
+  si.package_ids,
+  si.upgrade_code,
+  si.filename,
+  si.extension,
+  si.version,
+  si.platform,
+  si.install_script_content_id,
+  si.pre_install_query,
+  si.post_install_script_content_id,
+  si.uninstall_script_content_id,
+  si.uploaded_at,
+  si.self_service,
+  si.url,
+  COALESCE(st.name, '') AS software_title,
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier,
+  si.patch_query
+FROM
+  software_installers si
+  JOIN software_titles st ON st.id = si.title_id
+WHERE
+  si.title_id = ? AND si.global_or_team_id = ?
+  AND si.is_active = 1
+ORDER BY si.id ASC`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var packages []*fleet.SoftwareInstaller
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packages, query, titleID, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list software packages by team and title")
+	}
+
+	for _, pkg := range packages {
+		pkg.LabelsExcludeAny, pkg.LabelsIncludeAny, pkg.LabelsIncludeAll, err = ds.scopedSoftwareInstallerLabels(ctx, pkg.InstallerID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return packages, nil
+}
+
+func (ds *Datastore) scopedSoftwareInstallerLabels(ctx context.Context, installerID uint) (excludeAny []fleet.SoftwareScopeLabel, includeAny []fleet.SoftwareScopeLabel, includeAll []fleet.SoftwareScopeLabel, err error) {
+	labels, err := ds.getSoftwareInstallerLabels(ctx, installerID, softwareTypeInstaller)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+	}
+
+	for _, l := range labels {
+		switch {
+		case l.Exclude && !l.RequireAll:
+			excludeAny = append(excludeAny, l)
+		case !l.Exclude && l.RequireAll:
+			includeAll = append(includeAll, l)
+		case !l.Exclude && !l.RequireAll:
+			includeAny = append(includeAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "software installer has an unsupported label scope", "installer_id", installerID, "invalid_label", fmt.Sprintf("%#v", l))
+		}
+	}
+
+	var scopes int
+	for _, set := range [][]fleet.SoftwareScopeLabel{excludeAny, includeAny, includeAll} {
+		if len(set) > 0 {
+			scopes++
+		}
+	}
+	if scopes > 1 {
+		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", installerID, "include_any", fmt.Sprintf("%v", includeAny), "exclude_any", fmt.Sprintf("%v", excludeAny), "include_all", fmt.Sprintf("%v", includeAll))
+	}
+
+	return excludeAny, includeAny, includeAll, nil
 }
 
 func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint, softwareType softwareType) ([]fleet.SoftwareScopeLabel, error) {
@@ -4196,7 +4255,7 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (bool, error) {
 	// look for the other kind of package on the title: an FMA when adding a custom
 	// package, a custom package when adding an FMA. Matched by bundle identifier on
-	// macOS and by name or upgrade code on Windows; FMAs only exist on those platforms.
+	// macOS and by name or upgrade code on Windows. FMAs only exist on those platforms.
 	wantFMA := payload.FleetMaintainedAppID == nil
 	var stmt string
 	var args []any
