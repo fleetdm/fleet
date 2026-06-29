@@ -1218,6 +1218,7 @@ type ActivityTypeEditedSoftware struct {
 	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
+	PinnedVersion       *string                 `json:"pinned_version"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {

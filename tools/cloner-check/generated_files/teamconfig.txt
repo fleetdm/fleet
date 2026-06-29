@@ -98,6 +98,14 @@ github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[strin
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	VulnerabilityExposureHistoricalReporting	*fleet.VulnExposureFilterSettings
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	SoftwareFilters	*[]string
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	CVSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMin	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMax	*float64
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	HasKnownExploit	*bool
+github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	ExcludeVulnerabilities	*[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool

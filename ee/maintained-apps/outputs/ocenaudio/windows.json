@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.19.4",
+      "version": "3.19.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ocenaudio' AND publisher = 'Ocenaudio Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ocenaudio' AND publisher = 'Ocenaudio Team' AND version_compare(version, '3.19.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ocenaudio' AND publisher = 'Ocenaudio Team' AND version_compare(version, '3.19.5') < 0);"
       },
       "installer_url": "https://www.ocenaudio.com/downloads/index.php/ocenaudio_windows64.exe",
       "install_script_ref": "ebf8794b",
       "uninstall_script_ref": "7264fb50",
-      "sha256": "5154d7f161eeba2652ef0381f48a4811ed97df92d27d00342fdf0a30c98a1772",
+      "sha256": "0ddb35b5275d8091fb03a9c21f3a0f5b4b2fea624478896fd90bd948db3ccfc3",
       "default_categories": [
         "Productivity"
       ]

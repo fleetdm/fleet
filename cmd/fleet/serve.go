@@ -34,7 +34,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -49,7 +48,6 @@ import (
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
@@ -937,107 +935,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
-			// when running a script synchronously, we wait a while for a script
-			// execution result, so the write timeout (to write the response)
-			// must be extended.
-			rc := http.NewResponseController(rw)
-			// add an additional 30 seconds to prevent race conditions where the
-			// request is terminated early.
-			if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for script sync run",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
-			(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
-				"/fleet/software/titles/")) ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet_maintained_apps")) ||
-			(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||
-			(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
-			var zeroTime time.Time
-			rc := http.NewResponseController(rw)
-			// For large software installers and bootstrap packages, the server time needs time to read the full
-			// request body so we use the zero value to remove the deadline and override the
-			// default read timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetReadDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-			// For large software installers, the server time needs time to store the
-			// installer to S3 (or the configured storage location) and write the response
-			// body so we use the zero value to remove the deadline and override the
-			// default write timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetWriteDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-
-			// We need to add the context value here because we need the installer max size when doing request
-			// parsing, which happens somewhere where we're only passed the request (and not the service object)
-			req.Body = http.MaxBytesReader(rw, req.Body, config.Server.MaxInstallerSizeBytes)
-			req = req.WithContext(installersize.NewContext(req.Context(), config.Server.MaxInstallerSizeBytes))
-		}
-
-		if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
-			// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for android enterpriset setup",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
-			// For customers using large profiles and/or large numbers of profiles, the
-			// server needs time to completely read the request body and also to process
-			// all the side effects of a potentially large number of profiles being changed
-			// across a large number of hosts, so set the timeouts a bit higher than default
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-			if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		apiHandler.ServeHTTP(rw, req)
-	})
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.

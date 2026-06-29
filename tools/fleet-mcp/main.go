@@ -104,11 +104,6 @@ func main() {
 
 	requireAPIOnlyUser(ctx, fleetClient)
 
-	// Best-effort cleanup of any fleet-mcp-temp-* saved queries left over from
-	// previous runs whose DELETE failed. Synchronous so any temporary cleanup
-	// failures show up immediately in startup logs; errors are logged not fatal.
-	fleetClient.SweepLeftoverTempQueries(ctx)
-
 	if *seed {
 		SeedFleet(config, fleetClient)
 		return

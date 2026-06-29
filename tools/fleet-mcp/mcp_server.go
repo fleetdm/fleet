@@ -33,7 +33,7 @@ WRITE OPERATIONS (run_live_query, create_saved_query): these send SQL to the Fle
 
 Schema freshness: the in-memory schema is refreshed periodically from https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the JSON behind https://fleetdm.com/tables). If you suspect a schema mismatch — e.g. fleet docs show a column the response is missing — call refresh_osquery_schema and try again.
 
-Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument to run_live_query and create_saved_query. Both tools then create the underlying saved query under that team — not Global — so it inherits the team's RBAC and shows up in the right place in the Fleet UI. Only omit 'fleet' when the user explicitly wants a Global-scope query.
+Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument. For run_live_query this restricts the targeted hosts to that team; for create_saved_query it creates the query under that team — not Global — so it inherits the team's RBAC and shows up in the right place in the Fleet UI. Only omit 'fleet' when the user explicitly wants Global scope.
 
 Skipping step 1 produces queries that parse and run but return wrong or empty results. Always verify before emitting SQL.`
 

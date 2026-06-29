@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"database/sql"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"sync"
@@ -2201,7 +2204,9 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	rawResponse := []byte("some-response")
-	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
+	compressedResponse, err := compressWindowsMDMResponse(rawResponse)
+	require.NoError(t, err)
+	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, compressedResponse)
 	require.NoError(t, err)
 
 	rawResult := []byte("some-result")
@@ -3872,6 +3877,50 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 	return prof
 }
 
+func TestCompressWindowsMDMResponse(t *testing.T) {
+	// A representative SyncML envelope: highly compressible XML with repeated structure. Reused by the round-trip and shrink cases.
+	realisticEnvelope := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody>` +
+		strings.Repeat(`<Status><CmdID>1</CmdID><MsgRef>1</MsgRef><CmdRef>2</CmdRef><Cmd>Replace</Cmd><Data>200</Data></Status>`, 200) +
+		`</SyncBody></SyncML>`)
+
+	t.Run("round-trip restores the input", func(t *testing.T) {
+		for _, tc := range []struct {
+			name  string
+			input []byte
+		}{
+			{"realistic envelope", realisticEnvelope},
+			{"small envelope", []byte(`<SyncML/>`)},
+			{"empty", []byte("")},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				compressed, err := compressWindowsMDMResponse(tc.input)
+				require.NoError(t, err)
+
+				decompressed, err := decompressWindowsMDMResponse(compressed)
+				require.NoError(t, err)
+				require.Equal(t, tc.input, decompressed)
+			})
+		}
+	})
+
+	t.Run("compression shrinks a realistic envelope", func(t *testing.T) {
+		compressed, err := compressWindowsMDMResponse(realisticEnvelope)
+		require.NoError(t, err)
+		require.Less(t, len(compressed), len(realisticEnvelope), "compressed value must be smaller than the original envelope")
+	})
+
+	t.Run("decompress passes through empty stored bytes", func(t *testing.T) {
+		out, err := decompressWindowsMDMResponse([]byte{})
+		require.NoError(t, err)
+		require.Empty(t, out)
+	})
+
+	t.Run("decompress rejects non-gzip data", func(t *testing.T) {
+		_, err := decompressWindowsMDMResponse([]byte("not-gzip-data"))
+		require.Error(t, err)
+	})
+}
+
 func testSaveResponse(t *testing.T, ds *Datastore) {
 	// Set up: 3 devices, 1 command, 1 response for 1 device
 	enrolledDevice1 := createEnrolledDevice(t, ds)
@@ -3955,6 +4004,21 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
 	assert.Equal(t, cmd.CommandUUID, results[0].CommandUUID)
 	assert.Equal(t, "200", results[0].Status)
+	assert.Equal(t, enrichedSyncML.Raw, results[0].Result)
+
+	// And the row on disk must actually be gzip-compressed, not the raw envelope.
+	var storedResp []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &storedResp,
+			`SELECT raw_response_gz FROM windows_mdm_responses WHERE enrollment_id = ?`, enrolledDevice1.ID)
+	})
+	assert.NotContains(t, string(storedResp), "<SyncML", "stored raw_response_gz must not contain the plaintext envelope")
+	gr, err := gzip.NewReader(bytes.NewReader(storedResp))
+	require.NoError(t, err, "stored raw_response_gz must be valid gzip")
+	roundTripped, err := io.ReadAll(gr)
+	require.NoError(t, err)
+	require.NoError(t, gr.Close())
+	assert.Equal(t, enrichedSyncML.Raw, roundTripped, "stored raw_response_gz must gunzip back to the original envelope")
 
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5990,9 +6054,11 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3, count)
 
 	// Insert a response row (required FK for command results).
+	compressedSyncML, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+	require.NoError(t, err)
 	var responseID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, '<SyncML/>')`, dev.ID)
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, dev.ID, compressedSyncML)
 		if err != nil {
 			return err
 		}
