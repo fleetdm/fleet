@@ -500,13 +500,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
-		// GetOrbitConfig derives the Fleet-MDM connection state from GetHostMDM (ConnectedToFleet)
+		// GetOrbitConfig derives the Fleet-MDM connection state from GetHostMDM
+		// (ConnectedToFleet).
 		var connectedToFleetMDM bool
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			if connectedToFleetMDM {
-				return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
-			}
-			return nil, newNotFoundError()
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: connectedToFleetMDM}, nil
 		}
 
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
