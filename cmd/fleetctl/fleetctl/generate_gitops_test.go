@@ -1584,6 +1584,28 @@ func TestGenerateControls(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedControls, controls)
 
+	// Global path: filevault is omitted when prompt_enablement_at is unset.
+	_, ok := controlsRaw["filevault"]
+	require.False(t, ok, "expected no filevault block in global controls when prompt_enablement_at is unset")
+
+	// Global path: filevault is exported when prompt_enablement_at is explicitly set.
+	mdmConfigWithFV := fleet.TeamMDM{
+		EnableDiskEncryption: appConfig.MDM.EnableDiskEncryption.Value,
+		FileVault:            fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString("logout")},
+		MacOSUpdates:         appConfig.MDM.MacOSUpdates,
+		IOSUpdates:           appConfig.MDM.IOSUpdates,
+		IPadOSUpdates:        appConfig.MDM.IPadOSUpdates,
+		WindowsUpdates:       appConfig.MDM.WindowsUpdates,
+		MacOSSetup:           appConfig.MDM.MacOSSetup,
+	}
+	controlsWithFV, err := cmd.generateControls(nil, "", &mdmConfigWithFV)
+	require.NoError(t, err)
+	fvRawGlobal, ok := controlsWithFV["filevault"]
+	require.True(t, ok, "expected filevault block in global controls when prompt_enablement_at is set")
+	fvJSON, err := json.Marshal(fvRawGlobal)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"prompt_enablement_at":"logout"}`, string(fvJSON))
+
 	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-macos-mobileconfig-profile.mobileconfig"]; ok {
 		require.Equal(t, "<xml>global macos mobileconfig profile</xml>", fileContents)
 	} else {
@@ -1619,7 +1641,7 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do not contain a setup_experience section
-	_, ok := controlsRaw["setup_experience"]
+	_, ok = controlsRaw["setup_experience"]
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
@@ -1641,7 +1663,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	fvRaw, ok := controlsRaw["filevault"]
 	require.True(t, ok, "expected filevault block to be exported when prompt_enablement_at is set")
-	fvJSON, err := json.Marshal(fvRaw)
+	fvJSON, err = json.Marshal(fvRaw)
 	require.NoError(t, err)
 	require.JSONEq(t, `{"prompt_enablement_at":"logout"}`, string(fvJSON))
 
