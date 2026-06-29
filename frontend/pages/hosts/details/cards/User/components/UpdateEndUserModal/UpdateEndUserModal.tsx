@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import { IHostEndUser } from "interfaces/host";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";

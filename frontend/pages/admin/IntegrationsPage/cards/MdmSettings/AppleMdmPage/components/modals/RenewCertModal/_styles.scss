@@ -44,8 +44,6 @@
   }
 
   &__file-uploader {
-    margin-top: $pad-medium;
-    margin-left: $pad-medium;
     border-radius: 6px;
 
     .file-uploader__message {
@@ -61,6 +59,11 @@
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
+    gap: $pad-small;
+
+    .renew-cert-modal__request-button {
+      margin: 0;
+    }
 
     .renew-cert-modal__submit-button.uploading.button--disabled {
       opacity: 1;

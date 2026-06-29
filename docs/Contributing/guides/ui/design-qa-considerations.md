@@ -146,6 +146,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Error states (conditions, clientside vs. server side, location of error message, trigger onBlur/onChange/onSubmit)
 - Disabled states (conditions, on button, on form fields)
 - Dynamic views (show/hide buttons, dynamic help text, edge case views)
+- Views that load data have an empty state defined.
 
 ## Responsiveness and low-width browsers
 - Long database names rendered in the UI e.g. fleet names, scripts, software titles...
@@ -161,6 +162,9 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Premium vs. Free. Premium-only API endpoints and parameters return an easy to understand error message if you're using Fleet Free
 - Global user (Admin, Maintainer, Observer, Observer+, API only)
 - Fleet-level user (Admin, Maintainer, Observer, Observer+, API only)
+
+## Retries
+- Operations with retries have defined limits (time, number of attempts, etc.) to avoid infinite loops and unbounded retrying
 
 <meta name="pageOrderInSection" value="3300">
 <meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">

@@ -2,6 +2,10 @@
   background-color: $core-fleet-white;
   box-sizing: border-box;
   border-left: 1px solid $ui-gray;
+
+  body.dark-mode & {
+    background-color: $ui-fleet-black-5;
+  }
   min-width: 340px;
   width: 340px;
   padding: $pad-xxlarge;

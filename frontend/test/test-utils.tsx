@@ -7,15 +7,11 @@ import {
   RenderResult,
   waitFor,
 } from "@testing-library/react";
-import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
+import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import { AppContext, IAppContext, initialState } from "context/app";
-import {
-  INotificationContext,
-  NotificationContext,
-} from "context/notification";
 import { IPolicyContext, PolicyContext } from "context/policy";
 import { IQueryContext, QueryContext } from "context/query";
 import { IRouterLocation } from "interfaces/routing";
@@ -54,7 +50,6 @@ interface IContextOptions {
   // DeepPartial allows inclusion of only fields needed for testing, even if such a partial type
   // is not acceptable in actual application code
   app?: DeepPartial<IAppContext>;
-  notification?: Partial<INotificationContext>;
   policy?: Partial<IPolicyContext>;
   query?: Partial<IQueryContext>;
 }
@@ -66,7 +61,6 @@ interface ICustomRenderOptions {
 
 const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
-  notification: NotificationContext,
   policy: PolicyContext,
   query: QueryContext,
 };
@@ -74,7 +68,7 @@ const CONTEXT_PROVIDER_MAP = {
 type ContextProviderKeys = keyof typeof CONTEXT_PROVIDER_MAP;
 interface IWrapperComponentProps {
   client?: QueryClient;
-  value?: Partial<IAppContext> | Partial<INotificationContext>;
+  value?: Partial<IAppContext>;
 }
 
 const createWrapperComponent = (
@@ -98,7 +92,15 @@ type RenderResultWithUser = RenderResult & { user: UserEvent };
 const addQueryProviderWrapper = (
   CustomWrapperComponent: ({ children }: IChildrenProp) => JSX.Element
 ) => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // important: no automatic retries in tests
+        cacheTime: 0, // optional but makes behavior deterministic
+      },
+    },
+  });
+
   CustomWrapperComponent = createWrapperComponent(
     CustomWrapperComponent,
     QueryClientProvider,

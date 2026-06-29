@@ -4,6 +4,5 @@
   "token": "quip",
   "installer_format": "dmg",
   "slug": "quip/darwin",
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 }

@@ -14,7 +14,7 @@ import (
 func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
-	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
+	sb.AddVariable("TMPDIR", `$(dirname "$(realpath "$INSTALLER_PATH")")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
 
 	sb.Extract(app.InstallerFormat)
@@ -120,7 +120,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 			if len(artifact.Binary) == 2 {
 				target := artifact.Binary[1].Other.Target
 				if !strings.Contains(target, "$HOMEBREW_PREFIX") {
-					sb.RemoveFile(fmt.Sprintf(`'%s'`, target))
+					sb.RemoveFile(shellSingleQuote(target))
 				}
 			}
 		case len(artifact.Uninstall) > 0:
@@ -197,6 +197,15 @@ func sortUninstall(artifacts []*brewUninstall) {
 	})
 }
 
+// shellSingleQuote wraps s in single quotes for safe use as a single shell
+// token, escaping any embedded single quote by closing the quote, emitting an
+// escaped quote, and reopening (the standard POSIX idiom). Cask-supplied paths
+// can contain apostrophes (e.g. "Cycling '74"), which would otherwise
+// prematurely close the quote and produce a syntax error.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
@@ -214,12 +223,12 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 	process(u.LaunchCtl, func(lc string) {
 		sb.AddFunction("remove_launchctl_service", removeLaunchctlServiceFunc)
-		sb.Writef("remove_launchctl_service '%s'", lc)
+		sb.Writef("remove_launchctl_service %s", shellSingleQuote(lc))
 	})
 
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
-		sb.Writef("quit_application '%s'", appName)
+		sb.Writef("quit_application %s", shellSingleQuote(appName))
 		if appName == "com.docker.docker" {
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
 		}
@@ -230,7 +239,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
 		addUserVar()
 		sb.AddFunction("send_signal", sendSignalFunc)
-		sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, u.Signal.Other[0], u.Signal.Other[1])
+		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
 	}
 
 	if u.Script.IsOther {
@@ -244,7 +253,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 		// Build the command with arguments if present
 		var cmdParts []string
-		cmdParts = append(cmdParts, fmt.Sprintf("'%s'", executable))
+		cmdParts = append(cmdParts, shellSingleQuote(executable))
 
 		// Handle args if present
 		if argsVal, hasArgs := u.Script.Other["args"]; hasArgs {
@@ -257,7 +266,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 				if !ok {
 					panic("all args must be strings")
 				}
-				cmdParts = append(cmdParts, fmt.Sprintf("'%s'", argStr))
+				cmdParts = append(cmdParts, shellSingleQuote(argStr))
 			}
 		}
 
@@ -302,22 +311,22 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
 		sb.AddFunction("remove_pkg_files", removePkgFiles)
 		sb.AddFunction("forget_pkg", forgetPkgFunc)
-		sb.Writef("remove_pkg_files '%s'", pkgID)
-		sb.Writef("forget_pkg '%s'", pkgID)
+		sb.Writef("remove_pkg_files %s", shellSingleQuote(pkgID))
+		sb.Writef("forget_pkg %s", shellSingleQuote(pkgID))
 	})
 
 	process(u.Delete, func(path string) {
-		sb.RemoveFile(fmt.Sprintf("'%s'", path))
+		sb.RemoveFile(shellSingleQuote(path))
 	})
 
 	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir '%s'", dir)
+		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
-		sb.Writef("trash $LOGGED_IN_USER '%s'", path)
+		sb.Writef("trash $LOGGED_IN_USER %s", shellSingleQuote(path))
 	})
 }
 
@@ -367,10 +376,12 @@ func (s *scriptBuilder) Extract(format string) {
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")
+		// Pipe yes into hdiutil to auto-accept license agreements on licensed DMGs (Homebrew
+		// behavior). Harmless when the DMG has no license prompt.
 		s.Write(`MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT"`)
+hdiutil detach "$MOUNT_POINT" || true`)
 
 	case "zip":
 		s.Write("# extract contents")
@@ -437,7 +448,7 @@ func (s *scriptBuilder) Symlink(source, target string) {
 // correct order.
 func (s *scriptBuilder) String() string {
 	var script strings.Builder
-	script.WriteString("#!/bin/sh\n\n")
+	script.WriteString("#!/bin/bash\n\n")
 
 	if len(s.variables) > 0 {
 		// write variables, order them alphabetically to produce deterministic
@@ -535,13 +546,15 @@ const quitApplicationFunc = `quit_application() {
   local timeout_duration=10
 
   # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
     return
   fi
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
@@ -576,14 +589,16 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local timeout_duration=10
 
   # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
   fi
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     eval "export $var_name=0"
     return
@@ -617,6 +632,11 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
 // relaunchApplicationFunc relaunches an application if it was running before installation.
 // Checks the APP_WAS_RUNNING_<bundle_id> environment variable set by quitAndTrackApplicationFunc.
+// The install script runs as root, but GUI apps must be launched in the logged-in
+// user's session (not root's) to appear in the user's Dock/GUI. We therefore use
+// 'sudo -u "$console_user" open' rather than 'osascript ... to activate', since
+// the latter fails when launching an app that isn't already running from a root
+// context.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
@@ -630,15 +650,28 @@ const relaunchApplicationFunc = `relaunch_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
     return
   fi
 
   echo "Relaunching application '$bundle_id'..."
 
-  # Try to launch the application
-  if osascript -e "tell application id \"$bundle_id\" to activate" >/dev/null 2>&1; then
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_status=0
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  else
+    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  fi
+
+  if [[ $open_status -eq 0 ]]; then
     echo "Application '$bundle_id' relaunched successfully."
   else
     echo "Failed to relaunch application '$bundle_id'."
@@ -658,6 +691,31 @@ const trashFunc = `trash() {
   fi
 
   local trash="/Users/$logged_in_user/.Trash"
+
+  # If the target contains glob characters, expand it and move each match.
+  if [[ "$target_file" == *[*?[]* ]]; then
+    local file file_name
+    local matched=false
+    local i=0
+    # compgen -G expands the (quoted) pattern itself, so paths containing
+    # spaces glob correctly; reading line by line keeps each match intact.
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      [[ -e "$file" || -L "$file" ]] || continue
+      matched=true
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      # The per-match counter keeps matches that share a basename from
+      # overwriting each other in the trash.
+      mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}"
+    done < <(compgen -G "$target_file" 2>/dev/null)
+    if [[ "$matched" == false ]]; then
+      echo "$target_file doesn't exist."
+    fi
+    return
+  fi
+
   local file_name="$(basename "${target_file}")"
 
   if [[ -e "$target_file" ]]; then

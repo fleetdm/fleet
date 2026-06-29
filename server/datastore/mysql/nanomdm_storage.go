@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -99,23 +100,78 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 	}, nil
 }
 
+type pushCertStalenessCheck struct {
+	hash      string
+	updatedAt time.Time
+}
+
+// We store staleness check in-memory since it's a short-lived 5 minute time window.
+// And it also means some containers might rotate it faster than 5 minutes depending on the time.
+var (
+	pushCertStaleness   *pushCertStalenessCheck
+	pushCertStalenessMu sync.RWMutex
+)
+
 // RetrievePushCert partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns "0" as stale token because fleet.Datastore always returns a valid push certificate.
+// Returns the push certificate and its MD5 checksum as the stale token.
 func (s *NanoMDMStorage) RetrievePushCert(
 	ctx context.Context, topic string,
 ) (*tls.Certificate, string, error) {
-	cert, err := assets.APNSKeyPair(ctx, s.ds)
+	cert, checksum, err := assets.APNSKeyPair(ctx, s.ds)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "loading push certificate")
 	}
-	return cert, "0", nil
+	pushCertStalenessMu.Lock()
+	defer pushCertStalenessMu.Unlock()
+	checkInMemoryHash(checksum)
+	return cert, checksum, nil
+}
+
+// checkInMemoryHash checks the incoming hash agains the in-memory hash.
+// if criteria is met, it updates the in-memory hash with the new hash and updatedAt = now.
+func checkInMemoryHash(hash string) {
+	if pushCertStaleness == nil || pushCertStaleness.hash != hash || time.Since(pushCertStaleness.updatedAt) > 5*time.Minute {
+		// We will not call this unless we are stale, OR on new topic getting a provider, which means we should be fine to update here.
+		// Update on new hash, or if it's been more than 5 minutes since last update, to avoid fetching the cert on each stale check.
+		pushCertStaleness = &pushCertStalenessCheck{
+			hash:      hash,
+			updatedAt: time.Now(),
+		}
+	}
 }
 
 // IsPushCertStale partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns `false` because the underlying datastore implementation makes sure that the token is always fresh.
+// Checks the provided stale token against the in-memory hash of the current push certificate. If they differ, the cert is stale.
+// If the token is the same, it checks if the certificate was last updated more than 5 minutes ago. If so, it re-fetches the certificate and updates the hash for future checks.
 func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
+	pushCertStalenessMu.RLock()
+	staleness := pushCertStaleness
+	pushCertStalenessMu.RUnlock()
+	if staleness == nil {
+		return true, nil
+	}
+	if staleness.hash != staleToken {
+		s.logger.InfoContext(ctx, "push certificate is stale", "topic", topic, "staleToken", staleToken, "currentHash", staleness.hash, "updatedAt", staleness.updatedAt)
+		return true, nil
+	}
+
+	// If updated at is more than 5 minutes ago, re-fetch and re-calculate the has for staleness
+	if time.Since(staleness.updatedAt) > 5*time.Minute {
+		_, checksum, err := assets.APNSKeyPair(ctx, s.ds)
+		if err != nil {
+			return false, fmt.Errorf("loading push certificate for staleness check: %w", err)
+		}
+		pushCertStalenessMu.Lock()
+		defer pushCertStalenessMu.Unlock()
+		checkInMemoryHash(checksum)
+		if checksum != staleToken {
+			s.logger.InfoContext(ctx, "push certificate is stale after re-checking", "topic", topic, "staleToken", staleToken, "newHash", checksum)
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 
@@ -135,6 +191,7 @@ func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID str
 		LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nc.command_uuid
 		INNER JOIN nano_enrollment_queue neq ON neq.command_uuid = nc.command_uuid
 		WHERE neq.id = ?
+		AND neq.active = 1
 		AND nc.request_type = 'DeviceLock'
 		AND ncr.command_uuid IS NULL
 		ORDER BY nc.created_at DESC
@@ -188,10 +245,21 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 			`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ? FOR UPDATE`,
 			host.ID)
 
-		// If we got a row and it has a lock_ref, fail with conflict
+		// A non-null lock_ref only blocks a new lock if it still points to a
+		// deliverable command. Re-enrollment, SCEP renewal, and wipe flip the
+		// queued command to active=0 (see nanomdm ClearQueue), and an inactive
+		// command is never sent to the device, so treat it as an orphan ref and
+		// let the new lock overwrite it below.
 		if err == nil && existingLockRef != nil && *existingLockRef != "" {
-			// A lock command already exists, don't overwrite
-			return lockConflictError{hostUUID: host.UUID}
+			var active bool
+			if err := sqlx.GetContext(ctx, tx, &active,
+				`SELECT EXISTS(SELECT 1 FROM nano_enrollment_queue WHERE command_uuid = ? AND id = ? AND active = 1)`,
+				*existingLockRef, host.UUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "checking if existing lock command is active")
+			}
+			if active {
+				return lockConflictError{hostUUID: host.UUID}
+			}
 		}
 
 		// If the row doesn't exist, that's OK, we'll insert it

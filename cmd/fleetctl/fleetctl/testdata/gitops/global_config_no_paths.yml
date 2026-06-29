@@ -14,11 +14,11 @@ labels:
     description: A manual label without hosts key
     label_membership_type: manual
 controls: # Controls added to "No team"
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/windows-screenlock.xml
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
@@ -28,10 +28,10 @@ controls: # Controls added to "No team"
     enable: false
     mode: ""
     webhook_url: ""
-  macos_setup:
-    bootstrap_package: null
+  setup_experience:
+    macos_bootstrap_package: null
     enable_end_user_authentication: false
-    macos_setup_assistant: null
+    apple_setup_assistant: null
   macos_updates:
     deadline: null
     minimum_version: null
@@ -39,7 +39,7 @@ controls: # Controls added to "No team"
   windows_updates:
     deadline_days: null
     grace_period_days: null
-queries:
+reports:
   - name: Scheduled query stats
     description: Collect osquery performance stats directly from osquery
     query: SELECT *,
@@ -122,9 +122,9 @@ org_settings:
       - 10728
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_report_cap: 2000
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    report_cap: 2000
+    discard_reports_data: false
     scripts_disabled: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true

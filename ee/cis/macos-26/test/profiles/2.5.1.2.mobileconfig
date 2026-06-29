@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.5.1.2</string>
+      <key>PayloadType</key>
+      <string>com.apple.applicationaccess</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.5.1.2.check</string>
+      <key>PayloadUUID</key>
+      <string>7A27880A-3C35-4CA9-A4A9-042DE53E9F56</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>allowWritingTools</key>
+      <false/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.5.1.2 - Ensure Writing Tools Is Disabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Writing Tools Is Disabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.5.1.2</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>6226CC21-030B-4F6E-963F-09B7A2E76E38</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

@@ -35,11 +35,11 @@ The Fleet handbook provides team members with up-to-date information about how t
 
 At Fleet, we make changes to the handbook first.  That means, before any change to how we run the business is "live" or "official", it is first changed in the relevant [handbook pages](https://fleetdm.com/handbook) and [issue templates](https://github.com/fleetdm/confidential/tree/main/.github/ISSUE_TEMPLATE).
 
-Making changes to the handbook first [encourages](https://www.youtube.com/watch?v=aZrK8AQM8Ro) a culture of self-reliance, which is essential for daily asynchronous work as part of an all-remote team.  It keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change. 
+Making changes to the handbook first encourages a culture of self-reliance, which is essential for daily asynchronous work as part of an all-remote team.  It keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change. 
 
 > The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
 
-To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
+To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company/writing#writing).
 
 
 ## Why read documentation?
@@ -108,7 +108,8 @@ Here's why Fleet uses a wireframe-first approach:
 - With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 - But wireframes don't have to be high fidelity.  It is OK to communicate ideas for changes using ugly, marked-up screenshots, a photo of a piece of paper.  Fleet's [drafting process](https://fleetdm.com/handbook/company/development-groups#making-changes) helps turn these rough wireframes into product changes that can be implemented quickly with minimal UX and technical debt.
 - Wireframes created to describe individual changes are disposable and may have slight stylistic inconsistencies.  Fleet's user interface styleguide in Figma is the source of truth for overarching design decisions like spacing, typography, and colors.
-- While the "wireframe first" practice is [still sometimes misunderstood](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall), today many modern high-performing teams now use a [wireframe-first methodology](https://speakerdeck.com/mikermcneil/i-love-apis), including [startups](https://www.forbes.com/sites/danwoods/2015/10/19/dont-get-ubered-apis-hold-key-to-digital-transformation/?sh=50112fea182c#:~:text=One%20recommendation%20that,deep%20experience) and [publicly-traded companies](https://about.gitlab.com/handbook/product-development-flow/#validation-phase-3-design).
+- While the "wireframe first" practice is [still sometimes misunderstood](https://handbook.gitlab.com/handbook/product-development/how-we-work/product-development-flow/#but-wait-isnt-this-waterfall), today many modern high-performing teams now use a [wireframe-first methodology](https://speakerdeck.com/mikermcneil/i-love-apis), including [startups](https://www.forbes.com/sites/danwoods/2015/10/19/dont-get-ubered-apis-hold-key-to-digital-transformation/?sh=50112fea182c#:~:text=One%20recommendation%20that,deep%20experience) and [publicly-traded companies](https://about.gitlab.com/handbook/product-development-flow/#validation-phase-3-design).
+- Much like [Pixar's storyboarding process](https://www.linkedin.com/posts/richardking001_this-is-why-product-marketer-matters-activity-7381678524186775552-m2Jk), wireframing lets us inexpensively storyboard what a user journey is going to be like before locking in decisions that are prohibitively expensive to change post-production.
 
 
 ## Why do we use one repo?
@@ -163,6 +164,11 @@ Additional infrastructure:
 8. **DNS**. All domain DNS records and caching rules are hosted with [Cloudflare](https://www.cloudflare.com/).
 
 9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
+
+
+## Why enforce a minimum release age for npm packages?
+
+Fleet configures `min-release-age` in `.npmrc` to reject any npm package published less than 12 hours ago.  This is a supply-chain security measure.  When a [popular package is compromised](https://github.com/axios/axios/issues/10636), the malicious version is almost always removed quickly — but the damage happens to anyone who installed it in those first few minutes.  A short delay gives the community time to detect and respond before Fleet's CI or any contributor pulls the poisoned release.  The same principle applies to other package managers (Go modules, C++/osquery dependencies), but npm is the highest priority since it has the largest attack surface.  The delay is intentionally short so it doesn't frustrate day-to-day development — if it's too long, people work around it, which defeats the purpose.  Fleet also requires npm v11.10.0+ (the first version to support `min-release-age`) and uses Fleet policies to verify compliance across contributor machines.
 
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
@@ -296,6 +302,24 @@ If that happens by mistake, the first priority is merging a fix, then notifying 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
 
+## Why read every line of AI-generated work?
+
+At Fleet, anyone who submits or reviews AI-generated work is responsible for reading it line by line and fully understanding it before shipping or approving it. This applies to code, blog posts, marketing copy, handbook edits, customer emails, and anything else AI helps produce.
+
+AI can't take responsibility. Only humans can. If your name is on the commit, the PR, the article, or the message, you are accountable for every line, regardless of how it was generated.
+
+- **AI-generated code is not assembly.** Compilers are deterministic: they turn a fully descriptive higher-level specification into the same output every time. Generative AI does not.
+- **Cognitive debt.** Anything generated by AI that you didn't write yourself starts as cognitive debt. You don't fully understand it yet. The question isn't whether to pay that debt, but when.
+  - _As an author:_ after the AI generates the work, before you open the PR (or send the email, or publish the post). Read and understand every line. If you can't explain why something is there, fix or remove it before asking someone else to review it. [You own the output](https://fleetdm.com/handbook/company/communications#you-own-the-output).
+  - _As a reviewer:_ when the PR is opened, before you approve it. Read every line. If you can't step in and maintain the change, you aren't done reviewing.
+- **AI review is not a substitute for human review.** AI reviews are useful, but they don't transfer accountability.
+- **The value of a review is the guarantee, not the findings.** It is normal to review an AI-generated PR carefully and only find nits, or nothing at all. That doesn't mean the review was wasted. The value is the guarantee that a human read every line and understood it. Without that guarantee, we ship work no one understands, and that is how teams accumulate latent bugs, brittle abstractions, and broken systems that nobody can debug.
+
+
+## Why send LinkedIn comments to Unthread?
+
+Fleet routes LinkedIn comments to Unthread so that a dedicated team owns every comment rather than it being another inbox for a single individual to triage. Unthread surfaces comments as actionable tickets, ensuring nothing is overlooked and responders are held accountable. Reverting to this process gives accountability and repeatable success to the team best equipped to respond to comments.
+
 ## Why keep issue templates simple?
 
 At Fleet, we optimize for the person submitting the issue, not the person receiving it.
@@ -406,33 +430,6 @@ Some tools like Omnissa say "Windows CSP/XML" instead of "Windows configuration 
 
 By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
-## Why not mention the CEO in Slack threads?
-
-> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
-
-<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
-
-Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
-
-From Mike:
-
-<blockquote purpose="large-quote">
-  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
-
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
-
- What do I still read?
- 
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-  
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
-Thank you so much!" 🙇
-</blockquote> 
--->
 
 ## Why "multi-platform" instead of "cross-platform"?
 
@@ -441,9 +438,65 @@ The device management industry has long suffered under the "cross platform" myth
 While Fleet aims to normalize across platforms where possible, there are inevitably times you need to go deeper.  In Fleet, rather than pretend that the world is truly "cross-platform", by using the phrase "multi-platform", we can communicate how Fleet supports the best in breed functionality for each platform, all the way down to the bare metal.
   
 
+## Why Claude Teams?
+
+Fleet uses the Claude Team plan with automatic overages enabled instead of individual Max plans ($200/month per person).
+
+Engineering is on the $100/month tier, which includes a usage window that resets every 5 hours.  With automatic overages enabled, no one gets blocked when they hit the window limit — they can keep working without interruption, and overages are billed automatically.
+
+This approach gives engineers uninterrupted access to Claude while keeping costs predictable and low.  At 150 employees, Fleet will need to move to the Claude Enterprise plan.
+
+
 ## Why no project management function?
 
 At Fleet, every functional manager is responsible for managing the flow of work for their team.  The best managers think about their department's output like a factory, taking direct responsibility over results instead of delegating that responsibility to a separate project management function.  This is inspired by Andy Grove's [High Output Management](https://www.audible.com/pd/High-Output-Management-Audiobook/B015WXKRIS), Eliyahu Goldratt's [The Goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFGGDA2) and [The Phoenix Project](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32), and Sid Sijbrandij's [writings on management](https://handbook.gitlab.com) during his time as CEO of GitLab.
+
+
+## Why no optional attendees?
+
+Fleet doesn't use the "optional attendees" feature in calendar invites for internal meetings.
+
+The problem with optional attendees is that it creates ambiguity.  Someone gets invited as optional, and then every week they're unsure what to do with the calendar event.  They either feel pressured to attend anyway, or they get into a habit of always declining or marking "maybe."  Over time, this muddies the core attendee list and creates confusion about who to actually expect in the meeting.
+
+Instead, the invited attendees on a calendar event are the people who are mandatory for the meeting.  Anyone else can join any internal meeting that doesn't say "[no shadows]" by adding themselves to a particular instance of the call if they're interested.
+
+Every internal meeting is inherently "optional" in the sense that if it's not a good use of time to [help the company](https://fleetdm.com/handbook/company#results), people should focus on results instead.
+
+
+## Why think like a historian?
+
+When choosing a title for Google docs at Fleet, include enough context that someone in the future can understand not just _what_ is being discussed, but _why_ it matters and how it fits in.  This is especially important for meeting agendas.  A bare Google Doc title like "Write up scavenger hunt" is hard to find in search and can be difficult for other people to learn from or contribute to.  Compare that with "Write up scavenger hunt for SF party on May 12 celebrating announcement" — now anyone who finds the doc later knows the purpose of the meeting, without needing to ask.  This makes the Google doc more discoverable in search, more accessible, and more useful for everyone at the company — now and in the future.
+
+
+## Why preserve large free blocks on calendars?
+
+Fleet optimizes for the customer experience.  Prospects and customers booking demos or meetings via the website need to find open time slots.  When calendars are cluttered with work blocks, focus time, or other internal holds, those blocks reduce availability for external bookings.  This creates friction for people trying to schedule time with us.
+
+Here's what to keep in mind:
+
+- **Maximize "free" availability.**  Internal calendar holds (focus time, work blocks, etc.) prevent prospects and customers from booking.  Keep calendars as open as possible for customer-facing scheduling, and be mindful that every internal hold is one fewer slot a prospect can choose.
+- **Avoid "Swiss cheese" calendars.**  When meetings are scattered throughout the day with small gaps in between, no single gap is large enough for someone to book.  This is especially problematic when events require buffer time.  For example, a 45-minute meeting with a 15-minute buffer needs a full hour of availability from multiple people simultaneously.  Consolidate meetings and keep large contiguous free blocks so that prospects and customers can actually find and book time.
+- **Keep recurring habits marked as "free" longer.**  For recurring habits and tasks (like "do your forecast", "update next steps", "send partner portland"), consider having Reclaim keep your free/busy status on "free" longer for all habits, so those blocks don't prevent prospects from booking.  The ability to choose "free" vs "busy" for habits is available on both Reclaim's free and premium tiers, so every team member can use this regardless of which Reclaim plan they're on.
+- **Book 30-minute breaks instead of 15-minute ones.**  For short breaks between calls (like bathroom breaks), you're better off booking 30-minute blocks instead of 15-minute ones.  Calendly is configured to start meetings at clean :00 or :30 times for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+### Examples
+
+Here are some examples illustrating why this matters:
+
+- Work blocks (like "do your forecast", "update next steps") will block people from being able to book time with you, even though you could take a call during those times.
+- If a meeting is 45 minutes with a 15-minute buffer (needing a full hour of availability from two people at the same time), fragmented calendars make it very hard to find openings.
+
+### FAQ
+
+**Q: "What about blocks for times when I can't really take calls anyway, like when I don't have childcare?  And my usual open time is limited because of having many external calls in a given week."**
+
+A: Those personal blocks (childcare, etc.) are fine and necessary.  The advice is about discretionary internal holds and habits that tools like Reclaim can keep marked as "free" longer.  High external call volume is great — that's the goal.  The focus is on unnecessary fragmentation from internal blocks.
+
+**Q: "Sometimes I'll put a 15-minute block after 3-4 calls in a row to go to the bathroom."**
+
+A: You're better off booking 30-minute blocks instead.  Calendly is configured to start at clean :00 or :30 for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
 
 
 #### Stubs

@@ -143,9 +143,127 @@ Now that we have the data block, we can finally put it all together to generate 
 Since we’re working with an ADMX-backed setting, the `Format` section needs to be
 ```<Format xmlns="syncml:metinf">chr</Format>```
 
-The LocURL is listed in the CSP documentation and the `<Data>` block goe after in the CDATA format.
+The LocURI is listed in the CSP documentation and the `<Data>` block goes after in the CDATA format.
 
 Pay attention to the verbs `<Add>` vs `<Replace>` when creating as these need to match the system configuration we are targeting or it oftentimes will fail.
+
+## Ingesting custom ADMX templates (ADMXInstall)
+
+The section above covers ADMX policies that ship with Windows (like `WindowsPowerShell`). But many applications — Microsoft Edge, Google Chrome, Firefox, Adobe products, and others — ship their own ADMX templates that aren't included in the OS. To use these with MDM, you need to **ingest** the ADMX file to the device first, and then configure the policies it defines.
+
+This is a two-step process:
+1. **Ingest the ADMX file** — tell the device about the new policy definitions
+2. **Configure the policies** — set the actual values using the ingested definitions
+
+### Step 1: Get the ADMX file
+
+Download the ADMX template for the application you want to manage. Common sources:
+
+- **Microsoft Edge**: Download [Microsoft Edge policy templates](https://www.microsoft.com/en-us/edge/business/download) and extract the `.admx` file (e.g., `msedge.admx`)
+- **Google Chrome**: Download from [Chrome Enterprise](https://chromeenterprise.google/intl/en_us/browser/download/#manage-policies-tab) and extract `chrome.admx`
+- **Third-party apps**: Check the vendor's documentation for their ADMX templates
+
+### Step 2: Ingest the ADMX file
+
+The ADMX file content is sent to the device using the `ADMXInstall` URI:
+
+```
+./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/{AppName}/Policy/{AdmxFileName}
+```
+
+Where:
+- `{AppName}` — a name you choose to identify the app (e.g., `MSEdge`, `Chrome`). This becomes part of the policy URI later, so keep it simple.
+- `{AdmxFileName}` — a name for this ADMX file (e.g., `EdgeAdmxFile`)
+
+The ADMX file content goes inside a CDATA block in the `<Data>` element. Here's the configuration profile XML:
+
+```xml
+<Add>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/MSEdge/Policy/EdgeAdmxFile</LocURI>
+    </Target>
+    <Data><![CDATA[<policyDefinitions revision="1.0" schemaVersion="1.0">
+      ... paste the contents of msedge.admx here ...
+    </policyDefinitions>]]></Data>
+  </Item>
+</Add>
+```
+
+> The ADMX file can be large (Edge's is thousands of lines). That's expected — you're uploading the entire policy definition file so the device knows how to interpret the policies you'll configure in step 3.
+
+### Step 3: Configure policies from the ingested ADMX
+
+Once the ADMX is ingested, you configure policies using a special LocURI format that references the `{AppName}` you chose:
+
+```
+./Device/Vendor/MSFT/Policy/Config/{AppName}~Policy~{CategoryPath}/{PolicyName}
+```
+
+Where:
+- `{AppName}` — must match what you used in the `ADMXInstall` URI (e.g., `MSEdge`)
+- `{CategoryPath}` — the category hierarchy from the ADMX file, separated by `~` (e.g., `microsoft_edge`)
+- `{PolicyName}` — the `name` attribute of the `<policy>` element in the ADMX file
+
+For example, to configure an Edge policy after ingesting with `AppName` = `MSEdge`:
+
+```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/MSEdge~Policy~microsoft_edge/HomepageLocation</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="HomepageLocation" value="https://fleet.example.com"/>]]></Data>
+  </Item>
+</Replace>
+```
+
+### Putting it together with Fleet
+
+In Fleet, both the ADMX ingestion and the policy configuration go in the same configuration profile XML file. The ingestion `<Add>` block should come **before** any `<Replace>` blocks that reference the ingested policies:
+
+```xml
+<!-- Step 1: Ingest the ADMX template -->
+<Add>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/MSEdge/Policy/EdgeAdmxFile</LocURI>
+    </Target>
+    <Data><![CDATA[... full ADMX file content ...]]></Data>
+  </Item>
+</Add>
+
+<!-- Step 2: Configure policies using the ingested template -->
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/MSEdge~Policy~microsoft_edge/HomepageLocation</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="HomepageLocation" value="https://fleet.example.com"/>]]></Data>
+  </Item>
+</Replace>
+```
+
+### Tips for ADMX ingestion
+
+- **Finding the category path**: Open the `.admx` file and look at the `<categories>` section and the `<parentCategory>` references on the policy you want to configure. Walk the hierarchy and join with `~`.
+- **The `~Policy~` separator is required**: The LocURI always includes `~Policy~` between the `{AppName}` and the category path.
+- **Ingestion only needs to happen once**: After the ADMX is ingested, the device remembers it. Fleet will re-send the profile on each check-in, but the device handles this gracefully.
+- **Registry key restrictions**: Windows blocks custom ADMX policies from writing to most `Software\Microsoft` and `Software\Policies\Microsoft` registry locations, with [specific exceptions](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration) for apps like Edge, Office, and OneDrive.
 
 ## Migrating from Intune
 

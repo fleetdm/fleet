@@ -5,7 +5,7 @@ import { AxiosError } from "axios";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import { ILoginUserData } from "interfaces/user";
@@ -57,7 +57,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -104,12 +103,11 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     }
   }, [availableTeams, config, currentUser, redirectLocation, router]);
 
-  // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
   useEffect(() => {
     let status = new URLSearchParams(location.search).get("status");
     status = status && statusMessages[status as keyof IStatusMessages];
     if (status) {
-      renderFlash("error", status);
+      notify.error(status);
     }
   }, [location?.search]);
 
@@ -189,7 +187,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       };
       const errorObject = formatErrorResponse(ssoError);
       setErrors(errorObject);
-      return false;
     }
   }, [redirectLocation]);
 

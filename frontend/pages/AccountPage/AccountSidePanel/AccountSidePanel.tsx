@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import { IUser } from "interfaces/user";
-import { IVersionData } from "interfaces/version";
+import { IVersionResponse } from "interfaces/version";
 
 import { AppContext } from "context/app";
 
@@ -11,14 +11,20 @@ import Avatar from "components/Avatar";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   generateRole,
+  generateRoleGroups,
   generateTeam,
-  greyCell,
+  generateTeamNames,
   readableDate,
+  ROLE_VARIOUS,
+  tooltipTextWithLineBreaks,
 } from "utilities/helpers";
+import TooltipWrapper from "components/TooltipWrapper";
+import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
   currentUser: IUser;
@@ -34,7 +40,16 @@ const AccountSidePanel = ({
   onGetApiToken,
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
-  const [versionData, setVersionData] = useState<IVersionData>();
+  const [versionData, setVersionData] = useState<IVersionResponse>();
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
+    getThemeMode()
+  );
+
+  const onThemeSelect = (value: string) => {
+    const mode = value as ThemeMode;
+    setThemeModeState(mode);
+    setThemeMode(mode);
+  };
 
   useEffect(() => {
     const getVersionData = async () => {
@@ -43,11 +58,25 @@ const AccountSidePanel = ({
         setVersionData(data);
       } catch (response) {
         console.error(response);
-        return false;
       }
     };
 
     getVersionData();
+  }, []);
+
+  // Keep the radio selection in sync when the theme is changed elsewhere
+  // (command palette "Toggle dark mode", OS media query when on system).
+  // utilities/theme dispatches `fleet-theme-change` on every applied
+  // change — re-read the mode rather than trusting `detail.dark`, since
+  // dark/light alone can't disambiguate "Dark" from "System (dark)".
+  useEffect(() => {
+    const onThemeChange = () => {
+      setThemeModeState(getThemeMode());
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () => {
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+    };
   }, []);
 
   const {
@@ -59,6 +88,9 @@ const AccountSidePanel = ({
 
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
+
+  const teamNames = generateTeamNames(teams);
+  const roleGroups = generateRoleGroups(teams);
 
   const lastUpdatedAt = updatedAt && (
     <HumanTimeDiffWithDateTip timeString={updatedAt} />
@@ -74,21 +106,82 @@ const AccountSidePanel = ({
           newTab
         />
       </div>
+      <div
+        className={`${baseClass}__theme-picker`}
+        role="radiogroup"
+        aria-label="Theme"
+      >
+        <div className={`${baseClass}__theme-picker-label`}>Theme</div>
+        <Radio
+          id="theme-system"
+          name="theme"
+          value="system"
+          label="System"
+          checked={themeMode === "system"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-light"
+          name="theme"
+          value="light"
+          label="Light"
+          checked={themeMode === "light"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-dark"
+          name="theme"
+          value="dark"
+          label="Dark"
+          checked={themeMode === "dark"}
+          onChange={onThemeSelect}
+        />
+      </div>
       {isPremiumTier && (
         <DataSet
           title="Fleets"
           value={
-            <span
-              className={`${
-                greyCell(teamsText) ? `${baseClass}__grey-text` : ""
-              }`}
-            >
-              {teamsText}
-            </span>
+            teamNames.length > 1 ? (
+              <TooltipWrapper
+                tipContent={tooltipTextWithLineBreaks(teamNames)}
+                underline={false}
+                showArrow
+                position="top"
+                tipOffset={10}
+                fixedPositionStrategy
+              >
+                {teamsText}
+              </TooltipWrapper>
+            ) : (
+              teamsText
+            )
           }
         />
       )}
-      <DataSet title="Role" value={roleText} />
+      <DataSet
+        title="Role"
+        value={
+          roleText === ROLE_VARIOUS ? (
+            <TooltipWrapper
+              tipContent={roleGroups.map(({ role, names }) => (
+                <span key={role}>
+                  <b>{role}:</b> {names.join(", ")}
+                  <br />
+                </span>
+              ))}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              {roleText}
+            </TooltipWrapper>
+          ) : (
+            roleText
+          )
+        }
+      />
       {isPremiumTier && config && (
         <DataSet
           title="License expiration date"

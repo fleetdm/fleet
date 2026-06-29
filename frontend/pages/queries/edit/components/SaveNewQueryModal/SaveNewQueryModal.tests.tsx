@@ -106,6 +106,23 @@ describe("SaveNewQueryModal", () => {
     await user.click(advancedOptionsButton);
   });
 
+  it("caps the report name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewQueryModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
   it("displays error when query name is empty", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -261,7 +278,9 @@ describe("SaveNewQueryModal", () => {
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeDisabled();
 
-      const funButton = screen.getByLabelText("Fun");
+      const funButton = await screen.findByRole("checkbox", {
+        name: "Fun",
+      });
       expect(funButton).not.toBeChecked();
       await userEvent.click(funButton);
       expect(saveButton).toBeEnabled();
@@ -280,7 +299,9 @@ describe("SaveNewQueryModal", () => {
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
-      await userEvent.click(screen.getByLabelText("Fun"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(saveQuery.mock.calls[0][0].labels_include_any).toEqual(["Fun"]);

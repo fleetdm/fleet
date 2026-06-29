@@ -6,7 +6,6 @@ import { Location } from "history";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { QueryContext } from "context/query";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -24,7 +23,7 @@ import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
 import {
   IGetQueryResponse,
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { IConfig } from "interfaces/config";
@@ -37,6 +36,7 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 import BackButton from "components/BackButton";
 import InfoBanner from "components/InfoBanner";
+import { notify } from "components/ToastNotification";
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
@@ -107,7 +107,6 @@ const EditQueryPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
   const { setConfig, availableTeams, setCurrentTeam } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -259,42 +258,40 @@ const EditQueryPage = ({
     setShowOpenSchemaActionText(!isSidebarOpen);
   }, [isSidebarOpen]);
 
-  const onSubmitNewQuery = debounce(
-    async (formData: ICreateQueryRequestBody) => {
-      setIsQuerySaving(true);
-      try {
-        const { query } = await queryAPI.create(formData);
-        router.push(
-          getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
-            fleet_id: query.team_id,
-            host_id: hostId,
-          })
+  const onSubmitNewQuery = debounce(async (formData: ICreateQueryFormData) => {
+    setIsQuerySaving(true);
+    try {
+      const { query } = await queryAPI.create(formData);
+      notify.success("Report created.");
+      router.push(
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
+          fleet_id: query.team_id,
+          host_id: hostId,
+        })
+      );
+      setBackendValidators({});
+    } catch (createError) {
+      if (getErrorReason(createError).includes("already exists")) {
+        const teamErrorText =
+          teamNameForQuery && apiTeamIdForQuery !== 0
+            ? `the ${teamNameForQuery} fleet`
+            : "all fleets";
+        setBackendValidators({
+          name: `A report with that name already exists for ${teamErrorText}.`,
+        });
+      } else {
+        notify.error(
+          "Something went wrong creating your report. Please try again.",
+          { response: createError }
         );
-        renderFlash("success", "Report created.");
         setBackendValidators({});
-      } catch (createError: any) {
-        if (getErrorReason(createError).includes("already exists")) {
-          const teamErrorText =
-            teamNameForQuery && apiTeamIdForQuery !== 0
-              ? `the ${teamNameForQuery} fleet`
-              : "all fleets";
-          setBackendValidators({
-            name: `A report with that name already exists for ${teamErrorText}.`,
-          });
-        } else {
-          renderFlash(
-            "error",
-            "Something went wrong creating your report. Please try again."
-          );
-          setBackendValidators({});
-        }
-      } finally {
-        setIsQuerySaving(false);
       }
+    } finally {
+      setIsQuerySaving(false);
     }
-  );
+  });
 
-  const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
+  const onUpdateQuery = async (formData: ICreateQueryFormData) => {
     if (!queryId) {
       return false;
     }
@@ -316,19 +313,28 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Report updated.");
-      refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
-    } catch (updateError: any) {
+      notify.success("Report updated.");
+      router.push(
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(queryId), {
+          host_id: location.query.host_id,
+          fleet_id: location.query.fleet_id,
+        })
+      );
+    } catch (updateError) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A report with this name already exists.");
+        notify.error("A report with this name already exists.", {
+          response: updateError,
+        });
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
-        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
+        notify.error(INVALID_PLATFORMS_FLASH_MESSAGE, {
+          response: updateError,
+        });
       } else {
-        renderFlash(
-          "error",
-          "Something went wrong updating your report. Please try again."
+        notify.error(
+          "Something went wrong updating your report. Please try again.",
+          { response: updateError }
         );
       }
     }

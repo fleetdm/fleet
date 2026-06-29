@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
@@ -14,15 +14,17 @@ import mdmAPI, {
 } from "services/entities/mdm";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 
 import PackageUploader from "./components/BootstrapPackageUploader";
@@ -44,7 +46,6 @@ const BootstrapPackage = ({
   currentTeamId,
   router,
 }: ISetupExperienceCardProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [
     selectedManualAgentInstall,
     setSelectedManualAgentInstall,
@@ -109,7 +110,7 @@ const BootstrapPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
@@ -141,11 +142,11 @@ const BootstrapPackage = ({
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        manual_agent_install: false,
+        macos_manual_agent_install: false,
       });
-      renderFlash("success", "Successfully deleted.");
-    } catch {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      notify.success("Successfully deleted.");
+    } catch (err) {
+      notify.error("Couldn't delete. Please try again.", { response: err });
     } finally {
       setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();
@@ -178,23 +179,21 @@ const BootstrapPackage = ({
     );
 
     return (
-      <SetupExperienceContentContainer className={`${baseClass}__content`}>
-        <div className={`${baseClass}__uploader-container`}>
-          {bootstrapPackageView}
-          <BootstrapAdvancedOptions
-            currentTeamId={currentTeamId}
-            disableInstallManually={
-              noPackageUploaded ||
-              hasSetupExperienceInstallSoftware ||
-              hasSetupExperienceScript
-            }
-            selectManualAgentInstall={selectedManualAgentInstall}
-            onChange={(manualAgentInstall) => {
-              setSelectedManualAgentInstall(manualAgentInstall);
-            }}
-          />
-        </div>
-      </SetupExperienceContentContainer>
+      <>
+        {bootstrapPackageView}
+        <BootstrapAdvancedOptions
+          currentTeamId={currentTeamId}
+          disableInstallManually={
+            noPackageUploaded ||
+            hasSetupExperienceInstallSoftware ||
+            hasSetupExperienceScript
+          }
+          selectManualAgentInstall={selectedManualAgentInstall}
+          onChange={(manualAgentInstall) => {
+            setSelectedManualAgentInstall(manualAgentInstall);
+          }}
+        />
+      </>
     );
   };
 
@@ -209,19 +208,30 @@ const BootstrapPackage = ({
     if (isLoading) {
       return <Spinner />;
     }
-    if (
-      !(
-        globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured
-      )
-    ) {
+
+    const mdmNotConfigured = !(
+      globalConfig?.mdm.enabled_and_configured &&
+      globalConfig?.mdm.apple_bm_enabled_and_configured
+    );
+
+    if (mdmNotConfigured) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+          info={
+            <>
+              Turn on MDM and automatic enrollment to deploy a custom bootstrap
+              package.
+              <br />
+              Supported on macOS.
+            </>
+          }
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }
@@ -240,7 +250,13 @@ const BootstrapPackage = ({
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content="Upload a bootstrap package to install a configuration management tool (e.g. Munki, Chef, or Puppet) on macOS hosts that automatically enroll to Fleet."
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}

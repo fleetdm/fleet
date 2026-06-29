@@ -2,13 +2,11 @@ import React, { useCallback, useContext, useState } from "react";
 import { size } from "lodash";
 import { useQuery } from "react-query";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import { IConfig } from "interfaces/config";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
@@ -23,6 +21,7 @@ import {
 } from "utilities/constants";
 import FileUploader from "components/FileUploader";
 import valid_url from "components/forms/validators/valid_url";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "okta-conditional-access-modal";
 
@@ -103,7 +102,6 @@ const OktaConditionalAccessModal = ({
   onCancel,
   onSuccess,
 }: IOktaConditionalAccessModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -140,7 +138,7 @@ const OktaConditionalAccessModal = ({
         const message = errorReason
           ? `Failed to load Apple profile: ${errorReason}`
           : "Failed to load Apple profile.";
-        renderFlash("error", message);
+        notify.error(message, { response: e });
       },
     }
   );
@@ -159,11 +157,11 @@ const OktaConditionalAccessModal = ({
       downloadLink.remove();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      renderFlash("error", "Failed to download signing certificate.");
+      notify.error("Failed to download signing certificate.", { response: e });
     } finally {
       setIsDownloadingCert(false);
     }
-  }, [renderFlash]);
+  }, []);
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -189,13 +187,13 @@ const OktaConditionalAccessModal = ({
             config.conditional_access?.microsoft_entra_tenant_id || "",
         },
       });
-      renderFlash("success", "Successfully configured Okta conditional access");
+      notify.success("Successfully configured Okta conditional access");
       setIsUpdating(false);
       onSuccess(updatedConfig);
     } catch (e) {
-      renderFlash(
-        "error",
-        "Could not update conditional access integration settings."
+      notify.error(
+        "Could not update conditional access integration settings.",
+        { response: e }
       );
       setIsUpdating(false);
     }
@@ -238,8 +236,7 @@ const OktaConditionalAccessModal = ({
 
       // Validate file extension
       if (!file.name.match(/\.(pem|crt|cer|cert)$/i)) {
-        renderFlash(
-          "error",
+        notify.error(
           "Invalid file type. Please upload a .pem, .crt, .cer, or .cert file."
         );
         return;
@@ -256,8 +253,7 @@ const OktaConditionalAccessModal = ({
           !content.includes("-----BEGIN CERTIFICATE-----") ||
           !content.includes("-----END CERTIFICATE-----")
         ) {
-          renderFlash(
-            "error",
+          notify.error(
             "Invalid certificate format. The file must be a valid PEM-encoded certificate."
           );
           return;
@@ -274,10 +270,10 @@ const OktaConditionalAccessModal = ({
       });
 
       reader.addEventListener("error", () => {
-        renderFlash("error", "Failed to read the certificate file.");
+        notify.error("Failed to read the certificate file.");
       });
     },
-    [formData, renderFlash]
+    [formData]
   );
 
   return (

@@ -29,7 +29,24 @@ The Finance department maintains the documentation of [Fleet's existing trademar
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well as the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+
+### Monthly and quarterly budget-to-actuals review with CEO’s direct reports
+
+Finance will prepare monthly and quarterly budget-to-actuals files for review with the CEO's direct reports: 
+1. Finance to close the prior month's books within the first 10 business days.
+2. Generate the monthly and quarterly budget-to-actuals (“BVA”) report, including variance analysis.
+3. Identify and flag significant variances in the comments section of the file. 
+4. Aggregate the monthly data for quarterly and year-to-date review. 
+5. Save a copy of the BVA file in the shared drive with the department leaders.
+	- [R&D](https://drive.google.com/drive/folders/1BcsTdDWTvljeYW197dTW3GhGyghVzNpB)
+	- [Sales](https://drive.google.com/drive/folders/1WEsk7IArPUPvC2JXMVpZupL6EE8XlgrS)
+	- [CS](https://drive.google.com/drive/folders/114KsxfOTPGdSQSf8psXEYkJHM-OveBs7)
+	- [Marketing](https://drive.google.com/drive/folders/1XX2O5qZ2_V6PAn-UBXthRJar3P2vk7n9)
+	- [Corporate](https://drive.google.com/drive/folders/14mYIcuaFNkjNMxdLEcmPxs90blfFlb0L)
+6. Department leaders review their section of the report, focusing on flagged variances.
+7. Finance reforecasts the remainder of the year using department inputs and updated assumptions
+8. Finance to schedule meetings with department leaders if further review is needed, and vice versa. 
 
 
 ### Prepare for OCV meeting
@@ -168,7 +185,7 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-   - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
+   - Ensure the wiring instructions for payment via SVB are listed in the invoice.
    - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice, and update the ["Future invoices to be sent" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/11kQNw6oTkPe_FCuRItZ26zBCGFOyxpF86XCJ335slxU/edit?gid=0#gid=0).
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
@@ -349,7 +366,7 @@ No further action needs to be taken, the amount available for use will increase 
 
 ### Check franchise tax status
 
-No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
+No later than the second month of every quarter, we check [Delaware division of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
@@ -506,15 +523,6 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 7. Verify that the principal record details match exactly what is on LinkedIn.
 
 
-### Send Primo CRO weekly export
-
-Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
-
-1. Export the list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view) from the CRM.
-2. Paste the values into the [SHARED EXTERNALLY - Leads for Primo](https://docs.google.com/spreadsheets/d/1bJt7e26gDqPbq5emM1Pn3yUWaFzUtXrqmAhS2p53_ws/edit?gid=0#gid=0) Google sheet.
-3. Email Primo's CRO and cc Zay Hanlon.
-
-
 ### Grant role-specific license to a team member
 
 Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
@@ -534,6 +542,18 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
     - Add the “Inbox with Einstein Activity Capture” permission set and save.
     - Navigate to the ["Einstein Activity Capture Settings"](https://fleetdm.lightning.force.com/lightning/setup/ActivitySyncEngineSettingsMain/home) and click the "Configurations" tab.
     - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
+
+
+### Update Salesforce placards
+
+Quarterly, on the second Wednesday of the last month of the quarter, the Head of GTM Architecture will meet with the CFO to obtain the next quarter's goals for: 
+- Gross new ARR (QTD)
+  - New business (QTD)
+  - Expansion (QTD)
+- Gross new pipeline added (QTD)
+- Churn & contraction (QTD)
+
+The Head of GTM Architecture will update the corresponding placards in Salesforce (including churn & contraction targets from the operating model) and thermometer guidelines. Sam Pfluger and Tina Ong meet live for 30 minutes to complete this update, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins.
 
 
 ## Rituals

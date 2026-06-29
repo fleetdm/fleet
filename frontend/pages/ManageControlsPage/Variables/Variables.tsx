@@ -1,0 +1,257 @@
+import React, { useContext, useEffect, useRef, useState } from "react";
+
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+
+import variablesAPI, {
+  IListVariablesResponse,
+} from "services/entities/variables";
+import { IVariable } from "interfaces/variables";
+
+import { AppContext } from "context/app";
+
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  FLEET_WEBSITE_URL,
+} from "utilities/constants";
+import CustomLink from "components/CustomLink";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import ListItem from "components/ListItem/ListItem";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
+import Spinner from "components/Spinner";
+import EmptyState from "components/EmptyState";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
+import PageDescription from "components/PageDescription";
+import AddCustomVariableModal from "./components/AddCustomVariableModal";
+import DeleteCustomVariableModal from "./components/DeleteCustomVariableModal";
+
+const baseClass = "variables";
+
+export const VARIABLES_PAGE_SIZE = 20;
+
+interface IVariablesProps {
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { add_variable?: string };
+  };
+}
+
+const Variables = ({ router, location }: IVariablesProps) => {
+  const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [variableToDelete, setVariableToDelete] = useState<
+    IVariable | undefined
+  >();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [pageNumber, setPageNumber] = useState(0);
+
+  const { isGlobalAdmin, isGlobalMaintainer, isPremiumTier } = useContext(
+    AppContext
+  );
+
+  const canEdit = isGlobalAdmin || isGlobalMaintainer;
+
+  const apiParams = { page: pageNumber, per_page: VARIABLES_PAGE_SIZE };
+  const { data, isFetching: isLoading, refetch } = useQuery<
+    IListVariablesResponse,
+    Error,
+    IListVariablesResponse
+  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
+
+  // Open the Add variable modal via deep-link (e.g. from the command
+  // palette). Gate on the same predicate the in-page button uses — the
+  // param must not bypass admin/maintainer-only authoring. Strip the
+  // param either way so refreshes don't keep trying.
+  useEffect(() => {
+    if (location.query.add_variable !== "1") return;
+    if (canEdit) {
+      setShowAddModal(true);
+    }
+    const { add_variable, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, canEdit]);
+
+  const onClickAddVariable = () => {
+    setShowAddModal(true);
+  };
+
+  const onSaveVariable = () => {
+    setShowAddModal(false);
+    refetch();
+  };
+
+  const onDeleteVariable = () => {
+    setShowDeleteModal(false);
+    refetch();
+  };
+
+  const onClickDeleteVariable = (variable: IVariable) => {
+    setVariableToDelete(variable);
+    setShowDeleteModal(true);
+  };
+
+  const getTokenFromVariableName = (variableName: string): string => {
+    return `$FLEET_SECRET_${variableName.toUpperCase()}`;
+  };
+
+  const renderVariableRow = (variable: IVariable) => (
+    <>
+      <ListItem
+        title={variable.name.toUpperCase()}
+        details={
+          <span>
+            <span className="variable-details__text">
+              Updated{" "}
+              <HumanTimeDiffWithDateTip timeString={variable.updated_at} />{" "}
+              &bull; {getTokenFromVariableName(variable.name)}
+            </span>
+            <CopyButton
+              copyText={getTokenFromVariableName(variable.name)}
+              variant="compact"
+            />
+          </span>
+        }
+      />
+      {canEdit && (
+        <Button
+          variant="icon"
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            onClickDeleteVariable(variable);
+          }}
+        >
+          <>
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </>
+        </Button>
+      )}
+    </>
+  );
+
+  const isEmpty = !isLoading && data?.count === 0;
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className={`${baseClass}__loading`}>
+          <Spinner />
+        </div>
+      );
+    }
+
+    if (isEmpty) {
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No custom variables"
+          info={
+            canEdit
+              ? "Add a custom variable to make it available in scripts and profiles."
+              : "No custom variables are available for scripts and profiles."
+          }
+          primaryButton={
+            canEdit ? (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    onClick={onClickAddVariable}
+                    disabled={disableChildren}
+                  >
+                    Add custom variable
+                  </Button>
+                )}
+              />
+            ) : undefined
+          }
+        />
+      );
+    }
+
+    return (
+      <PaginatedList<IVariable>
+        ref={paginatedListRef}
+        pageSize={VARIABLES_PAGE_SIZE}
+        renderItemRow={renderVariableRow}
+        count={data?.count || 0}
+        data={data?.custom_variables || []}
+        currentPage={pageNumber}
+        onChangePage={setPageNumber}
+        heading={
+          <div className={`${baseClass}__header`}>
+            <span>Custom variables</span>
+          </div>
+        }
+        helpText={
+          <span>
+            Profiles can also use any of Fleet&rsquo;s{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/built-in-variables"
+              text="built-in variables"
+              newTab
+            />
+          </span>
+        }
+      />
+    );
+  };
+
+  return (
+    <div className={baseClass}>
+      <div className={`${baseClass}__page-header`}>
+        <PageDescription
+          variant="tab-panel"
+          content={
+            <>
+              {isPremiumTier
+                ? "Manage custom variables that will be available in scripts and profiles across all fleets."
+                : "Manage custom variables that will be available in scripts and profiles."}{" "}
+              <CustomLink
+                text="Learn more"
+                url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+                newTab
+              />
+            </>
+          }
+        />
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="inverse"
+                size="small"
+                onClick={onClickAddVariable}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" />
+                <span>Add custom variable</span>
+              </Button>
+            )}
+          />
+        )}
+      </div>
+      {renderContent()}
+      {showAddModal && (
+        <AddCustomVariableModal
+          onCancel={() => setShowAddModal(false)}
+          onSave={onSaveVariable}
+        />
+      )}
+      {showDeleteModal && (
+        <DeleteCustomVariableModal
+          variable={variableToDelete}
+          onExit={() => setShowDeleteModal(false)}
+          onDeleteVariable={onDeleteVariable}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Variables;

@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import authToken from "utilities/auth_token";
@@ -37,7 +37,6 @@ interface IAccountPageProps {
 
 const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const { config, currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [pendingEmail, setPendingEmail] = useState("");
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -77,7 +76,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     return false;
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: Partial<IUser>) => {
     if (!currentUser) {
       return false;
     }
@@ -100,16 +99,16 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         setPendingEmail(updated.email);
       }
 
-      renderFlash("success", accountUpdatedFlashMessage);
+      notify.success(accountUpdatedFlashMessage);
       return true;
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      renderFlash(
-        "error",
+      notify.error(
         errorObject.base.includes("already exists")
           ? "A user with this email address already exists."
-          : "Could not edit user. Please try again."
+          : "Could not edit user. Please try again.",
+        { response }
       );
 
       setShowEmailModal(false);
@@ -117,18 +116,21 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     }
   };
 
-  const handleSubmitPasswordForm = async (formData: any) => {
+  const handleSubmitPasswordForm = async (formData: {
+    old_password: string;
+    new_password: string;
+  }) => {
     try {
       await usersAPI.changePassword(formData);
-      renderFlash("success", "Password changed successfully");
+      notify.success("Password changed successfully");
       setShowPasswordModal(false);
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
   };
 
   const renderEmailModal = () => {
-    const emailSubmit = (formData: any) => {
+    const emailSubmit = (formData: Partial<IUser>) => {
       handleSubmit(formData).then((r?: boolean) => {
         return r ? onToggleEmailModal() : false;
       });

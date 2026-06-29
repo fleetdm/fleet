@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"html/template"
+	"errors"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -56,7 +56,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &mail.SMTPTestMailer{
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 		SMTPSettings: smtpSettings,
@@ -64,6 +64,9 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
+		if errors.Is(err, mail.ErrSTARTTLSWithoutSSLTLS) {
+			return mail.ErrSTARTTLSWithoutSSLTLS
+		}
 		return MailError{Message: err.Error()}
 	}
 	return nil
@@ -122,6 +125,7 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 		DisableDataSync:             svc.config.Vulnerabilities.DisableDataSync,
 		RecentVulnerabilityMaxAge:   svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
 		DisableWinOSVulnerabilities: svc.config.Vulnerabilities.DisableWinOSVulnerabilities,
+		OSVForVulnerabilities:       svc.config.Vulnerabilities.OSVForVulnerabilities,
 	}, nil
 }
 
@@ -250,8 +254,9 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 		email = &fleet.EmailConfig{
 			Backend: conf.Email.EmailBackend,
 			Config: fleet.SESConfig{
-				Region:    conf.SES.Region,
-				SourceARN: conf.SES.SourceArn,
+				Region:       conf.SES.Region,
+				SourceARN:    conf.SES.SourceArn,
+				SenderDomain: conf.SES.SenderDomain,
 			},
 		}
 	default:

@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { flatMap } from "lodash";
-import { stringToClipboard } from "utilities/copy_text";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IHostSoftware, ISoftwareInstallVersion } from "interfaces/software";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -19,39 +18,13 @@ const HashCell = ({
   installedVersion,
   onClickMultipleHashes,
 }: IHashCellProps) => {
-  const [copyMessage, setCopyMessage] = useState("");
-
-  const onCopySha256 = (hash: string) => (evt: React.MouseEvent) => {
-    evt.preventDefault();
-
-    stringToClipboard(hash)
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    setTimeout(() => setCopyMessage(""), 1000);
-
-    return false;
-  };
-
   const renderHash = (hash: string) => {
     return (
       <>
         <span className={`${baseClass}__sha256`}>
           {hash.slice(0, 7)}&hellip;{" "}
         </span>
-        <div className={`${baseClass}__sha-copy-button`}>
-          <Button variant="icon" iconStroke onClick={onCopySha256(hash)}>
-            <Icon name="copy" />
-          </Button>
-        </div>
-        <div className={`${baseClass}__copy-overlay`}>
-          {copyMessage && (
-            <div
-              className={`${baseClass}__copy-message`}
-            >{`${copyMessage} `}</div>
-          )}
-        </div>
+        <CopyButton copyText={hash} variant="compact" />
       </>
     );
   };
@@ -83,7 +56,7 @@ const HashCell = ({
 
   // 2 or more hashes
   return (
-    <Button variant="text-link" onClick={onClickMultipleHashes}>
+    <Button variant="link" onClick={onClickMultipleHashes}>
       {uniqueHashCount.toString()} hashes
     </Button>
   );

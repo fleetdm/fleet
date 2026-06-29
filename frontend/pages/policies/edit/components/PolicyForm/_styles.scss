@@ -1,0 +1,184 @@
+.policy-form {
+  &__platform-selector {
+    // override component style
+    padding-bottom: 0;
+  }
+  &__wrapper {
+    position: relative;
+    font-size: $x-small;
+
+    .edit-policy-page__warning {
+      margin: 0;
+      margin-bottom: $pad-large;
+    }
+
+    .form-field--input {
+      margin: 0;
+    }
+  }
+
+  &__page-header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__page-title {
+    font-size: $large;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__page-subtitle {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+
+  &__title-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-large;
+  }
+
+  &__author {
+    align-items: flex-end;
+
+    img,
+    dd {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
+
+  .input-field__textarea {
+    min-width: 100%;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .input-field::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .input-field {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .edit-link {
+    cursor: pointer;
+    height: 18px;
+  }
+
+  &__policy-name-fleet-name,
+  &__description,
+  &__resolution {
+    .button--text-icon {
+      // override global form button margin adjustment
+      margin: 0;
+    }
+  }
+
+  &__policy-name-fleet-name {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__autofill-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .autofill-tooltip-wrapper {
+      display: flex; // Required for vertical centering
+    }
+
+    .autofill-button-tooltip {
+      font-weight: $regular;
+    }
+  }
+
+  &__button-wrap {
+    &--tooltip {
+      display: flex;
+    }
+
+    .policy-form__run {
+      min-width: 64px;
+    }
+  }
+
+  &__sql-editor-label-actions {
+    display: flex;
+    gap: $pad-medium;
+    padding-bottom: 2px;
+  }
+
+  &__platform-checkbox-wrapper {
+    margin: 0;
+
+    & + p {
+      margin: 0;
+      margin-top: $pad-small;
+    }
+
+    .fleet-checkbox__label {
+      transform: translateY(2px);
+    }
+  }
+
+  &__platform-error {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__platform-compatibility {
+    b,
+    img,
+    span {
+      display: flex;
+      align-items: center;
+    }
+
+    .platforms-text {
+      padding: 0 $pad-small;
+    }
+
+    .platforms-select {
+      display: flex;
+      padding: 0 $pad-medium;
+    }
+
+    img {
+      height: 16px;
+      width: auto;
+    }
+
+    button {
+      img {
+        padding: 0px;
+      }
+    }
+
+    form,
+    label {
+      display: inline-flex;
+    }
+
+    label {
+      font-weight: $regular;
+      margin-right: $pad-medium;
+    }
+  }
+
+  &__critical-checkbox-wrapper {
+    // override form child width: 100%
+    width: auto;
+    .form-field--checkbox {
+      margin-bottom: 0;
+    }
+  }
+}

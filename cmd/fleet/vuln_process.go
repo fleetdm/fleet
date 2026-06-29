@@ -158,6 +158,16 @@ type NamedVulnFunc struct {
 func getVulnFuncs(ds fleet.Datastore, logger *slog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
+			// Run first to ensure aggregated_stats has fresh OS version data
+			// before cronVulnerabilities scans for OS vulnerabilities.
+			Name: "update_os_versions",
+			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.update_os_versions")
+				defer span.End()
+				return ds.UpdateOSVersions(ctx)
+			},
+		},
+		{
 			Name: "cron_vulnerabilities",
 			VulnFunc: func(ctx context.Context) error {
 				return cronVulnerabilities(ctx, ds, logger, config)

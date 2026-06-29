@@ -1,0 +1,10 @@
+{
+  "name": "Epic Games Launcher",
+  "unique_identifier": "com.epicgames.EpicGamesLauncher",
+  "token": "epic-games",
+  "installer_format": "dmg",
+  "slug": "epic-games/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

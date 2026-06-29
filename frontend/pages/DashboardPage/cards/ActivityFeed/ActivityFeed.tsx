@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -9,22 +10,29 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
-import { isAndroid } from "interfaces/platform";
 import {
   resolveUninstallStatus,
   SoftwareInstallUninstallStatus,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { ActivityType, IActivityDetails } from "interfaces/activity";
+import {
+  ActivityType,
+  IActivityDetails,
+  IActivityDetailsWithActor,
+} from "interfaces/activity";
 import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
@@ -35,6 +43,14 @@ import SoftwareUninstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
+import MdmCommandDetailsModal, {
+  getIconName,
+  getVerbForCommandStatus,
+} from "pages/hosts/components/CommandDetailsModal";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -115,7 +131,7 @@ const ActivityFeed = ({
   const [
     ipaPackageInstallDetails,
     setIpaPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetailsWithActor | null>(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
@@ -123,7 +139,7 @@ const ActivityFeed = ({
   const [
     vppInstallDetails,
     setVppInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetailsWithActor | null>(null);
   const [
     activityAutomationDetails,
     setActivityAutomationDetails,
@@ -136,6 +152,15 @@ const ActivityFeed = ({
     appStoreDetails,
     setAppStoreDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    enrollmentProfileFailedDetails,
+    setEnrollmentProfileFailedDetails,
+  ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
+    host_uuid?: string;
+    command_uuid: string;
+    actor_full_name?: string;
+  } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -227,7 +252,12 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({
+    type,
+    details,
+    actor_full_name,
+    fleet_initiated,
+  }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";
@@ -245,7 +275,11 @@ const ActivityFeed = ({
           setScriptPackageDetails({ ...details });
         } else {
           details?.command_uuid
-            ? setIpaPackageInstallDetails({ ...details })
+            ? setIpaPackageInstallDetails({
+                ...details,
+                actor_full_name,
+                fleet_initiated,
+              })
             : setPackageInstallDetails({ ...details });
         }
         break;
@@ -262,7 +296,9 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setVppInstallDetails({ ...details }); // Apple VPP + Android installs
+        // Apple VPP + Android installs. Envelope actor fields ride along so
+        // the modal can render the actor-driven failure copy per Figma.
+        setVppInstallDetails({ ...details, actor_full_name, fleet_initiated });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -286,6 +322,24 @@ const ActivityFeed = ({
           )
         );
         break;
+      case ActivityType.FailedEnrollmentProfileRenewal:
+        setEnrollmentProfileFailedDetails({
+          command: {
+            command_uuid: details?.command_uuid || "",
+          },
+        });
+        break;
+      case ActivityType.RanCustomMdmCommand: {
+        if (!details?.command_uuid) {
+          break;
+        }
+        setMdmCommandActivityDetails({
+          command_uuid: details.command_uuid,
+          host_uuid: details?.host_uuid,
+          actor_full_name,
+        });
+        break;
+      }
       default:
         break;
     }
@@ -297,7 +351,8 @@ const ActivityFeed = ({
 
   const renderNoActivities = () => {
     return (
-      <EmptyTable
+      <EmptyState
+        variant="list"
         header="No activities match the current criteria"
         info="Try editing a report, updating your policies, or running a live report."
       />
@@ -395,6 +450,10 @@ const ActivityFeed = ({
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
             commandUuid: ipaPackageInstallDetails.command_uuid || "",
+            failureReason: ipaPackageInstallDetails.failure_reason,
+            actorFullName: ipaPackageInstallDetails.actor_full_name,
+            fleetInitiated: ipaPackageInstallDetails.fleet_initiated,
+            selfService: ipaPackageInstallDetails.self_service,
           }}
           onCancel={() => setIpaPackageInstallDetails(null)}
         />
@@ -418,6 +477,10 @@ const ActivityFeed = ({
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
             platform: vppInstallDetails.host_platform,
+            failureReason: vppInstallDetails.failure_reason,
+            actorFullName: vppInstallDetails.actor_full_name,
+            fleetInitiated: vppInstallDetails.fleet_initiated,
+            selfService: vppInstallDetails.self_service,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />
@@ -438,6 +501,64 @@ const ActivityFeed = ({
         <AppStoreDetailsModal
           details={appStoreDetails}
           onCancel={() => setAppStoreDetails(null)}
+        />
+      )}
+      {enrollmentProfileFailedDetails && (
+        <FailedEnrollmentProfileModal
+          command={enrollmentProfileFailedDetails.command}
+          onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {!!mdmCommandActivityDetails && (
+        <MdmCommandDetailsModal
+          command={mdmCommandActivityDetails}
+          contentBody={(cls, result) => {
+            const isPending = getIconName(result.status) === "pending-outline";
+            const cmdDisplayName = getMdmCommandDisplayName(
+              result.request_type
+            );
+            const timeAgo = result.updated_at
+              ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+                  addSuffix: true,
+                })})`
+              : "";
+            return (
+              <IconStatusMessage
+                className={`${cls}__status-message`}
+                iconName={getIconName(result.status)}
+                message={
+                  isPending ? (
+                    <span>
+                      {cmdDisplayName ? (
+                        <>
+                          {"The "}
+                          <b>{cmdDisplayName}</b>
+                          {" custom MDM command"}
+                        </>
+                      ) : (
+                        "A custom MDM command"
+                      )}
+                      {" is pending on "}
+                      <b>{result.hostname}</b>
+                      {`${timeAgo}.`}
+                    </span>
+                  ) : (
+                    <span>
+                      {mdmCommandActivityDetails.actor_full_name && (
+                        <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                      )}
+                      {` ${getVerbForCommandStatus(result.status)} `}
+                      {formatMdmCommandNameForActivityItem(result.request_type)}
+                      {" on "}
+                      <b>{result.hostname}</b>
+                      {"."}
+                    </span>
+                  )
+                }
+              />
+            );
+          }}
+          onDone={() => setMdmCommandActivityDetails(null)}
         />
       )}
     </div>

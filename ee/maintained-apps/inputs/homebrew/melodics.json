@@ -1,0 +1,10 @@
+{
+  "name": "Melodics",
+  "unique_identifier": "com.melodics.Melodics",
+  "token": "melodics",
+  "installer_format": "zip",
+  "slug": "melodics/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

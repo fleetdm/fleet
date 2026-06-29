@@ -49,7 +49,9 @@ const showAPIMessage = (message: string) => {
   return (
     message.includes("MDM is turned off") ||
     message.includes("No available licenses") ||
-    message.includes("Software title is not available for install")
+    message.includes("Software title is not available for install") ||
+    // BYOD VPP install before nanomdm has surfaced the host's Managed Apple ID.
+    message.includes("hasn't received a Managed Apple ID")
   );
 };
 
@@ -62,6 +64,10 @@ export const getInstallErrorMessage = (e: unknown) => {
     return createOnlyInstallableOnMacOSMessage(reason);
   } else if (reason.includes("VPP token expired")) {
     return createVPPTokenExpiredMessage();
+  } else if (
+    reason.includes("unresolvable Fleet variable in managed app configuration")
+  ) {
+    return `${INSTALL_SOFTWARE_ERROR_PREFIX} Couldn't resolve a Fleet variable in the managed app configuration for this host.`;
   } else if (showAPIMessage(reason)) {
     return reason;
   }

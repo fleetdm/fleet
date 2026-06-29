@@ -40,7 +40,7 @@ const LoginForm = ({
 
   const loginFormClass = classnames(baseClass);
 
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<ILoginUserData>({
     email: "",
     password: "",
@@ -167,6 +167,7 @@ const LoginForm = ({
           placeholder="Email"
           value={formData.email}
           onChange={onInputChange("email")}
+          ignore1Password={false}
         />
         <InputFieldWithIcon
           error={errors.password}
@@ -175,6 +176,7 @@ const LoginForm = ({
           type="password"
           value={formData.password}
           onChange={onInputChange("password")}
+          ignore1Password={false}
         />
       </div>
       {/* Actions displayed using CSS column-reverse to preserve tab order */}

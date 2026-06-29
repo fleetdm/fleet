@@ -24,6 +24,7 @@ class MockScepClient : ScepClient {
     var shouldThrowEnrollmentException = false
     var shouldThrowNetworkException = false
     var shouldThrowCertificateException = false
+    var networkExceptionCause: Throwable? = null
     var enrollmentDelay = 0L
     var capturedConfig: GetCertificateTemplateResponse? = null
     var capturedScepUrl: String? = null
@@ -43,7 +44,7 @@ class MockScepClient : ScepClient {
         }
 
         when {
-            shouldThrowNetworkException -> throw ScepNetworkException("Mock network error")
+            shouldThrowNetworkException -> throw ScepNetworkException("Mock network error", networkExceptionCause)
             shouldThrowEnrollmentException -> throw ScepEnrollmentException("Mock enrollment failed")
             shouldThrowCertificateException -> throw ScepCertificateException("Mock certificate error")
             !shouldSucceed -> throw ScepException("Mock general error")
@@ -101,6 +102,7 @@ class MockScepClient : ScepClient {
         shouldThrowEnrollmentException = false
         shouldThrowNetworkException = false
         shouldThrowCertificateException = false
+        networkExceptionCause = null
         enrollmentDelay = 0L
         capturedConfig = null
         capturedScepUrl = null

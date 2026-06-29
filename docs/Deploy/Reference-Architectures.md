@@ -113,7 +113,8 @@ In order for osqueryd clients to connect, the connection to Fleet must use TLS. 
 
 ## Using a proxy
 
-In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
+In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables. `NO_PROXY` is an exclusion list — hosts listed here connect directly, bypassing the proxy. It does not provide a fallback.
+
 
 For example, to configure the proxy in a systemd service file:
 
@@ -156,7 +157,7 @@ span multiple regions for more advanced configurations (_not included in the [re
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
-**Note:Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
+**Note: Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
 
 #### Traffic load balancing
 Load balancing enables distributing request traffic over many instances of the backend application. Using [AWS Application
@@ -189,8 +190,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 6 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.t4g.small | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.t4g.small | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.medium   | 2     |
 
 ###### [Up to 10000 hosts](https://calculator.aws/#/estimate?id=5ea231525450b1cd4fa847f4564351d2c17d2ee2)
@@ -200,8 +201,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 8 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type    | Nodes |
-| ------------ | ----------------------- | ---------------- | ----- |
-| Redis        | 6.x                     | cache.t4g.medium | 3     |
+| ------------ |-------------------------| ---------------- | ----- |
+| Redis        | 7.x                     | cache.t4g.medium | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.large     | 2     |
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4700e7a36ef34b84ae9ad4f444690f1df2ca3753)
@@ -211,8 +212,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 10 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.large    | 2     |
 
 ###### [Up to 50000 hosts](https://calculator.aws/#/estimate?id=3887d782a8f6cfeb9e0463686b5629aeb4cd678e)
@@ -222,8 +223,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 15 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.xlarge   | 3     |
 
 ###### [Up to 80000 hosts](https://calculator.aws/#/estimate?id=7d0dee9241aff55fc733a9eead816baea14aee21)
@@ -233,8 +234,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 20 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
 
 ###### [Up to 100000 hosts](https://calculator.aws/#/estimate?id=cd17a0dda5e1ee5f919ac0a2a0ea8a6e1557e307)
@@ -244,8 +245,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 25 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=a53e31063df9e5941b0c4b019b03ca2bd226fd48)
@@ -255,8 +256,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 40 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 3     |
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=1f54ccc80e27a78f192b0e9db02ab957eff0c26c)
@@ -266,8 +267,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 70 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type    | Nodes |
-| ------------ | ----------------------- | ---------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.xlarge | 3     |
+| ------------ |-------------------------| ---------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.xlarge | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.8xlarge   | 3     |
 
 
@@ -292,6 +293,10 @@ Additional addons are available such as:
 - [Cloudfront for software installers](https://github.com/fleetdm/fleet-terraform/tree/main/addons/cloudfront-software-installers)
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled report frequency can have a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
+
+###### S3 configuration for AWS deployments
+
+When using IAM Roles for Service Accounts (IRSA) with Amazon Elastic Kubernetes Service (EKS) or Elastic Container Service (ECS) task roles, do not set any `endpoint_url` S3 configuration. It overrides all AWS API calls (not just S3) and breaks token-based authentication. Use `region` instead. Also set `region` explicitly; if omitted, Fleet defaults to `us-east-1` for region discovery. See the [S3 configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3_software_installers_endpoint_url) for details.
 
 ###### AWS Terraform CI/CD IAM permissions
 The following permissions are the minimum required to apply AWS terraform resources:
@@ -355,8 +360,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 2 Cloud Run     | 1   | 2GB |
 
 | Dependencies | Version               | Instance type |
-| ------------ | --------------------- | ------------- |
-| Redis        | MemoryStore Redis 6   | M1 Basic      |
+| ------------ |-----------------------| ------------- |
+| Redis        | MemoryStore Redis 7   | M1 Basic      |
 | MySQL        | Cloud SQL for MySQL 8 | db-standard-1 |
 
 ###### [Up to 25000 hosts](https://cloud.google.com/products/calculator/#id=fadbb96c-967c-4397-9921-743d75b98d42)
@@ -366,8 +371,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 10 Cloud Run    | 1   | 2GB |
 
 | Dependencies | Version               | Instance type |
-| ------------ | --------------------- | ------------- |
-| Redis        | MemoryStore Redis 6   | M1 2GB        |
+| ------------ |-----------------------| ------------- |
+| Redis        | MemoryStore Redis 7   | M1 2GB        |
 | MySQL        | Cloud SQL for MySQL 8 | db-standard-4 |
 
 
@@ -378,8 +383,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 30 Cloud Run    | 1 CPU | 2GB |
 
 | Dependencies | Version               | Instance type | Nodes |
-| ------------ | --------------------- | ------------- | ----- |
-| Redis        | MemoryStore Redis 6   | M1 4GB        | 1     |
+| ------------ |-----------------------| ------------- | ----- |
+| Redis        | MemoryStore Redis 7   | M1 4GB        | 1     |
 | MySQL        | Cloud SQL for MySQL 8 | db-highmem-16 | 1     |
 
 #### Azure
@@ -592,6 +597,75 @@ in the terraform reference architecture (see `monitoring.tf`).
 
 Prometheus provides basic graphing capabilities, and integrates tightly with [Grafana](https://prometheus.io/docs/visualization/grafana/) for sophisticated visualizations.
 
+### Traces
+
+In addition to metrics, Fleet can export distributed traces using [OpenTelemetry](https://opentelemetry.io/) (OTLP). Traces show the lifecycle of a request as it flows through the Fleet server, including database queries and cron jobs, which is useful for diagnosing latency and errors that are hard to reproduce outside production.
+
+#### Enabling traces
+
+Set the following on each Fleet server, then point it at an OTLP collector such as [SigNoz](https://signoz.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), or any OpenTelemetry-compatible backend:
+
+```bash
+export FLEET_LOGGING_TRACING_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_SERVICE_NAME=fleet
+# Optional: export logs alongside traces.
+export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
+```
+
+See [logging_tracing_enabled](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled) for the full list of related settings. For a local development setup, see [tools/signoz](https://github.com/fleetdm/fleet/tree/main/tools/signoz).
+
+#### Multiple environments
+
+When you run more than one Fleet deployment (for example, `production`, `staging`, and `dev`) and send their telemetry to the same observability backend, keep the service name the same and distinguish deployments by environment instead.
+
+Leave `OTEL_SERVICE_NAME` at its default of `fleet` on every deployment. This keeps all of your Fleet instances grouped under a single service so dashboards, service maps, and alerts treat them as one application. Then set the deployment environment through `OTEL_RESOURCE_ATTRIBUTES`, which lets you filter and compare environments within that service.
+
+Set two attributes for the environment:
+
+- `deployment.environment.name` is the current [OpenTelemetry semantic convention](https://opentelemetry.io/docs/specs/semconv/resource/deployment-environment/) for the deployment environment.
+- `deployment.environment` is the older, now-deprecated attribute. Some tools, including SigNoz, still key off this name, so set it to the same value for compatibility.
+
+For example, on a development deployment:
+
+```bash
+export OTEL_SERVICE_NAME=fleet
+export OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=dev,deployment.environment=dev
+```
+
+Use a distinct value (such as `production`, `staging`, or `dev`) on each deployment, and keep both attributes in sync. Fleet's [SigNoz dashboards](https://github.com/fleetdm/fleet/tree/main/tools/signoz) include an environment selector backed by these attributes.
+
+#### Sampling
+
+Tracing every request on a large fleet would emit an unsustainable volume of spans: agent endpoints such as osquery distributed read/write and orbit check-ins dominate request volume. Fleet uses route-aware head sampling so tracing can stay enabled in production at a reasonable cost. Each route is assigned to a tier:
+
+| Tier | Default sample rate | Routes |
+| ---- | ------------------- | ------ |
+| Never | 0% | Liveness and infrastructure paths (`/healthz`, `/version`, `/metrics`). |
+| High volume | 0.1% | Agent endpoints (osquery distributed read/write, config, log uploads; orbit config and pings; device ping and desktop). |
+| Standard | 2% | Admin and UI read endpoints (hosts, software, policies, dashboard, etc.). |
+| Always | 100% | Everything else: enrollment, MDM command flows, SCEP, GitOps applies, and cron jobs. These are low-volume and load-bearing, so they are never down-sampled. |
+
+When a request arrives with a sampled parent trace (for example, propagated from another service), Fleet honors that decision so distributed traces stay coherent.
+
+Sampling is controlled entirely by Fleet's route-aware sampler; the standard `OTEL_TRACES_SAMPLER` environment variables are not honored.
+
+Because traces are head-sampled, the tracing backend receives only the sampled spans; it does not see the full request volume. For total request counts and error rates, use the OpenTelemetry metrics pipeline rather than traces.
+
+#### Adjusting sampling at runtime
+
+The two sample rates and a full-sampling override can be changed at runtime through an admin-only debug endpoint, without restarting the server. This is useful for opening a temporary high-resolution window while reproducing an issue. See [Adjust trace sampling](https://fleetdm.com/docs/rest-api/rest-api#adjust-trace-sampling) in the REST API reference.
+
+For example, to capture every span for a short debugging window:
+
+```bash
+curl -k -X PATCH "https://<fleet-server>/debug/trace_sampler" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"force_full": true}'
+```
+
+Each Fleet server polls for changes about once a minute, so an update applies across all servers within roughly a minute. Remember to revert `force_full` to `false` once finished; running at 100% on a large fleet produces a very high span volume.
+
 ### Fleet server performance
 
 Fleet is designed to scale to hundreds of thousands of online hosts. The Fleet server scales horizontally to support higher load.
@@ -648,3 +722,4 @@ Below are some projects created by Fleet community members. These projects provi
 
 <meta name="pageOrderInSection" value="400">
 <meta name="description" value="An opinionated view of running Fleet in a production environment, and configuration strategies to enable high availability.">
+<meta name="keywordsForDocsearch" value="production deployment, reverse proxy">

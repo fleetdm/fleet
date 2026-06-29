@@ -1,8 +1,8 @@
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import React, { useContext } from "react";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
 
@@ -12,6 +12,7 @@ import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "script-list-item";
 
@@ -46,15 +47,15 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
     const filename = `${formatDate} ${script.name}`;
     const file = new File([content], filename);
     FileSaver.saveAs(file);
-  } catch {
-    renderFlash("error", "Couldn’t Download. Please try again.");
+  } catch (e) {
+    notify.error("Couldn’t Download. Please try again.", { response: e });
   }
 };
 
@@ -82,27 +83,22 @@ const ScriptListItem = ({
   onEdit,
   isTechnician,
 }: IScriptListItemProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
-  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickEdit = () => {
     onEdit(script);
   };
 
-  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
-    onDownload(script, renderFlash);
+  const onClickDownload = () => {
+    onDownload(script);
   };
 
-  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickDelete = () => {
     onDelete(script);
   };
 
   const actions = (
-    <>
+    <div onClick={(evt) => evt.stopPropagation()}>
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
@@ -110,6 +106,7 @@ const ScriptListItem = ({
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
             variant="icon"
+            ariaLabel={`Edit ${script.name}`}
           >
             <Icon name="pencil" />
           </Button>
@@ -119,6 +116,7 @@ const ScriptListItem = ({
         className={`${baseClass}__action-button`}
         variant="icon"
         onClick={onClickDownload}
+        ariaLabel={`Download ${script.name}`}
       >
         <Icon name="download" />
       </Button>
@@ -129,19 +127,24 @@ const ScriptListItem = ({
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
             variant="icon"
+            ariaLabel={`Delete ${script.name}`}
           >
             <Icon name="trash" />
           </Button>
         )}
       />
-    </>
+    </div>
   );
 
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="text-link">{script.name}</Button>}
+      title={
+        <Button variant="link" className={`${baseClass}__title-button`}>
+          <TooltipTruncatedText value={script.name} fixedPositionStrategy />
+        </Button>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}

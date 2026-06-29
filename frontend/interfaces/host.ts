@@ -129,6 +129,12 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  managed_local_account?: {
+    status: string | null;
+    password_available: boolean;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
+  };
   certificates: IHostAndroidCert[];
 }
 
@@ -145,7 +151,13 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
+export type HostMdmPendingAction =
+  | "unlock"
+  | "lock"
+  | "wipe"
+  | "clear_passcode"
+  | "location"
+  | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -162,8 +174,8 @@ export interface IHostMdmData {
   server_url: string | null;
   profiles: IHostMdmProfile[] | null;
   os_settings?: IOSSettings;
-  macos_settings?: IMdmMacOsSettings;
-  macos_setup?: IMdmMacOsSetup;
+  apple_settings?: IMdmMacOsSettings;
+  setup_experience?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
@@ -232,8 +244,12 @@ export interface IHostResponse {
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
+  /** @deprecated use `org_logo_url_dark_mode` */
   org_logo_url: string;
+  /** @deprecated use `org_logo_url_light_mode` */
   org_logo_url_light_background: string;
+  org_logo_url_dark_mode?: string;
+  org_logo_url_light_mode?: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -254,6 +270,18 @@ export interface IHostRecoveryLockPasswordResponse {
   recovery_lock_password: {
     updated_at: string;
     password: string;
+    auto_rotate_at?: string;
+  };
+}
+
+export interface IHostManagedAccountPasswordResponse {
+  host_id: number;
+  managed_account_password: {
+    username: string;
+    password: string;
+    updated_at: string;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
   };
 }
 
@@ -350,6 +378,7 @@ export interface IHost {
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
   conditional_access_bypassed: boolean;
+  mdm_enrollment_hardware_attested?: boolean;
 }
 
 /*

@@ -1,6 +1,6 @@
 # The MDM migration reality: easier, but not easy
 
-Recent macOS and iOS/iPadOS updates, along with improvements in Apple Business Manager (ABM), have made MDM migration less disruptive. Previously, migrating iOS and iPadOS devices to a new MDM server required a complete factory reset, disrupting end users. Now, these mobile devices can be reassigned to a new MDM server without wiping, bringing them in line with macOS devices which already supported non-destructive migration.
+Recent macOS and iOS/iPadOS updates, along with improvements in Apple Business (AB), have made MDM migration less disruptive. Previously, migrating iOS and iPadOS devices to a new MDM server required a complete factory reset, disrupting end users. Now, these mobile devices can be reassigned to a new MDM server without wiping, bringing them in line with macOS devices which already supported non-destructive migration.
 
 While macOS avoided the factory reset requirement, migration prior to macOS 26 still required careful coordination and communication with end users and, in some cases, custom workflows to ease the transition.
 

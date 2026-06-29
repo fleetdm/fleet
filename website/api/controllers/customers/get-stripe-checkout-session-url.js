@@ -25,6 +25,11 @@ module.exports = {
 
 
   fn: async function (inputs) {
+
+    if (!sails.config.custom.enableBillingFeatures) {// Note: this variable is set in the custom hook if stripePublishableKey and stripeSecret config variables are set.
+      throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
+    }
+
     // Configure Stripe
     const stripe = require('stripe')(sails.config.custom.stripeSecret);
 
@@ -34,13 +39,24 @@ module.exports = {
       throw new Error(`Consistency violation: The specified quote (${inputs.quoteId}) no longer seems to exist.`);
     }
 
+    let stripeCustomerId = this.req.me.stripeCustomerId;
     // What if the stripe customer id doesn't already exist on the user?
-    if (!this.req.me.stripeCustomerId) {
-      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) Stripe customer id has somehow gone missing!`);
+    if (!stripeCustomerId) {
+      // Create a new customer entry in the Stripe API for this user before we create a checkout session for their license dispenser purchase.
+      stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+        emailAddress: this.req.me.emailAddress
+      })
+      .timeout(5000)
+      .retry()
+      .intercept((error)=>{
+        return new Error(`An error occurred when trying to create a Stripe Customer for a user (email address: ${this.req.me.emailAddress}) tried to create a Stripe checkout session to purchase a self-service license. Full error: ${error.raw}`);
+      });
+
+      await User.updateOne({id: this.req.me.id}).set({stripeCustomerId: stripeCustomerId});
     }
     // Create a new Stripe checkout session for this subscription.
     let stripeCheckoutSession = await stripe.checkout.sessions.create({
-      customer: this.req.me.stripeCustomerId,
+      customer: stripeCustomerId,
       customer_update: {// eslint-disable-line camelcase
         name: 'auto',
         address: 'auto',

@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
+  isEnrolledInMdm,
   isWindowsDiskEncryptionStatus,
   isLinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
@@ -23,10 +24,7 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-import {
-  DATE_FNS_FORMAT_STRINGS,
-  DEFAULT_EMPTY_CELL_VALUE,
-} from "utilities/constants";
+import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
@@ -170,7 +168,11 @@ const HostSummary = ({
       : [linuxDiskEncryptionSetting];
   }
 
-  if (platform === "darwin" && osSettings?.recovery_lock_password?.status) {
+  if (
+    platform === "darwin" &&
+    isEnrolledInMdm(mdm?.enrollment_status ?? null) &&
+    osSettings?.recovery_lock_password?.status
+  ) {
     const recoveryLockSetting = generateRecoveryLockPasswordSetting(
       osSettings.recovery_lock_password.status,
       osSettings.recovery_lock_password.detail
@@ -207,6 +209,7 @@ const HostSummary = ({
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet
+            className={`${baseClass}__os-settings`}
             title="OS settings"
             value={
               <OSSettingsIndicator

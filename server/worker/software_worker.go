@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -20,9 +23,10 @@ const softwareWorkerJobName = "software_worker"
 type SoftwareWorkerTask string
 
 type SoftwareWorker struct {
-	Datastore     fleet.Datastore
-	AndroidModule android.Service
-	Log           *slog.Logger
+	Datastore        fleet.Datastore
+	AndroidModule    android.Service
+	Log              *slog.Logger
+	AndroidBatchSize int
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -32,6 +36,7 @@ func (v *SoftwareWorker) Name() string {
 const (
 	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host" // deprecated
 	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
+	makeAndroidAppAvailableBatchTask        SoftwareWorkerTask = "make_android_app_available_batch"
 	makeAndroidAppUnavailableTask           SoftwareWorkerTask = "make_android_app_unavailable"
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
@@ -46,13 +51,13 @@ type softwareWorkerArgs struct {
 	EnterpriseName string             `json:"enterprise_name,omitempty"`
 	// AppTeamID is *not* a team ID, it is the vpp_apps_teams.id value. This is a bit confusing
 	// as a name, but that is what is expected in this field.
-	AppTeamID uint `json:"app_team_id,omitempty"`
+	AppTeamID uint `json:"app_team_id,omitempty"` //nolint:apiparamcheck
 	HostID    uint `json:"host_id,omitempty"`
 
 	// HostEnrollTeamID is the team ID associated with the host at the time
 	// of enrollment, which is the one used to run the setup experience.
 	// A value of 0 is used to represent "no team".
-	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty"`
+	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty"` //nolint:apiparamcheck // not user-facing
 
 	// PolicyID is the Android Management API Policy ID associated with the host, *not*
 	// a Fleet policy ID.
@@ -91,6 +96,14 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged),
 			"running %s task",
 			makeAndroidAppAvailableTask,
+		)
+
+	case makeAndroidAppAvailableBatchTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.makeAndroidAppAvailableBatch(ctx, args.ApplicationID, args.AppTeamID, args.HostUUIDToPolicyID, args.EnterpriseName, args.AppConfigChanged),
+			"running %s task",
+			makeAndroidAppAvailableBatchTask,
 		)
 
 	case makeAndroidAppUnavailableTask:
@@ -140,43 +153,123 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
+	if len(hosts) == 0 {
+		return nil
+	}
 
+	// Queue staggered batch jobs. The phase-2 handler handles per-host
+	// variable substitution within each batch, so we always chunk the same way.
+	batchSize := v.AndroidBatchSize
+	if batchSize <= 0 {
+		batchSize = defaultAndroidBatchSize
+	}
+	batches := splitHostMap(hosts, batchSize)
+	for i, batch := range batches {
+		delay := time.Duration(i) * androidSoftwareInstallStaggerInterval
+		if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, batch, enterpriseName, appConfigChanged, delay); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
+		}
+	}
+
+	return nil
+}
+
+func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, appConfigChanged bool) error {
 	config, err := v.Datastore.GetAndroidAppConfigurationByAppTeamID(ctx, appTeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
-	var configByAppID map[string]json.RawMessage
+	var configByAppID map[string][]byte
 	if config != nil {
-		configByAppID = map[string]json.RawMessage{
-			applicationID: *config,
+		configByAppID = map[string][]byte{applicationID: config}
+	}
+
+	needsPerHostSubstitution := config != nil && variables.ContainsBytes(config)
+
+	if needsPerHostSubstitution {
+		hostUUIDs := make([]string, 0, len(hostUUIDToPolicyID))
+		for uuid := range hostUUIDToPolicyID {
+			hostUUIDs = append(hostUUIDs, uuid)
 		}
-	}
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}
+		hostDetails, err := v.Datastore.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch fetch host details for variable substitution")
+		}
+		hostByUUID := make(map[string]*fleet.Host, len(hostDetails))
+		for _, h := range hostDetails {
+			hostByUUID[h.UUID] = h
+		}
 
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, configByAppID, "AVAILABLE")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building application policies with config")
-	}
+		for hostUUID := range hostUUIDToPolicyID {
+			h, ok := hostByUUID[hostUUID]
+			if !ok {
+				continue // host deleted since the job was queued
+			}
 
-	// Update Android MDM policy to include the app in self service
-	policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
-	}
-
-	// if this is called from an UPDATE (config changed), mark existing installs
-	// as "pending" (unless already "failed") and with the correct policy version to verify
-	// (currently temporarily stored as a string in associated_event_id, to revisit
-	// when we implement full Android apps support).
-	if appConfigChanged {
-		for hostUUID, policyRequest := range policyRequestsByHost {
-			err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
+			subHost := profiles.AndroidAppConfigSubstitutionHost{
+				UUID:           h.UUID,
+				HardwareSerial: h.HardwareSerial,
+				Platform:       h.Platform,
+			}
+			substituted, err := v.substituteFleetVarsInConfigs(ctx, configByAppID, subHost)
 			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
+				return ctxerr.Wrapf(ctx, err, "substitute fleet vars for host %s", hostUUID)
+			}
+
+			appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, substituted, "AVAILABLE")
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "building application policies with config for host %s", hostUUID)
+			}
+
+			singleHost := map[string]string{hostUUID: hostUUIDToPolicyID[hostUUID]}
+			policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, singleHost)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "add app to android policy for host %s", hostUUID)
+			}
+
+			if appConfigChanged {
+				for uuid, policyRequest := range policyRequestsByHost {
+					if err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, uuid, applicationID, policyRequest.PolicyVersion.V); err != nil {
+						return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", uuid, applicationID)
+					}
+				}
+			}
+		}
+	} else {
+		appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, configByAppID, "AVAILABLE")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building application policies with config")
+		}
+
+		policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hostUUIDToPolicyID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		}
+
+		if appConfigChanged {
+			for hostUUID, policyRequest := range policyRequestsByHost {
+				if err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V); err != nil {
+					return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
+				}
 			}
 		}
 	}
 
 	return nil
+}
+
+func queueMakeAndroidAppAvailableBatch(ctx context.Context, ds fleet.Datastore, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, appConfigChanged bool, delay time.Duration) error {
+	args := &softwareWorkerArgs{
+		Task:               makeAndroidAppAvailableBatchTask,
+		ApplicationID:      applicationID,
+		AppTeamID:          appTeamID,
+		HostUUIDToPolicyID: hostUUIDToPolicyID,
+		EnterpriseName:     enterpriseName,
+		AppConfigChanged:   appConfigChanged,
+	}
+	_, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
+	return err
 }
 
 // this is called when an app is removed from Fleet.
@@ -267,6 +360,11 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
+	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+	}
+
 	appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
@@ -281,7 +379,8 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 }
 
 func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
-	hostUUID string, hostEnrollTeamID uint, enterpriseName string) error {
+	hostUUID string, hostEnrollTeamID uint, enterpriseName string,
+) error {
 	host, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
@@ -323,6 +422,11 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, hostEnrollTeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+		}
+
+		configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(host))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
 		}
 
 		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "PREINSTALLED")
@@ -377,6 +481,11 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
+	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(host))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+	}
+
 	appPolicies, err := buildApplicationPolicyWithConfig(ctx, applicationIDs, configsByAppID, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
@@ -400,8 +509,8 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 }
 
 func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
-	configsByAppID map[string]json.RawMessage, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
-
+	configsByAppID map[string][]byte, installType string,
+) ([]*androidmanagement.ApplicationPolicy, error) {
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
 		var androidAppConfig struct {
@@ -429,9 +538,48 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 	return appPolicies, nil
 }
 
-func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
-	hostUUID string, hostEnrollTeamID *uint, enterpriseName string) error {
+func (v *SoftwareWorker) substituteFleetVarsInConfigs(
+	ctx context.Context,
+	configsByAppID map[string][]byte,
+	host profiles.AndroidAppConfigSubstitutionHost,
+) (map[string][]byte, error) {
+	if len(configsByAppID) == 0 {
+		return configsByAppID, nil
+	}
 
+	hasVars := false
+	for _, cfg := range configsByAppID {
+		if variables.ContainsBytes(cfg) {
+			hasVars = true
+			break
+		}
+	}
+	if !hasVars {
+		return configsByAppID, nil
+	}
+
+	result := make(map[string][]byte, len(configsByAppID))
+	for appID, cfg := range configsByAppID {
+		substituted, err := profiles.SubstituteFleetVarsInAndroidAppConfig(ctx, v.Datastore, cfg, host)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", appID)
+		}
+		result[appID] = substituted
+	}
+	return result, nil
+}
+
+func androidHostToSubstitutionHost(h *fleet.AndroidHost) profiles.AndroidAppConfigSubstitutionHost {
+	return profiles.AndroidAppConfigSubstitutionHost{
+		UUID:           h.Host.UUID,
+		HardwareSerial: h.Host.HardwareSerial,
+		Platform:       h.Host.Platform,
+	}
+}
+
+func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
+	hostUUID string, hostEnrollTeamID *uint, enterpriseName string,
+) error {
 	var enrollTeamID uint
 	if hostEnrollTeamID != nil {
 		enrollTeamID = *hostEnrollTeamID
@@ -470,7 +618,34 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 	return nil
 }
 
-func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string) error {
+func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string, batchSize int) error {
+	if batchSize <= 0 || len(hostsUUIDToPolicyID) <= batchSize {
+		return queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, hostsUUIDToPolicyID, enterpriseName, 0)
+	}
+
+	batch := make(map[string]string, batchSize)
+	batchIdx := 0
+	for uuid, policyID := range hostsUUIDToPolicyID {
+		batch[uuid] = policyID
+		if len(batch) >= batchSize {
+			delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+			if err := queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, batch, enterpriseName, delay); err != nil {
+				return err
+			}
+			batch = make(map[string]string, batchSize)
+			batchIdx++
+		}
+	}
+	if len(batch) > 0 {
+		delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+		if err := queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, batch, enterpriseName, delay); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func queueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string, delay time.Duration) error {
 	args := &softwareWorkerArgs{
 		Task:               makeAndroidAppUnavailableTask,
 		ApplicationID:      applicationID,
@@ -478,12 +653,12 @@ func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, 
 		EnterpriseName:     enterpriseName,
 	}
 
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	job, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task, "delay", delay, "hosts", len(hostsUUIDToPolicyID))
 	return nil
 }
 
@@ -496,7 +671,6 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 	applicationIDs []string,
 	enterpriseName string,
 ) error {
-
 	args := &softwareWorkerArgs{
 		Task:           bulkSetAndroidAppsAvailableForHostTask,
 		HostUUID:       hostUUID,
@@ -546,6 +720,11 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}
 
+		configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+		}
+
 		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building application policies with config")
@@ -560,7 +739,6 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		}
 
 		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{uuid: uuid})
-
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
 		}
@@ -568,27 +746,88 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 	}
 
 	return nil
-
 }
+
+const (
+	androidSoftwareInstallStaggerInterval = 60 * time.Second
+	defaultAndroidBatchSize               = 100
+)
 
 func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	uuidsToIDs map[string]uint,
-	enterpriseName string) error {
+	enterpriseName string,
+	batchSize int,
+) error {
+	if batchSize <= 0 || len(uuidsToIDs) <= batchSize {
+		// No batching needed.
+		return queueBulkSetAndroidAppsAvailableForHostsJob(ctx, ds, logger, uuidsToIDs, enterpriseName, 0)
+	}
 
+	// Chunk the host map into batches and stagger with not_before.
+	batch := make(map[string]uint, batchSize)
+	batchIdx := 0
+	for uuid, id := range uuidsToIDs {
+		batch[uuid] = id
+		if len(batch) >= batchSize {
+			delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+			if err := queueBulkSetAndroidAppsAvailableForHostsJob(ctx, ds, logger, batch, enterpriseName, delay); err != nil {
+				return err
+			}
+			batch = make(map[string]uint, batchSize)
+			batchIdx++
+		}
+	}
+	// Queue remaining hosts.
+	if len(batch) > 0 {
+		delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+		if err := queueBulkSetAndroidAppsAvailableForHostsJob(ctx, ds, logger, batch, enterpriseName, delay); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func queueBulkSetAndroidAppsAvailableForHostsJob(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	uuidsToIDs map[string]uint,
+	enterpriseName string,
+	delay time.Duration,
+) error {
 	args := &softwareWorkerArgs{
 		Task:           bulkSetAndroidAppsAvailableForHostsTask,
 		UUIDsToIDs:     uuidsToIDs,
 		EnterpriseName: enterpriseName,
 	}
 
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	job, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task, "delay", delay, "hosts", len(uuidsToIDs))
 	return nil
+}
+
+func splitHostMap(hosts map[string]string, batchSize int) []map[string]string {
+	if batchSize <= 0 || len(hosts) <= batchSize {
+		return []map[string]string{hosts}
+	}
+	var batches []map[string]string
+	batch := make(map[string]string, batchSize)
+	for k, v := range hosts {
+		batch[k] = v
+		if len(batch) >= batchSize {
+			batches = append(batches, batch)
+			batch = make(map[string]string, batchSize)
+		}
+	}
+	if len(batch) > 0 {
+		batches = append(batches, batch)
+	}
+	return batches
 }

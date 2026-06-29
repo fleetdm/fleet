@@ -155,6 +155,7 @@ $max-width: 2560px;
 
   &:hover {
     color: $ui-fleet-black-75-over;
+    cursor: pointer;
   }
 
   &:focus-visible {
@@ -193,15 +194,28 @@ $max-width: 2560px;
   max-width: $max-width;
 }
 
-@mixin copy-message {
-  font-weight: $regular;
-  font-size: $x-small;
-  vertical-align: top;
-  background-color: $ui-light-grey;
-  border: solid 1px #e2e4ea;
-  border-radius: 10px;
-  padding: 2px 6px;
-  margin: -4px 0;
+@mixin bordered-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $border-radius;
+  background-color: $core-fleet-white;
+  cursor: pointer;
+  padding: 0;
+  color: $core-fleet-black;
+  transition: border-color 100ms;
+
+  &:hover:not(:disabled) {
+    border-color: $ui-fleet-black-75-over;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $ui-fleet-black-75-down;
+    outline-offset: 1px;
+  }
 }
 
 @mixin color-contrasted-sections {
@@ -220,7 +234,7 @@ $max-width: 2560px;
   width: max-content;
   max-width: 360px;
   padding: 6px;
-  color: $core-fleet-white;
+  color: $static-white;
   background-color: $tooltip-bg;
   font-weight: $regular;
   font-size: $xx-small;
@@ -419,8 +433,8 @@ $max-width: 2560px;
   // TODO: find a way to calculate these sticky positions this and use variables.
   //  will be tedious to update otherwise.
   top: 217px;
-  width: 260px;
-  padding: 0 64px 0 0;
+  width: clamp(200px, 25vw, 260px);
+  padding: 0 clamp(48px, 6.25vw, 64px) 0 0;
   list-style: none;
   font-size: $x-small;
   display: flex;
@@ -491,7 +505,7 @@ $max-width: 2560px;
     display: block;
     position: absolute;
     left: 0;
-    bottom: -1px;
+    bottom: 0;
     height: 1px;
     width: 100%;
     background: $inactive-color;
@@ -508,7 +522,7 @@ $max-width: 2560px;
     display: block;
     position: absolute;
     left: 0;
-    bottom: -1px;
+    bottom: 0;
     height: 1px;
     width: 100%;
     background: $active-color;
@@ -525,11 +539,6 @@ $max-width: 2560px;
   $inactive-color: $ui-fleet-black-25
 ) {
   position: relative;
-  margin-bottom: -1px;
-
-  &:hover {
-    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
-  }
 
   @include bottom-border($active-color, $inactive-color);
 
@@ -540,8 +549,8 @@ $max-width: 2560px;
 }
 
 @mixin gradient-background {
-  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-image: linear-gradient(180deg, $gradient-background 0%, $core-fleet-white 100%);
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
-  background-color: #fff; // area below gradient will just be white
+  background-color: $core-fleet-white; // area below gradient — transitionable
 }

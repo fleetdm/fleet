@@ -1,0 +1,26 @@
+<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
+<h2>New partner registration</h2>
+
+<div style="margin-bottom: 48px">
+  <h3>Submitter information</h3>
+  <p style="margin-bottom: 25px;"><strong>Name:</strong> <%= submittersFirstName %> <%= submittersLastName %></p>
+  <p style="margin-bottom: 25px;"><strong>Email address:</strong> <%= submittersEmailAddress %></p>
+  <p style="margin-bottom: 25px;"><strong>Organization:</strong> <%= submittersOrganization %></p>
+  <p style="margin-bottom: 25px;"><strong>Website:</strong> <%= partnerWebsite %></p>
+  <p style="margin-bottom: 25px;"><strong>Country:</strong> <%= partnerCountry %></p>
+</div>
+<hr>
+
+<div style="margin-bottom: 48px">
+  <h3>Partnership information</h3>
+  <p style="margin-bottom: 25px;"><strong>Goal:</strong> <%= goal %></p>
+  <%if(partnerType === 'reseller') {%>
+    <p style="margin-bottom: 25px;"><strong>Approx. endpoints managed:</strong> <%= numberOfHosts %></p>
+    <p style="margin-bottom: 25px;"><strong>Services offered</strong> <%- servicesOffered %></p>
+  <% } else {%>
+    <p style="margin-bottom: 25px;"><strong>Services category</strong> <%= servicesCategory %></p>
+  <% }%>
+  <p style="margin-bottom: 25px;"><strong>Notes:</strong> <%= notes %></p>
+
+</div>
+

@@ -46,3 +46,4 @@ To create a new ADR:
 - [ADR-0006: Replace "No Team" with real default team](0006-replace-no-team-with-default-team.md)
 - [ADR-0007: Pilot activity bounded context](0007-pilot-activity-bounded-context.md)
 - [ADR-0008: Migrate from go-kit/log to slog](0008-migrate-to-slog.md)
+- [ADR-0009: Attribute naming conventions for logs, traces, and metrics](0009-otel-attribute-naming-conventions.md)

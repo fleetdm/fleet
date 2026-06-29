@@ -1,6 +1,4 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
 
 import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
@@ -13,10 +11,14 @@ import {
   ProfilePlatform,
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
-import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
+import {
+  IHostMdmProfileWithAddedStatus,
+  OsSettingsTableStatusValue,
+} from "../OSSettingsTableConfig";
 import TooltipContent from "./components/Tooltip/TooltipContent";
+import generateErrorTooltip from "./errorTooltipHelpers";
 import {
   isDiskEncryptionProfile,
   LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG,
@@ -36,6 +38,7 @@ interface IOSSettingStatusCellProps {
   profileName: string;
   hostPlatform?: ProfilePlatform;
   profileUUID?: string;
+  profile?: IHostMdmProfileWithAddedStatus;
 }
 
 const OSSettingStatusCell = ({
@@ -44,6 +47,7 @@ const OSSettingStatusCell = ({
   profileName = "",
   hostPlatform,
   profileUUID,
+  profile,
 }: IOSSettingStatusCellProps) => {
   let displayOption: ProfileDisplayOption = null;
   if (hostPlatform === "linux") {
@@ -67,14 +71,14 @@ const OSSettingStatusCell = ({
       case "delivered":
         if (operationType === "install") {
           displayOption = {
-            statusText: "Enforcing (pending)",
+            statusText: "Enforcing",
             iconName: "pending-outline",
             tooltip:
               "The host is running the command to apply settings or will run it when the host comes online.",
           };
         } else {
           displayOption = {
-            statusText: "Removing enforcement (pending)",
+            statusText: "Removing enforcement",
             iconName: "pending-outline",
             tooltip:
               "The host is running the command to remove settings or will run it when the host comes online.",
@@ -122,46 +126,62 @@ const OSSettingStatusCell = ({
 
   if (displayOption) {
     const { statusText, iconName, tooltip } = displayOption;
-    const tooltipId = uniqueId();
+
+    // For failed status, use the error detail as tooltip content
+    const errorTooltip = profile ? generateErrorTooltip(profile) : null;
+    // For pending profiles, prefer a backend-provided detail message (e.g.
+    // Android Wi-Fi profiles waiting for their certificate) over the generic
+    // "Enforcing" tooltip.
+    const pendingDetailTooltip =
+      profile?.status === "pending" && profile.detail ? profile.detail : null;
+
+    let tipContent: React.ReactNode;
+    if (pendingDetailTooltip) {
+      tipContent = (
+        <span className="tooltip__tooltip-text">{pendingDetailTooltip}</span>
+      );
+    } else if (tooltip) {
+      if (status !== "action_required") {
+        tipContent = (
+          <span className="tooltip__tooltip-text">
+            <TooltipContent
+              innerContent={tooltip}
+              innerProps={{
+                isDiskEncryptionProfile: isDiskEncryptionProfile(profileName),
+              }}
+            />
+          </span>
+        );
+      } else {
+        tipContent = (
+          <span className="tooltip__tooltip-text">
+            <TooltipContent
+              innerContent={tooltip}
+              innerProps={{ isDeviceUser, profileName }}
+            />
+          </span>
+        );
+      }
+    } else if (errorTooltip) {
+      tipContent = (
+        <span className="tooltip__tooltip-text">{errorTooltip}</span>
+      );
+    }
+
     return (
       <span className={baseClass}>
         <Icon name={iconName} />
-        {tooltip ? (
-          <>
-            <span
-              className={`${baseClass}__status-text`}
-              data-tip
-              data-for={tooltipId}
-              data-tip-disable={false}
-            >
-              {statusText}
-            </span>
-            <ReactTooltip
-              place="top"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={tooltipId}
-              data-html
-            >
-              <span className="tooltip__tooltip-text">
-                {status !== "action_required" ? (
-                  <TooltipContent
-                    innerContent={tooltip}
-                    innerProps={{
-                      isDiskEncryptionProfile: isDiskEncryptionProfile(
-                        profileName
-                      ),
-                    }}
-                  />
-                ) : (
-                  <TooltipContent
-                    innerContent={tooltip}
-                    innerProps={{ isDeviceUser, profileName }}
-                  />
-                )}
-              </span>
-            </ReactTooltip>
-          </>
+        {tipContent ? (
+          <TooltipWrapper
+            tipContent={tipContent}
+            position="top"
+            underline={false}
+            showArrow
+            tipOffset={8}
+            clickable
+          >
+            <span className={`${baseClass}__status-text`}>{statusText}</span>
+          </TooltipWrapper>
         ) : (
           <span className={`${baseClass}__status-text`}>{statusText}</span>
         )}

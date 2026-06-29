@@ -4,10 +4,25 @@ import (
 	_ "embed"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 //go:embed scripts/install_pkg.sh
 var installPkgScript string
+
+//go:embed scripts/install_pkg_fleetd.sh
+var InstallPkgFleetdScript string
+
+// IsFleetdPkg returns true if the given package IDs indicate this is a
+// fleet-osquery (fleetd/orbit) package.
+func IsFleetdPkg(packageIDs []string) bool {
+	for _, id := range packageIDs {
+		if strings.HasPrefix(id, "com.fleetdm.orbit") {
+			return true
+		}
+	}
+	return false
+}
 
 //go:embed scripts/install_msi.ps1
 var installMsiScript string

@@ -58,44 +58,80 @@ All CIS policies are stored under our restricted licensed folder `ee/cis/`. To e
 #!/bin/bash
 #shellcheck disable=SC2207
 
+# convert.cis.policy.queries.yml @2025 Fleet Device Management
 
-# convert.cis.policy.queries.yml @2024 Fleet Device Management
+# if using fleetctl - fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 
-
-# CIS queries as written here:
-#    https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/cis-policy-queries.yml
-# must be converted to be uploaded via Fleet GitOps.
-#
 # This script takes as input the YAML from the file linked above & creates a new YAML array compatible with the "Separate file" format documented here:
 #    https://fleetdm.com/docs/configuration/yaml-files#separate-file
 
+# Usage: ./gitopsconverter.sh -f <source_yaml_file>
+# Example: ./gitopsconverter.sh -f ../lib/l1_win11_intune.yaml
 
-# get CIS queries raw file from Fleet repo
-cisfile='https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml'
-cispath='/private/tmp/cis.yml'
-# cisspfl='/private/tmp/cis.gitops.yml'
+usage() {
+    echo "Usage: $0 -f <source_yaml_file>"
+    echo "Example: $0 -f ../lib/l1_win11_intune.yaml"
+    exit 1
+}
 
-/usr/bin/curl -X GET -LSs "$cisfile" -o "$cispath"
+cispath=""
 
-
-# create CIS benchmark array
-IFS=$'\n'
-cisarry=($(/opt/homebrew/bin/yq '.spec.name' "$cispath" | /usr/bin/grep -v '\-\-\-'))
-
-for i in "${cisarry[@]}"
-do
-	cisname="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval '.name')"
-	cispfrm="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval '.platform')"
-	cisdscr="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.description')"
-	cisrslt="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.resolution')"
-	cisqrry="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.query')" 
-
-	printf "name: %s\nplatform: %s\ndescription: |\n%s\nresolution: |\n%s\nquery: |\n%s\n" "$cisname" "$cispfrm" "$cisdscr" "$cisrslt" "$cisqrry" | /usr/bin/sed 's/^/    /g;s/^[[:space:]]*name:/- name:/;s/^[[:space:]]*platform:/  platform:/;s/^[[:space:]]*description:/  description:/;s/^[[:space:]]*resolution:/  resolution:/;s/^[[:space:]]*query:/  query:/'
-
-# set -x
-# trap read debug
-
+while getopts "f:" opt; do
+    case $opt in
+        f)
+            cispath="$OPTARG"
+            ;;
+        *)
+            usage
+            ;;
+    esac
 done
+
+# Check if source file argument is provided
+if [ -z "$cispath" ]; then
+    usage
+fi
+
+# Check if source file exists
+if [ ! -f "$cispath" ]; then
+    echo "Error: Source file '$cispath' not found"
+    exit 1
+fi
+
+# Set up output directory and file
+outputdir='../gitops'
+filename="$(basename "$cispath")"
+outputfile="${outputdir}/${filename}"
+
+# Create output directory if it doesn't exist
+mkdir -p "$outputdir"
+
+# Clear/create the output file
+> "$outputfile"
+
+echo "Converting: $cispath -> $outputfile"
+
+# Use yq to transform multi-document YAML to a proper array format
+# This extracts only the fields needed for GitOps and outputs as a valid YAML array
+# Trim whitespace from all fields
+# Extract critical value from tags field (e.g., "critical:true" -> true)
+# Fields based on Fleet GitOps documentation: https://fleetdm.com/docs/configuration/yaml-files#separate-file
+# Filter out any documents without a spec.name (empty documents)
+# Handle null/missing fields by providing defaults before trimming
+/opt/homebrew/bin/yq eval-all '
+  [select(.spec.name != null and .spec.name != "") | .spec | {
+    "name": ((.name // "") | sub("\n$", "")),
+    "description": ((.description // "") | sub("\n$", "")),
+    "resolution": ((.resolution // "") | sub("\n$", "")),
+    "query": ((.query // "") | sub("\n$", "")),
+    "platform": ((.platform // "") | sub("\n$", "")),
+    "critical": ((.tags // "") | test("critical:true")),
+    "calendar_events_enabled": false,
+    "tags": ((.tags // "") | sub("\n$", ""))
+  }]
+' "$cispath" | /opt/homebrew/bin/yq eval '.[] | [.]' - | /opt/homebrew/bin/yq eval-all '. as $item ireduce ([]; . + $item)' - > "$outputfile"
+
+echo "Done. Output written to: $outputfile"
 ```
 
 3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.

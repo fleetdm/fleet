@@ -1,0 +1,2755 @@
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Apple-provided Software Updates Are Installed (Fleetd Required)
+  cis_id: "1.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.
+  resolution: |
+    Graphical Method:
+    Perform the following to install all available software updates:
+      1. Open System Settings
+      2. Select General
+      3. Select Software Update
+      4. Select Update All
+
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/softwareupdate -i -a
+  query: SELECT 1 FROM software_update WHERE software_update_required = '0';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Download New Updates When Available Is Enabled (MDM Required)
+  cis_id: "1.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    In the GUI, both "Install macOS updates" and "Install app updates from the App Store" are dependent on whether "Download new updates when available" is selected.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Software Update
+      4. Select the i
+      5. Set Download new updates when available to enabled
+      6. Select Done
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.SoftwareUpdate
+      - Key: AutomaticDownload
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='AutomaticDownload' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='AutomaticDownload' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)
+  cis_id: "1.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Ensure that macOS updates are installed after they are available from Apple. This setting enables macOS updates to be automatically installed. Some environments will want to approve and test updates before they are delivered. It is best practice to test first where updates can and have caused disruptions to operations. Automatic updates should be turned off where changes are tightly controlled and there are mature testing and approval processes. Automatic updates should not be turned off simply to allow the administrator to contact users in order to verify installation. A dependable, repeatable process involving a patch agent or remote management tool should be in place before auto-updates are turned off.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Software Update
+      4. Select the i
+      5. Set Install macOS updates to enabled
+      6. Select Done
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.SoftwareUpdate
+      - Key: AutomaticallyInstallMacOSUpdates
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='AutomaticallyInstallMacOSUpdates' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='AutomaticallyInstallMacOSUpdates' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Install Application Updates from the App Store Is Enabled (MDM Required)
+  cis_id: "1.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Ensure that application updates are installed after they are available from Apple. These updates do not require reboots or administrator privileges for end users.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Software Update
+      4. Select the i
+      5. Set Install application updates from the App Store to enabled
+      6. Select Done
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.SoftwareUpdate
+      - Key: AutomaticallyInstallAppUpdates
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='AutomaticallyInstallAppUpdates' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='AutomaticallyInstallAppUpdates' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
+  cis_id: "1.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Ensure that system and security updates are installed after they are available from Apple. This setting enables definition updates for XProtect and Gatekeeper. With this setting in place, new malware and adware that Apple has added to the list of malware or untrusted software will not execute. These updates do not require reboots or end user admin rights.
+
+    Apple has introduced a security feature that allows for smaller downloads and the installation of security updates when a reboot is not required. This feature is only available when the last regular update has already been applied. This feature emphasizes that a Mac must be up-to-date on patches so that Apple's security tools can be used to quickly patch when a rapid response is necessary.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Software Update
+      4. Select the i
+      5. Set Install Security Responses and System files to enabled
+      6. Select Done
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.SoftwareUpdate
+      - Key: ConfigDataInstall, Value: <true/>
+      - Key: CriticalUpdateInstall, Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='ConfigDataInstall' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='ConfigDataInstall' AND
+          (value != 1 AND value != 'true')
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='CriticalUpdateInstall' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.SoftwareUpdate' AND
+          name='CriticalUpdateInstall' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days (MDM Required)
+  cis_id: "1.6"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides the capability to manage software updates on Apple devices through mobile device management. Part of those capabilities permit organizations to defer software updates and allow for testing. Many organizations have specialized software and configurations that may be negatively impacted by Apple updates. If software updates are deferred, they should not be deferred for more than 30 days. This control only verifies that deferred software updates are not deferred for more than 30 days.
+
+    Note: Software deferment is deprecated by Apple and will be removed in a future OS release/update.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: enforcedSoftwareUpdateDelay, Value: <integer> 1-30
+      - Key: forceDelayedSoftwareUpdates, Value: <true/>
+
+    If your organization does not use a software deferment configuration profile, the audit passes by default (no deferment is in effect).
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain='com.apple.applicationaccess' AND
+        name='enforcedSoftwareUpdateDelay' AND
+        CAST(value AS INTEGER) > 30
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Screen Sharing Is Disabled
+  cis_id: "2.3.3.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Screen Sharing allows a computer to connect to another computer on a network and display the computer's screen. While sharing the computer's screen, the user can control what happens on that computer, such as opening documents or applications, opening, moving, or closing windows, and even shutting down the computer.
+
+    Screen Sharing on macOS can allow the use of the insecure VNC protocol. VNC is a clear text protocol that should not be used on macOS.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Screen Sharing to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /bin/launchctl disable system/com.apple.screensharing
+      /usr/bin/sudo /bin/launchctl bootout system/com.apple.screensharing
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM launchd WHERE label = 'com.apple.screensharing'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure File Sharing Is Disabled
+  cis_id: "2.3.3.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    File sharing from a user workstation creates additional risks, such as open ports that can be probed and attacked, passwords attached to user accounts that may be exposed, and increased complexity that may expose additional attack vectors.
+
+    Apple's File Sharing uses the Server Message Block (SMB) protocol to share to other computers that can mount SMB shares.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set File Sharing to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /bin/launchctl disable system/com.apple.smbd
+      /usr/bin/sudo /bin/launchctl bootout system/com.apple.smbd
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM launchd WHERE label = 'com.apple.smbd'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Printer Sharing Is Disabled
+  cis_id: "2.3.3.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    By enabling Printer Sharing, the computer is set up as a print server to accept print jobs from other computers. Dedicated print servers or direct IP printing should be used instead.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Printer Sharing to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/cupsctl --no-share-printers
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM listening_ports
+      WHERE port = 631
+        AND address NOT IN ('127.0.0.1', '::1', '')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Remote Login Is Disabled
+  cis_id: "2.3.3.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Login allows an interactive terminal connection to a computer. Disabling Remote Login mitigates the risk of an unauthorized person gaining access to the system via Secure Shell (SSH). While SSH is an industry standard to connect to POSIX servers, the scope of the benchmark is for Apple macOS clients, not servers.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Remote Login to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/systemsetup -setremotelogin off
+      (confirm with "yes" when prompted)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM launchd WHERE label = 'com.openssh.sshd'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Remote Management Is Disabled
+  cis_id: "2.3.3.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Management is the client portion of Apple Remote Desktop (ARD). Remote Management can be used by remote administrators to view the current screen, install software, report on, and generally manage client Macs.
+
+    Remote Management should only be enabled when a Directory is in place to manage the accounts with access. Computers will be available on port 5900 on a macOS System and could accept connections from untrusted hosts depending on the configuration, which is a major concern for mobile systems.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Remote Management to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -deactivate -stop
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM processes WHERE name = 'ARDAgent'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Remote Apple Events Is Disabled
+  cis_id: "2.3.3.6"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Events is a technology that allows one program to communicate with other programs. Remote Apple Events allows a program on one computer to communicate with a program on a different computer.
+
+    Disabling Remote Apple Events mitigates the risk of an unauthorized program gaining access to the system.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Remote Apple Events to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/systemsetup -setremoteappleevents off
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM launchd WHERE label = 'com.apple.AEServer'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Internet Sharing Is Disabled
+  cis_id: "2.3.3.7"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Internet Sharing uses the open source natd process to share an internet connection with other computers and devices on a local network. This allows the Mac to function as a router and share the connection to other, possibly unauthorized, devices.
+
+    Disabling Internet Sharing reduces the remote attack surface of the system.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Internet Sharing to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/SystemConfiguration/com.apple.nat NAT -dict Enabled -int 0
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.MCX
+      - Key: forceInternetSharingOff, Value: <true/>
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist
+      WHERE path = '/Library/Preferences/SystemConfiguration/com.apple.nat'
+        AND key = 'Enabled'
+        AND value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Content Caching Is Disabled (MDM Required)
+  cis_id: "2.3.3.8"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Starting with macOS 10.13, Apple introduced a service to make it easier to deploy data from Apple, including software updates, where there are bandwidth constraints to the Internet and fewer constraints or greater bandwidth exist on the local subnet.
+
+    The main use case for Mac computers is as mobile user endpoints. P2P sharing services should not be enabled on laptops that are using untrusted networks. Content Caching can allow a computer to be a server for local nodes on an untrusted network. Unless there is a business requirement to manage operational Internet connectivity and bandwidth, user endpoints should not store content and act as a cluster to provision data.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowContentCaching, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowContentCaching' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowContentCaching' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Media Sharing Is Disabled (MDM Required)
+  cis_id: "2.3.3.9"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Starting with macOS 10.15, Apple has provided a control which permits a user to share Apple downloaded content on all Apple devices that are signed in with the same Apple Account. With this capability, guest users can also use media downloaded on the computer.
+
+    Disabling Media Sharing reduces the remote attack surface of the system.
+
+    Note: Since the profile method sets a system-wide setting, the individual user audit and/or remediation has been removed. To be compliant, a profile must be installed for this recommendation.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowMediaSharing, Value: <false/>
+      - Key: allowMediaSharingModification, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowMediaSharing' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowMediaSharing' AND
+          (value != 0 AND value != 'false')
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowMediaSharingModification' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowMediaSharingModification' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Bluetooth Sharing Is Disabled
+  cis_id: "2.3.3.10"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices. This setting only disables the receiving of files and requires both devices to be paired through Bluetooth as well as accepted by the receiver. This setting does not disable the ability to send files from the device to another paired Bluetooth device.
+
+    Users should only pair to known trusted Bluetooth devices. Disabling Bluetooth Sharing minimizes the risk of an attacker using Bluetooth to remotely attack the system.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Bluetooth Sharing to disabled
+
+    Terminal Method (per user):
+      /usr/bin/sudo -u <username> /usr/bin/defaults -currentHost write com.apple.Bluetooth PrefKeyServicesEnabled -bool false
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM preferences
+      WHERE domain = 'com.apple.Bluetooth'
+        AND key = 'PrefKeyServicesEnabled'
+        AND value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure AirDrop Is Disabled When Not Actively Transferring Files (MDM Required)
+  cis_id: "2.3.1.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    AirDrop is Apple's built-in, on-demand, ad hoc file exchange system that is compatible with both macOS and iOS. It uses Bluetooth LE for discovery that limits connectivity to Mac or iOS users that are in close proximity. Depending on the setting, it allows everyone or only Contacts to share files when they are near each other.
+
+    While there are positives to AirDrop, there are privacy concerns that could expose personal information. For that reason, AirDrop should be disabled, and should only be enabled when needed and disabled afterwards.
+
+    Note: AirDrop can only be enabled or disabled through configuration profiles. If your organization wants to use AirDrop, it would need to be set through Terminal or the GUI.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowAirDrop, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowAirDrop' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowAirDrop' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure AirPlay Receiver Is Disabled (MDM Required)
+  cis_id: "2.3.1.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS Monterey (12.0), Apple has added the capability to share content from another Apple device to the screen of a host Mac. While there are many valuable uses of this capability, such sharing on a standard Mac user workstation should be enabled ad hoc as required rather than allowing a continuous sharing service. The feature can be restricted by Apple Account or network and is configured to use by accepting the connection on the Mac. Part of the concern is frequent connection requests may function as a denial-of-service and access control limits may provide too much information to an attacker.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowAirPlayIncomingRequests, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowAirPlayIncomingRequests' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowAirPlayIncomingRequests' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Set Time and Date Automatically Is Enabled
+  cis_id: "2.3.2.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Correct date and time settings are required for authentication protocols, file creation, modification dates, and log entries.
+
+    Kerberos may not operate correctly if the time on the Mac is off by more than 5 minutes. This in turn can affect Apple's single sign-on feature, Active Directory logons, and other features.
+
+    Note: The default Apple time server is time.apple.com. If your organization has internal time servers, configure them instead.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Date & Time
+      4. Set Set time and date automatically to enabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/systemsetup -setnetworktimeserver time.apple.com
+      /usr/bin/sudo /usr/sbin/systemsetup -setusingnetworktime on
+  query: |
+    SELECT 1 FROM file
+    WHERE path = '/private/etc/ntp.conf'
+      AND size > 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Time Service Is Enabled
+  cis_id: "2.3.2.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS 10.14, Apple replaced ntp with timed for time services. Correct date and time settings are required for authentication protocols, file creation, modification dates, and log entries.
+
+    Kerberos may not operate correctly if the time on the Mac is off by more than 5 minutes. This in turn can affect Apple's single sign-on feature, Active Directory logons, and other features.
+  resolution: |
+    If the timed service has been disabled, CIS recommends backing up any files and doing a clean install of a known good operating system. For recovery in test environments:
+      /usr/bin/sudo /bin/launchctl enable system/com.apple.timed
+      /usr/bin/sudo /bin/launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.timed.plist
+  query: |
+    SELECT 1 FROM launchd WHERE label = 'com.apple.timed';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Backup Automatically Is Enabled If Time Machine Is Enabled (MDM Required)
+  cis_id: "2.3.4.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Backup solutions are only effective if the backups run on a regular basis. In order to simplify the user experience so that backups are more likely to occur, Time Machine should be on and set to Back Up Automatically whenever the target volume is available.
+
+    Operational staff should ensure that backups complete on a regular basis and the backups are tested to ensure that file restoration from backup is possible when needed.
+
+    Note: This recommendation needs to be set on devices where Time Machine is enabled. If Time Machine is disabled, the audit is passed by default.
+
+    Note: In previous versions of the benchmark, the plist could be set in Terminal. In macOS 15 Sequoia that plist is now protected and cannot be written to, so the command-line remediation has been removed. Both the profile method and graphical method still configure Time Machine to the required state.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Time Machine
+      4. Select Options...
+      5. Set Back up frequency to Automatically <every hour/every day/every week>
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.MCX.TimeMachine
+      - Key: AutoBackup, Value: <true/>
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist
+      WHERE path = '/Library/Preferences/com.apple.TimeMachine.plist'
+        AND key = 'AutoBackup'
+        AND value = '0'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Time Machine Volumes Are Encrypted If Time Machine Is Enabled
+  cis_id: "2.3.4.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    One of the most important security tools for data protection on macOS is FileVault. With encryption in place, it makes it difficult for an outside party to access your data if they get physical possession of the computer. One very large weakness in data protection with FileVault is the level of protection on backup volumes. If the internal drive is encrypted but the external backup volume that goes home in the same laptop bag is not, it is self-defeating.
+
+    Note: This recommendation needs to be set on devices where Time Machine is enabled. If Time Machine is disabled, the audit is passed by default.
+
+    Note: Remediation is GUI-only — encrypted backup must be configured when setting up the Time Machine destination drive.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Time Machine
+      4. Select the unencrypted drive
+      5. Select - to forget that drive as a destination
+      6. Select + to add a different drive as the destination
+      7. Select Set Up Disk...
+      8. Set Encrypt Backup to enabled
+      9. Enter a password in the New Password and the same password in the Re-enter Password fields
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist
+      WHERE path = '/Library/Preferences/com.apple.TimeMachine.plist'
+        AND value = 'NotEncrypted'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure External Intelligence Extensions Is Disabled (MDM Required)
+  cis_id: "2.5.1.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The External Intelligence Extensions allows Apple Intelligence to interface with 3rd party generative AI tools. Apple's external intelligence extension represents a calculated risk. They are extending their on-device privacy and security model to the cloud with PCC (Private Cloud Compute), and then carefully integrating with a third-party AI like ChatGPT, emphasizing user consent, data minimization, and strong contractual obligations. However, the inherent nature of sending data to an external service means a degree of trust is placed on that third party's security posture and adherence to agreements. Sending data to an external service is additional risk that must be reviewed and accepted in an organizational security plan.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowExternalIntelligenceIntegrations, Value: <false/>
+      - Key: allowExternalIntelligenceIntegrationsSignIn, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowExternalIntelligenceIntegrations' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowExternalIntelligenceIntegrations' AND
+          (value != 0 AND value != 'false')
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowExternalIntelligenceIntegrationsSignIn' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowExternalIntelligenceIntegrationsSignIn' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Writing Tools Is Disabled (MDM Required)
+  cis_id: "2.5.1.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Intelligence Writing Tools are a suite of AI-powered features integrated across iOS, iPadOS, and macOS, enabling users to enhance their text by proofreading for errors, rewriting content to adjust tone or style, summarizing lengthy passages into concise forms, and even composing new text from scratch. While many of these functions process securely on-device, there is the possibility of leveraging Apple's private cloud infrastructure.
+
+    For individuals or organizations handling sensitive, confidential, or regulated data, the perceived risks of third-party exposure, potential for accidental data leakage, and compliance challenges often outweigh the convenience benefits. Disabling this feature is a rational and proactive security measure.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowWritingTools, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowWritingTools' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowWritingTools' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Mail Summarization Is Disabled (MDM Required)
+  cis_id: "2.5.1.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Intelligence's Mail summarization feature uses AI to quickly condense long emails or entire email threads into a few key sentences or bullet points. It automatically appears as a short summary under emails in your inbox, or you can manually tap a "Summarize" button within an open email.
+
+    If there's any concern that sensitive email content, even if for summarization, might potentially be routed to this third-party service (even with consent prompts), or if you want to avoid any possibility of Apple's servers processing data from highly confidential communications (even within PCC's strong safeguards), disabling the feature ensures your mail content is processed via approved organizational services and on managed devices.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowMailSummary, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowMailSummary' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowMailSummary' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Notes Summarization Is Disabled (MDM Required)
+  cis_id: "2.5.1.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Intelligence's Notes summarization feature quickly condenses content within the Notes app. This includes summarizing written text you've highlighted or, notably, automatically generating summaries from audio recordings taken directly within Notes, like lectures or meetings.
+
+    Disabling Notes summarization is wise for security if your audio recordings or notes contain very private or sensitive information. Turning this off ensures none of that sensitive content, especially from transcribed audio, ever leaves your device for any AI processing.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowNotesTranscription, Value: <false/>
+      - Key: allowNotesTranscriptionSummary, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowNotesTranscription' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowNotesTranscription' AND
+          (value != 0 AND value != 'false')
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowNotesTranscriptionSummary' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowNotesTranscriptionSummary' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri Is Disabled (MDM Required)
+  cis_id: "2.5.2.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, in cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled.
+
+    Siri is being disabled because the listen for "Siri" or "Hey Siri" feature cannot be disabled globally or even through a user specific plist. Due to this, there is no guarantee that Listen for is disabled and therefore the mic is live and capturing everything around it.
+
+    Note: Previously the benchmark would pass using the com.apple.ironwood.support profile payload. That is a deprecated payload and now com.apple.applicationaccess should be used.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowAssistant, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowAssistant' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain='com.apple.applicationaccess' AND
+          name='allowAssistant' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Firewall Is Enabled
+  cis_id: "2.2.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    A firewall is a piece of software that blocks unwanted incoming connections to a system. The socketfilter Firewall is what is used when the Firewall is turned on in the Security & Privacy Preference Pane. Logging is required to appropriately monitor what access is allowed and denied.
+
+    A firewall minimizes the threat of unauthorized users gaining access to your system while connected to a network or the Internet.
+
+    Note: Prior to macOS 15.0 Sequoia, there were additional steps to turn on firewall logging after enabling the firewall. As of macOS 15, logging is turned on automatically without user interaction.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Network
+      3. Select Firewall
+      4. Set Firewall to enabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.security.firewall
+      - Key: EnableFirewall, Value: <true/>
+      (must be in the same profile as EnableStealthMode — see 2.2.2)
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Firewall Stealth Mode Is Enabled
+  cis_id: "2.2.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    While in Stealth mode, the computer will not respond to unsolicited probes, dropping that traffic. Stealth mode on the firewall minimizes the threat of system discovery tools while connected to a network or the Internet.
+
+    This control aligns with the primary macOS use case of a laptop that is often connected to untrusted networks where host segregation may be non-existent.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Network
+      3. Select Firewall
+      4. Select Options...
+      5. Set Enable stealth mode to enabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.security.firewall
+      - Key: EnableStealthMode, Value: <true/>
+
+    Note: This key must be set in the same configuration profile as EnableFirewall (policy 2.2.1). Setting it in its own profile will fail.
+  query: SELECT 1 FROM alf WHERE stealth_enabled = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Location Services Is Enabled
+  cis_id: "2.6.1.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS uses location information gathered through local Wi-Fi networks to enable applications to supply relevant information to users. With the operating system verifying the location, users do not need to change the time or the time zone. The computer will change them based on the user's location. They do not need to specify their location for weather or travel times, and they will receive alerts on travel times to meetings and appointments where location information is supplied.
+
+    Location Services simplify some processes with mobile computers, such as asset management and time or log management.
+
+    There are some use cases where it is important that the computer not be able to report its exact location. While the general use case is to enable Location Services, it should not be allowed if the physical location of the computer and the user should not be public knowledge.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Privacy & Security
+      3. Select Location Services
+      4. Set Location Services to enabled
+
+    Terminal Method:
+      /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.locationd.plist
+      /usr/bin/sudo /usr/bin/defaults write /var/db/locationd/Library/Preferences/ByHost/com.apple.locationd LocationServicesEnabled -bool true
+      /usr/bin/sudo /usr/bin/killall locationd
+  query: SELECT 1 FROM location_services WHERE enabled = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Show Location Icon in Control Center when System Services Request Your Location' Is Enabled
+  cis_id: "2.6.1.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    This setting provides the user an understanding of the current status of Location Services and which applications are using it. Enabling the "Show location icon in the menu bar when System Services request your location" setting will show an arrow in the control center when a system service accesses the location.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Privacy & Security
+      3. Select Location Services
+      4. Select Details...
+      5. Set Show location icon in menu bar when System Services request your location to enabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.locationmenu.plist ShowSystemServices -bool true
+  query: SELECT 1 FROM plist WHERE path = '/Library/Preferences/com.apple.locationmenu.plist' AND key = 'ShowSystemServices' AND value = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Share Mac Analytics Is Disabled (MDM Required)
+  cis_id: "2.6.3.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Share Mac Analytics (Share with App Developers dependent on Mac Analytic sharing) includes diagnostics, usage, and location data. Turn off all Analytics and Improvements sharing. Organizations should have knowledge of what is shared with the vendor and that this setting automatically forwards information to Apple.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.SubmitDiagInfo
+      - Key: AutoSubmit
+      - Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.SubmitDiagInfo' AND
+          name = 'AutoSubmit' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.SubmitDiagInfo' AND
+          name = 'AutoSubmit' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Improve Siri & Dictation Is Disabled (MDM Required)
+  cis_id: "2.6.3.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Improve Siri & Dictation allows Apple to store and review audio of your Siri and dictation interactions from the device. Turn off all Analytics and Improvements sharing. Organizations should have knowledge of what is shared with the vendor and that this setting automatically forwards information to Apple.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.assistant.support
+      - Key: Siri Data Sharing Opt-In Status
+      - Value: <integer>2</integer>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.assistant.support' AND
+          name = 'Siri Data Sharing Opt-In Status' AND
+          CAST(value AS INTEGER) = 2 AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.assistant.support' AND
+          name = 'Siri Data Sharing Opt-In Status' AND
+          CAST(value AS INTEGER) != 2
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Improve Assistive Voice Features Is Disabled (MDM Required)
+  cis_id: "2.6.3.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Improve Assistive Voice shares audio recordings and transcripts of Vocal Shortcuts and Voice Control interactions anonymously to Apple. These are recordings and transcripts from the user that are being submitted which may include PII or restricted organizational information. Sharing this kind of information with any 3rd party, including the platform vendor, needs to be risk evaluated and only allowed after review and approval based on your organization's policies.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Accessibility
+      - Key: AXSAudioDonationSiriImprovementEnabled
+      - Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Accessibility' AND
+          name = 'AXSAudioDonationSiriImprovementEnabled' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Accessibility' AND
+          name = 'AXSAudioDonationSiriImprovementEnabled' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Share with app developers' Is Disabled (MDM Required)
+  cis_id: "2.6.3.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Share with app developers allows Apple to share crash and usage data with app developers. Turn off all Analytics and Improvements sharing. Organizations should have knowledge of what is shared with the vendor and that this setting automatically forwards information to Apple.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowDiagnosticSubmission
+      - Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'allowDiagnosticSubmission' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'allowDiagnosticSubmission' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Limit Ad Tracking Is Enabled (MDM Required)
+  cis_id: "2.6.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides a framework that allows advertisers to target Apple users and end-users with advertisements. While many people prefer to see advertising that is relevant to them and their interests, the detailed information that is collected, correlated, and available to advertisers in repositories via data mining is often disconcerting. This information is valuable to both advertisers and attackers, and has been used with other metadata to reveal users' identities.
+
+    Organizations should manage advertising settings on computers rather than allow users to configure the settings.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowApplePersonalizedAdvertising
+      - Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'allowApplePersonalizedAdvertising' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'allowApplePersonalizedAdvertising' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Gatekeeper Is Enabled
+  cis_id: "2.6.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Gatekeeper is Apple's application that utilizes allowlisting to restrict downloaded applications from launching. It functions as a control to limit applications from unverified sources from running without authorization. In an update to Gatekeeper in macOS 13 Ventura, Gatekeeper checks every application on every launch, not just quarantined apps.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Privacy & Security
+      3. Set 'Allow apps downloaded from' to 'App Store and identified developers'
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.systempolicy.control
+      - Key: AllowIdentifiedDevelopers, Value: <true/>
+      - Key: EnableAssessment, Value: <true/>
+
+    Note: In previous versions of macOS, Gatekeeper could be set using the spctl binary. That method has been removed in macOS 15 Sequoia. Both keys must be set in the same configuration profile.
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1 AND dev_id_enabled = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure FileVault Is Enabled (MDM Required)
+  cis_id: "2.6.6"
+  platforms: macOS
+  platform: darwin
+  description: |
+    FileVault secures a system's data by automatically encrypting its boot volume and requiring a password or recovery key to access it. FileVault should be used with a saved escrow key to ensure that the owner can decrypt their data if the password is lost. This policy checks that FileVault is enabled on the device and that the user is not allowed to disable it.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Security & Privacy
+      3. Select Turn On...
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.MCX
+      - Key: dontAllowFDEDisable
+      - Value: <true/>
+
+    Note: The profile is required to pass the audit. Enabling FileVault itself still requires user interaction at the device.
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.MCX' AND
+          name = 'dontAllowFDEDisable' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.MCX' AND
+          name = 'dontAllowFDEDisable' AND
+          (value != 1 AND value != 'true')
+      )
+      AND EXISTS (
+        SELECT 1 FROM disk_encryption WHERE
+          user_uuid IS NOT "" AND
+          filevault_status = 'on'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure an Administrator Password Is Required to Access System-Wide Preferences (Fleetd Required)
+  cis_id: "2.6.8"
+  platforms: macOS
+  platform: darwin
+  description: |
+    System Preferences controls system and user settings on a macOS Computer. System Preferences allows the user to tailor their experience on the computer as well as allowing the System Administrator to configure global security settings. Some of the settings should only be altered by the person responsible for the computer.
+
+    By requiring a password to unlock system-wide System Preferences, the risk of a user changing configurations that affect the entire system is mitigated and requires an admin user to re-authenticate to make changes.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Privacy & Security
+      3. Select Advanced
+      4. Set Require an administrator password to access system-wide settings to enabled
+
+    Terminal Method:
+    The authorizationdb settings are exported, modified, and re-imported for each relevant right. See the CIS benchmark for the full remediation script.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM authdb WHERE
+        right_name IN (
+          'system.preferences',
+          'system.preferences.energysaver',
+          'system.preferences.network',
+          'system.preferences.printing',
+          'system.preferences.sharing',
+          'system.preferences.softwareupdate',
+          'system.preferences.startupdisk',
+          'system.preferences.timemachine'
+        )
+        AND (
+          json_extract(json_result, '$.shared') != 0 OR
+          json_extract(json_result, '$.group') != 'admin' OR
+          json_extract(json_result, '$.authenticate-user') != 1 OR
+          json_extract(json_result, '$.session-owner') != 0
+        )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+  cis_id: "2.11.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. Setting an inactivity interval for the screen saver prevents unauthorized persons from viewing a system left unattended for an extensive period of time.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.screensaver
+      - Key: idleTime
+      - Value: <integer>900</integer> (or any value ≤ 900 seconds)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.screensaver' AND
+          name = 'idleTime' AND
+          CAST(value AS INTEGER) > 0 AND
+          CAST(value AS INTEGER) <= 900 AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.screensaver' AND
+          name = 'idleTime' AND
+          (CAST(value AS INTEGER) = 0 OR CAST(value AS INTEGER) > 900)
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Require Password After Screen Saver Begins or Display Is Turned Off Is Enabled for 5 Seconds or Immediately (MDM Required)
+  cis_id: "2.11.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Sleep and screen saver modes are low power modes that reduce electrical consumption while the system is not in use. Prompting for a password when waking from sleep or screen saver mode mitigates the threat of an unauthorized person gaining access to a system in the user's absence.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.screensaver
+      - Key: askForPassword, Value: <true/>
+      - Key: askForPasswordDelay, Value: <integer>0</integer> through <integer>5</integer>
+
+    Note: Both keys must be set in the same configuration profile.
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.screensaver' AND
+          name = 'askForPassword' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.screensaver' AND
+          name = 'askForPassword' AND
+          (value != 1 AND value != 'true')
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.screensaver' AND
+          name = 'askForPasswordDelay' AND
+          CAST(value AS INTEGER) <= 5 AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.screensaver' AND
+          name = 'askForPasswordDelay' AND
+          CAST(value AS INTEGER) > 5
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Custom Message for the Login Screen Is Enabled
+  cis_id: "2.11.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    An access warning informs the user that the system is reserved for authorized use only, and that the use of the system may be monitored. An access warning may reduce a casual attacker's tendency to target the system and may aid in the prosecution of an attacker by evincing the attacker's knowledge of the system's private status, acceptable use policy, and authorization requirements.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Lock Screen
+      3. Set Show message when locked to enabled
+      4. Select Set
+      5. Insert text matching your organization's required text
+      6. Select Done
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow LoginwindowText "<custom message>"
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.loginwindow
+      - Key: LoginwindowText
+      - Value: <string>Your organization's required text</string>
+  query: SELECT 1 FROM plist WHERE path = '/Library/Preferences/com.apple.loginwindow.plist' AND key = 'LoginwindowText' AND LENGTH(value) > 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Login Window Displays as Name and Password Is Enabled
+  cis_id: "2.11.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The login window prompts a user for his/her credentials, verifies their authorization level, and then allows or denies the user access to the system. Prompting the user to enter both their username and password makes it twice as hard for unauthorized users to gain access to the system since they must discover two attributes.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Lock Screen
+      3. Set 'Login window shows' to Name and Password
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow SHOWFULLNAME -bool true
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.loginwindow
+      - Key: SHOWFULLNAME
+      - Value: <true/>
+  query: SELECT 1 FROM plist WHERE path = '/Library/Preferences/com.apple.loginwindow.plist' AND key = 'SHOWFULLNAME' AND value = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Password Hints Is Disabled
+  cis_id: "2.11.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Password hints are user-created text displayed when an incorrect password is used for an account. Password hints make it easier for unauthorized persons to gain access to systems by displaying information provided by the user to assist in remembering the password. This information could include the password itself or other information that might be readily discerned with basic knowledge of the end user.
+
+    In macOS 26 Tahoe, setting RetriesUntilHint to a value other than 0 will result in the hint question mark icon appearing in the login window. Setting this to 0 is the only definitive way to ensure that does not appear.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Lock Screen
+      3. Set 'Show password hints' to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow RetriesUntilHint -int 0
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.loginwindow
+      - Key: RetriesUntilHint
+      - Value: <integer>0</integer>
+  query: SELECT 1 FROM plist WHERE path = '/Library/Preferences/com.apple.loginwindow.plist' AND key = 'RetriesUntilHint' AND value = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Guest Account Is Disabled
+  cis_id: "2.13.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The guest account allows users access to the system without having to create an account or password. Disabling the guest account mitigates the risk of an untrusted user doing basic reconnaissance and possibly using privilege escalation attacks to take control of the system.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Users & Groups
+      3. Select the i next to the Guest User
+      4. Set Allow guests to log in to this computer to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool false
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.MCX
+      - Key: DisableGuestAccount, Value: <true/>
+      - Key: EnableGuestAccount, Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM plist WHERE
+          path = '/Library/Preferences/com.apple.loginwindow.plist' AND
+          key = 'GuestEnabled' AND
+          value = 0
+      )
+      OR (
+        EXISTS (
+          SELECT 1 FROM managed_policies WHERE
+            domain = 'com.apple.MCX' AND
+            name = 'DisableGuestAccount' AND
+            (value = 1 OR value = 'true') AND
+            username = ''
+        )
+        AND EXISTS (
+          SELECT 1 FROM managed_policies WHERE
+            domain = 'com.apple.MCX' AND
+            name = 'EnableGuestAccount' AND
+            (value = 0 OR value = 'false') AND
+            username = ''
+        )
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Guest Access to Shared Folders Is Disabled
+  cis_id: "2.13.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network. Not allowing guests to connect to shared folders mitigates the risk of an untrusted user doing basic reconnaissance and possibly using privilege escalation attacks to take control of the system.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Users & Groups
+      3. Select the i next to the Guest User
+      4. Set Allow guests to connect to shared folders to disabled
+
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/sysadminctl -smbGuestAccess off
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist WHERE
+        path = '/Library/Preferences/SystemConfiguration/com.apple.smb.server.plist' AND
+        key = 'AllowGuestAccess' AND
+        value = 1
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Automatic Login Is Disabled
+  cis_id: "2.13.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The automatic login feature saves a user's system access credentials and bypasses the login screen. Disabling automatic login decreases the likelihood of an unauthorized person gaining access to a system.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Users & Groups
+      3. Set Automatic login in as... to Off
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults delete /Library/Preferences/com.apple.loginwindow autoLoginUser
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.loginwindow
+      - Key: com.apple.login.mcx.DisableAutoLoginClient
+      - Value: <true/>
+
+    Note: If both the profile is enabled and a user is set to autologin, the profile takes precedence. For durability, remove the local autoLoginUser value as well in case the profile is removed.
+  query: |
+    SELECT 1 WHERE
+      NOT EXISTS (
+        SELECT 1 FROM plist WHERE
+          path = '/Library/Preferences/com.apple.loginwindow.plist' AND
+          key = 'autoLoginUser'
+      )
+      OR EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.loginwindow' AND
+          name = 'com.apple.login.mcx.DisableAutoLoginClient' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Sleep and Display Sleep Is Enabled on Apple Silicon Devices (Fleetd Required)
+  cis_id: "2.10.1.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    MacBooks should be set so that the sleep is 15 minutes or less and the display should sleep at 10 minutes or less. This setting should allow laptop users in most cases to stay within physically secured areas while going to a conference room, auditorium, or other internal location without having to unlock the encryption.
+
+    Note: If the screen saver is properly configured to the benchmark (15 minutes or less), then this recommendation will also pass no matter the sleep and displaysleep setting.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/pmset -a sleep 15
+      /usr/bin/sudo /usr/bin/pmset -a displaysleep 10
+  query: |
+    SELECT 1 AS result
+    WHERE
+      NOT EXISTS (
+        SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%'
+      )
+      OR
+      EXISTS (
+        SELECT 1
+        FROM (
+          SELECT
+            CASE
+              WHEN JSON_EXTRACT(json_result, '$.Battery Power:') IS NOT NULL
+              THEN JSON_EXTRACT(json_result, '$.Battery Power:')
+              ELSE JSON_EXTRACT(json_result, '$.AC Power:')
+            END AS power_settings
+          FROM pmset
+          WHERE getting = 'custom'
+        )
+        WHERE
+          CAST(JSON_EXTRACT(power_settings, '$.sleep') AS INTEGER) <= 15
+          AND
+          CAST(JSON_EXTRACT(power_settings, '$.displaysleep') AS INTEGER) <= 10
+          AND
+          CAST(JSON_EXTRACT(power_settings, '$.displaysleep') AS INTEGER) <= CAST(JSON_EXTRACT(power_settings, '$.sleep') AS INTEGER)
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
+  cis_id: "2.10.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Power Nap allows the system to stay in low power mode, especially while on battery power, and periodically connect to previously known networks with stored credentials for user applications to phone home and get updates. Disabling this feature mitigates the risk of an attacker remotely waking the system and gaining access.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/pmset -a powernap 0
+  query: |
+    SELECT 1 FROM (
+      SELECT
+        COALESCE(JSON_EXTRACT(JSON_EXTRACT(json_result, '$.AC Power:'), '$.powernap'), '') AS powernap_ac,
+        COALESCE(JSON_EXTRACT(JSON_EXTRACT(json_result, '$.Battery Power:'), '$.powernap'), '') AS powernap_battery
+      FROM pmset
+      WHERE getting = 'custom'
+        AND powernap_battery != '1'
+        AND powernap_ac != '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
+  cis_id: "2.10.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    This feature allows the computer to take action when the user is not present and the computer is in energy saving mode. Disabling Wake for Network Access mitigates the risk of an attacker remotely waking the system and gaining access. Note that disabling this also prevents Find My from working while the Mac is asleep.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/pmset -a womp 0
+  query: |
+    SELECT 1 FROM (
+      SELECT
+        COALESCE(JSON_EXTRACT(JSON_EXTRACT(json_result, '$.AC Power:'), '$.womp'), '') AS womp_ac,
+        COALESCE(JSON_EXTRACT(JSON_EXTRACT(json_result, '$.Battery Power:'), '$.womp'), '') AS womp_battery
+      FROM pmset
+      WHERE getting = 'custom'
+        AND womp_battery != '1'
+        AND womp_ac != '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)
+  cis_id: "2.12.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Password hints help the user recall their passwords for various systems and/or accounts. In most cases, password hints are simple and closely related to the user's password. Password hints that are closely related to the user's password are a security vulnerability, especially in the social media age — unauthorized users are more likely to guess a user's password if there is a password hint.
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Touch ID & Passwords (or Login Password on non-Touch ID Macs)
+      3. Select Change...
+      4. Change the password and ensure that no text is entered in the Password hint box
+
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/dscl . -delete /Users/<username> hint
+  query: SELECT 1 FROM user_login_settings WHERE password_hint_enabled = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)
+  cis_id: "2.1.1.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    With macOS 10.12, Apple introduced the capability to have a user's Desktop and Documents folders automatically synchronize to the user's iCloud Drive. Enterprise users may not be allowed to store Enterprise information in a third-party public cloud. Automated Document synchronization should be planned and controlled to approved storage.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: allowCloudDesktopAndDocuments
+      - Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'allowCloudDesktopAndDocuments' AND
+          (value = 0 OR value = 'false') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'allowCloudDesktopAndDocuments' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+  cis_id: "2.7.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Hot Corners can be configured to disable the screen saver by moving the mouse cursor to a corner of the screen. Setting a hot corner to disable the screen saver poses a potential security risk since an unauthorized person could use this to bypass the login screen and gain access to the system.
+
+    FDA (Full Disk Access) is required to read the configuration of all users on the device (`/Users/*/Library/Preferences/com.apple.dock.plist`).
+  resolution: |
+    Graphical Method:
+      1. Open System Settings
+      2. Select Desktop & Dock
+      3. Select Hot Corners...
+      4. Verify that Disable Screen Saver (value 6) is not set to any of the corners
+
+    Terminal Method (per user):
+      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-tl-corner -int 0
+      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-tr-corner -int 0
+      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-bl-corner -int 0
+      /usr/bin/sudo -u <user> /usr/bin/defaults write com.apple.dock wvous-br-corner -int 0
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist
+      WHERE path LIKE '/Users/%/Library/Preferences/com.apple.dock.plist'
+        AND key IN ('wvous-tl-corner', 'wvous-tr-corner', 'wvous-bl-corner', 'wvous-br-corner')
+        AND value = 6
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Help Apple Improve Search Is Disabled (MDM Required)
+  cis_id: "2.9.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides a mechanism to send diagnostic and analytics data back to Apple to help them improve the platform. Information sent to Apple may contain internal organizational information that should be controlled and not available for processing by Apple. Organizations should have knowledge of what is shared with the vendor.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.assistant.support
+      - Key: Search Queries Data Sharing Status
+      - Value: <integer>2</integer>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.assistant.support' AND
+          name = 'Search Queries Data Sharing Status' AND
+          CAST(value AS INTEGER) = 2 AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.assistant.support' AND
+          name = 'Search Queries Data Sharing Status' AND
+          CAST(value AS INTEGER) != 2
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure On-Device Dictation Is Enabled (MDM Required)
+  cis_id: "2.18.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS 14.0 Sonoma, Apple released the ability to limit dictation to staying on-device and not sending data to the Siri servers. The use of dictation is likely to include editing documents with confidential information. Sending dictation data to the Siri servers could allow data spillage to occur — it is much safer to ensure information of various levels of confidentiality is retained locally.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.applicationaccess
+      - Key: forceOnDeviceOnlyDictation
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'forceOnDeviceOnlyDictation' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.applicationaccess' AND
+          name = 'forceOnDeviceOnlyDictation' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Is Enabled
+  cis_id: "3.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log. Apple has deprecated auditd as of macOS 11.0 Big Sur. In macOS 14.0 Sonoma it is no longer enabled by default, but until auditd is removed from macOS completely, running the binary is the best way to collect native OS logging.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
+      /usr/bin/sudo /bin/cp /etc/security/audit_control.example /etc/security/audit_control
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1
+      FROM launchd AS l
+      INNER JOIN processes AS p ON l.program = p.path
+      WHERE l.label = 'com.apple.auditd'
+        AND l.program_arguments = p.cmdline
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements
+  cis_id: "3.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Auditing is the capture and maintenance of information about security-related events. Auditable events often depend on differing organizational requirements. Maintaining an audit trail of system activity logs can help identify configuration errors, troubleshoot service disruptions, and analyze compromises or attacks that have occurred.
+
+    The Benchmark requires the following flags: `aa` (authorization/authentication), `ad` (administrative), `-ex` (failed program execution), `-fm` (failed file attribute modification), `-fr` (failed reads), `-fw` (failed writes), `lo` (login/logout). `-all` may substitute for the failed-event flags.
+  resolution: |
+    Terminal Method:
+      Edit /etc/security/audit_control and ensure the `flags:` line includes aa, ad, -ex, -fm, -fr, -fw, lo (or substitute -all for -ex, -fm, -fr, -fw).
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT line
+      FROM file_lines
+      WHERE path = '/etc/security/audit_control'
+        AND (
+          (
+            line LIKE 'flags:%'
+            AND line LIKE '%aa%'
+            AND line LIKE '%ad%'
+            AND line LIKE '%-ex%'
+            AND line LIKE '%-fm%'
+            AND line LIKE '%-fr%'
+            AND line LIKE '%-fw%'
+            AND line LIKE '%lo%'
+          )
+          OR
+          (
+            line LIKE 'flags:%'
+            AND line LIKE '%-all%'
+            AND line LIKE '%aa%'
+            AND line LIKE '%ad%'
+            AND line LIKE '%lo%'
+          )
+        )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum Size
+  cis_id: "3.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS writes information pertaining to system-related events to the file /var/log/install.log and has a configurable retention policy for this file. The default logging setting limits the file size of the logs and the maximum size for all logs. Archiving and retaining install.log for at least a year is beneficial in the event of an incident as it will allow the user to view the various changes to the system along with the date and time they occurred.
+  resolution: |
+    Terminal Method:
+      Edit /etc/asl/com.apple.install and add or modify the ttl value to 365 or greater on the file line. Also remove the all_max= setting and value from the file line.
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT line,
+               CAST(regex_match(line, 'ttl=(\d+)', 1) AS INTEGER) AS val
+        FROM file_lines
+        WHERE path = '/etc/asl/com.apple.install'
+          AND val >= 365
+      )
+      AND NOT EXISTS (
+        SELECT line
+        FROM file_lines
+        WHERE path = '/etc/asl/com.apple.install'
+          AND line LIKE '%all_max=%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Retention Is Enabled
+  cis_id: "3.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records. Retention should respect both size and longevity — at least 60 days or 5 gigabytes of audit records.
+  resolution: |
+    Terminal Method:
+      Edit /etc/security/audit_control so that expire-after: is at least 60d OR 5G.
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT line,
+             CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
+             CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+      FROM file_lines
+      WHERE path = '/etc/security/audit_control'
+        AND days >= 60
+        AND size >= 5
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Access to Audit Records Is Controlled
+  cis_id: "3.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth, the /etc/security/audit_control configuration and the audit log directory (default /var/audit) should be owned by root:wheel with mode 440 and no ACLs.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
+      /usr/bin/sudo /bin/chmod -R 440 /etc/security/audit_control
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel $(/usr/bin/grep '^dir' /etc/security/audit_control | /usr/bin/awk -F: '{print $2}')
+      /usr/bin/sudo /bin/chmod -R 440 $(/usr/bin/grep '^dir' /etc/security/audit_control | /usr/bin/awk -F: '{print $2}')
+  query: |
+    SELECT 1 WHERE
+      NOT EXISTS (
+        SELECT 1 FROM file
+        WHERE path = '/etc/security/audit_control'
+          AND (uid != 0 OR gid != 0 OR mode NOT IN ('0440', '0400'))
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM file
+        WHERE path LIKE '/var/audit/%'
+          AND (uid != 0 OR gid != 0 OR mode NOT IN ('0440', '0400'))
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM file
+        WHERE path LIKE (
+          SELECT dir FROM (
+            SELECT line, CONCAT(regex_match(line, '^dir:(.+)', 1), '/%') AS dir
+            FROM file_lines
+            WHERE path = '/etc/security/audit_control'
+              AND line LIKE 'dir:%'
+          )
+        )
+        AND (uid != 0 OR gid != 0 OR mode NOT IN ('0440', '0400'))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)
+  cis_id: "4.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Bonjour is an auto-discovery mechanism for TCP/IP devices which enumerates devices and services within a local subnet. DNS on macOS is integrated with Bonjour and should not be turned off, but the Bonjour advertising service can be disabled.
+
+    Bonjour can simplify device discovery from an internal rogue or compromised host. An attacker could use Bonjour's multicast DNS feature to discover a vulnerable or poorly-configured service or additional information to aid a targeted attack.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.mDNSResponder.plist NoMulticastAdvertisements -bool true
+
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.mDNSResponder
+      - Key: NoMulticastAdvertisements
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.mDNSResponder' AND
+          name = 'NoMulticastAdvertisements' AND
+          (value = 1 OR value = 'true') AND
+          username = ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.mDNSResponder' AND
+          name = 'NoMulticastAdvertisements' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure HTTP Server Is Disabled
+  cis_id: "4.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apache is still part of the Operating System and can be easily turned on to share files and provide remote connectivity to an end-user computer. Web serving should not be done from a user desktop — dedicated web servers or appropriate cloud storage should be used. Open ports make it easier to exploit the computer.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/apachectl stop
+      /usr/bin/sudo /bin/launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path = '/usr/sbin/httpd');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure NFS Server Is Disabled
+  cis_id: "4.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS can act as an NFS fileserver. NFSD is still part of the Operating System and can be easily turned on to export shares and provide remote connectivity to an end-user computer. File serving should not be done from a user desktop — dedicated servers should be used. The `/etc/exports` file contains the list of NFS shared directories; if it exists, it is likely that NFS sharing has been enabled in the past or may be available periodically.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /bin/launchctl disable system/com.apple.nfsd
+      /usr/bin/sudo /bin/rm -rf /etc/exports
+  query: |
+    SELECT 1 WHERE
+      NOT EXISTS (SELECT 1 FROM processes WHERE path = '/sbin/nfsd')
+      AND NOT EXISTS (SELECT 1 FROM file WHERE path = '/etc/exports');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Home Folders Are Secure
+  cis_id: "5.1.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    By default, macOS allows all valid users into the top level of every other user's home folder and restricts access to the Apple default folders within. Home folders should be restricted to access only by the user. Either no access or execute-only for group or others is acceptable.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /bin/chmod -R og-rwx /Users/<username>
+      (or `og-rw` if execute rights are required)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM file WHERE
+        path LIKE '/Users/%'
+        AND path != '/Users/Shared/'
+        AND mode NOT IN ('0700', '0701', '0710', '0711')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure System Integrity Protection Status (SIP) Is Enabled
+  cis_id: "5.1.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    System Integrity Protection (SIP) restricts access to System domain locations and restricts runtime attachment to system processes. Any attempt to inspect or attach to a system process will fail. Running without SIP on a production system runs the risk of modification of system binaries or code injection of system processes that would otherwise be protected.
+  resolution: |
+    Terminal Method (from Recovery):
+      1. Reboot into the Recovery Partition
+      2. Open Utilities > Terminal
+      3. /usr/bin/csrutil enable
+      4. Reboot
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Apple Mobile File Integrity (AMFI) Is Enabled (Fleetd Required)
+  cis_id: "5.1.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Mobile File Integrity (AMFI) blocks attempts to run unsigned code. AMFI uses launchd, code signatures, certificates, entitlements, and provisioning profiles to enforce code-signing and library validation.
+
+    Note: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful and report incorrectly as successful. If AMFI audit fails while SIP passes, this is still an issue to research.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/nvram boot-args=""
+  query: SELECT 1 FROM nvram_info WHERE amfi_enabled = '1';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Signed System Volume (SSV) Is Enabled (Fleetd Required)
+  cis_id: "5.1.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Signed System Volume (SSV) computes a SHA-256 hash for every immutable system file and stores it in a Merkle tree whose root is signed and verified at boot. macOS will not boot if system files have been tampered with. If SSV is disabled, assume the operating system has been compromised and reinstall.
+  resolution: |
+    If SSV has been disabled, back up any files and do a clean install to a known good operating system.
+  query: SELECT 1 FROM csrutil_info WHERE ssv_enabled = '1';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+  cis_id: "5.1.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Applications in the System Applications Directory (/Applications) should be world-executable but not world-writable. Unauthorized modifications of applications could lead to the execution of malicious code.
+  resolution: |
+    Terminal Method:
+      for apps in $(/usr/bin/find /Applications -iname "*.app" -type d -perm -2); do
+        /usr/bin/sudo /bin/chmod -R o-w "$apps"
+      done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT apps.path FROM apps
+      LEFT JOIN file ON file.path = apps.path
+      WHERE apps.path LIKE '/Applications/%'
+        AND CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 2 != 0
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure No World Writable Folders Exist in the System Folder (Fleetd Required)
+  cis_id: "5.1.6"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes installs into /System/Volumes/Data/System with inappropriate world-writable permissions. Macs with writable files in /System should be investigated forensically — a file with open writable permissions is a sign of at best a rogue application and could indicate a compromise.
+  resolution: |
+    Terminal Method:
+      for sysPermissions in $(/usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -vE "downloadDir|locks"); do
+        /usr/bin/sudo /bin/chmod -R o-w "$sysPermissions"
+      done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM find_cmd
+      WHERE directory = '/System/Volumes/Data/System'
+        AND type = 'd'
+        AND perm = '-2'
+        AND path NOT LIKE '%downloadDir%'
+        AND path NOT LIKE '%locks%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure No World Writable Folders Exist in the Library Folder
+  cis_id: "5.1.7"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes installs into /System/Volumes/Data/Library with inappropriate world-writable permissions. The audit check excludes folders where the sticky bit is set by Apple (required by the OS) and folders with the `com.apple.rootless` extended attribute (security vendor controls).
+  resolution: |
+    Terminal Method:
+      for libPermissions in $(/usr/bin/find /Library -type d -perm -002 ! -perm -1000 ! -xattrname com.apple.rootless 2>/dev/null); do
+        /usr/bin/sudo /bin/chmod -R o-w "$libPermissions"
+      done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM file f
+      WHERE f.path LIKE '/Library/%'
+        AND f.type = 'directory'
+        AND (CAST(SUBSTR(f.mode, -1) AS INTEGER) & 2) = 2
+        AND CAST(SUBSTR(f.mode, 1, 1) AS INTEGER) NOT IN (1, 3, 5, 7)
+        AND NOT EXISTS (
+          SELECT 1 FROM extended_attributes ea
+          WHERE ea.path = f.path
+            AND ea.key = 'com.apple.rootless'
+        )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd Required)
+  cis_id: "5.2.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. The account lockout feature mitigates brute-force password attacks on the system.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.mobiledevice.passwordpolicy
+      - Key: maxFailedAttempts
+      - Value: <integer>5</integer> (or any value ≤ 5)
+  query: SELECT 1 FROM pwd_policy WHERE max_failed_attempts <= 5;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password Minimum Length Is Configured (Fleetd Required)
+  cis_id: "5.2.2"
+  platforms: macOS
+  platform: darwin
+  description: |
+    A minimum password length is the fewest number of characters a password can contain to meet a system's requirements. Ensure that a minimum of a 15-character password is part of the password policy on the computer.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.mobiledevice.passwordpolicy
+      - Key: minLength
+      - Value: <integer>15</integer> (or any value ≥ 15)
+  query: |
+    SELECT 1
+    FROM (
+      SELECT CAST(lengthtxt AS INTEGER) AS minlength
+      FROM (
+        SELECT SUBSTRING(length, 1, 2) AS lengthtxt
+        FROM (
+          SELECT split(policy_content, '{', 1) AS length
+          FROM password_policy
+          WHERE policy_identifier LIKE '%minLength'
+        )
+      )
+      WHERE minlength >= 15
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password Age Is Configured (Fleetd Required)
+  cis_id: "5.2.7"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or brute-force attacks. Users should reset passwords periodically. The Benchmark uses 365 days as the acceptable maximum.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.mobiledevice.passwordpolicy
+      - Key: maxPINAgeInDays
+      - Value: <integer>365</integer> (or any value ≤ 365)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM pwd_policy WHERE expires_every_n_days > 0 AND expires_every_n_days <= 365)
+      OR EXISTS (SELECT 1 FROM pwd_policy WHERE days_to_expiration > 0 AND days_to_expiration <= 365);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password History Is Set to at Least 24 (Fleetd Required)
+  cis_id: "5.2.8"
+  platforms: macOS
+  platform: darwin
+  description: |
+    This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. The Benchmark requires a history depth of at least 24.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.mobiledevice.passwordpolicy
+      - Key: pinHistory
+      - Value: <integer>24</integer> (or any value ≥ 24)
+  query: SELECT 1 FROM pwd_policy WHERE history_depth >= 24;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
+  cis_id: "5.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The sudo command stays logged in as the root user for five minutes before timing out and re-requesting a password. This five-minute grace window should be eliminated since it leaves the system extremely vulnerable — an exploit gaining access would be able to make changes as a root user without a password prompt.
+  resolution: |
+    Terminal Method:
+      Edit (or create) /etc/sudoers.d/<config-file-no-dot> via `visudo -f` and add:
+        Defaults timestamp_timeout=0
+      Ensure /etc/sudoers.d is owned by root:wheel.
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM file WHERE path = '/etc/sudoers.d' AND uid = 0 AND gid = 0)
+      AND EXISTS (
+        SELECT COALESCE(JSON_EXTRACT(json_result, '$.Authentication timestamp timeout'), '') AS tstamp
+        FROM sudo_info
+        WHERE tstamp = '0.0 minutes'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty Combo (Fleetd Required)
+  cis_id: "5.5"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Using tty tickets ensures that a user must enter the sudo password in each Terminal session. This reduces the possibility of a background process using elevated rights when a user elevates to root in an explicit context or tty.
+  resolution: |
+    Terminal Method:
+      Edit (or create) /etc/sudoers.d/<config-file-no-dot> via `visudo -f` and add:
+        Defaults timestamp_type=tty
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT COALESCE(JSON_EXTRACT(json_result, '$.Type of authentication timestamp record'), '') AS ttype
+      FROM sudo_info
+      WHERE ttype = 'tty'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the "root" Account Is Disabled (Fleetd Required)
+  cis_id: "5.6"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Enabling and using the root account puts the system at risk since any successful exploit or mistake while the root account is in use could have unlimited access privileges within the system. Using sudo allows users to perform functions as root while limiting and password-protecting the access privileges.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/sbin/dsenableroot -d
+      /usr/bin/sudo /usr/bin/dscl . -create /Users/root UserShell /usr/bin/false
+  query: SELECT 1 FROM dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure an Administrator Account Cannot Login to Another User's Active and Locked Session (Fleetd Required)
+  cis_id: "5.7"
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS has a privilege that can be granted to any user that will allow that user to unlock active users' sessions. Disabling this prevents unauthorized persons from viewing potentially sensitive information.
+
+    Note: For organizations using Platform Single-Sign-On (PSSO), this setting can cause issues with PSSO syncing. Verify PSSO status via `/usr/bin/sudo app-sso platform -s`.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver authenticate-session-owner
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT JSON_EXTRACT(json_result, '$.rule') AS rule
+      FROM authdb
+      WHERE right_name = 'system.login.screensaver'
+        AND rule LIKE '%authenticate-session-owner%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Login Window Banner Exists
+  cis_id: "5.8"
+  platforms: macOS
+  platform: darwin
+  description: |
+    A Login window banner warning informs the user that the system is reserved for authorized use only. An access warning may reduce a casual attacker's tendency to target the system and may aid in the prosecution of an attacker by evincing the attacker's knowledge of the system's private status.
+  resolution: |
+    Terminal Method:
+      Create /Library/Security/PolicyBanner.txt or PolicyBanner.rtf with the desired banner text.
+      /usr/bin/sudo /usr/sbin/chown root:wheel /Library/Security/PolicyBanner.*
+      /usr/bin/sudo /bin/chmod o+r /Library/Security/PolicyBanner.*
+  query: |
+    SELECT 1 FROM file
+    WHERE (path = '/Library/Security/PolicyBanner.txt' OR path = '/Library/Security/PolicyBanner.rtf')
+      AND mode = '0644'
+      AND uid = 0
+      AND gid = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Guest Home Folder Does Not Exist
+  cis_id: "5.9"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Guest home folder is unneeded after the Guest account is disabled and could be used inappropriately. The presence of the Guest home folder can also cause automated audits to fail when looking for compliant settings within all User folders.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /bin/rm -R /Users/Guest
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path = '/Users/Guest');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure XProtect Is Running and Updated
+  cis_id: "5.10"
+  platforms: macOS
+  platform: darwin
+  description: |
+    XProtect is Apple's native signature-based antivirus technology. XProtect both finds and blocks the execution of known malware. No matter what other tools are being used, XProtect should have the latest signatures available.
+
+    Note: XProtect can only be disabled while SIP is disabled. If XProtect is disabled while SIP is enabled, there needs to be a significant investigation on this system and assume it is compromised.
+  resolution: |
+    Terminal Method:
+      /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
+      /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
+      /usr/bin/sudo /usr/bin/xprotect update
+  query: |
+    SELECT 1 WHERE (
+      SELECT COUNT(*) FROM launchd
+      WHERE path IN (
+        '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist',
+        '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist'
+      )
+    ) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Logging Is Enabled for Sudo (Fleetd Required)
+  cis_id: "5.11"
+  platforms: macOS
+  platform: darwin
+  description: |
+    In order to properly monitor the use of the sudo command, log events for any use of sudo should be captured in the unified log. Apple added sudo logging as part of the unified log in macOS 14.0 Sonoma; in macOS 15.0 Sequoia and later, it is disabled by default but should be enabled.
+  resolution: |
+    Terminal Method:
+      Edit (or create) /etc/sudoers.d/<config-file-no-dot> via `visudo -f` and add:
+        Defaults log_allowed
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT COALESCE(JSON_EXTRACT(json_result, '$.Log when a command is allowed by sudoers'), '') AS log_allowed
+      FROM sudo_info
+      WHERE log_allowed LIKE '%true%' OR log_allowed = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM Required)
+  cis_id: "6.3.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Safari will automatically run or execute what it considers safe files. Hackers have taken advantage of this setting via drive-by attacks — an attacker can create a malicious file that will fall within Safari's safe file list and download and execute without user input.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Safari
+      - Key: AutoOpenSafeDownloads
+      - Value: <false/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'AutoOpenSafeDownloads' AND
+          (value = 0 OR value = 'false')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'AutoOpenSafeDownloads' AND
+          (value != 0 AND value != 'false')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.3"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple uses the Google Safe Browsing API to check for fraudulent websites and report them to the user attempting to visit one. Attackers use crafted web pages to social engineer users to load unwanted content — warning users prior to loading the content enables better security.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Safari
+      - Key: WarnAboutFraudulentWebsites
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'WarnAboutFraudulentWebsites' AND
+          (value = 1 OR value = 'true')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'WarnAboutFraudulentWebsites' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.4"
+  platforms: macOS
+  platform: darwin
+  description: |
+    There is a vast network of groups that collect, use, and sell user data. Tracking cookies allow information brokers to track web users across visited sites. For better privacy and to provide some resistance to data brokers, prevent cross-tracking.
+
+    Three keys must all be set together for the profile to be effective: `BlockStoragePolicy=2`, `WebKitPreferences.storageBlockingPolicy=1`, and `WebKitStorageBlockingPolicy=1`.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Safari
+      - Key: BlockStoragePolicy, Value: <integer>2</integer>
+      - Key: WebKitPreferences.storageBlockingPolicy, Value: <integer>1</integer>
+      - Key: WebKitStorageBlockingPolicy, Value: <integer>1</integer>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND name = 'BlockStoragePolicy' AND CAST(value AS INTEGER) = 2
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND name = 'WebKitPreferences.storageBlockingPolicy' AND CAST(value AS INTEGER) = 1
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND name = 'WebKitStorageBlockingPolicy' AND CAST(value AS INTEGER) = 1
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND name = 'BlockStoragePolicy' AND CAST(value AS INTEGER) != 2
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.6"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides a framework that allows advertisers to target Apple users with advertisements. Organizations should manage user privacy settings on managed devices to align with organizational policies and user data protection requirements. Private click measurement is the privacy-preserving mechanism for ad-click attribution.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Safari
+      - Key: WebKitPreferences.privateClickMeasurementEnabled
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'WebKitPreferences.privateClickMeasurementEnabled' AND
+          (value = 1 OR value = 'true')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'WebKitPreferences.privateClickMeasurementEnabled' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.7"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Attackers use websites with malicious or unwanted content to exploit the user or the computer. Full visibility into what site is being visited is important for privacy and security — the full website address should always be displayed in Safari.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Safari
+      - Key: ShowFullURLInSmartSearchField
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'ShowFullURLInSmartSearchField' AND
+          (value = 1 OR value = 'true')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'ShowFullURLInSmartSearchField' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Status Bar Is Enabled (MDM Required)
+  cis_id: "6.3.10"
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Status Bar in Safari shows the full URL of any link on hover. It protects the user from visiting sites where the domain has been obfuscated by allowing the user to review whether the link points to an unexpected location.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Safari
+      - Key: ShowOverlayStatusBar
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'ShowOverlayStatusBar' AND
+          (value = 1 OR value = 'true')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Safari' AND
+          name = 'ShowOverlayStatusBar' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+  cis_id: "6.4.1"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Secure Keyboard Entry prevents other applications on the system and/or network from detecting and recording what is typed into Terminal. Enabling Secure Keyboard Entry minimizes the risk of a key logger detecting what is entered in Terminal.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      - PayloadType: com.apple.Terminal
+      - Key: SecureKeyboardEntry
+      - Value: <true/>
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Terminal' AND
+          name = 'SecureKeyboardEntry' AND
+          (value = 1 OR value = 'true')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE
+          domain = 'com.apple.Terminal' AND
+          name = 'SecureKeyboardEntry' AND
+          (value != 1 AND value != 'true')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1

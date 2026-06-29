@@ -17,12 +17,12 @@ variable "extra_flags" {
 
 variable "task_size" {
   type = object({
-    cpu    = optional(number, 256)
-    memory = optional(number, 1024)
+    cpu    = optional(number, 4096)
+    memory = optional(number, 8192)
   })
 
   default = {
-    cpu    = 256
-    memory = 1024
+    cpu    = 4096
+    memory = 8192
   }
 }

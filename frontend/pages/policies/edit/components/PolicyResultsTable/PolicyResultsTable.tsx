@@ -1,0 +1,53 @@
+import React from "react";
+import { noop } from "lodash";
+
+import { IPolicyHostResponse } from "interfaces/host";
+import TableContainer from "components/TableContainer";
+import EmptyState from "components/EmptyState";
+import {
+  generateTableHeaders,
+  generateDataSet,
+} from "./PolicyResultsTableConfig";
+
+// TODO - this class is duplicated and styles are overlapping with PolicyErrorsTable. Differentiate
+// them clearly and encapsulate common styles.
+const baseClass = "policy-results-table";
+
+interface IPolicyResultsTableProps {
+  hostResponses: IPolicyHostResponse[];
+  isLoading: boolean;
+  resultsTitle?: string;
+}
+
+const PolicyResultsTable = ({
+  hostResponses,
+  isLoading,
+  resultsTitle,
+}: IPolicyResultsTableProps): JSX.Element => {
+  return (
+    <div className={baseClass}>
+      <TableContainer
+        resultsTitle={resultsTitle || "policies"}
+        columnConfigs={generateTableHeaders()}
+        data={generateDataSet(hostResponses)}
+        isLoading={isLoading}
+        defaultSortHeader="query_results"
+        defaultSortDirection="asc"
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        isClientSidePagination
+        primarySelectAction={{
+          name: "delete policy",
+          buttonText: "Delete",
+          iconSvg: "trash",
+          variant: "inverse",
+        }}
+        emptyComponent={() => <EmptyState header="No hosts are online" />}
+        onQueryChange={noop}
+        disableCount
+      />
+    </div>
+  );
+};
+
+export default PolicyResultsTable;

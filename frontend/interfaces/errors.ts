@@ -193,6 +193,15 @@ export const getErrorReason = (
   return "";
 };
 
+export const hasStatusKey = (value: unknown): value is { status: number } => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    typeof (value as Record<string, unknown>).status === "number"
+  );
+};
+
 export const ignoreAxiosError = (err: AxiosError, ignoreStatuses: number[]) => {
   // TODO - isAxiosError currently not recognizing axios error, fix
   // if (!isAxiosError(err)) {

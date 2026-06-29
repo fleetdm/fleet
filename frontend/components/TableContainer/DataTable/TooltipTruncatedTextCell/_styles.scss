@@ -1,7 +1,7 @@
 .tooltip-truncated-cell {
   display: flex;
   align-items: center; // For badges, etc
-  gap: $pad-small;
+  gap: $gap-icon-text;
   max-width: 100%;
 
   .text-muted {
@@ -55,7 +55,7 @@
   .data-table__suffix,
   .data-table__prefix {
     display: flex;
-    gap: $pad-small;
+    gap: $gap-icon-text;
     height: 24px;
     align-items: center;
     flex-shrink: 0; /* Prevent suffix from shrinking */

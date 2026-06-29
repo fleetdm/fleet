@@ -127,6 +127,13 @@ func TestCancelHostUpcomingActivityAuth(t *testing.T) {
 	ds.GetHostUpcomingActivityMetaFunc = func(ctx context.Context, hostID uint, execID string) (*fleet.UpcomingActivityMeta, error) {
 		return &fleet.UpcomingActivityMeta{}, nil
 	}
+	// svc.CancelHostUpcomingActivity now looks up VPP release info before the
+	// cancel runs (so pre-activation cancels can still release the reserved
+	// seat). This test doesn't exercise VPP installs, so return notFound to
+	// skip the release path.
+	ds.GetVPPInstallReleaseInfoForCancelFunc = func(ctx context.Context, hostID uint, execID string) (*fleet.VPPInstallReleaseInfo, error) {
+		return nil, &notFoundError{}
+	}
 
 	cases := []struct {
 		name             string

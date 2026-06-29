@@ -285,6 +285,12 @@ const SelectTargets = ({
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
+    // `setSelectedTargets` comes from the (unmemoized) QueryContext, so it's a
+    // new function reference on every render. Including it here would re-run
+    // this effect every render, which dispatches a context update and causes an
+    // infinite render loop ("Maximum update depth exceeded"), freezing the
+    // Select targets UI (e.g. the X to remove a host stops responding).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetedHosts, targetedLabels, targetedTeams]);
 
   useEffect(() => {
@@ -294,7 +300,7 @@ const SelectTargets = ({
   useEffect(() => {
     setIsDebouncing(true);
     debounceSearch(searchTextHosts);
-  }, [searchTextHosts]);
+  }, [searchTextHosts, debounceSearch]);
 
   const handleClickCancel = () => {
     goToQueryEditor();
@@ -407,6 +413,7 @@ const SelectTargets = ({
 
     const emptySearchString = `No matching ${displayType}.`;
 
+    // Purposefully not using <EmptyState/> as we just want a simple string rendered
     const renderEmptySearchString = () => {
       if (entitiesToDisplay.length === 0 && searchTerm !== "") {
         return (

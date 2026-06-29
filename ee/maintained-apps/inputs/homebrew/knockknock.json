@@ -1,0 +1,10 @@
+{
+  "name": "KnockKnock",
+  "unique_identifier": "com.objective-see.KnockKnock",
+  "token": "knockknock",
+  "installer_format": "zip",
+  "slug": "knockknock/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

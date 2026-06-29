@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Starts the screen saver after 15 minutes of inactivity. A password is required to unlock after a one-minute grace period once the screen saver has started or the display has slept.</string>
+	<key>PayloadDisplayName</key>
+	<string>Screen lock after inactivity</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.screen-lock-inactivity</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet Device Management</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>AB1372A9-6297-4108-85C7-0CE557A507AE</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>TargetDeviceType</key>
+	<integer>5</integer>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Screen lock after inactivity</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.screen-lock-inactivity.screensaver</string>
+			<key>PayloadType</key>
+			<string>com.apple.screensaver</string>
+			<key>PayloadUUID</key>
+			<string>0D9BCBE2-DA7A-40CD-9FCD-743F322677C2</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<!-- Start the screen saver after 15 minutes of inactivity (must be <= 900 to satisfy the policy). -->
+			<key>idleTime</key>
+			<integer>900</integer>
+			<!-- Require a password to wake from the screen saver or sleep. -->
+			<key>askForPassword</key>
+			<true/>
+			<!-- Seconds after screen saver or display sleep before a password is required (60 = 1 minute; must be <= 60 to satisfy the policy). -->
+			<key>askForPasswordDelay</key>
+			<integer>60</integer>
+		</dict>
+	</array>
+</dict>
+</plist>

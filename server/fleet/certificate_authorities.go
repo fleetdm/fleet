@@ -35,6 +35,25 @@ func (t CAConfigAssetType) SupportsRenewalID() bool {
 	return slices.Contains(ListCATypesWithRenewalIDSupport(), t)
 }
 
+// Scan implements sql.Scanner so that a NULL value in the
+// host_mdm_managed_certificates.type column (allowed for ingestion-created
+// rows from non-proxied flows) scans into the zero value rather than
+// producing "converting NULL to string is unsupported". Empty string is the
+// canonical "type unknown" sentinel — the matcher's SupportsRenewalID guard
+// and the renewal cron's null-safe equal both honor it.
+func (t *CAConfigAssetType) Scan(value any) error {
+	if value == nil {
+		*t = ""
+		return nil
+	}
+	raw, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type for CAConfigAssetType: %T", value)
+	}
+	*t = CAConfigAssetType(raw)
+	return nil
+}
+
 type CAConfigAsset struct {
 	Name  string            `db:"name"`
 	Value []byte            `db:"value"`
@@ -478,11 +497,12 @@ func (sscepp *SmallstepSCEPProxyCAUpdatePayload) Preprocess() {
 }
 
 type RequestCertificatePayload struct {
-	ID          uint    `url:"id"`             // ID Of the CA the cert is to be requested from.
-	CSR         string  `json:"csr"`           // PEM-encoded CSR
-	IDPOauthURL *string `json:"idp_oauth_url"` // OAuth introspection URL for validating IDP Authentication
-	IDPToken    *string `json:"idp_token"`     // Token for IDP Authentication
-	IDPClientID *string `json:"idp_client_id"` // Client ID for IDP Authentication
+	ID                   uint    `url:"id"`                      // ID Of the CA the cert is to be requested from.
+	CSR                  string  `json:"csr"`                    // PEM-encoded CSR
+	IDPOauthURL          *string `json:"idp_oauth_url"`          // OAuth introspection URL for validating IDP Authentication
+	IDPToken             *string `json:"idp_token"`              // Token for IDP Authentication
+	IDPClientID          *string `json:"idp_client_id"`          // Client ID for IDP Authentication
+	ReturnPEMCertificate bool    `json:"return_pem_certificate"` // If true, the issued certificate is returned as a PEM-encoded CERTIFICATE block; if false or omitted, a PEM-encoded PKCS7 block is returned.
 }
 
 func (c *RequestCertificatePayload) AuthzType() string {

@@ -1,1 +1,0 @@
-* Fixed GitOps failing to delete a certificate authority when certificate templates still reference it in fleet configs.

@@ -1,0 +1,36 @@
+- name: macOS - Screen lock after inactivity (15 minutes or less)
+  query: |-
+    SELECT 1 WHERE EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+        AND name = 'askForPasswordDelay'
+        AND CAST(value AS INTEGER) <= 60
+      LIMIT 1
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+        AND name = 'idleTime'
+        AND CAST(value AS INTEGER) >= 1
+        AND CAST(value AS INTEGER) <= 900
+      LIMIT 1
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+        AND name = 'askForPassword'
+        AND (value = 1 OR value = '1')
+      LIMIT 1
+    );
+  critical: false
+  description: |-
+    Verifies the Mac requires a password to wake from the screen saver and starts the screen saver after 15 minutes or less of inactivity.
+  resolution: |-
+    Screen lock should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin
+  labels_exclude_any:
+    - macOS screen lock exclusions

@@ -1,0 +1,8 @@
+- name: macOS - System Integrity Protection enabled
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  critical: true
+  description: |-
+    Verifies System Integrity Protection (SIP) is enabled.
+  resolution: |-
+    System Integrity Protection (SIP) should never be disabled on managed Macs. If this policy is failing, drop a note in #help-it immediately.
+  platform: darwin

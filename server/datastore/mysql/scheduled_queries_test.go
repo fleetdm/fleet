@@ -127,6 +127,42 @@ func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.True(t, foundAgg)
+
+	for _, key := range []string{
+		"id",
+		"pack_id",
+		"name",
+		"query_name",
+		"description",
+		"interval",
+		"snapshot",
+		"removed",
+		"platform",
+		"version",
+		"shard",
+		"denylist",
+		"query",
+		"query_id",
+		"user_time_p50",
+		"user_time_p95",
+		"system_time_p50",
+		"system_time_p95",
+		"total_executions",
+	} {
+		t.Run("order_"+key, func(t *testing.T) {
+			_, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{
+				OrderKey: key,
+				PerPage:  10,
+				After:    " ",
+			})
+			require.NoError(t, err)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {

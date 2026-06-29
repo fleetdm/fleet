@@ -11,3 +11,76 @@
   margin-left: auto;
   margin-right: auto;
 }
+
+// -------------------------------------------
+// Page container mixins (for [purpose='page-container'])
+// Bundle padding with responsive step-downs
+// -------------------------------------------
+
+// Docs pages: all docs/ detail & library pages
+// Base: 48px, tablet: 32px, mobile: 32px 24px
+.page-container-docs() {
+  padding: @page-padding-sm;
+  @media (max-width: 991px) {
+    padding: @page-padding-tablet;
+  }
+  @media (max-width: 575px) {
+    padding: @page-padding-tablet-mobile;
+  }
+}
+
+// Standard pages: articles, customers, software-management,
+// legal/privacy, legal/terms, meetups, case-study, device-management,
+// deals, admin/query-generator
+// Base: 64px, tablet: 64px 32px, mobile: 32px 24px
+.page-container() {
+  padding: @page-padding;
+  @media (max-width: 991px) {
+    padding: @page-padding @page-padding-tablet;
+  }
+  @media (max-width: 575px) {
+    padding: @page-padding-tablet-mobile;
+  }
+}
+
+// Wide pages with explicit max-width: basic-article, basic-whitepaper,
+// legal/privacy, legal/terms, basic-comparison, infrastructure-as-code
+// Base: max-width 1200px + 64px padding (1072px effective), centered
+.page-container-wide() {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: @page-padding;
+  @media (max-width: 991px) {
+    padding: @page-padding @page-padding-tablet;
+  }
+  @media (max-width: 575px) {
+    padding: @page-padding-tablet-mobile;
+  }
+}
+
+// -------------------------------------------
+// Page content mixins (for [purpose='page-content'])
+// Bundle max-width + centering
+// -------------------------------------------
+
+// Docs pages: all docs/ detail & library pages
+.page-content-docs() {
+  max-width: @content-max-width-docs;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Standard product & marketing pages
+.page-content() {
+  max-width: @content-max-width;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Narrow form/error pages
+.page-content-narrow() {
+  max-width: @content-max-width-narrow;
+  margin-left: auto;
+  margin-right: auto;
+}

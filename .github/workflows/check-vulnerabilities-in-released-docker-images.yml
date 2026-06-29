@@ -5,9 +5,11 @@ on:
   schedule:
     - cron: "0 6 * * *"
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# A newly queued run on the same ref interrupts an in-flight one. github.ref is
+# always defined (refs/heads/<default_branch> on schedule, the dispatched ref on
+# workflow_dispatch), so scheduled and dispatched runs share a deterministic group.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -24,12 +26,20 @@ jobs:
     environment: Docker Hub
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Set up Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -51,9 +61,12 @@ jobs:
       - name: List fleet VEX files
         id: generate_fleet_vex_files
         run: |
-          VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | sed 's/.$//')
-          echo $VEX_FILES
-          echo "FLEET_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
+          # Trivy requires a separate --vex flag per source file; a comma-separated
+          # value is treated as one path. Emit the output pre-formatted as repeated
+          # `--vex=...` tokens so the trivy step can splat it directly.
+          VEX_FLAGS=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do printf -- '--vex=./security/vex/fleet/%s ' "$line"; done)
+          echo "$VEX_FLAGS"
+          echo "FLEET_VEX_FLAGS=$VEX_FLAGS" >> $GITHUB_OUTPUT
 
       # We use the trivy command and not the github action because it doesn't support loading
       # VEX files yet and looks like we can't run the action on multiple images.
@@ -64,27 +77,36 @@ jobs:
         run: |
           mkdir trivy-download
           cd trivy-download
-          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.69.2/trivy_0.69.2_Linux-64bit.tar.gz --output trivy_0.69.2_Linux-64bit.tar.gz
+          curl -fsSL --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.69.2/trivy_0.69.2_Linux-64bit.tar.gz --output trivy_0.69.2_Linux-64bit.tar.gz
           tar -xf trivy_0.69.2_Linux-64bit.tar.gz
           mv trivy ..
           cd ..
           chmod +x ./trivy
           RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
           for version in $RELEASES; do
+            unset trivy_exit_code
             ./trivy image \
               --exit-code=1 \
               --pkg-types=os,library \
               --severity=CRITICAL \
-              --vex="${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FILES }}" \
-              fleetdm/fleet:$version
+              ${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FLAGS }} \
+              --format=json \
+              --output=trivy-results-fleet-$version.json \
+              fleetdm/fleet:$version || trivy_exit_code=$?
+            # Print a human-readable table to the job log for debugging.
+            ./trivy convert --format table trivy-results-fleet-$version.json
+            if [ -n "${trivy_exit_code:-}" ]; then
+              exit "$trivy_exit_code"
+            fi
           done
 
       - name: List fleetctl VEX files
         id: generate_fleetctl_vex_files
         run: |
-          VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | sed 's/.$//')
-          echo $VEX_FILES
-          echo "FLEETCTL_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
+          # See the fleet VEX step above for why we emit pre-formatted --vex flags.
+          VEX_FLAGS=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do printf -- '--vex=./security/vex/fleetctl/%s ' "$line"; done)
+          echo "$VEX_FLAGS"
+          echo "FLEETCTL_VEX_FLAGS=$VEX_FLAGS" >> $GITHUB_OUTPUT
 
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Run trivy vulnerability scanner on latest released fleetdm/fleetctl image
@@ -96,8 +118,40 @@ jobs:
             --exit-code=1 \
             --pkg-types=os,library \
             --severity=CRITICAL \
-            --vex="${{ steps.generate_fleetctl_vex_files.outputs.FLEETCTL_VEX_FILES }}" \
-            fleetdm/fleetctl:latest
+            ${{ steps.generate_fleetctl_vex_files.outputs.FLEETCTL_VEX_FLAGS }} \
+            --format=json \
+            --output=trivy-results-fleetctl.json \
+            fleetdm/fleetctl:latest || trivy_exit_code=$?
+          # Print a human-readable table to the job log for debugging.
+          ./trivy convert --format table trivy-results-fleetctl.json
+          exit "${trivy_exit_code:-0}"
+
+      - name: Extract CVE list for Slack notification
+        id: extract_cves
+        if: failure()
+        run: |
+          # Aggregate CVEs across every trivy result file produced above. With
+          # `--exit-code=1` fail-fast, only the first failing scan's file will
+          # exist, but we still scoop up whatever's there.
+          shopt -s nullglob
+          files=(trivy-results-*.json)
+          shopt -u nullglob
+          if [ ${#files[@]} -gt 0 ]; then
+            # `safe` JSON-escapes string fields so they can be embedded inline in
+            # the Slack payload JSON (titles can contain quotes, backslashes, etc.).
+            # `\\n` (literal backslash-n) is used as the separator so the value
+            # stays on a single line in $GITHUB_OUTPUT and Slack renders it as a
+            # newline when parsing the JSON payload.
+            cve_list=$(jq -r -s '
+              def safe(s): (s // "") | tojson | .[1:-1];
+              [.[] | (.ArtifactName // "?") as $image | .Results[]?.Vulnerabilities[]? | . + {image: $image}]
+              | unique_by(.VulnerabilityID + "|" + (.PkgName // "") + "|" + .image)
+              | sort_by(.Severity, .VulnerabilityID, .image)
+              | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) in `\(safe(.image))` — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              | join("\\n")
+            ' "${files[@]}")
+          fi
+          echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
 
       - name: Slack notification
         if: github.event.schedule == '0 6 * * *' && failure()
@@ -111,7 +165,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ Check vulnerabilities in released docker images failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                    "text": "⚠️ Check vulnerabilities in released docker images failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n\n*Detected CVEs:*\n${{ steps.extract_cves.outputs.cve_list }}"
                   }
                 }
               ]

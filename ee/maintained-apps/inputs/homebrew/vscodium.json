@@ -1,0 +1,8 @@
+{
+  "name": "VSCodium",
+  "unique_identifier": "com.vscodium",
+  "token": "vscodium",
+  "installer_format": "zip",
+  "slug": "vscodium/darwin",
+  "default_categories": ["Developer tools"]
+}

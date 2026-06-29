@@ -1,1 +1,0 @@
-* Fixed error message when deleting a certificate authority (that is referenced by a certificate template) to show a helpful message instead of a raw database error.

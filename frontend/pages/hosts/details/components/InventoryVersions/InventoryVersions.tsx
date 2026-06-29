@@ -73,13 +73,18 @@ const InventoryVersion = ({
       borderRadiusSize="medium"
     >
       <div className={`${baseClass}__row`}>
-        <DataSet title="Version" value={version.version} />
+        <DataSet title="Version" value={version.version} textOnly />
         <DataSet
           title="Type"
           value={formatSoftwareType({ source, extension_for })}
+          textOnly
         />
         {bundleIdentifier && (
-          <DataSet title="Bundle identifier" value={bundleIdentifier} />
+          <DataSet
+            title="Bundle identifier"
+            value={bundleIdentifier}
+            textOnly
+          />
         )}
         {version.last_opened_at !== undefined && (
           <DataSet
@@ -89,6 +94,7 @@ const InventoryVersion = ({
                 ? dateAgo(version.last_opened_at)
                 : "Never"
             }
+            textOnly
           />
         )}
       </div>

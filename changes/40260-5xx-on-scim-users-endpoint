@@ -1,1 +1,0 @@
-* Made sure that data constraint errors are surfaced using the proper HTTP status code on the /api/v1/fleet/scim/Users endpoint.

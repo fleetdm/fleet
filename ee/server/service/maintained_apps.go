@@ -2,19 +2,20 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -105,18 +106,35 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
+	// Validate script contents (size, UTF-8, shebang for non-Windows platforms).
+	for _, sv := range []struct {
+		name    string
+		content string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if err := fleet.ValidateSoftwareInstallerScript(sv.content, app.Platform); err != nil {
+			return 0, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
+			}
+		}
+	}
+
 	maintainedAppID := &app.ID
 	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
 		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {
 		maintainedAppID = nil // don't set app as maintained if scripts have been modified
 	}
 
-	// For platforms other than macOS, installer name has to match what we see in software inventory,
-	// so we have the UniqueIdentifier field to indicate what that should be (independent of the name we
-	// display when listing the FMA). For macOS, unique identifier is bundle name, and we use bundle
-	// identifier to link installers with inventory, so we set the name to the FMA's display name instead.
+	// For Windows, installer name has to match what we see in software inventory, so we have the
+	// UniqueIdentifier field to indicate what that should be (independent of the FMA's display name).
+	// If we have an upgrade code to match inventory with, we can set the installer name to the FMA's
+	// display name instead. For macOS, unique identifier is bundle name, and we use bundle identifier
+	// to link installers with inventory, so we set the name to the FMA's display name instead.
 	appName := app.UniqueIdentifier
-	if app.Platform == "darwin" || appName == "" {
+	if app.Platform == "darwin" || appName == "" || app.UpgradeCode != "" {
 		appName = app.Name
 	}
 
@@ -162,28 +180,12 @@ func (svc *Service) AddFleetMaintainedApp(
 		PatchQuery:            app.PatchQuery,
 	}
 
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	// Get the mapping of category names to IDs, filtering out categories that don't exist
-	// This allows apps to be added even if some categories (like "Security" or "Utilities")
-	// don't exist in older versions of Fleet.
-	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, payload.Categories)
+	categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")
+		return 0, ctxerr.Wrap(ctx, err, "filtering fleet-maintained app categories")
 	}
-
-	// Filter payload.Categories to only include categories that exist in the database
-	var existingCategories []string
-	var existingCategoryIDs []uint
-	for _, catName := range payload.Categories {
-		if catID, exists := categoryMap[catName]; exists {
-			existingCategories = append(existingCategories, catName)
-			existingCategoryIDs = append(existingCategoryIDs, catID)
-		}
-	}
-
-	// Update payload with only the existing categories
-	payload.Categories = existingCategories
-	payload.CategoryIDs = existingCategoryIDs
+	payload.Categories = categories
+	payload.CategoryIDs = catIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -235,7 +237,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	var authErr error
 	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
 	if teamID == nil {

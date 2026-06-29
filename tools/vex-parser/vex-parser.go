@@ -81,7 +81,7 @@ func generateMarkdown(vex *OpenVEXDocument) (string, error) {
 			}
 			sb.WriteString(fmt.Sprintf("- **Status notes:** %s\n", statusNotes))
 		}
-		sb.WriteString("- **Products:**: ")
+		sb.WriteString("- **Products:** ")
 		var ids []string
 		for _, product := range stmt.Products {
 			ids = append(ids, "`"+product.ID+"`")

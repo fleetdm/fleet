@@ -1,1 +1,0 @@
-* Fixed BitLocker encryption failing with E_INVALIDARG after migrating Windows devices from another MDM. Fleet now reads the OSEncryptionType registry policy to use the correct encryption mode and cleans up stale key protectors from previous failed attempts.

@@ -38,11 +38,11 @@ Apple's Mobile Device Management framework provides the technical foundation for
 
 ### Enrollment and initial registration
 
-Devices enroll through Apple Business Manager for zero-touch deployment or through user-initiated enrollment for existing Macs and BYOD scenarios. During enrollment, devices install the management profile and use APNs to receive MDM notifications, then contact the MDM server to exchange commands and inventory data. 
+Devices enroll through Apple Business for zero-touch deployment or through user-initiated enrollment for existing Macs and BYOD scenarios. During enrollment, devices install the management profile and use APNs to receive MDM notifications, then contact the MDM server to exchange commands and inventory data. 
 
 The enrollment process captures initial device identifiers including UDID, serial number, and hardware model, forming the baseline device record that organizations typically reconcile into their HAM system.
 
-Organizations using Apple Business Manager can assign devices by serial number through Automated Device Enrollment (ADE) before they ship, enabling automatic MDM enrollment when users power them on for the first time. This architecture removes the need to physically handle devices for inventory registration in most cases, supporting remote workforce scenarios where Macs ship directly to employee homes.
+Organizations using Apple Business can assign devices by serial number through Automated Device Enrollment (ADE) before they ship, enabling automatic MDM enrollment when users power them on for the first time. This architecture removes the need to physically handle devices for inventory registration in most cases, supporting remote workforce scenarios where Macs ship directly to employee homes.
 
 ### Continuous data collection through MDM queries
 
@@ -66,7 +66,7 @@ Scaling Mac inventory management across hundreds or thousands of devices require
 
 ### 1. Implement zero-touch deployment workflows
 
-Integrate Apple Business Manager with your MDM tool to enable automatic device enrollment. Assign new Macs to your MDM server at the point of purchase, configure Automated Device Enrollment so devices are managed from first boot (and, if desired, the MDM enrollment profile can be non-removable), and integrate with your identity provider for user authentication during enrollment.
+Integrate Apple Business with your MDM tool to enable automatic device enrollment. Assign new Macs to your MDM server at the point of purchase, configure Automated Device Enrollment so devices are managed from first boot (and, if desired, the MDM enrollment profile can be non-removable), and integrate with your identity provider for user authentication during enrollment.
 
 Tools like Fleet support [zero-touch provisioning through ABM](https://fleetdm.com/docs/using-fleet/mdm-macos-setup), allowing organizations to define enrollment settings, team assignments, and configuration profiles that apply automatically when devices first connect.
 
@@ -106,7 +106,7 @@ This approach supports unified reporting and compliance dashboards while preserv
 
 ## Manage your Mac fleet effectively
 
-Mac inventory management works best when you treat device management systems as rich data sources and keep a dedicated Hardware Asset Management (HAM) system as your authoritative system of record. Effective implementation means deploying zero-touch workflows through Apple Business Manager, building data schemas that respect BYOD boundaries, integrating with identity providers, and ensuring the right device data flows into your HAM tool for procurement, assignment, and lifecycle workflows.
+Mac inventory management works best when you treat device management systems as rich data sources and keep a dedicated Hardware Asset Management (HAM) system as your authoritative system of record. Effective implementation means deploying zero-touch workflows through Apple Business, building data schemas that respect BYOD boundaries, integrating with identity providers, and ensuring the right device data flows into your HAM tool for procurement, assignment, and lifecycle workflows.
 
 Fleet provides an open-source tool that [combines MDM with osquery](https://fleetdm.com/device-management) for macOS, Windows, and Linux. Fleet is not a hardware asset management system, but it can act as a device management and data collection/orchestration layer that captures richer device data more frequently than many device management tools, making it valuable for populating and keeping HAM records current.
 
@@ -128,7 +128,7 @@ The best approach involves implementing check-in requirements where devices must
 
 ### Can I use the same inventory collection approach across Mac, Windows, and Linux, or do I need platform-specific tools?
 
-Cross-platform inventory tools exist, but macOS requires platform-specific support due to Apple-specific frameworks, management workflows that depend on the MDM protocol, and Apple Business Manager enrollment patterns.
+Cross-platform inventory tools exist, but macOS requires platform-specific support due to Apple-specific frameworks, management workflows that depend on the MDM protocol, and Apple Business enrollment patterns.
 
 The most effective approach uses tools with strong native Mac support rather than Windows-centric platforms extended to macOS as an afterthought. Define common inventory fields applicable across all platforms (device name, OS version, assigned user) while maintaining platform-specific extensions for Mac attributes like FileVault status, Apple silicon architecture details, and System Integrity Protection configuration state.
 
@@ -136,7 +136,7 @@ The most effective approach uses tools with strong native Mac support rather tha
 
 Look for device management and data collection tooling that can reliably collect the fields your HAM system needs: stable identifiers (serial number, hardware UUID), enrollment metadata, assignment/user mapping, and lifecycle status signals (last check-in, OS version eligibility, encryption state). In addition, ensure you can export or integrate that device data into your HAM system.
 
-Fleet combines Apple's MDM framework with osquery to collect Mac device data across hardware specifications, software versions, and security configurations. Fleet supports zero-touch deployment through Apple Business Manager integration, enabling automatic enrollment and policy enforcement for new devices, and it can provide high-fidelity data that you can use to populate and maintain your hardware asset records in a dedicated HAM solution.
+Fleet combines Apple's MDM framework with osquery to collect Mac device data across hardware specifications, software versions, and security configurations. Fleet supports zero-touch deployment through Apple Business integration, enabling automatic enrollment and policy enforcement for new devices, and it can provide high-fidelity data that you can use to populate and maintain your hardware asset records in a dedicated HAM solution.
 
 [Try Fleet](https://fleetdm.com/get-started) to evaluate it as a device management and data collection layer for your Mac inventory workflows.
 

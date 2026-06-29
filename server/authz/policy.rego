@@ -16,8 +16,10 @@ write := "write"
 create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
+transfer_host := "transfer_host"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
+write_members := "write_members"
 
 # User specific actions
 write_role := "write_role"
@@ -52,6 +54,15 @@ team_role(subject, team_id) = role {
 	role := subject_team.role
 }
 
+# team_role_or_none is like team_role but returns "" (instead of undefined) when
+# the subject has no explicit role for the team. This allows expressing "for all
+# teams" checks that must also reject teams the subject has no role in.
+team_role_or_none(subject, team_id) = role {
+	role := team_role(subject, team_id)
+} else = "" {
+	true
+}
+
 ##
 # Global config
 ##
@@ -78,10 +89,10 @@ allow {
   action == write
 }
 
-# Global admin, gitops, maintainer, technician, observer_plus and observer can read Okta IdP assets.
+# Global admin, gitops, maintainer, and technician can read Okta IdP assets.
 allow {
   object.type == "conditional_access_idp_assets"
-  subject.global_role == [admin, gitops, maintainer, technician, observer_plus, observer][_]
+  subject.global_role == [admin, gitops, maintainer, technician][_]
   action == read
 }
 
@@ -128,6 +139,22 @@ allow {
   action == write
 }
 
+# Global admins can manage team membership.
+allow {
+  object.type == "team"
+  object.id != 0
+  subject.global_role == admin
+  action == write_members
+}
+
+# Team admins can manage membership of their teams.
+allow {
+  object.type == "team"
+  object.id != 0
+  team_role(subject, object.id) == admin
+  action == write_members
+}
+
 ##
 # Users
 #
@@ -157,11 +184,25 @@ allow {
   action == read
 }
 
-# Team admins can perform all operations on the team users (except changing their password).
+# Team admins can perform all operations on the team users (except changing their
+# password), but only if they are an admin of EVERY team the object user belongs
+# to. Otherwise a team admin could grant a user access to (or modify a user in) a
+# team they don't administer, including teams they have no role in at all.
 allow {
   object.type == "user"
-  team_role(subject, object.teams[_].id) == admin
   action == [read, write, write_role][_]
+  # The object user must belong to at least one team.
+  object.teams[_]
+  # The subject must not be a non-admin of any of the object user's teams, i.e.
+  # the subject is a team admin of all of the object user's teams.
+  not subject_not_admin_of_some_object_team
+}
+
+# subject_not_admin_of_some_object_team is true if there is at least one team of
+# the object user for which the subject is not a team admin (this includes teams
+# in which the subject has no role at all).
+subject_not_admin_of_some_object_team {
+  team_role_or_none(subject, object.teams[_].id) != admin
 }
 
 ##
@@ -299,6 +340,13 @@ allow {
 	action == write_host_label
 }
 
+# Global admin, maintainers, technicians, and gitops can transfer hosts between fleets.
+allow {
+	object.type == "host"
+	subject.global_role == [admin, maintainer, technician, gitops][_]
+	action == transfer_host
+}
+
 # Global admin and maintainers can cancel activities on a host.
 allow {
 	object.type == "host"
@@ -334,6 +382,16 @@ allow {
 	object.type == "host"
 	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
 	action == write_host_label
+}
+
+# Team admins, maintainers, technicians, and gitops can transfer hosts of their own team.
+# This is needed both for write access to the source team (where the host currently
+# is) and the destination team (where the host is being transferred to); the service
+# layer authorizes both sides separately.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	action == transfer_host
 }
 
 # Team admins and maintainers can cancel activities on a host of their own team.
@@ -740,10 +798,10 @@ allow {
 # Software
 ##
 
-# Global admins, maintainers, technician, observers, and observer_plus can read all software.
+# Global admins, maintainers, technician, observers, observer_plus and gitops can read all software.
 allow {
   object.type == "software_inventory"
-  subject.global_role == [admin, maintainer, technician, observer, observer_plus][_]
+  subject.global_role == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
@@ -754,32 +812,32 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, technician, observers and observer_plus can read all software in their teams.
+# Team admins, maintainers, technician, observers, observer_plus and gitops can read all software in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "software_inventory"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
-# Global admins and maintainers can read all maintained apps.
+# Global admins and maintainers and gitops can read all maintained apps.
 allow {
   object.type == "maintained_app"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == read
 }
 
-# Team admins and maintainers can read all maintained apps (no team constraint, unlike installers)
+# Team admins and maintainers and gitops can read all maintained apps (no team constraint, unlike installers)
 allow {
   object.type == "maintained_app"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == read
 }
 
-# Global admins, maintainers, and technicians can read any installable entity (software installer or VPP app)
+# Global admins, maintainers, technicians and gitops can read any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -790,11 +848,11 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, and technicians can read any installable entity (software installer or VPP app) in their teams.
+# Team admins, maintainers, technicians and gitops can read any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "installable_entity"
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -865,9 +923,9 @@ allow {
 
 # Global admins, maintainers, technicians, and gitops can resend MDM config profiles.
 #
-# GitOps doesn't really need permissions to resend to specific hosts,
+# gitops doesn't really need permissions to resend to specific hosts,
 # but we will keep this as-is to not break any workflows that might be using a
-# GitOps token to do a resend.
+# gitops token to do a resend.
 allow {
   object.type == "mdm_config_profile"
   subject.global_role == [admin, maintainer, technician, gitops][_]
@@ -894,9 +952,9 @@ allow {
 
 # Team admins, maintainers, technicians, and gitops can resend MDM config profiles on their teams.
 #
-# GitOps doesn't really need permissions to resend to specific hosts,
+# gitops doesn't really need permissions to resend to specific hosts,
 # but we will keep this as-is to not break any workflows that might be using a
-# GitOps token to do a resend.
+# gitops token to do a resend.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
@@ -1250,7 +1308,7 @@ allow {
 ##
 # Certificate Authorities
 ##
-# Global admins and GitOps can configure, read, list, and read secrets of certificate authorities.
+# Global admins and gitops can configure, read, list, and read secrets of certificate authorities.
 allow {
   object.type == "certificate_authority"
   subject.global_role == [admin, gitops][_]
@@ -1297,4 +1355,56 @@ allow {
   object.type == "certificate_template"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
+}
+
+##
+# Software categories (used as self-service categories in the UI)
+##
+
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories.
+allow {
+  object.type == "software_category"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories on their fleet.
+allow {
+  object.type == "software_category"
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write self-service categories.
+allow {
+  object.type == "software_category"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can write self-service categories on their fleet.
+allow {
+  object.type == "software_category"
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# API Endpoints
+##
+
+# Global admins can read API endpoints.
+allow {
+  object.type == "api_endpoint"
+  subject.global_role == admin
+  action == read
+}
+
+# Any team admin can read API endpoints.
+allow {
+  object.type == "api_endpoint"
+  team_role(subject, subject.teams[_].id) == admin
+  action == read
 }

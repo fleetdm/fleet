@@ -9,6 +9,8 @@ const baseClass = "canceled-install-software-activity-item";
 const CanceledInstallSoftwareActivityItem = ({
   activity,
 }: IHostActivityItemComponentProps) => {
+  const fromSetupExperience = activity.details?.from_setup_experience;
+
   return (
     <ActivityItem
       className={baseClass}
@@ -24,7 +26,8 @@ const CanceledInstallSoftwareActivityItem = ({
             activity.details.software_display_name
           )}
         </b>{" "}
-        install on this host.
+        install on this host
+        {fromSetupExperience ? " during setup experience" : ""}.
       </>
     </ActivityItem>
   );

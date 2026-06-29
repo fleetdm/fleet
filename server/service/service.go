@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,7 +50,7 @@ type Service struct {
 
 	authz *authz.Authorizer
 
-	jitterMu *sync.Mutex
+	jitterMu *sync.RWMutex
 	jitterH  map[time.Duration]*jitterHashTable
 
 	geoIP fleet.GeoIP
@@ -74,6 +76,12 @@ type Service struct {
 
 	// activitySvc is the activity bounded context service for write operations.
 	activitySvc fleet.ActivityWriteService
+
+	// acmeSvc is the ACME service module for write operations.
+	acmeSvc fleet.ACMEWriteService
+
+	// orgLogoStore stores the bytes of customer-uploaded org logos.
+	orgLogoStore fleet.OrgLogoStore
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -148,6 +156,7 @@ func NewService(
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
+	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -169,7 +178,7 @@ func NewService(
 		failingPolicySet:  failingPolicySet,
 		authz:             authorizer,
 		jitterH:           make(map[time.Duration]*jitterHashTable),
-		jitterMu:          new(sync.Mutex),
+		jitterMu:          new(sync.RWMutex),
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,
@@ -187,6 +196,7 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
+		orgLogoStore:                    orgLogoStore,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -201,6 +211,12 @@ func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
 }
 
+// SetACMEService sets the ACME service module service for write operations.
+// This should be called after NewService to inject the ACME service dependency.
+func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
+	svc.acmeSvc = acmeSvc
+}
+
 type validationMiddleware struct {
 	fleet.Service
 	ds              fleet.Datastore
@@ -210,4 +226,18 @@ type validationMiddleware struct {
 // getAssetURL simply returns the base url used for retrieving image assets from fleetdm.com.
 func getAssetURL() template.URL {
 	return template.URL("https://fleetdm.com/images/permanent")
+}
+
+// emailLinkBaseURL returns the base URL used to build links in transactional
+// emails. The server URL is the source of truth; the URL prefix is appended
+// only when the server URL does not already carry it. This keeps links correct
+// whether an operator configures the subpath in the server URL, in the URL
+// prefix, or both, instead of duplicating it (e.g. https://host/p/p/login).
+func emailLinkBaseURL(serverURL, urlPrefix string) template.URL {
+	if urlPrefix != "" && !strings.HasSuffix(strings.TrimSuffix(serverURL, "/"), urlPrefix) {
+		if joined, err := url.JoinPath(serverURL, urlPrefix); err == nil {
+			serverURL = joined
+		}
+	}
+	return template.URL(serverURL) //nolint:gosec // G203: operator-configured URL, not user input
 }

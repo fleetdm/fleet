@@ -11,8 +11,8 @@ const baseClass = "info-banner";
 export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
-  /** default light purple */
-  color?: "purple" | "yellow" | "grey";
+  /** default grey */
+  color?: "grey" | "yellow";
   /** default 4px  */
   borderRadius?: "medium" | "xlarge";
   pageLevel?: boolean;
@@ -26,7 +26,7 @@ export interface IInfoBannerProps {
 const InfoBanner = ({
   children,
   className,
-  color = "purple",
+  color = "grey",
   borderRadius,
   pageLevel,
   cta,

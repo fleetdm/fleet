@@ -1,10 +1,19 @@
 .query-details-page {
   @include vertical-page-layout;
 
+  &__query-description {
+    overflow-wrap: anywhere;
+  }
+
   &__title-bar {
     display: flex;
     justify-content: space-between;
     gap: $pad-medium;
+  }
+
+  &__name-description {
+    flex: 1;
+    min-width: 0;
   }
 
   &__action-button-container {
@@ -17,15 +26,13 @@
   &__query-name {
     margin-top: 0;
     font-size: $large;
+    overflow: hidden;
   }
 
   &__settings {
     display: flex;
     gap: $pad-large;
     font-size: $x-small;
-    .component__tooltip-wrapper__underline {
-      top: 0px;
-    }
   }
 
   &__automations,

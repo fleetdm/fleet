@@ -33,6 +33,7 @@ module.exports = {
     let allBugsCreatedInPastWeek = [];
     let allBugsClosedInPastWeek = [];
     let allBugsReportedByCustomersInPastWeek = [];
+    let daysSinceUnprioritizedBugsWereOpened = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -97,6 +98,9 @@ module.exports = {
             }
           }
           daysSinceBugsWereOpened.push(timeOpenInDays);
+          if (!issue.labels.some(label => label.name === ':release')) {
+            daysSinceUnprioritizedBugsWereOpened.push(timeOpenInDays);
+          }
         }
 
       },
@@ -303,6 +307,7 @@ module.exports = {
 
     // Get the averages from the arrays of results.
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
+    let averageDaysUnprioritizedBugsAreOpenFor = Math.round(_.sum(daysSinceUnprioritizedBugsWereOpened) / daysSinceUnprioritizedBugsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
 
@@ -356,6 +361,8 @@ module.exports = {
     Bugs:
     ---------------------------
     Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
+
+    Average open time (unprioritized bugs): ${averageDaysUnprioritizedBugsAreOpenFor} days.
 
     Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
 

@@ -30,16 +30,18 @@ permissions:
 
 jobs:
   fleet-gitops:
-    timeout-minutes: 10
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout our repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
 
       - name: Checkout GitOps repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -47,6 +49,7 @@ jobs:
           repository: fleetdm/fleet-gitops
           ref: main
           path: fleet-gitops
+          persist-credentials: false
 
       - name: Apply latest configuration to Fleet
         uses: ./fleet-gitops/.github/gitops-action-fleets

@@ -24,23 +24,29 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.22.1
+  OSQUERY_VERSION: 5.23.1
 
+# Least-privilege default; each build job grants id-token/attestations at the job level.
 permissions:
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   generate-macos:
     runs-on: macos-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Generate osqueryd.app.tar.gz
         run: |
@@ -53,7 +59,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "extracted/osquery.app/Contents/MacOS/*"
 
@@ -70,14 +76,20 @@ jobs:
 
   generate-linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Download and extract osqueryd for linux
         run: |
@@ -89,7 +101,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "opt/osquery/bin/osqueryd"
 
@@ -101,14 +113,20 @@ jobs:
 
   generate-linux-arm64:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install file
         run: |
@@ -124,7 +142,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "opt/osquery/bin/osqueryd"
 
@@ -136,14 +154,20 @@ jobs:
 
   generate-windows:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Download osquery msi for Windows
         run: |
@@ -157,7 +181,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: C:\temp\osquery\osqueryd\osqueryd.exe
 
@@ -169,14 +193,20 @@ jobs:
 
   generate-windows-arm64:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Download osquery msi for Windows
         run: |
@@ -194,7 +224,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: osqueryd.exe
 

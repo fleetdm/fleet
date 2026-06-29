@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -161,19 +162,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	var stickyEnrollment *string
-	if svc.keyValueStore != nil {
-		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
-		// this prevents enrollment-based team changes for a time window to avoid race conditions
-		// with MDM profile delivery.
-		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hardwareUUID)
-		if err != nil {
-			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
-			// enrollment proceeds without sticky behavior rather than blocking.
-			svc.logger.ErrorContext(ctx, "failed to get sticky enrollment", "err", err, "host_uuid", hardwareUUID)
-		}
-	}
-
 	host, err := svc.ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
@@ -183,7 +171,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
-		fleet.WithEnrollOsqueryIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
@@ -849,15 +836,22 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	svc.jitterMu.Lock()
-	defer svc.jitterMu.Unlock()
+	svc.jitterMu.RLock()
+	jh := svc.jitterH[interval]
+	svc.jitterMu.RUnlock()
 
-	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+	if jh == nil {
+		svc.jitterMu.Lock()
+		// Double-check after acquiring write lock.
+		if svc.jitterH[interval] == nil {
+			svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
+			svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+		}
+		jh = svc.jitterH[interval]
+		svc.jitterMu.Unlock()
 	}
 
-	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	jitter := jh.jitterForHost(hostID)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
 }
@@ -887,7 +881,7 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 		}
-		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 		if err != nil && !fleet.IsNotFound(err) {
 			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
 		}
@@ -897,8 +891,8 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 	}
 }
 
-func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
@@ -931,8 +925,30 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
 	if hostRunningSetupExperience {
-		svc.logger.DebugContext(ctx, "skipping policy queries for host in setup experience", "host_id", host.ID)
-		return nil, false, nil
+		// During setup experience, run ONLY the policies that gate this host's pending setup-experience software, instead of the
+		// host's whole (possibly large) team policy set. All other policies stay skipped so unrelated automations do not fire
+		// mid-setup. The install itself is performed by setup experience, not by the policy automation (which is suppressed for
+		// in-setup hosts in processSoftwareForNewlyFailingPolicies).
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get host uuid for setup experience policy queries")
+		}
+		policyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		if len(policyIDs) == 0 {
+			svc.logger.DebugContext(ctx, "skipping policy queries for host in setup experience (no policy-gated items)", "host_id", host.ID)
+			return nil, false, nil
+		}
+		policyQueries, err = svc.ds.PolicyQueriesForHostFiltered(ctx, host, policyIDs)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "retrieve filtered setup experience policy queries")
+		}
+		// If a gated policy's platform/label scope excludes the host, it won't be returned here and won't run; setup experience
+		// detects that and falls back to installing the item, so we don't flag the host as "no policies" (which would bump the
+		// policy timestamp).
+		return policyQueries, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
@@ -1202,11 +1218,27 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		// Compute flipping policies once for all consumers. This replaces up to 5 individual calls to
+		// FlippingPoliciesForHost with a single database query.
+		newFailing, newPassing, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, policyResults)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		}
+		// Ensure newPassing is non-nil so RecordPolicyQueryExecutions can distinguish "pre-computed with zero results"
+		// from "not pre-computed" (nil means compute it yourself).
+		if newPassing == nil {
+			newPassing = []uint{}
+		}
+		newFailingSet := make(map[uint]struct{}, len(newFailing))
+		for _, id := range newFailing {
+			newFailingSet[id] = struct{}{}
+		}
+
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1219,18 +1251,24 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
 			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
-			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults, newFailingSet); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
 
-		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
-		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+		// setupExperienceHostUUID keys setup-experience rows (OsqueryHostID on Windows/Linux); on error it is empty, which
+		// disables setup-experience automation suppression (matches no host).
+		setupExperienceHostUUID, seuErr := fleet.HostUUIDForSetupExperience(host)
+		if seuErr != nil {
+			svc.logger.ErrorContext(ctx, "could not derive setup experience host UUID; setup-experience suppression disabled for this host",
+				"err", seuErr, "host_id", host.ID, "platform", host.Platform)
+			ctxerr.Handle(ctx, seuErr)
+		}
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, setupExperienceHostUUID, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		// filter policy results for webhooks
+		// Filter policy results for webhooks using pre-computed flipping sets.
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
@@ -1249,12 +1287,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)
 		if len(filteredResults) > 0 {
-			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, filteredResults); err != nil {
-				logging.WithErr(ctx, err)
-			} else {
+			// Filter the pre-computed flipping results to only webhook-enabled policies.
+			webhookFailing := filterByPolicyIDs(newFailing, filteredResults)
+			webhookPassing := filterByPolicyIDs(newPassing, filteredResults)
+			if len(webhookFailing) > 0 || len(webhookPassing) > 0 {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
-					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), failingPolicies, passingPolicies); err != nil {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), webhookFailing, webhookPassing); err != nil {
 						logging.WithErr(ctx, err)
 					}
 				}()
@@ -1268,12 +1307,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// maybe we should impose restrictions between async collection interval
 		// and policy update interval?
 
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	} else if hostWithoutPolicies {
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{}); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
@@ -1938,6 +1977,18 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
+// filterByPolicyIDs returns only the policy IDs from ids that are present in allowedResults and have a non-nil result
+// (i.e., the policy actually executed). This matches the behavior of FlippingPoliciesForHost which ignores nil results.
+func filterByPolicyIDs(ids []uint, allowedResults map[uint]*bool) []uint {
+	var filtered []uint
+	for _, id := range ids {
+		if val, ok := allowedResults[id]; ok && val != nil {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
 func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname, displayName string, newFailing, newPassing []uint) error {
 	host := fleet.PolicySetHost{
 		ID:          hostID,
@@ -1957,13 +2008,32 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 	return nil
 }
 
+// continuousAutomationOnCooldown reports whether a continuous policy automation that
+// last fired (queued an install) at lastFiredAt should be skipped on this run.
+//
+// Continuous automations re-fire on every failing policy result, not just on
+// pass→fail transitions. A successful install requests a host vitals refetch, and a
+// refetch makes policies re-run immediately (bypassing the policy update interval).
+// If the policy keeps failing, that creates a tight install→refetch→re-run→install
+// loop. We throttle continuous re-fires to at most once per policy update interval so
+// a perpetually-failing policy retries on the next interval (~1h) instead of
+// continuously. A zero lastFiredAt (no prior automation install) is never on cooldown.
+func (svc *Service) continuousAutomationOnCooldown(lastFiredAt time.Time) bool {
+	if lastFiredAt.IsZero() {
+		return false
+	}
+	return svc.clock.Now().Sub(lastFiredAt) < svc.config.Osquery.PolicyUpdateInterval
+}
+
 func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	ctx context.Context,
 	hostID uint,
 	hostTeamID *uint,
 	hostPlatform string,
 	hostOrbitNodeKey *string,
+	setupExperienceHostUUID string,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		// We do not want to queue software installations on vanilla osquery hosts.
@@ -1979,15 +2049,13 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2000,57 +2068,64 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to installers.
-	policiesWithInstallersMap := make(map[uint]fleet.PolicySoftwareInstallerData)
-	for _, policyWithInstaller := range policiesWithInstaller {
-		policiesWithInstallersMap[policyWithInstaller.ID] = policyWithInstaller
-	}
-	policyResultsOfPoliciesWithInstallers := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithInstallersMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithInstallers[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithInstallers) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with installers that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithInstallers, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithInstallers,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithInstallers) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithInstallersSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithInstallers {
-		policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with installers that are not newly failing.
+	// Filter to policies with installers that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers an install, not just pass→fail transitions).
 	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
 	for _, policyWithInstaller := range policiesWithInstaller {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyWithInstaller.ID]; ok {
+		if _, ok := newFailingSet[policyWithInstaller.ID]; ok || policyWithInstaller.ContinuousAutomationsEnabled {
 			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
+		}
+	}
+	if len(failingPoliciesWithInstaller) == 0 {
+		return nil
+	}
+
+	// Suppress the automation for any policy that gates one of this host's setup-experience items: while the host is in setup
+	// experience, setup experience performs that install itself. Installing here too would double-install.
+	if setupExperienceHostUUID != "" {
+		gatedPolicyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, setupExperienceHostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		if len(gatedPolicyIDs) > 0 {
+			gatedSet := make(map[uint]struct{}, len(gatedPolicyIDs))
+			for _, id := range gatedPolicyIDs {
+				gatedSet[id] = struct{}{}
+			}
+			kept := failingPoliciesWithInstaller[:0]
+			for _, p := range failingPoliciesWithInstaller {
+				if _, gated := gatedSet[p.ID]; gated {
+					svc.logger.DebugContext(ctx, "skipping policy automation install for host in setup experience; setup experience will install it",
+						"host_id", hostID, "policy_id", p.ID)
+					continue
+				}
+				kept = append(kept, p)
+			}
+			failingPoliciesWithInstaller = kept
+			if len(failingPoliciesWithInstaller) == 0 {
+				return nil
+			}
 		}
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
 		policyID := failingPolicyWithInstaller.ID
+		_, newlyFailing := newFailingSet[policyID]
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+		}
+		softwareInstallerTitleID_ := uint(0)
+		if installerMetadata.TitleID != nil {
+			softwareInstallerTitleID_ = *installerMetadata.TitleID
 		}
 		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", failingPolicyWithInstaller.ID,
 			"software_installer_id", failingPolicyWithInstaller.InstallerID,
-			"software_title_id", installerMetadata.TitleID,
+			"software_title_id", softwareInstallerTitleID_,
 			"software_installer_platform", installerMetadata.Platform,
 		)
 		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
@@ -2082,6 +2157,37 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			)
 			continue
 		}
+
+		// Throttle continuous policy automation re-installs: if this policy fired only
+		// because continuous_automations_enabled is set (not a pass→fail transition)
+		// and we already queued a successful install within the policy update interval,
+		// skip it. This prevents a tight install→refetch→re-run loop when the install
+		// succeeds but never makes the policy pass. We only throttle on a successful
+		// install because only success requests the refetch that drives the loop; failed
+		// installs are retried via the dedicated retry path (see
+		// shouldRetryPolicyAutomationSoftwareInstall). See continuousAutomationOnCooldown.
+		if !newlyFailing && failingPolicyWithInstaller.ContinuousAutomationsEnabled &&
+			hostLastInstall != nil && hostLastInstall.Status != nil &&
+			*hostLastInstall.Status == fleet.SoftwareInstalled &&
+			svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
+			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
+				"last_install_execution_id", hostLastInstall.ExecutionID,
+				"last_install_at", hostLastInstall.UpdatedAt,
+			)
+			continue
+		}
+
+		// On a continuous re-fire (policy still failing), reset prior
+		// attempt_number values for this host/policy to 0 so the new attempt
+		// restarts the retry sequence at 1 instead of inheriting the cap from
+		// the previous sequence. A no-op on pass→fail transitions (those rows
+		// are already at 0 from the prior fail→pass reset).
+		if failingPolicyWithInstaller.ContinuousAutomationsEnabled {
+			if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, hostID, []uint{policyID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation retry attempts for host")
+			}
+		}
+
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
 		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
@@ -2112,6 +2218,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	var policyTeamID uint
 	if hostTeamID == nil {
@@ -2122,15 +2229,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2143,45 +2248,15 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to VPP apps.
-	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
-	for _, policyWithVPP := range policiesWithVPP {
-		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
-	}
-	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithVPPMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithVPP[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithVPP) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithVPP,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
-		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with VPP apps that are not newly failing.
+	// Filter to policies with VPP apps that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers an install, not just pass→fail transitions).
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+		if _, ok := newFailingSet[policyWithVPP.ID]; ok || policyWithVPP.ContinuousAutomationsEnabled {
 			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 		}
 	}
-
 	if len(failingPoliciesWithVPP) == 0 {
 		return nil
 	}
@@ -2200,15 +2275,23 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
 	}
 
+	// Apps successfully installed within the policy update interval are used to throttle
+	// continuous policy automation re-installs (see continuousAutomationOnCooldown).
+	recentAppInstalls, err := svc.ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, hostID, int(svc.config.Osquery.PolicyUpdateInterval.Seconds()))
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
+	}
+
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
 		policyID := failingPolicyWithVPP.ID
+		_, newlyFailing := newFailingSet[policyID]
 		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
 			"vpp_adam_id", failingPolicyWithVPP.AdamID,
-			"vpp_platform", failingPolicyWithVPP.AdamID,
-			"software_title_id", failingPolicyWithVPP.Platform,
+			"vpp_platform", failingPolicyWithVPP.Platform,
+			"continuous_automations_enabled", failingPolicyWithVPP.ContinuousAutomationsEnabled,
 		)
 
 		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
@@ -2237,6 +2320,17 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
+		// Throttle continuous policy automation re-installs: if this policy fired only
+		// because continuous_automations_enabled is set (not a pass→fail transition)
+		// and the VPP app was successfully installed (verified) within the policy update
+		// interval, skip it. A successful VPP install requests a host refetch, which
+		// re-runs policies immediately; without this a perpetually-failing policy would
+		// loop tightly.
+		if _, recentlyInstalled := recentAppInstalls[failingPolicyWithVPP.AdamID]; !newlyFailing && failingPolicyWithVPP.ContinuousAutomationsEnabled && recentlyInstalled {
+			logger.InfoContext(ctx, "skipping continuous policy automation vpp install; within policy update interval cooldown")
+			continue
+		}
+
 		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
 			SelfService: false,
 			PolicyID:    &policyID,
@@ -2262,6 +2356,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	hostOrbitNodeKey *string,
 	hostScriptsEnabled *bool,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		return nil // vanilla osquery hosts can't run scripts
@@ -2290,15 +2385,13 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2311,43 +2404,17 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to scripts.
-	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
-	for _, policyWithScript := range policiesWithScript {
-		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
-	}
-	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithScriptsMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithScripts[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithScripts) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with scripts that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithScripts,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
-		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with scripts that are not newly failing.
+	// Filter to policies with scripts that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers a script run, not just pass→fail transitions).
 	var failingPoliciesWithScript []fleet.PolicyScriptData
 	for _, policyWithScript := range policiesWithScript {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+		if _, ok := newFailingSet[policyWithScript.ID]; ok || policyWithScript.ContinuousAutomationsEnabled {
 			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
 		}
+	}
+	if len(failingPoliciesWithScript) == 0 {
+		return nil
 	}
 
 	for _, failingPolicyWithScript := range failingPoliciesWithScript {
@@ -2399,6 +2466,17 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if scriptIsAlreadyPending {
 			logger.DebugContext(ctx, "script is already pending on host")
 			continue
+		}
+
+		// On a continuous re-fire (policy still failing), reset prior
+		// attempt_number values for this host/policy to 0 so the new attempt
+		// restarts the retry sequence at 1 instead of inheriting the cap from
+		// the previous sequence. A no-op on pass→fail transitions (those rows
+		// are already at 0 from the prior fail→pass reset).
+		if failingPolicyWithScript.ContinuousAutomationsEnabled {
+			if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, hostID, []uint{policyID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation retry attempts for host")
+			}
 		}
 
 		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)
@@ -2538,14 +2616,15 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	for _, policyID := range conditionalAccessPolicyIDs {
 		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
 	}
+	var failingCAIDs []uint
 	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
 		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
 			// Ignore results for policies that are not for conditional access.
 			continue
 		}
 		if incomingPolicyResult != nil && !*incomingPolicyResult {
+			failingCAIDs = append(failingCAIDs, incomingPolicyID)
 			hostIsCompliantInFleet = false
-			break
 		}
 	}
 
@@ -2555,7 +2634,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet, failingCAIDs)
 
 	return nil
 }
@@ -2566,6 +2645,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	failingPolicyIDs []uint,
 ) {
 	go func() {
 		logger := svc.logger.With(
@@ -2575,7 +2655,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant, failingPolicyIDs); err != nil {
 			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
 		}
 		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
@@ -2592,6 +2672,7 @@ func (svc *Service) setHostConditionalAccess(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	failingPolicyIDs []uint,
 ) error {
 	ctx := context.Background()
 
@@ -2628,6 +2709,7 @@ func (svc *Service) setHostConditionalAccess(
 		time.Now().UTC(),
 	)
 	if err != nil {
+		recordConditionalAccessFailureActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, err, logger)
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
 
@@ -2644,6 +2726,12 @@ func (svc *Service) setHostConditionalAccess(
 		startTime := time.Now()
 		for range time.Tick(conditionalAccessSetWaitTime) {
 			if time.Since(startTime) > timeout {
+				// No failure activity is recorded here. SetComplianceStatus
+				// succeeded (we have a MessageID), so the push was accepted by
+				// the remote provider; we just could not confirm completion
+				// within the expected window. Recording a
+				// failed_automation_conditional_access here would
+				// misrepresent an in-flight async operation as a rejection.
 				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 			}
 			logger.DebugContext(ctx, "get compliance status message wait")
@@ -2676,7 +2764,92 @@ func (svc *Service) setHostConditionalAccess(
 		return ctxerr.Wrap(ctx, err, "set conditional access status on datastore")
 	}
 
+	if !compliant {
+		// The host was pushed non-compliant, which blocks single sign-on. The
+		// push has been accepted (and, for macOS, confirmed) at this point.
+		recordSingleSignOnBlockedActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, logger)
+	}
+
 	return nil
+}
+
+// recordConditionalAccessFailureActivity records a
+// failed_automation_conditional_access activity for the given host when
+// a compliance push to the remote provider fails. One activity is recorded per
+// failing conditional-access policy (policies the host is currently failing,
+// not all CA policies configured for the team), capturing the remote status
+// code and response body when available. Failures to record are logged and
+// swallowed so they don't mask the original error.
+func recordConditionalAccessFailureActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	hostID uint,
+	policyIDs []uint,
+	err error,
+	logger *slog.Logger,
+) {
+	if len(policyIDs) == 0 {
+		return
+	}
+
+	var statusCode int
+	if sc, ok := errors.AsType[interface {
+		error
+		StatusCode() int
+	}](err); ok {
+		statusCode = sc.StatusCode()
+	}
+
+	errResponse := ""
+	if b, ok := errors.AsType[interface {
+		error
+		Body() string
+	}](err); ok {
+		errResponse = b.Body()
+	}
+	if errResponse == "" {
+		// network-level failures (e.g. connection refused) have no server
+		// response; fall back to the error message.
+		errResponse = err.Error()
+	}
+	for _, policyID := range policyIDs {
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationConditionalAccess{
+			PolicyID:      policyID,
+			HostIDList:    []uint{hostID},
+			StatusCode:    statusCode,
+			ErrorResponse: errResponse,
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record conditional access policy automation failure activity",
+				"policy_id", policyID, "host_id", hostID, "err", actErr)
+		}
+	}
+}
+
+// recordSingleSignOnBlockedActivity records a
+// ran_automation_conditional_access activity for the given host once its
+// non-compliant status has been successfully pushed to the remote provider,
+// blocking single sign-on. One activity is recorded per conditional-access
+// policy the host is failing. Failures to record are logged and swallowed so
+// they don't affect the compliance push.
+func recordSingleSignOnBlockedActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	hostID uint,
+	policyIDs []uint,
+	logger *slog.Logger,
+) {
+	if newActivitySvc == nil || len(policyIDs) == 0 {
+		return
+	}
+	for _, policyID := range policyIDs {
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationConditionalAccess{
+			PolicyID:   policyID,
+			HostIDList: []uint{hostID},
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record single sign-on blocked policy automation activity",
+				"policy_id", policyID, "host_id", hostID, "err", actErr)
+		}
+	}
 }
 
 func (svc *Service) maybeDebugHost(

@@ -161,6 +161,15 @@
   },
   {
     "software": {
+      "name": ["slate"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["Flock.app"],
       "source": ["apps"]
     },

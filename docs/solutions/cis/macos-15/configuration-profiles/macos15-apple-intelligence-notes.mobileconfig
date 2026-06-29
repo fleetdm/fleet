@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Disable Apple Intelligence in Notes</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-apple-intelligence-notes.check</string>
+			<key>PayloadUUID</key>
+			<string>D4E5F6A7-B8C9-0123-DEF0-234567890123</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>allowNotesTranscription</key>
+			<false/>
+			<key>allowNotesTranscriptionSummary</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Disables Apple Intelligence features in Notes (transcription, AI summarization) to prevent note content from being processed by AI. CIS macOS 15 benchmark.</string>
+	<key>PayloadDisplayName</key>
+	<string>[macOS 15] CIS - Ensure Apple Intelligence in Notes is disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.macos15.cis-apple-intelligence-notes</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>D4E5F6A7-B8C9-0123-DEF0-234567890124</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,2 +1,0 @@
-- Fixed an issue where the "add Fleet-maintained app" endpoint incorrectly added software to the Unassigned fleet.
-- Muted deprecation warnings for body params when the "deprecated-field-names" topic is not enabled.

@@ -20,7 +20,8 @@ func TestMDMDDMApple(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"TestMDMAppleBatchSetHostDeclarationState", testMDMAppleBatchSetHostDeclarationState},
+		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
+		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
 	}
 
 	for _, c := range cases {
@@ -63,216 +64,231 @@ func insertHostDeclaration(t *testing.T, ds *Datastore, ctx context.Context, hos
 	})
 }
 
-// Helper function to check declaration status
-func checkDeclarationStatus(t *testing.T, ds *Datastore, ctx context.Context, hostUUID, declarationUUID, expectedStatus, operation string) {
-	var status string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		db := q.(*sqlx.DB)
-		return db.QueryRowContext(ctx, `
-			SELECT status FROM host_mdm_apple_declarations
-			WHERE host_uuid = ? AND declaration_uuid = ? AND operation_type = ?`,
-			hostUUID, declarationUUID, operation).Scan(&status)
+func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a test host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-ddm-status",
+		UUID:            "test-host-uuid-ddm-status",
+		HardwareSerial:  "ABC123-DDM-STATUS",
+		PrimaryIP:       "192.168.1.50",
+		PrimaryMac:      "00:00:00:00:00:50",
+		OsqueryHostID:   ptr.String("test-host-uuid-ddm-status"),
+		NodeKey:         ptr.String("test-host-uuid-ddm-status"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
 	})
-	assert.Equal(t, expectedStatus, status)
+	require.NoError(t, err)
+
+	setupMDMDeviceAndEnrollment(t, ds, ctx, host.UUID, host.HardwareSerial)
+
+	// Insert two rows into host_mdm_apple_declarations:
+	// Row A: a remove-operation row (simulating a declaration pending removal)
+	// Row B: a normal install-operation row
+	insertHostDeclaration(t, ds, ctx, host.UUID, "decl-remove", "shared-token", "pending", "remove", "com.example.remove")
+	insertHostDeclaration(t, ds, ctx, host.UUID, "decl-install", "install-token", "pending", "install", "com.example.install")
+
+	// Query back the HEX tokens from the DB (MDMAppleStoreDDMStatusReport reads tokens as HEX)
+	type tokenRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		Token           string `db:"token"`
+	}
+	var tokens []tokenRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &tokens, `
+			SELECT declaration_uuid, HEX(token) as token
+			FROM host_mdm_apple_declarations
+			WHERE host_uuid = ?
+			ORDER BY declaration_uuid`, host.UUID)
+	})
+	require.Len(t, tokens, 2)
+
+	tokenByDecl := make(map[string]string, 2)
+	for _, tok := range tokens {
+		tokenByDecl[tok.DeclarationUUID] = tok.Token
+	}
+	tokenA := tokenByDecl["decl-remove"]
+	tokenB := tokenByDecl["decl-install"]
+	require.NotEmpty(t, tokenA)
+	require.NotEmpty(t, tokenB)
+
+	// Build the updates slice as if the device is reporting status.
+	// The device always reports operation_type='install' for all declarations.
+	updates := []*fleet.MDMAppleHostDeclaration{
+		{
+			Token:         tokenA,
+			Status:        new(fleet.MDMDeliveryStatus),
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+		{
+			Token:         tokenB,
+			Status:        new(fleet.MDMDeliveryStatus),
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+	}
+	*updates[0].Status = fleet.MDMDeliveryVerified
+	*updates[1].Status = fleet.MDMDeliveryVerified
+
+	// Call the method under test
+	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, updates)
+	require.NoError(t, err)
+
+	// Assert the end state.
+	type resultRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		Token           string `db:"token"`
+		Status          string `db:"status"`
+		OperationType   string `db:"operation_type"`
+	}
+	var remaining []resultRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining, `
+			SELECT declaration_uuid, HEX(token) as token, status, operation_type
+			FROM host_mdm_apple_declarations
+			WHERE host_uuid = ?
+			ORDER BY declaration_uuid`, host.UUID)
+	})
+
+	// With the fix: only the install row should remain (remove row was skipped then deleted)
+	// With the bug: both rows remain, and the remove row was flipped to install/verified
+	require.Len(t, remaining, 1, "expected remove row to not survive as install/verified — this is the token collision bug")
+	assert.Equal(t, "decl-install", remaining[0].DeclarationUUID)
+	assert.Equal(t, "install", remaining[0].OperationType)
+	assert.Equal(t, "verified", remaining[0].Status)
 }
 
-func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
-	t.Run("BasicTest", func(t *testing.T) {
-		ctx := t.Context()
+func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
-		// Create a test host
-		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:        "test-host-ddm",
-			UUID:            "test-host-uuid-ddm",
-			HardwareSerial:  "ABC123-DDM",
-			PrimaryIP:       "192.168.1.1",
-			PrimaryMac:      "00:00:00:00:00:00",
-			OsqueryHostID:   ptr.String("test-host-uuid-ddm"),
-			NodeKey:         ptr.String("test-host-uuid-ddm"),
+	// This exercises cleanUpDuplicateRemoveInstall, which runs inside
+	// BulkUpsertMDMAppleHostDeclarations after each batch of host declaration
+	// rows is written. The scenario:
+	//   - D1 is the "old" declaration already marked for removal
+	//     (operation_type=remove, status=pending) on each host.
+	//   - D2 is the "new" declaration (same content/token, different UUID — e.g.
+	//     after a name change caused a delete+reinsert) now being installed.
+	// Because the remove and install share a token, the host has nothing to do, so
+	// the cleanup deletes the stale remove row and marks the install as verified
+	// with resync=1.
+	//
+	// The remove rows and install rows are written in SEPARATE bulk-upsert calls to
+	// prove the cleanup matches against committed DB state, not just the rows in the
+	// current batch.
+	declJSON := []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.cleanup"}`)
+
+	// Create the declaration so we have a realistic token to share between the
+	// remove (D1) and install (D2) host rows.
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		DeclarationUUID: "decl-new",
+		Name:            "New Declaration",
+		Identifier:      "com.example.cleanup",
+		RawJSON:         declJSON,
+	}, nil)
+	require.NoError(t, err)
+
+	// Read the raw (binary) token. BulkUpsertMDMAppleHostDeclarations writes the
+	// Token field straight into the token column (no UNHEX), so we need the binary
+	// value rather than its hex representation.
+	var token []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &token,
+			"SELECT token FROM mdm_apple_declarations WHERE declaration_uuid = ?", decl.DeclarationUUID)
+	})
+
+	// Create 3 hosts, all enrolled
+	hosts := make([]*fleet.Host, 3)
+	for i := range 3 {
+		hostUUID := fmt.Sprintf("cleanup-host-%d", i)
+		newHost, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("cleanup-host-%d", i),
+			UUID:            hostUUID,
+			HardwareSerial:  fmt.Sprintf("CLEANUP-%d", i),
+			PrimaryIP:       fmt.Sprintf("192.168.10.%d", i+1),
+			PrimaryMac:      fmt.Sprintf("00:00:00:00:10:%02d", i+1),
+			OsqueryHostID:   ptr.String(hostUUID),
+			NodeKey:         ptr.String(hostUUID),
 			DetailUpdatedAt: time.Now(),
 			Platform:        "darwin",
 		})
 		require.NoError(t, err)
+		require.NotNil(t, newHost)
+		hosts[i] = newHost
+		setupMDMDeviceAndEnrollment(t, ds, ctx, hostUUID, hosts[i].HardwareSerial)
+	}
 
-		// Set up device and enrollment records (required for foreign key constraints)
-		setupMDMDeviceAndEnrollment(t, ds, ctx, host.UUID, host.HardwareSerial)
+	pending := fleet.MDMDeliveryPending
 
-		// Create 6 declarations (3 for install, 3 for remove)
-		declarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
-			declarations[i], err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-				DeclarationUUID: "test-declaration-uuid-" + string(rune('A'+i)),
-				Name:            "Test Declaration " + string(rune('A'+i)),
-				Identifier:      "com.example.test.declaration." + string(rune('A'+i)),
-				RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.test.declaration.` + string(rune('A'+i)) + `"}`),
-			})
-			require.NoError(t, err)
-		}
-		removeDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
-			removeDeclarations[i] = &fleet.MDMAppleDeclaration{
-				DeclarationUUID: "test-remove-declaration-uuid-" + string(rune('A'+i)),
-				Name:            "Test Remove Declaration " + string(rune('A'+i)),
-				Identifier:      "com.example.test.remove.declaration." + string(rune('A'+i)),
-				RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.test.remove.declaration.` + string(rune('A'+i)) + `"}`),
-			}
-		}
+	// First bulk upsert: write the stale "remove" rows for the old declaration (D1).
+	// cleanUpDuplicateRemoveInstall is a no-op for this batch because it contains no
+	// installs.
+	removeRows := make([]*fleet.MDMAppleHostDeclaration, 0, len(hosts))
+	for _, h := range hosts {
+		removeRows = append(removeRows, &fleet.MDMAppleHostDeclaration{
+			HostUUID:        h.UUID,
+			DeclarationUUID: "decl-old",
+			Name:            "Old Declaration",
+			Identifier:      decl.Identifier,
+			Status:          &pending,
+			OperationType:   fleet.MDMOperationTypeRemove,
+			Token:           string(token),
+		})
+	}
+	require.NoError(t, ds.BulkUpsertMDMAppleHostDeclarations(ctx, removeRows))
 
-		// Don't insert the install declarations in host_mdm_apple_declarations
-		// so they get picked up as new declarations to install
+	// Second bulk upsert: write the "install" rows for the new declaration (D2). The
+	// cleanup runs after this batch and must find the matching remove rows committed
+	// by the first batch.
+	installRows := make([]*fleet.MDMAppleHostDeclaration, 0, len(hosts))
+	for _, h := range hosts {
+		installRows = append(installRows, &fleet.MDMAppleHostDeclaration{
+			HostUUID:        h.UUID,
+			DeclarationUUID: decl.DeclarationUUID,
+			Name:            decl.Name,
+			Identifier:      decl.Identifier,
+			Status:          &pending,
+			OperationType:   fleet.MDMOperationTypeInstall,
+			Token:           string(token),
+		})
+	}
+	require.NoError(t, ds.BulkUpsertMDMAppleHostDeclarations(ctx, installRows))
 
-		// Insert 3 remove declarations with verified status
-		// These simulate declarations that were previously installed but no longer
-		// exist in mdm_apple_declarations (hence should be removed)
-		for i := 0; i < 3; i++ {
-			// Use a proper hex token for each remove declaration
-			token := fmt.Sprintf("%032x", i+1000) // 32 hex chars = 16 bytes when unhexed
-			insertHostDeclaration(
-				t, ds, ctx,
-				host.UUID,
-				removeDeclarations[i].DeclarationUUID,
-				token,
-				"verified",
-				"install", // should get converted to "remove"
-				removeDeclarations[i].Identifier,
-			)
-		}
+	// Assert: for each host, the cleanup should have:
+	//   1. Deleted the D1 remove row (same token as D2 install — duplicate remove/install)
+	//   2. Marked D2 install as verified with resync=1
+	type declRow struct {
+		DeclarationUUID string  `db:"declaration_uuid"`
+		OperationType   string  `db:"operation_type"`
+		Status          string  `db:"status"`
+		Resync          bool    `db:"resync"`
+		Token           *string `db:"token"`
+	}
+	for _, h := range hosts {
+		var rows []declRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT declaration_uuid, operation_type, COALESCE(status, '') as status, resync, HEX(token) as token
+				FROM host_mdm_apple_declarations
+				WHERE host_uuid = ?
+				ORDER BY declaration_uuid`, h.UUID)
+		})
 
-		// Call the method under test
-		hostUUIDs, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
-		require.NoError(t, err)
-		require.Contains(t, hostUUIDs, host.UUID)
-
-		// Also verify that the 3 remove declarations have been marked as pending
-		for i := 0; i < 3; i++ {
-			checkDeclarationStatus(t, ds, ctx, host.UUID, removeDeclarations[i].DeclarationUUID, "pending", "remove")
-		}
-		// Verify that the 3 install declarations have been marked as pending
-		for i := 0; i < 3; i++ {
-			checkDeclarationStatus(t, ds, ctx, host.UUID, declarations[i].DeclarationUUID, "pending", "install")
-		}
-	})
-
-	t.Run("MultipleHostsSharedTokens", func(t *testing.T) {
-		ctx := t.Context()
-
-		// Create 3 test hosts
-		hosts := make([]*fleet.Host, 3)
-		for i := 0; i < 3; i++ {
-			hostUUID := "test-host-uuid-" + string(rune('A'+i))
-			hardwareSerial := "ABC123-" + string(rune('A'+i))
-
-			var err error
-			hosts[i], err = ds.NewHost(ctx, &fleet.Host{
-				Hostname:        "test-host-" + string(rune('A'+i)),
-				UUID:            hostUUID,
-				HardwareSerial:  hardwareSerial,
-				PrimaryIP:       "192.168.1." + string(rune('1'+i)),
-				PrimaryMac:      "00:00:00:00:00:0" + string(rune('1'+i)),
-				OsqueryHostID:   ptr.String(hostUUID),
-				NodeKey:         ptr.String(hostUUID),
-				DetailUpdatedAt: time.Now(),
-				Platform:        "darwin",
-			})
-			require.NoError(t, err)
-
-			// Set up device and enrollment records for each host
-			setupMDMDeviceAndEnrollment(t, ds, ctx, hostUUID, hardwareSerial)
+		// Build a map by declaration UUID for easier assertions
+		rowByDecl := make(map[string]declRow, len(rows))
+		for _, r := range rows {
+			rowByDecl[r.DeclarationUUID] = r
 		}
 
-		// Create 3 declarations for install operations
-		installDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
-			var err error
-			installDeclarations[i], err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-				DeclarationUUID: "test-install-decl-" + string(rune('A'+i)),
-				Name:            "Test Install Declaration " + string(rune('A'+i)),
-				Identifier:      "com.example.test.install." + string(rune('A'+i)),
-				RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.test.install.` + string(rune('A'+i)) + `"}`),
-			})
-			require.NoError(t, err)
+		// D1 remove row should NOT exist (cleaned up because same token as D2 install)
+		_, d1Exists := rowByDecl["decl-old"]
+		assert.False(t, d1Exists, "host %s: D1 remove row should have been cleaned up (same token as D2 install)", h.UUID)
+
+		// D2 install row should exist as verified with resync=1
+		d2Row, d2Exists := rowByDecl[decl.DeclarationUUID]
+		if assert.True(t, d2Exists, "host %s: D2 install row should exist", h.UUID) {
+			assert.Equal(t, "install", d2Row.OperationType, "host %s: D2 should be install", h.UUID)
+			assert.Equal(t, "verified", d2Row.Status, "host %s: D2 should be marked verified by cleanup", h.UUID)
+			assert.True(t, d2Row.Resync, "host %s: D2 should have resync=1", h.UUID)
 		}
-
-		// Create 3 declarations for remove operations (without calling NewMDMAppleDeclaration)
-		removeDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
-			removeDeclarations[i] = &fleet.MDMAppleDeclaration{
-				DeclarationUUID: "test-remove-decl-" + string(rune('A'+i)),
-				Name:            "Test Remove Declaration " + string(rune('A'+i)),
-				Identifier:      "com.example.test.remove." + string(rune('A'+i)),
-				RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.test.remove.` + string(rune('A'+i)) + `"}`),
-			}
-		}
-
-		// Get tokens for all declarations
-		getToken := func(declarationUUID string) string {
-			var token []byte
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				err := sqlx.GetContext(ctx, q, &token,
-					"SELECT token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declarationUUID)
-				return err
-			})
-			return fmt.Sprintf("%x", token)
-		}
-
-		installTokens := make([]string, 3)
-		for i := 0; i < 3; i++ {
-			installTokens[i] = getToken(installDeclarations[i].DeclarationUUID)
-			installDeclarations[i].Token = installTokens[i]
-		}
-
-		removeTokens := make([]string, 3)
-		for i := 0; i < 3; i++ {
-			if i < 2 {
-				// First 2 remove operations use the same tokens as the first 2 install operations
-				removeTokens[i] = installTokens[i]
-			} else {
-				// Last remove operation uses a different token
-				removeTokens[i] = fmt.Sprintf("%032x", i+1000)
-			}
-		}
-
-		// For each host, insert 3 install declarations and 3 remove declarations
-		for _, host := range hosts {
-			// We don't add install declarations because they will be added automatically
-
-			// Insert remove declarations
-			for j := 0; j < 3; j++ {
-				insertHostDeclaration(
-					t, ds, ctx,
-					host.UUID,
-					removeDeclarations[j].DeclarationUUID,
-					removeTokens[j],
-					"verified", // verified status
-					"install",  // should get converted to "remove"
-					removeDeclarations[j].Identifier,
-				)
-			}
-		}
-
-		// Call the method under test
-		hostUUIDs, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
-		require.NoError(t, err)
-
-		// Verify that all host UUIDs are returned
-		for _, host := range hosts {
-			require.Contains(t, hostUUIDs, host.UUID)
-		}
-
-		// Verify that all declarations for all hosts have been marked as pending
-		for _, host := range hosts {
-			// Check remove declarations first
-			for _, decl := range removeDeclarations {
-				// All remove declarations should be marked as pending since they were inserted
-				// with verified status and should be converted to remove operations
-				checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "remove")
-			}
-
-			// Check install declarations
-			for _, decl := range installDeclarations {
-				// All install declarations should be marked as pending
-				checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "install")
-			}
-		}
-	})
+	}
 }

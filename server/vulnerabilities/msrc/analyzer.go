@@ -2,6 +2,7 @@ package msrc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -33,6 +34,13 @@ func Analyze(
 		return nil, err
 	}
 
+	// Refuse to proceed if the loaded bulletin contains no vulnerability data — an empty
+	// bulletin would cause every existing MSRC OS vulnerability for this OS to be marked as
+	// remediated. This usually indicates the bulletin file was corrupted during download.
+	if len(bulletin.Vulnerabilities) == 0 {
+		return nil, errors.New("MSRC bulletin contains no vulnerabilities (possible corrupted feed)")
+	}
+
 	// Find matching products inside the bulletin
 	matchingPIDs := make(map[string]bool)
 	pID, err := bulletin.Products.GetMatchForOS(ctx, os)
@@ -53,7 +61,7 @@ func Analyze(
 	// Run vulnerability detection for all hosts in this batch (hIDs)
 	// and store the results in 'found'.
 	var found []fleet.OSVulnerability
-	for cve, v := range bulletin.Vulnerabities {
+	for cve, v := range bulletin.Vulnerabilities {
 		// Check if this vulnerability targets the OS
 		if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 			continue

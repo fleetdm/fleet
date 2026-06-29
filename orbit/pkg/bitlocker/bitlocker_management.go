@@ -13,29 +13,11 @@ const (
 	ConversionStatusDecryptionPaused     int32 = 5
 )
 
-// Free space wiping status.
-//
-// Values and their meanings were taken from:
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
 const (
-	WipingStatusFreeSpaceNotWiped         int32 = 0
-	WipingStatusFreeSpaceWiped            int32 = 1
-	WipingStatusFreeSpaceWipingInProgress int32 = 2
-	WipingStatusFreeSpaceWipingPaused     int32 = 3
-)
-
-// Specifies whether the volume and the encryption key (if any) are secured.
-//
-// Values and their meanings were taken from:
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
-const (
-	ProtectionStatusUnprotected int32 = 0
-	ProtectionStatusProtected   int32 = 1
-	ProtectionStatusUnknown     int32 = 2
-)
-
-const (
-	// Error Codes
+	// Error codes from Win32_EncryptableVolume WMI methods. The Microsoft docs
+	// define these as uint32, but the COM VARIANT transport delivers them as
+	// VT_I4 (signed 32-bit), which go-ole surfaces as int32. The bit patterns
+	// are identical (e.g., 0x80310019 as uint32 == -2144272327 as int32).
 	ErrorCodeInvalidArg                 int32 = -2147024809 // E_INVALIDARG: encryption flags conflict with Group Policy
 	ErrorCodeIODevice                   int32 = -2147023779
 	ErrorCodeDriveIncompatibleVolume    int32 = -2144272206

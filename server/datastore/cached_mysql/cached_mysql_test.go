@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -980,4 +981,81 @@ func TestCachedYaraRules(t *testing.T) {
 	require.Equal(t, testRule1, rule1Expired) // new value from DB
 	require.Same(t, testRule1, rule1Expired)
 	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB after expiration
+}
+
+func TestCachedFMANamesByIdentifier(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithFMANamesByIdentifierExpiration(100*time.Millisecond))
+
+	fmaNames := map[string]string{
+		"com.microsoft.VSCode":    "Microsoft Visual Studio Code",
+		"com.1password.1password": "1Password",
+	}
+
+	mockedDS.GetFMANamesByIdentifierFunc = func(ctx context.Context) (map[string]string, error) {
+		// Return a copy to avoid mutation
+		result := make(map[string]string, len(fmaNames))
+		maps.Copy(result, fmaNames)
+		return result, nil
+	}
+
+	mockedDS.UpsertMaintainedAppFunc = func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+		return app, nil
+	}
+
+	// Test 1: Initial call hits the DB
+	names, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", names["com.microsoft.VSCode"])
+	require.Equal(t, "1Password", names["com.1password.1password"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
+	mockedDS.GetFMANamesByIdentifierFuncInvoked = false
+
+	// Test 2: Second call uses cache
+	names2, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names2, 2)
+	require.False(t, mockedDS.GetFMANamesByIdentifierFuncInvoked) // from cache
+
+	// Test 3: Modifying returned map doesn't affect cache
+	names2["com.microsoft.VSCode"] = "Modified"
+	names3, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "Microsoft Visual Studio Code", names3["com.microsoft.VSCode"]) // still original
+
+	// Test 4: UpsertMaintainedApp invalidates cache
+	_, err = ds.UpsertMaintainedApp(context.Background(), &fleet.MaintainedApp{
+		Name:             "New App",
+		Slug:             "new-app/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.new.app",
+	})
+	require.NoError(t, err)
+	require.True(t, mockedDS.UpsertMaintainedAppFuncInvoked)
+
+	// Update mock to return new data
+	fmaNames["com.new.app"] = "New App"
+
+	// Next call should hit DB again since cache was invalidated
+	names4, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names4, 3)
+	require.Equal(t, "New App", names4["com.new.app"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
+	mockedDS.GetFMANamesByIdentifierFuncInvoked = false
+
+	// Test 5: Cache expiration
+	time.Sleep(200 * time.Millisecond)
+
+	// Update mock to return different data
+	fmaNames["com.microsoft.VSCode"] = "VS Code Updated"
+
+	// This call should get from DB again since cache expired
+	names5, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "VS Code Updated", names5["com.microsoft.VSCode"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
 }

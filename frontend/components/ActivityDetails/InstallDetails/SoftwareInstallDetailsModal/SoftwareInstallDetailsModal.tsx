@@ -34,6 +34,7 @@ import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -285,7 +286,7 @@ export const SoftwareInstallDetailsModal = ({
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
     }
-    return "If you uninstalled it outside of Fleet it will still show as installed.";
+    return null;
   };
 
   const renderInstallDetailsSection = () => {
@@ -402,6 +403,17 @@ export const SoftwareInstallDetailsModal = ({
             <DeviceUserError />
           ) : (
             <DataError description="Close this modal and try again." />
+          );
+        }
+
+        if (error?.status === 402) {
+          return deviceAuthToken ? (
+            <DeviceUserError />
+          ) : (
+            <>
+              <p>Couldn&apos;t get install details.</p>
+              <PremiumFeatureMessage />
+            </>
           );
         }
       }

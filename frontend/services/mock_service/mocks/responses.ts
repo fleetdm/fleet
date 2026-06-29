@@ -10602,51 +10602,51 @@ const aiAutofillPolicy = {
     "The maintenance will probably involve investigation of the firewall status, troubleshooting any issues found, and enabling the firewall to ensure the laptop's security.",
 };
 
-let mockSecrets = new Array(39).fill(null).map((_, index) => ({
+let mockVariables = new Array(39).fill(null).map((_, index) => ({
   id: index + 1,
   name: `SECRET_${index + 1}`,
   created_at: new Date(Date.now() - index * 1000 * 60 * 60 * 24).toISOString(), // Created 1 day apart
   updated_at: new Date(Date.now() - index * 1000 * 60 * 60 * 24).toISOString(), // Updated 1 day apart
 }));
-let nextSecretId = mockSecrets.length + 1;
+let nextVariableId = mockVariables.length + 1;
 
-const SECRETS_PAGE_SIZE = 20;
-const secrets = (url: string) => {
+const VARIABLES_PAGE_SIZE = 20;
+const variables = (url: string) => {
   const parsedUrl = new URL(`http://example.com/${url}`);
   const params = new URLSearchParams(parsedUrl.search);
   const page = parseInt(params.get("page") || "0", 10);
   const perPage = parseInt(
-    params.get("per_page") || `${SECRETS_PAGE_SIZE}`,
+    params.get("per_page") || `${VARIABLES_PAGE_SIZE}`,
     10
   );
-  const startIndex = (page || 0) * (perPage || SECRETS_PAGE_SIZE);
-  const endIndex = startIndex + (perPage || SECRETS_PAGE_SIZE);
-  const hasNextResults = endIndex < mockSecrets.length;
+  const startIndex = (page || 0) * (perPage || VARIABLES_PAGE_SIZE);
+  const endIndex = startIndex + (perPage || VARIABLES_PAGE_SIZE);
+  const hasNextResults = endIndex < mockVariables.length;
   const hasPreviousResults = startIndex > 0;
   return {
-    custom_variables: [...mockSecrets].slice(startIndex, endIndex),
+    custom_variables: [...mockVariables].slice(startIndex, endIndex),
     meta: {
       has_next_results: hasNextResults,
       has_previous_results: hasPreviousResults,
     },
-    count: mockSecrets.length,
+    count: mockVariables.length,
   };
 };
 
-const addSecret = (url: string, secret: any) => {
-  // Stubbed out for now, as the secrets endpoint is not yet implemented.
-  if (secret.name === "DUPE") {
+const addVariable = (url: string, variable: any) => {
+  if (variable.name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
-  if (secret.name === "ERR") {
+  if (variable.name === "ERR") {
     return Promise.reject({ status: 500, message: "Internal Server Error" });
   }
 
-  mockSecrets = [
-    ...mockSecrets,
+  nextVariableId += 1;
+  mockVariables = [
+    ...mockVariables,
     {
-      name: secret.name,
-      id: (nextSecretId += 1),
+      name: variable.name,
+      id: nextVariableId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -10654,9 +10654,9 @@ const addSecret = (url: string, secret: any) => {
   return Promise.resolve({});
 };
 
-const deleteSecret = (url: string) => {
-  const secretId = parseInt(url.split("/").pop() || "0", 10);
-  mockSecrets = mockSecrets.filter((s) => s.id !== secretId);
+const deleteVariable = (url: string) => {
+  const variableId = parseInt(url.split("/").pop() || "0", 10);
+  mockVariables = mockVariables.filter((v) => v.id !== variableId);
   return Promise.resolve({});
 };
 
@@ -10678,7 +10678,7 @@ export default {
   aiAutofillPolicy,
   teamPolicy1,
   hostDetailsiOS,
-  secrets,
-  addSecret,
-  deleteSecret,
+  variables,
+  addVariable,
+  deleteVariable,
 };

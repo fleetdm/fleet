@@ -30,8 +30,7 @@ type checkAssignedEnrollmentProfileFunc func(url string) error
 // It ensures only one renewal command is executed at any given time, and that
 // it doesn't re-execute the command until a certain amount of time has passed.
 type renewEnrollmentProfileConfigReceiver struct {
-	// Frequency is the minimum amount of time that must pass between two
-	// executions of the profile renewal command.
+	// Frequency is the minimum amount of time that must pass between two executions of the profile renewal command.
 	Frequency time.Duration
 
 	// for tests, to be able to mock command execution. If nil, will use
@@ -86,7 +85,7 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 
 				// we perform this check locally on the client too to avoid showing the
 				// dialog if the Fleet enrollment profile has not been assigned to the device in
-				// Apple Business Manager.
+				// Apple Business.
 				assignedFn := h.checkAssignedEnrollmentProfileFn
 				if assignedFn == nil {
 					assignedFn = profiles.CheckAssignedEnrollmentProfile
@@ -272,6 +271,72 @@ func (w *windowsMDMEnrollmentConfigReceiver) attemptUnenrollment(actionLabel str
 	}
 }
 
+// execSyncFunc starts an on-demand Windows MDM (OMA-DM) session with the Fleet server. Indirected so tests can mock it; if nil the receiver
+// uses TriggerWindowsMDMSync.
+type execSyncFunc func() error
+
+// windowsMDMSyncConfigReceiver reacts to the server's WindowsMDMSyncRequest notification by starting an on-demand OMA-DM session, so queued
+// Windows MDM commands are delivered without waiting for the device's next scheduled poll. This is what lets the server relax the
+// aggressive Windows MDM poll while keeping command latency low.
+type windowsMDMSyncConfigReceiver struct {
+	// Frequency is the minimum amount of time that must pass between two on-demand sync attempts, so a
+	// notification that lingers for a few config polls (before the server observes the command as acked) does
+	// not trigger back-to-back sessions.
+	Frequency time.Duration
+
+	// for tests, to mock the sync trigger. If nil, uses TriggerWindowsMDMSync.
+	execSyncFn execSyncFunc
+
+	// Held for the duration of the async sync goroutine so only one sync runs at a time; also protects lastRun.
+	mu      sync.Mutex
+	lastRun time.Time
+}
+
+func ApplyWindowsMDMSyncFetcherMiddleware(frequency time.Duration) fleet.OrbitConfigReceiver {
+	return &windowsMDMSyncConfigReceiver{Frequency: frequency}
+}
+
+// Run starts an on-demand Windows MDM sync when the server sets WindowsMDMSyncRequest, so queued commands are delivered promptly even when
+// the device's OMA-DM poll schedule has been relaxed. It returns immediately; the sync itself runs in the background (see attemptSync).
+func (w *windowsMDMSyncConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	if cfg.Notifications.WindowsMDMSyncRequest {
+		w.attemptSync()
+	}
+	return nil
+}
+
+func (w *windowsMDMSyncConfigReceiver) attemptSync() {
+	// TryLock keeps a single sync in flight: if one is already running, drop this attempt instead of piling up sessions.
+	if !w.mu.TryLock() {
+		return
+	}
+
+	// do not attempt a sync if the last run is not at least Frequency ago.
+	if time.Since(w.lastRun) <= w.Frequency {
+		log.Debug().Msg("skipped on-demand Windows MDM sync, last run was too recent")
+		w.mu.Unlock()
+		return
+	}
+
+	fn := w.execSyncFn
+	if fn == nil {
+		fn = TriggerWindowsMDMSync
+	}
+
+	// Run the sync in the background so deviceenroller latency never gates the config-receiver loop
+	go func() {
+		defer w.mu.Unlock()
+		if err := fn(); err != nil {
+			// lastRun is intentionally not updated on failure, so the next config poll retries while the command is still queued (matches the
+			// enrollment receiver's behavior).
+			log.Info().Err(err).Msg("triggering on-demand Windows MDM sync failed")
+			return
+		}
+		w.lastRun = time.Now()
+		log.Info().Msg("triggered on-demand Windows MDM sync")
+	}()
+}
+
 type runScriptsConfigReceiver struct {
 	// ScriptsExecutionEnabled indicates if this agent allows scripts execution.
 	// If it doesn't, scripts are not executed, but a response is returned to the
@@ -426,11 +491,9 @@ type execEncryptVolumeFunc func(volumeID string) (recoveryKey string, err error)
 // encryption status of a volume, and an error if the operation fails.
 type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err error)
 
-// execDecryptVolumeFunc handles the decryption of a volume identified by its
-// string identifier (e.g., "C:")
-//
-// It returns an error if the process fails.
-type execDecryptVolumeFunc func(volumeID string) error
+// execRotateRecoveryKeyFunc rotates the recovery key on an already-encrypted volume.
+// It adds a new recovery key protector, removes old ones, and returns the new key.
+type execRotateRecoveryKeyFunc func(volumeID string) (string, error)
 
 type windowsMDMBitlockerConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two
@@ -443,6 +506,11 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// tracks last time a disk encryption has successfully run
 	lastRun time.Time
 
+	// pendingRecoveryKey holds a rotated recovery key that was not yet
+	// successfully escrowed to Fleet. On subsequent ticks, orbit retries
+	// the escrow without rotating again, avoiding orphan protectors.
+	pendingRecoveryKey string
+
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
 
@@ -452,8 +520,8 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// execGetEncryptionStatusFn retrieves encryption status. Set by the middleware from the COMWorker, or overridden in tests.
 	execGetEncryptionStatusFn execGetEncryptionStatusFunc
 
-	// execDecryptVolumeFn handles volume decryption. Set by the middleware from the COMWorker, or overridden in tests.
-	execDecryptVolumeFn execDecryptVolumeFunc
+	// execRotateRecoveryKeyFn rotates the recovery key on an already-encrypted volume.
+	execRotateRecoveryKeyFn execRotateRecoveryKeyFunc
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
@@ -466,7 +534,7 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		EncryptionResult:          encryptionResult,
 		execEncryptVolumeFn:       comWorker.EncryptVolume,
 		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
-		execDecryptVolumeFn:       comWorker.DecryptVolume,
+		execRotateRecoveryKeyFn:   comWorker.RotateRecoveryKey,
 	}
 }
 
@@ -478,14 +546,14 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 		if w.mu.TryLock() {
 			defer w.mu.Unlock()
 
-			w.attemptBitlockerEncryption(cfg.Notifications)
+			w.attemptBitlockerEncryption()
 		}
 	}
 
 	return nil
 }
 
-func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
+func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	if time.Since(w.lastRun) <= w.Frequency {
 		log.Debug().Msg("skipped encryption process, last run was too recent")
 		return
@@ -507,32 +575,51 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		log.Debug().Err(err).Msgf("unable to get encryption status for target volume %s, continuing anyway", targetVolume)
 	}
 
+	// If a previous encryption or rotation succeeded but escrow failed,
+	// retry the escrow with the cached key. This runs before all other
+	// checks because the escrow is just a server API call that doesn't
+	// touch the disk -- it should succeed even during encryption in progress
+	// or when WMI status is transiently unavailable.
+	if w.pendingRecoveryKey != "" {
+		log.Debug().Msg("retrying escrow of previously rotated recovery key")
+		if serverErr := w.updateFleetServer(w.pendingRecoveryKey, nil); serverErr != nil {
+			log.Error().Err(serverErr).Msg("failed to escrow cached recovery key to Fleet Server")
+			return
+		}
+		w.pendingRecoveryKey = ""
+		w.lastRun = time.Now()
+		return
+	}
+
 	// don't do anything if the disk is being encrypted/decrypted
 	if w.bitLockerActionInProgress(encryptionStatus) {
 		log.Debug().Msgf("skipping encryption as the disk is not available. Disk conversion status: %d", encryptionStatus.ConversionStatus)
 		return
 	}
 
-	// if the disk is encrypted, try to decrypt it first.
+	// If the disk is already encrypted, rotate the recovery key instead of
+	// decrypting and re-encrypting. This adds a new Fleet-managed recovery key
+	// protector, removes old ones, and escrows the new key. This matches how other MDMs
+	// handle pre-encrypted disks.
 	if encryptionStatus != nil &&
 		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
-		log.Debug().Msg("disk was previously encrypted. Attempting to decrypt it")
+		log.Debug().Msg("disk is already encrypted, rotating recovery key")
 
-		if err := w.decryptVolume(targetVolume); err != nil {
-			log.Error().Err(err).Msg("decryption failed")
-
+		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
+		if err != nil {
+			log.Error().Err(err).Msg("recovery key rotation failed")
 			if serverErr := w.updateFleetServer("", err); serverErr != nil {
-				log.Error().Err(serverErr).Msg("failed to send decryption failure to Fleet Server")
-				return
+				log.Error().Err(serverErr).Msg("failed to send key rotation failure to Fleet Server")
 			}
+			return
 		}
 
-		// return regardless of the operation output.
-		//
-		// the decryption process takes an unknown amount of time (depending on
-		// factors outside of our control) and the next tick will be a noop if the
-		// disk is not ready to be encrypted yet (due to the
-		// w.bitLockerActionInProgress check above)
+		if serverErr := w.updateFleetServer(recoveryKey, nil); serverErr != nil {
+			log.Error().Err(serverErr).Msg("failed to escrow rotated recovery key to Fleet Server, will retry")
+			w.pendingRecoveryKey = recoveryKey
+			return
+		}
+		w.lastRun = time.Now()
 		return
 	}
 
@@ -547,6 +634,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 
 	if serverErr := w.updateFleetServer(recoveryKey, encryptionErr); serverErr != nil {
 		log.Error().Err(serverErr).Msg("failed to send encryption result to Fleet Server")
+		if encryptionErr == nil && recoveryKey != "" {
+			w.pendingRecoveryKey = recoveryKey
+		}
 		return
 	}
 
@@ -555,6 +645,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		return
 	}
 
+	w.pendingRecoveryKey = ""
 	w.lastRun = time.Now()
 }
 
@@ -596,10 +687,6 @@ func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (st
 	}
 
 	return recoveryKey, nil
-}
-
-func (w *windowsMDMBitlockerConfigReceiver) decryptVolume(targetVolume string) error {
-	return w.execDecryptVolumeFn(targetVolume)
 }
 
 // isMisreportedDecryptionError checks whether the given error is a potentially

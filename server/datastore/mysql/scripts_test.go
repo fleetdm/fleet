@@ -50,12 +50,14 @@ func TestScripts(t *testing.T) {
 		{"BatchExecute", testBatchExecute},
 		{"BatchExecuteWithStatus", testBatchExecuteWithStatus},
 		{"BatchScriptSchedule", testBatchScriptSchedule},
+		{"BatchScriptScheduleTeamTransfer", testBatchScriptScheduleTeamTransfer},
 		{"BatchScriptCancel", testBatchScriptCancel},
 		{"TestMarkActivitiesAsCompleted", testMarkActivitiesAsCompleted},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
+		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -560,6 +562,19 @@ func testListScripts(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantNames, gotNames)
 		})
 	}
+
+	for _, key := range []string{"id", "name", "created_at", "updated_at"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: key, PerPage: 10})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
@@ -787,6 +802,11 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		pending, err = ds.ListPendingHostScriptExecutions(ctx, 43, false)
 		require.NoError(t, err)
 		require.Len(t, pending, 0)
+	})
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
+		require.Error(t, err)
 	})
 }
 
@@ -1950,6 +1970,12 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumErrored, uint(3))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(1))
+
+	// Get summary for nonexistent execution ID
+	summary, err = ds.BatchExecuteSummary(ctx, "fake-bogus-id")
+	require.Nil(t, summary)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
@@ -2166,6 +2192,14 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumCanceled, uint(7))
 	require.Equal(t, *summary.NumIncompatible, uint(8))
 	require.Equal(t, *summary.NumTargeted, uint(9))
+
+	// Get summary for nonexistent execution ID
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: ptr.String("fake-bogus-id"),
+	})
+	require.Nil(t, summaryList)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
@@ -2305,7 +2339,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, executions, 1)
-	require.Equal(t, uint(3), *executions[0].NumIncompatible)
+	require.Equal(t, uint(4), *executions[0].NumIncompatible)
 
 	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
@@ -2324,16 +2358,17 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Len(t, upcomingScripts, 1)
 		case hostWindows.ID:
 			// Bad platform
-			require.Len(t, upcomingScripts, 0)
+			require.Empty(t, upcomingScripts)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, *hostResult.Error)
 		case hostTeam1.ID:
-			// Bad team
-			require.Len(t, upcomingScripts, 1)
-			require.Nil(t, hostResult.Error)
+			// Host is on a different team than the script
+			require.Empty(t, upcomingScripts)
+			require.NotNil(t, hostResult.Error)
+			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
 		case hostNoScripts.ID:
 			// Host doesn't support scripts
-			require.Len(t, upcomingScripts, 0)
+			require.Empty(t, upcomingScripts)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleFleetd, *hostResult.Error)
 		case 0xbeef:
@@ -2366,6 +2401,78 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumErrored, uint(0))
 	require.Equal(t, *summary.NumRan, uint(0))
 	require.Equal(t, *summary.NumCanceled, uint(5))
+}
+
+func testBatchScriptScheduleTeamTransfer(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "teamA"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "teamB"})
+	require.NoError(t, err)
+
+	// Both hosts start on team A, matching the script's team.
+	hostStays := test.NewHost(t, ds, "hostStays", "10.0.0.1", "hoststayskey", "hoststaysuuid", time.Now(), test.WithTeamID(teamA.ID))
+	hostMoved := test.NewHost(t, ds, "hostMoved", "10.0.0.2", "hostmovedkey", "hostmoveduuid", time.Now(), test.WithTeamID(teamA.ID))
+	test.SetOrbitEnrollment(t, hostStays, ds)
+	test.SetOrbitEnrollment(t, hostMoved, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+		TeamID:         &teamA.ID,
+	})
+	require.NoError(t, err)
+
+	scheduledTime := time.Now().Add(10 * time.Hour).Truncate(time.Second).UTC()
+	execID, err := ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{hostStays.ID, hostMoved.ID}, scheduledTime)
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	// Move one host to a different team after scheduling but before the batch fires.
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamB.ID, []uint{hostMoved.ID}))
+	require.NoError(t, err)
+	movedHost, err := ds.Host(ctx, hostMoved.ID)
+	require.NoError(t, err)
+	require.Equal(t, teamB.ID, *movedHost.TeamID)
+
+	// Fire the scheduled batch as the worker would.
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.NoError(t, err)
+
+	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
+	require.NoError(t, err)
+	require.Len(t, hostResults, 2)
+	for _, hostResult := range hostResults {
+		upcomingScripts, err := ds.ListPendingHostScriptExecutions(ctx, hostResult.HostID, false)
+		require.NoError(t, err)
+		switch hostResult.HostID {
+		case hostStays.ID:
+			// Still on the script's team, so it runs.
+			require.NotNil(t, hostResult.HostExecutionID)
+			require.Nil(t, hostResult.Error)
+			require.Len(t, upcomingScripts, 1)
+		case hostMoved.ID:
+			// Moved off the script's team, so it is skipped.
+			require.Nil(t, hostResult.HostExecutionID)
+			require.NotNil(t, hostResult.Error)
+			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
+			require.Empty(t, upcomingScripts)
+		default:
+			require.Failf(t, "unexpected host in batch", "host_id: %d", hostResult.HostID)
+		}
+	}
+
+	executions, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, executions, 1)
+	require.Equal(t, uint(2), *executions[0].NumTargeted)
+	require.Equal(t, uint(1), *executions[0].NumIncompatible)
+	require.Equal(t, uint(1), *executions[0].NumPending)
 }
 
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
@@ -3219,4 +3326,42 @@ func testScriptModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, int64(0), *results[1].AttemptNumber)
 	require.True(t, results[1].Canceled)
+}
+
+func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	res, err := ds.NewInternalHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo internal",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, res.ID)
+	require.Nil(t, res.UserID)
+
+	// The internal-only filter on ListPendingHostScriptExecutions surfaces
+	// internal scripts; the default (all-pending) listing includes them
+	// alongside user-initiated ones.
+	pendingAll, err := ds.ListPendingHostScriptExecutions(ctx, 1, false)
+	require.NoError(t, err)
+	require.Len(t, pendingAll, 1)
+	require.Equal(t, res.ID, pendingAll[0].ID)
+
+	pendingInternal, err := ds.ListPendingHostScriptExecutions(ctx, 1, true)
+	require.NoError(t, err)
+	require.Len(t, pendingInternal, 1)
+	require.Equal(t, res.ID, pendingInternal[0].ID)
+
+	// A non-internal request should NOT appear under the internal-only filter,
+	// confirming the new entry routed through the internal codepath.
+	resUser, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         2,
+		ScriptContents: "echo user",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, resUser.ID)
+
+	pendingUserViaInternal, err := ds.ListPendingHostScriptExecutions(ctx, 2, true)
+	require.NoError(t, err)
+	require.Empty(t, pendingUserViaInternal)
 }

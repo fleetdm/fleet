@@ -2,6 +2,7 @@ services:
   - type: web
     name: fleet-mcp
     runtime: go
+    plan: starter
     rootDir: tools/fleet-mcp
     buildCommand: go build -o fleet-mcp .
     startCommand: ./fleet-mcp
@@ -14,3 +15,7 @@ services:
         sync: false
       - key: LOG_LEVEL
         value: info
+      # Upper bound run_live_query waits for hosts to report (Go duration).
+      # Keep >= the Fleet server's FLEET_LIVE_QUERY_REST_PERIOD. Default 25s.
+      - key: FLEET_LIVE_QUERY_REST_PERIOD
+        value: 25s

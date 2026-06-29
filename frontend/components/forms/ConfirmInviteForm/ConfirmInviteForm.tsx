@@ -3,7 +3,6 @@ import React, { useCallback, useState } from "react";
 import validateEquality from "components/forms/validators/validate_equality";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -111,7 +110,8 @@ const ConfirmInviteForm = ({
         value={name}
         error={formErrors.name}
         parseTarget
-        maxLength={80}
+        inputOptions={{ maxLength: 80 }}
+        ignore1password={false}
       />
       <InputField
         label="Password"
@@ -123,6 +123,7 @@ const ConfirmInviteForm = ({
         value={password}
         error={formErrors.password}
         parseTarget
+        ignore1password={false}
       />
       <InputField
         label="Confirm password"
@@ -133,6 +134,7 @@ const ConfirmInviteForm = ({
         value={password_confirmation}
         error={formErrors.password_confirmation}
         parseTarget
+        ignore1password={false}
       />
       <div className="button-wrap--center">
         <Button

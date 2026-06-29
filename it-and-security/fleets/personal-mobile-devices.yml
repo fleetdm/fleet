@@ -2,8 +2,8 @@ name: 📱🔐 Personal mobile devices
 settings:
   features:
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 90
   secrets:
     - secret: $DOGFOOD_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET
   integrations:
@@ -17,11 +17,11 @@ controls:
   ipados_updates:
     deadline: "2025-06-01"
     minimum_version: "18.5"
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
-  macos_setup:
+  setup_experience:
     enable_end_user_authentication: true
   scripts:
 policies:
@@ -46,6 +46,16 @@ software:
       auto_update_window_end: "05:00"
       categories:
         - "Communication"
+    - app_store_id: "6473753684" # Claude
+      display_name: "Claude"
+      self_service: true
+      setup_experience: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842842640" # Google Docs
       display_name: "Google Docs"
       self_service: true
@@ -76,6 +86,17 @@ software:
     - app_store_id: "490179405" # Okta Verify
       display_name: "Okta Verify"
       self_service: true
+      setup_experience: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Security"
+    - app_store_id: "1511601750" # 1Password
+      display_name: "1Password"
+      self_service: true
+      setup_experience: true
       platform: ios
       auto_update_enabled: true
       auto_update_window_start: "21:00"
@@ -101,6 +122,26 @@ software:
       auto_update_window_end: "05:00"
       categories:
         - "Communication"
+    - app_store_id: "6473753684" # Claude
+      display_name: "Claude"
+      self_service: true
+      setup_experience: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
+    - app_store_id: "1511601750" # 1Password
+      display_name: "1Password"
+      self_service: true
+      setup_experience: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Security"
     - app_store_id: "842842640" # Google Docs
       display_name: "Google Docs"
       self_service: true
@@ -139,6 +180,11 @@ software:
       display_name: "Slack"
       self_service: true
       setup_experience: true
+    - app_store_id: "com.anthropic.claude" # Claude
+      platform: android
+      display_name: "Claude"
+      self_service: true
+      setup_experience: true
     - app_store_id: "com.onepassword.android" # 1Password
       platform: android
       display_name: "1Password"
@@ -165,3 +211,4 @@ software:
       platform: android
       display_name: "Okta Verify"
       self_service: true
+      setup_experience: true

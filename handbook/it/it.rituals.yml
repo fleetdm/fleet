@@ -17,6 +17,15 @@
   autoIssue:
     labels: [":help-it"]
     repo: "confidential"
+- task: "Quarterly access review"
+  startedOn: "2026-04-01"
+  frequency: "Quarterly"
+  description: "This is a compliance requirement. Create a new issue using the quarterly access review template."
+  moreInfoUrl: "https://github.com/fleetdm/confidential/issues/new?template=compliance-quarterly-access-review.md"
+  dri: "lppepper2"
+  autoIssue:
+    labels: [":help-it"]
+    repo: "confidential"
 - task: "Review active eval instances"
   startedOn: "2025-08-25"
   frequency: "Monthly"

@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 
@@ -19,7 +19,7 @@ import PATHS from "router/paths";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -55,7 +55,6 @@ const Passwords = ({
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
@@ -77,14 +76,16 @@ const Passwords = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (res) => {
         setEnableRecoveryLockPassword(
           res.mdm?.enable_recovery_lock_password ?? false
         );
       },
-      onError: () => {
-        renderFlash("error", "Couldn't load team settings. Please try again.");
+      onError: (err) => {
+        notify.error("Couldn't load team settings. Please try again.", {
+          response: err,
+        });
       },
     }
   );
@@ -119,8 +120,7 @@ const Passwords = ({
           currentTeamId
         );
       }
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully updated Recovery Lock password enforcement."
       );
       onMutation();
@@ -128,7 +128,7 @@ const Passwords = ({
       const errorMsg =
         getErrorReason(e) ??
         "Couldn't update Recovery Lock password enforcement. Please try again.";
-      renderFlash("error", errorMsg);
+      notify.error(errorMsg, { response: e });
     } finally {
       setUpdating(false);
     }
@@ -144,12 +144,15 @@ const Passwords = ({
       {!isPremiumTier && <PremiumFeatureMessage />}
       {isPremiumTier && mdmEnabled === undefined && <Spinner />}
       {isPremiumTier && mdmEnabled === false && (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Manage your hosts"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
           info="MDM must be turned on to apply password settings."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       )}
       {isPremiumTier && mdmEnabled === true && showLoading && <Spinner />}

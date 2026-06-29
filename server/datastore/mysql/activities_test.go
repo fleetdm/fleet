@@ -38,6 +38,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
+		{"BatchCancelAllHostUpcomingActivities", testBatchCancelAllHostUpcomingActivities},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
@@ -45,6 +46,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
+		{"ListPolicyAutomationActivities", testListPolicyAutomationActivities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -534,6 +536,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testCleanupExpiredLiveQueries(t *testing.T, ds *Datastore) {
@@ -1659,6 +1666,103 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
 }
 
+func testBatchCancelAllHostUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	hostIOS := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now(), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
+	hostLeftUntouched := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
+
+	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
+		execIDs := []string{}
+		for _, act := range acts {
+			execIDs = append(execIDs, act.UUID)
+		}
+		return execIDs
+	}
+
+	// edge case: host with no upcoming activities returns empty slice with no error
+	canceled, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostLeftUntouched.ID)
+	require.NoError(t, err)
+	require.Empty(t, canceled)
+
+	// enqueue an activity on hostLeftUntouched, must still be there after the test
+	execIDUntouched := test.CreateHostScriptUpcomingActivity(t, ds, hostLeftUntouched)
+
+	// enqueue mixed activities on the main host: the first becomes activated,
+	// the rest stay queued.
+	exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+	exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+	exec3 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+	exec4, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+	expectedExecIDs := []string{exec1, exec2, exec3, exec4}
+
+	got, _, err := ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, len(expectedExecIDs))
+	require.Equal(t, expectedExecIDs, pluckExecIDs(got))
+
+	// exec1 should already be activated (single activity at enqueue time)
+	meta, err := ds.GetHostUpcomingActivityMeta(ctx, host.ID, exec1)
+	require.NoError(t, err)
+	require.NotNil(t, meta.ActivatedAt)
+
+	// cancel everything in one shot
+	canceled, err = ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, canceled, len(expectedExecIDs))
+
+	// queue should now be empty
+	got, _, err = ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec1 was activated, so its host_script_results row must be marked canceled
+	var scriptCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scriptCanceled,
+			`SELECT canceled FROM host_script_results WHERE execution_id = ?`, exec1)
+	})
+	require.True(t, scriptCanceled)
+
+	// hostLeftUntouched still has its single activity untouched
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostLeftUntouched.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+
+	// repeat on an iOS host with an in-house app install (activated) followed by
+	// a vpp install, to cover the in_house and vpp activated-cancel branches.
+	exec5 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+	exec6, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{exec5, exec6}, pluckExecIDs(got))
+
+	canceledIOS, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostIOS.ID)
+	require.NoError(t, err)
+	require.Len(t, canceledIOS, 2)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec5 was activated; its host_in_house_software_installs row must be canceled
+	var inHouseCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &inHouseCanceled,
+			`SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, exec5)
+	})
+	require.True(t, inHouseCanceled)
+}
+
 func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	activitySvc := NewTestActivityService(t, ds)
 	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -2215,4 +2319,464 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 	require.NotNil(t, result.SoftwareTitleID)
 	require.Equal(t, uint(titleID), *result.SoftwareTitleID) //nolint:gosec // dismiss G115
 	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
+}
+
+func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	activitySvc := NewTestActivityService(t, ds)
+
+	// adminFilter sees all hosts regardless of team.
+	adminFilter := fleet.TeamFilter{
+		User:            &fleet.User{GlobalRole: new("admin")},
+		IncludeObserver: true,
+	}
+
+	// Create a policy to hang activities on.
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "test-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	// Create a second policy; its activities must NOT appear in results for the first.
+	otherPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "other-policy", Query: "SELECT 2"})
+	require.NoError(t, err)
+	require.NotNil(t, otherPolicy)
+
+	// Create two hosts so we can test per-host rows and the host-name filter.
+	h1 := test.NewHost(t, ds, "host-alpha", "1.1.1.1", "key1", "uuid1", time.Now())
+	h2 := test.NewHost(t, ds, "host-beta", "2.2.2.2", "key2", "uuid2", time.Now())
+
+	makeDetails := func(policyID uint) map[string]any {
+		return map[string]any{"policy_id": policyID}
+	}
+
+	// Seed one activity of each type for policy 1 linked to h1,
+	// plus one success activity linked to both hosts (tests multi-host expansion).
+	errorTypes := []string{
+		"failed_automation_webhook",
+		"failed_automation_ticket",
+		"failed_automation_calendar_event",
+		"failed_automation_conditional_access",
+	}
+	successTypes := []string{
+		"ran_automation_webhook",
+		"ran_automation_ticket",
+		"ran_automation_calendar_event",
+		"ran_automation_conditional_access",
+	}
+
+	for _, typ := range errorTypes {
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    typ,
+			details: makeDetails(policy.ID),
+			hostIDs: []uint{h1.ID},
+		}))
+	}
+	for _, typ := range successTypes {
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    typ,
+			details: makeDetails(policy.ID),
+			hostIDs: []uint{h1.ID},
+		}))
+	}
+
+	// One activity linked to both hosts — produces two rows.
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_automation_webhook",
+		details: makeDetails(policy.ID),
+		hostIDs: []uint{h1.ID, h2.ID},
+	}))
+
+	// Activity for the other policy — must not appear in results for policy 1.
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "failed_automation_webhook",
+		details: makeDetails(otherPolicy.ID),
+		hostIDs: []uint{h1.ID},
+	}))
+
+	listOpts := func(extra ...fleet.ListOptions) fleet.ListOptions {
+		opts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: true}
+		if len(extra) > 0 {
+			if extra[0].PerPage != 0 {
+				opts.PerPage = extra[0].PerPage
+			}
+			if extra[0].Page != 0 {
+				opts.Page = extra[0].Page
+			}
+			if extra[0].MatchQuery != "" {
+				opts.MatchQuery = extra[0].MatchQuery
+			}
+		}
+		return opts
+	}
+
+	t.Run("returns all types by default", func(t *testing.T) {
+		// 8 single-host activities + 2 rows from the dual-host one = 10 rows.
+		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Len(t, activities, 10)
+		for _, a := range activities {
+			require.NotZero(t, a.HostID)
+			// Policy automation activities are always Fleet-initiated; actor fields
+			// are not selected and must be absent (nil) so they're omitted from JSON.
+			require.Nil(t, a.ActorID)
+			require.Nil(t, a.ActorFullName)
+			require.Nil(t, a.ActorEmail)
+		}
+	})
+
+	t.Run("status=error returns only failed types", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Len(t, activities, 4)
+		for _, a := range activities {
+			require.Contains(t, a.Type, "failed_")
+		}
+	})
+
+	t.Run("status=success returns only positive types", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		// 4 single-host success activities + 2 rows from dual-host = 6
+		require.Len(t, activities, 6)
+		for _, a := range activities {
+			require.NotContains(t, a.Type, "failed_")
+			require.Contains(t, successTypes, a.Type)
+		}
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3}), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Len(t, activities, 3)
+		require.True(t, meta.HasNextResults)
+		require.False(t, meta.HasPreviousResults)
+
+		page2, meta2, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3, Page: 1}), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta2)
+		require.Len(t, page2, 3)
+		require.True(t, meta2.HasPreviousResults)
+	})
+
+	t.Run("host name query filters rows", func(t *testing.T) {
+		// "host-alpha" matches h1 only: 4 error + 4 success + 1 dual-host row = 9.
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-alpha"}), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 9)
+		for _, a := range activities {
+			require.Equal(t, h1.ID, a.HostID)
+			require.Equal(t, "host-alpha", a.HostDisplayName)
+		}
+		// "host-b" matches h2 only, which appears in just the dual-host activity.
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-b"}), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		for _, a := range activities {
+			require.Equal(t, h2.ID, a.HostID)
+		}
+	})
+
+	t.Run("other policy activities excluded", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, otherPolicy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		require.Equal(t, h1.ID, activities[0].HostID)
+	})
+
+	t.Run("invalid order_key returns error", func(t *testing.T) {
+		_, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, fleet.ListOptions{OrderKey: "invalid_column"}, "")
+		require.Error(t, err)
+	})
+
+	t.Run("include_metadata false returns nil meta", func(t *testing.T) {
+		opts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: false}
+		_, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, opts, "")
+		require.NoError(t, err)
+		require.Nil(t, meta)
+	})
+
+	t.Run("query with wildcard characters matches literally", func(t *testing.T) {
+		// host-alpha has no '_' in its name; a query of "host_alpha" must NOT match
+		// it (the underscore is a literal character, not a SQL wildcard).
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host_alpha"}), "")
+		require.NoError(t, err)
+		require.Empty(t, activities)
+		// An empty result set must be a non-nil slice so it marshals as [] (not null).
+		require.NotNil(t, activities)
+	})
+
+	t.Run("team filter scopes hosts", func(t *testing.T) {
+		// Use a dedicated policy so activities seeded here don't affect count
+		// assertions in other subtests.
+		teamScopePolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "team-scope-policy", Query: "SELECT 3"})
+		require.NoError(t, err)
+		require.NotNil(t, teamScopePolicy)
+
+		// Create two teams and assign one host to each.
+		teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-A"})
+		require.NoError(t, err)
+		teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-B"})
+		require.NoError(t, err)
+
+		hA := test.NewHost(t, ds, "host-team-a", "10.0.0.1", "keyA", "uuidA", time.Now())
+		hB := test.NewHost(t, ds, "host-team-b", "10.0.0.2", "keyB", "uuidB", time.Now())
+		// Assign hosts to teams directly to avoid policy-membership side-effects.
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamA.ID, hA.ID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamB.ID, hB.ID)
+		require.NoError(t, err)
+
+		// Seed activities for both hosts on the dedicated policy.
+		for _, typ := range errorTypes {
+			require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+				name:    typ,
+				details: makeDetails(teamScopePolicy.ID),
+				hostIDs: []uint{hA.ID, hB.ID},
+			}))
+		}
+
+		// A team-A observer filter sees only hA.
+		filterA := fleet.TeamFilter{
+			User: &fleet.User{
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamA.ID}, Role: fleet.RoleObserver}},
+			},
+			IncludeObserver: true,
+		}
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, teamScopePolicy.ID, filterA, listOpts(), "")
+		require.NoError(t, err)
+		require.NotEmpty(t, activities)
+		for _, a := range activities {
+			require.Equal(t, hA.ID, a.HostID, "team-A filter must not return host from team-B")
+		}
+	})
+
+	// ── Script-run, software-install and VPP-install branches ─────────────────
+	// Disable FK checks so we can insert result rows without satisfying every
+	// foreign key in the test setup.
+	_, err = ds.writer(ctx).ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=0")
+	require.NoError(t, err)
+	defer func() {
+		_, _ = ds.writer(ctx).ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=1")
+	}()
+
+	// ── ran_script ────────────────────────────────────────────────────────────
+	scriptSuccessExecID := "script-success-exec-1"
+	scriptFailureExecID := "script-failure-exec-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_script_results (host_id, execution_id, output, exit_code, policy_id)
+         VALUES (?, ?, 'script ok output', 0, ?), (?, ?, 'script fail output', 1, ?)`,
+		h1.ID, scriptSuccessExecID, policy.ID,
+		h1.ID, scriptFailureExecID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_script",
+		details: map[string]any{"script_execution_id": scriptSuccessExecID, "script_name": "my-script.sh"},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_script",
+		details: map[string]any{"script_execution_id": scriptFailureExecID, "script_name": "my-script.sh"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// ── installed_software ────────────────────────────────────────────────────
+	swSuccessExecID := "sw-success-exec-1"
+	swFailureExecID := "sw-failure-exec-1"
+	// insert_script_exit_code=0 → execution_status='installed'; exit_code=1 → 'failed_install'
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installs
+            (host_id, execution_id, software_installer_id, install_script_exit_code,
+             install_script_output, pre_install_query_output, post_install_script_output, policy_id)
+         VALUES
+            (?, ?, 1, 0, 'install ok', 'pre ok', 'post ok', ?),
+            (?, ?, 1, 1, 'install fail', 'pre fail', 'post fail', ?)`,
+		h1.ID, swSuccessExecID, policy.ID,
+		h1.ID, swFailureExecID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software"},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// ── installed_app_store_app (VPP) ─────────────────────────────────────────
+	vppSuccessCmdUUID := "vpp-success-cmd-1"
+	vppFailureCmdUUID := "vpp-failure-cmd-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_at)
+         VALUES (?, 'A001', ?, ?, 'darwin', NOW())`,
+		h1.ID, vppSuccessCmdUUID, policy.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_failed_at)
+         VALUES (?, 'A002', ?, ?, 'darwin', NOW())`,
+		h1.ID, vppFailureCmdUUID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_app_store_app",
+		details: map[string]any{"command_uuid": vppSuccessCmdUUID, "software_title": "My VPP App"},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_app_store_app",
+		details: map[string]any{"command_uuid": vppFailureCmdUUID, "software_title": "My VPP App"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	t.Run("script_software_vpp appear in all", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status=error includes script_software_vpp failures", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		// Named automation failures still present.
+		require.Equal(t, 4, types["failed_automation_webhook"]+
+			types["failed_automation_ticket"]+
+			types["failed_automation_calendar_event"]+
+			types["failed_automation_conditional_access"])
+		// Script/software/VPP failures present.
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status=success includes script_software_vpp successes", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		// Named automation successes still present.
+		require.Positive(t, types["ran_automation_webhook"]+
+			types["ran_automation_ticket"]+
+			types["ran_automation_calendar_event"]+
+			types["ran_automation_conditional_access"])
+		// Script/software/VPP successes present.
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("task activities are independent of policy_membership", func(t *testing.T) {
+		// Modifying a policy's query or targets wipes/prunes policy_membership.
+		// Automation history must survive that, so deleting all membership rows
+		// for the policy must not drop the script/software/VPP activities.
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM policy_membership WHERE policy_id = ?`, policy.ID)
+		require.NoError(t, err)
+
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status and output are populated per activity", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+
+		var sawScriptSuccess, sawScriptFailure bool
+		var sawSwSuccess, sawSwFailure bool
+		var sawVPPSuccess, sawVPPFailure bool
+		var sawNamedError, sawNamedSuccess bool
+
+		// detailsValue extracts a string field from an activity's details blob.
+		detailsValue := func(a *fleet.PolicyAutomationActivity, key string) string {
+			require.NotNil(t, a.Details, "type %s missing details", a.Type)
+			var m map[string]any
+			require.NoError(t, json.Unmarshal(*a.Details, &m))
+			s, _ := m[key].(string)
+			return s
+		}
+
+		for _, a := range activities {
+			// Every activity carries an explicit error/success status.
+			require.Contains(t, []string{"error", "success"}, a.Status, "type %s", a.Type)
+
+			switch a.Type {
+			case "ran_script":
+				// Scripts always carry output; the script name comes through in
+				// the details blob.
+				require.NotNil(t, a.Output)
+				require.Equal(t, "my-script.sh", detailsValue(a, "script_name"))
+				if a.Status == "success" {
+					sawScriptSuccess = true
+					require.Equal(t, "script ok output", *a.Output)
+				} else {
+					sawScriptFailure = true
+					require.Equal(t, "script fail output", *a.Output)
+				}
+			case "installed_software":
+				// Software installs carry the install-script output; the software
+				// title comes through in the details blob.
+				require.NotNil(t, a.Output)
+				require.Equal(t, "My Software", detailsValue(a, "software_title"))
+				if a.Status == "success" {
+					sawSwSuccess = true
+					require.Equal(t, "install ok", *a.Output)
+				} else {
+					sawSwFailure = true
+					require.Equal(t, "install fail", *a.Output)
+				}
+			case "installed_app_store_app":
+				// VPP apps are installed via MDM command, so there is no output;
+				// the software title comes through in the details blob.
+				require.Nil(t, a.Output)
+				require.Equal(t, "My VPP App", detailsValue(a, "software_title"))
+				if a.Status == "success" {
+					sawVPPSuccess = true
+				} else {
+					sawVPPFailure = true
+				}
+			default:
+				// Named automation activities encode outcome in the type and have
+				// no output.
+				require.Nil(t, a.Output)
+				if strings.HasPrefix(a.Type, "failed_") {
+					sawNamedError = true
+					require.Equal(t, "error", a.Status)
+				} else {
+					sawNamedSuccess = true
+					require.Equal(t, "success", a.Status)
+				}
+			}
+		}
+
+		require.True(t, sawScriptSuccess, "expected a successful ran_script")
+		require.True(t, sawScriptFailure, "expected a failed ran_script")
+		require.True(t, sawSwSuccess, "expected a successful installed_software")
+		require.True(t, sawSwFailure, "expected a failed installed_software")
+		require.True(t, sawVPPSuccess, "expected a successful installed_app_store_app")
+		require.True(t, sawVPPFailure, "expected a failed installed_app_store_app")
+		require.True(t, sawNamedError, "expected a failed named automation")
+		require.True(t, sawNamedSuccess, "expected a successful named automation")
+	})
 }

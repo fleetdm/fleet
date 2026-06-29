@@ -1,0 +1,37 @@
+/**
+ * This file is for overriding some default bootstrap styles.
+ *
+ * > NOTE THAT THIS FILE AFFECTS GLOBAL STYLES.
+ */
+
+// lesshint-disable
+* {
+  box-sizing: border-box;
+}
+// lesshint-enable
+
+img {
+  display: block;
+}
+
+// Get rid of weird background on <a>s with button styles
+.btn, [type='button'] {
+  -webkit-appearance: none;
+}
+
+// Custom link styles within bodies of text
+h1, h2, h3, h4, h5, h6, p, li, blockquote, label {
+  >a:not(.btn), small >a:not(.btn) {
+    color: @brand;
+    border-bottom: 1px solid @text-normal;
+    &:hover {
+      text-decoration: none;
+      color: @text-normal;
+    }
+  }
+}
+
+blockquote {
+  border-left: 3px solid @border-lt-gray;
+  padding-left: 20px;
+}

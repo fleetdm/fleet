@@ -1,6 +1,5 @@
-import React, { useContext, useState, useEffect } from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "react-query";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -10,8 +9,7 @@ import {
   isSoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
@@ -19,6 +17,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -49,11 +48,9 @@ interface IEditSoftwareModalProps {
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: InstallerType;
-  router: InjectedRouter;
   openViewYamlModal: () => void;
   isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
-  gitOpsModeEnabled?: boolean;
   name: string;
   displayName: string;
   source?: string;
@@ -67,7 +64,6 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
-  router,
   openViewYamlModal,
   isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
@@ -76,10 +72,8 @@ const EditSoftwareModal = ({
   source,
   iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
-
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   // Viewing an FMA in GitOps mode only allows viewing options, not editing
   const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
 
@@ -231,8 +225,7 @@ const EditSoftwareModal = ({
         // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
         openViewYamlModal();
       } else {
-        renderFlash(
-          "success",
+        notify.success(
           <>
             Successfully edited <b>{formData.software?.name}</b>.
             {formData.selfService
@@ -241,13 +234,20 @@ const EditSoftwareModal = ({
           </>
         );
       }
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      notify.error(getErrorMessage(e, softwareInstaller as IAppStoreApp), {
+        response: e,
+      });
     }
     setIsUpdatingSoftware(false);
   };
@@ -297,8 +297,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           Successfully edited <b>{softwareInstaller.name}</b>.
           {formData.selfService
@@ -306,13 +305,20 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      notify.error(getErrorMessage(e, softwareInstaller as IAppStoreApp), {
+        response: e,
+      });
     }
     setIsUpdatingSoftware(false);
   };
@@ -365,6 +371,7 @@ const EditSoftwareModal = ({
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
+          teamId={teamId}
         />
       );
     }
@@ -377,6 +384,7 @@ const EditSoftwareModal = ({
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
         onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
+        teamId={teamId}
       />
     );
   };
@@ -407,6 +415,7 @@ const EditSoftwareModal = ({
           source={source}
           iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
+          teamId={teamId}
           isIosOrIpadosApp={isIosOrIpadosApp}
           mobileVersion={
             ("latest_version" in softwareInstaller &&

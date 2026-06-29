@@ -2,7 +2,7 @@
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
-  # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
+  # To run in macOS M1, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
   mysql:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
@@ -17,6 +17,8 @@ services:
         "--server-id=master-01",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
@@ -46,6 +48,8 @@ services:
         "--server-id=1",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: *mysql-default-environment
     ports:
@@ -72,6 +76,8 @@ services:
         "--server-id=2",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: *mysql-default-environment
     ports:
@@ -112,7 +118,7 @@ services:
       - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
-    image: redis:6
+    image: ${FLEET_REDIS_IMAGE:-redis:6.2}
     ports:
       - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 

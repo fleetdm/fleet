@@ -169,7 +169,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	}
 }
 
-func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+func TestMDMAppleConfigProfileAllowCustomFileVault(t *testing.T) {
 	cases := []struct {
 		testName     string
 		payloadTypes []string
@@ -200,50 +200,68 @@ func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			// When allowCustomOSUpdatesAndFileVault = true, these profiles should be allowed
+			// When allowCustomFileVault = true, these profiles should be allowed
 			err = parsed.ValidateUserProvided(true)
 			require.NoError(t, err)
 		})
 	}
 }
 
-func TestMDMAppleDeclarationAllowCustomOSUpdatesAndFileVault(t *testing.T) {
-	t.Run("OSUpdateDeclarationBlockedByDefault", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
-			Identifier: "test-os-update",
-		}
+func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
+	cases := []struct {
+		name        string
+		declType    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "valid configuration declaration",
+			declType: "com.apple.configuration.passcode.settings",
+			wantErr:  false,
+		},
+		{
+			// Regression test: software update enforcement used to be blocked
+			// unless a special flag was set; it is now allowed by default.
+			name:     "software update enforcement allowed by default",
+			declType: "com.apple.configuration.softwareupdate.enforcement.specific",
+			wantErr:  false,
+		},
+		{
+			name:        "forbidden declaration type",
+			declType:    "com.apple.configuration.account.mail",
+			wantErr:     true,
+			errContains: "Only configuration declarations that don’t require an asset reference are supported.",
+		},
+		{
+			name:        "status subscriptions not allowed",
+			declType:    "com.apple.configuration.management.status-subscriptions",
+			wantErr:     true,
+			errContains: "Declaration profile can’t include status subscription type.",
+		},
+		{
+			name:        "non-configuration declaration not allowed",
+			declType:    "com.apple.activation.simple",
+			wantErr:     true,
+			errContains: "Only configuration declarations (com.apple.configuration.) are supported.",
+		},
+	}
 
-		// Should fail when allowCustomOSUpdatesAndFileVault = false
-		err := decl.ValidateUserProvided(false)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "Declaration profile can’t include OS updates settings")
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			decl := &MDMAppleRawDeclaration{
+				Type:       c.declType,
+				Identifier: "test-identifier",
+			}
 
-	t.Run("OSUpdateDeclarationAllowedWhenFlagEnabled", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
-			Identifier: "test-os-update",
-		}
-
-		// Should succeed when allowCustomOSUpdatesAndFileVault = true
-		err := decl.ValidateUserProvided(true)
-		require.NoError(t, err)
-	})
-
-	t.Run("OtherDeclarationsUnaffected", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.passcode.settings",
-			Identifier: "test-passcode",
-		}
-
-		// Should succeed regardless of flag
-		err := decl.ValidateUserProvided(false)
-		require.NoError(t, err)
-
-		err = decl.ValidateUserProvided(true)
-		require.NoError(t, err)
-	})
+			err := decl.ValidateUserProvided()
+			if c.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
@@ -555,6 +573,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
 	fieldsInEqualMethod++
+	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
+	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
 
@@ -825,6 +845,95 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 				require.Contains(t, err.Error(), tc.errMsg)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestIsMacAppleSilicon(t *testing.T) {
+	cases := []struct {
+		product string
+		wantAS  bool
+		wantErr bool
+	}{
+		// --- MacBookPro ---
+		// x86: last Intel model before Apple Silicon transition
+		{product: "MacBookPro16,1", wantAS: false},
+		{product: "MacBookPro16,4", wantAS: false},
+		// Apple Silicon: first AS model (M1, Late 2020) and later
+		{product: "MacBookPro17,1", wantAS: true},
+		{product: "MacBookPro18,3", wantAS: true},
+		{product: "MacBookPro18,4", wantAS: true},
+
+		// --- MacBookAir ---
+		// x86: last Intel model before Apple Silicon transition
+		{product: "MacBookAir9,1", wantAS: false},
+		// Apple Silicon: first AS model (M1, Late 2020) and later
+		{product: "MacBookAir10,1", wantAS: true},
+		{product: "MacBookAir14,2", wantAS: true},
+
+		// --- Macmini ---
+		// x86: last Intel model before Apple Silicon transition
+		{product: "Macmini8,1", wantAS: false},
+		// Apple Silicon: first AS model (M1, Late 2020) and later
+		{product: "Macmini9,1", wantAS: true},
+		{product: "Macmini9,2", wantAS: true},
+
+		// --- iMac ---
+		// x86: last Intel models before Apple Silicon transition
+		{product: "iMac20,1", wantAS: false},
+		{product: "iMac20,2", wantAS: false},
+		// Apple Silicon: first AS model (M1, Early 2021) and later
+		{product: "iMac21,1", wantAS: true},
+		{product: "iMac21,2", wantAS: true},
+
+		// --- MacBook (no suffix) — all x86, line discontinued before Apple Silicon ---
+		{product: "MacBook10,1", wantAS: false},
+		{product: "MacBook9,1", wantAS: false},
+
+		// --- iMacPro — all x86, discontinued before Apple Silicon ---
+		{product: "iMacPro1,1", wantAS: false},
+
+		// --- MacPro — old numbering, all x86 ---
+		// (the AS Mac Pro uses the "Mac" prefix, e.g. Mac14,8)
+		{product: "MacPro7,1", wantAS: false},
+		{product: "MacPro6,1", wantAS: false},
+
+		// --- Mac (bare prefix) — unified Apple Silicon naming ---
+		// Mac Studio (M1 Ultra, 2022)
+		{product: "Mac13,1", wantAS: true},
+		{product: "Mac13,2", wantAS: true},
+		// Mac Pro (M2 Ultra, 2023)
+		{product: "Mac14,8", wantAS: true},
+		// Mac mini (M4, 2024)
+		{product: "Mac16,10", wantAS: true},
+
+		// --- Non-Mac Apple devices — return false without error ---
+		{product: "iPhone15,2", wantAS: false},
+		{product: "iPhone14,3", wantAS: false},
+		{product: "iPad13,18", wantAS: false},
+		{product: "iPodTouch9,1", wantAS: false},
+
+		// --- Error cases ---
+		// Empty string
+		{product: "", wantErr: true},
+		// No comma separator
+		{product: "MacBookPro18", wantErr: true},
+		// Garbage input
+		{product: "not-a-model", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
+		{product: "AppleTV6,2", wantErr: true},
+		{product: "AppleTV14,1", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.product, func(t *testing.T) {
+			got, err := IsMacAppleSilicon(tc.product)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.wantAS, got)
 			}
 		})
 	}

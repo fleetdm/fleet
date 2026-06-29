@@ -99,7 +99,9 @@ const generateColumnConfigs = (
         Header: "Script output",
         disableSortBy: true,
         accessor: "script_output_preview",
-        Cell: (cellProps: any) => <ScriptOutputCell {...cellProps} />,
+        Cell: (cellProps: CellProps<IScriptBatchHostResult>) => (
+          <ScriptOutputCell {...cellProps} />
+        ),
       },
     ]);
   }

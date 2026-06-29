@@ -1,6 +1,6 @@
 {
   "name": "Abstract",
-  "unique_identifier": "com.SweetScape.010Editor",
+  "unique_identifier": "com.elasticprojects.abstract-desktop",
   "token": "abstract",
   "installer_format": "zip",
   "slug": "abstract/darwin",

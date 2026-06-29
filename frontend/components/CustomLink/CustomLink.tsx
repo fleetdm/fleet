@@ -5,7 +5,7 @@ import classnames from "classnames";
 import { Colors } from "styles/var/colors";
 
 interface ICustomLinkProps {
-  url: string;
+  url?: string;
   text: string;
   className?: string;
   /** open the link in a new tab
@@ -38,8 +38,9 @@ const CustomLink = ({
   const getIconColor = (): Colors => {
     switch (variant) {
       case "tooltip-link":
-      case "flash-message-link":
         return "core-fleet-white";
+      case "flash-message-link":
+        return "core-fleet-black";
       case "banner-link":
         return "core-fleet-black";
       default:

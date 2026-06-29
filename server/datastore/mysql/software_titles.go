@@ -19,6 +19,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var softwareTitlesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                "st.id",
+	"name":              "COALESCE(NULLIF(stdn.display_name, ''), st.name)",
+	"source":            "st.source",
+	"extension_for":     "st.extension_for",
+	"bundle_identifier": "st.bundle_identifier",
+	"hosts_count":       "hosts_count",
+	"counts_updated_at": "counts_updated_at",
+}
+
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 	var (
 		teamFilter                            string // used to filter software titles host counts by team
@@ -269,9 +279,12 @@ func (ds *Datastore) ListSoftwareTitles(
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
 	var softwareList []*softwareTitleWithInstallerFields
-	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
-	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
-	// we need to add it here
+	getTitlesStmt, args, err = appendListOptionsWithCursorToSQLSecure(getTitlesStmt, args, &opt.ListOptions, softwareTitlesAllowedOrderKeys)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list software titles")
+	}
+	// secondary sort columns must be added separately since the helper above
+	// only handles a single ORDER BY column.
 	getTitlesStmt = spliceSecondaryOrderBySoftwareTitlesSQL(getTitlesStmt, opt.ListOptions)
 
 	// Run list and count queries in parallel.
@@ -513,7 +526,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 		}
 		if len(fmaTitleIDs) > 0 {
-			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID, false)
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
@@ -563,7 +576,7 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	case "name":
 		secondaryOrderBy = ", hosts_count DESC"
 	default:
-		secondaryOrderBy = ", name ASC"
+		secondaryOrderBy = ", COALESCE(NULLIF(stdn.display_name, ''), st.name) ASC"
 	}
 
 	if k != "source" {
@@ -594,7 +607,15 @@ SELECT
 		,si.version as package_version
 		,si.platform as package_platform
 		,si.url AS package_url
-		,si.install_during_setup as package_install_during_setup
+		,{{if and $.ForSetupExperience (isDarwinOnly $.Platform)}}(CASE
+			WHEN si.platform = 'darwin' THEN si.install_during_setup
+			ELSE EXISTS (
+				SELECT 1 FROM setup_experience_software_installers seti
+				WHERE seti.software_installer_id = si.id
+					AND seti.platform = 'darwin'
+					AND seti.global_or_team_id = si.global_or_team_id
+			)
+		END){{else}}si.install_during_setup{{end}} as package_install_during_setup
 		,si.storage_id as package_storage_id
 		,si.fleet_maintained_app_id
 		,vat.self_service as vpp_app_self_service
@@ -619,6 +640,7 @@ FROM software_titles st
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
+	LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = {{teamID .}}
 {{with $softwareJoin := " "}}
 	{{if or $.ListOptions.MatchQuery $.VulnerableOnly}}
 		-- If we do a match but not vulnerable only, we want a LEFT JOIN on
@@ -651,8 +673,13 @@ WHERE
 			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
 		{{end}}
 		{{if and (hasTeamID $) $.Platform}}
-		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
-		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
+		  {{if and $.ForSetupExperience (isDarwinOnly $.Platform)}}
+		    {{$postfix := printf " AND (si.platform IN (%s) OR (si.extension = 'sh' AND si.platform = 'linux') OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
+		    {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
+		  {{else}}
+		    {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
+		    {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
+		  {{end}}
 		{{end}}
 		{{if and (hasTeamID $) $.HashSHA256}}
 		  {{$additionalWhere = printf "%s AND si.storage_id = ?" $additionalWhere}}
@@ -753,6 +780,9 @@ GROUP BY
 		"placeholders": func(val string) string {
 			vals := strings.Split(val, ",")
 			return strings.TrimSuffix(strings.Repeat("?,", len(vals)), ",")
+		},
+		"isDarwinOnly": func(platform string) bool {
+			return strings.TrimSpace(strings.ReplaceAll(platform, "macos", "darwin")) == "darwin"
 		},
 		"hasTeamID": func(q fleet.SoftwareTitleListOptions) bool {
 			return q.TeamID != nil
@@ -964,8 +994,8 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
 // for the given title and team.
-func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID), byVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -974,17 +1004,19 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
 // for the given title IDs and team, keyed by title ID.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
 
-	query, args, err := sqlx.In(`
-		SELECT si.id, si.version, si.title_id
+	query := `
+		SELECT si.id, si.version, si.filename, si.title_id, si.uploaded_at
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
 		ORDER BY si.title_id, si.uploaded_at DESC
-	`, titleIDs, teamID)
+	`
+
+	query, args, err := sqlx.In(query, titleIDs, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build fleet maintained versions query")
 	}
@@ -1002,6 +1034,20 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	result := make(map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
 	for _, row := range rows {
 		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
+	}
+
+	if byVersion {
+		// sort by semantic version
+		for id := range result {
+			slices.SortFunc(result[id], func(a fleet.FleetMaintainedVersion, b fleet.FleetMaintainedVersion) int {
+				aVersion, aErr := fleet.VersionToSemverVersion(a.Version)
+				bVersion, bErr := fleet.VersionToSemverVersion(b.Version)
+				if aErr != nil || bErr != nil {
+					return strings.Compare(b.Version, a.Version)
+				}
+				return bVersion.Compare(aVersion)
+			})
+		}
 	}
 
 	return result, nil

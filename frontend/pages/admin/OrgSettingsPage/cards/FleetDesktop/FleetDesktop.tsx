@@ -5,7 +5,6 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import validHostname from "components/forms/validators/valid_hostname";
@@ -24,7 +23,6 @@ interface IFleetDesktopFormErrors {
   transparencyURL?: string | null;
   alternativeBrowserHost?: string | null;
 }
-const baseClass = "app-config-form";
 
 const FleetDesktop = ({
   appConfig,
@@ -156,7 +154,6 @@ const FleetDesktop = ({
           helpText="If not set, Fleet Desktop uses your Fleet web address."
         />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

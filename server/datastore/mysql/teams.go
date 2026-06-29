@@ -13,11 +13,20 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
 var teamSearchColumns = []string{"name"}
+
+var teamsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "t.id",
+	"name":       "t.name",
+	"created_at": "t.created_at",
+	"user_count": "user_count",
+	"host_count": "host_count",
+}
 
 const teamColumns = `id, created_at, name, filename, description, config`
 
@@ -49,7 +58,10 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		team.ID = uint(id) //nolint:gosec // dismiss G115
 		team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
-		return saveTeamSecretsDB(ctx, tx, team)
+		if err := saveTeamSecretsDB(ctx, tx, team); err != nil {
+			return err
+		}
+		return batchNewSoftwareCategoriesDB(ctx, tx, team.ID, fleet.DefaultSelfServiceCategoryNames)
 	})
 	if err != nil {
 		return nil, err
@@ -137,6 +149,9 @@ var teamRefs = []string{
 	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
+	"software_title_team_pins",
+	"vpp_app_configurations",
+	"software_categories",
 }
 
 // teamLabelsRefs are the tables that could be referenced by team labels that
@@ -152,6 +167,13 @@ var teamLabelsRefs = []string{
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
+	// Enqueue <Delete> commands for Windows profiles. This must run
+	// first because the main transaction deletes the config profile rows
+	// (which contain the SyncML bytes needed to generate <Delete> commands).
+	if err := ds.enqueueWindowsDeleteCommandsForTeam(ctx, tid); err != nil {
+		return ctxerr.Wrapf(ctx, err, "enqueuing windows delete commands for team %d", tid)
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Delete team policies first, because policies can have associated installers and scripts
 		// which may be deleted on cascade before deleting the policies (which are also deleted on cascade).
@@ -208,6 +230,29 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
+// enqueueWindowsDeleteCommandsForTeam retains the content of the team's Windows config profiles (so the profile-manager cron can
+// build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
+// host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
+func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, tid uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var profileUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &profileUUIDs,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "loading windows profiles for team %d", tid)
+		}
+		if len(profileUUIDs) == 0 {
+			return nil
+		}
+
+		// Copy from the live table before the DeleteTeam cascade removes the definitions; the definitions still exist here.
+		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, profileUUIDs); err != nil {
+			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
+		}
+
+		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
+	})
+}
+
 func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(name)
@@ -242,6 +287,21 @@ func (ds *Datastore) loadExtrasForTeam(ctx context.Context, team *fleet.Team) (*
 		return nil, err
 	}
 	return team, nil
+}
+
+func (ds *Datastore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+	// Normalize to match the NFC normalization applied on write (see NewTeam).
+	nameUnicode := norm.NFC.String(name)
+	stmt := `SELECT id, name FROM teams WHERE name = ? AND id != ? LIMIT 1`
+	team := &fleet.Team{}
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode, excludeID); {
+	case err == nil:
+		return team, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, nil
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "check team name conflict")
+	}
 }
 
 func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
@@ -373,7 +433,10 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	matchQuery := norm.NFC.String(opt.MatchQuery)
 	query, params := searchLike(query, nil, matchQuery, teamSearchColumns...)
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opt, teamsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list teams")
+	}
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list teams")

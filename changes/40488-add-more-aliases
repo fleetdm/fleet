@@ -1,1 +1,0 @@
-- Deprecated several configuration keys in favor of new names: `custom_settings` -> `configuration_profiles`, `macos_settings` -> `apple_settings`, `macos_setup` -> `setup_experience` and `macos_setup_assistant` -> `apple_setup_assistant`.

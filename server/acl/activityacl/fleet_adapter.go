@@ -13,15 +13,29 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// UsersByIDsLookup is the minimal interface needed to look up user summaries by ID
+// without going through the service layer's authz. The activity bounded context
+// performs its own authorization on the host before reaching the user-enrichment
+// step, so a second authz check (which would reject team-scoped viewers since
+// Service.UsersByIDs authorizes against an empty *fleet.User) is both incorrect
+// and the cause of issue #46009 for hosts with user-initiated past activities.
+type UsersByIDsLookup interface {
+	UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
+}
+
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.ActivityLookupService
+	svc          fleet.ActivityLookupService
+	usersByIDsDS UsersByIDsLookup
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.ActivityLookupService) *FleetServiceAdapter {
-	return &FleetServiceAdapter{svc: svc}
+// usersByIDsDS is a datastore-direct lookup used for activity user enrichment;
+// it must bypass service-layer authz because the host authz check has already
+// gated access to the activity list.
+func NewFleetServiceAdapter(svc fleet.ActivityLookupService, usersByIDsDS UsersByIDsLookup) *FleetServiceAdapter {
+	return &FleetServiceAdapter{svc: svc, usersByIDsDS: usersByIDsDS}
 }
 
 // Ensure FleetServiceAdapter implements the required interfaces
@@ -32,14 +46,16 @@ var (
 	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
 )
 
-// UsersByIDs fetches users by their IDs from the Fleet service.
+// UsersByIDs fetches users by their IDs from the datastore directly,
+// bypassing service-layer authz. The activity service has already authorized
+// the caller against the host before this is called for enrichment.
 func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 
 	// Fetch only the requested users by their IDs
-	users, err := a.svc.UsersByIDs(ctx, ids)
+	users, err := a.usersByIDsDS.UsersByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}

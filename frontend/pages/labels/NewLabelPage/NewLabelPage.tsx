@@ -20,7 +20,8 @@ import { validateQuery } from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
@@ -37,7 +38,6 @@ import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -97,7 +97,6 @@ const NewLabelPage = ({
     QueryContext
   );
   const { isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
@@ -338,8 +337,8 @@ const NewLabelPage = ({
     setIsUpdating(true);
     try {
       await labelsAPI.create(formData);
+      notify.success("Label added successfully.");
       router.push(PATHS.MANAGE_LABELS);
-      renderFlash("success", "Label added successfully.");
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't add label. Please try again.";
@@ -352,7 +351,7 @@ const NewLabelPage = ({
           errorMessage = `Couldn't add label: ${reason}. Please try again.`;
         }
       }
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: error });
     }
     setIsUpdating(false);
   };
@@ -594,6 +593,18 @@ const NewLabelPage = ({
       </div>
       {renderVariableFields()}
       <div className="button-wrap">
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdating}
+              disabled={disableChildren || isUpdating || !formErrors.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
         <Button
           onClick={() => {
             router.goBack();
@@ -602,13 +613,6 @@ const NewLabelPage = ({
           disabled={isUpdating}
         >
           Cancel
-        </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdating}
-          disabled={isUpdating || !formErrors.isValid}
-        >
-          Save
         </Button>
       </div>
     </form>

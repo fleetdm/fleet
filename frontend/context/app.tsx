@@ -339,6 +339,24 @@ const setPermissions = (
   };
 };
 
+export const sortAvailableTeams = (
+  availableFleets: ITeamSummary[],
+  user: IUser | null
+): ITeamSummary[] => {
+  const sortedFleets = [...availableFleets]
+    .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name))
+    .filter(
+      (t) =>
+        t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
+        t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
+    );
+  if (user && permissions.isOnGlobalTeam(user)) {
+    sortedFleets.unshift(APP_CONTEXT_ALL_TEAMS_SUMMARY);
+    sortedFleets.push(APP_CONTEXT_NO_TEAM_SUMMARY);
+  }
+  return sortedFleets;
+};
+
 const reducer = (state: InitialStateType, action: IAction) => {
   switch (action.type) {
     case ACTIONS.SET_USER_SETTINGS: {
@@ -349,27 +367,9 @@ const reducer = (state: InitialStateType, action: IAction) => {
       };
     }
     case ACTIONS.SET_AVAILABLE_TEAMS: {
-      const { user, availableTeams } = action;
-
-      let sortedTeams = availableTeams.sort(
-        (a: ITeamSummary, b: ITeamSummary) =>
-          sort.caseInsensitiveAsc(a.name, b.name)
-      );
-      sortedTeams = sortedTeams.filter(
-        (t) =>
-          t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
-          t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
-      );
-      if (user && permissions.isOnGlobalTeam(user)) {
-        sortedTeams.unshift(
-          APP_CONTEXT_ALL_TEAMS_SUMMARY,
-          APP_CONTEXT_NO_TEAM_SUMMARY
-        );
-      }
-
       return {
         ...state,
-        availableTeams: sortedTeams,
+        availableTeams: sortAvailableTeams(action.availableTeams, action.user),
       };
     }
     case ACTIONS.SET_CURRENT_USER: {

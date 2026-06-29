@@ -79,7 +79,9 @@ export default {
       critical,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
       type,
       patch_software_title_id,
       // note absence of automations-related fields, which are only set by the UI via update
@@ -96,7 +98,9 @@ export default {
       critical,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
       type,
       patch_software_title_id,
     });
@@ -114,10 +118,13 @@ export default {
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
       software_title_id,
       script_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -131,10 +138,13 @@ export default {
       critical,
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
       software_title_id,
       script_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {

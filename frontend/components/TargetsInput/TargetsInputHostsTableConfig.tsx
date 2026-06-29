@@ -48,7 +48,6 @@ export const generateTableHeaders = (
             displayName={cellProps.cell.value}
             distributedInterval={cellProps.row.original.distributed_interval}
             status={cellProps.row.original.status}
-            rowId={cellProps.row.original.id}
           />
         );
       },

@@ -1,1 +1,0 @@
-* Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.

@@ -31,7 +31,7 @@ const ReportBanner = ({
   message: ReactNode;
   children?: ReactNode;
 }) => (
-  <InfoBanner color="grey" borderRadius="xlarge">
+  <InfoBanner borderRadius="xlarge">
     <div className={`${baseClass}__banner-content`}>
       <div className={`${baseClass}__banner-text`}>
         <Icon name={iconName} color={ICON_COLOR} />
@@ -105,6 +105,7 @@ const HostReportCard = ({
             key={key}
             title={key}
             value={<TooltipTruncatedText value={value} />}
+            textOnly
           />
         ))}
       </div>

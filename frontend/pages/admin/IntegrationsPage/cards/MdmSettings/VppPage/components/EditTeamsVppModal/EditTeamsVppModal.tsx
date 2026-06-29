@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
 import { IMdmVppToken } from "interfaces/mdm";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
@@ -13,6 +12,7 @@ import Modal from "components/Modal";
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "edit-teams-vpp-modal";
 
@@ -178,7 +178,6 @@ const EditTeamsVppModal = ({
   onCancel,
   onSuccess,
 }: IEditTeamsVppModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { availableTeams } = useContext(AppContext);
 
   // react-select uses a string of comma-separated values for multi-select so we're using a string
@@ -225,15 +224,15 @@ const EditTeamsVppModal = ({
           tokenId: currentToken.id,
           teamIds: teamIdsFromSelectedValue(selectedValue),
         });
-        renderFlash("success", "Edited successfully.");
+        notify.success("Edited successfully.");
         onSuccess();
       } catch (e) {
-        renderFlash("error", "Couldn’t edit. Please try again.");
+        notify.error("Couldn’t edit. Please try again.", { response: e });
       } finally {
         setIsSaving(false);
       }
     },
-    [currentToken.id, selectedValue, renderFlash, onSuccess]
+    [currentToken.id, selectedValue, onSuccess]
   );
 
   const isDropdownDisabled = options.length === 0 && isAnyTokenAllTeams;
@@ -286,7 +285,7 @@ const EditTeamsVppModal = ({
                 </>
               )
             }
-            helpText="App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these fleets."
+            helpText="App Store apps in this VPP token's Apple Business (AB) will only be available to install on hosts in these fleets."
             disabled={isDropdownDisabled}
           />
         </TooltipWrapper>

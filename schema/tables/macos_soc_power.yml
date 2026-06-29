@@ -1,0 +1,32 @@
+name: macos_soc_power
+platforms:
+  - darwin
+description: Power draw in milliwatts for the CPU, GPU, Apple Neural Engine (ANE), and total System on a Chip (SoC), plus GPU active ratio, sampled via powermetrics. Requires root.
+columns:
+  - name: cpu_power_mw
+    type: text
+    required: false
+    description: Power draw in milliwatts for the CPU.
+  - name: gpu_power_mw
+    type: text
+    required: false
+    description: Power draw in milliwatts for the GPU.
+  - name: ane_power_mw
+    type: text
+    required: false
+    description: Power draw in milliwatts for the Apple Neural Engine.
+  - name: combined_power_mw
+    type: text
+    required: false
+    description: Power draw in milliwatts for the total System on a Chip.
+  - name: gpu_active_ratio
+    type: text
+    required: false
+    description: Percentage of time a GPU is actively processing commands rather than idling.
+  - name: interval
+    type: integer
+    required: false
+    description: |
+      Sampling duration in milliseconds. Longer intervals produce more accurate averages. (Default: 3000.)
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+evented: false

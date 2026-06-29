@@ -84,7 +84,6 @@ const Statistics = ({
           Enable usage statistics
         </Checkbox>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

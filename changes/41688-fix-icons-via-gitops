@@ -1,1 +1,0 @@
-Fixed custom app icons not getting set via GitOps when the same software title exists in multiple teams.

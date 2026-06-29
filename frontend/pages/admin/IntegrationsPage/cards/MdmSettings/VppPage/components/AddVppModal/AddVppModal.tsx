@@ -1,13 +1,13 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
-import { NotificationContext } from "context/notification";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
+import { notify } from "components/ToastNotification";
 
-import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "add-vpp-modal";
@@ -18,8 +18,6 @@ interface IAddVppModalProps {
 }
 
 const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [tokenFile, setTokenFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -34,21 +32,21 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     setIsUploading(true);
     if (!tokenFile) {
       setIsUploading(false);
-      renderFlash("error", "No token selected.");
+      notify.error("No token selected.");
       return;
     }
 
     try {
       await mdmAppleAPI.uploadVppToken(tokenFile);
-      renderFlash("success", "Added successfully.");
+      notify.success("Added successfully.");
       onAdded();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
       onCancel();
     } finally {
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, onAdded, onCancel]);
+  }, [tokenFile, onAdded, onCancel]);
 
   return (
     <Modal
@@ -57,7 +55,14 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
       onExit={onCancel}
       width="large"
     >
-      <VppSetupSteps extendendSteps />
+      <p className={`${baseClass}__description`}>
+        Follow the step-by-step guide to add VPP.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/add-vpp"
+          text="Learn how"
+          newTab
+        />
+      </p>
       <FileUploader
         className={`${baseClass}__file-uploader ${
           isUploading ? `${baseClass}__file-uploader--loading` : ""

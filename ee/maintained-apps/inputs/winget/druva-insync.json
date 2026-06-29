@@ -1,0 +1,11 @@
+{
+  "name": "Druva inSync",
+  "slug": "druva-insync/windows",
+  "package_identifier": "Druva.inSync",
+  "unique_identifier": "Druva inSync",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

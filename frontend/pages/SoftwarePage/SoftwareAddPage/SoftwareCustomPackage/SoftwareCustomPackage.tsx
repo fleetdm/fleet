@@ -9,10 +9,11 @@ import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 
+import { notify } from "components/ToastNotification";
 import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
@@ -40,10 +41,9 @@ const SoftwareCustomPackage = ({
   isSidePanelOpen,
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier, config } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
@@ -100,7 +100,7 @@ const SoftwareCustomPackage = ({
 
   const onCancel = () => {
     router.push(
-      getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
         fleet_id: currentTeamId,
       })
     );
@@ -108,10 +108,7 @@ const SoftwareCustomPackage = ({
 
   const onSubmit = async (formData: IPackageFormData) => {
     if (!formData.software) {
-      renderFlash(
-        "error",
-        `Couldn't add. Please refresh the page and try again.`
-      );
+      notify.error(`Couldn't add. Please refresh the page and try again.`);
       return;
     }
 
@@ -134,8 +131,7 @@ const SoftwareCustomPackage = ({
       });
 
       if (!gitOpsModeEnabled) {
-        renderFlash(
-          "success",
+        notify.success(
           <>
             <b>{formData.software?.name}</b> successfully added.
             {formData.selfService
@@ -147,6 +143,9 @@ const SoftwareCustomPackage = ({
 
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
       });
 
       const newQueryParams: QueryParams = {
@@ -160,7 +159,7 @@ const SoftwareCustomPackage = ({
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
     setUploadDetails(null);
   };
@@ -177,7 +176,7 @@ const SoftwareCustomPackage = ({
     return (
       <>
         {gitOpsModeEnabled && (
-          <InfoBanner color="grey" borderRadius="medium">
+          <InfoBanner borderRadius="medium">
             Add custom packages in GitOps mode so Fleet can host your software.
             After adding, copy its SHA-256 hash into your YAML so the next
             GitOps workflow doesn&apos;t delete it.
@@ -201,6 +200,7 @@ const SoftwareCustomPackage = ({
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
+            teamId={currentTeamId}
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource}
           />
         )}

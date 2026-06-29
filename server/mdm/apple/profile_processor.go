@@ -97,14 +97,15 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		switch op {
 		case fleet.MDMOperationTypeInstall:
 			if _, ok := profilesWithSecrets[profUUID]; ok {
-				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID, target.ProfileName)
 			} else {
-				err = commander.InstallProfile(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
+				err = commander.InstallProfile(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID, target.ProfileName)
 			}
 		case fleet.MDMOperationTypeRemove:
-			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID)
+			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID, target.ProfileName)
 		}
 
+		// Determine whether the command was enqueued (even if push notification failed).
 		var e *APNSDeliveryError
 		switch {
 		case errors.As(err, &e):
@@ -117,6 +118,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		default:
 			ch <- remoteResult{nil, target.CmdUUID}
 		}
+
 	}
 	for profUUID, target := range installTargets {
 		wgProd.Add(1)
@@ -202,7 +204,7 @@ func preprocessProfileContents(
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
 		for _, fleetVar := range fleetVars {
-			if fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+			if fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarHostUUID) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
@@ -228,7 +230,8 @@ func preprocessProfileContents(
 
 			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) || fleetVar == string(fleet.FleetVarHostPlatform) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
-				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) || fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
+				fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) || fleetVar == string(fleet.FleetVarHostUUID):
 				// No extra validation needed for these variables
 
@@ -396,10 +399,12 @@ func preprocessProfileContents(
 					// Insert the SCEP URL into the profile contents
 					hostContents = profiles.ReplaceNDESSCEPProxyURLVariable(appConfig.MDMUrl(), hostUUID, profUUID, hostContents)
 
-				case fleetVar == string(fleet.FleetVarSCEPRenewalID):
-					// Insert the SCEP renewal ID into the SCEP Payload CN or OU
+				case fleetVar == string(fleet.FleetVarSCEPRenewalID), fleetVar == string(fleet.FleetVarCertificateRenewalID):
+					// Insert the renewal ID into the SCEP/ACME Payload CN or OU.
+					// Both legacy SCEP_RENEWAL_ID and the preferred
+					// CERTIFICATE_RENEWAL_ID substitute to the same value.
 					fleetRenewalID := "fleet-" + profUUID
-					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
@@ -630,6 +635,7 @@ func preprocessProfileContents(
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,
 					ProfileIdentifier: target.ProfileIdentifier,
+					ProfileName:       target.ProfileName,
 					EnrollmentIDs:     []string{enrollmentID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)

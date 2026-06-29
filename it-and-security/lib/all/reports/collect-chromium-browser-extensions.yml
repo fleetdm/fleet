@@ -1,0 +1,21 @@
+- name: Collect Chromium-family browser extensions
+  description: |-
+    Extension inventory across Chrome, Edge, Brave, and other Chromium-based profiles.
+  query: |-
+    SELECT
+      u.username,
+      ce.browser_type,
+      ce.name,
+      ce.identifier,
+      ce.version,
+      ce.profile,
+      ce.path,
+      ce.permissions
+    FROM users u
+    INNER JOIN chrome_extensions ce USING (uid)
+    WHERE ce.name != '';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux,windows

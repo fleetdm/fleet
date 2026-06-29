@@ -43,6 +43,8 @@
 								<string>This application has been blocked by a security policy.</string>
 								<key>ClientMode</key>
 								<integer>1</integer>
+								<key>EnableMenuItem</key>
+								<false/>
 								<key>FileChangesRegex</key>
 								<string>^/(?!(?:private/tmp|Library/(?:Caches|Managed Installs/Logs|(?:Managed )?Preferences))/)</string>
 								<key>MachineIDKey</key>

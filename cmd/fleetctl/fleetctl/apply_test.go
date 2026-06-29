@@ -127,7 +127,7 @@ spec:
         fleet: team1
 `)
 	require.NoError(t, err)
-	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
 }
@@ -188,7 +188,7 @@ spec:
 `)
 	require.NoError(t, err)
 	expected := "[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[+] applied user roles\n"
-	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
 
@@ -209,7 +209,7 @@ spec:
         fleet: team1
 `)
 	require.NoError(t, err)
-	RunAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
+	runAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
@@ -298,7 +298,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -312,19 +312,25 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team2
 ---
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -348,16 +354,20 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
-	require.Equal(t, "[+] applied 2 fleets\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 2 fleets\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.Equal(t, fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, teamsByName["team2"].Config.MDM)
@@ -371,14 +381,14 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
         deadline_days: 5
         grace_period_days: 1
 `)
-	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -391,6 +401,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
@@ -401,7 +413,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -424,11 +436,13 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 fleet\n")
 	// enroll secret not provided, so left unchanged
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
@@ -441,7 +455,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -483,11 +497,13 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
-	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
@@ -497,7 +513,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
     name: team1
     mdm:
@@ -505,7 +521,7 @@ spec:
       apple_settings:
 `)
 
-	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	// agent options provided but empty, clears the value
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 	// macos settings and updates still the same (not cleared) because only the
@@ -518,7 +534,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -526,14 +542,14 @@ spec:
 `)
 
 	// fails: minimum_version provided empty, but deadline not provided
-	_, err := RunAppNoChecks([]string{"apply", "-f", filename})
+	_, err := runAppNoChecks([]string{"apply", "-f", filename})
 	require.ErrorContains(t, err, "deadline is required when minimum_version is provided")
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -574,11 +590,13 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 fleet\n")
 	// agent options still cleared
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 	// macos settings and updates are now cleared.
@@ -592,7 +610,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     webhook_settings:
       host_status_webhook:
@@ -603,7 +621,7 @@ spec:
 `,
 	)
 
-	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	// Ensure the webhook settings are applied
 	assert.Equal(
 		t, fleet.HostStatusWebhookSettings{
@@ -623,13 +641,13 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     webhook_settings:
 `,
 	)
 
-	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	// Ensure the webhook settings have not changed
 	assert.Equal(
 		t, fleet.HostStatusWebhookSettings{
@@ -646,7 +664,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     integrations:
       google_calendar:
@@ -654,7 +672,7 @@ spec:
         webhook_url: https://example.com/webhook
 `,
 	)
-	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	require.NotNil(t, teamsByName["team1"].Config.Integrations.GoogleCalendar)
 	assert.Equal(
 		t, fleet.TeamGoogleCalendarIntegration{
@@ -669,7 +687,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     integrations:
       google_calendar:
@@ -677,7 +695,7 @@ spec:
         webhook_url: bozo
 `,
 	)
-	_, err = RunAppNoChecks([]string{"apply", "-f", filename})
+	_, err = runAppNoChecks([]string{"apply", "-f", filename})
 	assert.ErrorContains(t, err, "invalid URI for request")
 }
 
@@ -755,7 +773,7 @@ func TestApplyAppConfig(t *testing.T) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -780,6 +798,12 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -808,6 +832,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -815,7 +841,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 	}
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.False(t, savedAppConfig.Features.EnableHostUsers)
 	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
@@ -832,7 +858,7 @@ spec:
     report_cap: 100
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
 
@@ -846,7 +872,7 @@ spec:
     query_report_cap: 200
 `)
 
-	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
 
@@ -863,7 +889,7 @@ spec:
     windows_updates:
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.True(t, savedAppConfig.Features.EnableHostUsers)
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
@@ -891,6 +917,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -898,7 +926,7 @@ spec:
 			GracePeriodDays: optjson.Int{Set: true},
 		},
 	}
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
 }
@@ -914,7 +942,7 @@ spec:
     report_cap: 200
 `)
 
-	RunAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
+	runAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
@@ -981,7 +1009,7 @@ spec:
     overrides: {}
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 
 	// then, dry-run a valid app config's agent options, which made the original
 	// app config's agent options invalid JSON (when it shouldn't have modified
@@ -1007,11 +1035,11 @@ spec:
                 - "last_modified"
 `)
 
-	assert.Equal(t, "[+] would've applied fleet config\n", RunAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
 
 	// the saved app config was left unchanged, still equal to the original agent
 	// options
-	got := RunAppForTest(t, []string{"get", "config"})
+	got := runAppForTest(t, []string{"get", "config"})
 	assert.Contains(t, got, `agent_options:
     config:
       decorators:
@@ -1061,7 +1089,7 @@ spec:
     enabled_software_inventory: false # typo, correct config is enable_software_inventory
 `)
 
-	RunAppCheckErr(t, []string{"apply", "-f", name},
+	runAppCheckErr(t, []string{"apply", "-f", name},
 		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad Request: unsupported key provided: \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
@@ -1112,7 +1140,7 @@ spec:
     enable_software_inventory: false
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.False(t, savedAppConfig.Features.EnableHostUsers)
 	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
@@ -1126,7 +1154,7 @@ spec:
     enable_software_inventory: true
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.True(t, savedAppConfig.Features.EnableHostUsers)
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
@@ -1312,7 +1340,7 @@ func TestApplyPolicies(t *testing.T) {
 	}
 	name := writeTmpYml(t, policySpec)
 
-	assert.Equal(t, "[+] applied 3 policies\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 3 policies\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	assert.Len(t, appliedPolicySpecs, 3)
 	for _, p := range appliedPolicySpecs {
@@ -1325,12 +1353,12 @@ func TestApplyPoliciesValidation(t *testing.T) {
 	// Team Policy Spec
 	filename := writeTmpYml(t, duplicateTeamPolicySpec)
 	errorMsg := `applying policies: policy names must be unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
-	RunAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 
 	// Global Policy Spec
 	filename = writeTmpYml(t, duplicateGlobalPolicySpec)
 	errorMsg = `applying policies: policy names must be unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
-	RunAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {
@@ -1486,7 +1514,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -1521,6 +1549,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	// Apply global config.
 	name := writeTmpYml(t, `---
@@ -1548,10 +1582,10 @@ spec:
 `)
 
 	// test applying with dry-run flag
-	assert.Equal(t, "[+] would've applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
 
 	// test applying for real
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 
 	mobileConfig := mobileconfigForTest("foo", "bar")
@@ -1574,20 +1608,20 @@ spec:
     windows_updates:
       deadline_days: 1
       grace_period_days: 0
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
       - %s
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
     windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
 	assert.Equal(t, "[+] would've applied fleet config\n[+] would've applied MDM profiles\n",
-		RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+		runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
 
 	// then apply for real
-	assert.Equal(t, "[+] applied fleet config\n[+] applied MDM profiles\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n[+] applied MDM profiles\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 	assert.Equal(t, fleet.MDM{
@@ -1595,6 +1629,8 @@ spec:
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1621,15 +1657,15 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
+    setup_experience:
+      macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
-	assert.Equal(t, "[+] would've applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
 
 	// then apply for real
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 	// MDM settings left untouched except for the bootstrap package
@@ -1639,6 +1675,8 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1682,10 +1720,10 @@ spec:
 `, mobileConfigPath))
 
 	// first apply with dry-run
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 fleet\n")
 
 	// then apply for real
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
@@ -1698,6 +1736,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1722,10 +1762,10 @@ spec:
 `, emptySetupAsst))
 
 	// first apply with dry-run
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 fleet\n")
 
 	// then apply for real
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
@@ -1746,6 +1786,8 @@ spec:
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
@@ -1759,14 +1801,14 @@ spec:
     name: Team1
     mdm:
       macos_setup:
-        bootstrap_package: %s
+        macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 fleet\n")
 
 	// then apply for real
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
@@ -1785,6 +1827,8 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
@@ -1796,7 +1840,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, policySpec)
-	assert.Equal(t, "[+] applied 3 policies\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 3 policies\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	assert.Len(t, appliedPolicySpecs, 3)
 	for _, p := range appliedPolicySpecs {
@@ -1811,7 +1855,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, enrollSecretsSpec)
-	assert.Equal(t, "[+] applied enroll secrets\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied enroll secrets\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.Len(t, appliedSecrets, 3)
 	for _, s := range appliedSecrets {
@@ -1825,7 +1869,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, labelsSpec)
-	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
@@ -1841,7 +1885,7 @@ spec:
 		return nil, nil
 	}
 	name = writeTmpYml(t, packsSpec)
-	assert.Equal(t, "[+] applied 1 pack\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 pack\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
 	require.Len(t, appliedPacks, 1)
 	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
@@ -1857,7 +1901,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, queriesSpec)
-	assert.Equal(t, "[+] applied 1 report\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 report\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
@@ -1903,7 +1947,7 @@ func TestApplyEnrollSecrets(t *testing.T) {
 
 	name := writeTmpYml(t, enrollSecretsSpec)
 
-	assert.Equal(t, "[+] applied enroll secrets\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied enroll secrets\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.Len(t, appliedSecrets, 3)
 	for _, s := range appliedSecrets {
@@ -1925,7 +1969,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name := writeTmpYml(t, labelsSpec)
 
-	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
@@ -1936,7 +1980,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, manualLabelSpec)
 
-	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "manual_label", appliedLabels[0].Name)
@@ -1947,7 +1991,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, emptyManualLabelSpec)
 
-	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
@@ -1958,7 +2002,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, nohostsManualLabelSpec)
 
-	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "nohost_manual_label", appliedLabels[0].Name)
@@ -1969,7 +2013,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, nullHostsManualLabelSpec)
 
-	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "nullhost_manual_label", appliedLabels[0].Name)
@@ -1995,9 +2039,12 @@ func TestApplyLabels(t *testing.T) {
 			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
 		}, nil
 	}
+	// Reset invocation flag — earlier sub-cases call LabelsByName as part of
+	// the regular-label apply flow (used for created/edited activity detection).
+	ds.LabelsByNameFuncInvoked = false
 
 	name = writeTmpYml(t, builtinLabelSpec)
-	_, err := RunAppNoChecks([]string{"apply", "-f", name})
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
 	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
@@ -2018,7 +2065,7 @@ func TestApplyPacks(t *testing.T) {
 
 	name := writeTmpYml(t, packsSpec)
 
-	assert.Equal(t, "[+] applied 1 pack\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 pack\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
 	require.Len(t, appliedPacks, 1)
 	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
@@ -2040,9 +2087,9 @@ spec:
 
 	expectedErrMsg := "applying packs: POST /api/latest/fleet/spec/packs received status 400 Bad request: pack payload verification: pack scheduled query interval must be an integer greater than 1 and less than 604800"
 
-	_, err := RunAppNoChecks([]string{"apply", "-f", interval})
+	_, err := runAppNoChecks([]string{"apply", "-f", interval})
 	assert.Error(t, err)
-	require.Equal(t, expectedErrMsg, err.Error())
+	require.Contains(t, err.Error(), expectedErrMsg)
 }
 
 func TestApplyQueries(t *testing.T) {
@@ -2058,7 +2105,7 @@ func TestApplyQueries(t *testing.T) {
 	}
 	name := writeTmpYml(t, queriesSpec)
 
-	assert.Equal(t, "[+] applied 1 report\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 report\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
@@ -2108,7 +2155,7 @@ spec:
     interval: 30000000000
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.Equal(t, savedAppConfig.WebhookSettings.Interval.Duration, 30*time.Second)
 }
 
@@ -2155,7 +2202,7 @@ spec:
     interval: 30s
 `)
 
-	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.Equal(t, savedAppConfig.WebhookSettings.Interval.Duration, 30*time.Second)
 }
 
@@ -2174,8 +2221,16 @@ func TestApplyMacosSetup(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
 		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
+		mockEmptyTeamSoftware(ds)
 
-		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
+		tm1 := &fleet.Team{ID: 1, Name: "tm1", Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
+		}}
 		teamsByName := map[string]*fleet.Team{
 			"tm1": tm1,
 		}
@@ -2234,6 +2289,12 @@ func TestApplyMacosSetup(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+			Features: fleet.Features{
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 		}
 		if premium {
 			mockStore.appConfig.ServerSettings.EnableAnalytics = true
@@ -2357,26 +2418,26 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
-      macos_setup_assistant: %s
+    setup_experience:
+      macos_bootstrap_package: %s
+      apple_setup_assistant: %s
 `
 		appConfigEnableReleaseSpec = appConfigSpec + `
-      enable_release_device_manually: %s
+      apple_enable_release_device_manually: %s
 `
 		appConfigNoKeySpec = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
 `
 		appConfigSpecEnableEndUserAuth = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       enable_end_user_authentication: %s
 `
 		team1Spec = `
@@ -2386,12 +2447,12 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 `
 		team1EnableReleaseSpec = team1Spec + `
-        enable_release_device_manually: %s
+        apple_enable_release_device_manually: %s
         require_all_software_macos: %s
 `
 		team1NoKeySpec = `
@@ -2401,7 +2462,7 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
 `
 		team1And2Spec = `
 apiVersion: v1
@@ -2410,9 +2471,9 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 ---
 apiVersion: v1
 kind: fleet
@@ -2420,9 +2481,9 @@ spec:
   team:
     name: tm2
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 `
 		team1SpecEnableEndUserAuth = `
 apiVersion: v1
@@ -2431,7 +2492,7 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
         enable_end_user_authentication: %s
 `
 	)
@@ -2441,7 +2502,7 @@ spec:
 
 		// appconfig macos setup assistant
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `uploading apple setup assistant: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2449,7 +2510,7 @@ spec:
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "https://example.com", ""))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `verifying bootstrap package: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2458,7 +2519,7 @@ spec:
 
 		// team macos setup assistant
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", emptyMacosSetup))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2466,7 +2527,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "https://example.com", ""))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2475,7 +2536,7 @@ spec:
 
 		// enable_end_user_authentication is premium only
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpecEnableEndUserAuth, "true"))
-		RunAppCheckErr(t, []string{"apply", "-f", name},
+		runAppCheckErr(t, []string{"apply", "-f", name},
 			`applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
@@ -2484,7 +2545,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2504,42 +2565,42 @@ spec:
 
 		// appconfig invalid file
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", "no_such_file.json"))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `no such file`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		// appconfig not .json
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", "no_such_file.txt"))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `Couldn’t edit apple_setup_assistant. The file should be a .json file.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		// appconfig invalid json
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidJSON))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The file should include valid JSON`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		// team invalid file
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", "no_such_file.json"))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `no such file`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		// team not .json
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", "no_such_file.txt"))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `Couldn’t edit apple_setup_assistant. The file should be a .json file.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		// team invalid json
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", invalidJSON))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The file should include valid JSON`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
@@ -2576,47 +2637,47 @@ spec:
 		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup)
 
 		// get without setup assistant set
-		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
-		assert.Equal(t, "[+] would've applied fleet config\n", RunAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+		assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		// apply with dry-run, teams
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", emptyMacosSetup, "", emptyMacosSetup))
-		assert.Equal(t, "[+] would've applied 2 fleets\n", RunAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+		assert.Equal(t, "[+] would've applied 2 fleets\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		// get, setup assistant still not set
-		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 
 		// apply teams for real
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", emptyMacosSetup, "", emptyMacosSetup))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
-		assert.Equal(t, "[+] applied 2 fleets\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied 2 fleets\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, setup assistant is now set
-		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveAppConfigFuncInvoked = false
-		assert.Equal(t, "[+] would've applied fleet config\n", RunAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+		assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
@@ -2625,33 +2686,33 @@ spec:
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", "", "", ""))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
-		assert.Equal(t, "[+] would've applied 2 fleets\n", RunAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+		assert.Equal(t, "[+] would've applied 2 fleets\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		// apply appconfig without the setup assistant key
 		name = writeTmpYml(t, appConfigNoKeySpec)
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 
 		// apply team 1 without the setup assistant key
 		name = writeTmpYml(t, team1NoKeySpec)
-		assert.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, results unchanged
-		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
 		ds.SaveAppConfigFuncInvoked = false
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
@@ -2659,50 +2720,104 @@ spec:
 		// clear teams for real
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", "", "", ""))
 		ds.SaveTeamFuncInvoked = false
-		assert.Equal(t, "[+] applied 2 fleets\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied 2 fleets\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, results now empty
-		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1And2, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply team 1 without the setup assistant key but enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
-		assert.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
 		// apply teams with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidURLMacosSetup, "", invalidURLMacosSetup))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
 		// apply appconfig with invalid await_device_configured key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidAwaitMacosSetup))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
 		// apply teams with invalid await_device_configured key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidAwaitMacosSetup, "", invalidAwaitMacosSetup))
-		_, err = RunAppNoChecks([]string{"apply", "-f", name})
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+	})
+
+	t.Run("require_all_software_windows", func(t *testing.T) {
+		ds := setupServer(t, true)
+
+		// Enable Windows MDM in the app config.
+		mockStore.Lock()
+		mockStore.appConfig.MDM.WindowsEnabledAndConfigured = true
+		mockStore.Unlock()
+
+		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
+		require.NoError(t, err)
+		expectedTm1 := fmt.Sprintf(string(b), "", "", "", "")
+
+		// Apply team with require_all_software_windows enabled.
+		windowsRequireSpec := `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: tm1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`
+		name := writeTmpYml(t, windowsRequireSpec)
+		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
+		assert.True(t, ds.SaveTeamFuncInvoked)
+
+		// Verify the output includes require_all_software_windows: true.
+		expectedWithWindowsRequire := strings.ReplaceAll(expectedTm1, `require_all_software_windows: false`, `require_all_software_windows: true`)
+		assert.YAMLEq(t, expectedWithWindowsRequire, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	})
+
+	t.Run("require_all_software_windows rejected when Windows MDM not configured", func(t *testing.T) {
+		// Spec invariant: setting `require_all_software_windows=true` while
+		// `MDM.WindowsEnabledAndConfigured=false` MUST be rejected. setupServer's default appConfig leaves
+		// WindowsEnabledAndConfigured at the zero value (false), which is the precondition this test needs.
+		ds := setupServer(t, true)
+
+		windowsRequireSpec := `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: tm1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`
+		name := writeTmpYml(t, windowsRequireSpec)
+		runAppCheckErr(t, []string{"apply", "-f", name}, "require_all_software_windows")
+		assert.False(t, ds.SaveTeamFuncInvoked,
+			"team must not be saved when require_all_software_windows is rejected")
 	})
 
 	t.Run("new bootstrap package", func(t *testing.T) {
@@ -2711,9 +2826,9 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
-			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
-			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
+			{"unsigned.pkg", errors.New("verifying bootstrap package: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
+			{"invalid.tar.gz", errors.New("verifying bootstrap package: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
+			{"wrong-toc.pkg", errors.New("verifying bootstrap package: checking package signature: decompressing TOC: unexpected EOF")},
 		}
 
 		for _, c := range cases {
@@ -2737,7 +2852,7 @@ spec:
 				tmpFilename := writeTmpYml(t, fmt.Sprintf(appConfigSpec, srv.URL, ""))
 
 				if c.expectedErr != nil {
-					RunAppCheckErr(t, []string{"apply", "-f", tmpFilename}, c.expectedErr.Error())
+					runAppCheckErr(t, []string{"apply", "-f", tmpFilename}, c.expectedErr.Error())
 					assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 					assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 					assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2746,7 +2861,7 @@ spec:
 					assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 					mockStore.Unlock()
 				} else {
-					assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", tmpFilename}))
+					assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 					assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 					assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 					assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2781,15 +2896,15 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
-      manual_agent_install: true
+    setup_experience:
+      macos_bootstrap_package: %s
+      macos_manual_agent_install: true
 `
 
 		// create the app config yaml with server url for bootstrap package
 		tmpFilename := writeTmpYml(t, fmt.Sprintf(spec, srv.URL))
 
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", tmpFilename}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2854,7 +2969,7 @@ spec:
 
 		// upload a new package
 		tmpFilename := writeTmpYml(t, fmt.Sprintf(appConfigSpec, srv.URL, ""))
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", tmpFilename}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2870,7 +2985,7 @@ spec:
 		ds.SaveAppConfigFuncInvoked = false
 
 		// running again should not re-upload
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", tmpFilename}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2887,7 +3002,7 @@ spec:
 
 		// empty server url should delete the package
 		tmpFilename = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
-		assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", tmpFilename}))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2898,7 +3013,7 @@ spec:
 		mockStore.Unlock()
 	})
 
-	// // TODO: restore this test when we have a way to mock the Apple Business Manager API in
+	// // TODO: restore this test when we have a way to mock the Apple Business API in
 	// // fleetctl tests
 	// t.Run("enable end user authentication", func(t *testing.T) {
 	// 	ds := setupServer(t, true)
@@ -2911,7 +3026,7 @@ spec:
 
 	// 	// enable end user auth in app config
 	// 	name := writeTmpYml(t, fmt.Sprintf(appConfigSpecEnableEndUserAuth, "true"))
-	// 	_, err = RunAppNoChecks([]string{"apply", "-f", name})
+	// 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	// 	require.NoError(t, err)
 	// 	assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	// 	assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
@@ -2924,7 +3039,7 @@ spec:
 
 	// 	// disable end user auth in app config
 	// 	name = writeTmpYml(t, fmt.Sprintf(appConfigSpecEnableEndUserAuth, "false"))
-	// 	_, err = RunAppNoChecks([]string{"apply", "-f", name})
+	// 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	// 	require.NoError(t, err)
 	// 	assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	// 	assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
@@ -2943,7 +3058,7 @@ spec:
 
 	// 	// enable end user auth in team config
 	// 	name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
-	// 	_, err = RunAppNoChecks([]string{"apply", "-f", name})
+	// 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	// 	require.NoError(t, err)
 	// 	assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	// 	assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
@@ -2959,7 +3074,7 @@ spec:
 
 	// 	// disable end user auth in team config
 	// 	name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "false"))
-	// 	_, err = RunAppNoChecks([]string{"apply", "-f", name})
+	// 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	// 	require.NoError(t, err)
 	// 	assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	// 	assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
@@ -3064,6 +3179,12 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{}, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 	}
 
@@ -3964,7 +4085,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption:
 `,
 			wantOutput: `[+] applied fleet config`,
@@ -3976,7 +4097,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad request: failed to decode app config`,
@@ -3988,7 +4109,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: true
 `,
 
@@ -4002,7 +4123,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied fleet config`,
@@ -4016,7 +4137,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption:
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got <nil>`,
@@ -4030,7 +4151,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
@@ -4044,7 +4165,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: true
 `,
 			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
@@ -4058,7 +4179,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied 1 fleet`,
@@ -4072,8 +4193,8 @@ spec:
   team:
     name: team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
@@ -4084,8 +4205,8 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
@@ -4168,9 +4289,9 @@ spec:
 
 			var got string
 			if c.wantErr == "" {
-				got = RunAppForTest(t, append([]string{"apply", "-f", filename}, c.flags...))
+				got = runAppForTest(t, append([]string{"apply", "-f", filename}, c.flags...))
 			} else {
-				buf, err := RunAppNoChecks(append([]string{"apply", "-f", filename}, c.flags...))
+				buf, err := runAppNoChecks(append([]string{"apply", "-f", filename}, c.flags...))
 				require.ErrorContains(t, err, c.wantErr)
 				got = buf.String()
 			}
@@ -4322,6 +4443,9 @@ func TestApplyWindowsUpdates(t *testing.T) {
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 	t.Run("with values", func(t *testing.T) {
 		// Reset call trackers
 		setOrUpdateCalls = nil
@@ -4339,7 +4463,7 @@ spec:
         grace_period_days: 2
 `)
 
-		_ = RunAppForTest(t, []string{"apply", "-f", filename})
+		_ = runAppForTest(t, []string{"apply", "-f", filename})
 
 		// Verify SetOrUpdateMDMWindowsConfigProfile was called
 		require.Len(t, setOrUpdateCalls, 1, "SetOrUpdateMDMWindowsConfigProfile should be called once")
@@ -4368,7 +4492,7 @@ spec:
         grace_period_days: null
 `)
 
-		_ = RunAppForTest(t, []string{"apply", "-f", filename})
+		_ = runAppForTest(t, []string{"apply", "-f", filename})
 
 		// Verify DeleteMDMWindowsConfigProfileByTeamAndName was called
 		require.Len(t, deleteCalls, 1, "DeleteMDMWindowsConfigProfileByTeamAndName should be called once")
@@ -4393,7 +4517,7 @@ spec:
     mdm: {}
 `)
 
-		_ = RunAppForTest(t, []string{"apply", "-f", filename})
+		_ = runAppForTest(t, []string{"apply", "-f", filename})
 
 		// Verify neither function was called
 		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")

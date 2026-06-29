@@ -1,21 +1,21 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
 import { ILabelSummary } from "interfaces/label";
 
 import { useQuery } from "react-query";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
+import { notify } from "components/ToastNotification";
 import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Checkbox from "components/forms/fields/Checkbox";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import {
@@ -27,7 +27,6 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
@@ -66,10 +65,7 @@ const EditAutoUpdateConfigModal = ({
   refetchSoftwareTitle,
   onExit,
 }: EditAutoUpdateConfigModal) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
-
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const formClassNames = classnames(formClass, {
     [`edit-auto-update-config-form--disabled`]: gitOpsModeEnabled,
@@ -87,7 +83,7 @@ const EditAutoUpdateConfigModal = ({
     ),
   });
 
-  // Fetch labels for TargetLabelSelector
+  // Fetch labels for DropdownTargetLabelSelector
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
@@ -120,8 +116,7 @@ const EditAutoUpdateConfigModal = ({
     try {
       await softwareAPI.editAppStoreApp(softwareTitle.id, teamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <strong>
             {getDisplayedSoftwareName(
@@ -136,9 +131,9 @@ const EditAutoUpdateConfigModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        "An error occurred while updating the configuration. Please try again."
+      notify.error(
+        "An error occurred while updating the configuration. Please try again.",
+        { response: e }
       );
     }
     setIsUpdatingConfiguration(false);
@@ -279,7 +274,7 @@ const EditAutoUpdateConfigModal = ({
             </div>
           </Card>
           <Card paddingSize="medium" borderRadiusSize="medium">
-            <TargetLabelSelector
+            <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}
               selectedLabels={formData.labelTargets}
@@ -304,7 +299,8 @@ const EditAutoUpdateConfigModal = ({
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper
-              position="right"
+              entityType="software"
+              position="top"
               tipOffset={8}
               renderChildren={(disableChildren) => (
                 <Button

@@ -1,31 +1,27 @@
-import React, { useState, useContext, useCallback } from "react";
-
-import { NotificationContext } from "context/notification";
+import React, { useState, useCallback } from "react";
 
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
-import VppSetupSteps from "../VppSetupSteps";
+import { notify } from "components/ToastNotification";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "modal renew-vpp-modal";
 
 interface IRenewVppModalProps {
   tokenId: number;
-  orgName: string;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
 const RenewVppModal = ({
   tokenId,
-  orgName,
   onCancel,
   onRenewedToken,
 }: IRenewVppModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isRenewing, setIsRenewing] = useState(false);
   const [tokenFile, setTokenFile] = useState<File | null>(null);
 
@@ -41,23 +37,22 @@ const RenewVppModal = ({
 
     if (!tokenFile) {
       setIsRenewing(false);
-      renderFlash("error", "No token selected.");
+      notify.error("No token selected.");
       return;
     }
 
     try {
       await mdmAppleAPI.renewVppToken(tokenId, tokenFile);
-      renderFlash(
-        "success",
+      notify.success(
         "Volume Purchasing Program (VPP) integration enabled successfully."
       );
       onRenewedToken();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
       onCancel();
     }
     setIsRenewing(false);
-  }, [onCancel, onRenewedToken, renderFlash, tokenFile, tokenId]);
+  }, [onCancel, onRenewedToken, tokenFile, tokenId]);
 
   return (
     <Modal
@@ -68,9 +63,13 @@ const RenewVppModal = ({
       width="large"
     >
       <p className={`${baseClass}__description`}>
-        Renew Volume Purchasing Program for <b>{orgName}</b> location.
+        Follow the step-by-step guide to renew.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/renew-vpp"
+          text="Learn how"
+          newTab
+        />
       </p>
-      <VppSetupSteps />
       <FileUploader
         className={`${baseClass}__file-uploader`}
         accept=".vpptoken"

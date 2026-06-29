@@ -34,6 +34,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestCountVulnerabilities", testCountVulnerabilities},
 		{"TestInsertVulnerabilityCounts", testInsertVulnerabilityCounts},
 		{"TestVulnerabilityHostCountBatchInserts", testVulnerabilityHostCountBatchInserts},
+		{"TestListVulnerabilitiesCursorPagination", testListVulnerabilitiesCursorPagination},
 	}
 
 	for _, c := range cases {
@@ -509,7 +510,7 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	require.Equal(t, "CVE-2020-1237", list[3].CVE.CVE)
 	require.Equal(t, "CVE-2020-1236", list[4].CVE.CVE)
 
-	opts.ListOptions.OrderKey = "published"
+	opts.ListOptions.OrderKey = "cve_published"
 	opts.ListOptions.OrderDirection = fleet.OrderAscending
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
@@ -519,6 +520,47 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	require.Equal(t, "CVE-2020-1236", list[2].CVE.CVE)
 	require.Equal(t, "CVE-2020-1235", list[3].CVE.CVE)
 	require.Equal(t, "CVE-2020-1237", list[4].CVE.CVE)
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+		})
+		require.Error(t, err)
+	})
+}
+
+func testListVulnerabilitiesCursorPagination(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	// Test cursor pagination with order keys that previously caused SQL errors
+	// due to ambiguous or unresolvable column names in the WHERE clause.
+	// See https://github.com/fleetdm/fleet/issues/45843
+	cursorTests := []struct {
+		name     string
+		orderKey string
+		after    string
+	}{
+		{"cve", "cve", "CVE-2020-1236"},
+		{"hosts_count", "hosts_count", "70"},
+		{"cve_published", "cve_published", "2020-01-01"},
+	}
+
+	for _, tc := range cursorTests {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := fleet.VulnListOptions{
+				IsEE: true,
+				ListOptions: fleet.ListOptions{
+					PerPage:        3,
+					OrderKey:       tc.orderKey,
+					OrderDirection: fleet.OrderAscending,
+					After:          tc.after,
+				},
+			}
+			list, _, err := ds.ListVulnerabilities(context.Background(), opts)
+			require.NoError(t, err)
+			require.NotEmpty(t, list)
+		})
+	}
 }
 
 func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {

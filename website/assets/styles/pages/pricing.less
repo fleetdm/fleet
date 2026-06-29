@@ -32,50 +32,6 @@
     color: #192147;
     max-width: 1120px;
   }
-  [purpose='pricing-switch'] {
-    width: 660px;
-    cursor: pointer;
-    border: 1px solid #E2E4EA;
-    border-radius: 28px;
-    background: @ui-off-white;
-    position: relative;
-    box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
-    margin-bottom: 32px;
-    margin-top: 32px;
-    [purpose='pricing-tier-switch'] {
-      position: absolute;
-      top: -1px;
-      left: -1px;
-      background: #fff;
-      border: 1px solid #E2E4EA;
-      border-radius: 28px;
-      height: 58px;
-      min-width: 220px;
-      z-index: 1;
-      transition: 0.25s all;
-    }
-    [purpose='pricing-switch-option'] {
-      padding: 16px 24px;
-      text-align: center;
-      cursor: pointer;
-      z-index: 3;
-      user-select: none;
-      white-space: nowrap;
-      min-width: 220px;
-    }
-    .Security-selected {
-      width: 220px;
-      transform: translateX(218px);
-    }
-    .IT-selected {
-      left: 1px;
-      width: 220px;
-      transform: translateX(440px);
-    }
-    .all-selected {
-      width: 220px;
-    }
-  }
   [purpose='pricing-tiers'] {
     margin-bottom: 24px;
   }
@@ -201,6 +157,7 @@
   }
   [purpose='logos-container'] {
     margin-top: 40px;
+    margin-bottom: 32px;
     max-width: 100%;
     [parasails-component='logo-carousel'] {
       margin-bottom: 32px;
@@ -227,32 +184,15 @@
   }
 
   [purpose='card-button'] {
+    .cta-button();
     font-size: 16px;
     padding: 15px;
     margin-top: 8px;
     margin-bottom: 0px;
-    color: #FFF;
   }
 
   [purpose='chat-button'], [purpose='card-button'] {
     position: relative;
-  }
-  [purpose='card-button']::before, [purpose='chat-button']::before {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-    opacity: 1;
-    content: ' ';
-    position: absolute;
-    top: 0;
-    left: -5px;
-    width: 50%;
-    height: 100%;
-    transform: skew(-10deg);
-    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-  }
-  [purpose='card-button']:hover:before, [purpose='chat-button']:hover:before, [purpose='table-button']:hover:before {
-    opacity: 0;
-    left: 160px;
-    width: 110%;
   }
 
   [purpose='features-table'].hide {
@@ -616,28 +556,7 @@
   }
 
   @media (max-width: 767px) {
-    [purpose='pricing-switch'] {
-      width: 100%;
-      [purpose='pricing-tier-switch'] {
-        height: 56px;
-        left: 0px;
-      }
-      [purpose='pricing-switch-option'] {
-        height: 56px;
-      }
-      .Security-selected {
-        width: 100%;
-        transform: translateY(55px);
-      }
-      .IT-selected {
-        width: 100%;
-        top: 1px;
-        transform: translateY(114px);
-      }
-      .all-selected {
-        width: 100%;
-      }
-    }
+
     [purpose='pricing-card'] {
       width: 100%;
       [purpose='pricing-tier-image'] {

@@ -1,1 +1,0 @@
-* Fixed an issue where it was possible to configure manual_agent_install without specifiying a bootstrap package via the API and GitOps.

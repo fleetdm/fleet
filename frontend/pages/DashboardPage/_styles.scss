@@ -33,6 +33,11 @@
     }
   }
 
+  .card {
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
   &__platforms {
     display: flex;
     align-items: center;
@@ -70,6 +75,16 @@
   &__host-sections {
     display: flex;
     flex-direction: column;
+  }
+
+  &__charts-row {
+    display: grid;
+    row-gap: $gap-page-component;
+
+    @media screen and (min-width: $break-md) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: $gap-page-component;
+    }
   }
 
   // >= 320px 12 pt gap

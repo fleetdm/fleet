@@ -286,11 +286,9 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		cmd.Raw = []byte(expanded)
 	}
 
-	// Expand host-scoped secrets for SetRecoveryLock commands.
-	// SetRecoveryLock is device-only, so UDID is always present and matches host UUID.
-	if cmd.Command.Command.RequestType == fleet.SetRecoveryLockCmdName {
+	expandHostSecrets := func(cmdRaw string, onError func(hostUUID string, errorMsg string)) (expanded string, didError bool) {
 		hostUUID := results.UDID
-		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, string(cmd.Raw), hostUUID)
+		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, cmdRaw, hostUUID)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to expand host secrets: %v", err)
 			logger.Info("level", "error", "msg", "expanding host secrets", "err", err)
@@ -308,12 +306,41 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			if storeErr := s.store.StoreCommandReport(r, failedResult); storeErr != nil {
 				logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
 			}
+
+			onError(hostUUID, errorMsg)
+
+			return "", true
+		}
+
+		return hostExpanded, false
+	}
+
+	// Expand host-scoped secrets for SetRecoveryLock commands.
+	// SetRecoveryLock is device-only, so UDID is always present and matches host UUID.
+	if cmd.Command.Command.RequestType == fleet.SetRecoveryLockCmdName {
+		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
 			// Mark the host's recovery lock status as failed so it's not stuck in pending.
 			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, errorMsg); storeErr != nil {
 				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
 			}
+		})
+		if didError {
 			return nil, nil
 		}
+
+		cmd.Raw = []byte(hostExpanded)
+	}
+
+	// Expand host-scoped secrets for ClearPasscode commands.
+	if cmd.Command.Command.RequestType == fleet.AppleMDMCommandTypeClearPasscode {
+		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
+			// For ClearPasscode command, if we fail to expand host secrets, it likely means the unlock token is missing or invalid.
+			logger.Info("level", "error", "msg", "failed to expand host secrets for ClearPasscode command", "host_uuid", hostUUID, "err", errorMsg)
+		})
+		if didError {
+			return nil, nil
+		}
+
 		cmd.Raw = []byte(hostExpanded)
 	}
 

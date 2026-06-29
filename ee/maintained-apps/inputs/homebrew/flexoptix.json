@@ -1,0 +1,10 @@
+{
+  "name": "FLEXOPTIX App",
+  "unique_identifier": "net.flexoptix.flexoptix.app",
+  "token": "flexoptix",
+  "installer_format": "dmg",
+  "slug": "flexoptix/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

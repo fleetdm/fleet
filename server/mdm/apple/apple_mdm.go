@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
@@ -37,13 +40,19 @@ const (
 	SCEPPath = "/mdm/apple/scep"
 	// MDMPath is Fleet's HTTP path for the core MDM service.
 	MDMPath = "/mdm/apple/mdm"
-	// MDMServiceDiscoveryPath is Fleet's HTTP path for the MDM service discovery service.
-	ServiceDiscoveryPath = "/mdm/apple/service_discovery"
+	// MDMServiceDiscoveryPath is Fleet's base HTTP path for the MDM service discovery service. And is kept for backwards compatible reasons.
+	//
+	// Deprecated: Use ServiceDiscoveryTokenPath instead.
+	ServiceDiscoveryPath      = "/mdm/apple/service_discovery"
+	ServiceDiscoveryTokenPath = "/mdm/apple/service_discovery/{token}" // nolint:gosec // Not a secret
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
 	// AccountDrivenEnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
-	AccountDrivenEnrollPath = "/api/mdm/apple/account_driven_enroll"
+	//
+	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
+	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
+	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
@@ -63,7 +72,58 @@ const (
 	DEPSyncLimit = 200
 
 	VPPLicenseNotFound = 9610
+
+	DeclarationTypeSoftwareUpdate = "com.apple.configuration.softwareupdate.enforcement.specific"
 )
+
+// MDM AccessRights bitmask values per Apple Device Management documentation.
+// https://developer.apple.com/documentation/devicemanagement/mdm#properties
+//
+// MDMAccessRightAll is the full set Fleet has always delivered historically.
+// Callers that renew an existing host's profile must compute the new value as
+// (stored_rights AND current_max_rights) to honour the monotonic-narrowing rule:
+// Apple rejects an enrollment-profile replacement that grants MORE rights than
+// the previously-installed profile.
+const (
+	MDMAccessRightAll         = 8191 // all 13 bits (2^13 - 1)
+	MDMAccessRightDeviceLock  = 4    // bit 2: Device Lock & Passcode Removal
+	MDMAccessRightDeviceErase = 8    // bit 3: Device Erase (wipe)
+)
+
+// AppleEnrollmentAccessRights returns the AccessRights bitmask to embed in a
+// manual (SCEP/ACME) enrollment profile. For personal (BYOD) devices the lock
+// and erase bits are stripped so IT admins cannot lock the device out or wipe
+// personal data; company-owned devices receive full rights.
+func AppleEnrollmentAccessRights(personal bool) int {
+	if !personal {
+		return MDMAccessRightAll
+	}
+	return MDMAccessRightAll &^ (MDMAccessRightDeviceLock | MDMAccessRightDeviceErase)
+}
+
+// FleetPersonalEnrollmentKey is the URL query-parameter key added to the MDM
+// ServerURL in enrollment profiles for personal (BYOD) devices. nanomdm surfaces
+// URL query parameters as request.Params so the Authenticate checkin handler can
+// read it and set host_mdm.is_personal_enrollment accordingly. The "byod" key
+// matches the param the OTA endpoint and the /enroll page already use.
+const FleetPersonalEnrollmentKey = "byod"
+
+// AddPersonalEnrollmentToFleetURL appends the FleetPersonalEnrollmentKey query
+// param to fleetURL when personal is true. If personal is false the URL is
+// returned unchanged so company-owned profiles carry no extra parameters.
+func AddPersonalEnrollmentToFleetURL(fleetURL string, personal bool) (string, error) {
+	if !personal {
+		return fleetURL, nil
+	}
+	u, err := url.Parse(fleetURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing configured server URL: %w", err)
+	}
+	q := u.Query()
+	q.Set(FleetPersonalEnrollmentKey, "1")
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDMPath, false)
@@ -83,6 +143,10 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, SCEPPath, true)
 }
 
+func ResolveAppleACMEDirectoryURL(serverURL string, acmeIdent string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, fmt.Sprintf("/api/mdm/acme/%s/directory", acmeIdent), true)
+}
+
 // DEPService is used to encapsulate tasks related to DEP enrollment.
 //
 // This service doesn't perform any authentication checks, so its suitable for
@@ -96,39 +160,13 @@ type DEPService struct {
 	logger     *slog.Logger
 }
 
-// getDefaultProfile returns a godep.Profile with default values set.
-func (d *DEPService) getDefaultProfile() *godep.Profile {
+// GetDefaultProfile returns a godep.Profile with default values set.
+func (d *DEPService) GetDefaultProfile() *godep.Profile {
+	// If this definition change, make sure to update the fleetctl new template file
 	return &godep.Profile{
-		ProfileName:      "Fleet default enrollment profile",
-		AllowPairing:     true,
-		AutoAdvanceSetup: false,
-		IsSupervised:     false,
-		IsMultiUser:      false,
-		IsMandatory:      false,
-		IsMDMRemovable:   true,
-		Language:         "en",
-		OrgMagic:         "1",
-		Region:           "US",
-		SkipSetupItems: []string{
-			"Accessibility",
-			"Appearance",
-			"AppleID",
-			"AppStore",
-			"Biometric",
-			"Diagnostics",
-			"FileVault",
-			"iCloudDiagnostics",
-			"iCloudStorage",
-			"Location",
-			"Payment",
-			"Privacy",
-			"Restore",
-			"ScreenTime",
-			"Siri",
-			"TermsOfAddress",
-			"TOS",
-			"UnlockWithWatch",
-		},
+		ProfileName:    "Fleet default enrollment profile",
+		IsSupervised:   true,
+		IsMDMRemovable: false,
 	}
 }
 
@@ -136,7 +174,7 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 // profile in mdm_apple_enrollment_profiles but does not register it with
 // Apple. It also creates the authentication token to get enrollment profiles.
 func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
-	depProfile := d.getDefaultProfile()
+	depProfile := d.GetDefaultProfile()
 	token := uuid.New().String()
 	rawDEPProfile, err := json.Marshal(depProfile)
 	if err != nil {
@@ -856,6 +894,32 @@ func (d *DEPService) processDeviceResponse(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "process device response")
 		}
+
+		seen := make(map[string]struct{}, len(serials))
+		for _, ss := range skipSerials {
+			for _, s := range ss {
+				seen[s] = struct{}{}
+			}
+		}
+		for _, ss := range assignSerials {
+			for _, s := range ss {
+				seen[s] = struct{}{}
+			}
+		}
+		var missing []string
+		for _, s := range serials {
+			if _, ok := seen[s]; !ok {
+				missing = append(missing, s)
+			}
+		}
+
+		if len(missing) > 0 {
+			// We did not get all serials passed in, back assigned to a bucket, could be due to potential replica lag.
+			// We force the remaining serials into the assign bucket, to ensure they get processed.
+			logger.InfoContext(ctx, "found missing serials after cooldown screening, adding them to assign profile operation", "serials", missing, "count", len(missing), "org_name", abmOrganizationName)
+			assignSerials[abmOrganizationName] = append(assignSerials[abmOrganizationName], missing...)
+		}
+
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over
@@ -1145,7 +1209,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 		</dict>
 		<dict>
 			<key>AccessRights</key>
-			<integer>8191</integer>
+			<integer>{{ .AccessRights }}</integer>
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
@@ -1269,7 +1333,90 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 </dict>
 </plist>`))
 
-func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
+var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>Attest</key>
+			<true/>
+			<key>ClientIdentifier</key>
+			<string>{{ .ClientIdentifier | xml }}</string>
+			<key>DirectoryURL</key>
+			<string>{{ .DirectoryURL | xml }}</string>
+			<key>HardwareBound</key>
+			<true/>
+			<key>KeySize</key>
+			<integer>384</integer>
+			<key>KeyType</key>
+			<string>ECSECPrimeRandom</string>
+			<key>PayloadDisplayName</key>
+			<string>Fleet Identity ACME</string>
+			<key>PayloadIdentifier</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.acme</string>
+			<key>PayloadUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Subject</key>
+			<array>
+				<array>
+					<array>
+						<string>CN</string>
+						<string>{{ .SerialTemplate | xml }}</string>
+					</array>
+				</array>
+			</array>
+		</dict>
+		<dict>
+			<key>AccessRights</key>
+			<integer>{{ .AccessRights }}</integer>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .ServerURL | xml }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic | xml }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>{{ .Organization | xml }} enrollment</string>
+	<key>PayloadIdentifier</key>
+	<string>` + FleetPayloadIdentifier + `</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization | xml }}</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
+func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string, accessRights int) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
@@ -1286,12 +1433,14 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		SCEPChallenge string
 		Topic         string
 		ServerURL     string
+		AccessRights  int
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
+		AccessRights:  accessRights,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
@@ -1342,6 +1491,46 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 	q.Add(mobileconfig.FleetEnrollReferenceKey, reference)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int) ([]byte, error) {
+	serverURL, err := ResolveAppleMDMURL(mdmURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	acmeURL, err := ResolveAppleACMEDirectoryURL(mdmURL, acmeIdent)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := acmeEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
+		Organization     string
+		DirectoryURL     string
+		Topic            string
+		ServerURL        string
+		ClientIdentifier string
+		SerialTemplate   string
+		AccessRights     int
+	}{
+		Organization:     orgName,
+		DirectoryURL:     acmeURL,
+		Topic:            topic,
+		ServerURL:        serverURL,
+		ClientIdentifier: deviceSerial,
+		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+		AccessRights:     accessRights,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+
+	// TODO: In the PoC, the generated profile unexpectedly escaped the left angle bracket in the opening
+	// `<?xml` tag. If we see that again, the replacement below can be used as a workaround, but
+	// ideally we should figure out why that is happening in the first place.
+	// return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
+
+	return buf.Bytes(), nil
 }
 
 // ProfileBimap implements bidirectional mapping for profiles, and utility
@@ -1543,7 +1732,7 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	return true, nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1558,6 +1747,9 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 	q.Set("enroll_secret", enrollSecret)
 	if idpUUID != "" {
 		q.Set("idp_uuid", idpUUID)
+	}
+	if personal {
+		q.Set("byod", "true")
 	}
 	enrollURL.RawQuery = q.Encode()
 
@@ -1697,6 +1889,17 @@ func sendRecoveryLockCommandsWithCommander(
 		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts"))
 	} else if restored > 0 {
 		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
+	}
+
+	// Soft-delete any live rows whose host is no longer MDM enrolled. Catches hosts
+	// where MDM was disabled without firing MDMTurnOff or MDMResetEnrollment — typically
+	// when the device user removed the MDM profile manually and only osquery refetch
+	// eventually reported host_mdm.enrolled=0. One bounded UPDATE per cron tick.
+	swept, err := ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "soft-delete recovery lock passwords for unenrolled hosts"))
+	} else if swept > 0 {
+		logger.InfoContext(ctx, "soft-deleted recovery lock passwords for unenrolled hosts", "count", swept)
 	}
 
 	// Handle SET password operations (hosts that need a recovery lock password)
@@ -1976,6 +2179,169 @@ func logAutoRotationActivity(
 	}
 }
 
+// ManagedLocalAccountRotationCommander is the narrow interface SendManagedLocalAccountRotationCommands
+// needs from the commander; lets tests inject a stand-in.
+type ManagedLocalAccountRotationCommander interface {
+	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
+}
+
+// ManagedLocalAccountRotationStore is the narrow datastore surface
+// EnqueueManagedLocalAccountRotation needs.
+type ManagedLocalAccountRotationStore interface {
+	InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID, pendingPlaintextPassword, cmdUUID string) error
+	ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+}
+
+// EnqueueManagedLocalAccountRotation generates a new password, persists pending
+// rotation state, and enqueues SetAutoAdminPassword for hostUUID. It is the shared
+// core of the user-triggered (EE service) and cron-driven rotation paths — outer
+// concerns like authz, error → user-message mapping, multierror accumulation, and
+// activity logging are left to callers.
+//
+// Outcomes:
+//   - err == nil: command persisted in nano AND APNs push succeeded.
+//   - errors.As(err, &APNSDeliveryError{}): command persisted, APNs push failed.
+//     Pending state is preserved; caller should still log the rotation activity.
+//   - any other err: pending state has been (or never was) unwound so the caller
+//     can retry cleanly. If the rollback itself failed, rollbackErr is non-nil.
+//
+// cmdUUID is set whenever Initiate succeeded — useful for downstream logging.
+func EnqueueManagedLocalAccountRotation(
+	ctx context.Context,
+	ds ManagedLocalAccountRotationStore,
+	commander ManagedLocalAccountRotationCommander,
+	hostUUID, accountUUID string,
+) (cmdUUID string, err error, rollbackErr error) {
+	newPassword := GenerateManagedAccountPassword()
+	hashPlist, hashErr := GenerateSaltedSHA512PBKDF2Hash(newPassword)
+	if hashErr != nil {
+		return "", hashErr, nil
+	}
+
+	cmdUUID = uuid.NewString()
+	if initErr := ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, newPassword, cmdUUID); initErr != nil {
+		return "", initErr, nil
+	}
+
+	if sendErr := commander.SetAutoAdminPassword(ctx, hostUUID, accountUUID, hashPlist, cmdUUID); sendErr != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(sendErr, &apnsErr) {
+			return cmdUUID, sendErr, nil
+		}
+		if clearErr := ds.ClearManagedLocalAccountRotation(ctx, hostUUID); clearErr != nil {
+			return cmdUUID, sendErr, clearErr
+		}
+		return cmdUUID, sendErr, nil
+	}
+
+	return cmdUUID, nil, nil
+}
+
+// SendManagedLocalAccountRotationCommands rotates the macOS managed local admin
+// (`_fleetadmin`) password for hosts whose auto_rotate_at has elapsed. It mirrors
+// SendRecoveryLockCommands: each row is generated/initiated/enqueued individually,
+// and a benign race (host gone, manual rotation snuck in, etc.) is debug-logged
+// and skipped rather than failing the cron iteration.
+//
+// Activity logging:
+//   - rows with initiated_by_fleet=1 (view-driven) → log with FleetInitiated=true
+//   - rows with initiated_by_fleet=0 (deferred manual rotation) → SKIP logging;
+//     the manual click already logged the activity at click time
+func SendManagedLocalAccountRotationCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	return sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, commander, logger, newActivityFn)
+}
+
+func sendManagedLocalAccountRotationCommandsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander ManagedLocalAccountRotationCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	hosts, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get managed local accounts for auto rotation")
+	}
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no managed local accounts due for rotation")
+		return nil
+	}
+	logger.InfoContext(ctx, "rotating managed local account passwords", "count", len(hosts))
+
+	var result *multierror.Error
+	for _, host := range hosts {
+		cmdUUID, sendErr, rollbackErr := EnqueueManagedLocalAccountRotation(ctx, ds, commander, host.HostUUID, host.AccountUUID)
+		if sendErr != nil {
+			// Benign races: the row's eligibility flipped between the SELECT and
+			// Initiate (manual rotation, host wipe, etc.). Skip silently.
+			if fleet.IsNotFound(sendErr) ||
+				errors.Is(sendErr, fleet.ErrManagedLocalAccountRotationPending) ||
+				errors.Is(sendErr, fleet.ErrManagedLocalAccountNotEligible) {
+				logger.DebugContext(ctx, "managed local account no longer eligible for rotation",
+					"host_uuid", host.HostUUID, "err", sendErr)
+				continue
+			}
+			var apnsErr *APNSDeliveryError
+			if errors.As(sendErr, &apnsErr) {
+				// Command persisted but push failed — pending state is preserved
+				// so the device picks it up on next checkin. Still log activity
+				// if the row was view-driven.
+				logManagedLocalAccountRotationActivity(ctx, logger, newActivityFn, host)
+				logger.WarnContext(ctx, "managed local account rotation enqueued but APNs push failed",
+					"host_uuid", host.HostUUID, "command_uuid", cmdUUID, "err", sendErr)
+				continue
+			}
+			if rollbackErr != nil {
+				logger.ErrorContext(ctx, "clear managed local account pending rotation after enqueue failure",
+					"host_uuid", host.HostUUID, "err", rollbackErr)
+				result = multierror.Append(result, rollbackErr)
+			}
+			logger.ErrorContext(ctx, "managed local account rotation",
+				"host_uuid", host.HostUUID, "err", sendErr)
+			result = multierror.Append(result, sendErr)
+			continue
+		}
+
+		logManagedLocalAccountRotationActivity(ctx, logger, newActivityFn, host)
+		logger.DebugContext(ctx, "sent managed local account rotation command",
+			"host_uuid", host.HostUUID, "command_uuid", cmdUUID)
+	}
+
+	return result.ErrorOrNil()
+}
+
+// logManagedLocalAccountRotationActivity logs the rotation activity ONLY when the
+// row was view-driven (initiated_by_fleet=1). Rows with initiated_by_fleet=0 are
+// deferred-manual rotations whose activity was logged by the EE service at click
+// time — re-logging here would double-count.
+func logManagedLocalAccountRotationActivity(
+	ctx context.Context,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+	host fleet.HostManagedLocalAccountAutoRotationInfo,
+) {
+	if !host.InitiatedByFleet {
+		return
+	}
+	if newActivityFn == nil {
+		return
+	}
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedManagedLocalAccountPassword{
+		HostID:          host.HostID,
+		HostDisplayName: host.DisplayName,
+		FleetInitiated:  true,
+	}); err != nil {
+		logger.WarnContext(ctx, "managed local account rotation: failed to create activity",
+			"host_uuid", host.HostUUID, "err", err)
+	}
+}
+
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)
 const RecoveryLockPasswordCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
@@ -2002,4 +2368,30 @@ func GenerateRecoveryLockPassword() string {
 	}
 
 	return strings.Join(groups, "-")
+}
+
+func MDMPushCertTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+	}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
+	}
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", ctxerr.New(ctx, "decoding APNs certificate PEM data")
+	}
+
+	apnsCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing APNs certificate")
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
+	}
+
+	return mdmPushCertTopic, nil
 }

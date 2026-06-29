@@ -6,6 +6,7 @@ import { IHost } from "interfaces/host";
 import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
@@ -74,6 +75,7 @@ const TargetsInput = ({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
+    return undefined;
   }, [isTargetsLoading]);
 
   useEffect(() => {
@@ -89,7 +91,6 @@ const TargetsInput = ({
           type="search"
           iconSvg="search"
           value={searchText}
-          iconPosition="start"
           label={label}
           placeholder={placeholder}
           onChange={setSearchText}
@@ -104,15 +105,10 @@ const TargetsInput = ({
               data={dropdownHosts}
               isLoading={isTargetsLoading}
               emptyComponent={() => (
-                <div className="empty-search">
-                  <div className="empty-search__inner">
-                    <h4>No matching hosts.</h4>
-                    <p>
-                      Expecting to see hosts? Try again in a few seconds as the
-                      system catches up.
-                    </p>
-                  </div>
-                </div>
+                <EmptyState
+                  header="No matching hosts"
+                  info="Expecting to see hosts? Try again in a few seconds as the system catches up."
+                />
               )}
               showMarkAllPages={false}
               isAllPagesSelected={false}

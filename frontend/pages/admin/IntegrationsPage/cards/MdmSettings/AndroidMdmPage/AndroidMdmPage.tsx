@@ -6,11 +6,12 @@ import React, {
   useState,
 } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
@@ -22,6 +23,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import { notify } from "components/ToastNotification";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
@@ -35,7 +37,8 @@ interface ITurnOnAndroidMdmProps {
 }
 
 const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { setConfig } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   // TODO: figure out issue with aborting the SSE fetch when the window is closed
   const newWindow = useRef<Window | null>(null);
@@ -47,18 +50,33 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
     async (abortController: AbortController) => {
       try {
         await mdmAndroidAPI.startSSE(abortController.signal);
-        abortController.abort();
-        renderFlash("success", "Android MDM turned on successfully.", {
-          persistOnPageChange: true,
+      } catch (e) {
+        notify.error("Couldn't turn on Android MDM. Please try again.", {
+          response: e,
         });
         setSetupSse(false);
-        router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-      } catch {
-        renderFlash("error", "Couldn't turn on Android MDM. Please try again.");
-        setSetupSse(false);
+        return;
       }
+      abortController.abort();
+      // SSE success means the backend has already set
+      // android_enabled_and_configured=true. Patch the in-memory config so
+      // AppContext.isAndroidMdmEnabledAndConfigured flips immediately and
+      // AndroidMdmCard renders correctly on redirect, without a synchronous
+      // round-trip.
+      const prevConfig = queryClient.getQueryData<IConfig>(["config"]);
+      if (prevConfig) {
+        const patched: IConfig = {
+          ...prevConfig,
+          mdm: { ...prevConfig.mdm, android_enabled_and_configured: true },
+        };
+        setConfig(patched);
+        queryClient.setQueryData(["config"], patched);
+      }
+      notify.success("Android MDM turned on successfully.");
+      setSetupSse(false);
+      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     },
-    [renderFlash, router]
+    [queryClient, router, setConfig]
   );
 
   useEffect(() => {
@@ -71,7 +89,9 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         abortController.abort();
       };
     }
-  }, [setupSse, router, renderFlash, handleSSE]);
+
+    return undefined;
+  }, [setupSse, router, handleSSE]);
 
   const onConnectMdm = async () => {
     setFetchingSignupUrl(true);
@@ -89,13 +109,10 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
       );
       setSetupSse(true);
-    } catch (e: any) {
-      if (
-        e.data?.errors &&
-        e.data.errors[0].reason?.includes("android enterprise already exists")
-      ) {
-        renderFlash(
-          "error",
+    } catch (e) {
+      const reason = getErrorReason(e);
+      if (reason.includes("android enterprise already exists")) {
+        notify.error(
           <>
             Couldn&apos;t connect. Android enterprise already exists for this
             Fleet server. For help, please contact{" "}
@@ -105,10 +122,13 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
               newTab
               variant="flash-message-link"
             />
-          </>
+          </>,
+          { response: e }
         );
       } else {
-        renderFlash("error", "Couldn't connect. Please try again");
+        notify.error(`Couldn't connect. ${reason || "Please try again."}`, {
+          response: e,
+        });
       }
     }
     setFetchingSignupUrl(false);

@@ -1,0 +1,8 @@
+{
+  "name": "iMazing",
+  "unique_identifier": "com.DigiDNA.iMazing3Mac",
+  "token": "imazing",
+  "installer_format": "dmg",
+  "slug": "imazing/darwin",
+  "default_categories": ["Utilities"]
+}

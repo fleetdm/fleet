@@ -110,20 +110,6 @@ the account verification message.)`,
       organization = emailDomain;
     }
 
-
-    if (!sails.config.custom.enableBillingFeatures) {
-      throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
-    }
-
-    // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
-    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-      emailAddress: newEmailAddress
-    })
-    .timeout(5000)
-    .retry()
-    .intercept((error)=>{
-      return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
-    });
     let newUserRecord = await User.create(_.extend({
       firstName,
       lastName,
@@ -131,7 +117,6 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       signupReason,
       password: await sails.helpers.passwords.hashPassword(password),
-      stripeCustomerId,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -240,7 +225,7 @@ the account verification message.)`,
 
 
     sails.helpers.flow.build(async ()=>{
-      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: newEmailAddress,
         firstName: firstName,
         lastName: lastName,
@@ -251,15 +236,16 @@ the account verification message.)`,
       });
 
       // Throw an error to stop the build() helper if a contact is missing a parent account record.
-      if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      if(!recordDetails.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordDetails.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
       }
 
       await sails.helpers.salesforce.createHistoricalEvent.with({
-        salesforceAccountId: recordIds.salesforceAccountId,
-        salesforceContactId: recordIds.salesforceContactId,
+        salesforceAccountId: recordDetails.salesforceAccountId,
+        salesforceContactId: recordDetails.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Signed up for a fleetdm.com account',
+        relatedCampaign: recordDetails.mostRecentCampaign,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

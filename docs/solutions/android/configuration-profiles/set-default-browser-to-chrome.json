@@ -1,0 +1,15 @@
+{
+  "defaultApplicationSettings": [
+    {
+      "defaultApplicationType": "DEFAULT_BROWSER",
+      "defaultApplications": [
+        {
+          "packageName": "com.android.chrome"
+        }
+      ],
+      "defaultApplicationScopes": [
+        "SCOPE_WORK_PROFILE"
+      ]
+    }
+  ]
+}

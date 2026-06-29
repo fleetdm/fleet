@@ -8,6 +8,7 @@ import (
 	"time"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -71,6 +72,9 @@ func TestTeamAuth(t *testing.T) {
 			return &fleet.Team{ID: 2}, nil
 		}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
@@ -86,6 +90,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name                       string
@@ -94,6 +101,7 @@ func TestTeamAuth(t *testing.T) {
 		shouldFailGlobalWrite      bool
 		shouldFailRead             bool
 		shouldFailTeamSecretsWrite bool
+		shouldFailTeamMemberWrite  bool
 	}{
 		{
 			name:                       "global admin",
@@ -102,6 +110,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      false,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  false,
 		},
 		{
 			name:                       "global maintainer",
@@ -110,6 +119,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "global observer",
@@ -118,6 +128,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team admin, belongs to team",
@@ -126,6 +137,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  false,
 		},
 		{
 			name:                       "team maintainer, belongs to team",
@@ -134,6 +146,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team observer, belongs to team",
@@ -142,6 +155,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team admin, DOES NOT belong to team",
@@ -150,6 +164,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             true,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team maintainer, DOES NOT belong to team",
@@ -158,6 +173,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             true,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team observer, DOES NOT belong to team",
@@ -166,6 +182,25 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             true,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
+		},
+		{
+			name:                       "global gitops",
+			user:                       &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
+			shouldFailTeamWrite:        false,
+			shouldFailGlobalWrite:      false,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
+		},
+		{
+			name:                       "team gitops, belongs to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailTeamWrite:        false,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 	}
 	for _, tt := range testCases {
@@ -182,10 +217,10 @@ func TestTeamAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			_, err = svc.AddTeamUsers(ctx, 1, []fleet.TeamUser{})
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkAuthErr(t, tt.shouldFailTeamMemberWrite, err)
 
 			_, err = svc.DeleteTeamUsers(ctx, 1, []fleet.TeamUser{})
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkAuthErr(t, tt.shouldFailTeamMemberWrite, err)
 
 			_, err = svc.ListTeamUsers(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
@@ -211,6 +246,66 @@ func TestTeamAuth(t *testing.T) {
 	}
 }
 
+// TestGitOpsCannotManageTeamMembers verifies that a team gitops user cannot
+// add or remove team members (including self-promotion to admin).
+func TestGitOpsCannotManageTeamMembers(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id}, nil
+	}
+
+	teamID := uint(1)
+	gitopsUserID := uint(42)
+
+	// Simulate a team gitops user.
+	gitopsUser := &fleet.User{
+		ID:    gitopsUserID,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleGitOps}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: gitopsUser})
+
+	// Attempt self-promotion: gitops user tries to make themselves a team admin.
+	_, err := svc.AddTeamUsers(ctx, teamID, []fleet.TeamUser{
+		{User: fleet.User{ID: gitopsUserID}, Role: fleet.RoleAdmin},
+	})
+	require.Error(t, err, "team gitops user should not be able to add team members")
+	var forbidden *authz.Forbidden
+	require.ErrorAs(t, err, &forbidden, "expected authorization error, got: %v", err)
+
+	// Also verify gitops cannot remove team members.
+	_, err = svc.DeleteTeamUsers(ctx, teamID, []fleet.TeamUser{
+		{User: fleet.User{ID: 99}},
+	})
+	require.Error(t, err, "team gitops user should not be able to remove team members")
+	require.ErrorAs(t, err, &forbidden, "expected authorization error, got: %v", err)
+
+	// Verify that a team admin CAN still manage members (not broken for legitimate users).
+	adminUser := &fleet.User{
+		ID:    uint(10),
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleAdmin}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+	_, err = svc.AddTeamUsers(ctx, teamID, []fleet.TeamUser{
+		{User: fleet.User{ID: gitopsUserID}, Role: fleet.RoleObserver},
+	})
+	require.NoError(t, err, "team admin should be able to add team members")
+
+	_, err = svc.DeleteTeamUsers(ctx, teamID, []fleet.TeamUser{
+		{User: fleet.User{ID: gitopsUserID}},
+	})
+	require.NoError(t, err, "team admin should be able to remove team members")
+}
+
 func TestApplyTeamSpecs(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -218,10 +313,23 @@ func TestApplyTeamSpecs(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	baseFeatures := fleet.Features{
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		// Hydrated to match what teams loaded from the DB look like after
+		// migration 20260423161823 backfills historical_data. Without these
+		// defaults, the "Features for existing teams" cases below would
+		// diff against the team-spec-applied defaults inside
+		// editTeamFromSpec and spuriously emit historical_data enable
+		// activities — which the test's activity callback doesn't expect.
+		HistoricalData: fleet.HistoricalDataSettings{
+			Uptime:          true,
+			Vulnerabilities: true,
+		},
 	}
 
 	mkspec := func(s string) *json.RawMessage {
@@ -249,6 +357,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         true,
 					EnableSoftwareInventory: false,
 					AdditionalQueries:       nil,
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 			{
@@ -259,6 +368,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         false,
 					EnableSoftwareInventory: true,
 					AdditionalQueries:       nil,
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 			{
@@ -273,6 +383,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         false,
 					EnableSoftwareInventory: false,
 					AdditionalQueries:       ptr.RawMessage([]byte(`{"example": "query"}`)),
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 		}
@@ -371,7 +482,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-					return &fleet.Team{ID: 123, Config: fleet.TeamConfig{Features: tt.old}}, nil
+					return &fleet.Team{ID: 123, Name: name, Config: fleet.TeamConfig{Features: tt.old}}, nil
 				}
 
 				ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

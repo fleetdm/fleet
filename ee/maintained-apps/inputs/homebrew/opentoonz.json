@@ -1,0 +1,10 @@
+{
+  "name": "OpenToonz",
+  "unique_identifier": "io.github.opentoonz.OpenToonz",
+  "token": "opentoonz",
+  "installer_format": "pkg",
+  "slug": "opentoonz/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

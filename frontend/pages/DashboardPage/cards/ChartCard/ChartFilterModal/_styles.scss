@@ -1,0 +1,81 @@
+.chart-filter-modal {
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__btn-actions {
+    display: flex;
+    gap: $pad-small;
+    margin-left: auto;
+  }
+
+  &__host-search {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-xsmall;
+  }
+
+  &__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    padding: 4px $pad-small;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: $border-radius;
+    background: $core-fleet-white;
+    font-size: $xx-small;
+    color: $core-fleet-black;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $ui-fleet-black-50;
+    }
+
+    .fleeticon {
+      font-size: 10px;
+      color: $ui-fleet-black-50;
+    }
+  }
+
+  &__results-list {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+  }
+
+  &__results-row {
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .fleet-checkbox {
+      margin: 0;
+    }
+  }
+
+  &__results-status {
+    padding: $pad-medium;
+    text-align: center;
+    font-size: $x-small;
+    color: $ui-fleet-black-50;
+  }
+}

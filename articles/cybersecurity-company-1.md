@@ -6,13 +6,10 @@ Before Fleet, Linux systems were difficult to manage and lacked the reporting an
 
 ## At a glance
 
-* **Industry:** Cybersecurity and security awareness training
-
-* **Devices managed:** Cross-platform fleet, including 30-40 Linux hosts
-
-* **Primary requirements:** Linux management, certificate automation, osquery visibility
-
-* **Previous challenge:** Legacy Linux management tools were difficult to use and lacked support
+- **Industry:** Cybersecurity and security awareness training
+- **Devices managed:** Cross-platform fleet, including 30-40 Linux hosts
+- **Primary requirements:** Linux management, real-time visibility, cross-platform consolidation
+- **Previous challenge:** Legacy Linux management tools were difficult to use and lacked support
 
 ## The challenge
 
@@ -26,22 +23,17 @@ The team needed a better way to manage Linux while reducing reliance on separate
 
 The team focused on three priorities:
 
-1. **Linux management**  
-    Improve reporting, automation, and control for Linux hosts.
-
-2. **Certificate lifecycle automation**  
-    Automate TPM certificate renewals.
-
-3. **osquery integration**  
-    Collect detailed device data for custom reporting and security workflows.
+1. **Linux management** — Improve reporting, automation, and control across Linux hosts.
+2. **osquery integration** — Collect detailed device data for custom reporting and security workflows.
+3. **Cross-platform consolidation** — Bring Linux management into the same platform used for macOS, Windows, and other endpoints.
 
 ## The solution
 
 Fleet gave the team a stronger foundation for Linux management while supporting its broader cross-platform strategy.
 
-The company self-hosted Fleet on AWS using Terraform, which gave the team direct control over infrastructure and updates. Fleet also made it easier to automate Linux workflows, including script execution and certificate renewal processes.
+The company self-hosts Fleet on AWS using Terraform, which gives the team direct control over infrastructure and updates. Fleet also makes it easier to automate routine Linux work through script execution and remote remediation, helping the team move from manual Linux operations toward repeatable, automated processes.
 
-The open-source model and direct access to Fleet engineers through Slack also increased confidence in the platform
+The open-source model and direct access to Fleet engineers through Slack increased the team's confidence in the platform and gave them a clear path for raising issues and influencing the roadmap.
 
 ## The results
 
@@ -59,13 +51,6 @@ For this team, the biggest benefit is consolidation.
 
 Fleet provides modern Linux management, stronger reporting, and a path to manage macOS, Windows, Linux, ChromeOS, and Android from one platform.
 
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Cybersecurity company improves Linux management with Fleet">
 <meta name="authorFullName" value="Irena Reedy">

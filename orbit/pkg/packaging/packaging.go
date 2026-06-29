@@ -128,6 +128,8 @@ type Options struct {
 	// EndUserEmail is the email address of the end user that uses the host on
 	// which the agent is going to be installed.
 	EndUserEmail string
+	// EnableEUATokenProperty is a boolean indicating whether to enable EUA_TOKEN property in Windows MSI package.
+	EnableEUATokenProperty bool
 	// DisableKeystore disables the use of the keychain on macOS and Credentials Manager on Windows
 	DisableKeystore bool
 	// OsqueryDB is the directory to use for the osquery database.
@@ -342,6 +344,18 @@ func writeSecret(opt Options, orbitRoot string) error {
 	}
 
 	return nil
+}
+
+// writeMacOSSecret writes the enroll secret file unless the secret is empty.
+// An empty secret happens with --use-system-configuration, where the secret is
+// resolved at runtime from a configuration profile or the keystore. Writing an
+// empty secret.txt causes it to be read on the device as an empty enroll secret,
+// producing confusing keystore errors during ABM enrollment.
+func writeMacOSSecret(opt Options, orbitRoot string) error {
+	if opt.EnrollSecret == "" {
+		return nil
+	}
+	return writeSecret(opt, orbitRoot)
 }
 
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {

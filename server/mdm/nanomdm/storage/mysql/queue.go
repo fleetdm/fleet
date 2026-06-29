@@ -18,10 +18,18 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 	if len(ids) < 1 {
 		return errors.New("no id(s) supplied to queue command to")
 	}
+	var nameArg sql.NullString
+	if cmd.Name != "" {
+		name := cmd.Name
+		if runes := []rune(name); len(runes) > 255 {
+			name = string(runes[:255])
+		}
+		nameArg = sql.NullString{String: name, Valid: true}
+	}
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES (?, ?, ?, ?)`,
-		cmd.CommandUUID, cmd.Command.Command.RequestType, cmd.Raw, cmd.Subtype,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, subtype, name) VALUES (?, ?, ?, ?, ?)`,
+		cmd.CommandUUID, cmd.Command.Command.RequestType, cmd.Raw, cmd.Subtype, nameArg,
 	)
 	if err != nil {
 		return err

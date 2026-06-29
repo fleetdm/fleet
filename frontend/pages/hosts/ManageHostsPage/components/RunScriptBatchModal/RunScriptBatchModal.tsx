@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
@@ -7,12 +7,11 @@ import classnames from "classnames";
 import { getPathWithQueryParams } from "utilities/url";
 
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { addTeamIdCriteria, IScript } from "interfaces/script";
 import { getErrorReason } from "interfaces/errors";
@@ -25,11 +24,11 @@ import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptBatchSupportedFilters,
   IScriptsResponse,
-  IRunScriptBatchRequest,
+  IRunScriptBatchFormData,
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
@@ -67,8 +66,6 @@ const RunScriptBatchModal = ({
   isFreeTier,
   onCancel,
 }: IRunScriptBatchModal) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [currentTimeUTC, setCurrentTimeUTC] = useState<string>("");
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -151,7 +148,7 @@ const RunScriptBatchModal = ({
       setIsUpdating(true);
 
       // Create the base request.
-      let body: IRunScriptBatchRequest;
+      let body: IRunScriptBatchFormData;
 
       if (runByFilters) {
         body = {
@@ -173,8 +170,7 @@ const RunScriptBatchModal = ({
       try {
         await scriptsAPI.runScriptBatch(body);
         if (runMode === "schedule") {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully scheduled script.{" "}
               <CustomLink
@@ -190,8 +186,7 @@ const RunScriptBatchModal = ({
             </>
           );
         } else {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully ran script.{" "}
               <CustomLink
@@ -215,13 +210,13 @@ const RunScriptBatchModal = ({
           errorMessage =
             "Could not run script: too many hosts targeted. Please try again with fewer hosts.";
         }
-        renderFlash("error", errorMessage);
+        notify.error(errorMessage, { response: error });
         // can determine more specific error case with additional call to upcoming summary endpoint
       } finally {
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
+    [selectedHostIds, runMode, batchRunDate, batchRunTime]
   );
 
   const renderModalContent = () => {
@@ -229,20 +224,23 @@ const RunScriptBatchModal = ({
       return <Spinner />;
     }
     if (!scripts.length) {
+      // No permission gate needed on the "Add a script" link — only
+      // admin/maintainer roles can open this modal (canRunScriptBatch),
+      // and those roles also have permission to add scripts.
       return (
-        <EmptyTable
-          header="No scripts available for this fleet"
+        <EmptyState
+          variant="header-list"
+          header="No scripts available"
           info={
             <>
-              You can add saved scripts{" "}
               <CustomLink
                 url={getPathWithQueryParams(
                   PATHS.CONTROLS_SCRIPTS,
                   !isFreeTier ? { fleet_id: teamId } : undefined
                 )}
-                text="here"
-              />
-              .
+                text="Add a script"
+              />{" "}
+              to this fleet.
             </>
           }
         />

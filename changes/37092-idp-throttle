@@ -1,1 +1,0 @@
-* Added per-IP rate limiting and response caching to the unauthenticated conditional access IdP metadata and SSO endpoints to prevent DDoS-driven database overload.

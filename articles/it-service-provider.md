@@ -28,9 +28,6 @@ They chose Fleet for its deep integration with automated workflows and the abili
 
 - **Operational clarity:** exposing device information in an understandable way built better trust between the IT service team and improved troubleshooting speed.
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets. 
 
 <meta name="articleTitle" value="IT service provider scales to 8,000+ devices with GitOps">
 <meta name="authorFullName" value="Irena Reedy">

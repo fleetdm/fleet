@@ -4,12 +4,11 @@ import { AxiosResponse } from "axios";
 
 import { IApiError } from "interfaces/errors";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 import { ApplePlatform } from "interfaces/platform";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -127,7 +126,6 @@ const AppleOSTargetForm = ({
   refetchAppConfig,
   refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
 
@@ -166,9 +164,11 @@ const AppleOSTargetForm = ({
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
-        renderFlash("success", "Successfully updated.");
+        notify.success("Successfully updated.");
       } catch (err) {
-        renderFlash("error", getErrorMessage(err as AxiosResponse<IApiError>));
+        notify.error(getErrorMessage(err as AxiosResponse<IApiError>), {
+          response: err,
+        });
       } finally {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? refetchAppConfig()

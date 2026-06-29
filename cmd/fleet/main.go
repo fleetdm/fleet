@@ -71,7 +71,10 @@ func main() {
 }
 
 // initFatal prints an error message and exits with a non-zero status.
-func initFatal(err error, message string) {
+//
+// It is declared as a var so tests can override the behavior without
+// terminating the test binary via os.Exit.
+var initFatal = func(err error, message string) {
 	fmt.Printf("Failed to start: %s: %v\n", message, err)
 	os.Exit(1)
 }
@@ -107,9 +110,6 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	// We don't set defaults for database and username here because there are already defaults in config.go
 	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
-
-	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
-	setIfEmpty(&cfg.Prometheus.BasicAuth.Password, "insecure")
 
 	setIfEmpty(&cfg.S3.CarvesBucket, "carves-dev")
 	setIfEmpty(&cfg.S3.CarvesRegion, "localhost")

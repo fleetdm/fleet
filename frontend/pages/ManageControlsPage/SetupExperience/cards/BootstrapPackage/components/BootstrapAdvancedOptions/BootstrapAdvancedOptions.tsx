@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import mdmAPI from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -24,7 +24,6 @@ const BootstrapAdvancedOptions = ({
   selectManualAgentInstall,
   onChange,
 }: IBootstrapAdvancedOptionsProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -34,11 +33,13 @@ const BootstrapAdvancedOptions = ({
     try {
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        manual_agent_install: selectManualAgentInstall,
+        macos_manual_agent_install: selectManualAgentInstall,
       });
-      renderFlash("success", "Successfully updated.");
-    } catch {
-      renderFlash("error", "Something went wrong. Please try again.");
+      notify.success("Successfully updated.");
+    } catch (err) {
+      notify.error("Something went wrong. Please try again.", {
+        response: err,
+      });
     }
     setIsSaving(false);
   };

@@ -60,180 +60,6 @@ type UpcomingActivityMeta struct {
 	WellKnownAction WellKnownActionType `db:"well_known_action"`
 }
 
-// ActivityDetailsList is used to generate documentation.
-var ActivityDetailsList = []ActivityDetails{
-	ActivityTypeCreatedPack{},
-	ActivityTypeEditedPack{},
-	ActivityTypeDeletedPack{},
-	ActivityTypeAppliedSpecPack{},
-
-	ActivityTypeCreatedPolicy{},
-	ActivityTypeEditedPolicy{},
-	ActivityTypeDeletedPolicy{},
-	ActivityTypeAppliedSpecPolicy{},
-	ActivityTypeCreatedSavedQuery{},
-	ActivityTypeEditedSavedQuery{},
-	ActivityTypeDeletedSavedQuery{},
-	ActivityTypeDeletedMultipleSavedQuery{},
-	ActivityTypeAppliedSpecSavedQuery{},
-
-	ActivityTypeCreatedTeam{},
-	ActivityTypeDeletedTeam{},
-	ActivityTypeAppliedSpecTeam{},
-	ActivityTypeTransferredHostsToTeam{},
-
-	ActivityTypeEditedAgentOptions{},
-
-	ActivityTypeLiveQuery{},
-
-	ActivityTypeUserAddedBySSO{},
-
-	ActivityTypeUserLoggedIn{},
-	ActivityTypeUserFailedLogin{},
-
-	ActivityTypeCreatedUser{},
-	ActivityTypeDeletedUser{},
-	ActivityTypeDeletedHost{},
-	ActivityTypeChangedUserGlobalRole{},
-	ActivityTypeDeletedUserGlobalRole{},
-	ActivityTypeChangedUserTeamRole{},
-	ActivityTypeDeletedUserTeamRole{},
-
-	ActivityTypeFleetEnrolled{},
-	ActivityTypeMDMEnrolled{},
-	ActivityTypeMDMUnenrolled{},
-
-	ActivityTypeEditedMacOSMinVersion{},
-	ActivityTypeEditedIOSMinVersion{},
-	ActivityTypeEditedIPadOSMinVersion{},
-	ActivityTypeEditedWindowsUpdates{},
-	ActivityTypeEnabledMacosUpdateNewHosts{},
-	ActivityTypeDisabledMacosUpdateNewHosts{},
-
-	ActivityTypeReadHostDiskEncryptionKey{},
-	ActivityTypeViewedHostRecoveryLockPassword{},
-
-	ActivityTypeCreatedMacosProfile{},
-	ActivityTypeDeletedMacosProfile{},
-	ActivityTypeEditedMacosProfile{},
-
-	ActivityTypeChangedMacosSetupAssistant{},
-	ActivityTypeDeletedMacosSetupAssistant{},
-
-	ActivityTypeEnabledMacosDiskEncryption{},
-	ActivityTypeDisabledMacosDiskEncryption{},
-
-	ActivityTypeSetHostRecoveryLockPassword{},
-	ActivityTypeEnabledRecoveryLockPasswords{},
-	ActivityTypeDisabledRecoveryLockPasswords{},
-
-	ActivityTypeEnabledGitOpsMode{},
-	ActivityTypeDisabledGitOpsMode{},
-
-	ActivityTypeAddedBootstrapPackage{},
-	ActivityTypeDeletedBootstrapPackage{},
-
-	ActivityTypeEnabledMacosSetupEndUserAuth{},
-	ActivityTypeDisabledMacosSetupEndUserAuth{},
-
-	ActivityTypeEnabledWindowsMDM{},
-	ActivityTypeDisabledWindowsMDM{},
-	ActivityTypeEnabledAndroidMDM{},
-	ActivityTypeDisabledAndroidMDM{},
-	ActivityTypeEnabledWindowsMDMMigration{},
-	ActivityTypeDisabledWindowsMDMMigration{},
-
-	ActivityTypeRanScript{},
-	ActivityTypeAddedScript{},
-	ActivityTypeDeletedScript{},
-	ActivityTypeEditedScript{},  // via GitOps
-	ActivityTypeUpdatedScript{}, // via individual script update endpoint
-
-	ActivityTypeCreatedWindowsProfile{},
-	ActivityTypeDeletedWindowsProfile{},
-	ActivityTypeEditedWindowsProfile{},
-
-	ActivityTypeLockedHost{},
-	ActivityTypeUnlockedHost{},
-	ActivityTypeWipedHost{},
-	ActivityTypeRotatedHostRecoveryLockPassword{},
-
-	ActivityTypeCreatedDeclarationProfile{},
-	ActivityTypeDeletedDeclarationProfile{},
-	ActivityTypeEditedDeclarationProfile{},
-
-	ActivityTypeCreatedAndroidProfile{},
-	ActivityTypeDeletedAndroidProfile{},
-	ActivityTypeEditedAndroidProfile{},
-	ActivityTypeEditedAndroidCertificate{},
-	ActivityTypeResentCertificate{},
-
-	ActivityTypeResentConfigurationProfile{},
-	ActivityTypeResentConfigurationProfileBatch{},
-
-	ActivityTypeInstalledSoftware{},
-	ActivityTypeUninstalledSoftware{},
-	ActivityTypeAddedSoftware{},
-	ActivityTypeEditedSoftware{},
-	ActivityTypeDeletedSoftware{},
-	ActivityEnabledVPP{},
-	ActivityDisabledVPP{},
-	ActivityAddedAppStoreApp{},
-	ActivityDeletedAppStoreApp{},
-	ActivityInstalledAppStoreApp{},
-	ActivityEditedAppStoreApp{},
-
-	ActivityAddedNDESSCEPProxy{},
-	ActivityDeletedNDESSCEPProxy{},
-	ActivityEditedNDESSCEPProxy{},
-	ActivityAddedCustomSCEPProxy{},
-	ActivityDeletedCustomSCEPProxy{},
-	ActivityEditedCustomSCEPProxy{},
-	ActivityAddedDigiCert{},
-	ActivityDeletedDigiCert{},
-	ActivityEditedDigiCert{},
-	ActivityAddedHydrant{},
-	ActivityDeletedHydrant{},
-	ActivityEditedHydrant{},
-	ActivityAddedCustomESTProxy{},
-	ActivityDeletedCustomESTProxy{},
-	ActivityEditedCustomESTProxy{},
-	ActivityAddedSmallstep{},
-	ActivityDeletedSmallstep{},
-	ActivityEditedSmallstep{},
-
-	ActivityTypeEnabledActivityAutomations{},
-	ActivityTypeEditedActivityAutomations{},
-	ActivityTypeDisabledActivityAutomations{},
-
-	ActivityTypeCanceledRunScript{},
-	ActivityTypeCanceledInstallSoftware{},
-	ActivityTypeCanceledUninstallSoftware{},
-	ActivityTypeCanceledInstallAppStoreApp{},
-
-	ActivityTypeRanScriptBatch{},
-	ActivityTypeBatchScriptScheduled{},
-	ActivityTypeBatchScriptCanceled{},
-
-	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
-	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
-	ActivityTypeAddedConditionalAccessOkta{},
-	ActivityTypeDeletedConditionalAccessOkta{},
-	ActivityTypeEnabledConditionalAccessAutomations{},
-	ActivityTypeDisabledConditionalAccessAutomations{},
-
-	ActivityTypeEscrowedDiskEncryptionKey{},
-
-	ActivityCreatedCustomVariable{},
-	ActivityDeletedCustomVariable{},
-
-	ActivityEditedSetupExperienceSoftware{},
-
-	ActivityTypeEditedHostIdpData{},
-
-	ActivityTypeEditedEnrollSecrets{},
-}
-
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
 type ActivityDetails = api.ActivityDetails
 
@@ -322,6 +148,17 @@ type ActivityTypeDeletedPolicy struct {
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
 	return "deleted_policy"
+}
+
+type ActivityTypeResetPolicy struct {
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
+	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeResetPolicy) ActivityName() string {
+	return "reset_policy"
 }
 
 type ActivityTypeAppliedSpecPolicy struct {
@@ -590,6 +427,7 @@ func (a ActivityTypeMDMEnrolled) ActivityName() string {
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
+	HostID           uint    `json:"host_id"`
 	HostSerial       string  `json:"host_serial"`
 	EnrollmentID     *string `json:"enrollment_id"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -599,6 +437,16 @@ type ActivityTypeMDMUnenrolled struct {
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
 	return "mdm_unenrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the host record was already deleted at unenroll time) so the global activity is
+// still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMUnenrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 type ActivityTypeEditedMacOSMinVersion struct {
@@ -686,6 +534,19 @@ func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
 }
 
 func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeRetrievedHostMyDeviceURL struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeRetrievedHostMyDeviceURL) ActivityName() string {
+	return "retrieved_host_my_device_url"
+}
+
+func (a ActivityTypeRetrievedHostMyDeviceURL) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -793,6 +654,54 @@ func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
 	return "disabled_recovery_lock_passwords"
 }
 
+type ActivityTypeCreatedManagedLocalAccount struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) ActivityName() string {
+	return "created_managed_local_account"
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) WasFromAutomation() bool {
+	return true
+}
+
+type ActivityTypeViewedManagedLocalAccount struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeViewedManagedLocalAccount) ActivityName() string {
+	return "read_managed_local_account"
+}
+
+func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledManagedLocalAccount struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
+	return "enabled_managed_local_account"
+}
+
+type ActivityTypeDisabledManagedLocalAccount struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDisabledManagedLocalAccount) ActivityName() string {
+	return "disabled_managed_local_account"
+}
+
 type ActivityTypeEnabledGitOpsMode struct{}
 
 func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
@@ -803,6 +712,49 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeEnabledGitOpsException) ActivityName() string {
+	return "enabled_gitops_exception"
+}
+
+type ActivityTypeDisabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeDisabledGitOpsException) ActivityName() string {
+	return "disabled_gitops_exception"
+}
+
+// ActivityTypeEnabledHistoricalDataset is emitted when collection of a chart
+// historical dataset is enabled, either globally (FleetID/FleetName nil) or
+// for a specific fleet. Dataset carries the public config sub-key (e.g.
+// "uptime", "vulnerabilities"), not the internal dataset name.
+type ActivityTypeEnabledHistoricalDataset struct {
+	Dataset   string  `json:"dataset"`
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+}
+
+func (a ActivityTypeEnabledHistoricalDataset) ActivityName() string {
+	return "enabled_historical_dataset"
+}
+
+// ActivityTypeDisabledHistoricalDataset is emitted when collection of a chart
+// historical dataset is disabled, either globally (FleetID/FleetName nil) or
+// for a specific fleet.
+type ActivityTypeDisabledHistoricalDataset struct {
+	Dataset   string  `json:"dataset"`
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+}
+
+func (a ActivityTypeDisabledHistoricalDataset) ActivityName() string {
+	return "disabled_historical_dataset"
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
@@ -876,7 +828,7 @@ type ActivityTypeRanScript struct {
 	Async               bool    `json:"async"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
-	FromSetupExperience bool    `json:"-"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -893,6 +845,27 @@ func (a ActivityTypeRanScript) HostOnly() bool {
 
 func (a ActivityTypeRanScript) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
+}
+
+type ActivityTypeRanCustomMDMCommand struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostUUID        string `json:"host_uuid"`
+	CommandUUID     string `json:"command_uuid"`
+	RequestType     string `json:"request_type"`
+	Platform        string `json:"platform"`
+}
+
+func (a ActivityTypeRanCustomMDMCommand) ActivityName() string {
+	return "ran_custom_mdm_command"
+}
+
+func (a ActivityTypeRanCustomMDMCommand) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRanCustomMDMCommand) HostOnly() bool {
+	return false
 }
 
 type ActivityTypeAddedScript struct {
@@ -994,6 +967,7 @@ func (a ActivityTypeUnlockedHost) HostIDs() []uint {
 type ActivityTypeWipedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipedHost) ActivityName() string {
@@ -1002,6 +976,24 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeWipeFailedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
+}
+
+func (a ActivityTypeWipeFailedHost) ActivityName() string {
+	return "failed_wipe"
+}
+
+func (a ActivityTypeWipeFailedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeWipeFailedHost) WasFromAutomation() bool {
+	return true
 }
 
 // ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
@@ -1022,6 +1014,51 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
+}
+
+// ActivityTypeRotatedManagedLocalAccountPassword records a managed-local-account
+// password rotation. Manual rotations log with the calling user as actor;
+// auto-rotations log with no user and FleetInitiated=true. Rotations that were
+// deferred (UUID missing at click time) are logged once at click time with the
+// user as actor — never re-logged when the cron finally completes them.
+type ActivityTypeRotatedManagedLocalAccountPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"`
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) ActivityName() string {
+	return "rotated_managed_local_account_password"
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool {
+	return a.FleetInitiated
+}
+
+// ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
+// to rotate the managed local account password (the device acked the
+// SetAutoAdminPassword command with an error or command-format error). Always
+// attributed to Fleet — the failure is detected at ack time, outside any user
+// context, regardless of who originally initiated the rotation.
+type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) ActivityName() string {
+	return "failed_to_rotate_managed_local_account_password"
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {
@@ -1085,8 +1122,9 @@ type ActivityTypeInstalledSoftware struct {
 	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
-	FromSetupExperience bool    `json:"-"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1131,6 +1169,22 @@ func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeInstalledAllSelfServiceSoftware struct {
+	HostID                  uint    `json:"host_id"`
+	HostDisplayName         string  `json:"host_display_name"`
+	SelfServiceCategoryID   *uint   `json:"self_service_category_id"`
+	SelfServiceCategoryName *string `json:"self_service_category_name"`
+	SoftwareTitlesCount     uint    `json:"software_titles_count"`
+}
+
+func (a ActivityTypeInstalledAllSelfServiceSoftware) ActivityName() string {
+	return "installed_all_self_service_software"
+}
+
+func (a ActivityTypeInstalledAllSelfServiceSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivitySoftwareLabel struct {
 	Name string `json:"name"`
 	ID   uint   `json:"id"`
@@ -1164,6 +1218,7 @@ type ActivityTypeEditedSoftware struct {
 	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
+	PinnedVersion       *string                 `json:"pinned_version"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1184,6 +1239,22 @@ type ActivityTypeDeletedSoftware struct {
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
 	return "deleted_software"
+}
+
+type ActivityTypeChangedOrgLogo struct {
+	Mode string `json:"mode"`
+}
+
+func (a ActivityTypeChangedOrgLogo) ActivityName() string {
+	return "changed_org_logo"
+}
+
+type ActivityTypeDeletedOrgLogo struct {
+	Mode string `json:"mode"`
+}
+
+func (a ActivityTypeDeletedOrgLogo) ActivityName() string {
+	return "deleted_org_logo"
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
@@ -1328,8 +1399,9 @@ type ActivityInstalledAppStoreApp struct {
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	HostPlatform        string  `json:"host_platform"`
-	FromSetupExperience bool    `json:"-"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1345,11 +1417,10 @@ func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
-	// for VPP apps, we only activate the next upcoming activity if the installation
-	// failed, because if it succeeded (and in this case, it only means the command to
-	// install succeeded), we only activate the next activity when we verify the
-	// app is actually installed.
-	return a.Status != string(SoftwareInstalled)
+	// For VPP apps, we only activate the next upcoming activity if the installation
+	// failed; successes are activated on install verification.
+	// More info on the blank command UUID skip at https://github.com/fleetdm/fleet/pull/43437#discussion_r3074297749
+	return a.CommandUUID != "" && a.Status != string(SoftwareInstalled)
 }
 
 func (a ActivityInstalledAppStoreApp) ActivateNextUpcomingActivityArgs() (uint, string) {
@@ -1540,10 +1611,11 @@ func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
@@ -1552,6 +1624,10 @@ func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
 
 func (a ActivityTypeCanceledInstallSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallSoftware) WasFromAutomation() bool {
+	return a.FromSetupExperience
 }
 
 type ActivityTypeCanceledUninstallSoftware struct {
@@ -1570,10 +1646,11 @@ func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallAppStoreApp struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
@@ -1582,6 +1659,10 @@ func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
 
 func (a ActivityTypeCanceledInstallAppStoreApp) ActivityName() string {
 	return "canceled_install_app_store_app"
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) WasFromAutomation() bool {
+	return a.FromSetupExperience
 }
 
 type ActivityTypeRanScriptBatch struct {
@@ -1818,6 +1899,22 @@ func (a ActivityTypeDeletedMicrosoftEntraTenant) ActivityName() string {
 	return "deleted_microsoft_entra_tenant"
 }
 
+type ActivityTypeAddedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftEntraClientID) ActivityName() string {
+	return "added_microsoft_entra_client_id"
+}
+
+type ActivityTypeDeletedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
+	return "deleted_microsoft_entra_client_id"
+}
+
 type ActivityTypeEditedEnrollSecrets struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -1825,4 +1922,326 @@ type ActivityTypeEditedEnrollSecrets struct {
 
 func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
 	return "edited_enroll_secrets"
+}
+
+type ActivityTypeInstalledCertificate struct {
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	CertificateTemplateID uint   `json:"certificate_template_id"`
+	CertificateName       string `json:"certificate_name"`
+	Status                string `json:"status"`
+	Detail                string `json:"detail,omitempty"`
+}
+
+func (a ActivityTypeInstalledCertificate) ActivityName() string {
+	return "installed_certificate"
+}
+
+func (a ActivityTypeInstalledCertificate) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeInstalledCertificate) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeInstalledCertificate) HostOnly() bool {
+	return true
+}
+
+type ActivityTypeClearedPasscode struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeClearedPasscode) ActivityName() string {
+	return "cleared_passcode"
+}
+
+func (a ActivityTypeClearedPasscode) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeCanceledSetupExperience struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledSetupExperience) ActivityName() string {
+	return "canceled_setup_experience"
+}
+
+func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
+	return true
+}
+
+type ActivityTypeFailedEnrollmentProfileRenewal struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	CommandUUID     string `json:"command_uuid"`
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) ActivityName() string {
+	return "failed_enrollment_profile_renewal"
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeCreatedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeCreatedLabel) ActivityName() string {
+	return "created_label"
+}
+
+type ActivityTypeEditedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeEditedLabel) ActivityName() string {
+	return "edited_label"
+}
+
+type ActivityTypeDeletedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeDeletedLabel) ActivityName() string {
+	return "deleted_label"
+}
+
+type ActivityTypeAddedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
+	return "added_self_service_category"
+}
+
+type ActivityTypeEditedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
+	return "edited_self_service_category"
+}
+
+type ActivityTypeDeletedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
+	return "deleted_self_service_category"
+}
+
+// ActivityTypeRanAutomationTicket is recorded when a failing-policy
+// ticket automation (Jira or Zendesk) successfully creates the ticket. It is
+// associated with every host the failing-policy job targeted. The Type field is
+// "jira" or "zendesk". For Jira, TicketKey holds the issue key (e.g. "ENG-24");
+// for Zendesk, TicketID holds the numeric ticket ID.
+type ActivityTypeRanAutomationTicket struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+	Type       string `json:"type"`
+	TicketKey  string `json:"ticket_key,omitempty"`
+	TicketID   int64  `json:"ticket_id,omitempty"`
+}
+
+func (a ActivityTypeRanAutomationTicket) ActivityName() string {
+	return "ran_automation_ticket"
+}
+
+func (a ActivityTypeRanAutomationTicket) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationTicket) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedAutomationTicket is recorded when a failing-policy
+// ticket automation (Jira or Zendesk) can no longer create the ticket after the
+// worker exhausts its retries. It is associated with every host the
+// failing-policy job targeted. The Type field is "jira" or "zendesk".
+type ActivityTypeFailedAutomationTicket struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	Type          string `json:"type"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationTicket) ActivityName() string {
+	return "failed_automation_ticket"
+}
+
+func (a ActivityTypeFailedAutomationTicket) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationTicket) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedCalendarPolicyAutomation is recorded when a failing-policy
+// calendar (maintenance window) automation is rejected by the remote calendar
+// provider while the events cron processes a host. One activity is recorded per
+// failing calendar policy the host belongs to, associated with that host.
+type ActivityTypeFailedAutomationCalendarEvent struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) ActivityName() string {
+	return "failed_automation_calendar_event"
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRanAutomationCalendarEvent is recorded when a failing-policy
+// calendar (maintenance window) automation successfully creates a calendar
+// event on the host's calendar while the events cron processes a host. One
+// activity is recorded per failing calendar policy the host belongs to,
+// associated with that host.
+type ActivityTypeRanAutomationCalendarEvent struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) ActivityName() string {
+	return "ran_automation_calendar_event"
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedAutomationWebhook is recorded when a failing-policy
+// webhook automation send is rejected by the remote server. One activity is
+// recorded per failed batch POST and is associated with every host in that
+// batch.
+type ActivityTypeFailedAutomationWebhook struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationWebhook) ActivityName() string {
+	return "failed_automation_webhook"
+}
+
+func (a ActivityTypeFailedAutomationWebhook) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationWebhook) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRanAutomationWebhook is recorded when a failing-policy
+// webhook automation batch POST is accepted by the remote server. One activity
+// is recorded per successful batch POST and is associated with every host in
+// that batch. The activity name is "ran_automation_webhook".
+type ActivityTypeRanAutomationWebhook struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+	StatusCode int    `json:"status_code,omitempty"`
+}
+
+func (a ActivityTypeRanAutomationWebhook) ActivityName() string {
+	return "ran_automation_webhook"
+}
+
+func (a ActivityTypeRanAutomationWebhook) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationWebhook) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedAutomationConditionalAccess is recorded when a
+// failing-policy conditional access automation fails to push the host's
+// compliance status to the remote provider. One activity is recorded per
+// conditional-access policy configured for the host's team, associated with
+// that host.
+type ActivityTypeFailedAutomationConditionalAccess struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationConditionalAccess) ActivityName() string {
+	return "failed_automation_conditional_access"
+}
+
+func (a ActivityTypeFailedAutomationConditionalAccess) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationConditionalAccess) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRanAutomationConditionalAccess is recorded when a
+// failing-policy conditional access automation successfully pushes the host's
+// compliance status to the remote provider as non-compliant, blocking single
+// sign-on. One activity is recorded per conditional-access policy the host is
+// failing, associated with that host.
+type ActivityTypeRanAutomationConditionalAccess struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+}
+
+func (a ActivityTypeRanAutomationConditionalAccess) ActivityName() string {
+	return "ran_automation_conditional_access"
+}
+
+func (a ActivityTypeRanAutomationConditionalAccess) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
+	return true
 }

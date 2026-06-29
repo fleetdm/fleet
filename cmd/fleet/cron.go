@@ -15,6 +15,7 @@ import (
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -23,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -40,8 +42,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/osv"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/winoffice"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"go.opentelemetry.io/otel/attribute"
@@ -191,24 +195,68 @@ func scanVulnerabilities(
 		return fmt.Errorf("getting current time from database: %w", err)
 	}
 
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	scanStart := time.Now()
 
+	phaseStart := time.Now()
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "nvd", "elapsed", time.Since(phaseStart))
+
+	var ovalVulns []fleet.SoftwareVulnerability
+
+	// OVAL processes all platforms by default, but will exclude Ubuntu if OSV feature flag is enabled
+	phaseStart = time.Now()
+	ovalResults := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns = append(ovalVulns, ovalResults...)
+	logger.InfoContext(ctx, "phase completed", "phase", "oval", "elapsed", time.Since(phaseStart))
+
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		osvVulns := checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, osvVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "osv", "elapsed", time.Since(phaseStart))
+	}
+
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, rhelOSVVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "rhel_osv", "elapsed", time.Since(phaseStart))
+	}
+
+	phaseStart = time.Now()
+	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "goval_dictionary", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "mac_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "custom", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "windows_msrc", "elapsed", time.Since(phaseStart))
 
 	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
 	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
 	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
 	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
+	phaseStart = time.Now()
 	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
 	}
 	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
 	}
+	logger.InfoContext(ctx, "phase completed", "phase", "orphan_cleanup", "elapsed", time.Since(phaseStart))
+
+	logger.InfoContext(ctx, "all phases completed", "total_elapsed", time.Since(scanStart))
 
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
@@ -219,10 +267,11 @@ func scanVulnerabilities(
 		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
 	defer automationSpan.End()
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns)+len(winOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, winOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
@@ -401,10 +450,29 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
+	// If OSV feature flag is enabled, filter out platforms handled by OSV (OVAL will skip them)
+	processVersions := versions
+	if config.OSVForVulnerabilities {
+		var nonOSVPlatforms []fleet.OSVersion
+		for _, v := range versions.OSVersions {
+			// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in OVAL
+			if osv.IsPlatformSupported(v.Platform) && !strings.Contains(v.Name, "Fedora") {
+				continue
+			}
+			nonOSVPlatforms = append(nonOSVPlatforms, v)
+		}
+
+		processVersions = &fleet.OSVersions{
+			CountsUpdatedAt: versions.CountsUpdatedAt,
+			OSVersions:      nonOSVPlatforms,
+		}
+		logger.DebugContext(ctx, "oval-excluding-osv-platforms", "total_platforms", len(versions.OSVersions), "processing", len(nonOSVPlatforms))
+	}
+
 	if !config.DisableDataSync {
 		// Sync on disk OVAL definitions with current OS Versions.
 		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.oval.refresh")
-		downloaded, err := oval.Refresh(refreshCtx, versions, vulnPath)
+		downloaded, err := oval.Refresh(refreshCtx, processVersions, vulnPath)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating oval definitions", err)
 		}
@@ -416,8 +484,8 @@ func checkOvalVulnerabilities(
 
 	// Analyze all supported os versions using the synched OVAL definitions.
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.oval.analyze",
-		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
-	for _, version := range versions.OSVersions {
+		trace.WithAttributes(attribute.Int("os_count", len(processVersions.OSVersions))))
+	for _, version := range processVersions.OSVersions {
 		start := time.Now()
 		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
 		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
@@ -437,7 +505,185 @@ func checkOvalVulnerabilities(
 	}
 	analyzeSpan.End()
 
+	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+	cleanupStaleRHELOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+
 	return results
+}
+
+func checkOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now().UTC()
+	}
+
+	if !config.DisableDataSync {
+		// Sync on disk OSV artifacts with current OS Versions
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.osv.refresh")
+		downloaded, err := osv.Refresh(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+const (
+	// deleteAllVulnerabilitiesTime is used with DeleteOutOfDateVulnerabilities to delete
+	// all vulnerabilities for a given source, regardless of their updated_at timestamp.
+	// DeleteOutOfDateVulnerabilities deletes records where updated_at < olderThan,
+	// so we use 100 years into the future.
+	deleteAllVulnerabilitiesTime = 100 * 365 * 24 * time.Hour
+)
+
+// cleanupStaleOSVVulnerabilities removes OSV vulnerabilities for platforms supported by OSV
+func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up Ubuntu OSV vulnerabilities because OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleOVALVulnerabilities removes OVAL vulnerabilities for platforms supported by OSV
+func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up Ubuntu OVAL vulnerabilities because OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OVAL vulnerabilities", err)
+	}
+}
+
+func checkRHELOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_rhel_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for RHEL OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now().UTC()
+	}
+
+	if !config.DisableDataSync {
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.rhel_osv.refresh")
+		downloaded, err := osv.RefreshRHEL(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating RHEL OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "rhel-osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.rhel_osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.AnalyzeRHEL(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "rhel-osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "rhel-osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing RHEL OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleRHELOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+// cleanupStaleRHELOSVVulnerabilities removes RHEL OSV vulnerabilities when the flag is disabled.
+func cleanupStaleRHELOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up RHEL OSV vulnerabilities because RHEL OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleRHELOVALVulnerabilities removes RHEL OVAL vulnerabilities when RHEL OSV is enabled.
+func cleanupStaleRHELOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up RHEL OVAL vulnerabilities because RHEL OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OVAL vulnerabilities", err)
+	}
 }
 
 func checkGovalDictionaryVulnerabilities(
@@ -477,6 +723,11 @@ func checkGovalDictionaryVulnerabilities(
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
+		// Skip OSV-supported Linux platforms (for example, Ubuntu and RHEL) when OSV is enabled.
+		// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in goval-dictionary.
+		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) && !strings.Contains(version.Name, "Fedora") {
+			continue
+		}
 		start := time.Now()
 		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
@@ -594,6 +845,45 @@ func checkMacOfficeVulnerabilities(
 	return r
 }
 
+func checkWinOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_winoffice")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.winoffice.sync")
+		err := winoffice.SyncFromGithub(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating windows office bulletin", err)
+		}
+		syncSpan.End()
+
+		logger.DebugContext(ctx, "finished sync windows office bulletin")
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.winoffice.analyze")
+	start := time.Now()
+	r, err := winoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	logger.DebugContext(analyzeCtx, "win-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing windows office products for vulnerabilities", err)
+	}
+	analyzeSpan.End()
+
+	return r
+}
+
 func newAutomationsSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -601,6 +891,7 @@ func newAutomationsSchedule(
 	logger *slog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -639,7 +930,7 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet)
+				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet, newActivitySvc)
 			},
 		),
 	)
@@ -676,6 +967,7 @@ func triggerFailingPoliciesAutomation(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -690,7 +982,7 @@ func triggerFailingPoliciesAutomation(
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger, newActivitySvc)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
@@ -733,6 +1025,9 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	androidModule android.Service,
+	chartSvc chart_api.Service,
+	androidBatchSize int,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -754,14 +1049,16 @@ func newWorkerIntegrationsSchedule(
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newJiraClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newJiraClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	zendesk := &worker.Zendesk{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newZendeskClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newZendeskClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	var (
 		depSvc *apple_mdm.DEPService
@@ -791,11 +1088,20 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 	}
 	softwareWorker := &worker.SoftwareWorker{
-		Datastore:     ds,
-		Log:           logger,
-		AndroidModule: androidModule,
+		Datastore:        ds,
+		Log:              logger,
+		AndroidModule:    androidModule,
+		AndroidBatchSize: androidBatchSize,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
+	chartScrubGlobal := &worker.ChartScrubGlobal{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	chartScrubFleet := &worker.ChartScrubFleet{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -904,6 +1210,7 @@ func newAppleMDMWorkerSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name             = string(fleet.CronAppleMDMWorker)
@@ -921,6 +1228,7 @@ func newAppleMDMWorkerSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
+		NewActivityFn:         newActivityFn,
 	}
 
 	w.Register(appleMDM)
@@ -947,6 +1255,7 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	carveStore fleet.CarveStore,
 	svc fleet.Service,
 	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
@@ -957,6 +1266,8 @@ func newCleanupsAndAggregationSchedule(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	acmeSvc acme_api.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1004,7 +1315,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"carves",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupCarves(ctx, time.Now())
+				_, err := carveStore.CleanupCarves(ctx, time.Now())
 				return err
 			},
 		),
@@ -1053,6 +1364,13 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			},
 		),
+		schedule.WithJob(
+			"expired_in_house_app_install_tokens",
+			func(ctx context.Context) error {
+				_, err := ds.DeleteExpiredInHouseAppInstallTokens(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -1093,7 +1411,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander, acmeSvc)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
@@ -1164,8 +1482,26 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
+			return ds.CleanupWindowsMDMCommandQueue(ctx)
+		}),
+		schedule.WithJob("cleanup_windows_mdm_pending_delete_profiles", func(ctx context.Context) error {
+			// Retained content for deleted Windows profiles is GC'd (reference-counted) once no host still references the profile, so
+			// the content survives exactly as long as some host still needs its <Delete>.
+			return ds.CleanupWindowsMDMPendingDeleteProfiles(ctx)
+		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
+		}),
+		schedule.WithJob("cleanup_unenrolled_host_mdm_certificates", func(ctx context.Context) error {
+			count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
+			}
+			return nil
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
@@ -1204,6 +1540,83 @@ func newCleanupsAndAggregationSchedule(
 				logger.InfoContext(ctx, "reverted stale certificate templates", "count", affected)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
+			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
+		}),
+		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
+			return chartSvc.CleanupData(ctx, 30)
+		}),
+	)
+
+	return s, nil
+}
+
+// buildChartScopeResolver returns a per-dataset scope resolver for the chart
+// collection cron. It computes (skip, disabledFleetIDs) from the global and
+// per-team historical-data flags. Extracted from the cron closure so it can be
+// unit-tested without spinning up a schedule.
+func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, logger *slog.Logger) chart_api.CollectScopeFn {
+	return func(name string) (skip bool, disabledFleetIDs []uint) {
+		ok, err := appCfg.Features.HistoricalData.Enabled(name)
+		if err != nil {
+			// Unknown dataset — fall back to enabled with no team filter.
+			// The chart service is the source of truth for which datasets are
+			// registered; an unknown name here means a new dataset was added
+			// without a corresponding entry in Enabled().
+			if logger != nil {
+				logger.WarnContext(context.Background(), "chart scope: unknown dataset", "dataset", name, "err", err)
+			}
+			return false, nil
+		}
+		if !ok {
+			return true, nil
+		}
+		var disabled []uint
+		for _, t := range teams {
+			tok, terr := t.Config.Features.HistoricalData.Enabled(name)
+			if terr == nil && !tok {
+				disabled = append(disabled, t.ID)
+			}
+		}
+		return false, disabled
+	}
+}
+
+func newChartDataCollectionSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	chartSvc chart_api.Service,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronChartDataCollection)
+		defaultInterval = 1 * time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
+			// Build a per-dataset scope resolver from AppConfig + team configs.
+			// Loaded fresh each tick so config changes take effect without
+			// a process restart. Failures here halt this tick so that we don't
+			// collect data that we shouldn't (i.e. from disabled teams or datasets).
+			// The cron retries on its next interval.
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
+			}
+			teams, err := ds.ListTeams(ctx,
+				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
+				fleet.ListOptions{},
+			)
+			if err != nil {
+				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
+			}
+			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, logger))
 		}),
 	)
 
@@ -1308,9 +1721,11 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, err := assets.CAKeyPair(ctx, ds)
+	// Include previously-rolled-over CA certs so keys escrowed against an
+	// earlier CA still decrypt with the (unchanged) private key.
+	caCerts, caKey, err := assets.CACertsAndKeyForDecryption(ctx, ds)
 	if err != nil {
-		logger.ErrorContext(ctx, "unable to get CA keypair", "details", err)
+		logger.ErrorContext(ctx, "unable to get CA certs and key", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
@@ -1321,7 +1736,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, caCerts); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -1392,7 +1807,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 // newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
-// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// The DEP syncer+assigner fetches devices from Apple Business (aka AB) and applies
 // the current configured DEP profile to them.
 func newAppleMDMDEPProfileAssigner(
 	ctx context.Context,
@@ -1462,6 +1877,7 @@ func newAppleMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
 ) (*schedule.Schedule, error) {
@@ -1478,10 +1894,10 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger, certProfilesLimit)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
+			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
 		}),
 	)
 
@@ -1521,6 +1937,7 @@ func newAndroidMDMProfileManagerSchedule(
 	logger *slog.Logger,
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1532,7 +1949,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
 		}),
 	)
 
@@ -1664,7 +2081,12 @@ func cronHostVitalsLabelMembership(
 ) error {
 	// Get all labels. We don't have a function for labels by membership type
 	// so we'll filter them later.
-	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
+	//
+	// We use a global admin filter so that fleet/team-scoped labels are included.
+	// An empty TeamFilter (nil User) falls back to the "global-only" filter
+	// (l.team_id IS NULL), which would silently exclude every fleet-scoped host
+	// vitals label and leave them unpopulated. See #46869.
+	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{
 		PerPage: 0, // No limit.
 	}, false)
 	if err != nil {
@@ -1834,7 +2256,34 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMaintainedAppsAutoUpdateSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedAppsAutoUpdate)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
+			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
 		}),
 	)
 
@@ -2038,7 +2487,7 @@ func newRecoveryLockPasswordSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
-		defaultInterval = 5 * time.Minute
+		defaultInterval = 30 * time.Second
 	)
 
 	logger = logger.With("cron", name)
@@ -2047,6 +2496,56 @@ func newRecoveryLockPasswordSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
 			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newManagedLocalAccountRotationSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendManagedLocalAccountRotationCommands)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
+			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newCleanupExpiredADUEChallengesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronCleanupExpiredADUEChallenges)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
 		}),
 	)
 

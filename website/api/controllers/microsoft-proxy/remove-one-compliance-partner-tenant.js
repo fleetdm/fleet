@@ -13,7 +13,7 @@ module.exports = {
     },
     fleetServerSecret: {
       type: 'string',
-      requried: true,
+      required: true,
     },
   },
 

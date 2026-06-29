@@ -3,6 +3,8 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -29,8 +31,16 @@ const (
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
-	StickyMDMEnrollmentTTL       = 30 * time.Minute
+	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
+	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
+	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
+	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
+
+	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -71,7 +81,8 @@ const (
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID" // deprecated in favor of FleetVarCertificateRenewalID, but remains for back-compat
+	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
@@ -90,7 +101,7 @@ const (
 func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
-			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
@@ -110,10 +121,17 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
-	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
-	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
+	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
+	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
+	// either form satisfies the requirement.
+	FleetVarRenewalIDRegexp = regexp.MustCompile(fmt.Sprintf(
+		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
+		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
+	))
+	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -163,7 +181,9 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte    `db:"token" json:"-"`
+	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -176,11 +196,13 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
 }
 
 type ABMTokenTeam struct {
@@ -307,6 +329,18 @@ type HostMDMProfileRetryCount struct {
 	Retries     uint   `db:"retries"`
 }
 
+// ProfileACMECommandResult bundles the gates needed to decide whether an
+// InstallProfile ack should trigger a CertificateList refetch on macOS:
+// host platform, profile UUID, and whether the delivered profile contains a
+// com.apple.security.acme payload. Computed in a single query keyed on
+// (host_uuid, command_uuid).
+type ProfileACMECommandResult struct {
+	HostID         uint   `db:"host_id"`
+	Platform       string `db:"platform"`
+	ProfileUUID    string `db:"profile_uuid"`
+	HasACMEPayload bool   `db:"has_acme_payload"`
+}
+
 // TeamIDSetter defines the method to set a TeamID value on a struct,
 // which helps define authorization helpers based on teams.
 type TeamIDSetter interface {
@@ -367,6 +401,8 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
+	Name *string `json:"name" db:"name"`
 	// ResultsMetadata contains command-specific metadata.
 	// VPP install commands include a "software_installed" boolean and
 	// "vpp_verify_timeout_seconds" integer.
@@ -393,6 +429,8 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
+	Name *string `json:"name" db:"name"`
 	// CommandStatus is the fleet computed field representing the status of the command
 	// based on the MDM protocol status
 	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
@@ -407,6 +445,18 @@ type MDMCommandListOptions struct {
 	ListOptions
 	Filters MDMCommandFilters
 }
+
+// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+const (
+	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
+	DefaultMDMCommandsPerPage uint = 10
+	// MaxMDMCommandsPerPage caps per_page so a single request can't scan an unbounded number of command rows.
+	MaxMDMCommandsPerPage uint = 1000
+	// MaxMDMCommandsPage caps the offset (page * per_page) so deep
+	// traversal can't cause a timeout issue. Clients that need to walk the full set
+	// should use cursor pagination via the after query parameter.
+	MaxMDMCommandsPage uint = 100
+)
 
 type MDMCommandStatusFilter string
 
@@ -466,17 +516,18 @@ type MDMProfilesSummary struct {
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string           `db:"-" json:"-"`
-	CommandUUID         string           `db:"-" json:"-"`
-	ProfileUUID         string           `db:"-" json:"profile_uuid"`
-	Name                string           `db:"-" json:"name"`
-	Identifier          string           `db:"-" json:"-"`
-	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
-	OperationType       MDMOperationType `db:"-" json:"operation_type"`
-	Detail              string           `db:"-" json:"detail"`
-	Platform            string           `db:"-" json:"platform"`
-	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
+	HostUUID              string           `db:"-" json:"-"`
+	CommandUUID           string           `db:"-" json:"-"`
+	ProfileUUID           string           `db:"-" json:"profile_uuid"`
+	Name                  string           `db:"-" json:"name"`
+	Identifier            string           `db:"-" json:"-"`
+	Status                *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType         MDMOperationType `db:"-" json:"operation_type"`
+	Detail                string           `db:"-" json:"detail"`
+	Platform              string           `db:"-" json:"platform"`
+	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
+	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -823,9 +874,13 @@ func labelCountMap(labels []string) map[string]int {
 	return counts
 }
 
-// MDMProfileSpecsMatch match checks if two slices contain the same spec
-// elements, regardless of order.
+// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
+// regardless of order.
+//
+// Precondition: each slice must contain at most one entry per Path.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	mustNotHaveDuplicatePaths("a", a)
+	mustNotHaveDuplicatePaths("b", b)
 	if len(a) != len(b) {
 		return false
 	}
@@ -909,6 +964,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
+func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
+	if len(specs) < 2 {
+		return
+	}
+	seen := make(map[string]struct{}, len(specs))
+	for _, s := range specs {
+		if _, dup := seen[s.Path]; dup {
+			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
+		}
+		seen[s.Path] = struct{}{}
+	}
+}
+
 type MDMLabelsMode string
 
 const (
@@ -932,10 +1000,10 @@ const (
 	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
 	// service) private key used by MDM
 	MDMAssetAPNSCert MDMAssetName = "apns_cert"
-	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMKey is the name of the AB (Apple Business)
 	// private key used to decrypt MDMAssetABMToken
 	MDMAssetABMKey MDMAssetName = "abm_key"
-	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMCert is the name of the AB (Apple Business)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
@@ -1096,12 +1164,19 @@ type VPPTokenRaw struct {
 type VPPTokenData struct {
 	// Location comes from an Apple API:
 	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
-	// the "library" of apps in ABM that is associated with this VPP token.
+	// the organization unit (formerly "location") in Apple Business that is associated with this
+	// VPP token.
 	Location string `json:"location"`
 
 	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
+
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// It comes from the same /client/config endpoint as Location. May be
+	// empty if the country lookup failed; the caller will lazy-backfill.
+	CountryCode string `json:"country_code"`
 }
 
 const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
@@ -1114,8 +1189,14 @@ type VPPTokenDB struct {
 	RenewDate time.Time `db:"renew_at" json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token string      `db:"token" json:"-"`
-	Teams []TeamTuple `json:"teams" renameto:"fleets"`
+	Token string `db:"token" json:"-"`
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// Populated from Apple's /client/config endpoint when the token is
+	// uploaded; may be empty for tokens uploaded before this field was added,
+	// in which case it is lazily backfilled.
+	CountryCode string      `db:"country_code" json:"country_code"`
+	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -1219,7 +1300,7 @@ type HostMDMCommand struct {
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
 // profile identified by its UUID.
 type MDMProfileUUIDFleetVariables struct {
-	// ProfileUUID is the UUID of the profile.
+	// ProfileUUID is the UUID of the profile or declaration.
 	ProfileUUID string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
@@ -1230,8 +1311,10 @@ type MDMProfileUUIDFleetVariables struct {
 // MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
 // profile identified by its identifier.
 type MDMProfileIdentifierFleetVariables struct {
-	// Identifier is the identifier of the profile (which is unique by team for
-	// Apple profiles).
+	// Identifier is the identifier of the profile. Because the profile identifier is not guaranteed
+	// to be unique across platforms and types of profiles (e.g. Apple profiles vs declarations vs Windows
+	// profiles), it must be prefixed with the same letter used for the UUID prefix of the profile type.
+	// E.g. fleet.MDMAppleDeclarationUUIDPrefix.
 	Identifier string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
@@ -1278,4 +1361,67 @@ type HostMDMIdentifiers struct {
 	Hostname       string `db:"hostname"`
 	Platform       string `db:"platform"`
 	TeamID         *uint  `db:"team_id"`
+}
+
+type NanoMDMEnrollmentDetails struct {
+	LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime       *time.Time `db:"last_seen_at"`
+	HardwareAttested      bool       `db:"hardware_attested"`
+	UnlockToken           *string    `db:"unlock_token"`
+}
+
+// MDM SSO initiator constants identify which enrollment flow initiated the SSO
+// authentication. These values are stored in the SSO session and used in the
+// callback to determine the correct behavior.
+const (
+	// SSOInitiatorOTAEnroll is used for OTA/BYOD enrollment flows (Android,
+	// iPhone, iPad) initiated from the /enroll page.
+	SSOInitiatorOTAEnroll = "ota_enroll"
+	// SSOInitiatorOrbitSetupExperience is used when the Orbit agent opens the SSO
+	// browser window during the macOS Setup Assistant, Windows enrollment or Linux enrollment.
+	SSOInitiatorOrbitSetupExperience = "setup_experience"
+	// SSOInitiatorAccountDrivenEnroll is used for Apple's native account-driven
+	// MDM enrollment flow.
+	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
+	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
+	SSOInitiatorAppleMDMSSO = "mdm_sso"
+)
+
+// ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
+// include mode may be set, no label may appear in both include and exclude lists, and the legacy
+// Labels field is normalised to LabelsIncludeAll. Errors are accumulated into invalid.
+func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, customSettings []MDMProfileSpec) {
+	for i, prof := range customSettings {
+		includeCount := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0} {
+			if b {
+				includeCount++
+			}
+		}
+		if includeCount > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+		}
+		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
+}
+
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
+func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, fmt.Errorf("generating 32-byte token: %w", err)
+	}
+	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
+	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
+	return urlEncodedToken, nil
 }

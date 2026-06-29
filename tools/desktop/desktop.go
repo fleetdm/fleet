@@ -156,7 +156,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	/* #nosec G204 -- arguments are actually well defined */
 	buildExec := exec.Command("go", "build",
 		"-o", amdBinaryPath,
-		"-ldflags", os.ExpandEnv("-X=main.version=$FLEET_DESKTOP_VERSION"),
+		"-ldflags", os.ExpandEnv("-s -w -X=main.version=$FLEET_DESKTOP_VERSION"),
 		"./"+filepath.Join("orbit", "cmd", "desktop"),
 	)
 	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=amd64")
@@ -172,7 +172,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	/* #nosec G204 -- arguments are actually well defined */
 	buildExec = exec.Command("go", "build",
 		"-o", armBinaryPath,
-		"-ldflags", os.ExpandEnv("-X=main.version=$FLEET_DESKTOP_VERSION"),
+		"-ldflags", os.ExpandEnv("-s -w -X=main.version=$FLEET_DESKTOP_VERSION"),
 		"./"+filepath.Join("orbit", "cmd", "desktop"),
 	)
 	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")

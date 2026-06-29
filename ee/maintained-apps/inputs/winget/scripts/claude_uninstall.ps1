@@ -1,69 +1,53 @@
-$displayName = "Claude"
-$publisher = "Anthropic"
+$timeoutSeconds = 300  # 5 minute timeout
 
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
+function ShouldRemoveClaudePackage {
+  param([Parameter(Mandatory=$true)]$pkg)
+  try {
+    $name = [string]$pkg.Name
+    $family = [string]$pkg.PackageFamilyName
+    $publisher = [string]$pkg.Publisher
 
-$uninstall = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $_.Publisher -like "$publisher*")
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
+    if ($name -and ($name -like "*Claude*" -or $name -like "*Anthropic*")) { return $true }
+    if ($family -and ($family -like "*Claude*" -or $family -like "*Anthropic*")) { return $true }
+    if ($publisher -and ($publisher -like "*Anthropic*")) { return $true }
+  } catch {}
+  return $false
 }
-
-if (-not $uninstall -or -not $uninstall.UninstallString) {
-  Write-Host "Uninstall entry not found"
-  Exit 0
-}
-
-Stop-Process -Name "Claude" -Force -ErrorAction SilentlyContinue
-
-$uninstallString = $uninstall.UninstallString
-$exePath = ""
-$arguments = ""
-
-if ($uninstallString -match '^"([^"]+)"(.*)') {
-    $exePath = $matches[1]
-    $arguments = $matches[2].Trim()
-} elseif ($uninstallString -match '^([^\s]+)(.*)') {
-    $exePath = $matches[1]
-    $arguments = $matches[2].Trim()
-} else {
-    Write-Host "Error: Could not parse uninstall string: $uninstallString"
-    Exit 1
-}
-
-$argumentList = @()
-if ($arguments -ne '') {
-    $argumentList += $arguments -split '\s+'
-}
-if ($argumentList -notcontains "--silent" -and $argumentList -notcontains "-s") {
-    $argumentList += "--silent"
-}
-
-Write-Host "Uninstall executable: $exePath"
-Write-Host "Uninstall arguments: $($argumentList -join ' ')"
 
 try {
-    $processOptions = @{
-        FilePath = $exePath
-        ArgumentList = $argumentList
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
-    }
-    
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
+
+  $start = Get-Date
+
+  # Best-effort: close app if running (name may vary)
+  Stop-Process -Name "Claude" -Force -ErrorAction SilentlyContinue
+
+  $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object {
+    ($_.PackageFamilyName -and (($_.PackageFamilyName -like "*Claude*") -or ($_.PackageFamilyName -like "*Anthropic*"))) -or
+    ($_.DisplayName -and (($_.DisplayName -like "*Claude*") -or ($_.DisplayName -like "*Anthropic*"))) -or
+    ($_.PackageName -and (($_.PackageName -like "*Claude*") -or ($_.PackageName -like "*Anthropic*")))
+  }
+
+  foreach ($pkg in $provisioned) {
+    Write-Host "Removing provisioned package: $($pkg.PackageName)"
+    Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName -AllUsers -ErrorAction Stop | Out-String | Write-Host
+    $elapsed = (New-TimeSpan -Start $start).TotalSeconds
+    if ($elapsed -gt $timeoutSeconds) { Exit 1603 }
+  }
+
+  $installed = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue | Where-Object {
+    ShouldRemoveClaudePackage $_
+  }
+
+  foreach ($app in $installed) {
+    Write-Host "Removing installed package: $($app.PackageFullName)"
+    Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction Stop | Out-String | Write-Host
+    $elapsed = (New-TimeSpan -Start $start).TotalSeconds
+    if ($elapsed -gt $timeoutSeconds) { Exit 1603 }
+  }
+
+  Exit 0
+
 } catch {
-    Write-Host "Error running uninstaller: $_"
-    Exit 1
+  Write-Host "Error: $_"
+  Exit 1603
 }

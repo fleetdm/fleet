@@ -1,37 +1,45 @@
 /** software/titles/:id > First section */
 
-import React, { useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 
 import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
+import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   formatSoftwareType,
+  isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
-  NO_VERSION_OR_HOST_DATA_SOURCES,
-  IAppStoreApp,
 } from "interfaces/software";
 
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import {
+  getDisplayedSoftwareName,
+  getSelfServiceTooltip,
+  mergePolicies,
+} from "pages/SoftwarePage/helpers";
 import Card from "components/Card";
+import Chip from "components/Chip";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
-import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
 import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
 import AddPatchPolicyModal from "../AddPatchPolicyModal";
+import PoliciesModal from "../PoliciesModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
   softwareId: number;
   teamId?: number;
-  isAvailableForInstall?: boolean;
-  isLoading?: boolean;
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
   onToggleViewYaml: () => void;
+  /** Opens the page-owned Versions modal; the Actions item is gated here by
+   * `canManageVersions`. */
+  onClickVersions: () => void;
 }
 
 const baseClass = "software-summary-card";
@@ -40,12 +48,12 @@ const SoftwareSummaryCard = ({
   softwareTitle,
   softwareId,
   teamId,
-  isAvailableForInstall,
-  isLoading = false,
   router,
   refetchSoftwareTitle,
   onToggleViewYaml,
+  onClickVersions,
 }: ISoftwareSummaryCard) => {
+  const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
@@ -59,21 +67,143 @@ const SoftwareSummaryCard = ({
     showEditAutoUpdateConfigModal,
     setShowEditAutoUpdateConfigModal,
   ] = useState(false);
+  const [showPoliciesModal, setShowPoliciesModal] = useState(false);
 
   const softwareDisplayName = getDisplayedSoftwareName(
     softwareTitle.name,
     softwareTitle.display_name
   );
 
-  // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
-  // software installed
-  const showVersionsTable =
-    !!softwareTitle.hosts_count &&
-    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(softwareTitle.source);
+  // Pre-compute meta-derived values via optional chaining so the hooks below
+  // can run unconditionally (React requires stable hook order across renders).
+  const installerType = installerResult?.meta.installerType;
+  const isFleetMaintainedApp = !!installerResult?.meta.isFleetMaintainedApp;
+  const isAndroidPlayStoreApp = !!installerResult?.meta.isAndroidPlayStoreApp;
+  const isCustomPackage = !!installerResult?.meta.isCustomPackage;
 
-  // If there is no installer (no package/app), bail out of installer‑related UI.
+  // Depend on the optional-chained sources directly so the memo's cache hits
+  // when both are nullish — `?? []` would mint a fresh array literal each
+  // render and bust the cache (and cascade into `headerPills` below).
+  const packageAutoInstallPolicies =
+    softwareTitle.software_package?.automatic_install_policies;
+  const appStoreAutoInstallPolicies =
+    softwareTitle.app_store_app?.automatic_install_policies;
+  const patchPolicy = softwareTitle.software_package?.patch_policy;
+  const mergedPolicies = useMemo(
+    () =>
+      mergePolicies({
+        automaticInstallPolicies:
+          packageAutoInstallPolicies ?? appStoreAutoInstallPolicies,
+        patchPolicy,
+      }),
+    [packageAutoInstallPolicies, appStoreAutoInstallPolicies, patchPolicy]
+  );
+  const isSelfService =
+    !!softwareTitle.software_package?.self_service ||
+    !!softwareTitle.app_store_app?.self_service;
+  // Show the Auto install pill whenever the title has any linked policy —
+  // patch-only policies live under `software_package.patch_policy` (not in
+  // `automatic_install_policies`), so we key off the merged set.
+  const hasLinkedPolicies = mergedPolicies.length > 0;
+  // If every linked policy is patch-only, surface a "Patch policy" pill
+  // instead of "Auto install". When at least one policy is dynamic, the
+  // Auto install pill wins (it's the stronger statement).
+  const isPatchPolicyOnly =
+    hasLinkedPolicies && mergedPolicies.every((p) => !p.type.has("dynamic"));
+
+  // VPP / App Store distinguishes by installer source (app-store vs package),
+  // not by the host OS — VPP apps can be macOS too, and an iOS/iPadOS title can
+  // ship as a custom package.
+  const isAppleVpp = installerType === "app-store" && !isAndroidPlayStoreApp;
+  // Order matters: `.find` returns the first truthy row. FMA is checked first
+  // because a Fleet-maintained app uploaded as a custom package still counts
+  // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
+  // by their dominant source; Custom package is the catch-all fallback.
+  const installerKindLabel = ([
+    [isFleetMaintainedApp, "Fleet-maintained"],
+    [isAppleVpp, "App Store (VPP)"],
+    [isAndroidPlayStoreApp, "Play Store"],
+    [isCustomPackage, "Custom package"],
+  ] as const).find(([flag]) => flag)?.[1];
+
+  const showHeaderPills =
+    !!installerKindLabel || isSelfService || hasLinkedPolicies;
+
+  const headerPills = useMemo(() => {
+    if (!showHeaderPills) {
+      return undefined;
+    }
+    return (
+      <>
+        {installerKindLabel && <Chip text={installerKindLabel} />}
+        {isSelfService && (
+          <Chip
+            icon="user"
+            text="Self-service"
+            tooltip={getSelfServiceTooltip(
+              isIpadOrIphoneSoftwareSource(softwareTitle.source),
+              isAndroidSoftwareSource(softwareTitle.source)
+            )}
+          />
+        )}
+        {hasLinkedPolicies && (
+          <Chip
+            icon={isPatchPolicyOnly ? "policy" : "refresh"}
+            text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
+            onClick={() => {
+              // Single-policy case: jump straight to the policy. The modal
+              // would just show a one-item list with that same link.
+              if (mergedPolicies.length === 1) {
+                router.push(
+                  getPathWithQueryParams(
+                    PATHS.POLICY_DETAILS(mergedPolicies[0].id),
+                    { fleet_id: teamId }
+                  )
+                );
+                return;
+              }
+              setShowPoliciesModal(true);
+            }}
+            tooltip={
+              mergedPolicies.length === 1 ? (
+                <>
+                  Policy triggers install.
+                  <br />
+                  Select to open policy.
+                </>
+              ) : (
+                <>
+                  Policies trigger install.
+                  <br />
+                  Select to view policies.
+                </>
+              )
+            }
+          />
+        )}
+      </>
+    );
+  }, [
+    showHeaderPills,
+    installerKindLabel,
+    isSelfService,
+    hasLinkedPolicies,
+    isPatchPolicyOnly,
+    mergedPolicies,
+    softwareTitle.source,
+    router,
+    teamId,
+  ]);
+
+  const policiesModal = showPoliciesModal && (
+    <PoliciesModal
+      policies={mergedPolicies}
+      teamId={teamId}
+      onExit={() => setShowPoliciesModal(false)}
+    />
+  );
+
   if (!installerResult) {
-    // when no installer, no edit actions:
     return (
       <>
         <Card borderRadiusSize="xxlarge" className={baseClass}>
@@ -88,42 +218,31 @@ const SoftwareSummaryCard = ({
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
             iconUploadedAt={iconUploadedAt}
+            headerPills={headerPills}
           />
-          {showVersionsTable && (
-            <TitleVersionsTable
-              router={router}
-              data={softwareTitle.versions ?? []}
-              isLoading={isLoading}
-              teamIdForApi={teamId}
-              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
-                softwareTitle.source
-              )}
-              isAvailableForInstall={isAvailableForInstall}
-              countsUpdatedAt={softwareTitle.counts_updated_at}
-            />
-          )}
         </Card>
+        {policiesModal}
       </>
     );
   }
 
-  const { meta } = installerResult;
   const {
     softwareInstaller,
-    installerType,
     isIosOrIpadosApp,
-    isFleetMaintainedApp,
-    isAndroidPlayStoreApp,
     isAndroidPlayStoreWebApp,
     canManageSoftware,
-  } = meta;
+  } = installerResult.meta;
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
-  /** Permission to manage software + Google Playstore app that's not a web app */
+  /** Permission to manage software + Google Playstore app (not a web app) or iOS/iPadOS app */
   const canEditConfiguration =
-    canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
+    canManageSoftware &&
+    ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
   const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
+  /** Versions / pin is a Premium-only Fleet-maintained app feature */
+  const canManageVersions =
+    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
@@ -165,6 +284,7 @@ const SoftwareSummaryCard = ({
           onClickAddPatchPolicy={
             canPatchSoftware ? onClickAddPatchPolicy : undefined
           }
+          onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
           }
@@ -172,18 +292,9 @@ const SoftwareSummaryCard = ({
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
           patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
+          headerPills={headerPills}
+          isAppleVpp={isAppleVpp}
         />
-        {showVersionsTable && (
-          <TitleVersionsTable
-            router={router}
-            data={softwareTitle.versions ?? []}
-            isLoading={isLoading}
-            teamIdForApi={teamId}
-            isIPadOSOrIOSApp={isIosOrIpadosApp}
-            isAvailableForInstall={isAvailableForInstall}
-            countsUpdatedAt={softwareTitle.counts_updated_at}
-          />
-        )}
       </Card>
       {showEditIconModal && softwareInstallerOnTeam && (
         <EditIconModal
@@ -194,7 +305,7 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           iconUploadedAt={iconUploadedAt}
           setIconUploadedAt={setIconUploadedAt}
-          installerType={installerType}
+          installerType={installerResult.meta.installerType}
           previewInfo={{
             name: softwareDisplayName,
             titleName: softwareTitle.name,
@@ -209,13 +320,12 @@ const SoftwareSummaryCard = ({
       )}
       {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
-          router={router}
           softwareId={softwareId}
           teamId={teamId}
           softwareInstaller={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
-          installerType={installerType}
+          installerType={installerResult.meta.installerType}
           openViewYamlModal={onToggleViewYaml}
           isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
@@ -235,9 +345,10 @@ const SoftwareSummaryCard = ({
       )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (
         <EditConfigurationModal
-          softwareInstaller={softwareInstaller as IAppStoreApp}
+          softwareInstaller={softwareInstaller}
           softwareId={softwareId}
           teamId={teamId}
+          isApplePlatform={isIosOrIpadosApp}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
         />
@@ -250,6 +361,7 @@ const SoftwareSummaryCard = ({
           onExit={() => setShowEditAutoUpdateConfigModal(false)}
         />
       )}
+      {policiesModal}
     </>
   );
 };

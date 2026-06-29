@@ -97,7 +97,6 @@ parasails.registerPage('new-license', {
           androidHosts: this.newLicenseFormData.androidHosts ? this.newLicenseFormData.androidHosts : 0,
           otherHosts: this.newLicenseFormData.otherHosts ? this.newLicenseFormData.otherHosts : 0,
         };
-        console.log(argins);
         this.quote = await Cloud.createQuote.with(argins);
       }
 

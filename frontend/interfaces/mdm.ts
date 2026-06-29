@@ -21,22 +21,34 @@ export type ITokenTeam = {
   name: string;
 };
 
-export interface IMdmAbmToken {
+export type ITokenFleet = {
+  fleet_id: number;
+  name: string;
+};
+
+export interface IMdmAbToken {
   id: number;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
-  macos_team: ITokenTeam;
-  ios_team: ITokenTeam;
-  ipados_team: ITokenTeam;
+  macos_fleet: ITokenFleet;
+  ios_fleet: ITokenFleet;
+  ipados_fleet: ITokenFleet;
+  byod_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {
   id: number;
   org_name: string;
   location: string;
+  /**
+   * Lowercase ISO 3166-1 alpha-2 country code of the App Store storefront tied to
+   * this token's Apple Business Manager account (e.g. "us", "de"). Empty string
+   * for legacy tokens whose backfill hasn't completed yet.
+   */
+  country_code: string;
   renew_date: string;
   teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
@@ -85,7 +97,7 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     filterValue: "automatic",
   },
   "On (personal)": {
-    displayName: "On (personal)",
+    displayName: "On (BYOD)",
     filterValue: "personal",
   },
   Off: {
@@ -194,6 +206,8 @@ export interface IHostMdmProfile {
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
+  // identifier when this profile represents an Android certificate template
+  certificate_template_id?: number;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -249,7 +263,7 @@ export type RecoveryLockPasswordStatus =
   | "removing_enforcement"
   | "failed";
 
-export interface IMdmSSOReponse {
+export interface IMdmSSOResponse {
   url: string;
 }
 
@@ -271,6 +285,12 @@ export enum BootstrapPackageStatus {
   INSTALLED = "installed",
   PENDING = "pending",
   FAILED = "failed",
+}
+
+export enum EndUserLocalAccountType {
+  ADMIN = "admin",
+  STANDARD = "standard",
+  NONE = "none",
 }
 
 export const isEnrolledInMdm = (
@@ -311,4 +331,14 @@ export const isAutomaticDeviceEnrollment = (
     enrollmentStatus === "On (company-owned)" ||
     enrollmentStatus === "On (automatic)"
   );
+};
+
+/** Android BYO (work profile, personally-owned) enrollment. */
+export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (personal)";
+};
+
+/** Android COBO (company-owned, fully managed) enrollment. */
+export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (automatic)";
 };

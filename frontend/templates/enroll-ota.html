@@ -148,11 +148,24 @@
         font-weight: bold;
       }
 
+      .qr-subtext {
+        font-size: 11px;
+        font-weight: 400;
+        color: #8b8fa8;
+        text-align: left;
+        max-width: 208px;
+        margin-top: 8px;
+      }
+
+      .qr-container .qr-code {
+        margin-top: 24px;
+      }
+
       .qr-container {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 24px;
+        gap: 0;
         background-color: #f9fafc;
         padding: 24px;
         border: 1px solid #e2e4ea;
@@ -184,7 +197,7 @@
         text-align: center;
       }
 
-      @media screen and (max-width: 430px) {
+      @media screen and (max-width: 1344px) and (pointer: coarse) {
         .device-instructions-content {
           gap: 24px;
         }
@@ -207,8 +220,9 @@
         </section>
         <section class="mobile-enroll-sidebar">
           <div class="qr-container">
-            <p>Trying to enroll your corporate mobile device?</p>
+            <p>Trying to enroll your mobile device?</p>
             <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Opens this page on your mobile device</p>
           </div>
         </section>
       </div>
@@ -334,7 +348,7 @@
             <p>
               <span>3.</span>
               <span>
-                Tap <b>Install</b>. You'll see a few warnings, which is
+                Tap <b>Install</b>. You'll see a red <b>Not Verified</b> warning, which is
                 expected. Tap <b>Install</b> again when prompted.
               </span>
             </p>
@@ -402,8 +416,9 @@
         </section>
         <section class="mobile-enroll-sidebar">
           <div class="qr-container">
-            <p>Trying to enroll your corporate mobile device?</p>
+            <p>Trying to enroll your mobile device?</p>
             <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Opens this page on your mobile device</p>
           </div>
         </section>
       </div>
@@ -473,6 +488,7 @@
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
+      const IDP_UUID = "{{.IdpUUID}}";
       const isFullyManaged = new URLSearchParams(window.location.search).has(
         "fully_managed",
         true
@@ -664,6 +680,12 @@
 
         if (fullyManaged) {
           url = url.concat("&fully_managed=true");
+        }
+
+        if (IDP_UUID) {
+          url = url.concat(
+            `&idp_uuid=${encodeURIComponent(IDP_UUID)}`
+          );
         }
 
         const response = await fetch(url, {

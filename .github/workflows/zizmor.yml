@@ -1,0 +1,67 @@
+name: zizmor GitHub Actions security analysis
+
+# Statically analyzes our GitHub Actions workflows and composite actions with zizmor
+# (https://docs.zizmor.sh) to catch supply-chain and CI/CD security issues such as
+# template injection, unpinned actions/images, cache poisoning, credential persistence,
+# and excessive permissions.
+#
+# The job fails for the audit rules the repository already passes, so we never regress on
+# them. The rules with an existing backlog of findings are disabled in
+# .github/zizmor-gate.yml and burned down in follow-up work; deleting a `disable: true`
+# entry there starts enforcing that rule too.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+      - ".github/zizmor-gate.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+      - ".github/zizmor-gate.yml"
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# Declare default permissions as none; the job below grants exactly what it needs.
+permissions: {}
+
+# Pin the zizmor version so a new release adding an audit rule cannot unexpectedly break
+# the gate. Bump deliberately.
+env:
+  ZIZMOR_VERSION: 1.25.2
+
+jobs:
+  zizmor:
+    name: Analyze GitHub Actions workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+      actions: read # zizmor online audits read workflow and run metadata
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
+        with:
+          version: ${{ env.ZIZMOR_VERSION }}
+          # Scope analysis to Fleet's own workflows and composite actions.
+          inputs: .github/workflows .github/actions
+          # Fail the job on findings, emitting them as inline annotations.
+          advanced-security: false
+          annotations: true
+          config: .github/zizmor-gate.yml

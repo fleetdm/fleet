@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { IMdmProfile } from "interfaces/mdm";
 
@@ -16,7 +16,8 @@ import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import Pagination from "components/Pagination";
 
@@ -46,7 +47,6 @@ const ConfigurationProfiles = ({
   currentPage = 0,
   onMutation,
 }: IConfigurationProfilesProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     config,
     isPremiumTier,
@@ -129,9 +129,9 @@ const ConfigurationProfiles = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted.");
+      notify.success("Successfully deleted.");
     } catch (e) {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      notify.error("Couldn't delete. Please try again.", { response: e });
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
@@ -243,12 +243,15 @@ const ConfigurationProfiles = ({
         }
       />
       {!mdmEnabled ? (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="header-list"
           header="Additional configuration required"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
           info="MDM must be turned on to add configuration profiles."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       ) : (
         renderProfileList()

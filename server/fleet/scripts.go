@@ -10,7 +10,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 // Script represents a saved script that can be executed on a host.
@@ -387,8 +389,9 @@ const (
 
 // anchored, so that it matches to the end of the line
 var (
-	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	scriptHashbangValidation       = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter      = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	ErrUnsupportedShellInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
 )
 
 type ShebangKind int
@@ -514,7 +517,7 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	}
 
 	maxLen := SavedScriptMaxRuneLen
-	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	maxLenErrMsg := RunScriptSavedMaxLenErrMsg
 	if !isSavedScript {
 		maxLen = UnsavedScriptMaxRuneLen
 		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
@@ -546,6 +549,49 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	return nil
 }
 
+// ValidateSoftwareInstallerScript validates the content of a software installer
+// script (install, post-install, or uninstall). Unlike ValidateHostScriptContents,
+// empty scripts are valid (meaning "no script"). The platform parameter determines
+// whether shebang validation is applied (only for "darwin" and "linux"; skipped
+// for "windows" since those use PowerShell).
+func ValidateSoftwareInstallerScript(s, platform string) error {
+	// Empty scripts are valid — they mean "no script provided".
+	if s == "" {
+		return nil
+	}
+
+	// Size check: use the saved-script limit (500,000 runes).
+	if len(s) > utf8.UTFMax*SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
+	}
+	if utf8.RuneCountInString(s) > SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
+	}
+
+	// Binary check: must be valid UTF-8.
+	if !utf8.ValidString(s) {
+		return errors.New("Wrong data format. Only plain text allowed.")
+	}
+
+	// Shebang/interpreter check: only for darwin and linux (shell scripts).
+	// Windows uses PowerShell, which doesn't use shebangs.
+	if platform != "windows" {
+		kind, _, err := ShebangInfo(s)
+		if err != nil {
+			// Return a shell-specific error message for software installer scripts,
+			// since they only support shell interpreters (not python).
+			return ErrUnsupportedShellInterpreter
+		}
+		// Software installer scripts must use a shell interpreter (or no shebang,
+		// which defaults to /bin/sh). Python shebangs are not supported here.
+		if kind == ShebangPython {
+			return ErrUnsupportedShellInterpreter
+		}
+	}
+
+	return nil
+}
+
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
@@ -556,7 +602,7 @@ type SoftwareInstallerPayload struct {
 	// the path field, this uses "script://filename" to pass the filename; in that
 	// case InstallScript contains the script content directly.
 	URL             string `json:"url"`
-	PreInstallQuery string `json:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
 	InstallScript      string   `json:"install_script"`
@@ -572,9 +618,9 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string   `json:"sha256"`
-	Categories      []string `json:"categories"`
-	DisplayName     string   `json:"display_name"`
+	SHA256          string                `json:"sha256"`
+	Categories      optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName     string                `json:"display_name"`
 	// This is to support FMAs
 	Slug            *string        `json:"slug"`
 	MaintainedApp   *MaintainedApp `json:"-"`
@@ -582,6 +628,10 @@ type SoftwareInstallerPayload struct {
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`
+	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
+	AlwaysDownload bool `json:"always_download"`
+	// Configuration is the managed app configuration as raw XML bytes (iOS / iPadOS in-house apps only).
+	Configuration []byte `json:"configuration,omitempty"`
 }
 
 type HostLockWipeStatus struct {
@@ -614,6 +664,12 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+
+	// Android tracks Clear passcode (RESET_PASSWORD) as a pending state via mdm_android_commands.
+	// Apple's ClearPasscode lives in nano_commands and is not surfaced as a device-level pending
+	// state, so these fields are Android-only today.
+	ClearPasscodeMDMCommand       *MDMCommand
+	ClearPasscodeMDMCommandResult *MDMCommandResult
 
 	LocationPending bool
 }
@@ -651,11 +707,12 @@ func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 type PendingDeviceAction string
 
 const (
-	PendingActionLock     PendingDeviceAction = "lock"
-	PendingActionUnlock   PendingDeviceAction = "unlock"
-	PendingActionWipe     PendingDeviceAction = "wipe"
-	PendingActionLocation PendingDeviceAction = "location"
-	PendingActionNone     PendingDeviceAction = ""
+	PendingActionLock          PendingDeviceAction = "lock"
+	PendingActionUnlock        PendingDeviceAction = "unlock"
+	PendingActionWipe          PendingDeviceAction = "wipe"
+	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
+	PendingActionLocation      PendingDeviceAction = "location"
+	PendingActionNone          PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
@@ -668,13 +725,15 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 		return PendingActionUnlock
 	case s.IsPendingWipe():
 		return PendingActionWipe
+	case s.IsPendingClearPasscode():
+		return PendingActionClearPasscode
 	default:
 		return PendingActionNone
 	}
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" || s.HostFleetPlatform == "android" {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
@@ -702,8 +761,17 @@ func (s HostLockWipeStatus) IsPendingWipe() bool {
 		// pending wipe if script execution request is queued but no result yet and not canceled
 		return s.WipeScript != nil && s.WipeScript.ExitCode == nil && !s.WipeScript.Canceled
 	}
-	// pending wipe if an MDM command is queued but no result received yet
+	// pending wipe if an MDM command is queued but no result received yet (Apple, Windows, Android)
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
+}
+
+// IsPendingClearPasscode reports whether a Clear Passcode is in flight.
+// Support for Apple coming in #46286
+func (s HostLockWipeStatus) IsPendingClearPasscode() bool {
+	if s.HostFleetPlatform != "android" {
+		return false
+	}
+	return s.ClearPasscodeMDMCommand != nil && s.ClearPasscodeMDMCommandResult == nil
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {
@@ -719,6 +787,12 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
+	if s.HostFleetPlatform == "android" {
+		// Android device unlock happens locally via the user's PIN; AMAPI does not deliver a "device unlocked" notification, and Fleet
+		// has no UNLOCK command.
+		return false
 	}
 
 	// locked if a script was sent and succeeded
@@ -746,6 +820,10 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	case "android":
+		// wiped if Pub/Sub COMMAND notification reported an Android-side ack.
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged)
 	default:
 		return false
 	}
@@ -755,6 +833,7 @@ var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 	BatchExecuteInvalidHost          = "invalid-host"
+	BatchExecuteIncompatibleTeam     = "incompatible-team"
 )
 
 type BatchExecutionStatusFilter struct {

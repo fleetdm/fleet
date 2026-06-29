@@ -224,6 +224,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			CategoryIDs:     payload.CategoryIDs,
 			Version:         payload.Version,
 			SelfService:     payload.SelfService,
+			Configuration:   payload.Configuration,
 		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
@@ -553,6 +554,14 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
+
+		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
+		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
+		if payload.FleetMaintainedAppID != nil {
+			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
+			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
+		}
+
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err
@@ -661,6 +670,271 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 		return ctxerr.Wrap(ctx, err, "update software installer")
 	}
 
+	return nil
+}
+
+func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
+	tmID := ptr.ValOrZero(payload.TeamID)
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE software_installers
+			SET is_active = (id = ?)
+			WHERE global_or_team_id = ? AND title_id = ?
+		`, activeInstallerID, tmID, payload.TitleID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting active fleet-maintained app installer")
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE policies SET software_installer_id = ?
+			WHERE software_installer_id IN (
+				SELECT id FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+			)
+		`, activeInstallerID, tmID, payload.TitleID, activeInstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
+		}
+
+		// A nil pin means the caller manages the pin row separately and it must be
+		// left as-is. The auto-update cron relies on this so it can flip the active
+		// installer without clobbering a pin an admin changed concurrently. A
+		// non-nil pin is authoritative: empty clears it (Latest), else it's upserted.
+		if payload.PinnedVersion == nil {
+			return nil
+		}
+		if *payload.PinnedVersion == "" {
+			if err := deletePinnedVersionDB(ctx, tx, tmID, payload.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
+			}
+		} else if err := setPinnedVersionDB(ctx, tx, tmID, payload.TitleID, *payload.PinnedVersion); err != nil {
+			return ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+	var candidates []fleet.FMAAutoUpdateCandidate
+	// team_id is NULL for the no-team scope, so it scans straight into the nil *uint.
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidates, `
+		SELECT
+			si.team_id,
+			si.title_id,
+			si.fleet_maintained_app_id,
+			si.id AS installer_id,
+			si.version,
+			fma.slug
+		FROM software_installers si
+		INNER JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		WHERE si.fleet_maintained_app_id IS NOT NULL AND si.is_active = 1
+	`)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing active fleet-maintained app installers")
+	}
+	return candidates, nil
+}
+
+// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
+// already-installed Fleet-maintained app. It clones the currently active
+// installer (activeInstallerID) so the team's per-installer configuration —
+// self-service, labels, categories, pre-install query, attribution — is carried
+// forward, overriding only the version-specific fields from the manifest
+// payload. The new row is inserted inactive (is_active = 0); the caller promotes
+// it separately via SetFleetMaintainedAppActiveInstaller. The team pin is never
+// written here. Versions beyond maxCachedFMAVersions are evicted, always
+// protecting the active installer, with policies on evicted rows re-pointed to
+// it. The call is idempotent: if the version is already cached, its existing
+// installer ID is returned without inserting.
+func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error) {
+	// Resolve script content IDs outside the transaction (matches MatchOrCreateSoftwareInstaller).
+	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.InstallScript)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
+	}
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+
+	// Read the scope (team, title) from the active installer so the cron
+	// doesn't need to pass them and they always agree with the row being cloned.
+	var src struct {
+		TitleID        uint `db:"title_id"`
+		GlobalOrTeamID uint `db:"global_or_team_id"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &src,
+		`SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?`,
+		activeInstallerID,
+	); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "load active installer scope")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Resolve the live active row inside the tx and use it as the clone source,
+		// so per-team config the admin edited on a row they promoted during the
+		// cron's download window isn't cloned from the caller's stale view. FOR
+		// UPDATE serializes against a concurrent promotion. Falls back to the
+		// caller-supplied id only if nothing is active.
+		cloneFromID := activeInstallerID
+		var liveActiveID uint
+		switch err := sqlx.GetContext(ctx, tx, &liveActiveID, `
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND is_active = 1
+			LIMIT 1 FOR UPDATE`, src.GlobalOrTeamID, src.TitleID); {
+		case err == nil:
+			cloneFromID = liveActiveID
+		case errors.Is(err, sql.ErrNoRows):
+			// no active row; keep caller-supplied id
+		default:
+			return ctxerr.Wrap(ctx, err, "resolve live active installer for clone")
+		}
+
+		res, err := tx.ExecContext(ctx, `
+INSERT INTO software_installers (
+	team_id, global_or_team_id, title_id, pre_install_query, platform,
+	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
+	post_install_script_content_id, install_during_setup,
+	storage_id, filename, extension, version,
+	install_script_content_id, uninstall_script_content_id,
+	url, upgrade_code, is_active, patch_query, package_ids
+)
+SELECT
+	team_id, global_or_team_id, title_id, pre_install_query, platform,
+	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
+	post_install_script_content_id, install_during_setup,
+	?, ?, ?, ?,
+	?, ?,
+	?, ?, 0, ?, ?
+FROM software_installers WHERE id = ?`,
+			payload.StorageID, payload.Filename, payload.Extension, payload.Version,
+			installScriptID, uninstallScriptID,
+			payload.URL, payload.UpgradeCode, payload.PatchQuery, strings.Join(payload.PackageIDs, ","),
+			cloneFromID,
+		)
+		if err != nil {
+			if IsDuplicate(err) {
+				// Version already cached for this team/title; return the existing row.
+				return sqlx.GetContext(ctx, tx, &installerID, `
+					SELECT id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND version = ?`,
+					src.GlobalOrTeamID, src.TitleID, payload.Version)
+			}
+			return ctxerr.Wrap(ctx, err, "insert fleet-maintained app version")
+		}
+		id, _ := res.LastInsertId()
+		installerID = uint(id) //nolint:gosec // dismiss G115
+
+		// Clone the active installer's labels and categories onto the new version.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO software_installer_labels (software_installer_id, label_id, exclude, require_all)
+			SELECT ?, label_id, exclude, require_all FROM software_installer_labels WHERE software_installer_id = ?`,
+			installerID, cloneFromID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "clone installer labels")
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO software_installer_software_categories (software_installer_id, software_category_id)
+			SELECT ?, software_category_id FROM software_installer_software_categories WHERE software_installer_id = ?`,
+			installerID, cloneFromID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "clone installer categories")
+		}
+
+		// Evict versions beyond the cap, protecting the live active row (the clone
+		// source) and the row we just inserted.
+		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, installerID, cloneFromID)
+	})
+	if err != nil {
+		return 0, err
+	}
+	return installerID, nil
+}
+
+// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
+// code of any cached installer (active or inactive) with the given storage_id.
+// A content hash uniquely identifies the bytes, so the metadata is the same
+// regardless of which row is currently active — the auto-update cron uses this to
+// recover uninstall-script substitution values on the byte-dedup path without
+// re-downloading. Returns empty values (no error) when nothing matches.
+func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error) {
+	var row struct {
+		PackageIDs  string `db:"package_ids"`
+		UpgradeCode string `db:"upgrade_code"`
+	}
+	// Prefer a row that actually carries package IDs (the MSI/EXE row).
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		SELECT package_ids, upgrade_code FROM software_installers
+		WHERE storage_id = ?
+		ORDER BY (package_ids = '') ASC, id ASC
+		LIMIT 1`, storageID)
+	switch {
+	case err == nil:
+		if row.PackageIDs != "" {
+			packageIDs = strings.Split(row.PackageIDs, ",")
+		}
+		return packageIDs, row.UpgradeCode, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, "", nil
+	default:
+		return nil, "", ctxerr.Wrap(ctx, err, "get software installer metadata by storage id")
+	}
+}
+
+// evictOldFMAVersions caps cached FMA versions for a (team, title) at
+// maxCachedFMAVersions. It always keeps activeID (the live is_active=1 row,
+// resolved by the caller under FOR UPDATE) and newInstallerID (the row just
+// inserted, about to be promoted), then the most recently uploaded versions.
+// Policies on evicted rows are re-pointed to the active installer before the rows
+// are deleted. Mirrors the eviction logic in BatchSetSoftwareInstallers.
+func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID, activeID uint) error {
+	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")
+	}
+	versions := fmaVersions[titleID]
+	if len(versions) <= maxCachedFMAVersions {
+		return nil
+	}
+
+	// Keep set: live active + newly inserted, then most recent up to the cap.
+	keepSet := map[uint]bool{newInstallerID: true, activeID: true}
+	for _, v := range versions {
+		if len(keepSet) >= maxCachedFMAVersions {
+			break
+		}
+		keepSet[v.ID] = true
+	}
+	keepIDs := slices.Collect(maps.Keys(keepSet))
+
+	// Re-point policies referencing soon-to-be-evicted versions to the active one.
+	rePointStmt, rePointArgs, err := sqlx.In(
+		`UPDATE policies SET software_installer_id = ?
+		WHERE software_installer_id IN (
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)
+		)`,
+		activeID, globalOrTeamID, titleID, keepIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build FMA policy re-point query")
+	}
+	if _, err := tx.ExecContext(ctx, rePointStmt, rePointArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "re-point policies for evicted FMA versions")
+	}
+
+	// Delete evicted rows (with side effects), skipping the kept ones.
+	for _, v := range versions {
+		if keepSet[v.ID] {
+			continue
+		}
+		if _, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, v.ID, true, true, false); err != nil {
+			return ctxerr.Wrapf(ctx, err, "side effects for evicted installer id %d", v.ID)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, v.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete evicted installer id %d", v.ID)
+		}
+	}
 	return nil
 }
 
@@ -828,8 +1102,11 @@ func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, 
 		// as canceled, and activates the next upcoming activity.
 		// The returned ActivityDetails is discarded because this is an
 		// internal reset for a new install, not a user-initiated cancel.
-		for _, execID := range executionIDs {
-			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID); err != nil {
+		for i, execID := range executionIDs {
+			// only the last cancellation triggers activation of the next activity; the others
+			// would activate something that is about to be canceled in the next iteration.
+			activateNext := i == len(executionIDs)-1
+			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext); err != nil {
 				return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retry")
 			}
 		}
@@ -1155,14 +1432,23 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	}
 
 	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
+		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clean up related installs and uninstalls")
 		}
 		activateAffectedHostIDs = affectedHostIDs
 
-		// allow delete only if install_during_setup is false
-		res, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete software title display name for installer being deleted")
+		}
+
+		// allow delete only if not selected for setup experience (natively or cross-platform)
+		res, err := tx.ExecContext(ctx, `
+DELETE FROM software_installers WHERE id = ?
+AND install_during_setup = 0
+AND NOT EXISTS (SELECT 1 FROM setup_experience_software_installers WHERE software_installer_id = ?)
+`, id, id)
 		if err != nil {
 			if isMySQLForeignKey(err) {
 				// Check if the software installer is referenced by a policy automation.
@@ -1179,14 +1465,22 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
 		rows, _ := res.RowsAffected()
 		if rows == 0 {
-			// could be that the software installer does not exist, or it is installed
-			// during setup, do additional check.
+			// could be that the software installer does not exist, or it is
+			// selected for setup experience (natively or cross-platform).
 			var installDuringSetup bool
 			if err := sqlx.GetContext(ctx, tx, &installDuringSetup,
 				`SELECT install_during_setup FROM software_installers WHERE id = ?`, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, err, "check if software installer is installed during setup")
 			}
 			if installDuringSetup {
+				return errDeleteInstallerInstalledDuringSetup
+			}
+			var crossCount int
+			if err := sqlx.GetContext(ctx, tx, &crossCount,
+				`SELECT COUNT(*) FROM setup_experience_software_installers WHERE software_installer_id = ?`, id); err != nil {
+				return ctxerr.Wrap(ctx, err, "check if software installer is cross-selected during setup")
+			}
+			if crossCount > 0 {
 				return errDeleteInstallerInstalledDuringSetup
 			}
 			return notFound("SoftwareInstaller").WithID(id)
@@ -1200,31 +1494,23 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
-// deletePendingSoftwareInstallsForPolicy should be called after a policy is
-// deleted to remove any pending software installs
+// deletePendingSoftwareInstallsForPolicy should be called before a policy is
+// deleted to cancel any pending software installs
 func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
 
-	// NOTE(mna): I'm adding the deletion for the upcoming_activities too, but I
-	// don't think the existing code works as intended anyway as the
-	// host_software_installs.policy_id column has a ON DELETE SET NULL foreign
-	// key, so the deletion statement will not find any row.
-	const deleteStmt = `
-		DELETE FROM
-			host_software_installs
-		WHERE
-			policy_id = ? AND
-			status = ? AND
-			software_installer_id IN (
-				SELECT id FROM software_installers WHERE global_or_team_id = ?
-			)
-	`
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending, globalOrTeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+	const cancelPendingStmt = `
+		UPDATE host_software_installs SET canceled = 1
+		WHERE policy_id = ? AND status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+	if _, err := ds.writer(ctx).ExecContext(ctx, cancelPendingStmt, policyID, globalOrTeamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel pending software installs for policy")
 	}
 
 	const loadAffectedHostsStmt = `
@@ -1261,7 +1547,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 				SELECT id FROM software_installers WHERE global_or_team_id = ?
 			)
 	`
-	_, err = ds.writer(ctx).ExecContext(ctx, deleteUAStmt, policyID, globalOrTeamID)
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteUAStmt, policyID, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete upcoming software installs for policy")
 	}
@@ -1381,7 +1667,7 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 	var activateAffectedHostIDs []uint
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, wasMetadataUpdated, wasPackageUpdated)
+		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, wasMetadataUpdated, wasPackageUpdated, true)
 		if err != nil {
 			return err
 		}
@@ -1394,7 +1680,7 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
-func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
+func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool, isEdit bool) (affectedHostIDs []uint, err error) {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
@@ -1404,20 +1690,32 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
-		_, err = tx.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
-			  SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status IN ('pending_install', 'pending_uninstall')
-			UNION
-			  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-			  WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')
-		)`, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning, installerID, installerID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fail setup experience results dependant on deleted software install")
+		// When editing an installer, we want to cancel any installs for it unless they are in setup experience, in which case
+		// cancelling would cause the installs to show up as failed and if requireAllSoftware is enabled, then the entire setup
+		// experience will fail and cancel.
+		// When deleting an installer, the setup_experience_status_results row will be deleted by the FK constraint, and we want
+		// to actually cancel the installs to avoid errors from any host installs that are still running.
+		var excludeSetupExperienceFromHSI, excludeSetupExperienceFromAffectedHosts, excludeSetupExperienceFromUpcomingDelete string
+		if isEdit {
+			excludeSetupExperienceFromHSI = `AND NOT EXISTS (
+			       SELECT 1 FROM setup_experience_status_results sesr
+			       WHERE sesr.host_software_installs_execution_id = host_software_installs.execution_id
+			   )`
+			excludeSetupExperienceFromAffectedHosts = `AND NOT EXISTS (
+				SELECT 1 FROM setup_experience_status_results sesr
+				WHERE sesr.host_software_installs_execution_id = ua.execution_id
+			)`
+			excludeSetupExperienceFromUpcomingDelete = `AND NOT EXISTS (
+					SELECT 1 FROM setup_experience_status_results sesr
+					WHERE sesr.host_software_installs_execution_id = upcoming_activities.execution_id
+				)`
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
-			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
+		_, err = tx.ExecContext(ctx, `UPDATE host_software_installs SET canceled = 1
+			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')
+			   `+excludeSetupExperienceFromHSI, installerID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
+			return nil, ctxerr.Wrap(ctx, err, "cancel pending host software installs/uninstalls")
 		}
 
 		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT
@@ -1429,7 +1727,8 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 		WHERE
 			siua.software_installer_id = ? AND
 			ua.activated_at IS NOT NULL AND
-			ua.activity_type IN ('software_install', 'software_uninstall')`, installerID); err != nil {
+			ua.activity_type IN ('software_install', 'software_uninstall')
+			`+excludeSetupExperienceFromAffectedHosts, installerID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
@@ -1438,23 +1737,26 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 				upcoming_activities
 				INNER JOIN software_install_upcoming_activities siua
 					ON upcoming_activities.id = siua.upcoming_activity_id
-			WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')`, installerID)
+			WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')
+				`+excludeSetupExperienceFromUpcomingDelete, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete upcoming host software installs/uninstalls")
 		}
 	}
 
 	if wasPackageUpdated { // hide existing install counts
-		_, err := tx.ExecContext(ctx, `UPDATE host_software_installs SET removed = TRUE
-	  			WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, installerID)
+		var excludeSetupExperienceFromRemoved string
+		if isEdit {
+			excludeSetupExperienceFromRemoved = `AND NOT EXISTS (
+				SELECT 1 FROM setup_experience_status_results sesr
+				WHERE sesr.host_software_installs_execution_id = host_software_installs.execution_id
+			)`
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1
+				WHERE software_installer_id = ? AND status IS NOT NULL AND canceled = 0 AND host_deleted_at IS NULL
+				`+excludeSetupExperienceFromRemoved, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
-			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
 		}
 	}
 
@@ -1643,27 +1945,25 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 
 	stmt := `WITH
 
--- select most recent upcoming activities for each host
+-- select most recent upcoming activity per host (per activity type)
 upcoming AS (
-	SELECT
-		ua.host_id,
-		IF(ua.activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status
-	FROM
-		upcoming_activities ua
-		JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN software_install_upcoming_activities siua2
-				ON ua2.id = siua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			siua.software_installer_id = siua2.software_installer_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.activity_type IN('software_install', 'software_uninstall')
-		AND ua2.id IS NULL
-		AND siua.software_installer_id = :installer_id
+	SELECT host_id, status FROM (
+		SELECT
+			ua.host_id,
+			IF(ua.activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ua.host_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+			JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			JOIN hosts h ON ua.host_id = h.id
+		WHERE
+			ua.activity_type IN('software_install', 'software_uninstall')
+			AND siua.software_installer_id = :installer_id
+	) ranked
+	WHERE rn = 1
 ),
 
 -- select most recent past activities for each host
@@ -1801,7 +2101,11 @@ WHERE
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND hvsi.canceled = 0
-	AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+	-- Allow rows with no nano_command_results — Fleet-side pre-flight failures
+	-- (unresolvable managed-config Fleet variable) record only the install row
+	-- with verification_failed_at set, no MDM command. See same comment in
+	-- vpp.go GetSummaryHostVPPAppInstalls.
+	AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
@@ -1940,7 +2244,12 @@ SELECT
 	hihsi.host_id
 FROM
 	host_in_house_software_installs hihsi
-	INNER JOIN
+	-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable managed-config
+	-- Fleet variable) survive — those never enqueue an MDM command, so no ncr
+	-- row exists. The inHouseAppHostStatusNamedQuery CASE maps
+	-- verification_failed_at IS NOT NULL to failed before any ncr.status branch
+	-- is evaluated.
+	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
 	LEFT JOIN host_in_house_software_installs hihsi2
 		ON hihsi.host_id = hihsi2.host_id AND
@@ -1997,7 +2306,8 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 	stmt := `
 SELECT
 	execution_id,
-	'pending_install' AS status
+	'pending_install' AS status,
+	updated_at
 FROM
 	upcoming_activities
 WHERE
@@ -2023,7 +2333,8 @@ func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installer
 	stmt := `
 SELECT
 	execution_id,
-	status
+	status,
+	updated_at
 FROM
 	host_software_installs
 WHERE
@@ -2104,6 +2415,16 @@ WHERE
   team_id = ?
 `
 
+	const unsetAllPatchPolicies = `
+UPDATE
+	policies
+SET
+	patch_software_title_id = NULL
+WHERE
+	team_id = ? AND
+	type = 'patch'
+`
+
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
@@ -2124,8 +2445,8 @@ UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND h
 )
 `
 
-	const deleteAllPendingSoftwareInstallsHSI = `
-		DELETE FROM host_software_installs
+	const cancelAllPendingSoftwareInstallsHSI = `
+		UPDATE host_software_installs SET canceled = 1
 		WHERE status IN('pending_install', 'pending_uninstall')
 		AND software_installer_id IN (
 			SELECT id FROM software_installers WHERE global_or_team_id = ?
@@ -2159,8 +2480,8 @@ UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND h
 		)
 `
 	const markAllSoftwareInstallsAsRemoved = `
-		UPDATE host_software_installs SET removed = TRUE
-		WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		UPDATE host_software_installs SET removed = 1
+		WHERE status IS NOT NULL AND canceled = 0 AND host_deleted_at IS NULL
 		AND software_installer_id IN (
 			SELECT id FROM software_installers WHERE global_or_team_id = ?
 		)
@@ -2193,8 +2514,8 @@ WHERE
 		)
 	`
 
-	const deletePendingSoftwareInstallsNotInListHSI = `
-		DELETE FROM host_software_installs
+	const cancelPendingSoftwareInstallsNotInListHSI = `
+		UPDATE host_software_installs SET canceled = 1
 		WHERE status IN('pending_install', 'pending_uninstall')
 		AND software_installer_id IN (
 			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
@@ -2228,8 +2549,8 @@ WHERE
 			)
 `
 	const markSoftwareInstallsNotInListAsRemoved = `
-		UPDATE host_software_installs SET removed = TRUE
-			WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		UPDATE host_software_installs SET removed = 1
+			WHERE status IS NOT NULL AND canceled = 0 AND host_deleted_at IS NULL
 				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 			   )
@@ -2248,6 +2569,16 @@ WHERE
   )
 `
 
+	const unsetPatchPoliciesWithInstallersNotInList = `
+UPDATE
+	policies
+SET
+	patch_software_title_id = NULL
+WHERE
+	team_id = ? AND
+	patch_software_title_id NOT IN (?)
+`
+
 	const countInstallDuringSetupNotInList = `
 SELECT
   COUNT(*)
@@ -2259,6 +2590,17 @@ WHERE
   install_during_setup = 1
 `
 
+	const countCrossPlatformSetupNotInList = `
+SELECT
+  COUNT(*)
+FROM
+  setup_experience_software_installers seti
+  JOIN software_installers si ON si.id = seti.software_installer_id
+WHERE
+  si.global_or_team_id = ? AND
+  si.title_id NOT IN (?)
+`
+
 	const deleteInstallersNotInList = `
 DELETE FROM
   software_installers
@@ -2267,9 +2609,19 @@ WHERE
   title_id NOT IN (?)
 `
 
+	// Fleet-maintained app pins are keyed by (team, title) and are not
+	// cascade-deleted when installer rows go away (the FK cascades only on title
+	// deletion, which BatchSet doesn't do), so clear pins for removed titles
+	// explicitly. Reused with a sentinel 0 to clear all pins for the team.
+	const deletePinnedVersionsNotInList = `
+DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id NOT IN (?)
+`
+
+	// ORDER BY is_active DESC, id DESC makes existing[0] the previously-active row.
 	const checkExistingInstaller = `
 SELECT
 	id,
+	fleet_maintained_app_id,
 	storage_id != ? is_package_modified,
 	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
 	COALESCE(post_install_script_content_id != ? OR
@@ -2281,6 +2633,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	title_id = ?
+ORDER BY is_active DESC, id DESC
 `
 
 	const insertNewOrEditedInstaller = `
@@ -2307,10 +2660,12 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id,
 	is_active,
+	http_etag,
 	patch_query
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?, ?
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
+  ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2329,7 +2684,9 @@ ON DUPLICATE KEY UPDATE
   user_email = VALUES(user_email),
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
+  fleet_maintained_app_id = VALUES(fleet_maintained_app_id),
   is_active = VALUES(is_active),
+  http_etag = VALUES(http_etag),
   patch_query = VALUES(patch_query)
 `
 
@@ -2478,6 +2835,10 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
+			if _, err := tx.ExecContext(ctx, unsetAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset all obsolete patch policies")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
@@ -2487,8 +2848,8 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
+			if _, err := tx.ExecContext(ctx, cancelAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel all pending host software installs")
 			}
 
 			var affectedHostIDs []uint
@@ -2514,6 +2875,11 @@ WHERE
 
 			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			}
+
+			// reuse the NOT IN query with sentinel 0 to clear all FMA pins for the team
+			if _, err := tx.ExecContext(ctx, deletePinnedVersionsNotInList, globalOrTeamID, 0); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all FMA version pins")
 			}
 
 			return nil
@@ -2578,6 +2944,14 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
 		}
 
+		stmt, args, err = sqlx.In(unsetPatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete patch policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "unset obsolete patch policies")
+		}
+
 		// check if any in the list are install_during_setup, fail if there is one
 		if !replacingInstallDuringSetup {
 			stmt, args, err = sqlx.In(countInstallDuringSetupNotInList, globalOrTeamID, titleIDs)
@@ -2589,6 +2963,20 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "check installers installed during setup")
 			}
 			if countInstallDuringSetup > 0 {
+				return errDeleteInstallerInstalledDuringSetup
+			}
+
+			// also block when a cross-platform setup-experience selection (e.g. linux .sh
+			// chosen for darwin) would be silently cascade-deleted
+			stmt, args, err = sqlx.In(countCrossPlatformSetupNotInList, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to check cross-platform setup installers")
+			}
+			var countCrossPlatformSetup int
+			if err := sqlx.GetContext(ctx, tx, &countCrossPlatformSetup, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "check cross-platform installers installed during setup")
+			}
+			if countCrossPlatformSetup > 0 {
 				return errDeleteInstallerInstalledDuringSetup
 			}
 		}
@@ -2610,12 +2998,12 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs for obsolete host software install records")
 		}
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(cancelPendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
+			return ctxerr.Wrap(ctx, err, "build statement to cancel obsolete pending software installs")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+			return ctxerr.Wrap(ctx, err, "cancel obsolete pending host software install records")
 		}
 
 		stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
@@ -2658,6 +3046,14 @@ WHERE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		stmt, args, err = sqlx.In(deletePinnedVersionsNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete FMA pins")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete FMA version pins")
 		}
 
 		// Fill a map of title IDs for this team that have a display name
@@ -2724,9 +3120,10 @@ WHERE
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
 			type existingInstallerUpdateCheckResult struct {
-				InstallerID        uint `db:"id"`
-				IsPackageModified  bool `db:"is_package_modified"`
-				IsMetadataModified bool `db:"is_metadata_modified"`
+				InstallerID          uint  `db:"id"`
+				FleetMaintainedAppID *uint `db:"fleet_maintained_app_id"`
+				IsPackageModified    bool  `db:"is_package_modified"`
+				IsMetadataModified   bool  `db:"is_metadata_modified"`
 			}
 			var existing []existingInstallerUpdateCheckResult
 			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
@@ -2742,6 +3139,7 @@ WHERE
 				isActive = 1
 			}
 
+			// Args match insertNewOrEditedInstaller column order.
 			args := []interface{}{
 				tmID,
 				globalOrTeamID,
@@ -2758,15 +3156,16 @@ WHERE
 				installer.UpgradeCode,
 				titleID,
 				installer.UserID,
-				installer.UserID,
-				installer.UserID,
+				installer.UserID, // user_name subselect
+				installer.UserID, // user_email subselect
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
 				installer.InstallDuringSetup,
 				installer.FleetMaintainedAppID,
 				isActive,
+				installer.HTTPETag,
 				installer.PatchQuery,
-				installer.InstallDuringSetup,
+				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
 			// for this team+title. This prevents duplicate rows from repeated batch sets
@@ -2820,6 +3219,8 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
+			var installerIDsToDelete []uint
+
 			// For non-FMA (custom) packages, enforce one installer per title per team.
 			// With the unique constraint on (global_or_team_id, title_id, version),
 			// a version change inserts a new row instead of replacing — clean up the old one.
@@ -2836,22 +3237,21 @@ WHERE
 				`, installerID, globalOrTeamID, titleID, installerID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies for old versions of custom installer %q", installer.Filename)
 				}
-				if _, err := tx.ExecContext(ctx, `
-					DELETE FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
-				`, globalOrTeamID, titleID, installerID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "clean up old versions of custom installer %q", installer.Filename)
+				for _, e := range existing {
+					if e.InstallerID != installerID {
+						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+					}
 				}
 			}
 
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
-				// Determine which installer should be "active" for this FMA+team.
-				// If RollbackVersion is specified, find the cached installer with that version;
-				// otherwise default to the newest (just inserted/updated).
+				// Determine which installer should be "active" for this FMA and team. A literal RollbackVersion pins
+				// that exact cached version; a "^major" caret or an empty value falls through to the newest just
+				// inserted version, which the slug resolver already chose, so the caret string must not be matched here.
 				activeInstallerID := installerID
-				if installer.RollbackVersion != "" {
+				if installer.RollbackVersion != "" && !strings.HasPrefix(installer.RollbackVersion, "^") {
 					var pinnedID uint
 					err := sqlx.GetContext(ctx, tx, &pinnedID, `
 						SELECT id FROM software_installers
@@ -2875,7 +3275,7 @@ WHERE
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}
@@ -2912,17 +3312,10 @@ WHERE
 						return ctxerr.Wrapf(ctx, err, "re-point policies for evicted FMA versions of %q", installer.Filename)
 					}
 
-					stmt, args, err := sqlx.In(
-						`DELETE FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)`,
-						globalOrTeamID,
-						titleID,
-						keepIDs,
-					)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "build FMA eviction query")
-					}
-					if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-						return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
+					for _, e := range existing {
+						if e.FleetMaintainedAppID != nil && !keepSet[e.InstallerID] {
+							installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+						}
 					}
 				}
 
@@ -2933,6 +3326,32 @@ WHERE
 					WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?
 				`, activeInstallerID, globalOrTeamID, installer.FleetMaintainedAppID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
+				}
+
+				// Write the pinned version so the auto update cron job keeps this information
+				if installer.RollbackVersion != "" {
+					if err := setPinnedVersionDB(ctx, tx, globalOrTeamID, titleID, installer.RollbackVersion); err != nil {
+						return ctxerr.Wrapf(ctx, err, "pinning version for %q", installer.Filename)
+					}
+				} else if err := deletePinnedVersionDB(ctx, tx, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clearing pin for %q", installer.Filename)
+				}
+
+				// Re-point this title's policies to the active FMA installer.
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE policies SET software_installer_id = ?
+					WHERE software_installer_id IN (
+						SELECT id FROM software_installers
+						WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+					)
+				`, activeInstallerID, globalOrTeamID, titleID, activeInstallerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "re-point policies to active FMA installer %q", installer.Filename)
+				}
+				// Mark previous custom package installers for this title for deletion.
+				for _, e := range existing {
+					if e.FleetMaintainedAppID == nil && e.InstallerID != installerID {
+						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+					}
 				}
 			}
 
@@ -3052,11 +3471,25 @@ WHERE
 					existing[0].InstallerID,
 					existing[0].IsMetadataModified,
 					existing[0].IsPackageModified,
+					true,
 				)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+			}
+
+			// Perform side effects and delete unnecessary installers.
+			for _, id := range installerIDsToDelete {
+				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "side effects for replaced installer id %d for %q", id, installer.Filename)
+				}
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+
+				if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id); err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete replaced installer id %d for %q", id, installer.Filename)
+				}
 			}
 		}
 
@@ -3249,6 +3682,49 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 	return softwarePackages, nil
+}
+
+func (ds *Datastore) GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+	var globalOrTeamID uint
+	if tmID != nil {
+		globalOrTeamID = *tmID
+	}
+
+	// An installer survives a batch set iff its title matches an incoming
+	// (unique_identifier, source) key with extension_for = '' — the same
+	// matching BatchSetSoftwareInstallers uses to upsert titles before
+	// deleting installers with title_id NOT IN the upserted set. DISTINCT
+	// collapses multiple installer rows (cached FMA versions) of one title.
+	stmt := `
+SELECT DISTINCT
+  si.team_id,
+  st.id AS title_id,
+  COALESCE(NULLIF(stdn.display_name, ''), st.name) AS display_name
+FROM
+  software_installers si
+  JOIN software_titles st ON st.id = si.title_id
+  LEFT JOIN software_title_display_names stdn ON
+    stdn.software_title_id = st.id AND stdn.team_id = si.global_or_team_id
+WHERE
+  si.global_or_team_id = ?`
+
+	args := []any{globalOrTeamID}
+	if len(incoming) > 0 {
+		stmt += fmt.Sprintf(` AND NOT (st.extension_for = '' AND (st.unique_identifier, st.source) IN (%s))`,
+			strings.TrimSuffix(strings.Repeat("(?,?),", len(incoming)), ","))
+		for _, ti := range incoming {
+			args = append(args, ti.UniqueIdentifier, ti.Source)
+		}
+	}
+	stmt += ` ORDER BY display_name, title_id`
+
+	var deleted []fleet.DeletedSoftwarePackage
+	// Using ds.writer(ctx) on purpose: this runs during batch-set processing and must
+	// see the same state the deletion will operate on (no replica lag).
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &deleted, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installers pending deletion")
+	}
+	return deleted, nil
 }
 
 func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
@@ -3511,15 +3987,18 @@ func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, ur
 	stmt := `
 SELECT
 	si.id AS installer_id,
-	si.team_id AS team_id,
-	si.filename AS filename,
-	si.extension AS extension,
-	si.version AS version,
-	si.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	si.team_id,
+	si.storage_id,
+	si.http_etag,
+	si.filename,
+	si.extension,
+	si.version,
+	si.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids AS package_ids
+	si.package_ids,
+	si.install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3530,15 +4009,18 @@ UNION ALL
 
 SELECT
 	iha.id AS installer_id,
-	iha.team_id AS team_id,
-	iha.filename AS filename,
+	iha.team_id,
+	iha.storage_id,
+	NULL AS http_etag,
+	iha.filename,
 	'ipa' AS extension,
-	iha.version AS version,
-	iha.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	iha.version,
+	iha.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
-	'' AS package_ids
+	'' AS package_ids,
+	0 AS install_script_content_id
 FROM
 	in_house_apps iha
 	JOIN software_titles st ON iha.title_id = st.id
@@ -3579,69 +4061,111 @@ WHERE
 	return byTeam, nil
 }
 
+func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	stmt := `
+SELECT
+	si.id AS installer_id,
+	si.team_id AS team_id,
+	si.storage_id AS storage_id,
+	si.filename AS filename,
+	si.extension AS extension,
+	si.version AS version,
+	si.platform AS platform,
+	st.source AS source,
+	st.bundle_identifier AS bundle_identifier,
+	st.name AS title,
+	si.package_ids AS package_ids,
+	si.http_etag AS http_etag,
+	si.install_script_content_id AS install_script_content_id
+FROM
+	software_installers si
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	si.url = ? AND si.is_active = 1`
+
+	args := []any{url}
+	if teamID != nil {
+		stmt += ` AND si.global_or_team_id = ?`
+		args = append(args, *teamID)
+	}
+	stmt += `
+ORDER BY si.id DESC
+LIMIT 1`
+
+	var installer fleet.ExistingSoftwareInstaller
+	// Use reader: the installer was written in a previous GitOps run. On rapid sequential
+	// runs, the replica may be slightly stale, which results in a cache miss (full download)
+	// rather than incorrect behavior. This is an acceptable trade-off vs loading the writer.
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get installer by team and URL")
+	}
+	if installer.PackageIDList != "" {
+		installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
+	}
+	return &installer, nil
+}
+
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
-	// if this is an in-house app, check if an installer exists
-	if payload.Extension == "ipa" {
+	switch payload.Platform {
+	// currently, the platform will always be ios for .ipa files
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
 		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
 		// for ipa apps, so check for conflicts on either platform.
 		for platform, source := range map[string]string{
 			string(fleet.IOSPlatform):    "ios_apps",
 			string(fleet.IPadOSPlatform): "ipados_apps",
 		} {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
+			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("VPP app", payload.Title)
+			}
+
+			// check if equivalent installers exist, duplicate in-house apps are checked in insertInHouseApp
+			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "check if software installer exists for title identifier")
 			}
 			if exists {
 				return alreadyExists("software installer", payload.Title)
 			}
-
-			exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("VPP app", payload.Title)
-			}
 		}
-	} else {
-		// check if a VPP app already exists for that software title in the same
-		// platform and team.
-		if payload.Platform == string(fleet.MacOSPlatform) || payload.Platform == string(fleet.IOSPlatform) || payload.Platform == string(fleet.IPadOSPlatform) {
-			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("VPP app", payload.Title)
-			}
+	case string(fleet.MacOSPlatform):
+		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("VPP app", payload.Title)
 		}
 
-		// Check if an in-house app with the same bundle id already exists.
-		// Also check if equivalent installers exist, since we relaxed the uniqueness constraints to allow
-		// multiple FMA installer versions.
-		if payload.BundleIdentifier != "" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if in-house app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("in-house app", payload.Title)
-			}
-
-			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("installer", payload.Title)
-			}
+		// check only for installers, since in-house apps target iOS/iPadOS so they won't conflict
+		exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
+		}
+	case "windows", "linux":
+		// check by name before any software title renaming side effects can happen
+		exists, err := ds.checkInstallerExistsByName(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Source, payload.Platform)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists by name")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
 		}
 
-		if payload.Platform == "windows" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+		if payload.UpgradeCode != "" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.UpgradeCode, payload.Platform, softwareTypeInstaller)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+				return ctxerr.Wrap(ctx, err, "check if installer exists for upgrade code")
 			}
 			if exists {
 				return alreadyExists("installer", payload.Title)
@@ -3650,4 +4174,122 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+	// get software category and check that it exists
+	var categoryName *string
+	if categoryID != nil {
+		cat, err := ds.SoftwareCategory(ctx, *categoryID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category not found", InternalErr: err})
+			}
+			return nil, nil, ctxerr.Wrap(ctx, err, "get software category")
+		}
+
+		if cat.TeamID != ptr.ValOrZero(host.TeamID) {
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category team does not match host team"})
+		}
+		categoryName = &cat.Name
+	}
+
+	mdmEnrolled, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "checking host mdm enrollment for install all")
+	}
+
+	// call ListHostSoftware with only_available_for_install
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:         true,
+		OnlyAvailableForInstall: true,
+		IsMDMEnrolled:           mdmEnrolled,
+	}
+	opts.ListOptions.OrderKey = "name"
+
+	software, _, err := ds.ListHostSoftware(ctx, host, opts)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host software for install all")
+	}
+
+	// create map of category names, could be improved by using category id's instead
+	var categoriesByTitle map[uint][]string
+	if categoryID != nil {
+		titleIDs := make([]uint, 0, len(software))
+		for _, s := range software {
+			titleIDs = append(titleIDs, s.ID)
+		}
+
+		categoriesByTitle, err = ds.GetCategoriesForSoftwareTitles(ctx, titleIDs, host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get categories for software titles")
+		}
+	}
+
+	// filter out pending or already installed software, and software not in the category if one is provided.
+	// Failed install/uninstall states are included so they get re-queued (matches the per-row Retry behavior).
+	var toInstall []*fleet.HostSoftwareWithInstaller
+	for _, s := range software {
+		if s.Status != nil {
+			switch *s.Status {
+			case fleet.SoftwareInstallPending, fleet.SoftwareUninstallPending, fleet.SoftwareInstalled:
+				continue
+			}
+		}
+
+		// already installed
+		if len(s.InstalledVersions) > 0 {
+			continue
+		}
+
+		//nolint:nilaway // categoryName is set or we return an error whenever categoryID is not nil
+		if categoryID != nil && !slices.Contains(categoriesByTitle[s.ID], *categoryName) {
+			continue
+		}
+
+		toInstall = append(toInstall, s)
+	}
+
+	return toInstall, categoryName, nil
+}
+
+func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	var version string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `
+		SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
+	`, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+	}
+	return &version, nil
+}
+
+func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
+	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "set pinned version")
+	}
+	return nil
+}
+
+func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
+	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pinned version")
+	}
+	return nil
+}
+
+func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
+	_, err := ex.ExecContext(ctx, `
+		INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)
+	`, globalOrTeamID, titleID, version)
+	return err
+}
+
+func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint) error {
+	_, err := ex.ExecContext(ctx, `
+		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
+	`, globalOrTeamID, titleID)
+	return err
 }

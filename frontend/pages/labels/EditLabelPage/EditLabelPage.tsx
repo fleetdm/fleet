@@ -12,7 +12,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent";
@@ -37,7 +37,6 @@ type IEditLabelPageProps = RouteComponentProps<
 >;
 
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { currentUser } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -56,18 +55,15 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       onSuccess: (data) => {
         // can't edit host_vitals labels yet
         if (data.label_membership_type === "host_vitals") {
-          renderFlash(
-            "error",
+          notify.error(
             "Host vitals labels are not editable. Delete the label and re-add it to make changes."
           );
           router.replace(PATHS.MANAGE_LABELS);
+          return;
         }
 
         if (currentUser && !hasEditPermission(currentUser, data)) {
-          renderFlash(
-            "error",
-            "You do not have permission to edit this label."
-          );
+          notify.error("You do not have permission to edit this label.");
           router.replace(PATHS.MANAGE_LABELS);
         }
       },
@@ -79,7 +75,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     isLoading: isLoadingHosts,
     isError: isErrorHosts,
   } = useQuery<IGetHostsInLabelResponse, AxiosError, IHost[]>(
-    ["hosts"],
+    ["hosts", labelId],
     () => {
       return labelsAPI.getHostsInLabel(labelId);
     },
@@ -99,8 +95,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   ) => {
     try {
       await labelsAPI.update(labelId, formData);
-      renderFlash("success", "Label updated successfully.");
+      notify.success("Label updated successfully.");
       queryClient.invalidateQueries(["label", labelId, currentUser]);
+      queryClient.invalidateQueries(["hosts", labelId]);
+      queryClient.invalidateQueries(["labels"]);
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't edit label. Please try again.";
@@ -113,7 +111,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
           errorMessage = `Couldn't edit label: ${reason}. Please try again.`;
         }
       }
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: error });
     }
   };
 
@@ -150,7 +148,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       />
     ) : (
       <ManualLabelForm
-        key={targetedHosts?.toString()}
+        key={`${labelId}-${(targetedHosts || [])
+          .map((h) => h.id)
+          .sort((a, b) => a - b)
+          .join(",")}`}
         defaultName={label.name}
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}

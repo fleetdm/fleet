@@ -9,5 +9,18 @@
   name: Global Query
   observer_can_run: true
   platform: darwin
-  query: SELECT * FROM global_query WHERE id = 1
+  query: SELECT * FROM os_version;
+  discard_data: false
+- automations_enabled: false
+  logging: snapshot
+  min_osquery_version: 1.2.3
+  description: This is a global query with include_all scope
+  interval: 7200
+  labels_include_all:
+  - Label C
+  - Label D
+  name: Global Query Include All
+  observer_can_run: false
+  platform: darwin
+  query: SELECT * FROM users;
   discard_data: false

@@ -1,3 +1,0 @@
-- Updated macOS device details UI to delay showing FileVault "action required" notifications banner
-  during the first hour after MDM enrollment to allow sufficient time for Fleet to automatically
-  escrow keys from ADE devices.

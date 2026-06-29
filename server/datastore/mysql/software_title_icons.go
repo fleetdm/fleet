@@ -132,8 +132,10 @@ func (ds *Datastore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, iconSt
 		return nil
 	}
 
+	// Read from the writer: a stale replica missing a freshly-inserted
+	// storage_id would cause its in-use file to be deleted.
 	var storageIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_title_icons`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_title_icons`); err != nil {
 		return ctxerr.Wrap(ctx, err, "get list of software title icons in use")
 	}
 

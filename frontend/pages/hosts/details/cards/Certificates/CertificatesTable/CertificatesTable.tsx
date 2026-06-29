@@ -1,4 +1,5 @@
 import React, { useCallback } from "react";
+import { Row } from "react-table";
 
 import { IHostCertificate } from "interfaces/certificates";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
@@ -40,8 +41,8 @@ const CertificatesTable = ({
 }: ICertificatesTableProps) => {
   const tableConfig = generateTableConfig();
 
-  const onClickTableRow = (row: any) => {
-    onSelectCertificate(row.original);
+  const onClickTableRow = (row: Row) => {
+    onSelectCertificate(row.original as IHostCertificate);
   };
 
   const onQueryChange = useCallback(

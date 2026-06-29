@@ -4,27 +4,11 @@ _Available in Fleet Premium_
 
 Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
 
-## Platforms
+For macOS, Windows, and Linux hosts, self-service is accessible via the **Self-service** page in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). 
 
-Fleet supports self-service software installs on the following platforms:
+> **Note:** The **Self-service** page is hidden by default to avoid confusion in organizations that use a different self-service tool. It appears after you add self-service software or scripts.
 
-macOS:
-
-- Custom packages (.pkg, .sh)
-- Fleet-maintained apps
-- App Store apps
-
-Windows: 
-
-- Custom packages (.msi, .exe, .ps1)
-
-Linux: 
-
-- Custom packages (.deb, .rpm, .sh, .tar.gz)
-
-iOS/iPadOS: 
-
-- App Store apps and custom .ipa packages
+For iOS/iPadOS hosts, [deploy a webclip](#deploy-self-service-on-ios-and-ipados) to give end users access. For Android hosts, all self-service software is available in the Managed Google Play store. [Learn more](https://fleetdm.com/guides/install-app-store-apps#google-play-android2).
 
 ## Add software
 
@@ -40,16 +24,45 @@ You can also add the software and later make it available in self-service:
 
 1. Select the fleet to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
-3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
+3. Select the **Library** tab to view software available for install. Select the software you want to make available in self-service.
 4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon. Icons appear on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [app store apps](https://fleetdm.com/guides/install-app-store-apps).
 5. Select the **Save** button.
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
+## Manage self-service categories
+
+_Available in Fleet Premium_
+
+Self-service categories group software on each fleet so end users can browse and install software by category on the **My device > Self-service** page.
+
+When a new fleet is created, Fleet seeds it with the following default categories that you can rename or delete: **🌎 Browsers**, **👬 Communication**, **🧰 Developer tools**, **💻 Productivity**, **🔐 Security**, and **🛟 Support**. Category names support emojis (which become part of the name) and can be up to 255 characters long.
+
+To manage categories for a fleet:
+
+1. Select the fleet from the dropdown in the upper left corner of the page.
+2. Select **Software** in the main navigation menu.
+3. Select the self-service categories icon in the upper right corner of the page.
+4. Select **Add category** to create a new category, or use the pencil and trash icons in a row to rename or delete a category.
+
+To assign a software title to one or more categories, edit the software in **Software > Library**, enable **Self-service** in the **Options** section, and check the categories you want to assign.
+
+> Custom categories are managed per fleet. Renaming a category updates the label end users see; deleting a category removes the assignment from any software in it but does not affect the software itself.
+
+## Install all in a category
+
+_Available in Fleet Premium_
+
+End users can install every app in a category in one click from the **My device > Self-service** page:
+
+1. Select a category from the dropdown above the software table.
+2. Select **Install all** to install every app in the category. The count in the button adjusts based on what's already installed on the device.
+
+Fleet queues each install as a separate operation. End users can monitor progress in the **Status** column. Software is installed in alphabetical order.
+
 ## Deploy self-service on iOS and iPadOS
 
 Install this configuration profile to add the self-service web app to the home screen on iPhone and iPad.
-
 
 ### Create the self-service configuration profile
 

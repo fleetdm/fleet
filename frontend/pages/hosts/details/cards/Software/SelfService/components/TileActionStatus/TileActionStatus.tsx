@@ -96,7 +96,12 @@ const TileActionStatus = ({
   const renderActiveActionStatus = () => {
     return (
       <>
-        <Spinner size="x-small" includeContainer={false} centered={false} />
+        <Spinner
+          size="x-small"
+          includeContainer={false}
+          centered={false}
+          delay={0}
+        />
         {getPendingOrRunningLabel(software.ui_status)}
       </>
     );

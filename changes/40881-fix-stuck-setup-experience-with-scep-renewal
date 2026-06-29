@@ -1,1 +1,0 @@
-- Fixed an issue where Apple setup experience could get stuck, if the device was in the middle of a SCEP renewal, and then re-enrolled.

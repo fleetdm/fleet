@@ -9,9 +9,11 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,6 +99,116 @@ func TestSTSTokenSigningAndVerification(t *testing.T) {
 	// New invalid STS Auth token
 	_, err = cm.NewSTSAuthToken("")
 	require.ErrorContains(t, err, "invalid upn field")
+}
+
+func TestSTSTokenWithDeviceID(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	upn := "user@example.com"
+	deviceID := "test-device-id-123"
+
+	// Generate token with device ID
+	token, err := cm.NewEUAToken(upn, deviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// Validate and extract both claims
+	claims, err := cm.GetEUATokenClaims(token)
+	require.NoError(t, err)
+	require.Equal(t, upn, claims.UPN)
+	require.Equal(t, deviceID, claims.DeviceID)
+
+	// Empty UPN is rejected
+	_, err = cm.NewEUAToken("", deviceID)
+	require.ErrorContains(t, err, "invalid upn field")
+
+	// Empty device ID is rejected
+	_, err = cm.NewEUAToken(upn, "")
+	require.ErrorContains(t, err, "invalid device_id field")
+
+	// Token signed by NewSTSAuthToken (no device_id) is rejected — device_id is required
+	oldToken, err := cm.NewSTSAuthToken(upn)
+	require.NoError(t, err)
+	_, err = cm.GetEUATokenClaims(oldToken)
+	require.ErrorContains(t, err, "issue with device_id token claim")
+
+	// Tampered token is rejected
+	_, err = cm.GetEUATokenClaims(token + "tampered")
+	require.Error(t, err)
+}
+
+func TestTokenRejectsNonRSAAlgorithms(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	m := cm.(*manager)
+	// Marshal the RSA public key to use as the HS256 "secret" — this mirrors
+	// the classic RSA-to-HMAC algorithm confusion attack shape.
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(m.identityCert.PublicKey)
+	require.NoError(t, err)
+
+	stsClaims := func() STSClaims {
+		return STSClaims{
+			UPN: "attacker@example.com",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Subject:   "STSAuthToken",
+			},
+		}
+	}
+	euaClaims := func() euaJWTClaims {
+		return euaJWTClaims{
+			UPN:      "attacker@example.com",
+			DeviceID: "device-123",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Subject:   "EUAToken",
+			},
+		}
+	}
+
+	t.Run("STS rejects HS256", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, stsClaims()).SignedString(pubKeyBytes)
+		require.NoError(t, err)
+
+		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("STS rejects none", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, stsClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("EUA rejects HS256", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, euaClaims()).SignedString(pubKeyBytes)
+		require.NoError(t, err)
+
+		_, err = cm.GetEUATokenClaims(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("EUA rejects none", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, euaClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		_, err = cm.GetEUATokenClaims(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
 }
 
 func TestCertFingerprintHexStr(t *testing.T) {
@@ -194,3 +306,68 @@ oHwpyQbv9Qs+3bjPOQ7DkwekT+w1cptEKudBCC3WQKui1P0NNL0R
 // prevent static analysis tools from raising issues due to detection of private key
 // in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+// TestAzureDataFromClaims covers the claim extraction (separated from JWKS signature verification), in particular the
+// upn -> preferred_username fallback that lets v2 access tokens enroll.
+func TestAzureDataFromClaims(t *testing.T) {
+	ctx := t.Context()
+	const tid = "6d8769e6-0f8b-418d-b385-1a53968781c9"
+
+	// validClaims returns a fresh, fully-valid claim set (minus the user-identity claim, which each subtest sets).
+	validClaims := func() jwt.MapClaims {
+		return jwt.MapClaims{
+			"tid":         tid,
+			"iss":         "https://sts.windows.net/" + tid + "/",
+			"aud":         "https://fleet.example.com",
+			"unique_name": "user@example.com",
+			"scp":         "mdm_delegation",
+		}
+	}
+
+	t.Run("uses upn when present, ignoring preferred_username", func(t *testing.T) {
+		c := validClaims()
+		c["upn"] = "upn-user@example.com"
+		c["preferred_username"] = "pref-user@example.com"
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Equal(t, "upn-user@example.com", data.UPN)
+	})
+
+	t.Run("falls back to preferred_username when upn is absent (v2 token)", func(t *testing.T) {
+		c := validClaims()
+		c["iss"] = "https://login.microsoftonline.com/" + tid + "/v2.0" // v2 issuer form
+		c["preferred_username"] = "pref-user@example.com"
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Equal(t, "pref-user@example.com", data.UPN)
+	})
+
+	t.Run("falls back to preferred_username when upn is empty", func(t *testing.T) {
+		c := validClaims()
+		c["upn"] = ""
+		c["preferred_username"] = "pref-user@example.com"
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Equal(t, "pref-user@example.com", data.UPN)
+	})
+
+	t.Run("succeeds with empty UPN when neither upn nor preferred_username is present", func(t *testing.T) {
+		// The UPN is not part of the enrollment authorization decision (aud/tid/iss/scp are), and a v2 token
+		// may carry neither claim when the `profile` scope is absent. Downstream identity correlation guards
+		// against an empty UPN, so an otherwise-authorized token must not be rejected for lacking one.
+		data, err := azureDataFromClaims(ctx, validClaims())
+		require.NoError(t, err)
+		require.Empty(t, data.UPN)
+	})
+
+	t.Run("succeeds without unique_name (v2 token)", func(t *testing.T) {
+		// v2 access tokens omit the v1-only `unique_name` claim; that must not block enrollment.
+		c := validClaims()
+		c["upn"] = "user@example.com"
+		delete(c, "unique_name")
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Empty(t, data.UniqueName)
+		require.Equal(t, "user@example.com", data.UPN)
+	})
+}

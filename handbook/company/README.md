@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management is the [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet Device Management is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
 - 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
@@ -76,7 +76,7 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
-- **Keep it simple.** [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Reuse systems. Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
+- **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one task at a time.  Resist [the urge to commit](https://www.linkedin.com/posts/37signals_the-problem-with-commitments-is-that-they-ugcPost-7252753513485619201-PdAw?utm_source=share&utm_medium=member_ios) to every good idea.  Work [hard](https://paulgraham.com/hwh.html).  Schedule [time off](https://fleetdm.com/handbook/company/communications#paid-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
@@ -93,7 +93,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/company/communica
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
-- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
+- **Public by default.** Get comfortable making decisions, being wrong, and being right in front of others. Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
 - **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way). 
 
 <!--
@@ -126,7 +126,11 @@ Fleet added support for [scripting and management capabilities](https://fleetdm.
 ### 2024: Fleet is growing globally 
 Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the world's most powerful computers). 
 
-<!-- 2024: and implement "zero trust" faster -->
+### 2025: Android support
+After growing revenue 6x during the previous two years, Fleet raised its Series B funding round, bringing total funding up to $52M, and announced support for Android devices.
+
+### 2026: Mainstream adoption
+Of the 8 most anticipated IPOs in 2026, over half are Fleet customers.
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
@@ -135,7 +139,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product, as well as Fleet's Information technology (IT) infrastructure.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product, Fleet API, and reference documentation.
-- 🌐 [IT](https://fleetdm.com/handbook/it): The IT department is directly responsible Fleet's internal IT/Security policies, solutions consulting, and dogfooding Fleet the product.
+- 🌐 [IT](https://fleetdm.com/handbook/it): The IT department is directly responsible for Fleet's internal IT/Security policies, solutions consulting, and dogfooding Fleet the product.
 - 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Marketing](https://fleetdm.com/handbook/marketing): The Marketing department is directly responsible for growing awareness of Fleet, customer training curriculum, and prospect enablement, and nurturing the community through participation in events, conversations, and other programs.
@@ -145,7 +149,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including  
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, [Alexandr Wang](https://www.businessofbusiness.com/articles/scale-ai-machine-learning-startup-alexandr-wang/) _(Scale AI)_, [Sanjay](https://www.zdnet.com/article/vmware-buys-airwatch-for-1-54-billion-acquires-mobility-strategy/) [Poonen](https://www.businessinsider.com/vmware-carbon-black-acquisition-sanjay-poonen-cybersecurity-2019-10?op=1) _(VMware, Cohesity)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/leadership#contact-the-ceo).)
+[Sid Sijbrandij](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, [Suresh Batchu](https://www.linkedin.com/posts/sureshbatchu_im-excited-to-share-that-ive-joined-the-share-7453227064599449600-3_DB/?utm_source=share&utm_medium=member_ios&rcm=ACoAAAOYKwIBtKBLvbxqgjD2fs4ScGobCzMbCvg) _(MobileIron)_, Kevin Mahaffey _(Lookout)_, Scott Lundgren _(Carbon Black)_, [Sanjay Poonen](https://www.zdnet.com/article/vmware-buys-airwatch-for-1-54-billion-acquires-mobility-strategy/) _(Workspace ONE)_, John Marcante _(Vanguard)_, Guillermo Rauch _(socket.io)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/leadership#contact-the-ceo).)
 
 
 <meta name="maintainedBy" value="mikermcneil">

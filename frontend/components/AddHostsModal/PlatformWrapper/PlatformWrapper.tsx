@@ -1,15 +1,14 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
@@ -77,8 +76,6 @@ const PlatformWrapper = ({
   fetchCertificateError,
   config,
 }: IPlatformWrapperProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [hostType, setHostType] = useState<"workstation" | "server">(
     "workstation"
   );
@@ -160,8 +157,7 @@ const PlatformWrapper = ({
 
       FileSaver.saveAs(file);
     } else {
-      renderFlash(
-        "error",
+      notify.error(
         "Your certificate could not be downloaded. Please check your Fleet configuration."
       );
     }
@@ -275,7 +271,7 @@ const PlatformWrapper = ({
           hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
           <code>--type=rpm</code>. For Arch Linux, use{" "}
           <code>--type=pkg.tar.zst</code>. For ARM, use{" "}
-          <code>--arch=arm64</code>
+          <code>--arch=arm64</code>.
         </>
       );
     } else if (packageType === "msi") {
@@ -370,12 +366,9 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,&nbsp;
-              <Button
-                variant="text-link-dark"
-                onClick={() => setSelectedTabIndex(3)}
-              >
-                click here
+              Chromebooks,{" "}
+              <Button variant="link" onClick={() => setSelectedTabIndex(3)}>
+                visit the ChromeOS tab
               </Button>
               .
             </InfoBanner>

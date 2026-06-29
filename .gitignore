@@ -41,7 +41,7 @@ mysqldata/
 
 # test helm charts
 helm-temp
-charts/fleet/charts
+charts/fleet/charts/*.tgz
 
 #editors
 .idea
@@ -53,6 +53,7 @@ backup.sql.gz
 # Common mistake for new developers to run npm install and then end up
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
+!website/package-lock.json
 
 # infra
 .terraform
@@ -110,6 +111,12 @@ tools/test_extensions/hello_world/linux-arm64
 tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/windows-arm64
 
+# typical screencap output dir
+tools/screencap/screenshots
+
+# MDM asset manager build output (binary matches the package dir name)
+tools/mdm/assets/assets
+
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
 
@@ -125,3 +132,7 @@ Fleet\ Desktop.app
 
 # custom golangci-lint executable
 custom-gcl
+/fleet
+
+# dibble (the seed slinger) — binary lives next to source
+tools/dibble/dibble

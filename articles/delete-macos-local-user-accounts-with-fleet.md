@@ -42,3 +42,4 @@ This deletes the user's home folder, but the account isn't fully removed. This c
 <meta name="authorGitHubUsername" value="spalmesano0">
 <meta name="publishedOn" value="2026-03-06">
 <meta name="articleTitle" value="Delete macOS local user accounts with Fleet">
+<meta name="description" value="How to delete local user accounts on macOS with Fleet.">

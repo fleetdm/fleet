@@ -10,9 +10,9 @@ import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
+import { notify } from "components/ToastNotification";
 import SidePanelPage from "components/SidePanelPage";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
@@ -131,7 +131,6 @@ const FleetMaintainedAppDetailsPage = ({
     router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
   }
 
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const handlePageError = useErrorHandler();
@@ -190,6 +189,9 @@ const FleetMaintainedAppDetailsPage = ({
         queryKey: [{ scope: "software-titles" }],
       });
       queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+      queryClient.invalidateQueries({
         queryKey: [{ scope: "fleet-maintained-apps" }],
       });
 
@@ -202,8 +204,7 @@ const FleetMaintainedAppDetailsPage = ({
         )
       );
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <b>{fleetApp?.name}</b> successfully added.
         </>
@@ -211,7 +212,7 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
-      renderFlash("error", getErrorMessage(ae));
+      notify.error(getErrorMessage(ae), { response: error });
     }
 
     setShowAddFleetAppSoftwareModal(false);

@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -138,6 +139,24 @@ class CertificateEnrollmentHandlerTest {
     }
 
     @Test
+    fun `handler handles IllegalStateException from installer as non-retryable failure`() = runTest {
+        mockInstaller.exceptionToThrow = IllegalStateException(
+            "CERT_INSTALL delegation not granted to com.fleetdm.agent, current scopes: []",
+        )
+
+        val template = TestCertificateTemplateFactory.create(name = "device-cert")
+
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+
+        assertTrue(mockInstaller.wasInstallCalled)
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertTrue(failure.reason.contains("CERT_INSTALL delegation not granted"))
+        assertTrue(failure.reason.startsWith("Certificate installation failed:"))
+    }
+
+    @Test
     fun `handler uses default values for optional parameters`() = runTest {
         val template = TestCertificateTemplateFactory.create()
 
@@ -146,5 +165,21 @@ class CertificateEnrollmentHandlerTest {
         // Verify defaults were used
         assertEquals(2048, mockScepClient.capturedConfig?.keyLength)
         assertEquals("SHA256withRSA", mockScepClient.capturedConfig?.signatureAlgorithm)
+    }
+
+    @Test
+    fun `handler forwards subjectAlternativeName to SCEP client`() = runTest {
+        val san = "DNS=host.example.com, UPN=marko@corp.example.com"
+        val template = TestCertificateTemplateFactory.create(subjectAlternativeName = san)
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+        assertEquals(san, mockScepClient.capturedConfig?.subjectAlternativeName)
+    }
+
+    @Test
+    fun `handler forwards null subjectAlternativeName when absent`() = runTest {
+        val template = TestCertificateTemplateFactory.create()
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+        assertNotNull(mockScepClient.capturedConfig)
+        assertNull(mockScepClient.capturedConfig?.subjectAlternativeName)
     }
 }

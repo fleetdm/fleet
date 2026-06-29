@@ -23,10 +23,6 @@ The team chose Fleet to achieve centralized management and rapid policy enforcem
 - **Automated remediation:** automated software installs and self-service scripts replaced manual interventions, saving significant man-hours.  
 - **Agile response:** frequent host check-ins allowed for more agile threat responses and faster detection of vulnerabilities.
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.  
-
 <meta name="articleTitle" value="Enforcing security policies in minutes across a regulated healthcare environment">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">

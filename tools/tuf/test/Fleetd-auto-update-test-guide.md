@@ -20,9 +20,9 @@ source ./tools/tuf/test/load_orbit_version_vars.sh
 
 Build:
 ```sh
-GOOS=darwin GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-darwin ./orbit/cmd/orbit
-GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-linux ./orbit/cmd/orbit
-GOOS=windows GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit.exe ./orbit/cmd/orbit
+GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-darwin ./orbit/cmd/orbit
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-linux ./orbit/cmd/orbit
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit.exe ./orbit/cmd/orbit
 ```
 Push:
 ```sh

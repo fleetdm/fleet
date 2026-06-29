@@ -25,9 +25,15 @@ interface ICellProps {
   };
 }
 
-interface ITextCellProps extends ICellProps {
+interface ITextCellProps {
   cell: {
     value: string | number;
+  };
+}
+
+interface ITextCellPropsWithRow extends ITextCellProps {
+  row: {
+    original: IVulnerability;
   };
 }
 
@@ -42,7 +48,10 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ITextCellProps) => JSX.Element;
+  Cell:
+    | ((props: ITextCellProps) => JSX.Element)
+    | ((props: ITextCellPropsWithRow) => JSX.Element)
+    | ((props: ICellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -66,7 +75,7 @@ const generateTableHeaders = (
       Header: "Vulnerability",
       disableSortBy: true,
       accessor: "cve",
-      Cell: (cellProps: ITextCellProps) => {
+      Cell: (cellProps: ITextCellPropsWithRow) => {
         if (!configOptions?.includeIcon) {
           return (
             <TextCell
@@ -246,7 +255,7 @@ const generateTableHeaders = (
       ),
       disableSortBy: false,
       accessor: "hosts_count",
-      Cell: (cellProps: ITextCellProps): JSX.Element => {
+      Cell: (cellProps: ITextCellPropsWithRow): JSX.Element => {
         const { hosts_count } = cellProps.row.original;
         return <TextCell value={hosts_count} />;
       },

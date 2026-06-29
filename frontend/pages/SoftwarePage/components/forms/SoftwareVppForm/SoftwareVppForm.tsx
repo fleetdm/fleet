@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
@@ -13,7 +13,7 @@ import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
 import FileDetails from "components/FileDetails";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
@@ -118,6 +118,8 @@ interface ISoftwareVppFormProps {
   isLoading?: boolean;
   onCancel: () => void;
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 
 const SoftwareVppForm = ({
@@ -128,9 +130,9 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
   onClickPreviewEndUserExperience,
+  teamId,
 }: ISoftwareVppFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
@@ -271,8 +273,9 @@ const SoftwareVppForm = ({
               onClickPreviewEndUserExperience={() =>
                 onClickPreviewEndUserExperience(isAppleMobile)
               }
+              teamId={teamId}
             />
-            <TargetLabelSelector
+            <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}
               selectedLabels={formData.labelTargets}
@@ -313,9 +316,8 @@ const SoftwareVppForm = ({
             onSelect={onSelectApp}
           />
           <div className={`${baseClass}__help-text`}>
-            These apps were added in Apple Business Manager (ABM). To add more
-            apps, head to{" "}
-            <CustomLink url="https://business.apple.com" text="ABM" newTab />
+            These apps were added in Apple Business (AB). To add more apps, head
+            to <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
           {showDeploySoftwareSlider && (
             <SoftwareDeploySlider
@@ -347,7 +349,8 @@ const SoftwareVppForm = ({
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
-            position="bottom"
+            entityType="software"
+            position="top"
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button

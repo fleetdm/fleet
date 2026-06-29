@@ -12,6 +12,8 @@ import {
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 import {
+  isAndroidBYO,
+  isAndroidCOBO,
   isAutomaticDeviceEnrollment,
   isBYODAccountDrivenUserEnrollment,
   MdmEnrollmentStatus,
@@ -50,6 +52,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Show managed account",
+    value: "managedAccount",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -67,6 +74,11 @@ const DEFAULT_OPTIONS = [
   {
     label: "Unlock",
     value: "unlock",
+    disabled: false,
+  },
+  {
+    label: "Clear passcode",
+    value: "clearPasscode",
     disabled: false,
   },
   {
@@ -103,6 +115,9 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  isManagedLocalAccountEnabled: boolean;
+  managedAccountStatus: string | null | undefined;
+  managedAccountPasswordAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -110,14 +125,21 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isPrimoMode,
   } = config;
-  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer) && !isPrimoMode;
+  return (
+    isPremiumTier &&
+    (isGlobalAdmin || isGlobalMaintainer || isGlobalTechnician) &&
+    !isPrimoMode
+  );
 };
 
 const canTurnOffMdm = (config: IHostActionConfigOptions) => {
   const {
     hostPlatform,
+    hostMdmDeviceStatus,
+    hostMdmEnrollmentStatus,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
@@ -127,8 +149,24 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
   } = config;
+  // Android: Unenroll is BYO-only per Figma (#41683). COBO admins use Wipe instead.
+  const isAndroidWithUnenroll =
+    isAndroid(hostPlatform) &&
+    isAndroidMdmEnabledAndConfigured &&
+    isAndroidBYO(hostMdmEnrollmentStatus);
+
+  // Per Figma dev note (#41683): hide Unenroll for Android while any of Lock / Unenroll / Wipe /
+  // Clear passcode is pending. Apple Unenroll continues to ignore device_status as it does today.
+  if (
+    isAndroidWithUnenroll &&
+    hostMdmDeviceStatus &&
+    hostMdmDeviceStatus !== "unlocked"
+  ) {
+    return false;
+  }
+
   return (
-    ((isAndroid(hostPlatform) && isAndroidMdmEnabledAndConfigured) ||
+    (isAndroidWithUnenroll ||
       (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured)) &&
     isEnrolledInMdm &&
     isConnectedToFleetMdm &&
@@ -145,6 +183,7 @@ const canLockHost = ({
   isPremiumTier,
   hostPlatform,
   isMacMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   isEnrolledInMdm,
   isConnectedToFleetMdm,
   isGlobalAdmin,
@@ -170,14 +209,21 @@ const canLockHost = ({
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
+  // Android hosts (both BYO and COBO) can be locked when MDM is on.
+  const isLockableAndroidDevice =
+    isAndroid(hostPlatform) &&
+    isAndroidMdmEnabledAndConfigured &&
+    isConnectedToFleetMdm &&
+    isEnrolledInMdm;
+
   return (
     isPremiumTier &&
-    !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
       isLockableMacOSDevice ||
-      isLockableIosOrIpadDevice) &&
+      isLockableIosOrIpadDevice ||
+      isLockableAndroidDevice) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -192,6 +238,7 @@ const canWipeHost = ({
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   hostPlatform,
   hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
@@ -211,12 +258,25 @@ const canWipeHost = ({
     isIPadOrIPhone(hostPlatform) &&
     isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
+  // Android: Wipe is COBO-only. COBO maps to enrollment_status="On (automatic)" today (matching
+  // the generated-column rule enrolled=1 AND installed_from_dep=1 AND is_personal_enrollment=0).
+  // Explicit allow-list via isAndroidCOBO so unrelated statuses ("On (manual)", "Pending", "Off")
+  // aren't accidentally permitted.
+  const canWipeAndroid =
+    isAndroid(hostPlatform) &&
+    isAndroidMdmEnabledAndConfigured &&
+    isConnectedToFleetMdm &&
+    isEnrolledInMdm &&
+    isAndroidCOBO(hostMdmEnrollmentStatus);
+
+  // Wipe is a Fleet Premium feature for macOS, Windows, Linux and iOS/iPadOS, but is available on Fleet Free for
+  // Android (COBO) hosts. canWipeAndroid is already gated to Android COBO, so OR-ing it with isPremiumTier keeps the
+  // other platforms Premium-only.
   return (
-    isPremiumTier &&
-    !isAndroid(hostPlatform) &&
+    (isPremiumTier || canWipeAndroid) &&
     !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
-    (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
+    (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS || canWipeAndroid) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -295,6 +355,7 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
     hostPlatform,
     hostCpuType,
     isRecoveryLockPasswordEnabled,
+    recoveryLockPasswordAvailable,
   } = config;
   if (!isPremiumTier) {
     return false;
@@ -309,7 +370,91 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
   if (!isConnectedToFleetMdm) {
     return false;
   }
-  return isRecoveryLockPasswordEnabled;
+  // A password may exist on a host whose current team has the setting
+  // disabled (e.g., the host was locked under a different team's policy).
+  // Don't hide an existing password just because the team setting flipped.
+  return isRecoveryLockPasswordEnabled || recoveryLockPasswordAvailable;
+};
+
+const canShowManagedAccount = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+    hostPlatform,
+    hostMdmEnrollmentStatus,
+    isManagedLocalAccountEnabled,
+  } = config;
+  if (!isPremiumTier) return false;
+  if (hostPlatform !== "darwin") return false;
+  if (!isConnectedToFleetMdm) return false;
+  if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
+  if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
+    return false;
+  }
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+};
+
+const canClearPasscode = (config: IHostActionConfigOptions) => {
+  if (!config.isPremiumTier) {
+    return false;
+  }
+
+  const isAdminOrMaintainer =
+    config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer;
+  if (!isAdminOrMaintainer) {
+    return false;
+  }
+
+  // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
+  if (
+    isAndroid(config.hostPlatform) &&
+    config.hostMdmDeviceStatus &&
+    config.hostMdmDeviceStatus !== "unlocked"
+  ) {
+    return false;
+  }
+
+  if (isAndroid(config.hostPlatform)) {
+    return (
+      config.isAndroidMdmEnabledAndConfigured &&
+      config.isEnrolledInMdm &&
+      !!config.isConnectedToFleetMdm
+    );
+  }
+
+  // iOS / iPadOS — existing behavior unchanged.
+  if (!isIPadOrIPhone(config.hostPlatform)) {
+    return false;
+  }
+
+  if (!config.isEnrolledInMdm) {
+    return false;
+  }
+
+  if (!config.isConnectedToFleetMdm) {
+    return false;
+  }
+
+  if (!config.isMacMdmEnabledAndConfigured) {
+    return false;
+  }
+
+  if (
+    config.hostMdmEnrollmentStatus !== "On (company-owned)" &&
+    config.hostMdmEnrollmentStatus !== "On (automatic)" &&
+    config.hostMdmEnrollmentStatus !== "On (manual)"
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
 const canRunScript = ({
@@ -354,6 +499,14 @@ const removeUnavailableOptions = (
     options = options.filter(
       (option) => option.value !== "recoveryLockPassword"
     );
+  }
+
+  if (!canShowManagedAccount(config)) {
+    options = options.filter((option) => option.value !== "managedAccount");
+  }
+
+  if (!canClearPasscode(config)) {
+    options = options.filter((option) => option.value !== "clearPasscode");
   }
 
   if (!canTurnOffMdm(config)) {
@@ -443,6 +596,8 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    managedAccountStatus,
+    managedAccountPasswordAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -550,6 +705,67 @@ const modifyOptions = (
         </>
       );
     }
+  }
+
+  // Gate on password_available rather than status === "verified" — a row whose
+  // status is "pending" because of a recent view (or a deferred rotation
+  // waiting on UUID capture) still has a viewable password. Mirrors the
+  // backend gate in GetHostManagedAccountPassword.
+  if (!managedAccountPasswordAvailable) {
+    const managedAccountOption = options.find(
+      (option) => option.value === "managedAccount"
+    );
+    if (managedAccountOption) {
+      managedAccountOption.disabled = true;
+      if (managedAccountStatus === "pending") {
+        // No password yet — the AccountConfiguration command hasn't been acked.
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account is still being
+            <br />
+            created.
+          </>
+        );
+      } else if (managedAccountStatus === "failed") {
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account failed to be
+            <br />
+            created. It will retry at the next enrollment.
+          </>
+        );
+      } else {
+        // status is null/undefined — no record exists for this host
+        managedAccountOption.tooltipContent = (
+          <>
+            This host will receive a managed account
+            <br />
+            at the next enrollment. Already enrolled
+            <br />
+            hosts don&apos;t get a managed account.
+          </>
+        );
+      }
+    }
+  }
+
+  const clearPasscodeOption = options.find(
+    (option) => option.value === "clearPasscode"
+  );
+  if (
+    clearPasscodeOption &&
+    ["locked", "locking", "unlocking", "locating"].includes(hostMdmDeviceStatus)
+  ) {
+    clearPasscodeOption.disabled = true;
+    clearPasscodeOption.tooltipContent =
+      "Clear passcode is unavailable while host is in Lost Mode.";
+  } else if (
+    clearPasscodeOption &&
+    ["wiped", "wiping"].includes(hostMdmDeviceStatus)
+  ) {
+    clearPasscodeOption.disabled = true;
+    clearPasscodeOption.tooltipContent =
+      "Clear passcode is unavailable while host is pending wipe.";
   }
 
   disableOptions(optionsToDisable);

@@ -325,15 +325,18 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 
 	// Add query stats
 	hostIDs := []uint{10, 20}
+	lastExecuted := time.Now().Add(-time.Hour).Round(time.Second)
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q1.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostIDs[0],
-				Executions: 1,
+				HostID:       hostIDs[0],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 			{
-				HostID:     hostIDs[1],
-				Executions: 1,
+				HostID:       hostIDs[1],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)
@@ -341,8 +344,9 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q3.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostIDs[0],
-				Executions: 1,
+				HostID:       hostIDs[0],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)
@@ -1357,6 +1361,26 @@ func testSaveQueryLabels(t *testing.T, ds *Datastore) {
 	err = ds.SaveQuery(ctx, query1, true, true)
 	require.NoError(t, err)
 	require.Len(t, query1.LabelsIncludeAny, 0)
+
+	// Switch scope to include_all.
+	query1.LabelsIncludeAny = nil
+	query1.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.NoError(t, err)
+	require.Empty(t, query1.LabelsIncludeAny)
+	require.Len(t, query1.LabelsIncludeAll, 2)
+
+	// Round-trip from DB.
+	reloaded, err := ds.Query(ctx, query1.ID)
+	require.NoError(t, err)
+	require.Empty(t, reloaded.LabelsIncludeAny)
+	require.Len(t, reloaded.LabelsIncludeAll, 2)
+
+	// Mutual exclusion is rejected at the datastore boundary.
+	query1.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	query1.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label2.Name}}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.Error(t, err)
 }
 
 func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
@@ -1461,27 +1485,50 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// No host specified, list all queries on team, regardless of tag
+	queryIncludeAllBoth, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "queryIncludeAllBoth",
+		Query:              "SELECT 1",
+		DiscardData:        false,
+		AutomationsEnabled: true,
+		AuthorID:           &user.ID,
+		Logging:            fleet.LoggingSnapshot,
+		Interval:           10,
+		Saved:              true,
+		LabelsIncludeAll: []fleet.LabelIdent{
+			{LabelName: label1.Name},
+			{LabelName: label2.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	// No host specified, list all queries on team, regardless of tag.
 	queries, err := ds.ListScheduledQueriesForAgents(ctx, nil, nil, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
+	requireQueries(t, queries, []string{
+		queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name,
+		queryIncludeAllBoth.Name,
+	})
 
-	// Label 1 queries
+	// Host with only label1: include_any{label1} matches; include_any{label2} doesn't;
+	// include_any{label1,label2} matches; include_all{label1,label2} doesn't (missing label2).
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
-	// Label 2 queries
+	// Host with only label2: same logic — include_all{both} doesn't match.
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel2.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
-	// Labels 1 and 2 queries
+	// Host with both label1 and label2: matches include_any (both), include_all{both}, no-label.
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1And2.ID, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
+	requireQueries(t, queries, []string{
+		queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name,
+		queryIncludeAllBoth.Name,
+	})
 
-	// No label queries
+	// Host with no labels: only the no-label query.
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryNoLabel.Name})
