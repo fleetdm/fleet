@@ -447,9 +447,13 @@ func newSnapdFDE() SnapdFDE { return &snapTPMCtl{} }
 
 func (s *snapTPMCtl) Detect(ctx context.Context) (bool, error) {
 	// snapd ships on all modern Ubuntu, so its presence alone is not a signal.
-	// Confirm the root volume is LUKS2 and managed by snapd's secboot stack
-	// before doing anything heavier (such as installing snap-tpmctl). Plain or
-	// systemd-cryptenroll volumes are handled by the legacy passphrase path.
+	// We decide purely from the LUKS2 metadata whether the volume is managed by
+	// snapd's secboot stack: plain or systemd-cryptenroll volumes are handled by
+	// the legacy passphrase path. Crucially we do NOT gate detection on
+	// snap-tpmctl being installed — that tool is an optional management snap, not
+	// installed by default, and acquiring it is the escrow step's concern. If we
+	// returned false here when the tool was missing, a TPM-backed host (which has
+	// no user passphrase) would fall through to the passphrase dialog and fail.
 	if !isInstalled(snapBinary) {
 		return false, nil
 	}
@@ -466,21 +470,18 @@ func (s *snapTPMCtl) Detect(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("inspecting LUKS metadata: %w", err)
 	}
 
-	if !IsSnapdManaged(dump) {
-		return false, nil
-	}
-
-	// Confirmed snapd-managed FDE: ensure the management tool is available.
-	if !isInstalled(snapTPMCtlBinary) {
-		if err := installSnapTPMCtl(ctx); err != nil {
-			return false, fmt.Errorf("installing %s: %w", snapTPMCtlBinary, err)
-		}
-	}
-
-	return true, nil
+	return IsSnapdManaged(dump), nil
 }
 
 func (s *snapTPMCtl) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	// snap-tpmctl is an optional management snap, not installed by default.
+	// Acquire it on demand; if that fails (e.g. no snap store access), surface a
+	// clear error that is reported to the Fleet server as an escrow failure so an
+	// admin can see why the key was not escrowed.
+	if err := ensureSnapTPMCtl(ctx); err != nil {
+		return "", err
+	}
+
 	// Create a dedicated Fleet-owned recovery key in its own named slot so the
 	// user's install-time default-recovery key is never disturbed. If a prior
 	// (partial) run already created it, regenerate it so we escrow a known value.
@@ -512,6 +513,16 @@ func runSnapTPMCtl(ctx context.Context, args ...string) (string, error) {
 		return "", fmt.Errorf("running %s %v: %w (%s)", snapTPMCtlBinary, args, err, strings.TrimSpace(string(out)))
 	}
 	return string(out), nil
+}
+
+func ensureSnapTPMCtl(ctx context.Context) error {
+	if isInstalled(snapTPMCtlBinary) {
+		return nil
+	}
+	if err := installSnapTPMCtl(ctx); err != nil {
+		return fmt.Errorf("%s is required to manage TPM-backed FDE recovery keys but could not be installed: %w", snapTPMCtlBinary, err)
+	}
+	return nil
 }
 
 func installSnapTPMCtl(ctx context.Context) error {

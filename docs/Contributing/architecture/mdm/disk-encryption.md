@@ -265,6 +265,21 @@ sequenceDiagram
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
 ```
 
+**Tooling.** orbit manages the snapd recovery key with the
+[`snap-tpmctl`](https://github.com/canonical/snap-tpmctl) CLI. This is an optional management snap
+that is **not installed by default** and is not part of the boot/unlock path — a TPM-backed host
+boots and auto-unlocks via snapd's initramfs regardless. orbit therefore installs `snap-tpmctl` on
+demand; if it cannot (for example, no snap store access), the escrow is reported to the server as a
+failure (the host shows "Action required"/"Failed") rather than silently falling back to the
+passphrase dialog, which cannot work on a host with no user passphrase.
+
+A more robust, network-independent path is the snapd REST API over `/run/snapd.socket`
+(`/v2/system-volumes`), which snapd 2.74 (shipping in Ubuntu 26.04) extended so management agents can
+set a dedicated recovery key. `/run/snapd.socket` is guaranteed present wherever TPM-backed FDE is in
+use. Moving orbit's recovery-key management onto the snapd socket (rather than shelling out to
+`snap-tpmctl`) is a tracked follow-up; the exact request bodies should be confirmed against the snapd
+source or a live 26.04 host first.
+
 ## Key storage and security
 
 Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is
