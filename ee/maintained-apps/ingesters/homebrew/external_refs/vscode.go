@@ -14,14 +14,14 @@ import (
 //
 //	https://update.code.visualstudio.com/<version>/darwin-arm64/stable
 //
-// Microsoft serves the universal build at the arch-less path:
+// Microsoft serves the universal build at:
 //
-//	https://update.code.visualstudio.com/<version>/darwin/stable
+//	https://update.code.visualstudio.com/<version>/darwin-universal/stable
 //
 // Since the URL (and therefore the artifact) changes, the Homebrew SHA256 no
 // longer applies; set it to "no_check" as the other installer-URL overrides do.
 func VSCodeUniversalInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	app.InstallerURL = strings.Replace(app.InstallerURL, "/darwin-arm64/", "/darwin/", 1)
+	app.InstallerURL = strings.Replace(app.InstallerURL, "/darwin-arm64/", "/darwin-universal/", 1)
 	app.SHA256 = "no_check"
 
 	return app, nil

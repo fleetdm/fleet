@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useState,
-  useContext,
   useMemo,
   useRef,
   useEffect,
@@ -10,8 +9,7 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
-import { NotificationContext } from "context/notification";
-import { INotification } from "interfaces/notification";
+import { notify } from "components/ToastNotification";
 import {
   IDeviceSoftware,
   IHostSoftware,
@@ -147,8 +145,6 @@ const SoftwareSelfService = ({
   hostDisplayName,
   isMobileView = false,
 }: ISoftwareSelfServiceProps) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-
   /** Guards against setState/side-effects after unmount */
   const isMountedRef = useRef(false);
   /** Stores software IDs for which the user has initiated an action (install/uninstall) */
@@ -453,11 +449,11 @@ const SoftwareSelfService = ({
           setSelfServiceData(response);
         }
       },
-      onError: () => {
+      onError: (error) => {
         pendingSoftwareIdsRef.current = new Set();
-        renderFlash(
-          "error",
-          "We're having trouble checking pending installs. Please refresh the page."
+        notify.error(
+          "We're having trouble checking pending installs. Please refresh the page.",
+          { response: error }
         );
       },
     }
@@ -509,15 +505,15 @@ const SoftwareSelfService = ({
         }
       } catch (error) {
         // We only show toast message if API returns an error
-        renderFlash(
-          "error",
+        notify.error(
           isScriptPackage
             ? "Couldn't run. Please try again."
-            : getInstallErrorMessage(error)
+            : getInstallErrorMessage(error),
+          { response: error }
         );
       }
     },
-    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction, renderFlash]
+    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction]
   );
 
   const onClickUninstallAction = useCallback(
@@ -554,10 +550,12 @@ const SoftwareSelfService = ({
         onInstallOrUninstall();
       } catch (error) {
         // Only show toast message if API returns an error
-        renderFlash("error", "Couldn't update software. Please try again.");
+        notify.error("Couldn't update software. Please try again.", {
+          response: error,
+        });
       }
     },
-    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall, renderFlash]
+    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall]
   );
 
   const onClickUpdateAll = useCallback(async () => {
@@ -570,7 +568,7 @@ const SoftwareSelfService = ({
 
     // This should not happen
     if (!updateAvailableSoftware.length) {
-      renderFlash("success", "No updates available.");
+      notify.success("No updates available.");
       return;
     }
 
@@ -582,26 +580,26 @@ const SoftwareSelfService = ({
     const results = await Promise.allSettled(promises);
 
     // Only show toast message for updates that API returns an error
-    const failedUpdates = results
-      .map((result, idx) =>
-        result.status === "rejected" ? updateAvailableSoftware[idx] : null
-      )
-      .filter(Boolean) as typeof updateAvailableSoftware;
+    const failedUpdates = results.reduce<
+      { software: IDeviceSoftwareWithUiStatus; reason: unknown }[]
+    >((acc, result, idx) => {
+      if (result.status === "rejected") {
+        acc.push({
+          software: updateAvailableSoftware[idx],
+          reason: result.reason,
+        });
+      }
+      return acc;
+    }, []);
 
     if (failedUpdates.length > 0) {
-      const errorNotifications: INotification[] = failedUpdates.map(
-        (software) => ({
-          id: `update-error-${software.id}`,
-          alertType: "error",
-          isVisible: true,
+      notify.batch(
+        failedUpdates.map(({ software, reason }) => ({
+          variant: "error" as const,
           message: `Couldn't update ${software.name}. Please try again.`,
-          persistOnPageChange: false,
-        })
+          options: { response: reason },
+        }))
       );
-
-      renderMultiFlash({
-        notifications: errorNotifications,
-      });
     }
 
     // Only register success IDs for follow‑up “recently updated” handling
@@ -614,8 +612,6 @@ const SoftwareSelfService = ({
     onInstallOrUninstall();
   }, [
     deviceToken,
-    renderFlash,
-    renderMultiFlash,
     enhancedSoftware,
     registerUserSoftwareAction,
     onInstallOrUninstall,

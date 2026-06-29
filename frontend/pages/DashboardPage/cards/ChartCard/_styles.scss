@@ -95,7 +95,9 @@
     }
   }
 
-  &__filtered-badge {
+  // Clickable filtered badge — opens the Settings modal to the first tab with
+  // active filters.
+  &__filter-pill {
     display: inline-flex;
     align-items: center;
     padding: 2px 10px;
@@ -106,6 +108,11 @@
     border-radius: 12px;
     background: $core-fleet-white;
     white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $ui-fleet-black-25;
+    }
   }
 
   &__settings-btn {
@@ -151,6 +158,25 @@
   }
 
   &__tooltip-value {
+    font-weight: $bold;
+  }
+
+  // Consolidated filter tooltip: "Hosts" / "Software" sections, each with a
+  // muted header above its active-filter value lines.
+  &__tooltip-section {
+    text-align: left;
+
+    & + & {
+      margin-top: $pad-small;
+    }
+  }
+
+  &__tooltip-section-header {
+    font-weight: $regular;
+    opacity: 0.8;
+  }
+
+  &__tooltip-section-line {
     font-weight: $bold;
   }
 

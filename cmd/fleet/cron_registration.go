@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/googleworkspace"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -194,11 +195,11 @@ func registerVulnerabilityCrons(ctx context.Context, deps cronSchedulesDeps) {
 // integrations schedule.
 func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register automations schedule", func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, 5*time.Minute, deps.failingPolicySet)
+		return newAutomationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, 5*time.Minute, deps.failingPolicySet, deps.activitySvc)
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
-		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize)
+		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc)
 	})
 }
 
@@ -305,6 +306,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newMaintainedAppSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
+	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {
+		return newMaintainedAppsAutoUpdateSchedule(ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.logger)
+	})
+
 	deps.register("failed to register refresh vpp app versions schedule", func() (fleet.CronSchedule, error) {
 		return newRefreshVPPAppVersionsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, apple_apps.Configure(ctx, deps.ds, deps.config.License.Key, deps.config.MDM.AppleConnectJWT))
 	})
@@ -338,7 +343,11 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		} else {
 			deps.config.Calendar.Periodicity = 5 * time.Minute
 		}
-		return cron.NewCalendarSchedule(ctx, deps.instanceID, deps.ds, deps.distributedLock, deps.config.Calendar, deps.logger)
+		return cron.NewCalendarSchedule(ctx, deps.instanceID, deps.ds, deps.distributedLock, deps.config.Calendar, deps.logger, deps.activitySvc)
+	})
+
+	deps.register("failed to register google workspace sync schedule", func() (fleet.CronSchedule, error) {
+		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, googleworkspace.NewDirectory, deps.logger)
 	})
 }
 

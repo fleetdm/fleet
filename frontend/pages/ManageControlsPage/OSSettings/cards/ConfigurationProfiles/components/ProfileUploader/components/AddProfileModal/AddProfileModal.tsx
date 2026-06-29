@@ -1,9 +1,9 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 
 import PATHS from "router/paths";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { IApiError } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
@@ -113,8 +113,6 @@ const AddProfileModal = ({
   onUpload,
   setShowModal,
 }: IAddProfileModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isLoading, setIsLoading] = useState(false);
   const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
   const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
@@ -162,7 +160,7 @@ const AddProfileModal = ({
 
   const onFileUpload = async () => {
     if (!fileRef.current) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      notify.error(DEFAULT_ERROR_MESSAGE);
       return;
     }
     const file = fileRef.current;
@@ -180,10 +178,12 @@ const AddProfileModal = ({
         teamId: currentTeamId,
         ...labelKey,
       });
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));
+      notify.error(getErrorMessage(e as AxiosResponse<IApiError>), {
+        response: e,
+      });
     } finally {
       setIsLoading(false);
       onDone();
@@ -204,7 +204,7 @@ const AddProfileModal = ({
       const details = await parseFile(file);
       setFileDetails(details);
     } catch (e) {
-      renderFlash("error", "Invalid file type");
+      notify.error("Invalid file type", { response: e });
     } finally {
       setIsLoading(false);
     }

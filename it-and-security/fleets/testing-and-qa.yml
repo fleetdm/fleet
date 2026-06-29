@@ -83,7 +83,6 @@ controls:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     # Windows scripts
-    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh

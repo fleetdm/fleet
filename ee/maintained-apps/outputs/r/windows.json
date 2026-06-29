@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.6.0",
+      "version": "4.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team' AND version_compare(version, '4.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team' AND version_compare(version, '4.6.1') < 0);"
       },
-      "installer_url": "https://cloud.r-project.org/bin/windows/base/old/4.6.0/R-4.6.0-win.exe",
+      "installer_url": "https://cloud.r-project.org/bin/windows/base/old/4.6.1/R-4.6.1-win.exe",
       "install_script_ref": "1c98e2a1",
       "uninstall_script_ref": "76fa8c37",
-      "sha256": "ca14dd6c39cdacee0b2bc7702c4335f6b34e40ab5cf5f55f71428ebf5bc368ca",
+      "sha256": "c5424c40cd70ef85765a55d2ff96bb602b5f30ed536938ff004f14db5db3c2df",
       "default_categories": [
         "Developer tools"
       ]

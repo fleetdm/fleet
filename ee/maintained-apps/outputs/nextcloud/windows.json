@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "33.0.5",
+      "version": "33.0.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Nextcloud' AND publisher = 'Nextcloud GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nextcloud' AND publisher = 'Nextcloud GmbH' AND version_compare(version, '33.0.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Nextcloud' AND publisher = 'Nextcloud GmbH' AND version_compare(version, '33.0.7') < 0);"
       },
-      "installer_url": "https://github.com/nextcloud-releases/desktop/releases/download/v33.0.5/Nextcloud-33.0.5-x64.msi",
+      "installer_url": "https://github.com/nextcloud-releases/desktop/releases/download/v33.0.7/Nextcloud-33.0.7-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "625d37ef",
-      "sha256": "a0b7fb3b31ac38d8fe04a4280b83c3a05664d0af38b875d792a79b06f5b4a2f3",
+      "sha256": "88d47f551082e6284d5c0845261a8110e361b6d9ce3fe805af6bec711514a34e",
       "default_categories": [
         "Productivity"
       ],

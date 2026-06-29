@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
 import { IMdmAbToken } from "interfaces/mdm";
 import { ITeamSummary } from "interfaces/team";
@@ -12,6 +11,7 @@ import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
 import FormField from "components/forms/FormField";
 import RenewDateCell from "../../../components/RenewDateCell";
 
@@ -79,7 +79,6 @@ const EditTeamsAbmModal = ({
   onCancel,
   onSuccess,
 }: IEditTeamsAbmModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { availableTeams } = useContext(AppContext);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -112,21 +111,14 @@ const EditTeamsAbmModal = ({
           tokenId: token.id,
           teams: getSelectedTeamIds(selectedTeamNames, availableTeams),
         });
-        renderFlash("success", "Successfully updated fleets for AB token.");
+        notify.success("Successfully updated fleets for AB token.");
         onSuccess();
       } catch (e) {
-        renderFlash("error", "Couldn’t edit. Please try again.");
+        notify.error("Couldn’t edit. Please try again.", { response: e });
         onCancel();
       }
     },
-    [
-      token.id,
-      selectedTeamNames,
-      availableTeams,
-      renderFlash,
-      onSuccess,
-      onCancel,
-    ]
+    [token.id, selectedTeamNames, availableTeams, onSuccess, onCancel]
   );
 
   return (

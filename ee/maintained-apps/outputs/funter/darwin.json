@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.1.1",
+      "version": "7.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Funter-SIII';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Funter-SIII' AND version_compare(bundle_short_version, '7.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Funter-SIII' AND version_compare(bundle_short_version, '7.1.2') < 0);"
       },
-      "installer_url": "https://download.nektony.com/download/funter/Funter.dmg?build=374",
+      "installer_url": "https://download.nektony.com/download/funter/Funter.dmg?build=377",
       "install_script_ref": "1cb99628",
       "uninstall_script_ref": "0088be9f",
-      "sha256": "8a8f8784ef3042106ff1f776803d96682f079c175e21a63d8f42568205e1081c",
+      "sha256": "8f160d43fb50191b4e1bc9fe74a6c979a1be14faff9b8c2ce564506e75e8844f",
       "default_categories": [
         "Productivity"
       ]

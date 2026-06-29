@@ -44,8 +44,8 @@ func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
 	}{
 		{"global admin", test.UserAdmin, false},
 		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
 		{"global gitops", test.UserGitOps, false},
 		{"team admin", test.UserTeamAdminTeam1, true},
 		{"team maintainer", test.UserTeamMaintainerTeam1, true},
@@ -131,8 +131,8 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 	}{
 		{"global admin", test.UserAdmin, false},
 		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
 		{"global gitops", test.UserGitOps, false},
 		{"team admin", test.UserTeamAdminTeam1, true},
 		{"team maintainer", test.UserTeamMaintainerTeam1, true},

@@ -16,8 +16,9 @@ interface IGitOpsModeTooltipWrapper {
   // When specified, the wrapper checks the exception for this entity type.
   // If the entity is excepted, children remain enabled even in GitOps mode.
   entityType?: keyof IGitOpsExceptions;
-  /** Set to true when wrapping an input field or other block-level form element
-   *  so the tooltip wrapper stretches to full width. */
+  /** Set to true when wrapping an input/dropdown or a group of them that must stretch to the
+   *  full form width. By default the wrapper hugs its content so the tooltip centers on the
+   *  control; inputs opt back into full width. */
   isInputField?: boolean;
 }
 
@@ -68,8 +69,11 @@ const GitOpsModeTooltipWrapper = ({
     </div>
   );
 
+  // Hug the wrapped content (buttons, checkboxes, groups) so the tooltip centers on the visible
+  // control instead of the full-width form row. Inputs/dropdowns opt back into full width.
   const wrapperClass = classnames(baseClass, {
     [`${baseClass}--inputfield`]: isInputField,
+    [`${baseClass}--hug`]: !isInputField,
   });
 
   // Anchor to the field's first row so the arrow points at the label regardless of input,
@@ -86,7 +90,10 @@ const GitOpsModeTooltipWrapper = ({
         className={`${baseClass}__tip-text`}
         anchorSelect={anchorSelect}
         place={position}
-        offset={tipOffset ?? 5}
+        // This wrapper always renders an arrow. A 5px offset leaves no gap between the
+        // arrow and a button (e.g. "Add certificate authority"), so non-field content
+        // gets extra clearance. Field tooltips anchor to the label row and read fine at 5.
+        offset={tipOffset ?? (hasSingleFieldRow ? 5 : 8)}
         opacity={1}
         disableStyleInjection
         clickable

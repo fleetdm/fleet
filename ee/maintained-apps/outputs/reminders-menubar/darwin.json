@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.0.0",
+      "version": "2.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'br.com.damascenorafael.reminders-menubar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'br.com.damascenorafael.reminders-menubar' AND version_compare(bundle_short_version, '2.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'br.com.damascenorafael.reminders-menubar' AND version_compare(bundle_short_version, '2.1.0') < 0);"
       },
-      "installer_url": "https://github.com/DamascenoRafael/reminders-menubar/releases/download/v2.0.0/reminders-menubar.zip",
+      "installer_url": "https://github.com/DamascenoRafael/reminders-menubar/releases/download/v2.1.0/reminders-menubar.zip",
       "install_script_ref": "8c3858a5",
       "uninstall_script_ref": "467090f2",
-      "sha256": "7c71704fb79ac4488bf88edc43df8e0cff08bfadbefecf378c14df6bd21f93f9",
+      "sha256": "8e4f43e089849950f4631b121a8a4536352c457622ab7c1a4e36441d6303dff9",
       "default_categories": [
         "Utilities"
       ]
