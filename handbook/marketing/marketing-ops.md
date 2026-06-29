@@ -37,34 +37,32 @@ Here are the values for the contact source:
 
 | Contact source value | Definition |
 | :---- | :---- |
-| Website \- Sign up | Contact created an account/signed up for the Fleet platform. |
+| Attended a call with Fleet | Contact was added to the system after attending a calendar invite/call with the team. |
 | Website \- Contact forms \- Demo | Contact requested a standard demo via the website. |
 | Website \- Contact forms \- Demo \- ICP | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
 | Website \- Contact forms | Contact submitted a general inquiry via the website. |
+| Website \- Chat | Contact engaged and provided their email via the website chatbot. |
+| Website \- Sign up | Contact created an account/signed up for the Fleet platform. |
 | Website \- Gated document | Contact filled out a form to download a whitepaper, report, or guide. |
 | Website \- Newsletter | Contact explicitly subscribed to the Fleet blog or newsletter. |
+| Website \- Workshop request | Contact filled out a form on the website requesting a workshop in a city near them. |
 | Website \- Swag request | Contact filled out a form specifically to request Fleet merchandise. |
-| Website \- GitOps | Contact converted via a specific GitOps-related form or landing page flow. |
-| Website \- Chat | Contact engaged and provided their email via the website chatbot. |
 | Website \- Partner sign up | Contact submitted a form to apply for or join the Fleet partner program. |
-| Webinar | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). Note: The specific host/campaign is captured in the 3-tier attribution. |
+| Website \- Deal registration | Contact was tracked by an authorized partner/reseller filling out a form on the website as part of a formal deal registration. |
 | Event | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
-| LinkedIn \- Native lead form | Contact submitted their info directly inside LinkedIn via a Document Ad or lead gen form. |
-| Content syndication | Contact info was acquired via a 3rd-party vendor promoting Fleet's content. |
-| Partner \- Deal registration | Contact was formally registered by an authorized partner/reseller. |
-| GitHub \- Stared fleetdm/fleet | Contact starred the Fleet repository. |
-| GitHub \- Forked fleetdm/fleet | Contact forked the Fleet repository. |
-| GitHub \- Contributed to fleetdm/fleet | Contact made a code/documentation contribution to the Fleet repository. |
+| Event - Webinar | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). |
+| Event - Workshop | Contact registered for or attended a workshop hosted by Fleet, such as a [GitOps workshop](https://fleetdm.com/gitops-workshop). |
 | LinkedIn \- Liked the LinkedIn company page | Contact followed or liked the official Fleet LinkedIn page. |
 | LinkedIn \- Reaction | Contact reacted (like, celebrate, etc.) to a Fleet post. |
 | LinkedIn \- Comment | Contact commented on a Fleet post. |
 | LinkedIn \- Share | Contact shared a Fleet post. |
-| Prospecting \- AE | Contact was sourced directly via outbound efforts by an Account Executive. |
-| Prospecting \- Specialist | Contact was sourced directly via outbound efforts by a Sales Specialist. |
+| LinkedIn \- Native lead form | Contact submitted their info directly inside LinkedIn via a Document Ad or lead gen form. |
+| Prospecting \- AE | Contact was sourced directly via outbound efforts by an Account Executive and added to Linkedin via Dripify webhook. |
+| Prospecting \- Specialist | Contact was sourced directly via outbound efforts by a Solution Specialist. |
 | Prospecting \- Meeting service | Contact was sourced/booked via an outsourced meeting-setting agency. |
-| Dripify \- AE | Contact was sourced via Dripify automation by an AE. |
-| Dripify \- Specialist | Contact was sourced via Dripify automation by a Specialist. |
-| Attended a call with Fleet | Contact was added to the system after attending a calendar invite/call with the team. |
+| GitHub \- Stared fleetdm/fleet | Contact starred the Fleet repository. |
+| GitHub \- Forked fleetdm/fleet | Contact forked the Fleet repository. |
+| GitHub \- Contributed to fleetdm/fleet | Contact made a code/documentation contribution to the Fleet repository. |
 
 
 

@@ -22,6 +22,7 @@ const (
 	//
 
 	SoftwareNameMaxLength             = 255
+	SoftwareCategoryNameMaxLength     = 255
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
@@ -41,6 +42,12 @@ const (
 	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
 	// == 1rune –> 38chars
 	UpgradeCodeExpectedLength = 38
+
+	// softwareLastOpenedAtNeverEpoch is a sentinel Unix epoch (in seconds) that
+	// some macOS apps report for software that was never opened. It corresponds
+	// to 1980-01-01 00:00:00 UTC (the DOS/FAT epoch). Together with non-positive
+	// values such as -1.0, it indicates the app was never opened.
+	softwareLastOpenedAtNeverEpoch = 315532800
 )
 
 type Vulnerabilities []CVE
@@ -373,6 +380,30 @@ type FleetMaintainedVersion struct {
 	ID uint `json:"id" db:"id"`
 	// Version is the version string.
 	Version string `json:"version" db:"version"`
+	// Filename is the installer filename for this version.
+	Filename string `json:"filename" db:"filename"`
+	// UploadedAt is when this version was added to the database.
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
+}
+
+// FMAAutoUpdateCandidate is the active installer for one (team, title) backed
+// by a Fleet-maintained app. The auto-update cron uses it to decide whether to
+// advance the active version among the team's cached versions.
+type FMAAutoUpdateCandidate struct {
+	// TeamID is nil for the no-team scope (the team_id column is NULL there).
+	TeamID *uint `db:"team_id"`
+	// TitleID is the software_titles.id.
+	TitleID uint `db:"title_id"`
+	// FleetMaintainedAppID is the fleet_maintained_apps.id backing this title,
+	// used to hydrate the latest manifest and check the cache without a second
+	// lookup.
+	FleetMaintainedAppID uint `db:"fleet_maintained_app_id"`
+	// InstallerID is the currently active software_installers.id.
+	InstallerID uint `db:"installer_id"`
+	// Version is the currently active version (for logging).
+	Version string `db:"version"`
+	// Slug is the Fleet-maintained app slug (for logging).
+	Slug string `db:"slug"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.
@@ -726,10 +757,17 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 }
 
 // ParseSoftwareLastOpenedAtRowValue attempts to parse the last_opened_at
-// software column value. If the value is empty or if the parsed value is
-// less or equal than 0 it returns (time.Time{}, nil). We do this because
-// some macOS apps return "-1.0" when the app was never opened and we hardcode
-// to 0 for some tables that don't have such info.
+// software column value. It returns (time.Time{}, nil) when the value indicates
+// the software was never opened: an empty string, a non-positive value (some
+// macOS apps return "-1.0", and we hardcode 0 for tables without this info), or
+// the softwareLastOpenedAtNeverEpoch sentinel ("315532800.0", 1980-01-01 UTC).
+// Treating these as zero lets the UI display "Never" instead of a nonsensical
+// date many decades in the past.
+//
+// We only match these known sentinels rather than applying a broad minimum-date
+// cutoff, because this parser is shared with non-macOS sources (e.g. Linux
+// deb/rpm last_opened_at derived from file atime) where older timestamps can be
+// legitimate.
 func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, nil
@@ -738,7 +776,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	if lastOpenedEpoch <= 0 {
+	if lastOpenedEpoch <= 0 || int64(lastOpenedEpoch) == softwareLastOpenedAtNeverEpoch {
 		return time.Time{}, nil
 	}
 	return time.Unix(int64(lastOpenedEpoch), 0).UTC(), nil
@@ -859,6 +897,96 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type SoftwareCategory struct {
-	ID   uint   `db:"id"`
-	Name string `db:"name"`
+	ID     uint   `json:"id" db:"id"`
+	Name   string `json:"name" db:"name"`
+	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	UpdateCreateTimestamps
+}
+
+func (c *SoftwareCategory) AuthzType() string {
+	return "software_category"
+}
+
+func (c SoftwareCategory) Validate() error {
+	if c.Name == "" {
+		return NewInvalidArgumentError("name", "name is required")
+	}
+	if utf8.RuneCountInString(c.Name) > SoftwareCategoryNameMaxLength {
+		return NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", SoftwareCategoryNameMaxLength))
+	}
+	return nil
+}
+
+var DefaultSelfServiceCategoryNames = []string{
+	"🌎 Browsers",
+	"👬 Communication",
+	"🧰 Developer tools",
+	"🖥️ Productivity",
+	"🔐 Security",
+	"🛟 Support",
+	"🛠️ Utilities",
+}
+
+// Map the old default category names that don't include emojis to the new ones
+// that are stored in the database with emojis. This is required to not break
+// existing FMA manifests and GitOps files.
+var LegacySoftwareCategoryNames = map[string]string{
+	"Browsers":        "🌎 Browsers",
+	"Communication":   "👬 Communication",
+	"Developer tools": "🧰 Developer tools",
+	"Productivity":    "🖥️ Productivity",
+	"Security":        "🔐 Security",
+	"Support":         "🛟 Support",
+	"Utilities":       "🛠️ Utilities",
+}
+
+func TranslateLegacySoftwareCategoryNames(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = n
+		for legacy, newName := range LegacySoftwareCategoryNames {
+			if strings.EqualFold(n, legacy) {
+				out[i] = newName
+				break
+			}
+		}
+	}
+	return out
+}
+
+// normalizeSoftwareCategoryName strips Unicode variation selectors (U+FE00–U+FE0F)
+// from a category name. These code points carry zero weight (they are ignorable)
+// under the utf8mb4_unicode_ci collation that backs the software_categories
+// (team_id, name) unique index, so names differing only by a variation selector —
+// e.g. "🖥️ Productivity" (U+1F5A5 U+FE0F) vs "🖥 Productivity" (U+1F5A5) — are the
+// SAME row to MySQL even though Go's byte/rune comparisons treat them as distinct.
+// Normalizing before comparing in Go keeps our notion of category identity aligned
+// with the database's, so we don't try to insert a name the DB already considers a
+// duplicate (which would fail with a 1062 error) and we correctly resolve such a
+// name back to its existing category.
+func normalizeSoftwareCategoryName(name string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 0xFE00 && r <= 0xFE0F { // variation selectors VS1-VS16 (ignorable in utf8mb4_unicode_ci)
+			return -1
+		}
+		return r
+	}, name)
+}
+
+// SoftwareCategoryNamesEqual reports whether two category names refer to the same
+// category as far as the software_categories unique index is concerned:
+// case-insensitive and ignoring variation selectors, matching the column's
+// utf8mb4_unicode_ci collation.
+func SoftwareCategoryNamesEqual(a, b string) bool {
+	return strings.EqualFold(normalizeSoftwareCategoryName(a), normalizeSoftwareCategoryName(b))
+}
+
+func SoftwareCategoryReferenceMatches(reference string, name string) bool {
+	if SoftwareCategoryNamesEqual(reference, name) {
+		return true
+	}
+	if t, ok := LegacySoftwareCategoryNames[reference]; ok && SoftwareCategoryNamesEqual(t, name) {
+		return true
+	}
+	return false
 }

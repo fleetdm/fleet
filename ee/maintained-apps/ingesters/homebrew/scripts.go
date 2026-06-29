@@ -120,7 +120,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 			if len(artifact.Binary) == 2 {
 				target := artifact.Binary[1].Other.Target
 				if !strings.Contains(target, "$HOMEBREW_PREFIX") {
-					sb.RemoveFile(fmt.Sprintf(`'%s'`, target))
+					sb.RemoveFile(shellSingleQuote(target))
 				}
 			}
 		case len(artifact.Uninstall) > 0:
@@ -197,6 +197,15 @@ func sortUninstall(artifacts []*brewUninstall) {
 	})
 }
 
+// shellSingleQuote wraps s in single quotes for safe use as a single shell
+// token, escaping any embedded single quote by closing the quote, emitting an
+// escaped quote, and reopening (the standard POSIX idiom). Cask-supplied paths
+// can contain apostrophes (e.g. "Cycling '74"), which would otherwise
+// prematurely close the quote and produce a syntax error.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
@@ -214,12 +223,12 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 	process(u.LaunchCtl, func(lc string) {
 		sb.AddFunction("remove_launchctl_service", removeLaunchctlServiceFunc)
-		sb.Writef("remove_launchctl_service '%s'", lc)
+		sb.Writef("remove_launchctl_service %s", shellSingleQuote(lc))
 	})
 
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
-		sb.Writef("quit_application '%s'", appName)
+		sb.Writef("quit_application %s", shellSingleQuote(appName))
 		if appName == "com.docker.docker" {
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
 		}
@@ -230,7 +239,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
 		addUserVar()
 		sb.AddFunction("send_signal", sendSignalFunc)
-		sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, u.Signal.Other[0], u.Signal.Other[1])
+		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
 	}
 
 	if u.Script.IsOther {
@@ -244,7 +253,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 		// Build the command with arguments if present
 		var cmdParts []string
-		cmdParts = append(cmdParts, fmt.Sprintf("'%s'", executable))
+		cmdParts = append(cmdParts, shellSingleQuote(executable))
 
 		// Handle args if present
 		if argsVal, hasArgs := u.Script.Other["args"]; hasArgs {
@@ -257,7 +266,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 				if !ok {
 					panic("all args must be strings")
 				}
-				cmdParts = append(cmdParts, fmt.Sprintf("'%s'", argStr))
+				cmdParts = append(cmdParts, shellSingleQuote(argStr))
 			}
 		}
 
@@ -302,22 +311,22 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
 		sb.AddFunction("remove_pkg_files", removePkgFiles)
 		sb.AddFunction("forget_pkg", forgetPkgFunc)
-		sb.Writef("remove_pkg_files '%s'", pkgID)
-		sb.Writef("forget_pkg '%s'", pkgID)
+		sb.Writef("remove_pkg_files %s", shellSingleQuote(pkgID))
+		sb.Writef("forget_pkg %s", shellSingleQuote(pkgID))
 	})
 
 	process(u.Delete, func(path string) {
-		sb.RemoveFile(fmt.Sprintf("'%s'", path))
+		sb.RemoveFile(shellSingleQuote(path))
 	})
 
 	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir '%s'", dir)
+		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
-		sb.Writef("trash $LOGGED_IN_USER '%s'", path)
+		sb.Writef("trash $LOGGED_IN_USER %s", shellSingleQuote(path))
 	})
 }
 

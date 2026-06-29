@@ -666,12 +666,12 @@ func TestHostDetailsOSSettings(t *testing.T) {
 				// service should call this function to check whether disk encryption is enabled for a Linux host
 				require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
 
-				// `hostDetail.MDM.OSSettings` and `hostDetail.MDM.OSSettings.DiskEncryption` will actually not
-				// be `nil` here due to the way those fields are initialized by `svc.ds.Host`, so we can't
-				// expect them to be `nil` in these tests. However, since the relevant struct tags are set to
-				// `omitempty`, the resulting API response WILL omit these fields/subfields when empty,
-				// which is confirmed at the integration layer.
-				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				// Linux hosts only get OS settings via the disk-encryption (LUKS) path. When disk
+				// encryption isn't enabled, OSSettings is nil — even though some other platform's MDM is
+				// EnabledAndConfigured (which initializes an empty struct earlier in getHostDetails). A
+				// non-nil pointer to an empty struct is NOT omitted by `omitempty`, so the service clears
+				// it so the API reports no OS settings instead of an empty `os_settings: {}` object.
+				require.Nil(t, hostDetail.MDM.OSSettings)
 
 			case "darwin":
 				require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
@@ -2728,6 +2728,16 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 
+	// platform filtering
+	opts = fleet.ListOptions{MatchQuery: "darwin"}
+	vers, count, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, new("darwin"), nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
+
 	// pagination
 	opts = fleet.ListOptions{Page: 0, PerPage: 2}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
@@ -3719,11 +3729,11 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 		pending      fleet.PendingDeviceAction
 		wantSuppress bool
 	}{
-		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
-		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
-		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
 		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
-		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 	}
 	for _, tt := range cases {
@@ -3753,7 +3763,7 @@ func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 
 	const hostID = 1
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (manual - personal)")}}, nil
 	}
 	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 

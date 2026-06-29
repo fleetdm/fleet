@@ -16,7 +16,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr"
   dri: "georgekarrv"
   autoIssue: 
-    labels: [ "#g-mdm", "P2"]
+    labels: [ "#g-apple-at-work", "P2"]
     repo: "fleet"
 -
   task: "Renew Apple developer account"
@@ -26,7 +26,7 @@
   moreInfoUrl: https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms
   dri: "georgekarrv"
   autoIssue: 
-    labels: [ "#g-mdm", "P2"]
+    labels: [ "#g-apple-at-work", "P2"]
     repo: "fleet"
 - 
   task: "Oncall handoff"

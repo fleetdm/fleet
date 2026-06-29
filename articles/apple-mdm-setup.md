@@ -11,9 +11,8 @@ To turn on Windows MDM features, head to this [Windows MDM setup article](https:
 Apple uses Apple Push Notification service (APNs) APNs to authenticate and manage interactions between Fleet and hosts.
 
 > Apple requires that APNs certificates are renewed annually.
-> - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
-> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
-> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts.
+> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. If this happens, configuration profile changes and other MDM commands will remain stuck in “Pending” until renewal.
+> - When renewing, be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts. The recommended approach is to use a shared Apple Developer account to generate the APNs certificate to make sure it can be renewed regardless of an employee's availability.
 
 How to connect Fleet to APNs:
 
@@ -139,8 +138,8 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 
 2. Clicking **Turn on MDM** opens a new tab.
-   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
-   - If authentication is successful, or if end user authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
+   - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
+   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
 
 ## Volume Purchasing Program (VPP)
 

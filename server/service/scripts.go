@@ -1108,6 +1108,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", err
 	}
 
+	// Authorize the actual execution with the script's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: script.TeamID}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
 	var userId *uint
 	ctxUser := authz.UserFromContext(ctx)
 	if ctxUser != nil {

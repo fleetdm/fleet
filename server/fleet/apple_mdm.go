@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
+const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
+
 // Sentinel errors for recovery lock rotation
 var (
 	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
@@ -1213,19 +1215,20 @@ type MDMBootstrapPackageStore interface {
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
 type MDMAppleMachineInfo struct {
-	IMEI                        string `plist:"IMEI,omitempty"`
-	Language                    string `plist:"LANGUAGE,omitempty"`
-	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
-	MEID                        string `plist:"MEID,omitempty"`
-	OSVersion                   string `plist:"OS_VERSION"`
-	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
-	Product                     string `plist:"PRODUCT"`
-	Serial                      string `plist:"SERIAL"`
-	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
-	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
-	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
-	UDID                        string `plist:"UDID"`
-	Version                     string `plist:"VERSION"`
+	IMEI                            string `plist:"IMEI,omitempty"`
+	Language                        string `plist:"LANGUAGE,omitempty"`
+	MandatorySoftwareUpdateRequired bool   `plist:"MANDATORY_SOFTWARE_UPDATE_REQUIRED,omitempty"`
+	MDMCanRequestSoftwareUpdate     bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
+	MEID                            string `plist:"MEID,omitempty"`
+	OSVersion                       string `plist:"OS_VERSION"`
+	PairingToken                    string `plist:"PAIRING_TOKEN,omitempty"`
+	Product                         string `plist:"PRODUCT"`
+	Serial                          string `plist:"SERIAL"`
+	SoftwareUpdateDeviceID          string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion        string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+	SupplementalOSVersionExtra      string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
+	UDID                            string `plist:"UDID"`
+	Version                         string `plist:"VERSION"`
 }
 
 // macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
@@ -1476,4 +1479,12 @@ type HostManagedLocalAccountAutoRotationInfo struct {
 	DisplayName      string `db:"display_name"`
 	AccountUUID      string `db:"account_uuid"`
 	InitiatedByFleet bool   `db:"initiated_by_fleet"`
+}
+
+type ADUEEnrollmentChallenge struct {
+	ID             uint       `db:"id"`
+	IdPAccountUUID string     `db:"idp_account_uuid"`
+	ABMTokenID     *uint      `db:"abm_token_id"`
+	ExpiresAt      time.Time  `db:"expires_at"`
+	UsedAt         *time.Time `db:"used_at"`
 }

@@ -40,6 +40,7 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
+/server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
 /orbit/ @fleetdm/go
 
@@ -69,7 +70,7 @@ go.mod @fleetdm/go
 /docs/solutions                                         @ddribeiro
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
+/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor # software ingestion is security & compliance
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
@@ -91,9 +92,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
 
 # Orchestration
-/docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
-/docs/Contributing/product-groups/orchestration         @sharon-fdm @sgress454
-/docs/Contributing/research/orchestration               @sharon-fdm @sgress454
+/docs/Contributing/architecture/orchestration           @sharon-fdm
+/docs/Contributing/product-groups/orchestration         @sharon-fdm
+/docs/Contributing/research/orchestration               @sharon-fdm
 
 # Software
 /docs/Contributing/architecture/software                @georgekarrv @cdcme

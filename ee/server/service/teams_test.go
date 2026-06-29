@@ -1312,3 +1312,45 @@ func TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.SaveTeamFuncInvoked)
 }
+
+// TestModifyTeamMDMManagedLocalAccountRequiresMDM covers the MDM-off gate, which
+// the integration suite can't exercise since it always runs with MDM configured.
+// The activity emission is covered end-to-end by TestManagedLocalAccount.
+func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+	}
+	ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team-1"}, nil
+	}
+	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+
+	mockSvc := &svcmock.Service{}
+	// Reached via validateEndUserAuthenticationAndSetupAssistant when MacOSSetup is set.
+	mockSvc.HasCustomSetupAssistantConfigurationWebURLFunc = func(context.Context, *uint) (bool, error) {
+		return false, nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+		authz:   authorizer,
+	}
+
+	payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+		MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
+	}}
+	_, err = svc.ModifyTeam(ctx, 1, payload)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
+	require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
+}

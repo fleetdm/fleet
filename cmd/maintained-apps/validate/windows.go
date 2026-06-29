@@ -135,6 +135,27 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
+			// Microsoft Office is a Click-to-Run product: the bootstrap setup.exe
+			// always pulls the latest channel build from Microsoft's CDN, so the
+			// installed version will typically be newer than the manifest version.
+			// Only exempt genuine Office products (e.g. "Microsoft 365 Apps for
+			// enterprise" or the older "Microsoft Office 365 ProPlus") — the broad
+			// LIKE '%Microsoft Office%' search query also matches unrelated
+			// Office-branded dependencies like "Open XML SDK 2.5 for Microsoft
+			// Office" that must not prevent the post-uninstall check from reporting
+			// the app as removed. The "Microsoft 365 Apps" prefix is used (not bare
+			// "Microsoft 365") so Store apps such as "Microsoft 365 Copilot" aren't
+			// treated as the Office suite. The publisher guard mirrors the
+			// manifest's exists/patched queries (publisher = 'Microsoft
+			// Corporation'), so a third-party app that happens to match a name
+			// prefix can't bypass the version check.
+			if appName == "Microsoft Office" &&
+				result.Publisher == "Microsoft Corporation" &&
+				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
+					strings.HasPrefix(result.Name, "Microsoft Office")) {
+				logger.InfoContext(ctx, "Microsoft Office detected - version mismatch but app is installed, skipping version check due to Click-to-Run always installing the latest build")
+				return true, nil
+			}
 		}
 	}
 

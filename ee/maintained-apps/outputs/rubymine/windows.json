@@ -4,7 +4,7 @@
       "version": "2026.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'RubyMine %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RubyMine %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RubyMine %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.25134.97') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.1.3.exe",
       "install_script_ref": "a737b660",

@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"database/sql"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"sync"
@@ -65,6 +68,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestBatchDeleteMultipleWindowsProfiles", testBatchDeleteMultipleWindowsProfiles},
+		{"TestDeleteWindowsProfileByTeamAndNameRetainsContent", testDeleteWindowsProfileByTeamAndNameRetainsContent},
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 		{"TestWindowsMDMGlobalDisableBlocksReconciler", testWindowsMDMGlobalDisableBlocksReconciler},
 		{"TestMDMWindowsAwaitingConfigurationCAS", testMDMWindowsAwaitingConfigurationCAS},
@@ -72,6 +76,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsPollScheduleRelaxed", testMDMWindowsPollScheduleRelaxed},
 		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
+		{"TestWindowsPerHostReconcileLoaders", testWindowsPerHostReconcileLoaders},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
@@ -2199,7 +2204,9 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	rawResponse := []byte("some-response")
-	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
+	compressedResponse, err := compressWindowsMDMResponse(rawResponse)
+	require.NoError(t, err)
+	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, compressedResponse)
 	require.NoError(t, err)
 
 	rawResult := []byte("some-result")
@@ -2486,6 +2493,27 @@ func rawWindowsDeleteCommandForHostProfile(t *testing.T, ds *Datastore, hostUUID
 	return raws[0]
 }
 
+// windowsReconcileDeltasForTest computes the fleet-wide install/remove sets the way the cron does: one
+// GetWindowsProfileReconcileSnapshot covering all enrolled Windows hosts, fed through ComputeWindowsReconcileDeltas. Tests use it
+// to observe desired-state diffs against a real database.
+func windowsReconcileDeltasForTest(t *testing.T, ds *Datastore) (toInstall, toRemove []*fleet.MDMWindowsProfilePayload) {
+	t.Helper()
+	hosts, allProfiles, hostLabels, currentByHost, err := ds.GetWindowsProfileReconcileSnapshot(t.Context(), "", 10_000)
+	require.NoError(t, err)
+	// This oracle reads a single snapshot page. Fail loudly if a test ever grows past it rather than silently undercounting deltas.
+	require.Less(t, len(hosts), 10_000, "windowsReconcileDeltasForTest assumes the whole fleet fits in one snapshot page")
+
+	profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile)
+	profilesWithBrokenLabels := make(map[string]struct{})
+	for _, p := range allProfiles {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabels[p.ProfileUUID] = struct{}{}
+		}
+	}
+	return microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabels)
+}
+
 func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2496,8 +2524,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	}
 
 	// if there are no hosts, then no profiles need to be installed
-	profiles, err := ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ := windowsReconcileDeltasForTest(t, ds)
 	require.Empty(t, profiles)
 
 	host1, err := ds.NewHost(ctx, &fleet.Host{
@@ -2543,8 +2570,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	}
 
 	// global profiles to install on the newly added host
-	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ = windowsReconcileDeltasForTest(t, ds)
 	profilesMatch(t, globalProfiles, profiles)
 
 	// add another host, it belongs to a team
@@ -2562,8 +2588,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host2)
 
 	// still the same profiles to assign as there are no profiles for team 1
-	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ = windowsReconcileDeltasForTest(t, ds)
 	profilesMatch(t, globalProfiles, profiles)
 
 	// assign profiles to team 1
@@ -2573,8 +2598,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	}
 
 	// new profiles, this time for the new host belonging to team 1
-	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ = windowsReconcileDeltasForTest(t, ds)
 	profilesMatch(t, append(globalProfiles, teamProfiles...), profiles)
 
 	// add another global host
@@ -2590,8 +2614,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host3)
 
 	// more profiles, this time for both global hosts and the team
-	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ = windowsReconcileDeltasForTest(t, ds)
 	profilesMatch(t, append(globalProfiles, append(globalProfiles, teamProfiles...)...), profiles)
 	profileByUUID := make(map[string]*fleet.MDMWindowsProfilePayload, len(profiles))
 	for _, prof := range profiles {
@@ -2678,13 +2701,11 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no profiles left to install
-	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ = windowsReconcileDeltasForTest(t, ds)
 	require.Empty(t, profiles)
 
 	// no profiles to remove yet
-	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
-	require.NoError(t, err)
+	_, toRemove := windowsReconcileDeltasForTest(t, ds)
 	require.Empty(t, toRemove)
 
 	// add host1 to team
@@ -2692,13 +2713,11 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// profiles to be added for host1 are now related to the team
-	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profiles, _ = windowsReconcileDeltasForTest(t, ds)
 	profilesMatch(t, teamProfiles, profiles)
 
 	// profiles to be removed includes host1's old profiles
-	toRemove, err = ds.ListMDMWindowsProfilesToRemove(ctx)
-	require.NoError(t, err)
+	_, toRemove = windowsReconcileDeltasForTest(t, ds)
 	profilesMatch(t, globalProfiles, toRemove)
 }
 
@@ -3424,8 +3443,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// We should see 3 profiles in the "to install" list
-	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ := windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
 			ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
@@ -3446,8 +3464,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// We should see all 4  profiles in the "to install" list
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
 			ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
@@ -3475,8 +3492,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
 			ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
@@ -3501,8 +3517,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
 			ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
@@ -3523,8 +3538,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l4.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
 			ProfileUUID: excludeAnyProf.ProfileUUID, ProfileName: excludeAnyProf.Name, HostUUID: host.UUID,
@@ -3541,8 +3555,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{
 			ProfileUUID: excludeAnyManualProf.ProfileUUID, ProfileName: excludeAnyManualProf.Name, HostUUID: host.UUID,
@@ -3614,8 +3627,7 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHost(ctx, host)
 	require.NoError(t, err)
 
-	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ := windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{ProfileUUID: inclAnyExclProf.ProfileUUID, ProfileName: inclAnyExclProf.Name, HostUUID: host.UUID, Checksum: checksumAnyExcl},
 		{ProfileUUID: inclAllExclProf.ProfileUUID, ProfileName: inclAllExclProf.Name, HostUUID: host.UUID, Checksum: checksumAllExcl},
@@ -3625,16 +3637,14 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{excLabel.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.Empty(t, profilesToInstall)
 
 	// Remove host from exclude label -> both profiles should apply again
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{excLabel.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{ProfileUUID: inclAnyExclProf.ProfileUUID, ProfileName: inclAnyExclProf.Name, HostUUID: host.UUID, Checksum: checksumAnyExcl},
 		{ProfileUUID: inclAllExclProf.ProfileUUID, ProfileName: inclAllExclProf.Name, HostUUID: host.UUID, Checksum: checksumAllExcl},
@@ -3644,8 +3654,7 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{incAllLabel1.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
 		{ProfileUUID: inclAnyExclProf.ProfileUUID, ProfileName: inclAnyExclProf.Name, HostUUID: host.UUID, Checksum: checksumAnyExcl},
 	}, profilesToInstall)
@@ -3654,8 +3663,7 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{incLabel.ID, host.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.Empty(t, profilesToInstall)
 }
 
@@ -3869,6 +3877,50 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 	return prof
 }
 
+func TestCompressWindowsMDMResponse(t *testing.T) {
+	// A representative SyncML envelope: highly compressible XML with repeated structure. Reused by the round-trip and shrink cases.
+	realisticEnvelope := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody>` +
+		strings.Repeat(`<Status><CmdID>1</CmdID><MsgRef>1</MsgRef><CmdRef>2</CmdRef><Cmd>Replace</Cmd><Data>200</Data></Status>`, 200) +
+		`</SyncBody></SyncML>`)
+
+	t.Run("round-trip restores the input", func(t *testing.T) {
+		for _, tc := range []struct {
+			name  string
+			input []byte
+		}{
+			{"realistic envelope", realisticEnvelope},
+			{"small envelope", []byte(`<SyncML/>`)},
+			{"empty", []byte("")},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				compressed, err := compressWindowsMDMResponse(tc.input)
+				require.NoError(t, err)
+
+				decompressed, err := decompressWindowsMDMResponse(compressed)
+				require.NoError(t, err)
+				require.Equal(t, tc.input, decompressed)
+			})
+		}
+	})
+
+	t.Run("compression shrinks a realistic envelope", func(t *testing.T) {
+		compressed, err := compressWindowsMDMResponse(realisticEnvelope)
+		require.NoError(t, err)
+		require.Less(t, len(compressed), len(realisticEnvelope), "compressed value must be smaller than the original envelope")
+	})
+
+	t.Run("decompress passes through empty stored bytes", func(t *testing.T) {
+		out, err := decompressWindowsMDMResponse([]byte{})
+		require.NoError(t, err)
+		require.Empty(t, out)
+	})
+
+	t.Run("decompress rejects non-gzip data", func(t *testing.T) {
+		_, err := decompressWindowsMDMResponse([]byte("not-gzip-data"))
+		require.Error(t, err)
+	})
+}
+
 func testSaveResponse(t *testing.T, ds *Datastore) {
 	// Set up: 3 devices, 1 command, 1 response for 1 device
 	enrolledDevice1 := createEnrolledDevice(t, ds)
@@ -3952,6 +4004,21 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
 	assert.Equal(t, cmd.CommandUUID, results[0].CommandUUID)
 	assert.Equal(t, "200", results[0].Status)
+	assert.Equal(t, enrichedSyncML.Raw, results[0].Result)
+
+	// And the row on disk must actually be gzip-compressed, not the raw envelope.
+	var storedResp []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &storedResp,
+			`SELECT raw_response_gz FROM windows_mdm_responses WHERE enrollment_id = ?`, enrolledDevice1.ID)
+	})
+	assert.NotContains(t, string(storedResp), "<SyncML", "stored raw_response_gz must not contain the plaintext envelope")
+	gr, err := gzip.NewReader(bytes.NewReader(storedResp))
+	require.NoError(t, err, "stored raw_response_gz must be valid gzip")
+	roundTripped, err := io.ReadAll(gr)
+	require.NoError(t, err)
+	require.NoError(t, gr.Close())
+	assert.Equal(t, enrichedSyncML.Raw, roundTripped, "stored raw_response_gz must gunzip back to the original envelope")
 
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5205,6 +5272,10 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host2", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
+	// Deleting Windows profiles is async: the request retains content and the profile-manager cron generates the <Delete> commands.
+	// Enable Windows MDM so ReconcileWindowsProfiles does work, and drive it after each delete below.
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
+
 	// Profile A: LocURIs X, Y. Profile B: LocURI Y (shared with A).
 	profA := &fleet.MDMWindowsConfigProfile{Name: "profA", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profB := &fleet.MDMWindowsConfigProfile{Name: "profB", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>2</Data></Item></Replace>`)}
@@ -5232,6 +5303,9 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 		require.NoError(t, err)
+
+		// Drive the cron: it classifies profA's surviving rows as removes and generates the protected <Delete> commands.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		// Verify the delete command on BOTH hosts.
 		for _, h := range []*fleet.Host{h1, h2} {
@@ -5275,9 +5349,15 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 
-		// Only h1 is a member of the label.
-		err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{scopeLabel.ID, h1.ID}})
-		require.NoError(t, err)
+		// Only h1 is a member of the label. Insert membership synchronously (the async path may not be visible to the reconciler
+		// snapshot) and bump both hosts' label_updated_at so the snapshot reflects current membership.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `INSERT INTO label_membership (label_id, host_id) VALUES (?, ?)`, scopeLabel.ID, h1.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET label_updated_at = NOW() WHERE id IN (?, ?)`, h1.ID, h2.ID)
+			return err
+		})
 
 		// Simulate both profiles installed on both hosts. For profB, also add
 		// an install row for h1 (simulating the reconciler assigned it based on
@@ -5291,12 +5371,12 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		// Delete profA (keep profB).
-		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profB2}, nil)
-			return err
-		})
-		require.NoError(t, err)
+		// Delete profA directly (a batch-set submitting only profB would re-sync profB's labels from the struct and drop its
+		// manually-inserted label scope). profB and its label scope are preserved.
+		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, profA2UUID))
+
+		// Drive the cron: it computes per-host applicability, so profB protects Y only on h1 (in the label), not h2.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		// h1: profB applies (label-scoped, h1 is in the label).
 		// Y is protected, only X should be deleted.
@@ -5392,6 +5472,9 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 		require.NoError(t, err)
+
+		// Drive the cron: it generates the <Delete> for the no-team profile across both hosts.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		// Both hosts should now have a queued <Delete>: h1 as the direct
 		// consequence of the deletion, h2 because phase 2 upgrades the
@@ -5542,6 +5625,9 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host-multi-del-2", "10.0.0.11", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
+	// Deleting profiles is async: the cron generates the <Delete> commands. Enable Windows MDM so it does work.
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
+
 	profA := &fleet.MDMWindowsConfigProfile{Name: "multi-del-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profB := &fleet.MDMWindowsConfigProfile{Name: "multi-del-B", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/B</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profC := &fleet.MDMWindowsConfigProfile{Name: "multi-del-C", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/C</LocURI></Target><Data>1</Data></Item></Replace>`)}
@@ -5570,6 +5656,9 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 		return err
 	})
 	require.NoError(t, err)
+
+	// Drive the cron: it classifies each deleted profile's verified rows as removes and enqueues a distinct <Delete> per profile.
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 	// 2 hosts × 3 profiles = 6 rows, each flipped to remove+pending with a
 	// non-empty command_uuid and empty detail.
@@ -5614,6 +5703,51 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 				hUUID, profUUID, wantLocURI)
 		}
 	}
+}
+
+// testDeleteWindowsProfileByTeamAndNameRetainsContent covers the DeleteMDMWindowsConfigProfileByTeamAndName entry point (used by the
+// EE OS-updates settings flow), which is the one delete path not exercised by the other delete tests. It asserts the same async
+// contract as the rest: the profile's content is retained in the pending-delete table, and the cron then builds a <Delete> from it.
+func testDeleteWindowsProfileByTeamAndNameRetainsContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h := test.NewHost(t, ds, "host-byname-del", "10.0.0.20", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h)
+
+	// Deleting profiles is async: the cron generates the <Delete> command. Enable Windows MDM so it does work.
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
+
+	const profName = "by-team-and-name-del"
+	prof := &fleet.MDMWindowsConfigProfile{
+		Name:   profName,
+		SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/TN</LocURI></Target><Data>1</Data></Item></Replace>`),
+	}
+	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+		return err
+	}))
+	profUUID := windowsProfileUUIDByName(t, ds, profName)
+
+	// Mark the profile as verified-installed so the reconciler classifies its surviving row as a remove after the delete.
+	installWindowsProfilesAsVerified(t, ds, []string{h.UUID}, []string{profUUID})
+
+	// Delete via the team+name entry point (no-team => nil teamID).
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, nil, profName))
+
+	// The definition row is gone, but its content must have been retained so the cron can still build the <Delete>.
+	var retained []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &retained,
+			`SELECT syncml FROM mdm_windows_configuration_profiles_pending_delete WHERE profile_uuid = ?`, profUUID)
+	})
+	require.Contains(t, string(retained), "./Device/TN", "deleted profile content should be retained for the reconciler")
+
+	// Drive the cron: it flips the surviving row to remove+pending and enqueues a <Delete> built from the retained content.
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+	raw := rawWindowsDeleteCommandForHostProfile(t, ds, h.UUID, profUUID)
+	require.NotEmpty(t, raw, "host should have a queued <Delete> after the team+name delete")
+	assert.Contains(t, string(raw), "./Device/TN", "delete command should target the deleted profile's LocURI")
 }
 
 // testMDMWindowsUnenrollCleansUpProfiles verifies that pending profile rows are cleaned up when a
@@ -5669,8 +5803,7 @@ func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
 	profUUID := InsertWindowsProfileForTest(t, ds, 0)
 
 	// Reconciler should see this host as needing the profile installed.
-	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	toInstall, _ := windowsReconcileDeltasForTest(t, ds)
 	var foundBefore bool
 	for _, p := range toInstall {
 		if p.HostUUID == host.UUID && p.ProfileUUID == profUUID {
@@ -5715,8 +5848,7 @@ func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
 		false, // enrolled - device has unenrolled
 		"", false, "", "", false))
 
-	toInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	toInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	for _, p := range toInstall {
 		if p.HostUUID == host.UUID {
 			t.Fatalf("reconciler must not return host %s after device unenrolled, got profile %s",
@@ -5729,8 +5861,7 @@ func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
 		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 
-	toInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
-	require.NoError(t, err)
+	toInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	var foundAfter bool
 	for _, p := range toInstall {
 		if p.HostUUID == host.UUID && p.ProfileUUID == profUUID {
@@ -5741,9 +5872,8 @@ func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
 	require.True(t, foundAfter, "reconciler must resume for host after osquery confirms it is enrolled again")
 }
 
-// testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that
-// ListMDMWindowsProfilesToRemoveForHosts does not return profiles for hosts
-// whose mdm_windows_enrollments row has been deleted (issue #44369).
+// testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that the reconcile snapshot+compute path does not produce removals
+// for hosts whose mdm_windows_enrollments row has been deleted (issue #44369).
 func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -5771,8 +5901,7 @@ func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastor
 	})
 
 	// Sanity check: both hosts should be removal candidates while enrolled.
-	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, []string{host1.UUID, host2.UUID})
-	require.NoError(t, err)
+	_, toRemove := windowsReconcileDeltasForTest(t, ds)
 	require.Len(t, toRemove, 2)
 
 	// Now delete host1's enrollment to simulate the orphan condition.
@@ -5781,9 +5910,9 @@ func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastor
 		return err
 	})
 
-	// Only host2 (still enrolled) should be returned; host1 is orphaned.
-	toRemove, err = ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, []string{host1.UUID, host2.UUID})
-	require.NoError(t, err)
+	// Only host2 (still enrolled) should be returned; host1 is orphaned (the snapshot's host listing
+	// only walks enrolled hosts, so the orphaned row is never considered for removal).
+	_, toRemove = windowsReconcileDeltasForTest(t, ds)
 	require.Len(t, toRemove, 1)
 	require.Equal(t, host2.UUID, toRemove[0].HostUUID)
 }
@@ -5879,10 +6008,8 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 	})
 	require.Equal(t, 1, queueCount)
 
-	// Both hosts get profile rows upserted — d2's profile row is
-	// intentionally kept. It's harmless dead data: the EXISTS check in
-	// windowsProfilesToRemoveQuery prevents it from being selected for
-	// removal on the next cron cycle.
+	// Both hosts get profile rows upserted — d2's profile row is intentionally kept. It's harmless dead data: the reconcile snapshot
+	// only walks hosts with an active enrollment, so the row is never selected for removal on later cron cycles.
 	var profileCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &profileCount,
@@ -5927,9 +6054,11 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3, count)
 
 	// Insert a response row (required FK for command results).
+	compressedSyncML, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+	require.NoError(t, err)
 	var responseID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, '<SyncML/>')`, dev.ID)
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, dev.ID, compressedSyncML)
 		if err != nil {
 			return err
 		}
@@ -6679,4 +6808,158 @@ func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
 	_, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err), "two Windows hosts share the serial; method must refuse to pick")
+}
+
+// TestWindowsMDMPendingDeleteRetentionAndGC covers the delete profile retention table: GetMDMWindowsProfilesContents falls back to retained
+// content for deleted profiles, and CleanupWindowsMDMPendingDeleteProfiles garbage-collects reference-counted (a row is removed only
+// once no host_mdm_windows_profiles row still references the profile, so retained content survives as long as a host still needs it).
+func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	// w-ref is still referenced by a host that has not yet received its <Delete>; w-orphan is referenced by no host.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_windows_configuration_profiles_pending_delete
+			(profile_uuid, team_id, name, syncml) VALUES
+			('w-ref', 0, 'ref', '<Replace/>'),
+			('w-orphan', 0, 'orphan', '<Replace/>')`)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+			(host_uuid, profile_uuid, command_uuid, profile_name) VALUES
+			('host-still-pending', 'w-ref', 'cmd-1', 'ref')`)
+		return err
+	})
+
+	// Content fallback: contents resolve from the retention table for deleted (not-live) UUIDs.
+	contents, err := ds.GetMDMWindowsProfilesContents(ctx, []string{"w-ref", "w-orphan"})
+	require.NoError(t, err)
+	require.Len(t, contents, 2)
+	require.Equal(t, []byte("<Replace/>"), contents["w-ref"].SyncML)
+	require.NotEmpty(t, contents["w-ref"].Checksum)
+
+	// Reference-counted GC removes only the orphan; w-ref survives because a host still references it.
+	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx))
+
+	var remaining []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
+	})
+	require.Equal(t, []string{"w-ref"}, remaining)
+
+	// Once the host's row is gone (it received its <Delete>), the next GC pass reclaims the retained content.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = 'w-ref'`)
+		return err
+	})
+	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
+	})
+	require.Empty(t, remaining)
+}
+
+// testWindowsPerHostReconcileLoaders covers the three loaders the per-host enrollment reconcile uses:
+// GetWindowsMDMHostForReconcile (same enrollment predicates as the batch host listing), ListWindowsProfilesForReconcileByTeam
+// (team_id is its own scope; no global inheritance), and BulkGetHostMDMWindowsProfilesByUUIDs (current rows grouped by host).
+func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A Windows host without an MDM enrollment must not be eligible.
+	host := test.NewHost(t, ds, "per-host-loader", "10.0.0.99", "phl-key", "phl-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	got, err := ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, got, "host without Windows MDM enrollment must not be eligible")
+
+	windowsEnroll(t, ds, host)
+	got, err = ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, host.ID, got.HostID)
+	require.Equal(t, host.UUID, got.UUID)
+	require.Equal(t, uint(0), got.EffectiveTeamID())
+	// LabelUpdatedAt feeds the exclude-any freshness gate in the compute; a broken column mapping here would silently change label
+	// semantics.
+	require.False(t, got.LabelUpdatedAt.IsZero(), "LabelUpdatedAt must be loaded")
+
+	// host_mdm.enrolled = 0 must make the host ineligible even with the MDM enrollment row present (the
+	// global-disable / device-unenrolled cycle), and flipping it back restores eligibility.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
+	got, err = ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, got, "host with host_mdm.enrolled=0 must not be eligible")
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+	got, err = ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, got, "host must be eligible again after re-enrolling")
+
+	// Unknown UUID returns nil, not an error.
+	missing, err := ds.GetWindowsMDMHostForReconcile(ctx, "no-such-uuid")
+	require.NoError(t, err)
+	require.Nil(t, missing)
+
+	// Team scoping: team_id=0 and a real team are disjoint scopes.
+	globalProfile := InsertWindowsProfileForTest(t, ds, 0)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "per-host-loader-team"})
+	require.NoError(t, err)
+	teamProfile := InsertWindowsProfileForTest(t, ds, team.ID)
+
+	globalProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, globalProfiles, 1)
+	require.Equal(t, globalProfile, globalProfiles[0].ProfileUUID)
+
+	teamProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, teamProfiles, 1)
+	require.Equal(t, teamProfile, teamProfiles[0].ProfileUUID)
+
+	// Label metadata must come back on the team-filtered path (the per-host label query is restricted to the
+	// team-scoped profiles) and must not leak into the global scope.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-per-host-loader", Description: "desc", Query: "select 1;"})
+	require.NoError(t, err)
+	labeledProf := windowsConfigProfileForTest(t, "per-host-loader-labeled", "./Labeled/LocURI", label)
+	labeledProf.TeamID = &team.ID
+	createdLabeledProf, err := ds.NewMDMWindowsConfigProfile(ctx, *labeledProf, nil)
+	require.NoError(t, err)
+
+	teamProfiles, err = ds.ListWindowsProfilesForReconcileByTeam(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, teamProfiles, 2)
+	var labeled *fleet.WindowsProfileForReconcile
+	for _, p := range teamProfiles {
+		if p.ProfileUUID == createdLabeledProf.ProfileUUID {
+			labeled = p
+		}
+	}
+	require.NotNil(t, labeled, "team-filtered listing must include the labeled profile")
+	require.Equal(t, fleet.MDMProfileIncludeAny, labeled.IncludeMode)
+	require.Len(t, labeled.IncludeLabels, 1)
+	require.NotNil(t, labeled.IncludeLabels[0].LabelID)
+	require.Equal(t, label.ID, *labeled.IncludeLabels[0].LabelID)
+
+	globalProfiles, err = ds.ListWindowsProfilesForReconcileByTeam(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, globalProfiles, 1)
+	require.Empty(t, globalProfiles[0].IncludeLabels, "global scope must not pick up the team profile's labels")
+
+	// Current rows grouped by host UUID. Assert the fields ComputeWindowsReconcileDeltas consumes (Status,
+	// OperationType, Checksum); a broken column mapping here would silently re-install or skip profiles. The
+	// unknown UUID in the same call pins the grouping: no empty entry is created for hosts without rows.
+	installWindowsProfilesAsVerified(t, ds, []string{host.UUID}, []string{globalProfile})
+	current, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(ctx, []string{host.UUID, "no-such-uuid"})
+	require.NoError(t, err)
+	require.Len(t, current, 1)
+	require.Len(t, current[host.UUID], 1)
+	row := current[host.UUID][0]
+	require.Equal(t, globalProfile, row.ProfileUUID)
+	require.Equal(t, fleet.MDMOperationTypeInstall, row.OperationType)
+	require.NotNil(t, row.Status)
+	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
+	require.NotEmpty(t, row.Checksum)
 }

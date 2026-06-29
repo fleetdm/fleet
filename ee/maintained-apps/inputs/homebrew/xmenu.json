@@ -1,0 +1,10 @@
+{
+  "name": "XMenu",
+  "unique_identifier": "com.devon-technologies.XMenu",
+  "token": "xmenu",
+  "installer_format": "zip",
+  "slug": "xmenu/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

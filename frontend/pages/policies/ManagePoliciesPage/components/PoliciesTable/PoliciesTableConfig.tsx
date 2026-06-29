@@ -69,11 +69,11 @@ interface IDataColumn {
 
 const AUTOMATION_ICON_RENDERERS: Record<
   IAutomationData["type"],
-  (args: { name: string; iconUrl?: string }) => JSX.Element
+  (args: { name: string; iconName?: string; iconUrl?: string }) => JSX.Element
 > = {
-  software: ({ name, iconUrl }) => (
+  software: ({ name, iconName, iconUrl }) => (
     <span className="automations__software-icon">
-      <SoftwareIcon name={name} url={iconUrl} size="small" />
+      <SoftwareIcon name={iconName ?? name} url={iconUrl} size="small" />
     </span>
   ),
   script: ({ name }) => (
@@ -142,10 +142,12 @@ const AutomationsCell = ({
 
   const handleEdit = () => onOpenManageAutomationsModal?.(policy);
 
-  const renderAutomationIcon = ({ type, name, iconUrl }: IAutomationData) => {
-    return AUTOMATION_ICON_RENDERERS[type]({
-      name,
-      iconUrl: iconUrl ?? undefined,
+  const renderAutomationIcon = (automation: IAutomationData) => {
+    return AUTOMATION_ICON_RENDERERS[automation.type]({
+      name: automation.name,
+      iconName:
+        automation.type === "software" ? automation.iconName : undefined,
+      iconUrl: automation.iconUrl ?? undefined,
     });
   };
 
@@ -178,6 +180,7 @@ const AutomationsCell = ({
         fixedPositionStrategy
         tipOffset={8}
         tipContent={automations.map(({ name }) => name).join(", ")}
+        showArrow
       >
         {automations.length} automations
       </TooltipWrapper>

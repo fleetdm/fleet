@@ -643,6 +643,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /security-and-control': {
+    action: 'view-security-and-control',
+    locals: {
+      pageTitleForMeta: 'Security & control',
+      pageDescriptionForMeta: 'Control what belongs on your devices and detect vulnerabilities automatically.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -879,8 +887,8 @@ module.exports.routes = {
       return res.redirect('/tables/' + req.param('tableName'));
     }
   },
-  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/queries'); },
-  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/queries'); },
+  'GET /docs/using-fleet/fleet-ui': (req, res) => { return res.redirect(301, '/guides/reports'); },
+  'GET /docs/using-fleet/learn-how-to-use-fleet': (req, res) => { return res.redirect(301, '/guides/reports'); },
   'GET /docs/using-fleet/fleetctl-cli': (req, res) => { return res.redirect(301, '/guides/fleetctl'); },
   'GET /docs/using-fleet/fleet-desktop': (req, res) => { return res.redirect(301, '/guides/fleet-desktop'); },
   'GET /docs/using-fleet/enroll-hosts': (req, res) => { return res.redirect(301, '/guides/enroll-hosts'); },
@@ -907,7 +915,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
   'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
   'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
-  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/standard-query-library'); },
+  'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
   'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
@@ -916,6 +924,8 @@ module.exports.routes = {
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
+  'GET /guides/queries': '/guides/reports',
+  'GET /guides/standard-query-library': '/guides/report-library',
   'GET /app-library': '/software-catalog',
   'GET /app-library/:appIdentifier': {
     fn: (req, res) => {
@@ -1301,7 +1311,7 @@ module.exports.routes = {
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/setup-experience#end-user-license-agreement-eula',
-  'GET /learn-more-about/end-user-authentication': '/guides/setup-experience#end-user-authentication',
+  'GET /learn-more-about/end-user-authentication': '/guides/setup-experience#require-idp-authentication',
   'GET /learn-more-about/yaml-setup-experience-software': '/docs/configuration/yaml-files#software',
   'GET /learn-more-about/policy-templates': '/policies',
   'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
@@ -1316,6 +1326,7 @@ module.exports.routes = {
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
+  'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
   'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
@@ -1362,10 +1373,13 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
-  'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
+  'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
+  'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
+  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
 
   // Sitemap
   // =============================================================================================================

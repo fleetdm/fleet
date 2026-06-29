@@ -10,8 +10,8 @@ Use configuration profiles to enforce consistent Chrome browser settings across 
 
 
 **Resources:**
-- An example Google Chrome ADMX configuration profile is available in our [GitHub solutions folder](https://github.com/fleetdm/fleet/blob/docs/solutions/windows/configuration-profiles/admx%20Google%20Chrome.xml) (May not be the latest version available)
-- An example configuration profile for enrolling your browsers into Chrome Enterprise Core for a Cloud-managed Chrome browser is available in our [GitHub solutions folder](https://github.com/fleetdm/fleet/blob/docs/solutions/windows/configuration-profiles/enroll%20Google%20Chrome%20to%20enterprise%20console.xml)
+- An example Google Chrome ADMX configuration profile is available in our [GitHub solutions folder](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/admx%20Google%20Chrome.xml) (May not be the latest version available)
+- An example configuration profile for enrolling your browsers into Chrome Enterprise Core for a Cloud-managed Chrome browser is available in our [GitHub solutions folder](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/enroll%20Google%20Chrome%20to%20enterprise%20console.xml)
 
 ---
 

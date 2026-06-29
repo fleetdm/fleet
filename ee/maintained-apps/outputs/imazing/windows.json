@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.5.3.0",
+      "version": "3.5.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA' AND version_compare(version, '3.5.3.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA' AND version_compare(version, '3.5.5.0') < 0);"
       },
       "installer_url": "https://downloads.imazing.com/windows/iMazing/iMazing3forWindows.exe",
       "install_script_ref": "145b29b1",
       "uninstall_script_ref": "a8fdf759",
-      "sha256": "d167f1900190738d850c5ec41ad3838fd12818374b7681170d32af8adb50ef20",
+      "sha256": "f0d4b2869f0beff57b0879713d041f09e2c26651f21719c612ce58220d535986",
       "default_categories": [
         "Developer tools"
       ]

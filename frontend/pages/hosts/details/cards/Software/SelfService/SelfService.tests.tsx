@@ -1,14 +1,23 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
+import { screen, within, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 
 import { noop } from "lodash";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  baseUrl,
+} from "test/test-utils";
 import mockServer from "test/mock-server";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
-import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
+import {
+  createMockDeviceSoftware,
+  createMockDeviceSoftwareResponse,
+} from "__mocks__/deviceUserMock";
 import {
   DEFAULT_INSTALLED_VERSION,
   DEFAULT_HOST_HOSTNAME,
+  createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
 
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
@@ -185,7 +194,11 @@ describe("SelfService", () => {
 
     const moreDropdown = getMoreDropdown();
     await user.click(moreDropdown);
-    const dropdown = document.getElementById("react-select-9-listbox");
+    // react-select generates instance-numbered listbox IDs; read aria-controls
+    // off the combobox so this stays stable as more react-select instances are
+    // added/removed elsewhere on the page.
+    const listboxId = moreDropdown.getAttribute("aria-controls");
+    const dropdown = listboxId ? document.getElementById(listboxId) : null;
     if (!dropdown) {
       throw new Error("Could not find the dropdown actions");
     }
@@ -291,7 +304,7 @@ describe("SelfService", () => {
       <SelfService
         {...TEST_PROPS}
         isMobileView
-        mdmEnrollmentStatus="On (personal)"
+        mdmEnrollmentStatus="On (manual - personal)"
       />
     );
 
@@ -300,6 +313,104 @@ describe("SelfService", () => {
     expect(await screen.findByText("user-enrolled-app")).toBeInTheDocument();
     expect(
       screen.queryByText(/Self-service isn't supported/i)
+    ).not.toBeInTheDocument();
+  });
+
+  // After a (bulk) update finishes, the host-details refetch surfaces the app as
+  // installed while its software inventory is still stale (installer version is
+  // still newer than installed_versions). The "Updated" state should hold
+  // throughout that refetch window — the "Update" button must not reappear.
+  it("keeps the 'Updated' state (not the 'Update' button) while inventory refetch is pending after an update", async () => {
+    const LAST_INSTALL_AT = "2022-01-01T12:00:00Z";
+    // Host software inventory timestamp is newer than the last install, so the
+    // stale-inventory app would otherwise resolve to "update_available".
+    const HOST_SOFTWARE_UPDATED_AT = "2022-06-01T12:00:00Z";
+
+    const makeUpdatableSoftware = (status: "installed" | "pending_install") =>
+      createMockDeviceSoftware({
+        id: 1,
+        name: "test-update",
+        status,
+        // Installed version (1.0.0) is older than the packaged installer (2.0.0).
+        installed_versions: [
+          { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
+        ],
+        software_package: createMockHostSoftwarePackage({
+          version: "2.0.0",
+          last_install: {
+            install_uuid: "abc-123",
+            installed_at: LAST_INSTALL_AT,
+          },
+        }),
+      });
+
+    const softwareByPhase = {
+      available: makeUpdatableSoftware("installed"),
+      pending: makeUpdatableSoftware("pending_install"),
+      // Update finished, but inventory still reports the old version.
+      completed: makeUpdatableSoftware("installed"),
+    };
+    let phase: keyof typeof softwareByPhase = "available";
+
+    mockServer.use(
+      http.get(baseUrl("/device/:token/software"), () =>
+        HttpResponse.json(
+          createMockDeviceSoftwareResponse({
+            software: [softwareByPhase[phase]],
+            count: 1,
+          })
+        )
+      ),
+      http.post(baseUrl("/device/:token/software/install/:id"), () =>
+        HttpResponse.json({})
+      )
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { user, rerender } = render(
+      <SelfService
+        {...TEST_PROPS}
+        hostSoftwareUpdatedAt={HOST_SOFTWARE_UPDATED_AT}
+      />
+    );
+
+    // Initial state: an update is available, so the Updates card shows "Update".
+    const getUpdatesCard = () =>
+      screen.getByText("Updates").closest(".updates-card") as HTMLElement;
+    await screen.findByText("Updates");
+    expect(
+      within(getUpdatesCard()).getByRole("button", { name: /^Update$/ })
+    ).toBeEnabled();
+
+    // User triggers the update; the dedicated poll observes it go pending.
+    phase = "pending";
+    await user.click(screen.getByRole("button", { name: "Update all" }));
+    await within(getUpdatesCard()).findByText(/Updating/);
+
+    // Host-details polling completes (the automatic refetch in the bug report),
+    // which refetches self-service data and surfaces the completed-but-stale app.
+    phase = "completed";
+    rerender(
+      <SelfService
+        {...TEST_PROPS}
+        hostSoftwareUpdatedAt={HOST_SOFTWARE_UPDATED_AT}
+        isHostDetailsPolling
+      />
+    );
+    rerender(
+      <SelfService
+        {...TEST_PROPS}
+        hostSoftwareUpdatedAt={HOST_SOFTWARE_UPDATED_AT}
+        isHostDetailsPolling={false}
+      />
+    );
+
+    // The card must show "Updated" and must NOT fall back to an "Update" button.
+    await waitFor(() => {
+      expect(within(getUpdatesCard()).getByText("Updated")).toBeInTheDocument();
+    });
+    expect(
+      within(getUpdatesCard()).queryByRole("button", { name: /^Update$/ })
     ).not.toBeInTheDocument();
   });
 });

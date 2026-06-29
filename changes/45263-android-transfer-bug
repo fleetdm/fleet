@@ -1,1 +1,0 @@
-- Fixed Android devices losing their team assignment and certificate configuration when the host record is deleted and the device re-enrolls.

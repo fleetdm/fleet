@@ -1,0 +1,10 @@
+{
+  "name": "PDFsam Basic",
+  "unique_identifier": "org.pdfsam.modules",
+  "token": "pdfsam-basic",
+  "installer_format": "dmg",
+  "slug": "pdfsam-basic/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

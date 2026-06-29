@@ -1,0 +1,10 @@
+{
+  "name": "SiriMote",
+  "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
+  "token": "sirimote",
+  "installer_format": "zip",
+  "slug": "sirimote/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
