@@ -384,8 +384,8 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+			if err := svc.resendProfileForExpiredChallenge(ctx, hostUUID, profileUUID); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resending host profile after expired challenge")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
@@ -450,6 +450,23 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
 	return scepURL, nil
+}
+
+// resendProfileForExpiredChallenge resends a SCEP profile whose challenge has expired so the
+// reconcile cron regenerates it with a fresh challenge.
+//
+// For Apple profiles we use ResendHostCertificateProfile, which additionally clears the stale
+// in-flight command and resets the retry counter. This matters because an expired challenge is a
+// timing condition, not a host install failure, so it must not consume the host's limited Apple
+// profile retries (and a late failure ACK for the superseded command must not strand the profile
+// as "failed"). ResendHostCertificateProfile only operates on Apple tables, so Windows/Android
+// profiles fall back to the platform-aware ResendHostMDMProfile to avoid silently dropping the
+// resend.
+func (svc *scepProxyService) resendProfileForExpiredChallenge(ctx context.Context, hostUUID, profileUUID string) error {
+	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+		return svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID)
+	}
+	return svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID)
 }
 
 func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {

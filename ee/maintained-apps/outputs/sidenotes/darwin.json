@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.6.1",
+      "version": "1.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apptorium.SideNotes-paddle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apptorium.SideNotes-paddle' AND version_compare(bundle_short_version, '1.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apptorium.SideNotes-paddle' AND version_compare(bundle_short_version, '1.6.2') < 0);"
       },
-      "installer_url": "https://www.apptorium.com/public/products/sidenotes/releases/SideNotes-1.6.1.zip",
+      "installer_url": "https://www.apptorium.com/public/products/sidenotes/releases/SideNotes-1.6.2.zip",
       "install_script_ref": "72c195f4",
       "uninstall_script_ref": "0f063f59",
-      "sha256": "7246463ed8e887ab86c3d82fd8bc551665fedd1685a76ed73061a27ad5ba5e7d",
+      "sha256": "e2515697f605f37f1f1d91dadb178350beecba32ceb394744d7b265ba278a45a",
       "default_categories": [
         "Developer tools"
       ]

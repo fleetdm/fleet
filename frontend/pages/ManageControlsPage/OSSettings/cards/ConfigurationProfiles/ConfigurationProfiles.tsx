@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { IMdmProfile } from "interfaces/mdm";
 
@@ -47,7 +47,6 @@ const ConfigurationProfiles = ({
   currentPage = 0,
   onMutation,
 }: IConfigurationProfilesProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     config,
     isPremiumTier,
@@ -130,9 +129,9 @@ const ConfigurationProfiles = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted.");
+      notify.success("Successfully deleted.");
     } catch (e) {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      notify.error("Couldn't delete. Please try again.", { response: e });
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);

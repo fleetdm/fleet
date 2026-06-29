@@ -1,8 +1,7 @@
-import React, { useState, useContext, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 
 import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
-import { QueryContext } from "context/query";
 
 import {
   generateCSVFilename,
@@ -25,6 +24,7 @@ import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 interface IQueryReportProps {
   queryReport?: IQueryReport;
   queryId: number;
+  queryName?: string;
   isClipped?: boolean;
   canLiveQuery?: boolean;
 }
@@ -49,11 +49,10 @@ const flattenResults = (results: IQueryReportResultRow[]) => {
 const QueryReport = ({
   queryReport,
   queryId,
+  queryName,
   isClipped,
   canLiveQuery,
 }: IQueryReportProps): JSX.Element => {
-  const { lastEditedQueryName } = useContext(QueryContext);
-
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
@@ -72,7 +71,7 @@ const QueryReport = ({
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredResults,
-        generateCSVFilename(`${lastEditedQueryName || CSV_TITLE} - Report`),
+        generateCSVFilename(`${queryName || CSV_TITLE} - Report`),
         columnConfigs
       )
     );

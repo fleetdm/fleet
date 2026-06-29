@@ -337,7 +337,7 @@ type IInstallStatusCellProps = {
 };
 
 const getSoftwarePackageName = (software: IHostSoftware) =>
-  software.display_name || software.software_package?.name;
+  software.display_name || software.name;
 
 const resolveDisplayText = (
   displayText: IStatusDisplayConfig["displayText"],
@@ -357,7 +357,8 @@ const getEmptyCellTooltip = (
   if (isAppleAppStoreApp) {
     return (
       <>
-        App Store app can be installed on the host. <br />
+        {softwareName ? <b>{softwareName}</b> : "App Store app"} can be
+        installed on the host. <br />
         Select <b>Actions &gt; Install</b> to install.
       </>
     );
@@ -375,8 +376,10 @@ const getEmptyCellTooltip = (
   return (
     <>
       {softwareName ? <b>{softwareName}</b> : "Software"} can be{" "}
-      {isScriptPackage ? "ran" : "installed"} on the host.
-      <br /> Select <b>Actions &gt; Install</b> to install.
+      {isScriptPackage ? "run" : "installed"} on the host.
+      <br /> Select <b>
+        Actions &gt; {isScriptPackage ? "Run" : "Install"}
+      </b> to {isScriptPackage ? "run" : "install"}.
     </>
   );
 };

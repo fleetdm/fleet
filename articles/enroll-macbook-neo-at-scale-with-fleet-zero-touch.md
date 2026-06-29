@@ -57,7 +57,7 @@ Before placing a large MacBook Neo order, make sure your Fleet infrastructure is
 ### Configure enrollment profiles and policies
 
 - Set up [OS settings and configuration profiles](https://fleetdm.com/guides/custom-os-settings) that every new Mac should receive: Wi-Fi, VPN, disk encryption, firewall rules, and any compliance-required settings.
-- Configure [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) so devices are tied to the correct user identity from first boot.
+- Configure [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) so devices are tied to the correct user identity from first boot.
 - Define which Setup Assistant screens to skip to streamline the out-of-box experience.
 
 ### Use fleets for department-level configuration
