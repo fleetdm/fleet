@@ -131,7 +131,9 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 // not required; only a shortfall below minCompletePercent of the reported total is
 // treated as an incomplete pull.
 func checkResultCount(got, totalResults int) error {
-	minResults := totalResults * minCompletePercent / 100
+	// Round the threshold up (ceiling division) so a fractional requirement still
+	// demands the next whole result rather than accepting a sub-percent shortfall.
+	minResults := (totalResults*minCompletePercent + 99) / 100
 	if totalResults <= 1 || got < minResults {
 		return fmt.Errorf("incomplete CPE pull: got %v results, need at least %v (%v%% of reported total %v)",
 			got, minResults, minCompletePercent, totalResults)

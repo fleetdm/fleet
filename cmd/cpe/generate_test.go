@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,7 @@ func TestCheckResultCount(t *testing.T) {
 		{"nvd overcount tolerated", 1760806, 1761245, ""}, // the real-world failing case
 		{"at threshold", 95, 100, ""},
 		{"below threshold", 94, 100, "need at least 95"},
+		{"rounds up to next whole result", 3, 4, "need at least 4"}, // ceiling: 4*95% = 3.8 -> 4
 		{"uninitialized total", 0, 1, "need at least"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -116,14 +118,19 @@ func TestCheckResultCount(t *testing.T) {
 	}
 }
 
-// TestGetCPEsToleratesShortfall exercises the full path: NVD reports totalResults=4
-// but returns only 3 products. The shortfall is within tolerance, so generation should
-// succeed and write all 3 products rather than aborting.
+// TestGetCPEsToleratesShortfall exercises the full path: NVD reports totalResults=40
+// but returns only 39 products (a ~2.5% shortfall, within tolerance), so generation
+// should succeed and write all 39 rather than aborting.
 func TestGetCPEsToleratesShortfall(t *testing.T) {
-	const body = `{"resultsPerPage":4,"startIndex":0,"totalResults":4,"format":"NVD_CPE","version":"2.0","timestamp":"2024-01-01T00:00:00.000","products":[` +
-		`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_a:1.0:*:*:*:*:*:*:*","cpeNameId":"a"}},` +
-		`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_b:1.0:*:*:*:*:*:*:*","cpeNameId":"b"}},` +
-		`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_c:1.0:*:*:*:*:*:*:*","cpeNameId":"c"}}]}`
+	const total, returned = 40, 39
+	products := make([]string, returned)
+	for i := range products {
+		products[i] = fmt.Sprintf(
+			`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_%d:1.0:*:*:*:*:*:*:*","cpeNameId":"id-%d"}}`, i, i)
+	}
+	body := fmt.Sprintf(
+		`{"resultsPerPage":%d,"startIndex":0,"totalResults":%d,"format":"NVD_CPE","version":"2.0","timestamp":"2024-01-01T00:00:00.000","products":[%s]}`,
+		total, total, strings.Join(products, ","))
 
 	recorder := httptest.NewRecorder()
 	recorder.Header().Add("Content-Type", "application/json")
@@ -138,5 +145,5 @@ func TestGetCPEsToleratesShortfall(t *testing.T) {
 	defer db.Close()
 	var count int
 	require.NoError(t, db.Get(&count, "SELECT count(*) FROM cpe_2"))
-	require.Equal(t, 3, count, "all 3 returned products should be written despite totalResults=4")
+	require.Equal(t, returned, count, "all returned products should be written despite totalResults being higher")
 }
