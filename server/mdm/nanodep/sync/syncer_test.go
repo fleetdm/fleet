@@ -60,7 +60,7 @@ func TestSyncerCursorNotAdvancedOnCallbackError(t *testing.T) {
 	depClient := godep.NewClient(store, nil)
 	syncer := depsync.NewSyncer(depClient, "test-dep", store,
 		depsync.WithCallback(func(_ context.Context, _ bool, _ *godep.DeviceResponse) error {
-			return errors.New("context canceled")
+			return errors.New("callback error")
 		}),
 	)
 
@@ -188,7 +188,7 @@ func TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollowSync(t *testing.T
 			if !isFetch {
 				syncCallbackCount++
 				if syncCallbackCount == 1 {
-					return errors.New("context canceled")
+					return errors.New("callback error")
 				}
 			}
 			return nil
@@ -269,7 +269,7 @@ func TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollowFetch(t *testing.
 		depsync.WithCallback(func(_ context.Context, _ bool, _ *godep.DeviceResponse) error {
 			callbackCount++
 			if callbackCount == 1 {
-				return errors.New("context canceled")
+				return errors.New("callback error")
 			}
 			return nil
 		}),
@@ -288,4 +288,168 @@ func TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollowFetch(t *testing.
 	// After the second callback succeeds the cursor should be stored.
 	require.True(t, store.StoreCursorFuncInvoked)
 	require.Equal(t, pageOneCursor, storedCursor)
+}
+
+// TestSyncerCursorNotAdvancedOnAppleAPIError verifies that when Apple's API
+// returns a non-cursor error (e.g. a 500), the cursor is not advanced and the
+// syncer exits cleanly in run-once mode.
+func TestSyncerCursorNotAdvancedOnAppleAPIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"auth_session_token": "test-token"}`))
+		case "/server/devices":
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	cursorNotWritten := "cursor-not-written"
+	storedCursor := cursorNotWritten
+	store := &nanodep_mock.Storage{}
+	store.RetrieveConfigFunc = func(_ context.Context, _ string) (*client.Config, error) {
+		return &client.Config{BaseURL: srv.URL}, nil
+	}
+	store.RetrieveAuthTokensFunc = func(_ context.Context, _ string) (*client.OAuth1Tokens, error) {
+		return &client.OAuth1Tokens{}, nil
+	}
+	store.RetrieveCursorFunc = func(_ context.Context, _ string) (string, time.Time, error) {
+		return "", time.Time{}, nil
+	}
+	store.StoreCursorFunc = func(_ context.Context, _ string, cursor string) error {
+		storedCursor = cursor
+		return nil
+	}
+
+	depClient := godep.NewClient(store, nil)
+	// No callback — the Apple API error occurs before the callback is reached.
+	syncer := depsync.NewSyncer(depClient, "test-dep", store)
+
+	err := syncer.Run(t.Context())
+	require.NoError(t, err)
+	require.False(t, store.StoreCursorFuncInvoked)
+	require.Equal(t, cursorNotWritten, storedCursor)
+}
+
+// TestSyncerCursorResetOnExpiredCursor verifies that when Apple returns an
+// expired cursor error, the cursor is reset to empty and the syncer re-fetches
+// the full device list from the beginning.
+func TestSyncerCursorResetOnExpiredCursor(t *testing.T) {
+	const freshCursor = "fresh-cursor"
+
+	fetchCount := 0
+	var cursorsReceivedByApple []string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"auth_session_token": "test-token"}`))
+		case "/server/devices":
+			var req struct {
+				Cursor string `json:"cursor"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			cursorsReceivedByApple = append(cursorsReceivedByApple, req.Cursor)
+
+			fetchCount++
+			if fetchCount == 1 {
+				// Simulate Apple rejecting a stale cursor.
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`EXPIRED_CURSOR`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(godep.DeviceResponse{
+				Cursor:  freshCursor,
+				Devices: []godep.Device{{SerialNumber: "ABC123"}},
+			})
+		case "/devices/sync":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(godep.DeviceResponse{
+				Cursor:  freshCursor,
+				Devices: []godep.Device{},
+			})
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	var storedCursor string
+	store := &nanodep_mock.Storage{}
+	store.RetrieveConfigFunc = func(_ context.Context, _ string) (*client.Config, error) {
+		return &client.Config{BaseURL: srv.URL}, nil
+	}
+	store.RetrieveAuthTokensFunc = func(_ context.Context, _ string) (*client.OAuth1Tokens, error) {
+		return &client.OAuth1Tokens{}, nil
+	}
+	store.RetrieveCursorFunc = func(_ context.Context, _ string) (string, time.Time, error) {
+		return "stale-cursor", time.Time{}, nil
+	}
+	store.StoreCursorFunc = func(_ context.Context, _ string, cursor string) error {
+		storedCursor = cursor
+		return nil
+	}
+
+	depClient := godep.NewClient(store, nil)
+	syncer := depsync.NewSyncer(depClient, "test-dep", store,
+		depsync.WithCallback(func(_ context.Context, _ bool, _ *godep.DeviceResponse) error {
+			return nil
+		}),
+	)
+
+	err := syncer.Run(t.Context())
+	require.NoError(t, err)
+
+	// First request sent the stale cursor, second sent empty after the reset.
+	require.Len(t, cursorsReceivedByApple, 2)
+	require.Equal(t, "stale-cursor", cursorsReceivedByApple[0])
+	require.Empty(t, cursorsReceivedByApple[1], "cursor should be reset to empty after an expired cursor error")
+
+	// After the re-fetch succeeds the fresh cursor should be stored.
+	require.True(t, store.StoreCursorFuncInvoked)
+	require.Equal(t, freshCursor, storedCursor)
+}
+
+// TestSyncerExitsOnStoreCursorError verifies that when storing the cursor
+// fails, the syncer returns the error rather than silently continuing.
+func TestSyncerExitsOnStoreCursorError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "test-token"}`))
+		case "/server/devices":
+			_ = json.NewEncoder(w).Encode(godep.DeviceResponse{
+				Cursor:  "new-cursor",
+				Devices: []godep.Device{{SerialNumber: "ABC123"}},
+			})
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	storeCursorErr := errors.New("db connection lost")
+	store := &nanodep_mock.Storage{}
+	store.RetrieveConfigFunc = func(_ context.Context, _ string) (*client.Config, error) {
+		return &client.Config{BaseURL: srv.URL}, nil
+	}
+	store.RetrieveAuthTokensFunc = func(_ context.Context, _ string) (*client.OAuth1Tokens, error) {
+		return &client.OAuth1Tokens{}, nil
+	}
+	store.RetrieveCursorFunc = func(_ context.Context, _ string) (string, time.Time, error) {
+		return "", time.Time{}, nil
+	}
+	store.StoreCursorFunc = func(_ context.Context, _ string, _ string) error {
+		return storeCursorErr
+	}
+
+	depClient := godep.NewClient(store, nil)
+	syncer := depsync.NewSyncer(depClient, "test-dep", store,
+		depsync.WithCallback(func(_ context.Context, _ bool, _ *godep.DeviceResponse) error {
+			return nil
+		}),
+	)
+
+	err := syncer.Run(t.Context())
+	require.ErrorIs(t, err, storeCursorErr)
 }
