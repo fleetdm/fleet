@@ -5,7 +5,8 @@ RUN go install github.com/fleetdm/fleet/v4/tools/mdm/migration/mdmproxy@${TAG}
 FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
 LABEL maintainer="Fleet Developers"
 
-RUN apk update && apk add --no-cache tini
+RUN apk --no-cache upgrade openssl libcrypto3 libssl3 \
+    && apk add --no-cache tini
 COPY --from=0 /go/bin/mdmproxy /usr/bin/mdmproxy
 ADD --chmod=0755 ./entrypoint.sh /usr/bin/entrypoint.sh
 

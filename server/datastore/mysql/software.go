@@ -4683,9 +4683,11 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 
 // hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
 // "source" is included for test determinism (used as the secondary order key in tests).
+// "name" uses COALESCE(NULLIF(...)) so that a custom display name (when set) is used
+// for sorting, falling back to the software title name (often an installer filename).
 var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"name":   "name",
-	"source": "source",
+	"name":   "COALESCE(NULLIF(stdn.display_name, ''), combined_results.name)",
+	"source": "combined_results.source",
 }
 
 // hostSoftwareTitleAssembler accumulates and de-duplicates host software title records
@@ -6522,7 +6524,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
-		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
+		stmt = fmt.Sprintf(
+			"SELECT combined_results.* FROM (%s) AS combined_results LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = combined_results.id AND stdn.team_id = ?",
+			stmt,
+		)
+		args = append(args, globalOrTeamID)
 		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
@@ -6758,17 +6764,15 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			hsi.policy_id,
 			hsi.self_service,
 			hsi.created_at,
-			si.title_id AS software_title_id,
-			si.filename AS software_package,
-			st.name AS software_title
+			hsi.software_title_id,
+			hsi.installer_filename AS software_package,
+			hsi.software_title_name AS software_title
 		FROM host_software_installs hsi
-		INNER JOIN software_installers si ON si.id = hsi.software_installer_id
-		INNER JOIN software_titles st ON st.id = si.title_id
 		WHERE hsi.execution_id = ? AND hsi.host_id = ?
 	`
 
 	var details struct {
-		SoftwareInstallerID uint      `db:"software_installer_id"`
+		SoftwareInstallerID *uint     `db:"software_installer_id"`
 		UserID              *uint     `db:"user_id"`
 		PolicyID            *uint     `db:"policy_id"`
 		SelfService         bool      `db:"self_service"`
