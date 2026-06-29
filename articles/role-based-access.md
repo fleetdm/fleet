@@ -129,7 +129,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-
 ## Fleet-level user permissions
 
 `Applies only to Fleet Premium`
