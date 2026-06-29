@@ -112,15 +112,8 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 		}
 	}
 
-	// Sanity check. NVD's reported totalResults is consistently a few hundred higher
-	// than the number of CPEs it actually returns (e.g. 1761245 reported vs 1760806
-	// returned). Requiring an exact match makes this job fail on every run, so we
-	// tolerate a small shortfall but still reject a grossly incomplete pull.
-	minResults := totalResults * minCompleteFraction / 100
-	if totalResults <= 1 || len(cpes) < minResults {
-		//nolint:gosec // G706 false positive: all interpolated values are integer counts, not tainted strings
-		log.Fatalf("Incomplete CPE pull: got %v results, need at least %v (%v%% of reported total %v)",
-			len(cpes), minResults, minCompleteFraction, totalResults)
+	if err := checkResultCount(len(cpes), totalResults); err != nil {
+		log.Fatalf("%v", err)
 	}
 
 	slog.Info("Generating CPE sqlite DB...")
@@ -130,6 +123,20 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 	panicIf(err)
 
 	return dbPath
+}
+
+// checkResultCount verifies that enough CPEs were retrieved. NVD's reported
+// totalResults is consistently a few hundred higher than the number of CPEs it
+// actually returns (e.g. 1761245 reported vs 1760806 returned), so an exact match is
+// not required; only a shortfall below minCompleteFraction percent of the reported
+// total is treated as an incomplete pull.
+func checkResultCount(got, totalResults int) error {
+	minResults := totalResults * minCompleteFraction / 100
+	if totalResults <= 1 || got < minResults {
+		return fmt.Errorf("incomplete CPE pull: got %v results, need at least %v (%v%% of reported total %v)",
+			got, minResults, minCompleteFraction, totalResults)
+	}
+	return nil
 }
 
 func convertToCPEItem(in nvdapi.CPE) (out cpedict.CPEItem) {

@@ -87,3 +87,56 @@ func TestCPEDB(t *testing.T) {
 		)
 	}
 }
+
+// TestCheckResultCount covers the tolerance for NVD's overcount: a small shortfall
+// below totalResults is accepted, but a grossly incomplete pull is rejected with a
+// message that states the minimum accepted count and threshold.
+func TestCheckResultCount(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		got     int
+		total   int
+		wantErr string // expected substring in the error; "" means no error
+	}{
+		{"exact match", 100, 100, ""},
+		{"nvd overcount tolerated", 1760806, 1761245, ""}, // the real-world failing case
+		{"at threshold", 95, 100, ""},
+		{"below threshold", 94, 100, "need at least 95"},
+		{"uninitialized total", 0, 1, "need at least"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkResultCount(tc.got, tc.total)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// TestGetCPEsToleratesShortfall exercises the full path: NVD reports totalResults=4
+// but returns only 3 products. The shortfall is within tolerance, so generation should
+// succeed and write all 3 products rather than aborting.
+func TestGetCPEsToleratesShortfall(t *testing.T) {
+	const body = `{"resultsPerPage":4,"startIndex":0,"totalResults":4,"format":"NVD_CPE","version":"2.0","timestamp":"2024-01-01T00:00:00.000","products":[` +
+		`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_a:1.0:*:*:*:*:*:*:*","cpeNameId":"a"}},` +
+		`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_b:1.0:*:*:*:*:*:*:*","cpeNameId":"b"}},` +
+		`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_c:1.0:*:*:*:*:*:*:*","cpeNameId":"c"}}]}`
+
+	recorder := httptest.NewRecorder()
+	recorder.Header().Add("Content-Type", "application/json")
+	_, _ = recorder.WriteString(body)
+	client := mockClient{response: recorder.Result()}
+
+	dir := t.TempDir()
+	dbPath := getCPEs(&client, "API_KEY", dir)
+
+	db, err := sqlx.Open("sqlite3", dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+	var count int
+	require.NoError(t, db.Get(&count, "SELECT count(*) FROM cpe_2"))
+	require.Equal(t, 3, count, "all 3 returned products should be written despite totalResults=4")
+}
