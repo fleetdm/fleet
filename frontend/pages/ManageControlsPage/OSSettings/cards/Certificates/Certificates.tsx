@@ -5,13 +5,16 @@ import { formatDistanceToNow } from "date-fns";
 
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { getGitOpsModeTipContent } from "utilities/helpers";
+
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 import UploadList from "components/UploadList";
 import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
@@ -36,8 +39,10 @@ import certAPI, {
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 import AddCertCard from "./components/AddCertificateCard/AddCertificateCard";
+import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 import DeleteCertModal from "./components/DeleteCertificateModal";
 import AddCertModal from "./components/AddCertificateModal";
+import ViewCertModal from "./components/ViewCertificateModal";
 
 const baseClass = "certificates";
 
@@ -52,8 +57,10 @@ const Certificates = ({
   onMutation,
 }: ICertificatesProps) => {
   const [showAddCertModal, setShowAddCertModal] = useState(false);
+  const [certToView, setCertToView] = useState<null | ICertificate>(null);
   const [certToDelete, setCertToDelete] = useState<null | ICertificate>(null);
   const { config, isPremiumTier } = useContext(AppContext);
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
 
   const androidMdmEnabled = !!config?.mdm.android_enabled_and_configured;
 
@@ -83,6 +90,27 @@ const Certificates = ({
     }
   );
 
+  // Certificates require a custom SCEP CA to be configured. We fetch the list
+  // of certificate authorities to decide whether to prompt the admin to add a
+  // CA before they can add certificates.
+  const {
+    data: certAuthorities,
+    isLoading: isLoadingCAs,
+    isError: isErrorCAs,
+  } = useQuery(
+    ["certAuthorities"],
+    () => certAPI.getCertificateAuthoritiesList(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier && androidMdmEnabled,
+      select: (data) => data.certificate_authorities,
+    }
+  );
+
+  const hasCustomScepCA = (certAuthorities ?? []).some(
+    (ca) => ca.type === "custom_scep_proxy"
+  );
+
   const certs = certsResp?.certificates || [];
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
     certsResp?.meta || {};
@@ -104,6 +132,19 @@ const Certificates = ({
     router.push(path.concat(`${queryString}page=${currentPage + 1}`));
   }, [router, path, currentPage, queryString]);
 
+  const onSelectCertAction = (action: string, cert: ICertificate) => {
+    switch (action) {
+      case "view":
+        setCertToView(cert);
+        break;
+      case "delete":
+        setCertToDelete(cert);
+        break;
+      default:
+        break;
+    }
+  };
+
   const renderContent = () => {
     if (!isPremiumTier) {
       return <PremiumFeatureMessage />;
@@ -122,12 +163,16 @@ const Certificates = ({
         />
       );
     }
-    if (isLoadingCerts) {
+    if (isLoadingCerts || isLoadingCAs) {
       return <Spinner />;
     }
 
-    if (isErrorCerts) {
+    if (isErrorCerts || isErrorCAs) {
       return <DataError />;
+    }
+
+    if (!hasCustomScepCA) {
+      return <AddCertAuthorityCard router={router} />;
     }
 
     if (!certs.length) {
@@ -155,27 +200,37 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Added{" "}
+                {caName} &bull; Updated{" "}
                 {formatDistanceToNow(new Date(created_at))} ago
               </>
             );
+
+            const certActions: IDropdownOption[] = [
+              { label: "View certificate", value: "view" },
+              {
+                label: "Delete",
+                value: "delete",
+                disabled: gitOpsModeEnabled,
+                tooltipContent:
+                  gitOpsModeEnabled && repoURL
+                    ? getGitOpsModeTipContent(repoURL)
+                    : undefined,
+              },
+            ];
+
             return (
               <ListItem
                 graphic="file-certificate"
                 title={<TooltipTruncatedText value={name} />}
                 details={details}
                 actions={
-                  <GitOpsModeTooltipWrapper
-                    renderChildren={(disableChildren) => (
-                      <Button
-                        disabled={disableChildren}
-                        className={`${baseClass}__delete-button`}
-                        variant="icon"
-                        onClick={() => setCertToDelete(listItem)}
-                      >
-                        <Icon name="trash" />
-                      </Button>
-                    )}
+                  <ActionsDropdown
+                    options={certActions}
+                    placeholder="Actions"
+                    variant="small-button"
+                    menuAlign="right"
+                    menuPlacement="auto"
+                    onChange={(action) => onSelectCertAction(action, listItem)}
                   />
                 }
               />
@@ -218,6 +273,9 @@ const Certificates = ({
           onSuccess={onUpdateSuccess}
           currentTeamId={currentTeamId}
         />
+      )}
+      {certToView && (
+        <ViewCertModal cert={certToView} onExit={() => setCertToView(null)} />
       )}
       {certToDelete && (
         <DeleteCertModal

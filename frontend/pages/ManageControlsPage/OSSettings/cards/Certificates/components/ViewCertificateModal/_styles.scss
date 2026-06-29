@@ -1,0 +1,18 @@
+.view-certificate-modal {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__summary {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  // Match Fleet's code-box treatment (Textarea, SQLEditor, etc.) so the
+  // subject fields render in SourceCodePro as designed.
+  textarea {
+    font-family: "SourceCodePro", $monospace;
+  }
+}
