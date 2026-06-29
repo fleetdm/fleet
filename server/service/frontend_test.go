@@ -72,9 +72,16 @@ func TestAssetCacheControl(t *testing.T) {
 		{"/bundle.js", http.StatusOK, "no-cache"},
 		{"/bundle.css", http.StatusOK, "no-cache"},
 		{"/favicon.ico", http.StatusOK, "no-cache"},
+		// status 0 = handler writes a body without calling WriteHeader, exercising
+		// the implicit-200 path in cacheControlResponseWriter.Write.
+		{"/bundle-3ccf015bc0fac64b4ce8.js", 0, "public, max-age=31536000, immutable"},
 	} {
 		t.Run(fmt.Sprintf("%s_%d", tc.path, tc.status), func(t *testing.T) {
 			handler := assetCacheControl(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tc.status == 0 {
+					_, _ = w.Write([]byte("body"))
+					return
+				}
 				w.WriteHeader(tc.status)
 			}))
 			rec := httptest.NewRecorder()
