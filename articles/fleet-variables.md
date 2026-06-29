@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or [iOS/iPadOS managed app configurations](https://fleetdm.com/guides/install-app-store-apps#ios-and-ipados-managed-configuration). 
+Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or managed app configurations ([iOS/iPadOS](https://fleetdm.com/guides/install-app-store-apps#ios-and-ipados-managed-configuration), [Android](https://fleetdm.com/guides/install-app-store-apps#android-managed-configuration)). 
 
 You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
 
@@ -16,14 +16,14 @@ Built-in variables:
 |---|---|---|---|
 | <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_NDES_SCEP_CHALLENGE`</span> | macOS, iOS, iPadOS | None | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL` | macOS, iOS, iPadOS | None | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Host's IdP username (e.g. "user@example.com"). When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Host's IdP full name. When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_HARDWARE_SERIAL` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Host's hardware serial number. Not available for user enrolled iOS and iPadOS hosts with Managed Apple Account. |
-| `$FLEET_VAR_HOST_UUID` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Host's hardware UUID, or Enrollment ID for user enrolled iOS and iPadOS hosts. |
-| `$FLEET_VAR_HOST_PLATFORM` | macOS, iOS, iPadOS, Windows | iOS and iPadOS | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`. |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP username (e.g. "user@example.com"). When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP full name. When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_HARDWARE_SERIAL` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware serial number. Not available for user-enrolled iOS and iPadOS hosts with Managed Apple Account. |
+| `$FLEET_VAR_HOST_UUID` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware UUID, or Enrollment ID for user-enrolled iOS and iPadOS hosts. |
+| `$FLEET_VAR_HOST_PLATFORM` | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, `"windows"`, and `"android"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the custom SCEP certificate authority configured in **Settings > Integrations > Certificate enrollment**. |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>` | macOS, iOS, iPadOS, Windows | None | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`                | macOS, iOS, iPadOS, Windows | Fleet-managed ID that's required to automatically renew certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
