@@ -344,7 +344,7 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_, [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_ (Windows), [LeAnn Gove]([https://www.linkedin.com/in/leann-gove/](https://www.linkedin.com/in/leann-gove-61a750142/)) _([@leanngove](https://github.com/leanngove))_ (Android)
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
