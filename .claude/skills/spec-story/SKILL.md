@@ -229,24 +229,13 @@ Each sub-issue has **two presentations** — one for the spec doc the user revie
 <Bulleted checklist — see "Condition of Satisfaction depth" below>
 ```
 
-**GitHub-filed body** (what `gh issue create --body-file` posts) preserves the three-section template with HTML comments verbatim:
+**GitHub-filed body** (what `gh issue create --body-file` posts). Read the canonical sub-task template at `.github/ISSUE_TEMPLATE/sub-task.md` and fill in its sections — do not reproduce it from memory, so the body always matches the current template if its headings or HTML comments change. Preserve the template's comments verbatim as read from the file, and map the spec-doc content onto its sections:
 
-```markdown
-## Related user story
+- **Related user story** → `#<parent>`
+- **Task** → the description paragraph from the spec-doc presentation, then the detailed task content
+- **Condition of satisfaction** → the bulleted checklist
 
-#<parent>
-<!-- A sub-task always belongs to exactly one story.  The parent user story for this technical sub-task is linked here.  Comment on the parent story, not on this sub-task. -->
-
-## Task
-
-<Description paragraph from the spec-doc presentation, then the detailed task content.>
-<!-- What needs to be done. -->
-
-## Condition of satisfaction
-
-<Bulleted checklist.>
-<!-- Describe the conditions of satisfaction that will resolve this issue.  The "definition of done". It is always up to contributors to check their own work.  But especially keep in mind there is no external quality assurance check for sub-tasks.  (Only user stories get automatic external QA.  With sub-tasks, it's up to you.)  -->
-```
+Labels and issue type are applied separately in Stage 4.1.
 
 The `Depends on` and `Parallel with` metadata lines appear in the spec doc only — not in the GitHub body. The description paragraph from the spec doc becomes the opening paragraph of the GitHub Task section, above any sub-headings or code blocks.
 
