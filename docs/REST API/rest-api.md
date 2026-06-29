@@ -8439,7 +8439,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/scim/Users/{id}`
+`GET /api/v1/fleet/scim/Users/:id`
 
 #### Parameters
 
@@ -8494,7 +8494,7 @@ _Available in Fleet Premium_
 
 Replaces all attributes of an existing user. Any attributes not included in the request body are cleared.
 
-`PUT /api/v1/fleet/scim/Users/{id}`
+`PUT /api/v1/fleet/scim/Users/:id`
 
 #### Parameters
 
@@ -8557,7 +8557,7 @@ _Available in Fleet Premium_
 
 Partially updates a user using SCIM patch operations. Supports `add`, `replace`, and `remove` operations on `userName`, `externalId`, `active`, `name.givenName`, `name.familyName`, `emails`, and `urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department`.
 
-`PATCH /api/v1/fleet/scim/Users/{id}`
+`PATCH /api/v1/fleet/scim/Users/:id`
 
 #### Parameters
 
@@ -8613,7 +8613,7 @@ Partially updates a user using SCIM patch operations. Supports `add`, `replace`,
 
 _Available in Fleet Premium_
 
-`DELETE /api/v1/fleet/scim/Users/{id}`
+`DELETE /api/v1/fleet/scim/Users/:id`
 
 #### Parameters
 
@@ -8744,7 +8744,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/scim/Groups/{id}`
+`GET /api/v1/fleet/scim/Groups/:id`
 
 #### Parameters
 
@@ -8787,7 +8787,7 @@ _Available in Fleet Premium_
 
 Replaces all attributes of an existing group. Any attributes not included in the request body are cleared.
 
-`PUT /api/v1/fleet/scim/Groups/{id}`
+`PUT /api/v1/fleet/scim/Groups/:id`
 
 #### Parameters
 
@@ -8853,7 +8853,7 @@ _Available in Fleet Premium_
 
 Partially updates a group using SCIM patch operations. Supports `add`, `replace`, and `remove` operations on `displayName`, `externalId`, and `members`.
 
-`PATCH /api/v1/fleet/scim/Groups/{id}`
+`PATCH /api/v1/fleet/scim/Groups/:id`
 
 #### Parameters
 
@@ -8917,7 +8917,7 @@ Partially updates a group using SCIM patch operations. Supports `add`, `replace`
 
 _Available in Fleet Premium_
 
-`DELETE /api/v1/fleet/scim/Groups/{id}`
+`DELETE /api/v1/fleet/scim/Groups/:id`
 
 #### Parameters
 
