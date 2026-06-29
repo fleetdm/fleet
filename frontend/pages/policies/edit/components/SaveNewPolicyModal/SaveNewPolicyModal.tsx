@@ -39,6 +39,8 @@ import PolicyAutomationsFields, {
 import { usePolicyLabelTargets } from "pages/policies/hooks";
 import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants";
 
+const NAME_MAX_LENGTH = 255;
+
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
   queryValue: string;
@@ -342,6 +344,7 @@ const SaveNewPolicyModal = ({
           label="Name"
           autofocus
           disabled={disableForm}
+          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
         <InputField
           name="description"

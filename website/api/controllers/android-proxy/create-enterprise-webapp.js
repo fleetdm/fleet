@@ -36,6 +36,7 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     invalidWebApp: { description: 'Invalid post webApp request', responseType: 'badRequest' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
@@ -97,6 +98,9 @@ module.exports = {
     }).intercept({ status: 400 }, (err) => {
       return {'invalidWebApp': `Attempted to create a webApp with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err)=>{
+      if([502, 503, 504].includes(err.status)){
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
+      }
       return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 

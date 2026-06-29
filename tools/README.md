@@ -236,6 +236,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `desktop/` | Fleet Desktop development tool | `go run ./tools/desktop` - builds Desktop app |
 | `dialog/` | Test zenity/kdialog dialogs on Linux | `go run ./tools/dialog -dialog zenity` |
 | `file-server/` | Serve local directory via HTTP | `go run ./tools/file-server 8081 /path/to/dir` |
+| `hangar/` | Desktop control panel for the Fleet dev environment (Go + Wails, macOS) — run `fleet serve`, manage branches / DB / fleetctl / GitOps / osquery-perf from one window | `cd tools/hangar && task dev` - See [hangar/README.md](hangar/README.md) |
 | `oncall/` | Find community issues/PRs | `./tools/oncall/oncall.sh issues` or `./tools/oncall/oncall.sh prs` |
 | **Infrastructure** | | |
 | `apm-elastic/` | Elastic APM config | See [apm-elastic/README.md](apm-elastic/README.md) |

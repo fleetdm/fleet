@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -105,9 +106,15 @@ func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, 
 	return nil
 }
 
-func (bc *BaseClient) URL(path, rawQuery string) *url.URL {
+func (bc *BaseClient) URL(reqPath, rawQuery string) *url.URL {
 	u := *bc.BaseURL
-	u.Path = bc.URLPrefix + path
+	// Preserve any subpath from the base URL (e.g. when Fleet is deployed at
+	// https://host/subpath). A subpath can arrive via either BaseURL.Path
+	// (Orbit and Fleet Desktop, which parse a single --fleet-url) or URLPrefix
+	// (fleetctl, which has a separate --url-prefix config). These two sources
+	// are mutually exclusive by configuration convention; setting both
+	// concatenates them.
+	u.Path = path.Join(bc.BaseURL.Path, bc.URLPrefix, reqPath)
 	u.RawQuery = rawQuery
 	return &u
 }

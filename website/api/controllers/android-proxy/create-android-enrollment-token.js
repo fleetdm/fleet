@@ -20,6 +20,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
@@ -72,6 +73,9 @@ module.exports = {
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to create an enrollment token for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept((err)=>{
+      if([502, 503, 504].includes(err.status)) {
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
+      }
       return new Error(`When attempting to create an enrollment token for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 

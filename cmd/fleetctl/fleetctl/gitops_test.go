@@ -200,6 +200,134 @@ org_settings:
 	assert.Empty(t, enrolledSecrets)
 }
 
+func TestGitOpsGlobalGoogleWorkspaceRequiresPremium(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+
+	// Google Workspace IdP is premium-only. Applying it via GitOps on a free
+	// license must be rejected end to end (YAML parse -> PATCH /config ->
+	// ModifyAppConfig premium gate), and nothing must be persisted.
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	setupEmptyGitOpsMocks(ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	saveCalled := false
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		saveCalled = true
+		return nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Test
+  integrations:
+    google_workspace:
+      - domain: example.com
+        impersonated_user_email: admin@example.com
+        api_key_json:
+          client_email: sa@example.com
+          private_key: FAKE_PRIVATE_KEY
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "missing or invalid license")
+	assert.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
+}
+
+func TestGitOpsGlobalGoogleWorkspaceCleared(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// GitOps is declarative: a Google Workspace integration that is absent, set to
+	// empty, or has only empty fields must be cleared on the server. Clearing is
+	// allowed on a free license (the premium gate only blocks *setting* it).
+	existingGW := []*fleet.GoogleWorkspaceIntegration{{
+		Domain:                "example.com",
+		ImpersonatedUserEmail: "admin@example.com",
+		ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "sa@example.com",
+			fleet.GoogleCalendarPrivateKey: "k",
+		}},
+	}}
+
+	cases := []struct {
+		name         string
+		integrations string
+	}{
+		{"absent", "  integrations:"},
+		{"empty list", "  integrations:\n    google_workspace: []"},
+		{
+			"all empty fields",
+			"  integrations:\n    google_workspace:\n      - domain: \"\"\n        impersonated_user_email: \"\"\n        api_key_json: \"\"",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t)
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleWorkspace = existingGW
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			content := fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Clear Test
+%s
+  secrets:
+`, c.integrations)
+			_, err = tmpFile.WriteString(content)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			assert.Empty(t, savedAppConfig.Integrations.GoogleWorkspace, "google_workspace should be cleared")
+		})
+	}
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -2756,6 +2884,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
+	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
 	}
 	testing_utils.StartAndServeVPPServer(t)
 
@@ -5648,6 +5779,9 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
 	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
+	}
 
 	// Mock for looking up certificate template by team ID and name
 	var templateIDCounter uint
@@ -7886,12 +8020,12 @@ software:
 
 	teamExisting := []fleet.SoftwareCategory{
 		{ID: 100, Name: "🌎 Browsers", TeamID: 1},
-		{ID: 101, Name: "💻 Productivity", TeamID: 1},
+		{ID: 101, Name: "🖥️ Productivity", TeamID: 1},
 		{ID: 102, Name: "Stale Category", TeamID: 1},
 	}
 	noTeamExisting := []fleet.SoftwareCategory{
 		{ID: 200, Name: "🌎 Browsers", TeamID: 0},
-		{ID: 201, Name: "💻 Productivity", TeamID: 0},
+		{ID: 201, Name: "🖥️ Productivity", TeamID: 0},
 		{ID: 202, Name: "Stale No-team Category", TeamID: 0},
 	}
 

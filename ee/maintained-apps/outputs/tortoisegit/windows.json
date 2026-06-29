@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.18.0.1",
+      "version": "2.19.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND version_compare(version, '2.18.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND version_compare(version, '2.19.0') < 0);"
       },
-      "installer_url": "https://download.tortoisegit.org/tgit/2.18.0.0/TortoiseGit-2.18.0.1-64bit.msi",
+      "installer_url": "https://download.tortoisegit.org/tgit/2.19.0.0/TortoiseGit-2.19.0.0-64bit.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "f8cb22ce",
-      "sha256": "cbf7d52aa0ecca665521e14d8d1a4b6cda52a4bc13de45f49084e15571c77410",
+      "sha256": "71e9818c4f277668cec3e43d9fa05672a050a23b38e9a750b0f5f5c552513505",
       "default_categories": [
         "Developer tools"
       ],

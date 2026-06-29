@@ -1,0 +1,1 @@
+- Fixed software title details pages timing out for installers, VPP apps, and in-house apps with a large backlog of pending host activities.

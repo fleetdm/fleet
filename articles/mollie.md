@@ -11,7 +11,7 @@ Shipping fast in a regulated European fintech creates a quieter obligation behin
 
 *Compliance as code is really why we were attracted to Fleet. Endpoint is very scrutinized in audit - access management, controls, least privileged application usage. All of this can be demonstrated in code from an endpoint perspective.*
 
-**Sam Clarke**
+**Sam Clark**
 
 Senior Infrastructure Manager
 

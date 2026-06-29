@@ -25,7 +25,8 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
-    invalidPolicyName: {description: 'The specified policy_name is invalid', responseType: 'badRequest' }
+    invalidPolicyName: {description: 'The specified policy_name is invalid', responseType: 'badRequest' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
@@ -87,6 +88,9 @@ module.exports = {
       }
       if(errorString.includes('policy_name is expected to start')) {
         return {'invalidPolicyName': 'The request could not be completed because of an invalid policy name.'};
+      }
+      if([502, 503, 504].includes(err.status)){
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
       }
       return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });

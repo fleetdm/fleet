@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.GeorgSeifert.Glyphs3';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.GeorgSeifert.Glyphs3' AND version_compare(bundle_short_version, '3.5') < 0);"
       },
-      "installer_url": "https://updates.glyphsapp.com/Glyphs3.5-3528.zip",
+      "installer_url": "https://updates.glyphsapp.com/Glyphs3.5-3529.zip",
       "install_script_ref": "a5e9ac58",
       "uninstall_script_ref": "b1245f10",
-      "sha256": "3967d9344e8adeeeec5cbcbe8101cbf9d9018cf3d895a75d82a8348e7ec02d3a",
+      "sha256": "d9f3c6ed4a0bd09bc2f29fc196fc8d311b7e13070ad773c643ce7421bbd6566b",
       "default_categories": [
         "Productivity"
       ]

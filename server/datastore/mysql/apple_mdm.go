@@ -7719,3 +7719,22 @@ func (ds *Datastore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context)
 	}
 	return nil
 }
+
+func (ds *Datastore) GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error) {
+	if teamID == nil {
+		// This should never be called with a nil teamID, as its primary purpose is to handle cleaning up team references
+		return nil, ctxerr.New(ctx, "teamID is required")
+	}
+
+	var orgNames []string
+	const stmt = `
+	SELECT organization_name
+		FROM abm_tokens
+	WHERE macos_default_team_id = ? OR ios_default_team_id = ? OR ipados_default_team_id = ? OR byod_default_team_id = ?
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &orgNames, stmt, *teamID, *teamID, *teamID, *teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token org names associated by default teams")
+	}
+
+	return orgNames, nil
+}

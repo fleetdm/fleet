@@ -166,3 +166,75 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateUserProvided_FleetVariables(t *testing.T) {
+	tests := []struct {
+		name      string
+		rawJSON   string
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "supported variable HOST_UUID in string value",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID"}`,
+			wantErr: false,
+		},
+		{
+			name:    "supported variable with braces",
+			rawJSON: `{"name": "${FLEET_VAR_HOST_HARDWARE_SERIAL}"}`,
+			wantErr: false,
+		},
+		{
+			name:    "multiple supported variables",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}`,
+			wantErr: false,
+		},
+		{
+			name:    "no variables at all",
+			rawJSON: `{"name": "plain-value"}`,
+			wantErr: false,
+		},
+		{
+			name:      "unsupported variable NDES_SCEP_CHALLENGE",
+			rawJSON:   `{"name": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}`,
+			wantErr:   true,
+			errSubstr: "Unsupported Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name:      "unsupported variable CUSTOM_SCEP",
+			rawJSON:   `{"name": "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA"}`,
+			wantErr:   true,
+			errSubstr: "Unsupported Fleet variable",
+		},
+		{
+			name:      "variable not in JSON string value — in key",
+			rawJSON:   `{"$FLEET_VAR_HOST_UUID": "value"}`,
+			wantErr:   true,
+			errSubstr: "Unknown key",
+		},
+		{
+			// maximumTimeToLock expects a number; a string with a variable is
+			// caught by the Policy struct validation before our variable check.
+			name:      "variable in number field is rejected by policy validation",
+			rawJSON:   `{"name": "ok", "maximumTimeToLock": "$FLEET_VAR_HOST_UUID"}`,
+			wantErr:   true,
+			errSubstr: "Invalid JSON payload",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prof := &MDMAndroidConfigProfile{
+				Name:    "test-profile",
+				RawJSON: []byte(tt.rawJSON),
+			}
+			err := prof.ValidateUserProvided(true)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.errSubstr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.4.50522.0",
+      "version": "7.4.50622.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Royal TS V7' AND publisher = 'Royal Apps GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Royal TS V7' AND publisher = 'Royal Apps GmbH' AND version_compare(version, '7.4.50522.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Royal TS V7' AND publisher = 'Royal Apps GmbH' AND version_compare(version, '7.4.50622.0') < 0);"
       },
-      "installer_url": "https://download.royalapps.com/royalts/royaltsinstaller_7.04.50522.0_x64.msi",
+      "installer_url": "https://download.royalapps.com/royalts/royaltsinstaller_7.04.50622.0_x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "451ca1a9",
-      "sha256": "b6a733698f6aa8d0c2f97a2f7e1dad6d3808fd4777d837acf27f3e711d26a21f",
+      "sha256": "15ab43f81302b03084438bad5c4337ca1713d8251e0d615b0e9d48b6f91cdf1e",
       "default_categories": [
         "Productivity"
       ],

@@ -559,6 +559,72 @@ func TestInitiateSSOWithSSOServerURL(t *testing.T) {
 	// but the integration test verifies this works correctly
 }
 
+func TestInitiateSSOACSURLWithURLPrefix(t *testing.T) {
+	// With url_prefix set, the ACS callback URL must carry the subpath exactly
+	// once, regardless of whether server_url was configured with or without the
+	// subpath. The latter is the configuration older deployments may have used.
+	testCases := []struct {
+		name      string
+		serverURL string
+	}{
+		{
+			name:      "server_url includes the subpath",
+			serverURL: "https://fleet.example.com/apps/fleet",
+		},
+		{
+			name:      "server_url omits the subpath",
+			serverURL: "https://fleet.example.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			pool := redistest.NopRedis()
+
+			cfg := config.TestConfig()
+			cfg.Server.URLPrefix = "/apps/fleet"
+
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+				Pool: pool,
+			})
+
+			appConfig := &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: tc.serverURL,
+				},
+				SSOSettings: &fleet.SSOSettings{
+					EnableSSO: true,
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "fleet",
+						IDPName:  "TestIDP",
+						Metadata: testSSOMetadata(),
+					},
+				},
+			}
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return appConfig, nil
+			}
+
+			_, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+			require.NoError(t, err)
+			require.NotEmpty(t, idpURL)
+
+			parsed, err := url.Parse(idpURL)
+			require.NoError(t, err)
+			encoded := parsed.Query().Get("SAMLRequest")
+			require.NotEmpty(t, encoded)
+
+			authReq := inflate(t, encoded)
+			require.NotNil(t, authReq.AssertionConsumerServiceURL)
+			require.Equal(t,
+				"https://fleet.example.com/apps/fleet/api/v1/fleet/sso/callback",
+				authReq.AssertionConsumerServiceURL,
+			)
+		})
+	}
+}
+
 func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 	ds := new(mock.Store)
 	pool := redistest.NopRedis()

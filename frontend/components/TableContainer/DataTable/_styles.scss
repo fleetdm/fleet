@@ -13,6 +13,10 @@ $shadow-transition-width: 16px;
       border-radius: 6px;
       flex-grow: 1;
       width: 100%;
+      // Wide tables scroll horizontally within the table wrapper rather than
+      // pushing the document past the viewport. The shadow backgrounds below
+      // were already engineered for horizontal scrolling.
+      overflow-x: auto;
 
       // Shadow
       background-image:

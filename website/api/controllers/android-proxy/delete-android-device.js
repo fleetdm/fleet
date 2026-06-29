@@ -25,6 +25,7 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     deviceNoLongerManaged: { description: 'The specified device is no longer managed by the Android enterprise.', responseType: 'notFound' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
@@ -79,6 +80,9 @@ module.exports = {
       let errorString = err.toString();
       if (errorString.includes('Device is no longer being managed')) {
         return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
+      }
+      if([502, 503, 504].includes(err.status)){
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
       }
       return new Error(`When attempting to delete a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });

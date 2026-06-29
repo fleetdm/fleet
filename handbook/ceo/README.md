@@ -140,8 +140,8 @@ The CEO's calendar should reflect the following schedule for travel:
   - No calendar event to get water and bags, if CEO is going home.
 - Travel time from the airport to the CEO's next destination,
  - Time varies, you will need to google directions from the airport to the address the CEO needs to go to. Make sure to match the time they will need to leave the airport.
- - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, resturaunt, etc.
- - Calendar event: Travel to NAME_OF_DESTINATION (e.g. Travel to NAME_OF_HOTEL, NAME_OF_VENUE, NAME_OF_RESTURUANT, etc.)
+ - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, restaurant, etc.
+ - Calendar event: Travel to NAME_OF_DESTINATION (e.g. Travel to NAME_OF_HOTEL, NAME_OF_VENUE, NAME_OF_RESTAURANT, etc.)
  - Location: Address to destination
  - Calendar event name if CEO is going home: Travel home
 - If the CEO is checking into a hotel, they need a time block to check-in,
