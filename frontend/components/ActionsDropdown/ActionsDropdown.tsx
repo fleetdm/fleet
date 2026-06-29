@@ -135,14 +135,18 @@ const ActionsDropdown = ({
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // If click was outside wrapper, close menu
+      if (!menuIsOpen || !wrapperRef.current) return;
+      const target = event.target as Element | null;
+      // Trigger button (wrapper) or portaled menu both count as "inside" —
+      // since menuPortalTarget renders the menu in document.body, a contains()
+      // check on wrapperRef alone would treat option clicks as outside.
       if (
-        menuIsOpen &&
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
+        wrapperRef.current.contains(target) ||
+        target?.closest(`.${baseClass}-select__menu-portal`)
       ) {
-        setMenuIsOpen(false);
+        return;
       }
+      setMenuIsOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -267,6 +271,12 @@ const ActionsDropdown = ({
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
     }),
+    // Portal the menu to document.body so it isn't clipped by a scrollable
+    // ancestor (notably .data-table__wrapper's overflow-x: auto).
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 6,
+    }),
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
@@ -329,6 +339,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
+        menuPortalTarget={document.body}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>
