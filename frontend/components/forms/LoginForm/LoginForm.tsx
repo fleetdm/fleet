@@ -6,6 +6,7 @@ import { ILoginUserData } from "interfaces/user";
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import paths from "router/paths";
@@ -82,34 +83,8 @@ const LoginForm = ({
     return false;
   };
 
-  const showLegendWithImage = () => {
-    let legend = "Single sign-on";
-    if (idpName) {
-      legend = `Sign in with ${idpName}`;
-    }
-
-    return (
-      <>
-        <img
-          src={imageURL}
-          alt={idpName}
-          className={`${baseClass}__sso-image`}
-        />
-        <span className={`${baseClass}__sso-legend`}>{legend}</span>
-      </>
-    );
-  };
-
   const renderSingleSignOnButton = () => {
-    let legend: string | JSX.Element = "Single sign-on";
-    if (idpName) {
-      legend = `Sign in with ${idpName}`;
-    }
-    if (imageURL) {
-      legend = showLegendWithImage();
-    }
-
-    return (
+    const button = (
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
@@ -118,8 +93,29 @@ const LoginForm = ({
         onClick={handleSSOSignOn}
         tabIndex={0}
       >
-        {legend}
+        {imageURL && (
+          <img src={imageURL} alt="" className={`${baseClass}__sso-image`} />
+        )}
+        <span className={`${baseClass}__sso-legend`}>Sign in with SSO</span>
       </Button>
+    );
+
+    // The label is always the generic "Sign in with SSO"; the configured IdP's
+    // name is surfaced only on hover so a long name can't overflow the button.
+    if (!idpName) {
+      return button;
+    }
+
+    return (
+      <TooltipWrapper
+        className={`${baseClass}__sso-tooltip`}
+        tipContent={`Sign in with ${idpName}`}
+        position="top"
+        showArrow
+        underline={false}
+      >
+        {button}
+      </TooltipWrapper>
     );
   };
 
