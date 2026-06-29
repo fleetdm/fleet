@@ -34,7 +34,6 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
-	Categories       []fleet.SoftwareCategory
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -346,13 +345,6 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 	}, nil
 }
 
-func (c MockClient) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
-	if teamID == 1 {
-		return c.Categories, nil
-	}
-	return nil, nil
-}
-
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{
@@ -388,6 +380,9 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 						LabelName: "Label C",
 					}, {
 						LabelName: "Label D",
+					}},
+					LabelsExcludeAll: []fleet.LabelIdent{{
+						LabelName: "Label E",
 					}},
 					Type: fleet.PolicyTypeDynamic,
 				},
@@ -669,6 +664,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
+				PinnedVersion:        new("10.0"),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -682,6 +678,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
+				PinnedVersion:        new("^123"),
 			},
 		}, nil
 	default:
@@ -1215,6 +1212,63 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 		}
 	}
 	require.True(t, foundWarning, "expected SecretWarning for integrations.google_calendar.api_key_json")
+}
+
+func TestGenerateOrgSettingsMaskedGoogleWorkspaceApiKey(t *testing.T) {
+	// This test verifies that generateOrgSettings handles the case where the
+	// Google Workspace api_key_json is masked (returned as "********" string
+	// instead of a map): it must redact the key to a comment placeholder and
+	// record a SecretWarning, never emitting the secret.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Set the Google Workspace API key to masked, which will serialize as "********".
+	require.NotEmpty(t, appConfig.Integrations.GoogleWorkspace)
+	appConfig.Integrations.GoogleWorkspace[0].ApiKey.SetMasked()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings - this should not panic.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+
+	// Verify the result can be marshaled to YAML without error.
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	// Verify api_key_json was replaced with a comment placeholder (not "********").
+	var orgSettings map[string]any
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+
+	integrations := orgSettings["integrations"].(map[string]any)
+	googleWorkspace := integrations["google_workspace"].([]any)
+	intg := googleWorkspace[0].(map[string]any)
+	apiKeyJson := intg["api_key_json"]
+
+	// Should be a comment placeholder string, not "********" or a map.
+	apiKeyJsonStr, ok := apiKeyJson.(string)
+	require.True(t, ok, "api_key_json should be a string placeholder")
+	require.Contains(t, apiKeyJsonStr, "GITOPS_COMMENT", "api_key_json should be a comment placeholder")
+
+	// Verify SecretWarning was added for google_workspace.api_key_json.
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "integrations.google_workspace.api_key_json" {
+			foundWarning = true
+			break
+		}
+	}
+	require.True(t, foundWarning, "expected SecretWarning for integrations.google_workspace.api_key_json")
 }
 
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
@@ -1815,6 +1869,19 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	require.Contains(t, regularPkg, "post_install_script", "regular package should have post_install_script")
 	require.Contains(t, regularPkg, "uninstall_script", "regular package should have uninstall_script")
 	require.Contains(t, regularPkg, "pre_install_query", "regular package should have pre_install_query")
+
+	// Only the regular package keeps a version in its generated comment.
+	commentFor := func(name string) string {
+		for _, c := range cmd.Comments {
+			if strings.Contains(c.Comment, name) {
+				return c.Comment
+			}
+		}
+		return ""
+	}
+	require.NotContains(t, commentFor("my-script.sh"), "version", ".sh script package comment should not mention version")
+	require.NotContains(t, commentFor("setup.ps1"), "version", ".ps1 script package comment should not mention version")
+	require.Contains(t, commentFor("regular-package.deb"), "version", "regular package comment should still mention version")
 
 	for filename := range cmd.FilesToWrite {
 		require.NotContains(t, filename, "my-script-linux-install", "should not write install script file for .sh script package")
@@ -2587,35 +2654,6 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
-}
-
-func TestGenerateGitopsEmitsSelfServiceCategories(t *testing.T) {
-	configureFMAManifestServer(t)
-	fleetClient := &MockClient{Categories: []fleet.SoftwareCategory{
-		{ID: 10, Name: "🌎 Browsers", TeamID: 1},
-		{ID: 11, Name: "💼 Engineering", TeamID: 1},
-	}}
-	action := createGenerateGitopsAction(fleetClient)
-
-	tempDir := os.TempDir() + "/" + uuid.New().String()
-	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
-
-	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
-	flagSet.String("dir", tempDir, "")
-	buf := new(bytes.Buffer)
-	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
-	require.NoError(t, action(cliContext), buf.String())
-
-	teamYAML, err := os.ReadFile(tempDir + "/fleets/team-a-👍.yml")
-	require.NoError(t, err)
-	assert.Contains(t, string(teamYAML), "self_service_categories:")
-	assert.Contains(t, string(teamYAML), "🌎 Browsers")
-	assert.Contains(t, string(teamYAML), "💼 Engineering")
-
-	// The fleet that returns no categories must NOT emit the key.
-	otherYAML, err := os.ReadFile(tempDir + "/fleets/unassigned.yml")
-	require.NoError(t, err)
-	assert.NotContains(t, string(otherYAML), "self_service_categories:")
 }
 
 func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {

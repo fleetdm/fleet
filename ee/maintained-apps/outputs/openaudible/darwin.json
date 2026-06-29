@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.8.2",
+      "version": "4.8.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible' AND version_compare(bundle_short_version, '4.8.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible' AND version_compare(bundle_short_version, '4.8.6') < 0);"
       },
-      "installer_url": "https://github.com/openaudible/openaudible/releases/download/v4.8.2/OpenAudible_4.8.2.dmg",
+      "installer_url": "https://github.com/openaudible/openaudible/releases/download/v4.8.6/OpenAudible_4.8.6.dmg",
       "install_script_ref": "7de82ace",
       "uninstall_script_ref": "5a6b6749",
-      "sha256": "ee002026686412475baf209366276706f063ffb94a7a4d968051ab0ad1f137d7",
+      "sha256": "c707c98a1456926a6772e1a937d52cd5eb08970011b53ce4f078c6c64e2c3b33",
       "default_categories": [
         "Productivity"
       ]

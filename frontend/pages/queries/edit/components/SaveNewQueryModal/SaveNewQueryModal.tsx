@@ -47,6 +47,9 @@ import labelsAPI, {
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
+
+const NAME_MAX_LENGTH = 255;
+
 export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
@@ -238,6 +241,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
+          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
         <InputField
           name="description"

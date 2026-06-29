@@ -580,8 +580,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				<Data>5</Data>
 			</Item>
 		</Replace>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -604,8 +604,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 			</Item>
 		</Replace>`
 		// Only MaxInactivityTimeDeviceLock is protected; DevicePasswordEnabled should still get a <Delete>
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -636,9 +636,9 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				</Item>
 			</Replace>
 		</Atomic>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/BitLocker/A": true,
-			"./Device/Vendor/MSFT/BitLocker/B": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/BitLocker/A": {},
+			"./Device/Vendor/MSFT/BitLocker/B": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -663,8 +663,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				</Item>
 			</Replace>
 		</Atomic>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/BitLocker/A": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/BitLocker/A": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)

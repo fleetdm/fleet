@@ -55,6 +55,8 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
+	// Version pins a Fleet-maintained app to a cached version; empty means "Latest", omitted leaves it unchanged.
+	Version *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
 	Configuration []byte
 }
@@ -142,6 +144,11 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
 		decoded.Configuration = []byte(cfg[0])
+	}
+
+	// Only set Version when the field is present, so an omitted field stays nil and an empty value means "Latest".
+	if versionMultipart, ok := r.MultipartForm.Value["version"]; ok && len(versionMultipart) > 0 {
+		decoded.Version = &versionMultipart[0]
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -259,6 +266,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Categories:        req.Categories,
 		DisplayName:       req.DisplayName,
 		Configuration:     req.Configuration,
+		PinnedVersion:     req.Version,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -856,6 +864,8 @@ type batchSetSoftwareInstallersResultResponse struct {
 	// DeletedPackages lists the packages the batch deleted (dry run: would
 	// delete) because their title matches no entry in the request payload.
 	DeletedPackages []fleet.DeletedSoftwarePackage `json:"deleted_packages,omitempty"`
+	// Categories lists the self-service categories the batch's software references.
+	Categories []string `json:"categories,omitempty"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -864,7 +874,7 @@ func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
-	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
+	status, message, packages, deletedPackages, categories, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
 	if err != nil {
 		return batchSetSoftwareInstallersResultResponse{Err: err}, nil
 	}
@@ -873,15 +883,16 @@ func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request inter
 		Message:         message,
 		Packages:        packages,
 		DeletedPackages: deletedPackages,
+		Categories:      categories,
 	}, nil
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", "", nil, nil, fleet.ErrMissingLicense
+	return "", "", nil, nil, nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1033,26 +1044,28 @@ func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io
 
 type batchAssociateAppStoreAppsResponse struct {
 	Apps []fleet.VPPAppResponse `json:"app_store_apps"`
-	Err  error                  `json:"error,omitempty"`
+	// Categories lists the self-service categories the batch's apps reference.
+	Categories []string `json:"categories,omitempty"`
+	Err        error    `json:"error,omitempty"`
 }
 
 func (r batchAssociateAppStoreAppsResponse) Error() error { return r.Err }
 
 func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchAssociateAppStoreAppsRequest)
-	apps, err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun)
+	apps, categories, err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun)
 	if err != nil {
 		return batchAssociateAppStoreAppsResponse{Err: err}, nil
 	}
-	return batchAssociateAppStoreAppsResponse{Apps: apps}, nil
+	return batchAssociateAppStoreAppsResponse{Apps: apps, Categories: categories}, nil
 }
 
-func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 type getInHouseAppManifestRequest struct {

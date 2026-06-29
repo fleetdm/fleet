@@ -17,7 +17,7 @@ const NameToIdentifierMap: Record<string, string> = {
   "Adobe Acrobat Reader": "adobe-acrobat-reader",
   "Box Drive": "box-drive",
   Brave: "brave-browser",
-  "Cloudflare WARP": "cloudflare-warp",
+  "Cloudflare One": "cloudflare-warp",
   "Docker Desktop": "docker",
   Figma: "figma",
   "Mozilla Firefox": "firefox",

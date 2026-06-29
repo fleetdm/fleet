@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.7.5",
+      "version": "1.7.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.davidbures.cork';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.davidbures.cork' AND version_compare(bundle_short_version, '1.7.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.davidbures.cork' AND version_compare(bundle_short_version, '1.7.6') < 0);"
       },
-      "installer_url": "https://corkmac.app/RLS/1.7.5/Cork.zip",
+      "installer_url": "https://corkmac.app/RLS/1.7.6/Cork.zip",
       "install_script_ref": "0bf9e752",
       "uninstall_script_ref": "2c2ab304",
-      "sha256": "c8d827334d21676572541f2c330ec0621ebe149f760eeeb07347382c525b2417",
+      "sha256": "5d341b1b6256386961b7366e92e9d3b668c747af52e78658e06a788ea18c695c",
       "default_categories": [
         "Productivity"
       ]

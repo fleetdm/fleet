@@ -1,1 +1,0 @@
-* Fixed fleetd clearing pre-packaged/user-provided osquery flagfiles (`osquery.flags`) when `command_line_flags` is unset in the agent settings. Setting `command_line_flags` to an empty document (`{}` or `null`) still explicitly clears the flagfile.

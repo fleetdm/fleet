@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.3.0",
+      "version": "4.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nonstrict.Bezel-direct';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nonstrict.Bezel-direct' AND version_compare(bundle_short_version, '4.3.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nonstrict.Bezel-direct' AND version_compare(bundle_short_version, '4.5.0') < 0);"
       },
-      "installer_url": "https://download.nonstrict.eu/bezel/Bezel-4.3.0.zip",
+      "installer_url": "https://download.nonstrict.eu/bezel/Bezel-4.5.0.zip",
       "install_script_ref": "6ddd4f59",
       "uninstall_script_ref": "539e1578",
-      "sha256": "e154e929f4247f5fa45c518d0b973ce0f0f10fe045763d88aae67439d3e2d0b5",
+      "sha256": "6961f17c7b97af9117af1679b959f4d59a64b744ef58f7c004a5e73995ab98be",
       "default_categories": [
         "Productivity"
       ]

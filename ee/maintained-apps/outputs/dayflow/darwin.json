@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.14.0",
+      "version": "1.14.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'teleportlabs.com.Dayflow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'teleportlabs.com.Dayflow' AND version_compare(bundle_short_version, '1.14.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'teleportlabs.com.Dayflow' AND version_compare(bundle_short_version, '1.14.1') < 0);"
       },
-      "installer_url": "https://github.com/JerryZLiu/Dayflow/releases/download/v1.14.0/Dayflow.dmg",
+      "installer_url": "https://github.com/JerryZLiu/Dayflow/releases/download/v1.14.1/Dayflow.dmg",
       "install_script_ref": "42e29e09",
       "uninstall_script_ref": "efe23f9c",
-      "sha256": "08353e90b9bd83e1a4a20393f2636ffab572cdddfbf3efaea4fb7c217886731e",
+      "sha256": "60a34d3a347c67bf461d870d24f603ccece6d6e35d7854de810386e338b64282",
       "default_categories": [
         "Productivity"
       ]

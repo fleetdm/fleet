@@ -3,7 +3,6 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent/MainContent";
@@ -14,6 +13,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Radio from "components/forms/fields/Radio";
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
 
 import { getErrorMessage } from "./helpers";
 
@@ -33,7 +33,6 @@ const useSetWindowsMdm = ({
   router,
 }: ISetWindowsMdmOptions) => {
   const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const turnOnWindowsMdm = async () => {
     try {
@@ -47,13 +46,9 @@ const useSetWindowsMdm = ({
         true
       );
       setConfig(updatedConfig);
-      renderFlash("success", "Windows MDM settings successfully updated.", {
-        persistOnPageChange: true,
-      });
+      notify.success("Windows MDM settings successfully updated.");
     } catch (e) {
-      renderFlash("error", getErrorMessage(e), {
-        persistOnPageChange: true,
-      });
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);

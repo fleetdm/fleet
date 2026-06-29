@@ -94,7 +94,6 @@ type generateGitopsClient interface {
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
-	ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -278,6 +277,7 @@ type GenerateGitopsCommand struct {
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
+		Hidden:      true,
 		Usage:       "Generate GitOps configuration files for Fleet.",
 		Description: "This command generates GitOps configuration files for Fleet.",
 		Action:      createGenerateGitopsAction(nil),
@@ -647,6 +647,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	}
 
 	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
+	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
 		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
@@ -671,6 +672,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			b = emptyVal.ReplaceAll(b, []byte(":"))
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
+			// Keep software versions quoted so YAML treats them as strings (e.g. "10.0" must not become a float).
+			b = softwareVersion.ReplaceAll(b, []byte(`${1}"${2}"`))
 		} else {
 			switch fileToWrite := fileToWrite.(type) {
 			case []byte:
@@ -922,6 +925,12 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	}
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
+
+		// Google Workspace IdP is a premium-only integration, so omit it from the
+		// generated free-tier GitOps so the example stays valid on reapply.
+		if !cmd.AppConfig.License.IsPremium() {
+			delete(result, "google_workspace")
+		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
 
@@ -963,6 +972,18 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					Filename: "default.yml",
 					Key:      "integrations.zendesk.api_token",
 				})
+			}
+		}
+		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+			for _, intg := range googleWorkspace.([]any) {
+				intgMap := intg.(map[string]any)
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
+					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+						Filename: "default.yml",
+						Key:      "integrations.google_workspace.api_key_json",
+					})
+				}
 			}
 		}
 	}
@@ -1666,14 +1687,17 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 		}
 		// Parse any labels.
-		if policy.LabelsIncludeAny != nil {
+		if policy.LabelsIncludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
 		}
 		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
-		if policy.LabelsExcludeAny != nil {
+		if policy.LabelsExcludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
+		}
+		if policy.LabelsExcludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_exclude_all"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAll)
 		}
 		result[i] = policySpec
 	}
@@ -1937,6 +1961,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			continue
 		}
 
+		// Detect if this is a script package (.sh or .ps1 file)
+		// Script packages have the file contents as the install script internally,
+		// but these fields should NOT be exposed in GitOps YAML as they are not
+		// user-configurable for script packages.
+		isScriptPackage := sw.SoftwarePackage != nil &&
+			fleet.IsScriptPackage(strings.ToLower(filepath.Ext(sw.SoftwarePackage.Name)))
+
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
@@ -1944,7 +1975,12 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			var comment string
+			if isScriptPackage {
+				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s", sw.Name, pkgName))
+			} else {
+				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			}
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -1988,14 +2024,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-
-			// Detect if this is a script package (.sh or .ps1 file)
-			// Script packages have the file contents as the install script internally,
-			// but these fields should NOT be exposed in GitOps YAML as they are not
-			// user-configurable for script packages.
-			isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
-				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
-					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
@@ -2260,6 +2288,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			delete(softwareSpec, "hash_sha256")
 			delete(softwareSpec, "url")
 			softwareSpec["slug"] = slug
+			if pv := softwareTitle.SoftwarePackage.PinnedVersion; pv != nil && *pv != "" {
+				softwareSpec["version"] = *pv
+			}
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
 		case sw.AppStoreApp != nil:
@@ -2274,19 +2305,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 	if len(fmas) > 0 {
 		result["fleet_maintained_apps"] = fmas
-	}
-
-	categories, err := cmd.Client.ListSelfServiceCategories(teamID)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting self-service categories: %s\n", err)
-		return nil, err
-	}
-	if len(categories) > 0 {
-		names := make([]string, 0, len(categories))
-		for _, c := range categories {
-			names = append(names, c.Name)
-		}
-		result["self_service_categories"] = names
 	}
 
 	return result, nil

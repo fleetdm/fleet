@@ -15,6 +15,7 @@ import (
 	"time"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
@@ -660,14 +661,14 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		FleetMaintained: false,
 		Filename:        "foo",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		Categories:      []string{},
+		Categories:      optjson.SetSlice([]string{}),
 		DisplayName:     "foo",
 	}}, false)
 	require.NoError(t, err)
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		status, _, packages, _, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.

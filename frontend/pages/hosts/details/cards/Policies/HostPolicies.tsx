@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 
 import { Row } from "react-table";
 
@@ -73,6 +73,13 @@ const Policies = ({
     [togglePolicyDetailsModal]
   );
 
+  // Memoize the table data so its reference stays stable across re-renders
+  // that don't change the policies.
+  const tableData = useMemo(
+    () => generatePolicyDataSet(policies, !!conditionalAccessEnabled),
+    [policies, conditionalAccessEnabled]
+  );
+
   const renderBanner = () => {
     if (!failingResponses?.length) {
       return null;
@@ -143,7 +150,7 @@ const Policies = ({
         {renderBanner()}
         <TableContainer
           columnConfigs={tableHeaders}
-          data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
+          data={tableData}
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"

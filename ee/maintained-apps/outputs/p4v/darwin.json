@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1",
+      "version": "2026.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v' AND version_compare(bundle_short_version, '2026.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v' AND version_compare(bundle_short_version, '2026.2') < 0);"
       },
-      "installer_url": "https://filehost.perforce.com/perforce/r26.1/bin.macosx12u/P4V.dmg",
+      "installer_url": "https://filehost.perforce.com/perforce/r26.2/bin.macosx12u/P4V.dmg",
       "install_script_ref": "bbe80cf5",
       "uninstall_script_ref": "428bb3f6",
-      "sha256": "b4ce469dcbdb3dbdc63b40f9c0510ea996e45ac000b5b1908d5502ab952937e5",
+      "sha256": "9c9367ab96f667d4f1c0fd7e283e4e3678fbed1f570c8238121914b204ad3aac",
       "default_categories": [
         "Developer tools"
       ]

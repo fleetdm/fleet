@@ -1,17 +1,17 @@
 {
   "versions": [
     {
-      "version": "4.12.6",
+      "version": "4.12.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4' AND version_compare(bundle_short_version, '4.12.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4' AND version_compare(bundle_short_version, '4.12.8') < 0);"
       },
-      "installer_url": "https://software.charliemonroe.net/trial/downie/v4/Downie_4_5187.dmg",
+      "installer_url": "https://software.charliemonroe.net/trial/downie/v4/Downie_4_5197.dmg",
       "install_script_ref": "1468a553",
       "uninstall_script_ref": "24e71e3c",
-      "sha256": "2bae50b2783b731d02343f6ba5785c50577e17f4f1e6afe129b0282fc7ee3fff",
+      "sha256": "27b76527dc168501c944e940708c2ddf085fe4d2267262832c0bfbb426a7cdd8",
       "default_categories": [
-        "Developer tools"
+        "Productivity"
       ]
     }
   ],

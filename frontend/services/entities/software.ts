@@ -38,6 +38,7 @@ import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/Soft
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
+import { IVersionPinFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/VersionsModal/VersionsModal";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -132,6 +133,11 @@ export interface ISoftwareFleetMaintainedAppsQueryParams {
   order_direction?: "asc" | "desc";
   page?: number;
   per_page?: number;
+  /** Filter to apps available on a given platform. Uses the API's platform
+   * vocabulary ("darwin"/"windows"), not the UI's ("macos"/"windows"). */
+  platform?: "darwin" | "windows";
+  /** When true, only return apps not yet added to the fleet ("Hide added apps"). */
+  available?: boolean;
 }
 
 export interface ISoftwareFleetMaintainedAppsResponse {
@@ -600,7 +606,8 @@ export default {
     data:
       | IEditPackageFormData
       | ISoftwareDisplayNameFormData
-      | ISoftwareConfigurationFormData;
+      | ISoftwareConfigurationFormData
+      | IVersionPinFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
     teamId: number;
@@ -615,6 +622,10 @@ export default {
     if ("configuration" in data) {
       // Handles Edit configuration form (iOS/iPadOS in-house apps)
       formData.append("configuration", data.configuration);
+    } else if ("pinnedVersion" in data) {
+      // Handles the Versions modal: pin an FMA to a cached version. An empty
+      // string clears the pin (back to "Latest"); the backend reads `version`.
+      formData.append("version", data.pinnedVersion);
     } else if ("displayName" in data) {
       // Handles Edit display name form only
       handleDisplayNameForm(data, formData);

@@ -29,7 +29,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	nanomdm_mdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -647,6 +650,159 @@ func TestRunMDMCommandValidations(t *testing.T) {
 			require.ErrorContains(t, err, c.wantErr)
 		})
 	}
+}
+
+func TestRunMDMCommandCreatesActivity(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	windowsHost := &fleet.Host{
+		ID:           42,
+		UUID:         "win-uuid-1",
+		Platform:     "windows",
+		Hostname:     "DESKTOP-TEST",
+		ComputerName: "DESKTOP-TEST",
+	}
+
+	ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+		return []*fleet.Host{windowsHost}, nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+		return map[string]bool{windowsHost.UUID: true}, nil
+	}
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{WindowsEnabledAndConfigured: true},
+		}, nil
+	}
+	ds.MDMWindowsInsertCommandForHostsFunc = func(_ context.Context, _ []string, _ *fleet.MDMWindowsCommand) error {
+		return nil
+	}
+
+	var capturedUser *activity_api.User
+	var capturedActivity activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, u *activity_api.User, act activity_api.ActivityDetails) error {
+		capturedUser = u
+		capturedActivity = act
+		return nil
+	}
+
+	rawCmd := `<Exec>
+		<CmdID>1</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./FooBar</LocURI>
+			</Target>
+		</Item>
+	</Exec>`
+	encoded := base64.StdEncoding.EncodeToString([]byte(rawCmd))
+
+	_, err := svc.RunMDMCommand(ctx, encoded, []string{windowsHost.UUID})
+	require.NoError(t, err)
+
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	require.NotNil(t, capturedActivity)
+
+	act, ok := capturedActivity.(*fleet.ActivityTypeRanCustomMDMCommand)
+	require.True(t, ok, "expected *fleet.ActivityTypeRanCustomMDMCommand, got %T", capturedActivity)
+	assert.Equal(t, windowsHost.ID, act.HostID)
+	assert.Equal(t, windowsHost.DisplayName(), act.HostDisplayName)
+	assert.Equal(t, windowsHost.UUID, act.HostUUID)
+	assert.Equal(t, "./FooBar", act.RequestType)
+	assert.Equal(t, "windows", act.Platform)
+	assert.NotEmpty(t, act.CommandUUID)
+
+	require.NotNil(t, capturedUser)
+	assert.Equal(t, test.UserAdmin.ID, capturedUser.ID)
+	assert.Equal(t, test.UserAdmin.Email, capturedUser.Email)
+}
+
+// mockAPNSPusher implements nanomdm_push.Pusher for unit tests, returning a
+// push failure for any UUID in failUUIDs and success for all others.
+type mockAPNSPusher struct {
+	failUUIDs map[string]bool
+}
+
+func (m *mockAPNSPusher) Push(_ context.Context, ids []string) (map[string]*nanomdm_push.Response, error) {
+	result := make(map[string]*nanomdm_push.Response, len(ids))
+	for _, id := range ids {
+		if m.failUUIDs[id] {
+			result[id] = &nanomdm_push.Response{Err: errors.New("push failed")}
+		} else {
+			result[id] = &nanomdm_push.Response{}
+		}
+	}
+	return result, nil
+}
+
+func TestRunMDMCommandSkipsActivityForFailedHosts(t *testing.T) {
+	ds := new(mock.Store)
+
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	mdmStorage.EnqueueCommandFunc = func(_ context.Context, _ []string, _ *nanomdm_mdm.CommandWithSubtype) (map[string]error, error) {
+		return nil, nil
+	}
+
+	host1 := &fleet.Host{ID: 1, UUID: "apple-uuid-1", Platform: "darwin", Hostname: "mac1", ComputerName: "mac1"}
+	host2 := &fleet.Host{ID: 2, UUID: "apple-uuid-2", Platform: "darwin", Hostname: "mac2", ComputerName: "mac2"}
+
+	opts := &TestServerOpts{
+		SkipCreateTestUsers: true,
+		MDMStorage:          mdmStorage,
+		MDMPusher:           &mockAPNSPusher{failUUIDs: map[string]bool{host2.UUID: true}},
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+		return []*fleet.Host{host1, host2}, nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+		return map[string]bool{host1.UUID: true, host2.UUID: true}, nil
+	}
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+
+	var capturedActivities []*fleet.ActivityTypeRanCustomMDMCommand
+	var capturedUsers []*activity_api.User
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, u *activity_api.User, act activity_api.ActivityDetails) error {
+		if a, ok := act.(*fleet.ActivityTypeRanCustomMDMCommand); ok {
+			capturedActivities = append(capturedActivities, a)
+			capturedUsers = append(capturedUsers, u)
+		}
+		return nil
+	}
+
+	rawCmd := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>test-partial-fail-001</string>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ShutDownDevice</string>
+	</dict>
+</dict>
+</plist>`
+	encoded := base64.StdEncoding.EncodeToString([]byte(rawCmd))
+
+	_, err := svc.RunMDMCommand(ctx, encoded, []string{host1.UUID, host2.UUID})
+	require.NoError(t, err)
+
+	require.Len(t, capturedActivities, 1, "expected activity for 1 successful host only")
+	assert.Equal(t, host1.ID, capturedActivities[0].HostID)
+	assert.Equal(t, host1.UUID, capturedActivities[0].HostUUID)
+	assert.Equal(t, "ShutDownDevice", capturedActivities[0].RequestType)
+	assert.Equal(t, "darwin", capturedActivities[0].Platform)
+
+	require.NotNil(t, capturedUsers[0])
+	assert.Equal(t, test.UserAdmin.ID, capturedUsers[0].ID)
+	assert.Equal(t, test.UserAdmin.Email, capturedUsers[0].Email)
 }
 
 func TestRunMDMCommandSetRecoveryLockBlocked(t *testing.T) {
@@ -1884,7 +2040,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 		},
 		{
-			"fleet variable in android config is ignored",
+			"unsupported fleet variable in android config is rejected",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
@@ -1892,17 +2048,17 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			[]fleet.MDMProfileBatchPayload{
 				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
 			},
-			"",
+			"Fleet variable",
 			false,
 		},
 		{
-			"fleet variable in android config is ignored",
+			"supported fleet variable in android config is accepted",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_HOST_UUID", nil).RawJSON},
 			},
 			"",
 			false,
@@ -3448,6 +3604,79 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
 		require.False(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
 	})
+}
+
+// TestGetMDMCommandResultsTeamScoping verifies that GetMDMCommandResults, called
+// without a host identifier, returns results only for hosts the caller is
+// authorized to see. A single command UUID can be enqueued to hosts on several
+// teams, so a caller who shares only one team with the command must not receive
+// the results of hosts on the other teams.
+func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil,
+		&TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	const commandUUID = "cmd-uuid-mixed-teams"
+	hostUUIDToTeam := map[string]uint{
+		"host-team1": 1,
+		"host-team2": 2,
+	}
+
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		return "darwin", nil
+	}
+
+	// The datastore loads every row for the command UUID (no host filtering),
+	// including the result and payload of hosts on teams the caller cannot see.
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, cmdUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+		return []*fleet.MDMCommandResult{
+			{HostUUID: "host-team1", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team1")},
+			{HostUUID: "host-team2", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team2")},
+		}, nil
+	}
+
+	// Mimic the real datastore's team scoping: a non-global user only sees hosts
+	// on the teams they belong to.
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		allowed := make(map[uint]struct{})
+		for _, ut := range filter.User.Teams {
+			allowed[ut.Team.ID] = struct{}{}
+		}
+		global := filter.User.GlobalRole != nil
+
+		var hosts []*fleet.Host
+		for _, u := range uuids {
+			tmID := hostUUIDToTeam[u]
+			if _, ok := allowed[tmID]; !global && !ok {
+				continue
+			}
+			h := &fleet.Host{UUID: u, Hostname: u + "-name"}
+			if tmID != 0 {
+				id := tmID
+				h.TeamID = &id
+			}
+			hosts = append(hosts, h)
+		}
+		return hosts, nil
+	}
+
+	// A team-1 observer (lowest privilege on the only team it shares with the
+	// command) must receive its own host's result and nothing from team 2.
+	teamCtx := test.UserContext(ctx, test.UserTeamObserverTeam1)
+	results, err := svc.GetMDMCommandResults(teamCtx, commandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "host-team1", results[0].HostUUID)
+	require.Equal(t, []byte("result-team1"), results[0].Result)
+	for _, res := range results {
+		require.NotEqual(t, "host-team2", res.HostUUID)
+	}
+
+	// A global admin still sees every host's result.
+	adminCtx := test.UserContext(ctx, test.UserAdmin)
+	results, err = svc.GetMDMCommandResults(adminCtx, commandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
 }
 
 // TestProcessIncomingMDMCmdsDevDetailLinkage exercises the OMA-DM DevDetail-based linkage path that closes the race

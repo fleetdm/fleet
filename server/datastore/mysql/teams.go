@@ -149,6 +149,7 @@ var teamRefs = []string{
 	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
+	"software_title_team_pins",
 	"vpp_app_configurations",
 	"software_categories",
 }
@@ -229,31 +230,26 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
-// enqueueWindowsDeleteCommandsForTeam generates SyncML <Delete> commands for
-// Windows profiles assigned to the given team. Runs in its own transaction to
-// keep load out of the main DeleteTeam transaction.
+// enqueueWindowsDeleteCommandsForTeam retains the content of the team's Windows config profiles (so the profile-manager cron can
+// build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
+// host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
 func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var profRows []struct {
-			ProfileUUID string `db:"profile_uuid"`
-			SyncML      []byte `db:"syncml"`
-		}
-		if err := sqlx.SelectContext(ctx, tx, &profRows,
-			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
+		var profileUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &profileUUIDs,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
 			return ctxerr.Wrapf(ctx, err, "loading windows profiles for team %d", tid)
 		}
-		if len(profRows) == 0 {
+		if len(profileUUIDs) == 0 {
 			return nil
 		}
 
-		profileUUIDs := make([]string, 0, len(profRows))
-		profileContents := make(map[string][]byte, len(profRows))
-		for _, r := range profRows {
-			profileUUIDs = append(profileUUIDs, r.ProfileUUID)
-			profileContents[r.ProfileUUID] = r.SyncML
+		// Copy from the live table before the DeleteTeam cascade removes the definitions; the definitions still exist here.
+		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, profileUUIDs); err != nil {
+			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
 
-		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, tid, profileUUIDs, profileContents)
+		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
 	})
 }
 

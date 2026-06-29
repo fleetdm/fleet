@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "7.28.0",
+      "version": "7.29.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.garmin.renu.client';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.garmin.renu.client' AND version_compare(bundle_short_version, '7.28.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.garmin.renu.client' AND version_compare(bundle_short_version, '7.29.1') < 0);"
       },
       "installer_url": "https://download.garmin.com/omt/express/GarminExpress.dmg",
       "install_script_ref": "3c06429b",

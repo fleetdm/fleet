@@ -1,17 +1,17 @@
 {
   "versions": [
     {
-      "version": "1.6.1",
+      "version": "1.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.blyt.phoenixslides';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.blyt.phoenixslides' AND version_compare(bundle_short_version, '1.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.blyt.phoenixslides' AND version_compare(bundle_short_version, '1.6.2') < 0);"
       },
-      "installer_url": "https://github.com/gobbledegook/creevey/releases/download/v1.6.1/phoenix-slides-161.dmg",
+      "installer_url": "https://github.com/gobbledegook/creevey/releases/download/v1.6.2/phoenix-slides-162.dmg",
       "install_script_ref": "af4fa1d0",
       "uninstall_script_ref": "0f6d4b37",
-      "sha256": "84c6165c37ad3f143bfbbab8e57a797b23d9524cbbc2c7349884f8ed5de4c694",
+      "sha256": "0abfb07aca4dbfce3c35dc4263d0ad52c803ced67f90449bdc0bd07a65334298",
       "default_categories": [
-        "Developer tools"
+        "Productivity"
       ]
     }
   ],

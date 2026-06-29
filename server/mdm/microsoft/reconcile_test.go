@@ -431,3 +431,49 @@ func TestComputeWindowsReconcileDeltasMultipleProfilesPerHost(t *testing.T) {
 	require.Contains(t, remove, key("h1", "p-remove"))
 	require.NotContains(t, remove, key("h1", "p-noop"))
 }
+
+// TestDesiredWindowsProfileUUIDsByHost covers the per-host desired-state map that the reconciler uses to protect a removed profile's
+// LocURIs from being deleted on hosts where another still-applicable profile enforces them. It must apply the same team-gating and
+// per-host label rules as ComputeWindowsReconcileDeltas: a label-scoped profile appears only for the hosts it actually matches, and a
+// host with no applicable profiles is omitted from the map entirely.
+func TestDesiredWindowsProfileUUIDsByHost(t *testing.T) {
+	// host 1 is a member of label 10; the other hosts are members of nothing.
+	hostLabels := map[uint]map[uint]struct{}{
+		1: {10: {}},
+	}
+
+	pGlobal := &fleet.WindowsProfileForReconcile{ProfileUUID: "p-global", ProfileName: "global", TeamID: 0, Checksum: []byte("c")}
+	pLabeled := &fleet.WindowsProfileForReconcile{ProfileUUID: "p-labeled", ProfileName: "labeled", TeamID: 0, Checksum: []byte("c"),
+		IncludeMode:   fleet.MDMProfileIncludeAny,
+		IncludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(10))}},
+	}
+	pTeam := &fleet.WindowsProfileForReconcile{ProfileUUID: "p-team", ProfileName: "team", TeamID: 5, Checksum: []byte("c")}
+
+	profilesByTeam := map[uint][]*fleet.WindowsProfileForReconcile{
+		0: {pGlobal, pLabeled},
+		5: {pTeam},
+	}
+
+	labeledHost := &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: "h-labeled", TeamID: nil, LabelUpdatedAt: time.Now()}
+	plainHost := &fleet.WindowsHostReconcileInfo{HostID: 2, UUID: "h-plain", TeamID: nil, LabelUpdatedAt: time.Now()}
+	teamHost := &fleet.WindowsHostReconcileInfo{HostID: 3, UUID: "h-team", TeamID: new(uint(5)), LabelUpdatedAt: time.Now()}
+	emptyHost := &fleet.WindowsHostReconcileInfo{HostID: 4, UUID: "h-empty", TeamID: new(uint(9)), LabelUpdatedAt: time.Now()}
+
+	out := DesiredWindowsProfileUUIDsByHost(
+		[]*fleet.WindowsHostReconcileInfo{labeledHost, plainHost, teamHost, emptyHost},
+		hostLabels,
+		profilesByTeam,
+	)
+
+	// h-empty is in a team with no profiles, so it must not appear in the map at all.
+	require.Len(t, out, 3)
+	require.NotContains(t, out, "h-empty")
+
+	// The labeled host gets both the global profile and the label-scoped one; the plain host (same team, not in the label) gets
+	// only the global profile. This differential is exactly what makes the LocURI protection per host.
+	require.ElementsMatch(t, []string{"p-global", "p-labeled"}, out["h-labeled"])
+	require.ElementsMatch(t, []string{"p-global"}, out["h-plain"])
+
+	// Team gating: the teamed host sees only its own team's profile, never the no-team profiles.
+	require.ElementsMatch(t, []string{"p-team"}, out["h-team"])
+}

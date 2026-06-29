@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.11.6",
+      "version": "3.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lowtechguys.Clop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lowtechguys.Clop' AND version_compare(bundle_short_version, '2.11.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lowtechguys.Clop' AND version_compare(bundle_short_version, '3.2.1') < 0);"
       },
-      "installer_url": "https://files.lowtechguys.com/releases/Clop-2.11.6.dmg",
+      "installer_url": "https://files.lowtechguys.com/releases/Clop-3.2.1.dmg",
       "install_script_ref": "76fb9b1b",
       "uninstall_script_ref": "3712ca1f",
-      "sha256": "ff809624a2daadba0dd1cfbb34a366cda8388b56008374c9b190a7689104a26e",
+      "sha256": "0b71db037665fdc615ab351c8e4aca3ddc21723efe97e2866d6800242d07cdd9",
       "default_categories": [
         "Developer tools"
       ]

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.47.0",
+      "version": "5.48.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.camunda.CamundaModeler';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.camunda.CamundaModeler' AND version_compare(bundle_short_version, '5.47.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.camunda.CamundaModeler' AND version_compare(bundle_short_version, '5.48.0') < 0);"
       },
-      "installer_url": "https://downloads.camunda.cloud/release/camunda-modeler/5.47.0/camunda-modeler-5.47.0-mac-arm64.zip",
+      "installer_url": "https://downloads.camunda.cloud/release/camunda-modeler/5.48.0/camunda-modeler-5.48.0-mac-arm64.zip",
       "install_script_ref": "2b596ec1",
       "uninstall_script_ref": "68ff5179",
-      "sha256": "c657fa0d5b6ae7643fd5ed6e223fb91ec88d0b74e118268608d6f0bd1fb59a1b",
+      "sha256": "434ae64874410302068d820d63541bb2d2e7be8702f46c46bdf65e2bd2dc4e96",
       "default_categories": [
         "Productivity"
       ]

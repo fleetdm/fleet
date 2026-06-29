@@ -494,6 +494,20 @@
       color: #515774;
       margin-bottom: 32px;
     }
+    p a[purpose='cta-button'] { // Green Fleet CTA button authored inline in article markdown (e.g. under "Key takeaways")
+      .cta-button(); // Reuse the homepage's brand button styling
+      display: inline-flex; // Override the mixin's full-width `display: flex` so the button hugs its label
+      width: fit-content;
+      height: auto;
+      padding: 12px 24px;
+      margin: 8px 0 32px; // Space it from the content above and the next heading below
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      &:hover {
+        text-decoration: none;
+      }
+    }
     img + em { // Image captions
       position: relative;
       top: -12px;
@@ -595,6 +609,7 @@
         text-align: center;
         line-height: 20px;
         text-indent: 0px;
+        white-space: nowrap;
       }
     }
     a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
@@ -796,20 +811,33 @@
       }
     }
   }
-  [purpose='bottom-cta'] {
-    padding-bottom: 40px;
-    h3 {
-      margin-bottom: 24px;
+
+  [purpose='cta-container'] {
+    padding-top: 64px;
+  }
+  [purpose='article-cta'] {
+    border-top: 2px solid #E2E4EA;
+    padding: 64px 0px;
+    h2 {
+      .section-heading();
+      margin-top: 0px;
+      margin-bottom: 8px;
     }
-    [purpose='next-steps-button'] {
-      padding: 16px 32px;
-      line-height: 21px;
-      font-size: 16px;
-      img {
-        height: 24px;
-      }
-      a {
-        color: unset;
+    p {
+      .body-l();
+    }
+    [purpose='button-row'] {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      [purpose='cta-button'] {
+        .cta-button();
+        padding: 8px 16px;
+        color: #FFF;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 21px;
       }
     }
   }
@@ -911,7 +939,6 @@
         margin-bottom: 16px;
       }
     }
-
   }
   @media (max-width: 575px) {
     [purpose='page-container'] {
@@ -921,6 +948,18 @@
       [purpose='next-steps-button'] {
         width: 100%;
         margin-bottom: 32px;
+      }
+    }
+    [purpose='article-cta'] {
+      [purpose='button-row'] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        [purpose='cta-button'] {
+          width: 100%;
+        }
+
       }
     }
     [purpose='article-details'] {

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.1.1",
+      "version": "3.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.dataflare.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.dataflare.desktop' AND version_compare(bundle_short_version, '3.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.dataflare.desktop' AND version_compare(bundle_short_version, '3.1.2') < 0);"
       },
-      "installer_url": "https://assets.dataflare.app/release/darwin/aarch64/Dataflare-3.1.1.dmg",
+      "installer_url": "https://assets.dataflare.app/release/darwin/aarch64/Dataflare-3.1.2.dmg",
       "install_script_ref": "0f765c0f",
       "uninstall_script_ref": "bf5b4266",
-      "sha256": "afed79d36e1317929eaf0ba2088879ee9d4650c3695cfef11be223a951d65ec2",
+      "sha256": "a46fe8df36a658e88ad9456724fe113b692792ab59cb1c80f957073be5eddfbb",
       "default_categories": [
         "Developer tools"
       ]

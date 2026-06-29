@@ -1,12 +1,12 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 
-import { NotificationContext } from "context/notification";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 
 import { getErrorMessage } from "./helpers";
 
@@ -23,8 +23,6 @@ const RenewAbmModal = ({
   onCancel,
   onRenewedToken,
 }: IRenewAbmModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isUploading, setIsUploading] = useState(false);
   const [tokenFile, setTokenFile] = useState<File | null>(null);
 
@@ -38,21 +36,21 @@ const RenewAbmModal = ({
   const onRenewToken = useCallback(async () => {
     if (!tokenFile) {
       // this shouldn't happen, but just in case
-      renderFlash("error", "Please provide a token file.");
+      notify.error("Please provide a token file.");
       return;
     }
     setIsUploading(true);
     try {
       await mdmAppleBmAPI.renewToken(tokenId, tokenFile);
-      renderFlash("success", "Renewed successfully.");
+      notify.success("Renewed successfully.");
       setIsUploading(false);
       onRenewedToken();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
       onCancel();
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, tokenId, onRenewedToken, onCancel]);
+  }, [tokenFile, tokenId, onRenewedToken, onCancel]);
 
   return (
     <Modal

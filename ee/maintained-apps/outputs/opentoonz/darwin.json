@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.7.1",
+      "version": "1.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.opentoonz.OpenToonz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.opentoonz.OpenToonz' AND version_compare(bundle_short_version, '1.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.opentoonz.OpenToonz' AND version_compare(bundle_short_version, '1.8.0') < 0);"
       },
-      "installer_url": "https://github.com/opentoonz/opentoonz/releases/download/v1.7.1/OpenToonz.pkg",
+      "installer_url": "https://github.com/opentoonz/opentoonz/releases/download/v1.8.0/OpenToonz.pkg",
       "install_script_ref": "be018546",
       "uninstall_script_ref": "f9001b65",
-      "sha256": "b2849f4359499164ee610c17e1a79019f5a3474fb37620243e4bd8c8724fc136",
+      "sha256": "6360efbde7739910d4eefe9d494b6b57e852a3f75bdbeb1e6d75abb84e609d13",
       "default_categories": [
         "Productivity"
       ]

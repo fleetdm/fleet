@@ -228,7 +228,7 @@ ADRs research accounts to ensure there's a practical need Fleet can solve before
 
 ## Warm-up actions
 
-Warm-up actions are that Fleet will take at any point in time to help move the psychological progress of contacts on any account.
+Warm-up actions are actions that will take at any point in time to help move the psychological progress of contacts on any account.
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
 
 

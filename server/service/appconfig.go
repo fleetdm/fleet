@@ -574,6 +574,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
 	}
 
+	// Validate and premium-gate the vulnerability-exposure chart filter
+	// defaults. These are display-only defaults (they seed the dashboard
+	// chart's filter controls; they do not affect data collection) and are
+	// premium-only. Validation runs on the incoming payload with sparse/PATCH
+	// semantics: only fields explicitly present are checked.
+	if veFilters := newAppConfig.Features.VulnerabilityExposureHistoricalReporting; veFilters != nil {
+		if !lic.IsPremium() {
+			invalid.Append("org_settings.features.vulnerability_exposure_historical_reporting", ErrMissingLicense.Error())
+		} else {
+			veFilters.Validate("org_settings.features", invalid)
+		}
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	// Reject conflicting deprecated/new logo URL pairs and mirror them so
 	// both forms are persisted with identical values. Done on the incoming
 	// payload before merge so we surface the conflict at the source field.
@@ -619,6 +635,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				} else {
 					// api_key_json was provided with real values, use it
 					appConfig.Integrations.GoogleCalendar[i].ApiKey = newGC.ApiKey
+				}
+			}
+		}
+	}
+
+	// Google Workspace IdP is a premium-only feature.
+	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
+		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Handle Google Workspace API key preservation/replacement (same masking
+	// semantics as Google Calendar): a masked or omitted api_key_json means
+	// "keep the existing service account credentials".
+	if newAppConfig.Integrations.GoogleWorkspace != nil {
+		for i, newGW := range newAppConfig.Integrations.GoogleWorkspace {
+			if i < len(appConfig.Integrations.GoogleWorkspace) {
+				if newGW.ApiKey.IsEmpty() || newGW.ApiKey.IsMasked() {
+					if len(oldAppConfig.Integrations.GoogleWorkspace) > i {
+						appConfig.Integrations.GoogleWorkspace[i].ApiKey = oldAppConfig.Integrations.GoogleWorkspace[i].ApiKey
+					}
+				} else {
+					appConfig.Integrations.GoogleWorkspace[i].ApiKey = newGW.ApiKey
 				}
 			}
 		}
@@ -824,6 +863,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
+	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -950,6 +990,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// If google_calendar is null, we keep the existing setting.
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
+	}
+	// If google_workspace is null, we keep the existing setting.
+	if newAppConfig.Integrations.GoogleWorkspace == nil {
+		appConfig.Integrations.GoogleWorkspace = oldAppConfig.Integrations.GoogleWorkspace
 	}
 
 	gitopsModeEnabled, gitopsRepoURL := appConfig.GitOpsConfig.GitopsModeEnabled, appConfig.GitOpsConfig.RepositoryURL
@@ -1078,6 +1122,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Emit an activity when the Google Workspace IdP integration is added, edited,
+	// or removed.
+	if act := googleWorkspaceActivity(oldAppConfig.Integrations.GoogleWorkspace, appConfig.Integrations.GoogleWorkspace); act != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for google workspace integration change")
+		}
+	}
+
 	addedEntraClientIDs, removedEntraClientIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraClientIDs.Value, appConfig.MDM.WindowsEntraClientIDs.Value)
 	for _, clientID := range addedEntraClientIDs {
 		act := fleet.ActivityTypeAddedMicrosoftEntraClientID{ClientID: clientID}
@@ -1157,6 +1209,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				tok.MacOSDefaultTeamID = nil
 				tok.IOSDefaultTeamID = nil
 				tok.IPadOSDefaultTeamID = nil
+				tok.BYODDefaultTeamID = nil
 				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 				}
@@ -1330,6 +1383,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+		}
+	}
+
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
 		}
 	}
 
@@ -1588,6 +1653,25 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 // client IDs are both validated against this so the two checks cannot drift.
 var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
 
+// googleWorkspaceActivity returns the activity to record when the Google
+// Workspace IdP integration is added, edited, or removed, or nil when it is
+// unchanged. Only the (non-secret) domain is compared/recorded.
+func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) fleet.ActivityDetails {
+	oldConfigured := len(old) > 0
+	newConfigured := len(current) > 0
+	switch {
+	case !oldConfigured && newConfigured:
+		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+	case oldConfigured && !newConfigured:
+		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: old[0].Domain}
+	case oldConfigured && newConfigured:
+		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail {
+			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+		}
+	}
+	return nil
+}
+
 // diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
 // current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
 // the incoming payload repeats an entry.
@@ -1682,6 +1766,11 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
+			invalid.Append("setup_experience.enable_managed_local_account",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
@@ -1972,7 +2061,7 @@ func (svc *Service) validateABMAssignments(
 		tok.MacOSDefaultTeamID = &team.ID
 		tok.IOSDefaultTeamID = &team.ID
 		tok.IPadOSDefaultTeamID = &team.ID
-
+		tok.BYODDefaultTeamID = &team.ID
 		return []*fleet.ABMToken{tok}, nil
 	}
 
@@ -2004,12 +2093,13 @@ func (svc *Service) validateABMAssignments(
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
+			token.BYODDefaultTeamID = nil
 			tokensByName[token.OrganizationName] = token
 		}
 
 		var tokensToSave []*fleet.ABMToken
 		for _, bm := range mdm.AppleBusinessManager.Value {
-			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
 					return nil, nil
@@ -2025,6 +2115,7 @@ func (svc *Service) validateABMAssignments(
 			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
 			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
 			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tok.BYODDefaultTeamID = teamsByName[bm.BYODTeam]
 			tokensToSave = append(tokensToSave, tok)
 		}
 

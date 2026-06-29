@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.3.2",
+      "version": "4.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.coconut-flavour.coconutBattery-Menu';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coconut-flavour.coconutBattery-Menu' AND version_compare(bundle_short_version, '4.3.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coconut-flavour.coconutBattery-Menu' AND version_compare(bundle_short_version, '4.3.3') < 0);"
       },
-      "installer_url": "https://www.coconut-flavour.com/downloads/coconutBattery_432_213.zip",
+      "installer_url": "https://www.coconut-flavour.com/downloads/coconutBattery_433_218.zip",
       "install_script_ref": "0d0c8ca7",
       "uninstall_script_ref": "8d4d4d78",
-      "sha256": "8a03378cb6fc8c1bc7959e2dae61f204f3f3994264b810e8cdd229894664ce7d",
+      "sha256": "d2aea31aaf95a1a178743c41b40c5c1b93d3d4106576aa644e8918a54fde130e",
       "default_categories": [
         "Utilities"
       ]

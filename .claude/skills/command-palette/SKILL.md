@@ -19,6 +19,7 @@ This skill exists to make sure that guide gets followed when palette-worthy chan
    frontend/components/CommandPalette/groups/
    ```
 3. **Confirm the destination page's own permission check**, then mirror it on the palette item using a flag from `ICommandPaletteContext` (`frontend/components/CommandPalette/helpers.ts`). Add a new flag there only if no existing one models the destination's check. Don't route users to a screen they can't use.
+4. **Premium paywall check:** if the destination page (or the specific tab/section the link lands on) renders `<PremiumFeatureMessage />` for `!isPremiumTier`, gate the palette item on `isPremiumTier` so it's hidden on Free. A palette entry that lands on the upsell wall is a bait-and-switch — the palette is for actions, not for marketing the paid tier. Mirror tab-level paywalls too (e.g., `paths.ADMIN_INTEGRATIONS_SSO_END_USERS` lands on a Premium-only tab even though the parent SSO page works on Free). If the destination only paywalls a sub-section (not the whole page or the linked tab), don't gate — the page is still useful on Free.
 
 ## After adding an item
 
