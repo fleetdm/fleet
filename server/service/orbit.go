@@ -491,15 +491,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
-	if err != nil {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
-	}
-
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !fleet.IsNotFound(err) {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
 	}
+
+	// Derive the Fleet-MDM connection state from the host_mdm data fetched above rather than issuing a separate
+	// IsHostConnectedToFleetMDM query.
+	isConnectedToFleetMDM := mdmInfo != nil && mdmInfo.ConnectedToFleet
 
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
