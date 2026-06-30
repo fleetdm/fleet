@@ -89,10 +89,7 @@
     flex: 1;
     min-width: 0;
     text-align: left;
-
-    .tooltip-truncated-text {
-      max-width: 100%;
-    }
+    @include ellipse-text;
   }
 
   // Info icon sits at the right edge of the Details column, shown on row hover
