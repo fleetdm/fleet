@@ -13,7 +13,7 @@ $processOptions = @{
   Wait = $true
 }
 
-$process = Start-Process @$processOptions
+$process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 
 Write-Host "Install exit code: $exitCode"

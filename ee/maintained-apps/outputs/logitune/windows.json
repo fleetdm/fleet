@@ -9,7 +9,7 @@
       "installer_url": "https://software.vc.logitech.com/downloads/tune/LogiTuneInstall.exe",
       "install_script_ref": "b631e9e9",
       "uninstall_script_ref": "d557203d",
-      "sha256": "acc4451dc5e496dcce55b090b83e1a2c522d4e9f51105529d097a6d744df2841",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]

@@ -30,4 +30,13 @@ try {
     if (-not $foundUninstaller) { Write-Host "Uninstaller for '$softwareName' not found."; Exit 1 }
 } catch { Write-Host "Error: $_"; Exit 1 }
 
+# iTunes uses a WiX bundle that spawns child msiexec processes; wait for them to finish
+$timeout = 120
+$elapsed = 0
+while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapsed -lt $timeout)) {
+    Start-Sleep -Seconds 2
+    $elapsed += 2
+    Write-Host "Waiting for msiexec to complete... ($elapsed seconds)"
+}
+
 Exit $exitCode

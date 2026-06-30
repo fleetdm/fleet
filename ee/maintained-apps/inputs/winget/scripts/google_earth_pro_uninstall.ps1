@@ -65,4 +65,13 @@ try {
     Exit 1
 }
 
+# Google Earth Pro's uninstaller spawns child msiexec processes; wait for them to finish
+$timeout = 120
+$elapsed = 0
+while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapsed -lt $timeout)) {
+    Start-Sleep -Seconds 2
+    $elapsed += 2
+    Write-Host "Waiting for msiexec to complete... ($elapsed seconds)"
+}
+
 Exit $exitCode

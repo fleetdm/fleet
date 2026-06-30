@@ -23,7 +23,7 @@ try {
             Write-Host "Uninstall command: $uninstallCommand"; Write-Host "Uninstall args: $uninstallArgs"
             $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }
             if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }
-            $process = Start-Process @$processOptions
+            $process = Start-Process @processOptions
             $exitCode = $process.ExitCode; Write-Host "Uninstall exit code: $exitCode"; break
         }
     }
