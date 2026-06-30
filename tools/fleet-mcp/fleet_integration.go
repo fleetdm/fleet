@@ -158,7 +158,9 @@ func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
 	return &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}, nil
 }
 
-// fleetErrMsg renders a Fleet API error without leaking the raw response body
+// fleetErrMsg renders a Fleet API error.
+// It prefers Fleet's structured "message" field and, for non-JSON bodies,
+// falls back to a bounded <120 char snippet rather than dumping the full response body
 func fleetErrMsg(status int, body []byte) string {
 	var parsed struct {
 		Message string `json:"message"`
