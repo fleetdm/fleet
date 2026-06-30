@@ -231,6 +231,14 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+### Keep support conversations in one thread
+
+A single issue can sprawl across the customer channel, #help-customers, #help-engineering, and a product group channel, making it hard to track. To keep full context in one place:
+
+- **Talk to the customer** in the customer channel thread.
+- **Coordinate internally** in a single #help-customers thread. This is the source of truth for the issue.
+- **When asking for help** in any channel other than #help-customers (e.g., #help-engineering or a product group channel), keep the post short: summarize the ask and link to the #help-customers thread. Ask responders to reply in the #help-customers thread, not in the post, so everyone has the most context at all times.
+
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 
 ##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
