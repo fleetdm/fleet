@@ -130,6 +130,54 @@ func isLoopbackURL(rawURL string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
+type FleetIdentity struct {
+	Email   string
+	APIOnly bool
+}
+
+// WhoAmI resolves the Fleet user behind FLEET_API_KEY.
+func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("whoami request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("whoami: %s", fleetErrMsg(resp.StatusCode, errBody))
+	}
+	var body struct {
+		User struct {
+			Email   string `json:"email"`
+			APIOnly bool   `json:"api_only"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("whoami decode: %w", err)
+	}
+	return &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}, nil
+}
+
+// fleetErrMsg renders a Fleet API error.
+// It prefers Fleet's structured "message" field and, for non-JSON bodies,
+// falls back to a bounded <120 char snippet rather than dumping the full response body
+func fleetErrMsg(status int, body []byte) string {
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+	}
+	snippet := strings.TrimSpace(string(body))
+	if snippet == "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d", status)
+	}
+	if len(snippet) > 120 {
+		snippet = snippet[:120] + "…"
+	}
+	return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, snippet)
+}
+
 // HostLabel represents a label attached to a host (Fleet returns objects, not plain strings)
 type HostLabel struct {
 	ID   uint   `json:"id"`
@@ -434,6 +482,225 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	return &result.Host, nil
 }
 
+// UID is uint64 because Fleet sends `uid` as a JSON number, not a string.
+type HostUser struct {
+	UID       uint64 `json:"uid"`
+	Username  string `json:"username"`
+	Type      string `json:"type"`
+	GroupName string `json:"groupname"`
+	Shell     string `json:"shell"`
+}
+
+type HostWithUsers struct {
+	Endpoint
+	Users []HostUser `json:"users"`
+}
+
+type SoftwareVersion struct {
+	ID              uint     `json:"id"`
+	Version         string   `json:"version"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+}
+
+type SoftwareTitle struct {
+	ID            uint              `json:"id"`
+	Name          string            `json:"name"`
+	Source        string            `json:"source"`
+	VersionsCount int               `json:"versions_count"`
+	HostsCount    int               `json:"hosts_count"`
+	Versions      []SoftwareVersion `json:"versions,omitempty"`
+	Browser       string            `json:"browser,omitempty"`
+	ExtensionFor  string            `json:"extension_for,omitempty"`
+}
+
+type HostSoftwareInstalledVersion struct {
+	Version         string   `json:"version"`
+	LastOpenedAt    string   `json:"last_opened_at,omitempty"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+	InstalledPaths  []string `json:"installed_paths,omitempty"`
+}
+
+type HostSoftware struct {
+	ID                uint                           `json:"id"`
+	Name              string                         `json:"name"`
+	Source            string                         `json:"source"`
+	BundleIdentifier  string                         `json:"bundle_identifier,omitempty"`
+	ExtensionFor      string                         `json:"extension_for,omitempty"`
+	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions,omitempty"`
+}
+
+func (fc *FleetClient) GetHostByIDWithUsers(ctx context.Context, hostID uint) (*HostWithUsers, error) {
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID)
+	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host with users by id: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("host not found: id=%d", hostID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get host with users by id: status code %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Host HostWithUsers `json:"host"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode host with users by id response: %w", err)
+	}
+	return &result.Host, nil
+}
+
+// Bounds memory for a single software fetch. var (not const) so tests can lower it.
+var fetchSoftwareHardCap = 5000
+
+func matchesSoftwareSource(rowSource, want string) bool {
+	if want == "" {
+		return true
+	}
+	return strings.EqualFold(rowSource, want)
+}
+
+// source is filtered client-side (not a server-side param on this endpoint);
+// perPage caps the merged result.
+func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source string, perPage int) ([]HostSoftware, bool, error) {
+	const apiPerPage = 500
+	out := make([]HostSoftware, 0, perPage)
+	for page := 0; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+
+		params := url.Values{}
+		params.Set("per_page", strconv.Itoa(apiPerPage))
+		params.Set("page", strconv.Itoa(page))
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if v := strings.TrimSpace(vulnerable); v != "" {
+			params.Set("vulnerable", v)
+		}
+
+		endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/software?%s", hostID, params.Encode())
+		resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch host software: %w", err)
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("host not found: id=%d", hostID)
+		}
+		if resp.StatusCode != http.StatusOK {
+			status := resp.StatusCode
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("failed to fetch host software: status code %d", status)
+		}
+
+		var result struct {
+			Software []HostSoftware `json:"software"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode host software response: %w", decErr)
+		}
+
+		shortPage := len(result.Software) < apiPerPage
+		for _, row := range result.Software {
+			if !matchesSoftwareSource(row.Source, source) {
+				continue
+			}
+			out = append(out, row)
+			if perPage > 0 && len(out) >= perPage {
+				return out, false, nil
+			}
+			if len(out) >= fetchSoftwareHardCap {
+				logrus.Warnf("host software fetch hit hard cap %d (host_id=%d) — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap, hostID)
+				return out, true, nil
+			}
+		}
+		if shortPage {
+			break
+		}
+	}
+	return out, false, nil
+}
+
+func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, source string, perPage int) ([]SoftwareTitle, bool, error) {
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	}
+
+	const apiPerPage = 100 // titles endpoint returns expanded objects; lower page size keeps payloads small
+	out := make([]SoftwareTitle, 0, perPage)
+	for page := 0; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+
+		params := url.Values{}
+		params.Set("per_page", strconv.Itoa(apiPerPage))
+		params.Set("page", strconv.Itoa(page))
+		if teamIDStr != "" {
+			params.Set("team_id", teamIDStr)
+		}
+		if p := strings.TrimSpace(platform); p != "" {
+			params.Set("platform", p)
+		}
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if v := strings.TrimSpace(vulnerable); v != "" {
+			params.Set("vulnerable", v)
+		}
+
+		resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+params.Encode(), nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch software titles: %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			status := resp.StatusCode
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("failed to fetch software titles: status code %d", status)
+		}
+
+		var result struct {
+			SoftwareTitles []SoftwareTitle `json:"software_titles"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode software titles response: %w", decErr)
+		}
+
+		shortPage := len(result.SoftwareTitles) < apiPerPage
+		for _, row := range result.SoftwareTitles {
+			if !matchesSoftwareSource(row.Source, source) {
+				continue
+			}
+			out = append(out, row)
+			if perPage > 0 && len(out) >= perPage {
+				return out, false, nil
+			}
+			if len(out) >= fetchSoftwareHardCap {
+				logrus.Warnf("software titles fetch hit hard cap %d — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap)
+				return out, true, nil
+			}
+		}
+		if shortPage {
+			break
+		}
+	}
+	return out, false, nil
+}
+
 // GetQueries retrieves global and all team-specific queries from Fleet.
 func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/reports", nil)
@@ -605,25 +872,6 @@ func (fc *FleetClient) GetLabels(ctx context.Context) ([]Label, error) {
 	}
 
 	return result.Labels, nil
-}
-
-// GetFleetConfig retrieves the Fleet server configuration.
-func (fc *FleetClient) GetFleetConfig(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/config", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get fleet config: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get fleet config: status code %d", resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode fleet config: %w", err)
-	}
-	return result, nil
 }
 
 // GetEndpointsWithAggregations returns the platform breakdown for the entire
@@ -825,7 +1073,6 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 	out := make([]Endpoint, 0, perPage)
 	truncated := false
 	for page := 0; ; page++ {
-		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
 			return nil, false, err
 		}
@@ -1283,7 +1530,6 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	}
 	titleIDs := make([]uint, 0)
 	for page := 0; ; page++ {
-		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
 			return nil, false, err
 		}
@@ -1488,7 +1734,7 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create saved query: status code %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("failed to create saved query: %s", fleetErrMsg(resp.StatusCode, bodyBytes))
 	}
 
 	var result struct {
@@ -1699,7 +1945,7 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ad hoc query failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("ad hoc query failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var adHoc AdHocQueryResponse
