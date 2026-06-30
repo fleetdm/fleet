@@ -95,7 +95,7 @@ func waitHealthy(t *testing.T, serverAddr string) bool {
 	// This probe acts as an external client hitting /healthz (like a load
 	// balancer), so it must not go through Fleet's outbound SSRF dialer -- use a
 	// plain stdlib client, which uses http.DefaultTransport with no IP blocking.
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{Timeout: 2 * time.Second} //nolint:gocritic // we want to use http.Client instead of fleethttp.NewClient.
 	return assert.Eventually(t, func() bool {
 		resp, err := client.Get("http://" + serverAddr + "/healthz") //nolint:gosec
 		if err != nil {
