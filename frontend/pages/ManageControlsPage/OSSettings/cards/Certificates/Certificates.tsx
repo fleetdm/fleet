@@ -160,20 +160,26 @@ const Certificates = ({
         />
       );
     }
-    if (isLoadingCerts || isLoadingCAs) {
+    if (isLoadingCerts) {
       return <Spinner />;
     }
 
-    if (isErrorCerts || isErrorCAs) {
+    if (isErrorCerts) {
       return <DataError />;
     }
 
-    if (!hasCustomScepCA) {
-      return <AddCertAuthorityCard router={router} />;
-    }
-
     if (!certs.length) {
-      return <AddCertCard setShowModal={setShowAddCertModal} />;
+      if (isLoadingCAs) {
+        return <Spinner />;
+      }
+      if (isErrorCAs) {
+        return <DataError />;
+      }
+      return hasCustomScepCA ? (
+        <AddCertCard setShowModal={setShowAddCertModal} />
+      ) : (
+        <AddCertAuthorityCard router={router} />
+      );
     }
 
     return (
