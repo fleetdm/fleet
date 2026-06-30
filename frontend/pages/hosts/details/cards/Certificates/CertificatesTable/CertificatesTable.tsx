@@ -86,6 +86,14 @@ const CertificatesTable = ({
       className={baseClass}
       columnConfigs={tableConfig}
       data={data.certificates}
+      // A certificate present in more than one scope (e.g. a device cert in both
+      // the System store and a user's store) is returned as multiple rows that
+      // share the same `id` (the underlying host_certificates row). Key rows on
+      // scope + username as well so those rows render distinctly instead of
+      // collapsing into one in react-table.
+      getRowId={(row: IHostCertificate) =>
+        `${row.id}-${row.source}-${row.username}`
+      }
       emptyComponent={() => null}
       isAllPagesSelected={false}
       showMarkAllPages={false}

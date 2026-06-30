@@ -83,4 +83,40 @@ describe("CertificatesTable", () => {
 
     expect(screen.getByText("User")).toBeInTheDocument();
   });
+
+  it("renders a certificate present in two scopes as two distinct rows (shared id must not collapse)", () => {
+    const render = createCustomRenderer();
+    // Same certificate (same id) installed in both the System store and a user's
+    // store comes back as two rows sharing host_certificates.id. They must each
+    // render rather than collapsing on the shared id.
+    render(
+      <CertificatesTable
+        {...baseProps}
+        data={createMockGetHostCertificatesResponse({
+          certificates: [
+            createMockHostCertificate({
+              id: 1,
+              common_name: "shared.example.com",
+              source: "system",
+              username: "",
+            }),
+            createMockHostCertificate({
+              id: 1,
+              common_name: "shared.example.com",
+              source: "user",
+              username: "alice",
+            }),
+          ],
+          count: 2,
+        })}
+        hostPlatform="windows"
+        showHelpText={false}
+      />
+    );
+
+    // Both scope cells render — without a per-scope row id the two same-id rows
+    // collapse and only one scope would be shown.
+    expect(screen.getByText("System")).toBeInTheDocument();
+    expect(screen.getByText("User")).toBeInTheDocument();
+  });
 });
