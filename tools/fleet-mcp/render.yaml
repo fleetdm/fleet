@@ -6,6 +6,7 @@ services:
     rootDir: tools/fleet-mcp
     buildCommand: go build -o fleet-mcp .
     startCommand: ./fleet-mcp
+    healthCheckPath: /healthz
     envVars:
       - key: FLEET_BASE_URL
         sync: false
