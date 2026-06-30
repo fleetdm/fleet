@@ -19,7 +19,7 @@ Watch the 1 hr walkthrough demonstrating how to use Claude Desktop to instantly 
 
 This server provides an MCP interface to Fleet, enabling AI systems (Claude Desktop, Claude Code, Cursor, and any MCP-compatible client) to natively interact with your Fleet deployment. Instead of raw API endpoints, it exposes typed **Tools** that AI agents can call directly — listing hosts with rich server-side filters, drilling into per-host policy compliance, finding hosts impacted by a CVE, running live osquery, and more.
 
-Both **SSE** (Server-Sent Events) and **stdio** transports are supported. The same 18-tool surface is exposed identically on both.
+Both **SSE** (Server-Sent Events) and **stdio** transports are supported. The same tool surface is exposed identically on both.
 
 ## Tools
 
@@ -246,7 +246,7 @@ Every tool here ships with explicit MCP annotations:
 - `idempotentHint` — does repeating the call have the same effect?
 - `openWorldHint` — does it talk to a remote system, or only consult in-binary data?
 
-Without these, Claude Desktop conservatively gates every tool behind destructive-action review and may collapse the surface to a single tool. The 17 read-only tools are annotated `readOnly=true, destructive=false, idempotent=true` so the AI agent can use them freely. **Note:** these annotations are advisory hints honored by well-behaved clients (e.g. Claude Desktop prompts before the one destructive tool) — they are not a server-side control. The real control is the privilege of the `FLEET_API_KEY` role (use a least-privilege/observer token; see [Security model](#security-model)).
+Without these, Claude Desktop conservatively gates every tool behind destructive-action review and may collapse the surface to a single tool. The read-only tools are annotated `readOnly=true, destructive=false, idempotent=true` so the AI agent can use them freely. **Note:** these annotations are advisory hints honored by well-behaved clients (e.g. Claude Desktop prompts before the one destructive tool) — they are not a server-side control. The real control is the privilege of the `FLEET_API_KEY` role (use a least-privilege/observer token; see [Security model](#security-model)).
 
 **One tool is explicitly destructive and requires user approval in MCP clients:**
 
@@ -302,9 +302,9 @@ tools/fleet-mcp/
   fleet_integration.go     # FleetClient — wraps Fleet REST API. Every method takes ctx context.Context as first param.
   mcp_server.go            # SetupMCPServer orchestrator
   mcp_helpers.go           # getOptionalString, parseCSVArg, parsePerPageArg, validateCVEID, parsePositiveUintString, jsonResult
-  mcp_tools_hosts.go       # host-domain MCP tools (7 tools)
-  mcp_tools_queries.go     # query-domain MCP tools (6 tools)
-  mcp_tools_policies.go    # policy/vuln MCP tools (5 tools)
+  mcp_tools_hosts.go       # host-domain MCP tools
+  mcp_tools_queries.go     # query-domain MCP tools
+  mcp_tools_policies.go    # policy/vuln MCP tools
   schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
   osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./tools/fleet-mcp/...`.
   vetted_queries.go        # vetted CIS-8.1 query library

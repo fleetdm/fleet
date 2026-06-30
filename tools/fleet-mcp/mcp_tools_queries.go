@@ -10,20 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// registerQueryTools attaches query- and schema-domain MCP tools to s.
-// Tools registered: get_queries, get_vetted_queries, prepare_live_query,
-// run_live_query, get_osquery_schema, refresh_osquery_schema.
-//
-// Annotation policy in this group:
-//   - get_queries: read-only, idempotent, openWorld (Fleet API).
-//   - get_vetted_queries / get_osquery_schema / prepare_live_query: read-only,
-//     idempotent, openWorldHint=false (consults the in-memory canonical schema,
-//     refreshed periodically by the background loop in schema.go).
-//   - refresh_osquery_schema: read-only on Fleet (no API call), but openWorld=true
-//     because it talks to raw.githubusercontent.com. Not idempotent in the sense
-//     that the upstream JSON can change between calls.
-//   - run_live_query: read-only on devices (osquery SELECT only), but NOT
-//     idempotent because each invocation spawns a new live distribution.
 func registerQueryTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetQueries(s, fleetClient)
 	registerGetVettedQueries(s)
@@ -210,6 +196,7 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 		// MCP clients must prompt for explicit user approval.
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(true),
+		// NOT idempotent because each invocation spawns a new live distribution
 		mcp.WithIdempotentHintAnnotation(false),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -380,7 +367,9 @@ func registerRefreshOsquerySchema(s *server.MCPServer) {
 		mcp.WithDescription("Force-refresh the in-memory osquery/Fleet schema from the canonical JSON at https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the same source that powers https://fleetdm.com/tables). Use when get_osquery_schema returns data that conflicts with the live docs, or after Fleet upstream releases a new osquery version. The schema also auto-refreshes in the background; manual refresh is for the rare 'I just saw a new column on fleetdm.com that the response is missing' case."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithDestructiveHintAnnotation(false),
+		// Not idempotent in the sense that the upstream JSON can change between calls.
 		mcp.WithIdempotentHintAnnotation(false),
+		// openWorld=true because it talks to raw.githubusercontent.com
 		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

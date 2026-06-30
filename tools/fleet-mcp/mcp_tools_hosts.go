@@ -10,13 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// registerHostTools attaches host- and inventory-domain MCP tools to s.
-// Tools registered: get_endpoints, get_host, get_total_system_count,
-// get_aggregate_platforms, get_fleets, get_labels.
-//
-// All tools in this group are read-only against the Fleet API, idempotent,
-// and non-destructive. They are annotated as such so MCP clients (e.g.
-// Claude Desktop) do not gate them behind destructive-action review.
 func registerHostTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetEndpoints(s, fleetClient)
 	registerGetHost(s, fleetClient)
