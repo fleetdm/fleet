@@ -1164,9 +1164,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		// Use a correlated subquery in the SELECT list (rather than a derived-table
 		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
 		// for the rows actually returned by the outer query, each as an indexed lookup on
-		// idx_host_emails_host_id_email. A derived table with GROUP BY would be fully
-		// materialized regardless of the outer LIMIT. This matches the host_additional
-		// pattern below.
+		// idx_host_emails_host_id_email.
 		sql += fmt.Sprintf(`,
     COALESCE((
         SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s)), ']')
@@ -1314,10 +1312,6 @@ func (ds *Datastore) applyHostFilters(
 ) (string, []interface{}, error) {
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
-
-	// device_mapping is selected via a correlated subquery in the SELECT list (see
-	// ListHosts), so no join is needed here.
-	deviceMappingJoin := ""
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
@@ -1487,7 +1481,6 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
-    %s
 	%s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
@@ -1495,7 +1488,6 @@ func (ds *Datastore) applyHostFilters(
 
 		// JOINs
 		hostMDMJoin,
-		deviceMappingJoin,
 		policyMembershipJoin,
 		softwareStatusJoin,
 		failingPoliciesJoin,
