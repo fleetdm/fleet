@@ -55,6 +55,11 @@
               <% }%>
             </div>
           </div>
+          <div purpose="app-autopatch">
+            <h3>Auto update <%- thisApp.name %> on <%- thisApp.platform === 'darwin' ? 'macOS' : 'Windows' %></h3>
+            <p>Fleet can automatically keep <%- thisApp.name %> up to date on all your <%- thisApp.platform === 'darwin' ? 'macOS' : 'Windows' %> hosts. When a new version is available, Fleet deploys the update to your devices so your team always runs the latest, most secure release—no manual intervention required.</p>
+            <p>To enable autopatch for <%- thisApp.name %>, add it to your software library in Fleet and turn on automatic updates. <a href="/docs/using-fleet/apps#automatic-updates">Learn more about autopatching</a>.</p>
+          </div>
         </div>
           <div purpose="right-sidebar" class="d-flex flex-column">
             <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
