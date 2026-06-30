@@ -1342,6 +1342,8 @@ type HostMDM struct {
 	// OAuth Bearer token at TokenUpdate time. Apple does not reliably populate
 	// UserLongName on User Enrollment so we don't fall back to it.
 	ManagedAppleID *string `db:"managed_apple_id" json:"-" csv:"-"`
+	// ConnectedToFleet reports whether the host is currently connected to Fleet's MDM.
+	ConnectedToFleet bool `db:"connected_to_fleet" json:"-" csv:"-"`
 }
 
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON

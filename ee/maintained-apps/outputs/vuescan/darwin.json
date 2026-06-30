@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "9.8.55",
+      "version": "9.8.56",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hamrick.vuescan';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hamrick.vuescan' AND version_compare(bundle_short_version, '9.8.55') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hamrick.vuescan' AND version_compare(bundle_short_version, '9.8.56') < 0);"
       },
       "installer_url": "https://www.hamrick.com/files/vuea6498.dmg",
       "install_script_ref": "efea8e55",
