@@ -17,8 +17,7 @@ func TestUp_20260630100331(t *testing.T) {
 		return id
 	}
 
-	// insertCert inserts a host_certificates row (deletedAt nil => live) and
-	// returns its id. sha1 values must be 20 bytes (binary(20)).
+	// insertCert inserts a host_certificates row (deletedAt nil => live) and returns its id.
 	insertCert := func(hostID uint, serial, origin string, sha1 []byte, deletedAt any) uint {
 		execNoErr(t, db, `
 			INSERT INTO host_certificates (
@@ -40,8 +39,7 @@ func TestUp_20260630100331(t *testing.T) {
 	winHost := insertHost("windows", "win-uuid")
 	macHost := insertHost("darwin", "mac-uuid")
 
-	// Windows osquery-origin live certs: must be soft-deleted by the migration so
-	// they re-parse on the next ingestion.
+	// Windows osquery-origin live certs: must be soft-deleted by the migration so they re-parse on the next ingestion.
 	winOsq1 := insertCert(winHost, "1", "osquery", []byte("aaaaaaaaaaaaaaaaaaaa"), nil)
 	winOsq2 := insertCert(winHost, "2", "osquery", []byte("bbbbbbbbbbbbbbbbbbbb"), nil)
 	// Windows mdm-origin cert: parsed directly from the cert, must be left untouched.

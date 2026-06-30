@@ -47,22 +47,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		Username string
 	}
 
-	// observedScopes restricts which (source, username) scopes reconciliation may
-	// soft-delete. A nil slice means every scope was observed this run (the macOS
-	// keychain model, where all keychains are always readable, and the MDM path),
-	// so reconciliation behaves exactly as before. A non-nil slice (the Windows
-	// path) preserves certificates whose scope is not listed, because osquery can
-	// only enumerate a user's certificates while that user is logged in.
-	// canonicalScope folds legacy Windows scope representations onto the corrected
-	// scope before comparison. Pre-#31294 Windows ingestion stored System certs
-	// with username "SYSTEM" and mislabeled machine-wide (LocalMachine) certs as
-	// User scope with an empty username; the corrected scheme uses System scope
-	// with an empty username for both. Without this, on the first run after a host
-	// upgrades, those legacy source rows would look like distinct unobserved
-	// scopes and be preserved forever (phantom duplicate sources) instead of being
-	// reconciled against the observed System scope. A User scope always has a
-	// non-empty username under the corrected scheme, so an empty username
-	// unambiguously marks legacy/machine data.
+	// observedScopes restricts which (source, username) scopes reconciliation may soft-delete. A nil slice means every
+	// scope was observed this run (the macOS keychain model, where all keychains are always readable, and the MDM path). A non-nil slice (the Windows path) preserves certificates whose scope
+	// is not listed, because osquery can only enumerate a user's certificates while that user is logged in.
 	canonicalScope := func(s certSourceToSet) certSourceToSet {
 		if s.Source == fleet.SystemHostCertificate || s.Username == "" {
 			return certSourceToSet{Source: fleet.SystemHostCertificate}
@@ -83,11 +70,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		_, ok := observedSet[canonicalScope(s)]
 		return ok
 	}
-	// desiredSources returns the source set to persist for a certificate: every
-	// source reported in the incoming batch, plus any existing source whose scope
-	// was NOT observed this run (so e.g. a logged-off Windows user's source is
-	// preserved). For the macOS/MDM path (nil observedScopes) every scope is
-	// observed, so this returns exactly the incoming sources.
+	// desiredSources returns the source set to persist for a certificate: every source reported in the incoming batch,
+	// plus any existing source whose scope was NOT observed this run. For the macOS/MDM path (nil observedScopes) every
+	// scope is observed.
 	desiredSources := func(incoming, existing []certSourceToSet) []certSourceToSet {
 		result := append([]certSourceToSet(nil), incoming...)
 		have := make(map[certSourceToSet]struct{}, len(incoming))
@@ -177,9 +162,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			}
 			return strings.Compare(a.Username, b.Username)
 		}
-		// Persist the reported sources plus any existing source in a scope we did
-		// not observe (preserving a logged-off user's source). For the macOS/MDM
-		// path this is exactly incomingSources.
+		// Persist the reported sources plus any existing source in a scope we did not observe (preserving a logged-off
+		// user's source). For the macOS/MDM path this is exactly incomingSources.
 		newSources := desiredSources(incomingSources, existingSources)
 		slices.SortFunc(newSources, sliceSortFunc)
 		slices.SortFunc(existingSources, sliceSortFunc)
@@ -373,17 +357,12 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			// present in the incoming batch, reconciled above
 			continue
 		}
-		// Source-scoped delete: only remove rows whose origin matches the
-		// calling ingestion source. An osquery sync omitting an MDM-only cert
-		// must not delete that cert, and vice versa.
+		// Source-scoped delete: only remove rows whose origin matches the calling ingestion source.
 		if existing.Origin != origin {
 			continue
 		}
-		// Preserve sources in scopes we did not observe this run (e.g. a
-		// logged-off Windows user) and drop the observed-but-no-longer-reported
-		// ones. Soft-delete the certificate only when no live source remains.
-		// For the macOS/MDM path (all scopes observed) nothing is preserved, so
-		// an absent certificate is always fully deleted, exactly as before.
+		// Preserve sources in scopes we did not observe this run (e.g. a logged-off Windows user) and drop the
+		// observed-but-no-longer-reported ones.
 		existingSources := existingSourcesBySHA1[sha1]
 		preserved := desiredSources(nil, existingSources)
 		switch {
