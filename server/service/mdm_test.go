@@ -3199,7 +3199,7 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualValues(t, 2, newProfileCalls)
-	require.Equal(t, 4, deleteCalls)      // 2 disables + 2 pre-insert deletes from enable
+	require.Equal(t, 4, deleteCalls)            // 2 disables + 2 pre-insert deletes from enable
 	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
 }
 
