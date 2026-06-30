@@ -9,12 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// registerPolicyTools attaches policy- and vulnerability-domain MCP tools to s.
-// Tools registered: get_policies, get_policy_compliance, get_policy_hosts,
-// get_vulnerability_impact, get_vulnerability_hosts.
-//
-// All tools in this group are read-only against the Fleet API, idempotent,
-// and non-destructive.
 func registerPolicyTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetPolicies(s, fleetClient)
 	registerGetPolicyCompliance(s, fleetClient)

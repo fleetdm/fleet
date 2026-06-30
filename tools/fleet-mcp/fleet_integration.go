@@ -130,6 +130,54 @@ func isLoopbackURL(rawURL string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
+type FleetIdentity struct {
+	Email   string
+	APIOnly bool
+}
+
+// WhoAmI resolves the Fleet user behind FLEET_API_KEY.
+func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("whoami request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("whoami: %s", fleetErrMsg(resp.StatusCode, errBody))
+	}
+	var body struct {
+		User struct {
+			Email   string `json:"email"`
+			APIOnly bool   `json:"api_only"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("whoami decode: %w", err)
+	}
+	return &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}, nil
+}
+
+// fleetErrMsg renders a Fleet API error.
+// It prefers Fleet's structured "message" field and, for non-JSON bodies,
+// falls back to a bounded <120 char snippet rather than dumping the full response body
+func fleetErrMsg(status int, body []byte) string {
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+	}
+	snippet := strings.TrimSpace(string(body))
+	if snippet == "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d", status)
+	}
+	if len(snippet) > 120 {
+		snippet = snippet[:120] + "…"
+	}
+	return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, snippet)
+}
+
 // HostLabel represents a label attached to a host (Fleet returns objects, not plain strings)
 type HostLabel struct {
 	ID   uint   `json:"id"`
@@ -605,25 +653,6 @@ func (fc *FleetClient) GetLabels(ctx context.Context) ([]Label, error) {
 	}
 
 	return result.Labels, nil
-}
-
-// GetFleetConfig retrieves the Fleet server configuration.
-func (fc *FleetClient) GetFleetConfig(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/config", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get fleet config: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get fleet config: status code %d", resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode fleet config: %w", err)
-	}
-	return result, nil
 }
 
 // GetEndpointsWithAggregations returns the platform breakdown for the entire
@@ -1488,7 +1517,7 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create saved query: status code %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("failed to create saved query: %s", fleetErrMsg(resp.StatusCode, bodyBytes))
 	}
 
 	var result struct {
@@ -1699,7 +1728,7 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ad hoc query failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("ad hoc query failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var adHoc AdHocQueryResponse
