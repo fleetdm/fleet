@@ -1088,6 +1088,9 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.managed_local_account?.password_available ??
           false
         }
+        wipeAllowed={host.mdm.wipe_allowed}
+        lockAllowed={host.mdm.lock_allowed}
+        clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
   };
@@ -1859,26 +1862,6 @@ const HostDetailsPage = ({
           {!!mdmCommandDetails && (
             <CommandResultsModal
               command={mdmCommandDetails}
-              contentBody={
-                mdmCommandDetails.name === null
-                  ? (cls, result) => (
-                      <IconStatusMessage
-                        className={`${cls}__status-message`}
-                        iconName={getIconName(result.status)}
-                        message={
-                          <span>
-                            {formatMdmCommandNameForActivityItem(
-                              result.request_type
-                            )}
-                            {" on "}
-                            <b>{result.hostname}</b>
-                            {"."}
-                          </span>
-                        }
-                      />
-                    )
-                  : undefined
-              }
               onDone={onCancelMdmCommandDetailsModal}
             />
           )}

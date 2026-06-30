@@ -1,0 +1,41 @@
+.chip {
+  display: flex;
+  height: 18px;
+  padding: 3px 6px;
+  align-items: center;
+  gap: $pad-xsmall;
+  border-radius: $border-radius;
+  border: 1px solid $ui-fleet-black-10;
+  color: $ui-fleet-black-75;
+  font-size: $xx-small;
+  font-weight: $bold;
+  white-space: nowrap;
+
+  // styles to override the default <button> element styles for the chip
+  // when it is clickable
+  &__clickable-chip {
+    background: none;
+    cursor: pointer;
+    outline: inherit;
+    box-sizing: inherit;
+    // button-focus-outline (used on :focus below) creates a position:
+    // absolute ::after that sizes to 100% of the nearest positioned
+    // ancestor. Without position: relative here, the focus ring escapes
+    // the chip and stretches across whatever big ancestor it finds —
+    // showing up as a 1px line spanning the page when a Chip stays
+    // focused (e.g., after clicking it to open a modal).
+    position: relative;
+
+    &:focus-visible {
+      // this is defined in the Button component styles
+      @include button-focus-outline;
+
+      // The mixin's ::after starts at the chip's content-area corner;
+      // nudge it left by 1px so the focus ring sits over the chip's 1px
+      // border instead of inside it.
+      &::after {
+        left: -1px;
+      }
+    }
+  }
+}

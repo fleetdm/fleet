@@ -2,11 +2,9 @@
 
 *For years, Mac-to-Mac migration was either blocked outright or left entirely to the person at the keyboard. macOS 26.4's Managed Migration Assistant makes it a declarative, auditable decision that IT controls, and that matters more than the feature name suggests.*
 
-Every hardware refresh ends the same way. A new Mac comes out of the box, and somewhere in Setup Assistant the user is asked the one question IT never got to answer: what comes with you from the old machine?
+Every hardware refresh ends with the one question IT never got to answer: what comes with you from the old Mac? The choices have always been bad. Block migration and frustrate users, or allow it and trust an end user to decide which folders, accounts, keys, and privacy settings land on a corporate machine, with no record of what actually moved.
 
-For most organizations the answer has been one of two bad ones. Block migration entirely, and you trade a clean device for a frustrated user, a pile of help-desk tickets, and a healthy population of people quietly refusing to give up their old hardware. Allow it, and you've just trusted an end user to decide which folders, accounts, keys, and privacy settings land on a corporate-managed machine with no record of what actually moved.
-
-Apple's Managed Migration Assistant, introduced in macOS 26.4, closes that gap. It turns the migration step from an unmanaged user choice into a declarative configuration your device management service delivers during Setup Assistant. Here's why that's a bigger deal for enterprises than it looks.
+Apple's Managed Migration Assistant (macOS 26.4) closes that gap, turning migration from an unmanaged user choice into a declarative configuration your device management service delivers during Setup Assistant. Here's why that matters more than the feature name suggests.
 
 ## Key takeaways
 
@@ -15,6 +13,8 @@ Apple's Managed Migration Assistant, introduced in macOS 26.4, closes that gap. 
 - **Refreshes get faster and quieter.** Migration is embedded in Setup Assistant, auto-selects the fastest available transport, and runs zero-touch through Automated Device Enrollment, which also makes it easier to finally move the Intel holdouts off old hardware.
 - **The prerequisites are specific, so scope them deliberately.** Supervised devices enrolled through Apple Business Manager or Apple School Manager, the destination Mac on macOS 26.4 or later, and the declaration deployed with `await_device_configured`.
 - **The right way to operationalize it is config-as-code.** The whole policy is a small declaration. Managed as version-controlled YAML through a GitOps workflow, your migration policy gets peer review, rollback, and an audit trail, and you can verify in real time what actually landed on the new Mac.
+
+<a purpose="cta-button" href="https://fleetdm.com/contact">Get a demo</a>
 
 ## Migration has always been the ungoverned step
 
@@ -76,9 +76,6 @@ The fastest way to see this in detail is to read Fleet's [Managed Migration Assi
 
 - [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through how managed migration could work in your environment.
 - [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Managing your migration policy as code is exactly what our hands-on workshop covers: declarations in Git, reviewed in pull requests, deployed through CI.
-
-*Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to manage Mac-to-Mac migration as code?* [*Get a demo*](https://fleetdm.com/contact) *or explore the* [*GitOps reference*](https://fleetdm.com/docs/configuration/yaml-files)*.*
-
 
 <meta name="articleTitle" value="The riskiest step in a Mac refresh is finally manageable">
 <meta name="authorFullName" value="Allen Houchins">

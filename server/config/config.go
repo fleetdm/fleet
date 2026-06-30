@@ -101,6 +101,13 @@ type RedisConfig struct {
 	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
 	// Only meaningful when HostCacheEnabled is true. Hidden from --help.
 	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
+	// LiveQuerySmallTargetThreshold is the maximum number of targeted hosts for a
+	// live query to use the per-host reverse index instead of a fleet-wide
+	// bitfield. Storing small-target queries as a per-host set means a host
+	// checkin no longer issues one GETBIT per such query. Set to 0 to disable the
+	// reverse index entirely (kill-switch) and use the bitfield for all live
+	// queries.
+	LiveQuerySmallTargetThreshold int `yaml:"live_query_small_target_threshold"`
 }
 
 const (
@@ -134,6 +141,7 @@ type ServerConfig struct {
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
+	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1355,6 +1363,10 @@ func (man Manager) addConfigs() {
 		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
 			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
 			"redis.host_cache_enabled=false to disable the cache.")
+	man.addConfigInt("redis.live_query_small_target_threshold", 1000,
+		"Maximum number of targeted hosts for a live query to use the per-host reverse index instead of a "+
+			"fleet-wide bitfield, avoiding one GETBIT per query on every host check-in. Set to 0 to disable "+
+			"the reverse index and use the bitfield for all live queries.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1389,6 +1401,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1836,35 +1849,36 @@ func (man Manager) LoadConfig() FleetConfig {
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
-			Address:                   man.getConfigString("redis.address"),
-			Username:                  man.getConfigString("redis.username"),
-			Password:                  man.getConfigString("redis.password"),
-			Database:                  man.getConfigInt("redis.database"),
-			Region:                    man.getConfigString("redis.region"),
-			CacheName:                 man.getConfigString("redis.cache_name"),
-			UseTLS:                    man.getConfigBool("redis.use_tls"),
-			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
-			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
-			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
-			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
-			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
-			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
-			TLSCert:                   man.getConfigString("redis.tls_cert"),
-			TLSKey:                    man.getConfigString("redis.tls_key"),
-			TLSCA:                     man.getConfigString("redis.tls_ca"),
-			TLSServerName:             man.getConfigString("redis.tls_server_name"),
-			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
-			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
-			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
-			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
-			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
-			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
-			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
-			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
-			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
-			StsExternalID:             man.getConfigString("redis.sts_external_id"),
-			HostCacheEnabled:          man.getConfigBool("redis.host_cache_enabled"),
-			HostCacheTTL:              man.getConfigDuration("redis.host_cache_ttl"),
+			Address:                       man.getConfigString("redis.address"),
+			Username:                      man.getConfigString("redis.username"),
+			Password:                      man.getConfigString("redis.password"),
+			Database:                      man.getConfigInt("redis.database"),
+			Region:                        man.getConfigString("redis.region"),
+			CacheName:                     man.getConfigString("redis.cache_name"),
+			UseTLS:                        man.getConfigBool("redis.use_tls"),
+			DuplicateResults:              man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:                man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:                     man.getConfigDuration("redis.keep_alive"),
+			ConnectRetryAttempts:          man.getConfigInt("redis.connect_retry_attempts"),
+			ClusterFollowRedirections:     man.getConfigBool("redis.cluster_follow_redirections"),
+			ClusterReadFromReplica:        man.getConfigBool("redis.cluster_read_from_replica"),
+			TLSCert:                       man.getConfigString("redis.tls_cert"),
+			TLSKey:                        man.getConfigString("redis.tls_key"),
+			TLSCA:                         man.getConfigString("redis.tls_ca"),
+			TLSServerName:                 man.getConfigString("redis.tls_server_name"),
+			TLSHandshakeTimeout:           man.getConfigDuration("redis.tls_handshake_timeout"),
+			MaxIdleConns:                  man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:                  man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:               man.getConfigDuration("redis.conn_max_lifetime"),
+			IdleTimeout:                   man.getConfigDuration("redis.idle_timeout"),
+			ConnWaitTimeout:               man.getConfigDuration("redis.conn_wait_timeout"),
+			WriteTimeout:                  man.getConfigDuration("redis.write_timeout"),
+			ReadTimeout:                   man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:              man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:                 man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:              man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:                  man.getConfigDuration("redis.host_cache_ttl"),
+			LiveQuerySmallTargetThreshold: man.getConfigInt("redis.live_query_small_target_threshold"),
 		},
 		Server: ServerConfig{
 			Address:                          man.getConfigString("server.address"),
@@ -1890,6 +1904,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
+			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),

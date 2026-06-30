@@ -138,15 +138,4 @@ describe("InstallerDetailsWidget", () => {
     // TooltipWrapper is mocked, so we just check that the child is rendered
     expect(screen.getByText("Test Software")).toBeInTheDocument();
   });
-
-  it("renders the sha256 hash when provided and a copy button", () => {
-    const sha256 =
-      "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
-    render(<InstallerDetailsWidget {...defaultProps} sha256={sha256} />);
-    // The component shows the first 6 chars + ellipsis
-    expect(screen.getByText(/^abcdef1…$/)).toBeInTheDocument();
-    const copyIcon = screen.getByTestId("copy-icon");
-    const copyButton = copyIcon.closest("button");
-    expect(copyButton).toBeInTheDocument();
-  });
 });

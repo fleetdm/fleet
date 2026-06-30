@@ -816,6 +816,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, gcIntegration := range c.Integrations.GoogleCalendar {
 		gcIntegration.ApiKey.SetMasked()
 	}
+	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
+		gwIntegration.ApiKey.SetMasked()
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -906,6 +909,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			if len(g.ApiKey.Values) > 0 {
 				clone.Integrations.GoogleCalendar[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
 				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
+			}
+		}
+	}
+	if len(c.Integrations.GoogleWorkspace) > 0 {
+		clone.Integrations.GoogleWorkspace = make([]*GoogleWorkspaceIntegration, len(c.Integrations.GoogleWorkspace))
+		for i, g := range c.Integrations.GoogleWorkspace {
+			gWorkspace := *g
+			clone.Integrations.GoogleWorkspace[i] = &gWorkspace
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleWorkspace[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
 	}
