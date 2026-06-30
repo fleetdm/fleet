@@ -16,8 +16,8 @@ This guide outlines the services configured in the Render blueprint for deployin
 
 ### 2. Fleet MySQL database
 - **Type:** Private service (pserv)
-- **Runtime:** Docker
-- **Repository:** [MySQL Example on Render](https://github.com/render-examples/mysql)
+- **Runtime:** Image
+- **Image:** [`mysql:8.0.44`](https://hub.docker.com/_/mysql)
 - **Disk:** 10 GB mounted at `/var/lib/mysql`
 - **Description:** MySQL database used by the Fleet web service. Environment variables for database credentials are managed within the service and some are automatically generated.
 
