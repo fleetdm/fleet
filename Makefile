@@ -1049,7 +1049,8 @@ UPDATE_GO_MODS := \
 	./tools/github-manage/go.mod \
 	./tools/qacheck/go.mod \
 	./third_party/goval-dictionary/go.mod \
-	./tools/fleet-mcp/go.mod
+	./tools/fleet-mcp/go.mod \
+	./tools/dibble/go.mod
 update-go:
 	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \

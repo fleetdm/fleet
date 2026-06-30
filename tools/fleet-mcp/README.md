@@ -23,7 +23,7 @@ Both **SSE** (Server-Sent Events) and **stdio** transports are supported. The sa
 
 ## Tools
 
-The server exposes tools across three domains: **hosts**, **queries**, and **policies/vulnerabilities**. One of them (`run_live_query`) runs arbitrary osquery on devices, so scope the Fleet API token accordingly (see [Security model](#security-model)).
+The server exposes tools across four domains: **hosts**, **queries**, **policies/vulnerabilities**, and **inventory**. One of them (`run_live_query`) runs arbitrary osquery on devices, so scope the Fleet API token accordingly (see [Security model](#security-model)).
 
 ### Hosts
 
@@ -57,6 +57,15 @@ The server exposes tools across three domains: **hosts**, **queries**, and **pol
 | `get_policy_hosts` | List the hosts that pass or fail a given policy, optionally narrowed by `fleet`, `platform`, `label`, `status`, `query`. Use this to answer "which Linux hosts are failing policy 42?" — all filter dimensions compose server-side. |
 | `get_vulnerability_impact` | Aggregate count of systems impacted by a CVE |
 | `get_vulnerability_hosts` | List the specific hosts impacted by a CVE, optionally narrowed by `fleet`, `platform`, `label`, `status`, `query`. Composes a 3-step lookup (`/software/titles?vulnerable=true&query=CVE` → vulnerable version IDs → `/hosts?software_version_id=N`) and intersects client-side. Required because Fleet's `/hosts?cve=` and `/hosts?platform=` filters are silently ignored — see the Operational learnings section. |
+
+### Inventory
+
+These read from Fleet's stored host inventory (refreshed on each host check-in), so they answer "what's installed / who has an account" **without** a live osquery query — they work even for currently-offline hosts.
+
+| Tool | Description |
+|------|-------------|
+| `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) is a client-side case-insensitive filter against the osquery source table name. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
+| `get_host_users` | List OS-local user accounts on a single host as inventoried by osquery (uid, username, type, groupname, shell). Accepts `host_id` (preferred) or `host_identifier` (same disambiguation as `get_host`). Optional `query` substring filters the returned users client-side across username / uid / groupname / shell. |
 
 ### Filter dimensions at a glance
 
@@ -305,6 +314,7 @@ tools/fleet-mcp/
   mcp_tools_hosts.go       # host-domain MCP tools
   mcp_tools_queries.go     # query-domain MCP tools
   mcp_tools_policies.go    # policy/vuln MCP tools
+  mcp_tools_inventory.go   # inventory MCP tools
   schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
   osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./tools/fleet-mcp/...`.
   vetted_queries.go        # vetted CIS-8.1 query library
@@ -319,7 +329,7 @@ Tunables (env vars) for the schema layer:
 ### Adding a new tool
 
 1. Add a method to `FleetClient` in `fleet_integration.go` that wraps the Fleet API call.
-2. Pick the right domain file (`mcp_tools_hosts.go`, `mcp_tools_queries.go`, or `mcp_tools_policies.go`) and add a `register<ToolName>` function.
+2. Pick the right domain file (`mcp_tools_hosts.go`, `mcp_tools_queries.go`, `mcp_tools_policies.go`, or `mcp_tools_inventory.go`) and add a `register<ToolName>` function.
 3. Wire the new register function into the matching `register<Domain>Tools` orchestrator at the top of the same file.
 4. Always set `readOnly` / `destructive` / `idempotent` annotations so Claude Desktop can advertise it.
 5. Build and run the smoke test from the [Smoke-test stdio mode](#smoke-test-stdio-mode-without-claude-desktop) section.
