@@ -1,0 +1,12 @@
+{
+  "name": "Eclipse Temurin JDK 11",
+  "slug": "eclipse-temurin-jdk-11/windows",
+  "package_identifier": "EclipseAdoptium.Temurin.11.JDK",
+  "unique_identifier": "Eclipse Temurin JDK with Hotspot 11",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK with Hotspot 11%' AND publisher = 'Eclipse Adoptium';",
+  "program_publisher": "Eclipse Adoptium",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

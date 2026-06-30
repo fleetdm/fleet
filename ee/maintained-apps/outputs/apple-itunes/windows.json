@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "12.13.10.3",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.' AND version_compare(version, '12.13.10.3') < 0);"
+      },
+      "installer_url": "https://secure-appldnld.apple.com/itunes12/047-76416-20260302-fefe4356-211d-4da1-8bc4-058eb36ea803/iTunes64Setup.exe",
+      "install_script_ref": "2143c07e",
+      "uninstall_script_ref": "5f74ea2b",
+      "sha256": "cea2a74cae3f061eadc11358eeaae9b40cfdea9ec1ee037b47da54a64219e182",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "2143c07e": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# iTunes uses a WiX bundle EXE installer\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/quiet /norestart\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "5f74ea2b": "# iTunes registers as \"iTunes\" in the Windows registry\n$softwareName = \"iTunes\"\n$uninstallArgs = \"/quiet /norestart\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -eq $softwareName) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n            Write-Host \"Uninstall command: $uninstallCommand\"; Write-Host \"Uninstall args: $uninstallArgs\"\n            $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }\n            if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode; Write-Host \"Uninstall exit code: $exitCode\"; break\n        }\n    }\n    if (-not $foundUninstaller) { Write-Host \"Uninstaller for '$softwareName' not found.\"; Exit 1 }\n} catch { Write-Host \"Error: $_\"; Exit 1 }\n\nExit $exitCode\n"
+  }
+}

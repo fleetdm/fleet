@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "6.1.4",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Spyder' AND publisher = 'Spyder Project Contributors and others';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Spyder' AND publisher = 'Spyder Project Contributors and others' AND version_compare(version, '6.1.4') < 0);"
+      },
+      "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.4/Spyder-Windows-x86_64.exe",
+      "install_script_ref": "297c1c96",
+      "uninstall_script_ref": "338688ef",
+      "sha256": "51e8142f1413688a33d76d5e197ee6c230780469577660a532dd50b0d55a0983",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "297c1c96": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Spyder uses NSIS installer\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @$processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "338688ef": "$softwareName = \"Spyder\"\n$softwareNameLike = \"*$softwareName*\"\n$uninstallArgs = \"/S\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -like $softwareNameLike) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n            Write-Host \"Uninstall command: $uninstallCommand\"; Write-Host \"Uninstall args: $uninstallArgs\"\n            $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }\n            if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }\n            $process = Start-Process @$processOptions\n            $exitCode = $process.ExitCode; Write-Host \"Uninstall exit code: $exitCode\"; break\n        }\n    }\n    if (-not $foundUninstaller) { Write-Host \"Uninstaller for '$softwareName' not found.\"; Exit 1 }\n} catch { Write-Host \"Error: $_\"; Exit 1 }\n\nExit $exitCode\n"
+  }
+}

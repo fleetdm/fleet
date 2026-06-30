@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "7.3.7.1155",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google' AND version_compare(version, '7.3.7.1155') < 0);"
+      },
+      "installer_url": "https://dl.google.com/release2/Earth/duhweelqjwtdslrbgzm7ehfkc4_7.3.7.1155/googleearth-win-pro-7.3.7.1155-x64.exe",
+      "install_script_ref": "8916df19",
+      "uninstall_script_ref": "7e72e637",
+      "sha256": "d58f4db230805387ecad5bedff5e373a803b410ef1f995a6660e92ef9d7f429e",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "7e72e637": "$softwareName = \"Google Earth Pro\"\n\n$uninstallArgs = \"\"\n\n$machineKey = `\n 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = `\n 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n    [array]$uninstallKeys = Get-ChildItem `\n        -Path @($machineKey, $machineKey32on64) `\n        -ErrorAction SilentlyContinue |\n            ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -eq $softwareName) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) {\n                $key.QuietUninstallString\n            } else {\n                $key.UninstallString\n            }\n\n            # Handle quoted and unquoted uninstall strings (including paths with spaces)\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]\n                if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]\n                if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n\n            Write-Host \"Uninstall command: $uninstallCommand\"\n            Write-Host \"Uninstall args: $uninstallArgs\"\n\n            $processOptions = @{\n                FilePath = $uninstallCommand\n                PassThru = $true\n                Wait = $true\n            }\n            if ($uninstallArgs -ne '') {\n                $processOptions.ArgumentList = $uninstallArgs\n            }\n\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode\n\n            Write-Host \"Uninstall exit code: $exitCode\"\n            break\n        }\n    }\n\n    if (-not $foundUninstaller) {\n        Write-Host \"Uninstaller for '$softwareName' not found.\"\n        Exit 1\n    }\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n",
+    "8916df19": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"OMAHA=1\"\n  PassThru = $true\n  Wait = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

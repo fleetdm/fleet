@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "5.0.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Gpg4win' AND publisher = 'The Gpg4win Project';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Gpg4win' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.0.2') < 0);"
+      },
+      "installer_url": "https://files.gpg4win.org/gpg4win-5.0.2.exe",
+      "install_script_ref": "e9aef2fd",
+      "uninstall_script_ref": "d4026d8a",
+      "sha256": "11864cdc6dedd58c5448ab1c0868886e56bdad96972bc06dcd44b80f9e527051",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "d4026d8a": "$softwareName = \"Gpg4win\"\n$uninstallArgs = \"/S\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem `\n        -Path @($machineKey, $machineKey32on64) `\n        -ErrorAction SilentlyContinue |\n            ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -like \"*$softwareName*\") {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) {\n                $key.QuietUninstallString\n            } else {\n                $key.UninstallString\n            }\n\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]\n                if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]\n                if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n\n            Write-Host \"Uninstall command: $uninstallCommand\"\n            Write-Host \"Uninstall args: $uninstallArgs\"\n\n            $processOptions = @{\n                FilePath = $uninstallCommand\n                PassThru = $true\n                Wait = $true\n            }\n            if ($uninstallArgs -ne '') {\n                $processOptions.ArgumentList = $uninstallArgs\n            }\n\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode\n            Write-Host \"Uninstall exit code: $exitCode\"\n            break\n        }\n    }\n\n    if (-not $foundUninstaller) {\n        Write-Host \"Uninstaller for '$softwareName' not found.\"\n        Exit 1\n    }\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n",
+    "e9aef2fd": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Gpg4win uses NSIS installer\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

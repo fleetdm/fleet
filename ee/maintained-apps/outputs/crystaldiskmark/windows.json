@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.0.3",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'CrystalDiskMark' AND publisher = 'Crystal Dew World';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrystalDiskMark' AND publisher = 'Crystal Dew World' AND version_compare(version, '9.0.3') < 0);"
+      },
+      "installer_url": "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+      "install_script_ref": "9a06c3cd",
+      "uninstall_script_ref": "41714eee",
+      "sha256": "1a255154e116a533f86535bc362f101e32d6171604cde9b6b554335856917e5e",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "41714eee": "$softwareName = \"CrystalDiskMark\"\n$softwareNameLike = \"*$softwareName*\"\n$uninstallArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem `\n        -Path @($machineKey, $machineKey32on64) `\n        -ErrorAction SilentlyContinue |\n            ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -like $softwareNameLike) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) {\n                $key.QuietUninstallString\n            } else {\n                $key.UninstallString\n            }\n\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]\n                if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]\n                if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n\n            Write-Host \"Uninstall command: $uninstallCommand\"\n            Write-Host \"Uninstall args: $uninstallArgs\"\n\n            $processOptions = @{\n                FilePath = $uninstallCommand\n                PassThru = $true\n                Wait = $true\n            }\n            if ($uninstallArgs -ne '') {\n                $processOptions.ArgumentList = $uninstallArgs\n            }\n\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode\n            Write-Host \"Uninstall exit code: $exitCode\"\n            break\n        }\n    }\n\n    if (-not $foundUninstaller) {\n        Write-Host \"Uninstaller for '$softwareName' not found.\"\n        Exit 1\n    }\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n",
+    "9a06c3cd": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# CrystalDiskMark uses Inno Setup\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /AllUsers\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
