@@ -49,6 +49,17 @@ func Up_20260630120000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`DROP TABLE mdm_windows_configuration_profiles_pending_delete`); err != nil {
 		return fmt.Errorf("drop mdm_windows_configuration_profiles_pending_delete: %w", err)
 	}
+
+	// The prior-content GC and the deleted-profile host-row cleanup probe host_mdm_windows_profiles by (profile_uuid, checksum) -- the
+	// GC's NOT EXISTS now also filters on checksum. The prior single-column index on (profile_uuid) forced a post-index scan of every
+	// host row sharing a profile_uuid to match the checksum. Replace it with a composite (profile_uuid, checksum) index so the probe is
+	// fully index-served; the composite still serves the profile_uuid-only lookups (leftmost prefix), so the single-column index is
+	// redundant. Both operations run in one in-place ALTER.
+	if _, err := tx.Exec(`ALTER TABLE host_mdm_windows_profiles
+		DROP INDEX idx_host_mdm_windows_profiles_profile_uuid,
+		ADD INDEX idx_host_mdm_windows_profiles_profile_uuid_checksum (profile_uuid, checksum)`); err != nil {
+		return fmt.Errorf("replace profile_uuid index with (profile_uuid, checksum) on host_mdm_windows_profiles: %w", err)
+	}
 	return nil
 }
 

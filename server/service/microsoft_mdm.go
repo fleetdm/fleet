@@ -4014,6 +4014,12 @@ func executeWindowsProfileReconcileBatch(
 		}
 	}
 
+	// enqueuedInstalls tracks "hostUUID|profileUUID" pairs whose install command was actually enqueued (and host row advanced to the
+	// new checksum). The modify-install <Delete> pass below only reverts removed LocURIs for these: a host whose reinstall was skipped
+	// (profile deleted mid-tick, or content not yet on the replica) or failed (build/insert error) must NOT have its old settings
+	// deleted, or the device would lose them without receiving the new profile version.
+	enqueuedInstalls := make(map[string]struct{}, len(toInstall))
+
 	for profUUID, target := range installTargets {
 		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
 			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
@@ -4069,6 +4075,9 @@ func executeWindowsProfileReconcileBatch(
 			if err := ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, target.hostUUIDs, command, payloads); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 			}
+			for _, hostUUID := range target.hostUUIDs {
+				enqueuedInstalls[hostUUID+"|"+profUUID] = struct{}{}
+			}
 		} else {
 			// Profile contains Fleet variables, process each host individually
 			for _, hostUUID := range target.hostUUIDs {
@@ -4121,6 +4130,7 @@ func executeWindowsProfileReconcileBatch(
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())
 					continue
 				}
+				enqueuedInstalls[hostUUID+"|"+profUUID] = struct{}{}
 			}
 		}
 	}
@@ -4252,6 +4262,13 @@ func executeWindowsProfileReconcileBatch(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get prior content for edited profiles")
 		}
+		if len(priorContents) < len(keys) {
+			// Some retained version was already garbage-collected (every host had moved past it, then this batch revisited a straggler).
+			// The read is from the primary, so this is not replica lag. Surfaced for observability; the affected edits simply won't get
+			// supplemental deletes this pass.
+			logger.DebugContext(ctx, "windows reconcile: some prior profile content not retained for edited profiles",
+				"requested", len(keys), "found", len(priorContents))
+		}
 		// removedByKey holds, per (profile, prior version), the LocURIs that version had but the new (live) version no longer does --
 		// the candidates to <Delete>. Diffing against the live content (rather than a stored delta) is correct even when a host skips
 		// versions or the edit re-added a LocURI a prior edit removed.
@@ -4290,6 +4307,12 @@ func executeWindowsProfileReconcileBatch(
 			}
 			groups := make(map[string]*modGroup)
 			for _, hostUUID := range hostUUIDs {
+				if _, ok := enqueuedInstalls[hostUUID+"|"+k.profileUUID]; !ok {
+					// The reinstall for this host was skipped or failed this tick, so don't revert its old settings. A skipped host keeps
+					// its old checksum and is retried on a later tick; a failed host surfaces to the admin. Either way the <Delete> would
+					// strip settings the device still needs.
+					continue
+				}
 				active := make(map[string]struct{})
 				for _, desiredUUID := range desiredByHost[hostUUID] {
 					if desiredUUID == k.profileUUID {

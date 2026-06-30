@@ -1772,6 +1772,10 @@ func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys
 		args = append(args, k.ProfileUUID, k.Checksum)
 	}
 
+	// Read from the primary, not a replica. The reconcile pass consumes each modify-install once (the re-install advances the host's
+	// checksum, so the host won't be revisited as a modify), so a replica-lag miss here would permanently drop the supplemental
+	// <Delete>. The retained row is written in the same transaction as the profile edit, so the primary always has it.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	var rows []fleet.MDMWindowsProfilePriorContent
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting windows profile prior content")
