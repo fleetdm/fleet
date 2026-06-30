@@ -176,7 +176,7 @@ func TestSplunkSplitBatchBySize(t *testing.T) {
 	for i := range payload {
 		payload[i] = 'a'
 	}
-	for i := 0; i < 120; i++ {
+	for range 120 {
 		largeLogs = append(largeLogs, json.RawMessage(`{"data":"`+string(payload)+`"}`))
 	}
 
