@@ -156,6 +156,8 @@ func (w *splunkLogWriter) sendWithRetry(ctx context.Context, payload []byte, try
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusServiceUnavailable && try < splunkMaxRetries {
+		io.Copy(io.Discard, resp.Body) //nolint:errcheck // best-effort drain for connection reuse
+		resp.Body.Close()
 		return w.sendWithRetry(ctx, payload, try+1)
 	}
 
