@@ -735,7 +735,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Validate(apiHandler); err != nil {
+		// SCIM endpoints are served by a prefix-mounted handler (see
+		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
+		// their routes to the validator explicitly.
+		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
