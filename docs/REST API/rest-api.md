@@ -4206,7 +4206,7 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
-This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). On iOS and iPadOS, authentication requires the Fleet identity SCEP certificate. This certificate is deployed to iOS/iPadOS hosts when they enroll to Fleet.
+This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
 `GET /api/v1/fleet/device/:token`
 
