@@ -837,7 +837,7 @@ func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, pl
 // resolveLabelName resolves a label name to its numeric ID using exact
 // case-insensitive matching. On failure, lists available labels so the
 // caller can retry. Mirrors resolveTeamNames — no caching, calls GetLabels()
-// each invocation. Labels lists are small on dogfood so the cost is
+// each invocation. Label lists are typically small so the cost is
 // negligible and the code stays parallel with the team resolver.
 func (fc *FleetClient) resolveLabelName(ctx context.Context, name string) (uint, error) {
 	labels, err := fc.GetLabels(ctx)

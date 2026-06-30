@@ -101,10 +101,10 @@ var cveIDPattern = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 func validateCVEID(cveID string) error {
 	cveID = strings.TrimSpace(cveID)
 	if cveID == "" {
-		return fmt.Errorf("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2026-31431)")
+		return fmt.Errorf("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)")
 	}
 	if !cveIDPattern.MatchString(cveID) {
-		return fmt.Errorf("cve_id %q is not a valid CVE identifier (expected shape CVE-YYYY-NNNN, e.g. CVE-2026-31431)", cveID)
+		return fmt.Errorf("cve_id %q is not a valid CVE identifier (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)", cveID)
 	}
 	return nil
 }

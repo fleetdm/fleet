@@ -4,6 +4,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for th
 
 **Transform how you interact with your endpoint data. Query osquery, check compliance, drill into per-host policy results, and investigate CVEs natively from Claude, Cursor, and any MCP-compatible AI agent.**
 
+🔗 **GitHub Repo:** [https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp](https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp)
 🔗 **Learn about MCP:** [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 🔗 **Learn about Fleet:** [https://fleetdm.com/](https://fleetdm.com/)
 
@@ -76,7 +77,7 @@ Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporti
 1. If you pass `host_id` (numeric), it goes straight to `/hosts/:host_id` — exact, no collision possible.
 2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/identifier/:id` (catches UUIDs and `computer_name`-only matches).
 
-If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (e.g. one named `USS Protostar` whose hostname is `mac`) are best fetched with `host_id` from the start.
+If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (where the user-friendly display name does not match any indexed string field) are best fetched with `host_id` from the start.
 
 ## Configuration
 
@@ -84,7 +85,7 @@ Configure the server using environment variables or a `.env` file (in the same d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://dogfood.fleetdm.com` |
+| `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://your-fleet.example.com` |
 | `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). **Use the least-privileged Fleet role that covers your tools:** an **observer** / **observer-plus** token is enough for all tools - **admin is not required** |
 | `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32` (**min 32 chars — the server refuses a weaker one**). **Required on every transport (including stdio); the server refuses to start without it.** In SSE mode the server validates it on every request; in stdio mode it must be set but is not checked at runtime (the client launches the binary as a local subprocess). |
 | `PORT` | `8080` | HTTP port for SSE transport. Ignored in stdio mode. Render injects this automatically. |
@@ -329,14 +330,14 @@ Tunables (env vars) for the schema layer:
 A few non-obvious behaviors discovered while building this:
 
 - **`?query=` substring matching covers hostname, serial, primary IP, hardware model, AND host_users (username/email/IdP groups)** — but **not** display_name. Use `host_id` for display-name-only lookups.
-- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why an identifier like `"USS Protostar"` resolves even though `?query=` doesn't match it.
+- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on the identifier endpoint even though `?query=` (which does not index `computer_name`) does not match it.
 - **Hostname collisions are real** in any sizeable fleet. Always prefer `host_id` when you have it. The substring resolver returns up to 50 candidates with `display_name` / `serial` / `primary_ip` for disambiguation.
 - **`policy_response` requires `policy_id`** at the API level. The MCP layer rejects the orphan combination upfront with a clean error rather than letting Fleet return a vague 400.
 - **Fleet's `/hosts` endpoint silently ignores several filter params we tested.** As of Fleet 4.85, passing `cve=CVE-X`, `platform=linux`, or `label_id=N` to `GET /hosts` is accepted without error but returns the unfiltered host list — the MCP cannot rely on these. Workarounds shipped in this repo:
   - **Platform / label scoping** routes through `GET /labels/:id/hosts` (which DOES honor `fleet_id` and `query`, but ALSO ignores `software_version_id` and `policy_id`, so policy + label intersection is computed client-side by host ID).
   - **`get_endpoints` `total` is scoped to the same filters** as the listing, not the global inventory: it comes from `GET /hosts/count` with the same params (`label_id` for label/platform), except the label + `policy_id` combo where `/hosts/count` ignores `policy_id` — there the count is the size of the same client-side label∩policy intersection.
   - **CVE → hosts** is a 3-step compose in `GetHostsForCVE`: `GET /software/titles?vulnerable=true&query=CVE-X` → per-title `GET /software/titles/:id` to harvest vulnerable version IDs → `GET /hosts?software_version_id=N` per ID → intersect with fleet / status / query / label-id client-side.
-  - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2026-31431 yields 50 hosts via `?cve=`, but the correct answer is 1).
+  - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2025-12345 yields 50 hosts via `?cve=`, but the correct answer is 1).
   - Future Fleet versions may fix these — revisit `GetEndpointsWithFilters` and `GetHostsForCVE` if/when that happens.
 - **Fleet-scoped policy compliance** uses `/fleets/:fleet_id/policies/:policy_id`, not the global path. `get_policy_compliance` routes to whichever based on whether `fleet` is set.
 - **`/api/v1/fleet/host_summary` is the right endpoint for aggregate platform counts** — `GET /hosts` defaults to a 100-host page, so any client-side aggregation over `GetEndpoints(0)` is silently wrong on Fleets larger than 100 hosts. `get_aggregate_platforms` uses `host_summary` directly so totals match the Fleet UI at any inventory size.
