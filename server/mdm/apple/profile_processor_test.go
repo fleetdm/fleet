@@ -1054,6 +1054,54 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 		require.NotContains(t, string(profileContents["p1"]), "FLEET_VAR_")
 	})
 
+	t.Run("multiple hosts share placeholder without per-host fan-out", func(t *testing.T) {
+		const host2UUID = "host-2"
+		const host3UUID = "host-3"
+
+		ds := new(mock.Store)
+		bulkUpsertCalled := false
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, _ []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+			bulkUpsertCalled = true
+			return nil
+		}
+
+		enrollmentIDs := []string{hostUUID, host2UUID, host3UUID}
+		targets := map[string]*fleet.CmdTarget{
+			"p1": {CmdUUID: cmdUUID, ProfileIdentifier: "com.fleetdm.platformsso", EnrollmentIDs: enrollmentIDs},
+		}
+		profileContents := map[string]mobileconfig.Mobileconfig{
+			"p1": []byte("<string>" + fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix() + "</string>"),
+		}
+
+		multiHostProfilesMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload)
+		for _, hUUID := range enrollmentIDs {
+			multiHostProfilesMap[fleet.HostProfileUUID{HostUUID: hUUID, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+				ProfileUUID:       "p1",
+				ProfileIdentifier: "com.fleetdm.platformsso",
+				HostUUID:          hUUID,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+				CommandUUID:       cmdUUID,
+				Scope:             fleet.PayloadScopeSystem,
+			}
+		}
+
+		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, multiHostProfilesMap, make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+		require.NoError(t, err)
+
+		// Still one target — no per-host fan-out regardless of host count.
+		require.Len(t, targets, 1)
+		require.Contains(t, targets, "p1")
+		require.Equal(t, cmdUUID, targets["p1"].CmdUUID)
+		// All enrollment IDs remain in the single shared target.
+		require.ElementsMatch(t, enrollmentIDs, targets["p1"].EnrollmentIDs)
+		require.False(t, bulkUpsertCalled, "host profiles should not be re-keyed for the short-circuited profile")
+
+		// Single shared profile content with the placeholder — no per-host copies.
+		require.Equal(t, "<string>"+placeholder+"</string>", string(profileContents["p1"]))
+		require.NotContains(t, string(profileContents["p1"]), "FLEET_VAR_")
+	})
+
 	t.Run("mixed with a host-specific variable still fans out and keeps the placeholder", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, _ []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
