@@ -4665,8 +4665,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				{Name: "edit-locuri-test", Contents: []byte(oneLocURIProfile)},
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
-		// Trigger profile sync: device should get:
-		// - 1 <Delete> for the removed AllowCortana LocURI (from batchSet edit diff)
+		// Trigger profile sync: device should get (both from the reconciler, which now owns removed-LocURI deletes too):
+		// - 1 <Delete> for the removed AllowCortana LocURI (deferred from the batch-set edit, enqueued by the reconciler)
 		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
 		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
 		s.awaitTriggerProfileSchedule(t)

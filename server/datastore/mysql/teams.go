@@ -245,7 +245,7 @@ func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, ti
 		}
 
 		// Copy from the live table before the DeleteTeam cascade removes the definitions; the definitions still exist here.
-		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, profileUUIDs); err != nil {
+		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
 
