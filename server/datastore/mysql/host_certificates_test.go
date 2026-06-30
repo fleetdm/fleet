@@ -34,7 +34,6 @@ func TestHostCertificates(t *testing.T) {
 		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Windows scope-aware reconciliation", testUpdateHostCertificatesWindowsScopeReconciliation},
-		{"Windows legacy scope migration", testUpdateHostCertificatesWindowsLegacyScopeMigration},
 		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
 		{"Origin downgrade on osquery rediscovery", testUpdateHostCertificatesOriginDowngrade},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
@@ -916,12 +915,9 @@ func generateTestHostCertificateRecordWithParent(t *testing.T, hostID uint, cert
 	return fleet.NewHostCertificateRecord(hostID, parsed)
 }
 
-// testUpdateHostCertificatesWindowsScopeReconciliation exercises the
-// observed-scopes reconciliation used by the Windows ingestion path: osquery
-// can only enumerate a user's certificates while that user is logged in, so a
-// logged-off user's certificates must be preserved rather than soft-deleted.
-// (The macOS / MDM path passes nil observedScopes and is covered by the other
-// subtests, which always reconcile every scope.)
+// testUpdateHostCertificatesWindowsScopeReconciliation exercises the observed-scopes reconciliation used by the Windows
+// ingestion path: osquery can only enumerate a user's certificates while that user is logged in, so a logged-off user's
+// certificates must be preserved rather than soft-deleted.
 func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	const (
@@ -961,8 +957,7 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 	certSys := mkCert("sys.example.com", fleet.SystemHostCertificate, "")
 	certAlice := mkCert("alice-old.example.com", fleet.UserHostCertificate, "alice")
 	certBob := mkCert("bob.example.com", fleet.UserHostCertificate, "bob")
-	// shared cert: present in the System store and in alice's store (same SHA1,
-	// two sources).
+	// shared cert: present in the System store and in alice's store (same SHA1, two sources).
 	sharedSys := mkCert("shared.example.com", fleet.SystemHostCertificate, "")
 	sharedAliceClone := *sharedSys
 	sharedAlice := &sharedAliceClone
@@ -983,8 +978,6 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 	}, listKeys())
 
 	// 2. Alice logs off: her hive is not loaded so her certs are simply absent.
-	//    Bob is still logged in. Alice's certs (including her shared source) must
-	//    be preserved.
 	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
 		[]*fleet.HostCertificateRecord{certSys, certBob, sharedSys},
 		fleet.HostCertificateOriginOsquery,
@@ -997,10 +990,7 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 		"shared.example.com|user|alice", // preserved
 	}, listKeys())
 
-	// 3. Alice logs back in but has removed her old cert and her copy of the
-	//    shared cert, and installed a new one. Because alice is observed this run,
-	//    her removed certs are reconciled, while the shared cert survives via its
-	//    still-reported System source.
+	// 3. Alice logs back in but has removed her old cert and her copy of the shared cert, and installed a new one.
 	certAlice2 := mkCert("alice-new.example.com", fleet.UserHostCertificate, "alice")
 	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
 		[]*fleet.HostCertificateRecord{certSys, certBob, sharedSys, certAlice2},
@@ -1013,8 +1003,7 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 		"alice-new.example.com|user|alice",
 	}, listKeys())
 
-	// 4. A System certificate removed while present in the report → deleted, since
-	//    System scope is always observed.
+	// 4. A System certificate removed while present in the report → deleted, since System scope is always observed.
 	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
 		[]*fleet.HostCertificateRecord{certBob, sharedSys, certAlice2},
 		fleet.HostCertificateOriginOsquery,
@@ -1024,78 +1013,30 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 		"shared.example.com|system|",
 		"alice-new.example.com|user|alice",
 	}, listKeys())
-}
 
-// testUpdateHostCertificatesWindowsLegacyScopeMigration verifies that legacy
-// Windows scope rows are reconciled onto the corrected scope when a host
-// upgrades. Pre-#31294 Windows ingestion stored System certs with username
-// "SYSTEM" and mislabeled machine-wide (LocalMachine) certs as User scope with
-// an empty username; the corrected scheme uses System scope with an empty
-// username for both. Those legacy source rows must NOT survive as phantom
-// unobserved scopes.
-func testUpdateHostCertificatesWindowsLegacyScopeMigration(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	const (
-		hostID   = uint(77)
-		hostUUID = "windows-legacy-host-uuid"
-	)
-
-	mkCert := func(commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
-		tmpl := x509.Certificate{
-			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
-			Issuer:                pkix.Name{CommonName: "issuer.example.com"},
-			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
-			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
-			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
-			BasicConstraintsValid: true,
-		}
-		rec := generateTestHostCertificateRecord(t, hostID, &tmpl)
-		rec.Source = source
-		rec.Username = username
-		return rec
-	}
-
-	listKeys := func() []string {
-		certs, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{OrderKey: "common_name"})
-		require.NoError(t, err)
-		keys := make([]string, 0, len(certs))
-		for _, c := range certs {
-			keys = append(keys, fmt.Sprintf("%s|%s|%s", c.CommonName, c.Source, c.Username))
-		}
-		return keys
-	}
-
-	// 1. Seed legacy-format rows as the old Windows ingest would have (full
-	//    reconcile via nil observedScopes): a System cert tagged "SYSTEM", and a
-	//    machine cert mislabeled as User scope with an empty username.
-	legacySystem := mkCert("machine-system.example.com", fleet.SystemHostCertificate, "SYSTEM")
-	legacyMislabeled := mkCert("localmachine.example.com", fleet.UserHostCertificate, "")
+	// 5. Alice logs back in and re-installs the shared cert, so it is again in both the System store and her store.
 	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
-		[]*fleet.HostCertificateRecord{legacySystem, legacyMislabeled},
-		fleet.HostCertificateOriginOsquery, nil))
+		[]*fleet.HostCertificateRecord{certBob, sharedSys, sharedAlice, certAlice2},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, aliceScope, bobScope}))
 	require.ElementsMatch(t, []string{
-		"machine-system.example.com|system|SYSTEM",
-		"localmachine.example.com|user|",
+		"bob.example.com|user|bob",
+		"shared.example.com|system|",
+		"shared.example.com|user|alice",
+		"alice-new.example.com|user|alice",
 	}, listKeys())
 
-	// 2. Host upgrades; the corrected ingest reports the SAME certificates
-	//    canonically (both System scope, empty username) with Windows observed
-	//    scopes. Clone the seeded records so SHA-1 and validity dates match.
-	correctedSystem := *legacySystem
-	correctedSystem.Username = ""
-	correctedMachine := *legacyMislabeled
-	correctedMachine.Source = fleet.SystemHostCertificate
-	correctedMachine.Username = ""
+	// 6. The shared cert is removed from the machine store while alice is logged off, so it is absent from the report
+	// entirely. Its (observed) System source is dropped, but her (unobserved) source keeps the cert alive (it survives
+	// showing only her scope). alice's other cert is likewise preserved.
 	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
-		[]*fleet.HostCertificateRecord{&correctedSystem, &correctedMachine},
+		[]*fleet.HostCertificateRecord{certBob},
 		fleet.HostCertificateOriginOsquery,
-		[]fleet.HostCertificateScope{{Source: fleet.SystemHostCertificate}}))
-
-	// 3. The legacy scope rows are gone; each certificate has exactly one
-	//    canonical System source (no phantom duplicates).
+		[]fleet.HostCertificateScope{sysScope, bobScope}))
 	require.ElementsMatch(t, []string{
-		"machine-system.example.com|system|",
-		"localmachine.example.com|system|",
+		"bob.example.com|user|bob",
+		"shared.example.com|user|alice", // System source dropped, alice's preserved
+		"alice-new.example.com|user|alice",
 	}, listKeys())
 }
 

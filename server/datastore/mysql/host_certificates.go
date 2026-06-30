@@ -50,24 +50,18 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	// observedScopes restricts which (source, username) scopes reconciliation may soft-delete. A nil slice means every
 	// scope was observed this run (the macOS keychain model, where all keychains are always readable, and the MDM path). A non-nil slice (the Windows path) preserves certificates whose scope
 	// is not listed, because osquery can only enumerate a user's certificates while that user is logged in.
-	canonicalScope := func(s certSourceToSet) certSourceToSet {
-		if s.Source == fleet.SystemHostCertificate || s.Username == "" {
-			return certSourceToSet{Source: fleet.SystemHostCertificate}
-		}
-		return s
-	}
 	var observedSet map[certSourceToSet]struct{}
 	if observedScopes != nil {
 		observedSet = make(map[certSourceToSet]struct{}, len(observedScopes))
 		for _, s := range observedScopes {
-			observedSet[canonicalScope(certSourceToSet{Source: s.Source, Username: s.Username})] = struct{}{}
+			observedSet[certSourceToSet{Source: s.Source, Username: s.Username}] = struct{}{}
 		}
 	}
 	isObserved := func(s certSourceToSet) bool {
 		if observedScopes == nil {
 			return true
 		}
-		_, ok := observedSet[canonicalScope(s)]
+		_, ok := observedSet[s]
 		return ok
 	}
 	// desiredSources returns the source set to persist for a certificate: every source reported in the incoming batch,
