@@ -1633,8 +1633,7 @@ None.
       ],
       "managed_local_account_settings": {
         "enabled": true
-      },
-      "end_user_local_account_type": "admin"
+      }
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -2010,8 +2009,7 @@ Modifies the Fleet's configuration with the supplied information.
       ],
       "managed_local_account_settings": {
         "enabled": true
-      },
-      "end_user_local_account_type": "admin"
+      }
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2714,7 +2712,6 @@ _Available in Fleet Premium._
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | managed_local_account_settings         | object  | Settings for the managed local account. |
 | managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
-| end_user_local_account_type            | string  | The end user account type (default: `"admin"`). |
 
 <br/>
 
@@ -2775,7 +2772,7 @@ _Available in Fleet Premium._
       ],
       "managed_local_account_settings": {
         "enabled": true
-      },
+      }
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -13322,7 +13319,6 @@ Returned when the requested name only differs from another fleet's name by lette
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | managed_local_account_settings         | object  | Settings for the managed local account. |
 | managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
-| end_user_local_account_type            | string  | The end user account type (default: `"admin"`). |
 
 <br/>
 
