@@ -253,7 +253,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.screensharing
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM listening_ports WHERE port = 5900
+      SELECT 1 FROM listening_ports WHERE port = 5900 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -281,7 +281,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.smbd
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM listening_ports WHERE port = 445
+      SELECT 1 FROM listening_ports WHERE port = 445 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -334,7 +334,7 @@ spec:
       (confirm with "yes" when prompted)
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM listening_ports WHERE port = 22
+      SELECT 1 FROM listening_ports WHERE port = 22 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -388,7 +388,7 @@ spec:
       /usr/bin/sudo /usr/sbin/systemsetup -setremoteappleevents off
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM listening_ports WHERE port = 3031
+      SELECT 1 FROM listening_ports WHERE port = 3031 AND protocol = 6
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2489,7 +2489,7 @@ spec:
   query: |
     SELECT 1 WHERE (
       SELECT COUNT(DISTINCT name) FROM processes
-      WHERE name IN ('xprotectd', 'XProtectPluginService')
+      WHERE name IN ('xprotectd', 'XProtectPluginService') AND uid = 0
     ) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
