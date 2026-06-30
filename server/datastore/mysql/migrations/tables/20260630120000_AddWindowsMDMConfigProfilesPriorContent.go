@@ -11,9 +11,7 @@ func init() {
 
 func Up_20260630120000(tx *sql.Tx) error {
 	// The profile-manager cron builds Windows <Delete> commands from the content of a profile version a host still has, but that
-	// content is gone from the live table once the profile is deleted (it was removed) or edited (it was overwritten). Two cases, one
-	// need: retain prior profile content so the cron can revert settings asynchronously in its bounded 2,000-host batches instead of
-	// fanning <Delete> commands out per-host inside the request (which is O(profiles x hosts) and times out at scale -- #46993, #48349).
+	// content is gone from the live table once the profile is deleted (it was removed) or edited (it was overwritten).
 	//
 	// This single table retains that content, keyed by (profile_uuid, checksum) where checksum = md5(syncml) matching
 	// host_mdm_windows_profiles.checksum. It replaces the delete-only mdm_windows_configuration_profiles_pending_delete table (which was
@@ -24,8 +22,7 @@ func Up_20260630120000(tx *sql.Tx) error {
 	//
 	// There is intentionally no foreign key to mdm_windows_configuration_profiles: the reference-counted GC owns cleanup, so a row for a
 	// deleted profile lingers harmlessly until GC rather than blocking the delete. Rows are dropped once no host_mdm_windows_profiles row
-	// still has that checksum for the profile (every host has moved past that version or unenrolled). Reverts are best-effort and not
-	// surfaced in the UI or API.
+	// still has that checksum for the profile (every host has moved past that version or unenrolled).
 	if _, err := tx.Exec(`
 		CREATE TABLE mdm_windows_configuration_profiles_prior_content (
 			profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -50,11 +47,8 @@ func Up_20260630120000(tx *sql.Tx) error {
 		return fmt.Errorf("drop mdm_windows_configuration_profiles_pending_delete: %w", err)
 	}
 
-	// The prior-content GC and the deleted-profile host-row cleanup probe host_mdm_windows_profiles by (profile_uuid, checksum) -- the
-	// GC's NOT EXISTS now also filters on checksum. The prior single-column index on (profile_uuid) forced a post-index scan of every
-	// host row sharing a profile_uuid to match the checksum. Replace it with a composite (profile_uuid, checksum) index so the probe is
-	// fully index-served; the composite still serves the profile_uuid-only lookups (leftmost prefix), so the single-column index is
-	// redundant. Both operations run in one in-place ALTER.
+	// The prior-content GC and the deleted-profile host-row cleanup probe host_mdm_windows_profiles by (profile_uuid, checksum). The
+	// GC's NOT EXISTS now also filters on checksum.
 	if _, err := tx.Exec(`ALTER TABLE host_mdm_windows_profiles
 		DROP INDEX idx_host_mdm_windows_profiles_profile_uuid,
 		ADD INDEX idx_host_mdm_windows_profiles_profile_uuid_checksum (profile_uuid, checksum)`); err != nil {
