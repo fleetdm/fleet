@@ -30,6 +30,8 @@ Schema freshness: the in-memory schema is refreshed periodically from https://ra
 
 Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument to run_live_query to restrict the targeted hosts to that team. Only omit 'fleet' when the user explicitly wants all teams.
 
+CONFIRM BEFORE RUNNING run_live_query: show the operator the exact SQL and the resolved target scope (the host_ids / label / 'fleet', or "all hosts" if unscoped), then wait for explicit confirmation. Never auto-approve.
+
 Skipping step 1 produces queries that parse and run but return wrong or empty results. Always verify before emitting SQL.`
 
 // SetupMCPServer creates and configures the MCP server with all available tools.
