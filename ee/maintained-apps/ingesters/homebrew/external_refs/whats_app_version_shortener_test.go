@@ -18,13 +18,13 @@ func TestWhatsAppVersionShortener(t *testing.T) {
 		assert.Equal(t, "25.16.81", result.Version)
 	})
 
-	t.Run("unexpected version format", func(t *testing.T) {
+	t.Run("new version scheme without 2. prefix", func(t *testing.T) {
 		app := &maintained_apps.FMAManifestApp{
 			UniqueIdentifier: "whatsapp/darwin",
-			Version:          "3.25.16.81",
+			Version:          "26.26.12",
 		}
 		result, err := WhatsAppVersionShortener(app)
-		assert.Error(t, err)
-		assert.Equal(t, "3.25.16.81", result.Version)
+		assert.NoError(t, err)
+		assert.Equal(t, "26.26.12", result.Version)
 	})
 }
