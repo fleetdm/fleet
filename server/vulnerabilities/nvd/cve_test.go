@@ -1123,6 +1123,52 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			want:    "6.72.10.07",
 			wantErr: false,
 		},
+		{
+			// NVD only provides versionEndIncluding for this CVE, so the resolved version comes
+			// from knownResolvedVersionOverrides. See #44800.
+			name: "versionEndIncluding-only CVE uses resolved version override",
+			cve:  "CVE-2025-63389",
+			meta: &wfn.Attributes{
+				Vendor:  "ollama",
+				Product: "ollama",
+				Version: "0.12.3",
+			},
+			want:    "0.12.4",
+			wantErr: false,
+		},
+		{
+			name: "resolved version override applies to older vulnerable versions",
+			cve:  "CVE-2025-63389",
+			meta: &wfn.Attributes{
+				Vendor:  "ollama",
+				Product: "ollama",
+				Version: "0.12.0",
+			},
+			want:    "0.12.4",
+			wantErr: false,
+		},
+		{
+			name: "resolved version override does not apply at or above the fix version",
+			cve:  "CVE-2025-63389",
+			meta: &wfn.Attributes{
+				Vendor:  "ollama",
+				Product: "ollama",
+				Version: "0.12.4",
+			},
+			want:    "",
+			wantErr: false,
+		},
+		{
+			name: "resolved version override does not apply to other products",
+			cve:  "CVE-2025-63389",
+			meta: &wfn.Attributes{
+				Vendor:  "notollama",
+				Product: "notollama",
+				Version: "0.12.0",
+			},
+			want:    "",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

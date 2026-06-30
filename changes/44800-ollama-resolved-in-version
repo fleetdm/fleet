@@ -1,0 +1,1 @@
+- Added the resolved-in version (0.12.4) for CVE-2025-63389 on Ollama, which was missing because the NVD record only provides a `versionEndIncluding` constraint.

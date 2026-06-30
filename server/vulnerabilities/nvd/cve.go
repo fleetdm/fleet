@@ -688,10 +688,38 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 	return cpeItems
 }
 
+type resolvedVersionOverride struct {
+	vendor            string
+	product           string
+	resolvedInVersion string
+}
+
+// knownResolvedVersionOverrides supplies resolved_in_version for CVEs whose NVD record only
+// provides versionEndIncluding (so the resolved version can't be derived from the feed by
+// getMatchingVersionEndExcluding), but whose upstream fix version is known.
+// See https://github.com/fleetdm/fleet/issues/44800.
+var knownResolvedVersionOverrides = map[string]resolvedVersionOverride{
+	// CVE-2025-63389: NVD lists ollama as vulnerable through (and including) v0.12.3 via
+	// versionEndIncluding, with no versionEndExcluding. The fix shipped in the next release,
+	// v0.12.4.
+	"CVE-2025-63389": {vendor: "ollama", product: "ollama", resolvedInVersion: "0.12.4"},
+}
+
 // Returns the versionEndExcluding string for the given CVE and host software meta
 // data, if it exists in the NVD feed.  This effectively gives us the version of the
 // software it needs to upgrade to in order to address the CVE.
 func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, logger *slog.Logger) (string, error) {
+	// Some CVEs only provide versionEndIncluding in NVD (no versionEndExcluding), so the resolved
+	// version can't be derived from the feed below. For a known set of these we hardcode the
+	// upstream fix version. This is checked before the feed lookups since it doesn't depend on
+	// the NVD data. See https://github.com/fleetdm/fleet/issues/44800.
+	if override, ok := knownResolvedVersionOverrides[cve]; ok &&
+		hostSoftwareMeta.Vendor == override.vendor &&
+		hostSoftwareMeta.Product == override.product &&
+		feednvd.SmartVerCmp(wfn.StripSlashes(hostSoftwareMeta.Version), override.resolvedInVersion) == -1 {
+		return override.resolvedInVersion, nil
+	}
+
 	vuln, ok := dict[cve].(*feednvd.Vuln)
 	if !ok {
 		return "", nil
