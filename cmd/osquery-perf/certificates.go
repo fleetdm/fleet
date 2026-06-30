@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
-	"math/rand/v2"
+	// osquery-perf shares one global math/rand RNG seeded from the --seed flag
+	// (see rand.Seed in agent.go) so load-test runs are reproducible; this file
+	// uses the same source rather than math/rand/v2's unseedable globals.
+	"math/rand" //nolint:depguard
 	"strings"
 	"time"
 
@@ -149,7 +152,7 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 	switch {
 	case a.hostCertSpecs == nil:
 		a.hostCertSpecs = a.newPerHostCertSpecs()
-	case rand.IntN(100) < 5:
+	case rand.Intn(100) < 5:
 		// 5% chance for some of this host's certs to change between polls.
 		a.churnPerHostCertSpecs()
 	}
@@ -163,7 +166,7 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 // newPerHostCertSpecs generates 0-10 certificates unique to this host, with
 // random (uuid) serials so each host's certs are distinct in the Fleet server.
 func (a *agent) newPerHostCertSpecs() []simulatedCert {
-	count := rand.IntN(11) // 0..10
+	count := rand.Intn(11) // 0..10
 	users := a.hostUsers()
 	specs := make([]simulatedCert, 0, count+1)
 	for i := range count {
@@ -176,7 +179,7 @@ func (a *agent) newPerHostCertSpecs() []simulatedCert {
 		dup := specs[0]
 		dup.user = !specs[0].user
 		if dup.user {
-			dup.username = users[rand.IntN(len(users))]["username"]
+			dup.username = users[rand.Intn(len(users))]["username"]
 		} else {
 			dup.username = ""
 		}
@@ -186,10 +189,10 @@ func (a *agent) newPerHostCertSpecs() []simulatedCert {
 }
 
 func (a *agent) newPerHostCertSpec(i int, users []map[string]string) simulatedCert {
-	user := rand.IntN(2) == 0 && len(users) > 0
+	user := rand.Intn(2) == 0 && len(users) > 0
 	username := ""
 	if user {
-		username = users[rand.IntN(len(users))]["username"]
+		username = users[rand.Intn(len(users))]["username"]
 	}
 	return simulatedCert{
 		commonName:        uuid.NewString(),
@@ -206,9 +209,9 @@ func (a *agent) newPerHostCertSpec(i int, users []map[string]string) simulatedCe
 		signingAlgorithm:  "sha256WithRSAEncryption",
 		serial:            uuid.NewString(),
 		// generate so that it may be expired (notAfter in [-1d, +99d])
-		notValidAfterUnix: fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.IntN(100)) * certDay).Unix()),
+		notValidAfterUnix: fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.Intn(100)) * certDay).Unix()),
 		// notBefore is always in the past (1-10 days)
-		notValidBeforeUnix: fmt.Sprint(time.Now().Add(-time.Duration(rand.IntN(10)+1) * certDay).Unix()),
+		notValidBeforeUnix: fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * certDay).Unix()),
 		user:               user,
 		username:           username,
 	}
@@ -220,12 +223,12 @@ func (a *agent) churnPerHostCertSpecs() {
 	if len(a.hostCertSpecs) == 0 {
 		return
 	}
-	n := rand.IntN(min(10, len(a.hostCertSpecs))) + 1
+	n := rand.Intn(min(10, len(a.hostCertSpecs))) + 1
 	for range n {
-		idx := rand.IntN(len(a.hostCertSpecs))
+		idx := rand.Intn(len(a.hostCertSpecs))
 		a.hostCertSpecs[idx].serial = uuid.NewString()
 		a.hostCertSpecs[idx].commonName = uuid.NewString()
-		a.hostCertSpecs[idx].notValidAfterUnix = fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.IntN(100)) * certDay).Unix())
+		a.hostCertSpecs[idx].notValidAfterUnix = fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.Intn(100)) * certDay).Unix())
 	}
 }
 
