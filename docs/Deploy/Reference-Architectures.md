@@ -181,6 +181,12 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 #### AWS
 
+##### Database connection pool sizing
+
+Set `FLEET_MYSQL_MAX_OPEN_CONNS` (and `FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS`) per the database instance, not to a single fixed value. Each Fleet instance opens up to this many connections to the writer and the same to the reader, so the worst case landing on a single Aurora instance is about `Fleet instances × max_open_conns`, and roughly double that during a failover when reader connections shift onto the writer. This must stay comfortably under the instance's `max_connections`. Confirm the actual ceiling with `SELECT @@max_connections;`, since it can be raised with a custom parameter group.
+
+The recommended values for the breakpoints below are `20` for the R-class instances at 25000 hosts and above, which have ample connection headroom, and `10` for the smaller T-class instances (`db.t4g.medium`, `db.t4g.large`) at 5000 and 10000 hosts. Those T-class instances have a low default `max_connections` (roughly 90 and 135), so `10` is near their safe limit. To run a larger pool at those sizes, raise `max_connections` with a custom parameter group or move to an R-class instance.
+
 ##### Example configuration breakpoints
 
 ###### [Up to 5000 hosts](https://calculator.aws/#/estimate?id=cc26267f829536383e9b1b449ca0c56f0e844084)

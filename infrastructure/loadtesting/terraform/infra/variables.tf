@@ -98,3 +98,9 @@ variable "enable_otel" {
   type        = bool
   default     = false
 }
+
+variable "mysql_max_open_conns" {
+  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. Worst-case connections on a single Aurora instance is roughly fleet_task_count * mysql_max_open_conns, and double that during a failover when reader connections shift onto the writer; this must stay under the instance's max_connections (verify with SELECT @@max_connections). Default 20 is safe for the R-class instances used at 25k+ hosts; lower it for smaller T-class instances. See https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Managing.Performance.html"
+  type        = number
+  default     = 20
+}
