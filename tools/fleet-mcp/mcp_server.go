@@ -51,6 +51,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	registerHostTools(s, fleetClient)
 	registerQueryTools(s, fleetClient)
 	registerPolicyTools(s, fleetClient)
+	registerInventoryTools(s, fleetClient)
 
 	return s
 }
