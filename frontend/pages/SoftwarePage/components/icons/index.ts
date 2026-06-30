@@ -215,7 +215,6 @@ import CreativeCloud from "./AdobeCreativeCloud";
 import CriblEdge from "./CriblEdge";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
-import Crystaldiskmark from "./Crystaldiskmark";
 import Crystalfetch from "./Crystalfetch";
 import Cursor from "./Cursor";
 import Cursorsense from "./Cursorsense";
@@ -1271,7 +1270,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cribl edge": CriblEdge,
   crossover: Crossover,
   cryptomator: Cryptomator,
-  crystaldiskmark: Crystaldiskmark,
   crystalfetch: Crystalfetch,
   cursor: Cursor,
   cursorsense: Cursorsense,

@@ -386,11 +386,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
-	// SourceForge URLs without /download redirect to an HTML page instead of the binary
-	// when accessed by non-browser HTTP clients, causing SHA256 verification to fail.
-	if strings.Contains(out.InstallerURL, "sourceforge.net") && !strings.HasSuffix(out.InstallerURL, "/download") {
-		out.InstallerURL += "/download"
-	}
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.DefaultCategories = input.DefaultCategories
 	out.SHA256 = "no_check"
