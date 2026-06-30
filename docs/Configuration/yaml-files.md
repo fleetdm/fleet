@@ -620,7 +620,7 @@ You can add multiple packages for the same software in a package YAML file. This
 
 If multiple packages target the same host, Fleet will install the one that was added first.
 
-> In GitOps, the first package added is the first one in the package YAML file's list on the run that first adds the title's packages. Reordering the list on a later run doesn't change which package was added first. 
+> In GitOps, the first package added is the first one in the package YAML file's list on the initial run that adds the title's packages. Reordering the list on a later run doesn't change the order.
 >
 > You can preview the order of the packages in the UI. The first package in the list is always a fallback in case of a conflict.
 
