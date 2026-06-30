@@ -700,12 +700,11 @@ Perform a quick visual scan of the UI and confirm:
 
 <tr>
 <td>Release-critical issues (Ready for release)</td>
-<td>Verify every release-critical issue has been driven to "Ready for release": open <code>~unreleased bug</code> issues (regressions introduced during this release cycle — the most critical to clear) and open <code>~release blocker</code> tickets.</td>
+<td>Verify no open <code>~unreleased bug</code> or <code>~release blocker</code> issue is still in the works — all should be "Ready for release".</td>
 <td>
 
-1. Review **every** open issue under the [`~unreleased bug`](https://github.com/fleetdm/fleet/labels/~unreleased%20bug) and [`~release blocker`](https://github.com/fleetdm/fleet/labels/~release%20blocker) label filters.
-2. Confirm each one has a milestone, an owner (assignee), and has been moved to **"Ready for release"** on its product group's project board (Status lives on the group board, not on the issue itself).
-3. All of these must be "Ready for release" before the release can proceed. If any is missing a milestone/owner or is not yet "Ready for release", raise an alarm in the `#help-engineering` and the relevant product group channel and drive it to resolution.
+1. Check the [`~unreleased bug`](https://github.com/fleetdm/fleet/labels/~unreleased%20bug) and [`~release blocker`](https://github.com/fleetdm/fleet/labels/~release%20blocker) filters and confirm every open issue is "Ready for release" on its product group board.
+2. If any is not, raise an alarm in the `#help-engineering` and the relevant product group channel.
 
 </td>
 </tr>
