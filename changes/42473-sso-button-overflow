@@ -1,0 +1,1 @@
+* Fixed the SSO sign-on button text overflowing by using a fixed "Sign in with SSO" label and showing the configured IdP name in a tooltip.
