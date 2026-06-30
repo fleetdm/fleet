@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math"
 	"net/http"
 	"time"
 
@@ -110,7 +109,6 @@ func (w *splunkLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 		if len(b) > splunkMaxSizeOfRecord {
 			w.logger.InfoContext(ctx, "dropping splunk event over 1MB limit",
 				"size", len(b),
-				"event_prefix", string(b[:min(100, len(b))])+"...",
 			)
 			continue
 		}
@@ -137,9 +135,21 @@ func (w *splunkLogWriter) send(ctx context.Context, payload []byte) error {
 	return w.sendWithRetry(ctx, payload, 0)
 }
 
+// splunkRetryDelay calculates the backoff duration for a given retry attempt.
+// Exported as a var so tests can override it to avoid waiting.
+var splunkRetryDelay = func(try int) time.Duration {
+	return 100 * time.Millisecond * time.Duration(1<<try)
+}
+
 func (w *splunkLogWriter) sendWithRetry(ctx context.Context, payload []byte, try int) error {
 	if try > 0 {
-		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(2.0, float64(try))))
+		timer := time.NewTimer(splunkRetryDelay(try))
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return ctxerr.Wrap(ctx, ctx.Err(), "splunk retry canceled")
+		case <-timer.C:
+		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.url+splunkHECPath, bytes.NewReader(payload))

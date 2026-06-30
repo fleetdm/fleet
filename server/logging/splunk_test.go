@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -187,6 +188,9 @@ func TestSplunkSplitBatchBySize(t *testing.T) {
 
 func TestSplunkRetryOnServiceUnavailable(t *testing.T) {
 	ctx := t.Context()
+	origDelay := splunkRetryDelay
+	splunkRetryDelay = func(_ int) time.Duration { return time.Millisecond }
+	t.Cleanup(func() { splunkRetryDelay = origDelay })
 
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -213,6 +217,9 @@ func TestSplunkRetryOnServiceUnavailable(t *testing.T) {
 
 func TestSplunkRetryExhausted(t *testing.T) {
 	ctx := t.Context()
+	origDelay := splunkRetryDelay
+	splunkRetryDelay = func(_ int) time.Duration { return time.Millisecond }
+	t.Cleanup(func() { splunkRetryDelay = origDelay })
 
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
