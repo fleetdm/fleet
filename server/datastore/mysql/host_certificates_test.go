@@ -34,6 +34,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Windows scope-aware reconciliation", testUpdateHostCertificatesWindowsScopeReconciliation},
+		{"Windows legacy scope migration", testUpdateHostCertificatesWindowsLegacyScopeMigration},
 		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
 		{"Origin downgrade on osquery rediscovery", testUpdateHostCertificatesOriginDowngrade},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
@@ -1022,6 +1023,79 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 		"bob.example.com|user|bob",
 		"shared.example.com|system|",
 		"alice-new.example.com|user|alice",
+	}, listKeys())
+}
+
+// testUpdateHostCertificatesWindowsLegacyScopeMigration verifies that legacy
+// Windows scope rows are reconciled onto the corrected scope when a host
+// upgrades. Pre-#31294 Windows ingestion stored System certs with username
+// "SYSTEM" and mislabeled machine-wide (LocalMachine) certs as User scope with
+// an empty username; the corrected scheme uses System scope with an empty
+// username for both. Those legacy source rows must NOT survive as phantom
+// unobserved scopes.
+func testUpdateHostCertificatesWindowsLegacyScopeMigration(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(77)
+		hostUUID = "windows-legacy-host-uuid"
+	)
+
+	mkCert := func(commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
+		tmpl := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer.example.com"},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		rec := generateTestHostCertificateRecord(t, hostID, &tmpl)
+		rec.Source = source
+		rec.Username = username
+		return rec
+	}
+
+	listKeys := func() []string {
+		certs, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{OrderKey: "common_name"})
+		require.NoError(t, err)
+		keys := make([]string, 0, len(certs))
+		for _, c := range certs {
+			keys = append(keys, fmt.Sprintf("%s|%s|%s", c.CommonName, c.Source, c.Username))
+		}
+		return keys
+	}
+
+	// 1. Seed legacy-format rows as the old Windows ingest would have (full
+	//    reconcile via nil observedScopes): a System cert tagged "SYSTEM", and a
+	//    machine cert mislabeled as User scope with an empty username.
+	legacySystem := mkCert("machine-system.example.com", fleet.SystemHostCertificate, "SYSTEM")
+	legacyMislabeled := mkCert("localmachine.example.com", fleet.UserHostCertificate, "")
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{legacySystem, legacyMislabeled},
+		fleet.HostCertificateOriginOsquery, nil))
+	require.ElementsMatch(t, []string{
+		"machine-system.example.com|system|SYSTEM",
+		"localmachine.example.com|user|",
+	}, listKeys())
+
+	// 2. Host upgrades; the corrected ingest reports the SAME certificates
+	//    canonically (both System scope, empty username) with Windows observed
+	//    scopes. Clone the seeded records so SHA-1 and validity dates match.
+	correctedSystem := *legacySystem
+	correctedSystem.Username = ""
+	correctedMachine := *legacyMislabeled
+	correctedMachine.Source = fleet.SystemHostCertificate
+	correctedMachine.Username = ""
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{&correctedSystem, &correctedMachine},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{{Source: fleet.SystemHostCertificate}}))
+
+	// 3. The legacy scope rows are gone; each certificate has exactly one
+	//    canonical System source (no phantom duplicates).
+	require.ElementsMatch(t, []string{
+		"machine-system.example.com|system|",
+		"localmachine.example.com|system|",
 	}, listKeys())
 }
 

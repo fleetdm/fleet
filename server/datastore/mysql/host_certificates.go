@@ -53,18 +53,34 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	// so reconciliation behaves exactly as before. A non-nil slice (the Windows
 	// path) preserves certificates whose scope is not listed, because osquery can
 	// only enumerate a user's certificates while that user is logged in.
+	// canonicalScope folds legacy Windows scope representations onto the corrected
+	// scope before comparison. Pre-#31294 Windows ingestion stored System certs
+	// with username "SYSTEM" and mislabeled machine-wide (LocalMachine) certs as
+	// User scope with an empty username; the corrected scheme uses System scope
+	// with an empty username for both. Without this, on the first run after a host
+	// upgrades, those legacy source rows would look like distinct unobserved
+	// scopes and be preserved forever (phantom duplicate sources) instead of being
+	// reconciled against the observed System scope. A User scope always has a
+	// non-empty username under the corrected scheme, so an empty username
+	// unambiguously marks legacy/machine data.
+	canonicalScope := func(s certSourceToSet) certSourceToSet {
+		if s.Source == fleet.SystemHostCertificate || s.Username == "" {
+			return certSourceToSet{Source: fleet.SystemHostCertificate}
+		}
+		return s
+	}
 	var observedSet map[certSourceToSet]struct{}
 	if observedScopes != nil {
 		observedSet = make(map[certSourceToSet]struct{}, len(observedScopes))
 		for _, s := range observedScopes {
-			observedSet[certSourceToSet{Source: s.Source, Username: s.Username}] = struct{}{}
+			observedSet[canonicalScope(certSourceToSet{Source: s.Source, Username: s.Username})] = struct{}{}
 		}
 	}
 	isObserved := func(s certSourceToSet) bool {
 		if observedScopes == nil {
 			return true
 		}
-		_, ok := observedSet[s]
+		_, ok := observedSet[canonicalScope(s)]
 		return ok
 	}
 	// desiredSources returns the source set to persist for a certificate: every

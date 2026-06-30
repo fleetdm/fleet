@@ -3659,15 +3659,17 @@ func directIngestHostCertificatesWindows(
 			continue
 		}
 
-		// Classify scope from the registry hive (sid), not the owner name. Only a
-		// real interactive account's hive SID is `S-1-5-21-*`; everything else (the
-		// machine-wide LocalMachine store, which reports an empty sid, and built-in
-		// service accounts such as `S-1-5-18` SYSTEM) is System scope with no owner.
-		// The old `username == "SYSTEM"` heuristic mislabeled LocalMachine certs
-		// (blank username) as user certs.
+		// Classify scope from the registry hive (sid), not the owner name. A real
+		// interactive account's hive SID is `S-1-5-21-*` (local or Active Directory
+		// accounts) or `S-1-12-1-*` (Microsoft Entra ID / Azure AD accounts on
+		// Entra-joined devices); everything else (the machine-wide LocalMachine
+		// store, which reports an empty sid, and built-in service accounts such as
+		// `S-1-5-18` SYSTEM) is System scope with no owner. The old
+		// `username == "SYSTEM"` heuristic mislabeled LocalMachine certs (blank
+		// username) as user certs.
 		source := fleet.SystemHostCertificate
 		username := ""
-		if strings.HasPrefix(row["sid"], "S-1-5-21-") {
+		if sid := row["sid"]; strings.HasPrefix(sid, "S-1-5-21-") || strings.HasPrefix(sid, "S-1-12-1-") {
 			source = fleet.UserHostCertificate
 			username = row["username"]
 		}
@@ -3701,16 +3703,15 @@ func directIngestHostCertificatesWindows(
 		// one entry per username.
 		key := fmt.Sprintf("%x|%s|%s", csum, source, username)
 		if _, ok := seen[key]; ok {
+			// Don't log user/cert identifiers here: usernames, registry paths, and
+			// subject/issuer values commonly contain PII (e.g. emails). host + source
+			// + sha1 is enough to diagnose a duplicate.
 			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+scope+user",
 				"component", "service",
 				"method", "directIngestHostCertificates",
 				"host_id", host.ID,
 				"source", source,
-				"username", username,
-				"sha1", fmt.Sprintf("%x", csum),
-				"issuer", cert.IssuerCommonName,
-				"subject", cert.SubjectCommonName,
-				"path", row["path"])
+				"sha1", fmt.Sprintf("%x", csum))
 			continue
 		}
 		seen[key] = struct{}{}

@@ -3053,6 +3053,9 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	const (
 		userSID    = "S-1-5-21-1043593016-4249271388-1765263865-1000"
 		secondUSID = "S-1-5-21-1043593016-4249271388-1765263865-1500"
+		// Microsoft Entra ID (Azure AD) accounts on Entra-joined devices use the
+		// S-1-12-1 SID prefix rather than S-1-5-21.
+		entraSID = "S-1-12-1-1234567890-1234567890-1234567890-1234567890"
 	)
 
 	// Common fields shared by every example row (osquery 5.23.1+ shapes, with the
@@ -3077,6 +3080,7 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 		machineSHA1 = "AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555"
 		sysAcctSHA1 = "1111AAAA2222BBBB3333CCCC4444DDDD5555EEEE"
 		userSHA1    = "EE5E756CC1A0782078C7C45180A4544A37D0F6D7"
+		entraSHA1   = "FACE1234FACE1234FACE1234FACE1234FACE1234"
 	)
 
 	// Machine-wide LocalMachine store: empty sid and empty username. The old
@@ -3137,11 +3141,25 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	userBob["sid"] = secondUSID
 	userBob["path"] = "Users\\" + secondUSID + "\\Personal"
 
+	// An Entra ID (Azure AD) user, whose hive SID uses the S-1-12-1 prefix, must
+	// also be classified as User scope with the owner preserved.
+	entraUser := row(map[string]string{
+		"common_name":    "entra@example.com",
+		"subject2":       "CN=entra@example.com, O=Example",
+		"issuer2":        "CN=SCEP CA, C=US",
+		"sha1":           entraSHA1,
+		"username":       "AzureAD\\entrauser",
+		"sid":            entraSID,
+		"store_location": "Users",
+		"path":           "Users\\" + entraSID + "\\Personal",
+	})
+
 	rows := []map[string]string{
 		machine,
 		sysAcctCurrentUser, sysAcctServices, sysAcctUsersHive,
 		userAdmin, userAdminClasses,
 		userBob,
+		entraUser,
 	}
 
 	type scopeKey struct {
@@ -3155,14 +3173,15 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 		require.Equal(t, host.UUID, hostUUID)
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 
-		// 7 rows collapse to 4 distinct (SHA1, scope, username) entries.
-		require.Len(t, certs, 4)
+		// 8 rows collapse to 5 distinct (SHA1, scope, username) entries.
+		require.Len(t, certs, 5)
 
 		expected := map[scopeKey]bool{
-			{machineSHA1, fleet.SystemHostCertificate, ""}: true,
-			{sysAcctSHA1, fleet.SystemHostCertificate, ""}: true,
-			{userSHA1, fleet.UserHostCertificate, "Admin"}: true,
-			{userSHA1, fleet.UserHostCertificate, "Bob"}:   true,
+			{machineSHA1, fleet.SystemHostCertificate, ""}:               true,
+			{sysAcctSHA1, fleet.SystemHostCertificate, ""}:               true,
+			{userSHA1, fleet.UserHostCertificate, "Admin"}:               true,
+			{userSHA1, fleet.UserHostCertificate, "Bob"}:                 true,
+			{entraSHA1, fleet.UserHostCertificate, "AzureAD\\entrauser"}: true,
 		}
 		seen := map[scopeKey]bool{}
 		for _, cert := range certs {
@@ -3201,6 +3220,7 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 			{Source: fleet.SystemHostCertificate},
 			{Source: fleet.UserHostCertificate, Username: "Admin"},
 			{Source: fleet.UserHostCertificate, Username: "Bob"},
+			{Source: fleet.UserHostCertificate, Username: "AzureAD\\entrauser"},
 		}, observedScopes)
 
 		return nil
