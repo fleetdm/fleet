@@ -1751,6 +1751,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "6.6.10-1-ARCH",
 			},
 		},
+		{
+			// CachyOS is an Arch-based rolling-release distribution. It reports a
+			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
+			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "CachyOS Linux",
+					"version":        "20260628.0.549485",
+					"major":          "20260628",
+					"minor":          "0",
+					"patch":          "549485",
+					"build":          "rolling",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-2-cachyos",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-2-cachyos",
+			},
+		},
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
