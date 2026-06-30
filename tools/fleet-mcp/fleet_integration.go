@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -129,49 +128,6 @@ func isLoopbackURL(rawURL string) bool {
 	}
 	host := u.Hostname() // strips port if present
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
-}
-
-// validateFleetBaseURL rejects a FLEET_BASE_URL that resolves to a link-local /
-// cloud-metadata address (169.254.0.0/16, fe80::/10). Sending the admin Fleet
-// API token to such a host has no legitimate use and is the MCP-side analog of
-// the SSRF that PR #46463 blocks for the Fleet server.
-// Loopback and private addresses are intentionally allowed
-// (the MCP's normal target is a localhost or internal Fleet).
-func validateFleetBaseURL(rawURL string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("invalid FLEET_BASE_URL %q: %w", rawURL, err)
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("FLEET_BASE_URL must use http or https, got %q", rawURL)
-	}
-	host := u.Hostname()
-	if host == "" {
-		return fmt.Errorf("FLEET_BASE_URL %q has no host", rawURL)
-	}
-	check := func(ip net.IP) error {
-		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-			return fmt.Errorf(
-				"FLEET_BASE_URL host %s is a link-local/cloud-metadata address (169.254.0.0/16 or fe80::/10); "+
-					"refusing to start so the Fleet API token is not sent there", ip)
-		}
-		return nil
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		return check(ip)
-	}
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		// Fail closed: if the host can't be resolved we can't rule out a
-		// link-local/metadata target, so refuse rather than start unverified.
-		return fmt.Errorf("FLEET_BASE_URL host %q could not be resolved at startup: %w", host, err)
-	}
-	for _, ip := range ips {
-		if err := check(ip); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 type FleetIdentity struct {

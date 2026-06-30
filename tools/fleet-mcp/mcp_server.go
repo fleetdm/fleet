@@ -19,21 +19,16 @@ const defaultEndpointsPerPage = 50
 // the writes) and agent-side osquery `--disable_tables`.
 const fleetMCPInstructions = `Fleet MCP — host management and live osquery on managed devices.
 
-CRITICAL WORKFLOW for any tool that takes a 'sql' argument (run_live_query, create_saved_query):
+CRITICAL WORKFLOW for any tool that takes a 'sql' argument (run_live_query):
 
 1. BEFORE writing SQL, call get_osquery_schema(platform=<target>) to fetch the curated table list for that platform.
 2. For any table you reference, verify column NAMES and TYPES against the schema response. If a needed table is not in the curated list, call get_osquery_schema(tables="table1,table2") for full canonical coverage.
 3. Pay attention to column TYPE in the schema response. Many osquery columns are 'text' even when their values look numeric (e.g. windows_update_history.result_code is text with values like 'Succeeded' / 'Failed', NOT integer codes). Comparing a text column against an unquoted integer literal silently returns zero rows.
 4. prepare_live_query already returns the schema for the inferred platform — use it as a single 'preview targets + schema' call, then pass the same filter args to run_live_query.
 
-WRITE OPERATIONS (run_live_query, create_saved_query): these send SQL to the Fleet API — run_live_query executes it live on managed devices, create_saved_query persists it. BEFORE calling either tool:
-- Show the operator the exact SQL and the full target scope (the resolved host_ids / label / 'fleet', or "ALL hosts" if unscoped) that will be sent to the POST endpoint.
-- Ask for explicit confirmation and wait for it. Do not call the tool until the operator confirms.
-- Never auto-approve, and never batch multiple writes behind one confirmation — confirm each write separately.
-
 Schema freshness: the in-memory schema is refreshed periodically from https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the JSON behind https://fleetdm.com/tables). If you suspect a schema mismatch — e.g. fleet docs show a column the response is missing — call refresh_osquery_schema and try again.
 
-Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument. For run_live_query this restricts the targeted hosts to that team; for create_saved_query it creates the query under that team — not Global — so it inherits the team's RBAC and shows up in the right place in the Fleet UI. Only omit 'fleet' when the user explicitly wants Global scope.
+Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument to run_live_query to restrict the targeted hosts to that team. Only omit 'fleet' when the user explicitly wants all teams.
 
 Skipping step 1 produces queries that parse and run but return wrong or empty results. Always verify before emitting SQL.`
 

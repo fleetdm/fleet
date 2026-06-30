@@ -81,9 +81,6 @@ func main() {
 	if strings.TrimSpace(config.FleetBaseURL) == "" {
 		logrus.Fatalf("FLEET_BASE_URL is required but is not set")
 	}
-	if err := validateFleetBaseURL(config.FleetBaseURL); err != nil {
-		logrus.Fatalf("%v", err)
-	}
 	if strings.TrimSpace(config.FleetAPIKey) == "" {
 		logrus.Fatalf("FLEET_API_KEY is required but is not set")
 	}

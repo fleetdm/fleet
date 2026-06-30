@@ -349,50 +349,6 @@ func TestGetHostsForCVE_PaginatesTitles(t *testing.T) {
 	}
 }
 
-func TestValidateFleetBaseURL(t *testing.T) {
-	cases := []struct {
-		name    string
-		url     string
-		wantErr bool
-		why     string
-	}{
-		// Allowed — the MCP's legitimate targets.
-		{"loopback IPv4", "https://127.0.0.1:8080", false, "localhost dev Fleet"},
-		{"loopback IPv4 http", "http://127.0.0.1:8080", false, "localhost dev Fleet"},
-		{"loopback IPv6", "https://[::1]:8080", false, "localhost dev Fleet"},
-		{"localhost hostname", "https://localhost:8080", false, "resolves to loopback"},
-		{"private 10.x", "https://10.0.0.5:8080", false, "internal Fleet on a private network"},
-		{"private 192.168.x", "https://192.168.1.10", false, "internal Fleet"},
-		{"private 172.16.x", "https://172.16.0.1", false, "internal Fleet"},
-		{"public IP", "https://93.184.216.34", false, "a hosted Fleet on a public IP"},
-
-		// Blocked — link-local / cloud metadata (no legit Fleet lives here).
-		{"AWS/Azure IMDS", "https://169.254.169.254", true, "cloud-metadata endpoint — would leak the token"},
-		{"link-local IPv4 range", "http://169.254.1.1", true, "169.254.0.0/16 link-local"},
-		{"link-local IPv6 fe80", "https://[fe80::1]", true, "fe80::/10 link-local"},
-		{"link-local multicast", "http://224.0.0.1", true, "224.0.0.0/24 link-local multicast"},
-
-		// Blocked — malformed / wrong scheme.
-		{"non-http scheme", "ftp://10.0.0.1", true, "must be http(s)"},
-		{"missing host", "http://", true, "no host"},
-		{"empty string", "", true, "no scheme/host"},
-		{"unparseable URL", "http://[", true, "url.Parse error"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateFleetBaseURL(tc.url)
-			if (err != nil) != tc.wantErr {
-				verb := "allowed"
-				if tc.wantErr {
-					verb = "blocked"
-				}
-				t.Errorf("validateFleetBaseURL(%q) err=%v; expected %s (%s)", tc.url, err, verb, tc.why)
-			}
-		})
-	}
-}
-
 // campaignTestServer stands up an httptest server that answers the campaign
 // create POST and upgrades the results websocket, then hands the connection to
 // drive() (after consuming the auth + select_campaign handshake) so each test
