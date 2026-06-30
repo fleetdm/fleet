@@ -1,0 +1,10 @@
+{
+  "name": "squash",
+  "unique_identifier": "com.realmacsoftware.squash3",
+  "token": "squash",
+  "installer_format": "zip",
+  "slug": "squash/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

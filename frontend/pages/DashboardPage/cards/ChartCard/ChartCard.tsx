@@ -5,10 +5,11 @@ import { SingleValue } from "react-select-5";
 
 import chartsAPI, {
   IChartResponse,
-  IChartRequestParams,
+  IChartApiParams,
   IChartQueryKey,
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import stringUtils from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -25,11 +26,18 @@ import {
   DATASET_CONFIG_KEY,
   DATASET_LABEL,
   HistoricalDataConfigKey,
+  CVE_SOFTWARE_CATEGORIES,
+  ALL_CVE_SOFTWARE_CATEGORY_VALUES,
+  IVulnExposureFilterDefaults,
 } from "interfaces/charts";
 
 import { AppContext } from "context/app";
 
-import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
+import ChartFilterModal, {
+  IChartFilterState,
+  ChartFilterTab,
+} from "./ChartFilterModal";
+import { isEpssActive } from "./ChartFilterModal/SoftwareFilters/helpers";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
 import DataCollectionDisabledState from "./DataCollectionDisabledState";
@@ -40,7 +48,63 @@ const baseClass = "chart-card";
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
 
-const hasActiveFilters = (filters: IChartFilterState): boolean => {
+// Mobile platforms (iOS, iPadOS, Android) are excluded from the chart by
+// default by seeding the platform filter with only the non-mobile platforms.
+// This is intentionally hard-coded to this chart for now rather than a general
+// per-chart "default filters" config. Because the platform filter is
+// inclusion-based, a non-empty default both excludes mobile and makes the
+// "Filtered" badge appear on load. Users can opt mobile back in via the filter.
+const DEFAULT_CHART_PLATFORMS = ["darwin", "windows", "linux", "chrome"];
+
+const DEFAULT_CHART_FILTERS: IChartFilterState = {
+  labelIDs: [],
+  platforms: DEFAULT_CHART_PLATFORMS,
+  hostFilterMode: "none",
+  selectedHosts: [],
+  softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
+  knownExploit: false,
+  epssMin: "",
+  epssMax: "",
+  excludeCVEs: [],
+};
+
+// Seed the chart's initial filter state from the persisted, GitOps-managed
+// defaults. Sparse/per-field: an undefined field falls back to the built-in
+// DEFAULT_CHART_FILTERS value, while a present field (including an explicit
+// empty software_filters list, meaning "no categories") is respected. EPSS
+// bounds are numbers (0–100) in the config and strings in the filter state.
+// cvss_min/cvss_max are intentionally NOT wired — there is no severity control
+// yet (#47326).
+export const buildInitialChartFilters = (
+  defaults?: IVulnExposureFilterDefaults
+): IChartFilterState => {
+  if (!defaults) return DEFAULT_CHART_FILTERS;
+  return {
+    ...DEFAULT_CHART_FILTERS,
+    softwareFilters:
+      defaults.software_filters !== undefined
+        ? [...defaults.software_filters]
+        : DEFAULT_CHART_FILTERS.softwareFilters,
+    knownExploit:
+      defaults.has_known_exploit !== undefined
+        ? defaults.has_known_exploit
+        : DEFAULT_CHART_FILTERS.knownExploit,
+    epssMin:
+      defaults.epss_min !== undefined
+        ? String(defaults.epss_min)
+        : DEFAULT_CHART_FILTERS.epssMin,
+    epssMax:
+      defaults.epss_max !== undefined
+        ? String(defaults.epss_max)
+        : DEFAULT_CHART_FILTERS.epssMax,
+    excludeCVEs:
+      defaults.exclude_vulnerabilities !== undefined
+        ? [...defaults.exclude_vulnerabilities]
+        : DEFAULT_CHART_FILTERS.excludeCVEs,
+  };
+};
+
+const hasActiveHostFilters = (filters: IChartFilterState): boolean => {
   const hasHostFilter =
     filters.hostFilterMode !== "none" && filters.selectedHosts.length > 0;
   return (
@@ -48,23 +112,126 @@ const hasActiveFilters = (filters: IChartFilterState): boolean => {
   );
 };
 
+const hasActiveSoftwareFilters = (filters: IChartFilterState): boolean =>
+  filters.softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
+  filters.knownExploit ||
+  isEpssActive(filters.epssMin, filters.epssMax) ||
+  filters.excludeCVEs.length > 0;
+
+// Human-readable "a, b, and c".
+const formatList = (items: string[]): string => {
+  items = items.map(stringUtils.capitalize);
+  if (items.length <= 1) return items.join("");
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+};
+
+// Maps platform filter values to their display names for the tooltip.
+const PLATFORM_LABELS: Record<string, string> = {
+  darwin: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+  chrome: "ChromeOS",
+};
+
+const hostFilterLines = (filters: IChartFilterState): string[] => {
+  const lines: string[] = [];
+  if (filters.platforms.length > 0) {
+    lines.push(
+      formatList(filters.platforms.map((p) => PLATFORM_LABELS[p] ?? p))
+    );
+  }
+  if (filters.labelIDs.length > 0) lines.push("Labels");
+  if (
+    filters.hostFilterMode === "include" &&
+    filters.selectedHosts.length > 0
+  ) {
+    lines.push("Specific hosts");
+  }
+  if (
+    filters.hostFilterMode === "exclude" &&
+    filters.selectedHosts.length > 0
+  ) {
+    lines.push("Excluded hosts");
+  }
+  return lines;
+};
+
+const softwareFilterLines = (filters: IChartFilterState): string[] => {
+  const lines: string[] = [];
+  // Only surface category text when the user has actually narrowed the
+  // selection — all categories are selected by default, so an unnarrowed
+  // selection isn't an active filter and shouldn't show a Software section.
+  const categoriesNarrowed =
+    filters.softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length;
+  const cats = CVE_SOFTWARE_CATEGORIES.filter((c) =>
+    filters.softwareFilters.includes(c.value)
+  ).map((c) => c.tooltipLabel);
+  if (categoriesNarrowed) {
+    lines.push(cats.length ? formatList(cats) : "No software categories");
+  }
+  if (filters.knownExploit) lines.push("Known exploits only");
+  if (
+    isEpssActive(filters.epssMin, filters.epssMax) ||
+    filters.excludeCVEs.length > 0
+  ) {
+    lines.push("Advanced filters");
+  }
+  return lines;
+};
+
+// A single consolidated tooltip summarizing every active filter, grouped into
+// "Hosts" and "Software" sections. Each section is omitted when it has no
+// active filters; software filters only apply to the cve dataset.
+const filterTooltip = (
+  filters: IChartFilterState,
+  isCVE: boolean
+): JSX.Element => {
+  const hostLines = hostFilterLines(filters);
+  const softwareLines = isCVE ? softwareFilterLines(filters) : [];
+  const renderSection = (header: string, lines: string[]) =>
+    lines.length > 0 ? (
+      <div className={`${baseClass}__tooltip-section`}>
+        <div className={`${baseClass}__tooltip-section-header`}>{header}</div>
+        {lines.map((line) => (
+          <div key={line} className={`${baseClass}__tooltip-section-line`}>
+            {line}
+          </div>
+        ))}
+      </div>
+    ) : null;
+  return (
+    <>
+      {renderSection("Hosts", hostLines)}
+      {renderSection("Software", softwareLines)}
+    </>
+  );
+};
+
 interface IChartCardProps {
   currentTeamId?: number;
   historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
+  // GitOps-managed default filter state for the current scope (org or fleet).
+  // Seeds the chart's filter controls on load; UI edits are not persisted.
+  filterDefaults?: IVulnExposureFilterDefaults;
 }
 
 const ChartCard = ({
   currentTeamId,
   historicalDataEnabled,
+  filterDefaults,
 }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [chartFilters, setChartFilters] = useState<IChartFilterState>({
-    labelIDs: [],
-    platforms: [],
-    hostFilterMode: "none",
-    selectedHosts: [],
-  });
+  const [initialTab, setInitialTab] = useState<ChartFilterTab>("hosts");
+  const [chartFilters, setChartFilters] = useState<IChartFilterState>(() =>
+    buildInitialChartFilters(filterDefaults)
+  );
+
+  const openFilterModal = (tab: ChartFilterTab = "hosts") => {
+    setInitialTab(tab);
+    setShowFilterModal(true);
+  };
 
   const { isPremiumTier } = useContext(AppContext);
 
@@ -79,7 +246,9 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          Currently, only macOS, Windows, Linux, and ChromeOS are supported.
+          iOS, iPadOS, and Android hosts are excluded by default; include them
+          in the filter settings. Locked iOS and iPadOS hosts count as online as
+          long as they have power and an internet connection.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -98,22 +267,15 @@ const ChartCard = ({
       defaultChartType: "checkerboard",
       description: (
         <>
-          The number of hosts with critical vulnerabilities detected in browsers
-          and{" "}
-          <CustomLink
-            newTab
-            text="other common software "
-            variant="tooltip-link"
-            url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
-          />
+          All critical vulnerabilities.
           <br />
           <br />
-          Want more control? Comprehensive vulnerability filtering is{" "}
+          Want more control? Severity (CVSS) filter is{" "}
           <CustomLink
             newTab
             text="coming soon "
             variant="tooltip-link"
-            url="https://github.com/fleetdm/fleet/issues/44746"
+            url="https://github.com/fleetdm/fleet/issues/47326"
           />
         </>
       ),
@@ -131,16 +293,19 @@ const ChartCard = ({
 
   // Labels and selected hosts are team-scoped, so clear filters when the
   // active fleet changes to avoid submitting stale IDs under the new scope.
+  // Re-seed from the persisted defaults when the scope changes (fleet switch)
+  // or once the config/fleet data finishes loading. This also discards any
+  // ephemeral UI edits, matching the "UI edits are not saved" behavior.
   useEffect(() => {
-    setChartFilters({
-      labelIDs: [],
-      platforms: [],
-      hostFilterMode: "none",
-      selectedHosts: [],
-    });
-  }, [currentTeamId]);
+    setChartFilters(buildInitialChartFilters(filterDefaults));
+  }, [currentTeamId, filterDefaults]);
 
   const currentDataset = getDataset(selectedMetric);
+
+  const isCVE = currentDataset.name === "cve";
+  const hostFiltersActive = hasActiveHostFilters(chartFilters);
+  const softwareFiltersActive = isCVE && hasActiveSoftwareFilters(chartFilters);
+  const anyFiltersActive = hostFiltersActive || softwareFiltersActive;
 
   const datasetConfigKey = DATASET_CONFIG_KEY[currentDataset.name];
   // If a dataset has no config-key mapping (future addition), treat it as
@@ -150,7 +315,21 @@ const ChartCard = ({
       ? true
       : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
-  const queryParams: IChartRequestParams = useMemo(() => {
+  const queryParams: IChartApiParams = useMemo(() => {
+    // Only narrow categories when not all are selected; EPSS only narrows when
+    // min > 0 or max < 100. The Software tab enters EPSS as 0–100 %, but the
+    // API takes 0.0–1.0, so divide before sending.
+    const narrowsCategories =
+      isCVE &&
+      chartFilters.softwareFilters.length !==
+        ALL_CVE_SOFTWARE_CATEGORY_VALUES.length;
+    const epssMinActive =
+      isCVE && chartFilters.epssMin !== "" && Number(chartFilters.epssMin) > 0;
+    const epssMaxActive =
+      isCVE &&
+      chartFilters.epssMax !== "" &&
+      Number(chartFilters.epssMax) < 100;
+
     return {
       // Add an extra day to ensure we get the full # of calendar days
       // represented in the chart, regardless of timezone.
@@ -173,8 +352,18 @@ const ChartCard = ({
         chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
+      software_filters: narrowsCategories
+        ? chartFilters.softwareFilters.join(",")
+        : undefined,
+      has_known_exploit: isCVE && chartFilters.knownExploit ? true : undefined,
+      epss_min: epssMinActive ? Number(chartFilters.epssMin) / 100 : undefined,
+      epss_max: epssMaxActive ? Number(chartFilters.epssMax) / 100 : undefined,
+      exclude_vulnerabilities:
+        isCVE && chartFilters.excludeCVEs.length
+          ? chartFilters.excludeCVEs.join(",")
+          : undefined,
     };
-  }, [chartFilters, currentTeamId]);
+  }, [chartFilters, currentTeamId, isCVE]);
 
   const { data: chartData, isLoading, error } = useQuery<
     IChartResponse,
@@ -280,8 +469,24 @@ const ChartCard = ({
               <Icon name="info-outline" />
             </TooltipWrapper>
           )}
-          {hasActiveFilters(chartFilters) && (
-            <span className={`${baseClass}__filtered-badge`}>Filtered</span>
+          {anyFiltersActive && (
+            <TooltipWrapper
+              tipContent={filterTooltip(chartFilters, isCVE)}
+              position="top"
+              underline={false}
+              showArrow
+              tipOffset={8}
+            >
+              <button
+                type="button"
+                className={`${baseClass}__filter-pill`}
+                onClick={() =>
+                  openFilterModal(hostFiltersActive ? "hosts" : "software")
+                }
+              >
+                Filtered
+              </button>
+            </TooltipWrapper>
           )}
         </div>
         <div className={`${baseClass}__header-right`}>
@@ -290,7 +495,7 @@ const ChartCard = ({
             variant="inverse"
             className={`${baseClass}__settings-btn`}
             ariaLabel="Configure chart filters"
-            onClick={() => setShowFilterModal(true)}
+            onClick={() => openFilterModal()}
           >
             <Icon name="settings" />
           </Button>
@@ -301,6 +506,8 @@ const ChartCard = ({
         <ChartFilterModal
           filters={chartFilters}
           currentTeamId={currentTeamId}
+          metric={selectedMetric}
+          initialTab={initialTab}
           onApply={(newFilters) => {
             setChartFilters(newFilters);
             setShowFilterModal(false);

@@ -1,0 +1,10 @@
+{
+  "name": "SQLPro Studio",
+  "unique_identifier": "com.hankinsoft.osx.sqlprostudio",
+  "token": "sqlpro-studio",
+  "installer_format": "zip",
+  "slug": "sqlpro-studio/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

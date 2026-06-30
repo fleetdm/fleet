@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2026.1.1.10",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC' AND version_compare(version, '2026.1.1.10') < 0);"
+      },
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.1.1.10/android-studio-quail1-patch2-windows.exe",
+      "install_script_ref": "36676cba",
+      "uninstall_script_ref": "c48a6948",
+      "sha256": "7c515f28619d90938bacef9562625719a5c1a206a01b8eaab99d9228c53330a0",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "36676cba": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n$ExpectedExitCodes = @(0, 1223)\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "c48a6948": "$displayNameLike = \"Android Studio*\"\n$publisher = \"Google\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$ExpectedExitCodes = @(0, 1223)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"studio64\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n} else {\n    $uninstall.UninstallString\n}\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nif ($existingArgs -notmatch '\\b/S\\b') {\n    $existingArgs = (\"$existingArgs /S\").Trim()\n}\n# Run the uninstaller synchronously from its install dir so /S applies and the\n# script waits for completion. InstallLocation is the app dir; the uninstaller\n# (uninstall.exe) sits there too.\nif ($uninstall.InstallLocation -and ($existingArgs -notmatch '_\\?=')) {\n    $installDir = $uninstall.InstallLocation.TrimEnd('\\')\n    $existingArgs = (\"$existingArgs _?=`\"$installDir`\"\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

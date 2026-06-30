@@ -2,230 +2,383 @@
   <div purpose="page-container">
     <div purpose="page-content">
       <div purpose="page-hero">
-        <h4>Software management</h4>
-        <h1>Patch faster. Stay compliant.</h1>
-        <p purpose="hero-text">Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
+        <div>
+          <h4>Software management</h4>
+          <h1>Patch faster on any OS</h1>
+        </div>
+        <p purpose="hero-text">
+          Deploy software from a built-in catalog or upload your own packages. Fleet checks every device continuously and installs updates automatically.
+        </p>
         <div purpose="button-row" class="d-flex justify-content-start">
-          <a class="btn btn-primary mr-0" purpose="contact-button" href="/contact">Get a demo</a>
-          <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
-        </div>
-      </div>
-      <div purpose="hero-slides">
-        <div id="heroCarousel" class="carousel slide d-flex flex-column" data-ride="carousel">
-          <div purpose="carousel-headings" class="carousel-indicators d-flex flex-md-row flex-column order-md-1 order-3">
-            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="0" class="active">
-              <h5>Built-in, zero-touch installs</h5>
-              <p>Install software and run scripts during setup without the need for third-party tools.</p>
-              <p><a href="/device-management" @click="goto('/device-management')">More about device management</a></p>
-            </div>
-            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="1">
-              <h5>Automate patch management</h5>
-              <p>Enforce updates and trigger automations to run scripts or install software.</p>
-            </div>
-            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="2">
-              <h5>Self-service on any OS</h5>
-              <p>Enable end users on every operating system and reduce IT burden with pre-approved software.</p>
-            </div>
-          </div>
-          <ol purpose="carousel-indicators" class="carousel-indicators order-2">
-            <li data-target="#heroCarousel" data-slide-to="0" class="active"></li>
-            <li data-target="#heroCarousel" data-slide-to="1"></li>
-            <li data-target="#heroCarousel" data-slide-to="2"></li>
-          </ol>
-          <div class="carousel-inner order-1 order-md-3">
-            <div class="carousel-item active">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-1-1072x480-@2x.png" alt="First slide">
-            </div>
-            <div class="carousel-item">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-3-2144x960@2x.png" alt="Second slide">
-            </div>
-            <div class="carousel-item">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-2-2144x960@2x.png" alt="Third slide">
-            </div>
-          </div>
-        </div>
-      </div><%// End of [purpose="hero-slides"]%>
-
-      <div purpose="logo-row">
-        <logo-carousel></logo-carousel>
-      </div>
-      <div purpose="it-testimonial" class="d-flex flex-column justify-content-center align-items-center">
-        <img alt="Flock Safety logo" purpose="testimonial-logo" src="/images/logo-flock-safety-907x132@2x.png">
-        <p purpose="testimonial-text">
-          This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
-        </p>
-        <div purpose="testimonial-attribution">
-          <img alt="Eric Tan" purpose="testimonial-author-image" src="/images/testimonial-author-eric-tan-99x99@2x.png">
-          <p purpose="name">Eric Tan</p>
-          <p purpose="job-title">CIO & Chief Security Officer at Flock Safety</p>
-        </div>
-      </div>
-      
-      <div purpose="feature-with-image">
-        <div purpose="feature-image">
-          <img alt="Deploy software your own way" src="/images/feature-image-fleet-maintained-software-1056x754@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <h3>Deploy software your own way</h3>
-          <p>Deploy software from any source using the method that works best for you—whether it's through the UI, API, or GitOps.</p>
-          <div purpose="checklist">
-            <p>Install from a built-in catalog of Fleet-maintained apps without the need for additional configuration.</p>
-            <p>Upload any third-party software as a custom package to deploy all of the tools your end users need.</p>
-            <p>Manage app deployments and updates for your computers and mobile devices from app stores.</p>
-          </div>
+          <a purpose="cta-button" href="/contact">Get a demo</a>
+          <animated-arrow-button href="/pricing">Compare features</animated-arrow-button>
         </div>
       </div>
 
-      <div purpose="feature-with-image" class="reverse">
-        <div purpose="feature-image">
-          <img alt="Automate patch management" src="/images/feature-image-automate-patch-management-1056x754@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <h3>Automate patch management</h3>
-          <p>Fleet’s policy engine continuously evaluates every managed device using osquery - installed software versions, configuration state, and system metrics. When a device falls out of compliance, Fleet automatically installs the correct software. No ticket. No manual intervention.</p>
-          <div purpose="checklist">
-            <p>Policies run every hour across all online devices, shrinking vulnerability exposure windows from weeks to hours.</p>
-            <p>Stage rollouts across deployment rings using real device telemetry. Advance rings based on actual stability data, not help-desk silence.</p>
-            <p>Configure exclusions, scoping, and custom intervals for complex environments.</p>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="feature-with-image">
-        <div purpose="feature-image">
-          <img alt="The right software at the right moment" src="/images/feature-image-self-service-1056x754@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <h3>The right software at the right moment</h3>
-          <p>Use self-service to keep employees productive and secure with software curated to their needs.</p>
-          <div purpose="checklist">
-            <p>Install organization-approved software for macOS, Windows, and Linux.</p>
-            <p>Quickly deliver software for teams of any size, tailored to small groups or the entire organization.</p>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="testimonial" class="d-flex flex-column justify-content-center align-items-center">
-        <img alt="Rivian logo" purpose="testimonial-logo" src="/images/social-proof-rivian-107x24@2x.png">
-        <p purpose="testimonial-text">
-          Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced.
-        </p>
-        <div purpose="testimonial-attribution">
-          <img alt="Andre Shields" purpose="testimonial-author-image" src="/images/testimonial-author-andre-shields-48x48@2x.png">
-          <p purpose="name">Andre Shields</p>
-          <p purpose="job-title">Cybersecurity Security Engineer, Vulnerability Management</p>
-        </div>
-      </div>
-      <% if(typeof primaryBuyingSituation === 'undefined' || !['it-misc', 'it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation)) { %>
-        <div purpose="feature-slides">
-          <div purpose="feature-switch" class="d-flex flex-md-row flex-column justify-content-md-center justify-content-start">
-            <div purpose="feature-option" :class="[visibleFeature === 'mitigate-cves-automatically' ? 'active' : '']"  @click="clickSwitchFeature('mitigate-cves-automatically')">
-              Mitigate CVEs automatically
-            </div>
-            <div purpose="feature-option" :class="[visibleFeature === 'on-demand-data' ? 'active' : '']" @click="clickSwitchFeature('on-demand-data')">
-              On-demand data
-            </div>
-            <div purpose="feature-option" :class="[visibleFeature === 'out-of-the-box-reporting' ? 'active' : '']" @click="clickSwitchFeature('out-of-the-box-reporting')">
-              Out-of-the-box reporting
-            </div>
-          </div>
-          <div purpose="feature-slide" :class="[visibleFeature === 'mitigate-cves-automatically' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
-            <div purpose="feature-image">
-              <img alt="Mitigate CVEs automatically" src="/images/software-management-feature-slide-mitigate-cves-automatically-528x377@2x.png">
-            </div>
-            <div purpose="feature-text" class="d-flex flex-column">
-              <h3>Mitigate CVEs automatically</h3>
-              <p>When a vulnerability is disclosed, Fleet already knows which devices are exposed. Automatically update or remove vulnerable software and run custom scripts - before a ticket is ever created.</p>
-              <div purpose="checklist" class="flex-column d-flex">
-                <p>Automatically detect when old vulnerabilities are reintroduced, or mitigations falter.</p>
-                <p>Track and mitigate zero days, with live queries and policies, even before they're officially published as CVEs.</p>
-                <p>Only create tickets for vulnerabilities that affect your environment. Automate ticketing with Jira, ServiceNow, or integrate your own system.</p>
-                <p>Deep-link live data with internal IT and platform teams.</p>
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-slide" :class="[visibleFeature === 'on-demand-data' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
-            <div purpose="feature-image">
-              <img alt="Ground-truth data from every device" src="/images/software-management-feature-slide-on-demand-data-528x377@2x.png">
-            </div>
-            <div purpose="feature-text" class="d-flex flex-column">
-              <h3>Ground-truth data from every device</h3>
-              <p>Fleet gives you data down to the chip level on every endpoint to help you make sense of which vulnerabilities to prioritize.</p>
-              <div purpose="checklist" class="flex-column d-flex">
-                <p>Automate prioritization with an admin-level agent that has visibility down to the chipset of any endpoint</p>
-                <p>Access over 300 tables of system state data. Use presets or create your own queries.</p>
-                <p>Automatically match CVEs to your operating systems, apps, extensions, browser plugins, Python libraries, everything.</p>
-              </div>
-              <div purpose="feature-link">
-                <animated-arrow-button href="/orchestration">Explore orchestration</animated-arrow-button>
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-slide" :class="[visibleFeature === 'out-of-the-box-reporting' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
-            <div purpose="feature-image">
-              <img alt="Report what matters" src="/images/software-management-feature-slide-out-of-the-box-reporting-528x377@2x.png">
-            </div>
-            <div purpose="feature-text" class="d-flex flex-column">
-              <h3>Report what matters</h3>
-              <p>See which devices have out-of-date software, which vulnerabilities they're exposed to, and exactly how long they've been at risk - down to the hour.</p>
-              <div purpose="checklist" class="flex-column d-flex">
-                <p>Track any “celebrity” CVE across every OS, every cloud, and every device, and show how quickly it was mitigated.</p>
-                <p>Avoid distracting your CISO with bloated reports. Only communicate facts important to your organization's KPIs. Show real-time mitigation progress (%) or sync with your favorite data tool like Microsoft BI.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div purpose="feature-with-image" class="reverse">
-          <div purpose="feature-image">
-            <img alt="Up-to-date data without scans" src="/images/software-management-feature-image-up-to-date-data-without-scans-528x377@2x.png">
-          </div>
-          <div purpose="feature-text">
-            <h3>Up-to-date data without scans</h3>
-            <p>Traditional network vulnerability scans can clog your network and even haunt your printers with pages full of wingdings. Fleet does things differently.</p>
-            <div purpose="checklist">
-              <p>Eliminate the risk of side effects from scanning the network.</p>
-              <p>Lightweight enough for the most brittle environments (OT, data centers, embedded/BTS, low-latency gaming servers).</p>
-              <p>Quickly pull data about important CVEs and zero days during an incident or audit.</p>
-            </div>
-          </div>
-        </div>
+      <div purpose="page-section">
         <div purpose="feature-with-image">
-          <div purpose="feature-image">
-            <img alt="Untangle your security stack" src="/images/software-management-feature-image-untangle-your-security-stack-528x377@2x.png">
-          </div>
           <div purpose="feature-text">
-            <h3>Untangle your security stack</h3>
-            <p>Use open data and APIs to connect your vulnerability solution with osquery, the agent you might already have deployed.</p>
-            <div purpose="checklist">
-              <p>Normalize asset management data and software inventories from multiple tools and operating systems.</p>
-              <p>Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.</p>
-              <p>Process CVEs across cloud and non-cloud assets in a single platform and see who's responsible for what.</p>
+            <h2>Update software in minutes</h2>
+            <p>Fleet's policy engine continuously evaluates every managed device. When an app or OS is outdated, Fleet updates it automatically. No tickets, no manual intervention.</p>
+          </div>
+          <div purpose="feature-image">
+            <img alt="Stop chasing patches" src="/images/feature-image-stop-chasing-patches-800x600@2x.png">
+          </div>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="OS updates" purpose="feature-icon" src="/images/icon-os-updates-20x20@2x.png">
+              <h5>
+                OS updates
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Set minimum OS versions and deadlines for macOS, Windows, iOS, and iPadOS. New devices can update to the latest OS during enrollment.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Automated enforcement" purpose="feature-icon" src="/images/icon-automated-enforcement-20x20@2x.png">
+              <h5>
+                Automated enforcement
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                When an app is outdated, Fleet can install the latest version automatically. Vulnerability windows shrink from weeks to hours.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+
+            <div purpose="feature-title">
+              <img alt="Scoping and exclusions" purpose="feature-icon" src="/images/icon-scoping-and-exclusions-20x20@2x.png">
+              <h5>
+                Scoping and exclusions
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Configure scope by anything, including role, department, geography, and device attributes.
+              </p>
+            </div>
+          </div>
+
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Deployment rings" purpose="feature-icon" src="/images/icon-deployment-rings-20x20@2x.png">
+              <h5>
+                Deployment rings
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Deploy certificates, configurations, and more. Promote to the next ring when you're confident it's stable to automate rollouts.
+              </p>
             </div>
           </div>
         </div>
-      <% } %>
-    </div><%// End of [purpose="page-content"]%>
-  </div><%// End of [purpose="page-container"]%>
-  <div purpose="tweets-container" class="d-flex flex-column justify-content-center">
-    <div purpose="page-container" class="py-0">
-      <div purpose="section-heading" class="mx-auto text-center">
-        <h2 class="mb-3">What people are saying</h2>
       </div>
-    </div>
-    <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
-  </div>
-  <div purpose="page-container" class="py-0">
-    <div purpose="bottom-cta">
-      <h4>Software management</h4>
-      <h2>Patch faster. Stay compliant.</h2>
-      <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
-        <a class="btn btn-primary mr-0" purpose="contact-button" href="/contact">Get a demo</a>
-        <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
+
+      <div purpose="page-section">
+        <div purpose="quote-and-logos">
+          <div purpose="section-quote">
+            <div purpose="quote-author-image">
+              <img alt="Brian LaShomb" src="/images/testimonial-author-brian-lashomb-100x100@2x.png">
+            </div>
+            <div purpose="quote-content">
+            <p purpose="quote-text">"I was surprised at just how quickly a patch policy could be created and deployed.  I didn't have to create the query and I didn't have to source the package, since it was one of Fleet's maintained apps.  Really great work on making this so effortless."</p>
+            <div purpose="quote-author-info">
+              <div purpose="name-and-title">
+                <p purpose="author-name">Brian LaShomb</p>
+                <p purpose="author-title">Senior Client Platform Engineer at Epic Games</p>
+              </div>
+            </div>
+            </div>
+          </div>
+
+          <div purpose="logo-grid" class="d-none d-sm-flex">
+            <div purpose="logo-row">
+              <div purpose="logo" class="fastly">
+                <img alt="Fastly logo" src="/images/logos/logo-fastly-color-70x28@2x.png">
+              </div>
+              <div purpose="logo" class="easygo">
+                <img alt="Easygo logo"  src="/images/logos/logo-easygo-color-100x20@2x.png">
+              </div>
+              <div purpose="logo" class="conductor-one">
+                <img alt="Conductorone logo" src="/images/logos/logo-conductorone-color-118x16@2x.png">
+              </div>
+            </div>
+            <div purpose="logo-row">
+              <div purpose="logo" class="grafana">
+                <img alt="Grafana Labs logo"  src="/images/logos/logo-grafana-labs-color-117x20@2x.png">
+              </div>
+              <div purpose="logo" class="calendly">
+                <img alt="Calendly logo" src="/images/logos/logo-calendly-color-83x20@2x.png">
+              </div>
+              <div purpose="logo" class="mozilla">
+                <img alt="Mozilla logo"  src="/images/logos/logo-mozilla-color-84x20@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="logo-grid" class="d-flex d-sm-none">
+            <div purpose="logo-row">
+              <div purpose="logo" class="fastly">
+                <img alt="Fastly logo" src="/images/logos/logo-fastly-color-70x28@2x.png">
+              </div>
+              <div purpose="logo" class="easygo">
+                <img alt="Easygo logo"  src="/images/logos/logo-easygo-color-100x20@2x.png">
+              </div>
+            </div>
+            <div purpose="logo-row">
+              <div purpose="logo" class="grafana">
+                <img alt="Grafana Labs logo"  src="/images/logos/logo-grafana-labs-color-117x20@2x.png">
+              </div>
+              <div purpose="logo" class="conductor-one">
+                <img alt="Conductorone logo" src="/images/logos/logo-conductorone-color-118x16@2x.png">
+              </div>
+            </div>
+            <div purpose="logo-row">
+              <div purpose="logo" class="calendly">
+                <img alt="Calendly logo" src="/images/logos/logo-calendly-color-83x20@2x.png">
+              </div>
+              <div purpose="logo" class="mozilla">
+                <img alt="Mozilla logo"  src="/images/logos/logo-mozilla-color-84x20@2x.png">
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+
+      <div purpose="page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h2>
+              Deploy software your own way
+            </h2>
+            <p>
+              Deploy software to macOS, Windows, and Linux devices through the UI, API, or <a href="/infrastructure-as-code">GitOps</a>. Choose the method that fits your team and the source that fits your needs.
+            </p>
+          </div>
+          <div purpose="feature-image">
+            <img alt="Deploy software your own way" src="/images/mdm-software-management-800x600@2x.png">
+          </div>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Fleet-maintained apps" purpose="feature-icon" src="/images/icon-fleet-maintained-apps-20x20@2x.png">
+              <h5>
+                Fleet-maintained apps
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Install <a href="/software-catalog">common software</a> with no extra configuration. Fleet handles packaging, versioning, and updates across macOS and Windows.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Custom packages" purpose="feature-icon" src="/images/icon-custom-packages-20x20@2x.png">
+              <h5>
+                Custom packages
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Upload your own packages across every OS. Deploy anything your team needs.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+
+            <div purpose="feature-title">
+              <img alt="App store management" purpose="feature-icon" src="/images/icon-app-store-management-20x20@2x.png">
+              <h5>
+                App store management
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Manage app deployments and updates for macOS, iOS, and Android devices through Apple Business, VPP, and Google Play.
+              </p>
+            </div>
+          </div>
+
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Clear diagnostics" purpose="feature-icon" src="/images/icon-clear-diagnostics-20x20@2x.png">
+              <h5>
+                Clear diagnostics
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                When a software install fails, Fleet shows you exactly what happened and why. See output, errors, and activity logs per device.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <% /*
+      <div purpose="page-section">
+        <div purpose="quote-section">
+          <p purpose="quote-text"></p>
+          <div purpose="quote-author-info">
+            <div purpose="quote-author-image">
+              <img alt="Matt Carr" src="/images/testimonial-author-matt-carr-48x48@2x.png">
+            </div>
+            <div purpose="name-and-title">
+              <p purpose="author-name">Matt Carr</p>
+              <p purpose="author-title">Engineering Manager, AI, Infra and Security</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      */ %>
+
+      <div purpose="page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h2>
+              Customize their experience
+            </h2>
+            <p>
+              Manage every aspect of how users experience app patching. Notify them ahead of updates through native notifications, Google Calendar, or your existing tooling, including Nudge and swiftDialog.
+            </p>
+          </div>
+          <div purpose="feature-image">
+            <img alt="Customize their experience" src="/images/feature-image-customize-their-experience-800x600@2x.png">
+          </div>
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h2>
+              Faster setup, fewer tickets
+            </h2>
+            <p>
+              Get new macOS, Windows, and Linux devices ready without manual intervention and let end users help themselves.
+            </p>
+            <div purpose="button-row">
+              <a purpose="cta-button" href="/contact">Get a demo</a>
+              <animated-arrow-button href="/guides/setup-experience">Preview setup experience</animated-arrow-button>
+            </div>
+          </div>
+          <div purpose="feature-image">
+            <img alt="Faster setup, fewer tickets" src="/images/feature-image-self-service-800x600@2x.png">
+          </div>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Zero-touch enrollment" purpose="feature-icon" src="/images/icon-zero-touch-20x20@2x.png">
+              <h5>
+                Zero-touch enrollment
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Drop-ship devices directly to employees. Fleet handles enrollment, software installs, and configuration automatically. End users unbox, sign in, and everything they need is already there.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Self-service" purpose="feature-icon" src="/images/icon-self-service-20x20@2x.png">
+              <h5>
+                Self-service
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                End users install approved software themselves on macOS, Windows, and Linux, without filing a ticket. Curate what's available by team, role, and device attributes.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+
+            <div purpose="feature-title">
+              <img alt="Apple Business" purpose="feature-icon" src="/images/icon-apple-business-20x20@2x.png">
+              <h5>
+                Apple Business
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Automatically enroll macOS, iOS, and iPadOS devices. Enroll devices in Fleet before they leave the box.
+              </p>
+              <span purpose="feature-note">
+                *tvOS coming soon
+              </span>
+            </div>
+          </div>
+
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Windows Autopilot" purpose="feature-icon" src="/images/icon-windows-autopilot-20x20@2x.png">
+              <h5>
+                Windows Autopilot
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Automatically enroll Windows devices. Fleet integrates with Autopilot so new devices are configured and ready to use out of the box.
+              </p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <div purpose="feature-title">
+              <img alt="Platform single sign-on" purpose="feature-icon" src="/images/icon-psso-20x20@2x.png">
+              <h5>
+                Platform single sign-on (PSSO)
+              </h5>
+            </div>
+            <div purpose="feature-text">
+              <p>
+                Simplify onboarding and let users sign in to their computer with credentials they use for everything else. Migrate from Jamf Connect or Iru Liftoff to Apple's native platform SSO.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      <div purpose="page-section">
+        <div>
+          <div purpose="section-heading" class="text-center">
+            <h2>What people are saying</h2>
+          </div>
+          <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="bottom-cta">
+          <div purpose="page-heading">
+            <h4>Software management</h4>
+            <h1>Patch faster on any OS</h1>
+          </div>
+          <div purpose="button-row">
+            <a purpose="cta-button" href="/contact">Get a demo</a>
+            <animated-arrow-button href="/try">Try it yourself</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+    </div><%/* End of [purpose="page-content"] */%>
+  </div><% /* End of [purpose="page-container"] */%>
   <%/* Cloud city banner */%>
-  <parallax-city></parallax-city>
+  <cloud-city></cloud-city>
 
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

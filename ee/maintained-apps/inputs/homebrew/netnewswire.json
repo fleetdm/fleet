@@ -1,0 +1,10 @@
+{
+  "name": "NetNewsWire",
+  "unique_identifier": "com.ranchero.NetNewsWire-Evergreen",
+  "token": "netnewswire",
+  "installer_format": "zip",
+  "slug": "netnewswire/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

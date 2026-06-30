@@ -70,7 +70,7 @@ A pre-install query is a valid osquery SQL statement that will be evaluated on t
 
 After selecting a file, a default install script will be pre-filled for most installer types. If the software package requires a custom installation process (for example, for .tar.gz archives and [EXE-based Windows installers](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run. `$INSTALLER_PATH` will be inside a temporary directory created by the operating system (e.g. `/tmp/[random string]` on Linux hosts).
 
-> For .tar.gz archives, fleetd 1.42.0 or later will extract the archive into `$INSTALLER_PATH` before handing control over to your install script, and will clean this directory up after the install script concludes.
+> For .tar.gz archives, fleetd 1.42.0 or later will extract the archive into `$INSTALLER_PATH` before handing control over to your install script, and will clean this directory up after the install script concludes. Symlinks inside .tar.gz archives are skipped during extraction. If your archive contains symlinks, reference the symlink's target path directly in your install script instead.
 
 ### Post-install script
 
@@ -141,7 +141,7 @@ Fleet also provides a REST API for managing software programmatically. The API a
 
 Software packages can be managed via `fleetctl` using [GitOps](https://fleetdm.com/docs/using-fleet/gitops).
 
-Please refer to the documentation for [managing software with GitOps](https://fleetdm.com/docs/using-fleet/gitops#software), for a real-world example, [see how we manage software at Fleet](https://github.com/fleetdm/fleet/tree/main/it-and-security/teams).
+Please refer to the documentation for [managing software with GitOps](https://fleetdm.com/docs/using-fleet/gitops#software), for a real-world example, [see how we manage software at Fleet](https://github.com/fleetdm/fleet/tree/main/it-and-security/fleets).
 
 > When managing software packages via GitOps, the Fleet server receiving GitOps requests (**not** the machine running fleetctl as part of the GitOps workflow) will download installers from the specified URLs directly.
 

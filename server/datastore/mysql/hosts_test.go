@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -79,6 +80,7 @@ func TestHosts(t *testing.T) {
 	}{
 		{"Save", testHostsUpdate},
 		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
+		{"MDMAppleEnrollmentPermissions", testHostMDMAppleEnrollmentPermissions},
 		{"SaveHostPackStatsDB", testSaveHostPackStatsDB},
 		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
@@ -100,8 +102,10 @@ func TestHosts(t *testing.T) {
 		{"SearchWildCards", testSearchHostsWildCards},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
+		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -109,6 +113,7 @@ func TestHosts(t *testing.T) {
 		{"IDsByIdentifier", testHostIDsByIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
+		{"ByUUID", testHostsByUUID},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
@@ -169,12 +174,14 @@ func TestHosts(t *testing.T) {
 		{"HostOrder", testHostOrder},
 		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
+		{"ManagedAppleID", testHostsManagedAppleID},
 		{"LoadHostByOrbitNodeKey", testHostsLoadHostByOrbitNodeKey},
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
 		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -195,6 +202,8 @@ func TestHosts(t *testing.T) {
 		{"MaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
 		{"ScimUserAssociationViaHostEmails", testScimUserAssociationViaHostEmails},
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
+		{"GetHostLockWipeStatusAndroid", testGetHostLockWipeStatusAndroid},
+		{"GetHostsLockWipeStatusBatchAndroidMultiHost", testGetHostsLockWipeStatusBatchAndroidMultiHost},
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
@@ -340,6 +349,53 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 
 	err = ds.DeletePack(context.Background(), newP.Name)
 	require.NoError(t, err)
+}
+
+func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new("perms-1"),
+		UUID:            "perms-uuid-1",
+		Hostname:        "perms.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// No host_mdm row and no permissions row yet: the COALESCE fallbacks must
+	// resolve to the unrestricted default and a non-personal enrollment. This is
+	// the path that previously failed to scan when delivered_at was selected.
+	perms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, host.UUID, perms.HostUUID)
+	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.False(t, perms.IsPersonalEnrollment)
+
+	// Record a personal (BYOD) enrollment in host_mdm; access rights still default
+	// until a permissions row is written.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com?byod=1", false, "Fleet", "", true))
+	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.True(t, perms.IsPersonalEnrollment)
+
+	// Persist the narrowed BYOD bitmask and confirm it is read back together with
+	// the personal-enrollment signal.
+	narrowed := apple_mdm.AppleEnrollmentAccessRights(true)
+	require.NoError(t, ds.SetHostMDMAppleEnrollmentPermissions(ctx, host.UUID, narrowed))
+	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, narrowed, perms.AccessRights)
+	require.True(t, perms.IsPersonalEnrollment)
+
+	// An unknown UUID is a not-found, not a scan error.
+	_, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, "does-not-exist")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
@@ -1585,6 +1641,66 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
 	require.NoError(t, err)
 	require.Len(t, solutions, 0)
+}
+
+func testHostsManagedAppleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("maid-host"),
+		NodeKey:         ptr.String("maid-host"),
+		UUID:            "maid-host",
+		Hostname:        "maid-host.local",
+	})
+	require.NoError(t, err)
+
+	// Without a host_mdm row, GetHostManagedAppleID returns NotFound.
+	_, err = ds.GetHostManagedAppleID(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// SetHostManagedAppleID also returns NotFound when no host_mdm row exists
+	// (rather than silently dropping the value).
+	err = ds.SetHostManagedAppleID(ctx, h.ID, "user@example.com")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetHostManagedAppleID(ctx, h.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Once enrolled, the row exists with NULL managed_apple_id.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", true))
+
+	got, err := ds.GetHostManagedAppleID(ctx, h.ID)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	hmdm, err := ds.GetHostMDM(ctx, h.ID)
+	require.NoError(t, err)
+	require.Nil(t, hmdm.ManagedAppleID)
+
+	// Set it; verify both helpers expose the value.
+	require.NoError(t, ds.SetHostManagedAppleID(ctx, h.ID, "user@example.com"))
+
+	got, err = ds.GetHostManagedAppleID(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, "user@example.com", got)
+
+	hmdm, err = ds.GetHostMDM(ctx, h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hmdm.ManagedAppleID)
+	require.Equal(t, "user@example.com", *hmdm.ManagedAppleID)
+
+	// Re-assignment overwrites.
+	require.NoError(t, ds.SetHostManagedAppleID(ctx, h.ID, "reassigned@example.com"))
+
+	got, err = ds.GetHostManagedAppleID(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, "reassigned@example.com", got)
 }
 
 func testHostsListMDM(t *testing.T, ds *Datastore) {
@@ -2914,6 +3030,64 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
 }
 
+// testHostsGenerateStatusStatisticsMobileMDMSeenTime verifies that ios/ipados hosts, which never
+// report a host_seen_times entry (no osquery), are not flagged as "missing" when they have recently
+// checked in via the Apple MDM protocol (nano_enrollments.last_seen_at).
+func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	// An ios host that enrolled long ago (created_at/detail_updated_at both > 30 days) and never
+	// checks in via osquery, so it has no host_seen_times row. Without the MDM last_seen_at fallback
+	// it would be incorrectly counted as missing.
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "ios-device",
+		UUID:            "ios-device-uuid",
+		HardwareSerial:  "ios-serial",
+		Platform:        "ios",
+		DetailUpdatedAt: now.Add(-40 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-40 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-40 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	// Backdate created_at and remove the host_seen_times row to mimic a real ios host.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET created_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
+	require.NoError(t, err)
+
+	// Recent MDM check-in: device-channel nano enrollment with a fresh last_seen_at.
+	nanoEnroll(t, ds, h, false)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-1*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	missingFilter := fleet.HostListOptions{StatusFilter: fleet.StatusMissing}
+
+	// With a recent MDM last_seen_at, the host must NOT be counted/listed as missing.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), summary.Missing30DaysCount, "ios host with recent MDM check-in should not be missing")
+
+	hosts, err := ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	assert.Empty(t, hosts, "ios host with recent MDM check-in should not appear in missing list")
+
+	// Stale MDM check-in (> 30 days): the host should now be counted/listed as missing.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount, "ios host with stale MDM check-in should be missing")
+
+	hosts, err = ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1, "ios host with stale MDM check-in should appear in missing list")
+	assert.Equal(t, h.ID, hosts[0].ID)
+}
+
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3377,6 +3551,73 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), summary.DEPAssignErrorCount)
 }
 
+// testHostsGenerateStatusStatisticsDeletedDEPAssignment is a regression test for #47605: a host
+// whose DEP assignment has been soft-deleted (e.g. removed from ABM) is still enrolled and must
+// keep counting toward the totals and per-platform counts. The `hdep.deleted_at IS NULL` filter
+// used to live in the top-level WHERE clause, which excluded such hosts from TotalsHostsCount while
+// the per-platform query still counted them. That made the denominator smaller than the sum of the
+// platform counts, so the dashboard "Hosts enrolled" chart showed the largest platform as 100%.
+func testHostsGenerateStatusStatisticsDeletedDEPAssignment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "deleted-dep-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          now.Add(30 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	setSerial := func(h *fleet.Host, serial string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, h.ID)
+			return err
+		})
+		h.HardwareSerial = serial
+	}
+
+	// platformSum sums the per-platform counts, which is what the dashboard chart adds up as the
+	// bars. It must always equal TotalsHostsCount (the chart's denominator).
+	platformSum := func(s *fleet.HostSummary) uint {
+		var total uint
+		for _, p := range s.Platforms {
+			total += p.HostsCount
+		}
+		return total
+	}
+
+	// Two darwin hosts with active DEP assignments and one non-Apple host with none.
+	hostA := test.NewHost(t, ds, "dep-a.local", "1.1.1.1", "deldep-nk-1", "deldep-nk-1", now)
+	setSerial(hostA, "SN-DELDEP-001")
+	hostB := test.NewHost(t, ds, "dep-b.local", "1.1.1.2", "deldep-nk-2", "deldep-nk-2", now)
+	setSerial(hostB, "SN-DELDEP-002")
+	hostWin := test.NewHost(t, ds, "dep-win.local", "1.1.1.3", "deldep-nk-3", "deldep-nk-3", now)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET platform = 'windows' WHERE id = ?`, hostWin.ID)
+		return err
+	})
+
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hostA, *hostB}, abmToken.ID, make(map[uint]time.Time))
+	require.NoError(t, err)
+
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), summary.TotalsHostsCount)
+	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+
+	// Soft-delete hostA's DEP assignment (e.g. it was removed from ABM). The host is still enrolled,
+	// so it must keep counting toward the total and the per-platform counts.
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{hostA.HardwareSerial})
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), summary.TotalsHostsCount)
+	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+}
+
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
@@ -3784,6 +4025,42 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
+}
+
+func testHostsByUUID(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 1; i <= 5; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
+			OsqueryHostID:   new(fmt.Sprintf("osquery_host_id_%d", i)),
+			NodeKey:         new(fmt.Sprintf("node_key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	h, err := ds.HostByUUID(context.Background(), "uuid_3")
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), h.ID)
+	assert.Equal(t, "uuid_3", h.UUID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	for _, ident := range []string{
+		"hostname_1",
+		"serial_2",
+		"osquery_host_id_3",
+		"node_key_4",
+		"does-not-exist",
+	} {
+		h, err := ds.HostByUUID(context.Background(), ident)
+		assert.True(t, fleet.IsNotFound(err), "%q should not match: got %v", ident, err)
+		assert.Nil(t, h, "%q should not return a host", ident)
+	}
 }
 
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
@@ -9161,6 +9438,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid)
+          VALUES (?)
+	`, host.UUID)
+	require.NoError(t, err)
+
 	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
@@ -9239,7 +9522,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		NotValidAfter:  now.Add(365 * 24 * time.Hour),
 		Source:         fleet.SystemHostCertificate,
 		Username:       "test-user",
-	}}))
+	}}, fleet.HostCertificateOriginOsquery))
 
 	// create an android device from this host
 	deviceID := strings.ReplaceAll(uuid.NewString(), "-", "")
@@ -10069,6 +10352,61 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	chk(hosts, "0003", "0004", "0001")
+
+	// Test sorting by "agent". The agent order key is
+	// COALESCE(NULLIF(hoi.version, ''), h.osquery_version): orbit-enrolled hosts
+	// sort by their orbit version, while hosts with no orbit row OR an empty
+	// orbit version fall back to their osquery version (host_orbit_info.version
+	// is NOT NULL, so absent orbit info is stored as '' for some hosts).
+	//   hostIDs[0] ("0001"): osquery 9.0.0, no orbit row  -> effective 9.0.0
+	//   hostIDs[1] ("0004"): osquery 9.9.9, orbit 1.0.0    -> effective 1.0.0 (orbit wins)
+	//   hostIDs[2] ("0003"): osquery 5.0.0, orbit ''       -> effective 5.0.0 (NULLIF fallback)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.0.0' WHERE id = ?`, hostIDs[0])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.9.9' WHERE id = ?`, hostIDs[1])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '5.0.0' WHERE id = ?`, hostIDs[2])
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[1], "1.0.0", sql.NullString{String: "1.0.0", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+	// Empty orbit version must still fall back to osquery_version (guards NULLIF);
+	// plain COALESCE would sort this host as '' and place it first.
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[2], "", sql.NullString{Valid: false}, sql.NullBool{Valid: false},
+	)
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHosts(
+		ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "agent",
+				OrderDirection: fleet.OrderAscending,
+			},
+		},
+	)
+	require.NoError(t, err)
+	chk(hosts, "0004", "0003", "0001")
+
+	// ListHosts must also populate the orbit/desktop version fields the Agent
+	// column tooltip relies on (these were previously only loaded by ds.Host).
+	var orbitHost, vanillaHost *fleet.Host
+	for _, h := range hosts {
+		switch h.DisplayName() {
+		case "0004":
+			orbitHost = h
+		case "0001":
+			vanillaHost = h
+		}
+	}
+	require.NotNil(t, orbitHost)
+	require.NotNil(t, vanillaHost)
+	assert.Equal(t, new("1.0.0"), orbitHost.OrbitVersion)
+	assert.Equal(t, new("1.0.0"), orbitHost.DesktopVersion)
+	// Vanilla osquery host: no orbit info loaded.
+	assert.Nil(t, vanillaHost.OrbitVersion)
+	assert.Nil(t, vanillaHost.DesktopVersion)
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {
@@ -11074,9 +11412,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	//	- fleetd running with host identifier set to instance.
 	//	- orbit and osquery of the two hosts enroll in mixed order.
 	//
-	// For Linux and Windows this scenario behaves as expected. The two hosts are enrolled separately.
-	//
-	// For macOS, iOS, iPadOS, and Android:
+	// For macOS, iOS, and iPadOS:
 	// Somewhat unexpected output of this scenario is that two hosts are enrolled as one
 	// because MDM makes the effort to match by hardware serial.
 	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on these platforms.
@@ -11129,11 +11465,12 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
 
-		if platform == "darwin" || platform == "ios" || platform == "ipados" || platform == "android" {
+		if platform == "darwin" || platform == "ios" || platform == "ipados" {
 			// This is a expected output of this scenario because MDM makes
 			// the effort to match by hardware serial for these platforms.
 			require.Equal(t, h1Orbit.ID, h2Orbit.ID)
 		} else {
+			// Linux, Windows, Android: no serial-match-driven merge.
 			require.NotEqual(t, h1Orbit.ID, h2Orbit.ID)
 		}
 	}
@@ -11317,6 +11654,76 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
+	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(false),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: hostUUID,
+				Platform:     "windows",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: hostUUID, Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	// An unknown device (no matching row) is not reported as previously enrolled: it is a new enrollment, or a host moving to
+	// a different Fleet server.
+	t.Run("unknown host", func(t *testing.T) {
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A host row that exists but never orbit-enrolled (no orbit node key, e.g. a DEP-pre-created or osquery-only row) must not
+	// be reported as previously orbit-enrolled.
+	t.Run("host exists but never orbit-enrolled", func(t *testing.T) {
+		h := test.NewHost(t, ds, "no-orbit", "", "no-orbit-key", uuid.New().String(), time.Now())
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: *h.OsqueryHostID, Platform: "ubuntu"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A Windows enrollment must not be matched to an Apple host that shares a hardware serial: HostPreviouslyOrbitEnrolled
+	// forces serial matching off for Windows. Serial matching is enabled here (isMDMEnabled=true) so the skip is provably due
+	// to the Windows guard, not a disabled serial path.
+	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
+		serial := uuid.New().String()
+		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   uuid.New().String(),
+				HardwareSerial: serial,
+				Platform:       "darwin",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Same serial, different (unmatched) UUID, Windows platform: the serial must be ignored, so no match.
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), HardwareSerial: serial, Platform: "windows"}, true)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// An empty hardware UUID is an error (orbit always sends one).
+	t.Run("empty hardware uuid", func(t *testing.T) {
+		_, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{Platform: "windows"}, false)
+		require.Error(t, err)
+	})
 }
 
 func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
@@ -13421,9 +13828,12 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	})
 
 	// Create Windows MDM response for the wipe command
+	compressedResponse, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+	require.NoError(t, err)
 	var responseID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "")
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID,
+			compressedResponse)
 		if err != nil {
 			return err
 		}
@@ -13449,6 +13859,239 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	emptyStatusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{})
 	require.NoError(t, err)
 	require.Empty(t, emptyStatusMap)
+
+	// Android host: lock and wipe commands tracked in mdm_android_commands. Exercises the android branch:
+	// pending leaves the result nil so DeviceStatus() stays "unlocked"; acknowledged populates the result with
+	// "acknowledged" so the helpers in HostLockWipeStatus transition correctly.
+	andHost := createEnrolledAndroidHost(t, ctx, ds, "uuid-5-android", nil)
+	androidHosts := []*fleet.Host{andHost}
+
+	androidLockUUID := uuid.NewString()
+	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, andHost, &android.MDMAndroidCommand{
+		CommandUUID:   androidLockUUID,
+		HostUUID:      andHost.UUID,
+		OperationName: "enterprises/E/devices/D/operations/lock-pending",
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
+	require.NoError(t, err)
+	andStatus := statusMap[andHost.ID]
+	require.NotNil(t, andStatus)
+	require.Equal(t, fleet.PendingActionLock, andStatus.PendingAction())
+	require.Equal(t, fleet.DeviceStatusUnlocked, andStatus.DeviceStatus())
+
+	// Pub/Sub COMMAND ack arrives.
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidLockUUID,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
+	require.NoError(t, err)
+	andStatus = statusMap[andHost.ID]
+	// After ack, IsLocked() is false for android (we can't detect device-side unlock; see the comment in
+	// HostLockWipeStatus.IsLocked). DeviceStatus reverts to unlocked, pending clears.
+	require.Equal(t, fleet.DeviceStatusUnlocked, andStatus.DeviceStatus())
+	require.Equal(t, fleet.PendingActionNone, andStatus.PendingAction())
+
+	// Now queue a wipe — exercises a host that has both lock_ref and wipe_ref set in host_mdm_actions, which the multi-host batch
+	// test doesn't cover. The upsert inside WipeHostViaAndroidMDM preserves the lock_ref from the previous step.
+	androidWipeUUID := uuid.NewString()
+	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, andHost, &android.MDMAndroidCommand{
+		CommandUUID:   androidWipeUUID,
+		HostUUID:      andHost.UUID,
+		OperationName: "enterprises/E/devices/D/operations/wipe-pending",
+		CommandType:   string(android.MDMAndroidCommandTypeWipe),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
+	require.NoError(t, err)
+	andStatus = statusMap[andHost.ID]
+	require.Equal(t, fleet.PendingActionWipe, andStatus.PendingAction())
+
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidWipeUUID,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
+	require.NoError(t, err)
+	andStatus = statusMap[andHost.ID]
+	require.Equal(t, fleet.DeviceStatusWiped, andStatus.DeviceStatus())
+	require.Equal(t, fleet.PendingActionNone, andStatus.PendingAction())
+}
+
+// testGetHostLockWipeStatusAndroid exercises the single-host GetHostLockWipeStatus android branch
+// independently (separate test isolates orphan-ref logging, error-status mapping, and the no-row
+// case from the batch fixture above).
+func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+
+	// No host_mdm_actions row → zero-value status.
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DeviceStatusUnlocked, status.DeviceStatus())
+	require.Equal(t, fleet.PendingActionNone, status.PendingAction())
+	require.Nil(t, status.LockMDMCommand)
+	require.Nil(t, status.WipeMDMCommand)
+
+	// Orphan lock_ref (pointing at a non-existent mdm_android_commands row) must NOT fail —
+	// it should just log and return a zero-state status, mirroring Apple/Windows behavior.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'android')`,
+			host.ID, "orphan-lock-uuid")
+		return err
+	})
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.Nil(t, status.LockMDMCommand)
+	require.Equal(t, fleet.PendingActionNone, status.PendingAction())
+
+	// AMAPI rejected the command (error status). The result should be populated with status
+	// "error". IsLocked stays false and PendingAction is none (we're done; it failed).
+	cmdUUID := uuid.NewString()
+	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+		CommandUUID:   cmdUUID,
+		HostUUID:      host.UUID,
+		OperationName: "enterprises/E/devices/D/operations/lock-error",
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_actions SET lock_ref = ? WHERE host_id = ?`, cmdUUID, host.ID)
+		return err
+	})
+
+	errCode := "UNSUPPORTED"
+	errMsg := "device does not support LOCK"
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+		string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.NotNil(t, status.LockMDMCommand)
+	require.Equal(t, cmdUUID, status.LockMDMCommand.CommandUUID)
+	require.Equal(t, string(android.MDMAndroidCommandTypeLock), status.LockMDMCommand.RequestType)
+	require.NotNil(t, status.LockMDMCommandResult)
+	require.Equal(t, string(android.MDMAndroidCommandStatusError), status.LockMDMCommandResult.Status)
+	require.False(t, status.IsLocked())
+	require.False(t, status.IsPendingLock())
+
+	// Pending clear-passcode: IsPendingClearPasscode = true, device_status = clear_passcode
+	// pending action so the UI hides Lock / Unenroll / Wipe / Clear passcode.
+	cpHost := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	cpUUID := uuid.NewString()
+	require.NoError(t, ds.ClearPasscodeHostViaAndroidMDM(ctx, cpHost, &android.MDMAndroidCommand{
+		CommandUUID:   cpUUID,
+		HostUUID:      cpHost.UUID,
+		OperationName: "enterprises/E/devices/" + cpHost.UUID + "/operations/clear-passcode",
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	cpStatus, err := ds.GetHostLockWipeStatus(ctx, cpHost)
+	require.NoError(t, err)
+	require.NotNil(t, cpStatus.ClearPasscodeMDMCommand)
+	require.Equal(t, cpUUID, cpStatus.ClearPasscodeMDMCommand.CommandUUID)
+	require.Nil(t, cpStatus.ClearPasscodeMDMCommandResult)
+	require.True(t, cpStatus.IsPendingClearPasscode())
+	require.Equal(t, fleet.PendingActionClearPasscode, cpStatus.PendingAction())
+
+	// After Pub/Sub ack: result populated, IsPendingClearPasscode = false, PendingAction = none.
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cpUUID,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+	cpStatus, err = ds.GetHostLockWipeStatus(ctx, cpHost)
+	require.NoError(t, err)
+	require.NotNil(t, cpStatus.ClearPasscodeMDMCommandResult)
+	require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged),
+		cpStatus.ClearPasscodeMDMCommandResult.Status)
+	require.False(t, cpStatus.IsPendingClearPasscode())
+	require.Equal(t, fleet.PendingActionNone, cpStatus.PendingAction())
+
+	// ClearHostMDMActions drops the row entirely (used by the Android re-enrollment path so
+	// stale lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed in).
+	require.NoError(t, ds.ClearHostMDMActions(ctx, cpHost.ID))
+	cpStatus, err = ds.GetHostLockWipeStatus(ctx, cpHost)
+	require.NoError(t, err)
+	require.Nil(t, cpStatus.ClearPasscodeMDMCommand)
+	require.Equal(t, fleet.DeviceStatusUnlocked, cpStatus.DeviceStatus())
+	require.Equal(t, fleet.PendingActionNone, cpStatus.PendingAction())
+}
+
+// testGetHostsLockWipeStatusBatchAndroidMultiHost exercises GetHostsLockWipeStatusBatch with
+// multiple android hosts in different command states, so the IN(...) query and the post-query
+// status distribution loop are exercised with N>1 command_uuids -- the case the single-host
+// android tests can't reach.
+func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Host A: pending lock. Host B: acknowledged lock (locked). Host C: acknowledged wipe (wiped).
+	// Host D: no host_mdm_actions row at all (must come back as zero-state without polluting
+	// other hosts' results).
+	hostA := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	hostB := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	hostC := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	hostD := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+
+	lockA := uuid.NewString()
+	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostA, &android.MDMAndroidCommand{
+		CommandUUID:   lockA,
+		HostUUID:      hostA.UUID,
+		OperationName: "enterprises/E/devices/" + hostA.UUID + "/operations/lock-a",
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+
+	lockB := uuid.NewString()
+	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostB, &android.MDMAndroidCommand{
+		CommandUUID:   lockB,
+		HostUUID:      hostB.UUID,
+		OperationName: "enterprises/E/devices/" + hostB.UUID + "/operations/lock-b",
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockB,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+	wipeC := uuid.NewString()
+	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, hostC, &android.MDMAndroidCommand{
+		CommandUUID:   wipeC,
+		HostUUID:      hostC.UUID,
+		OperationName: "enterprises/E/devices/" + hostC.UUID + "/operations/wipe-c",
+		CommandType:   string(android.MDMAndroidCommandTypeWipe),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, wipeC,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+	statusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{hostA, hostB, hostC, hostD})
+	require.NoError(t, err)
+	require.Len(t, statusMap, 4)
+
+	require.Equal(t, fleet.PendingActionLock, statusMap[hostA.ID].PendingAction(), "host A pending lock")
+	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostA.ID].DeviceStatus())
+
+	// Host B acked the lock; IsLocked() returns false for android (no device-side unlock signal
+	// from AMAPI), so DeviceStatus reads as unlocked again. See HostLockWipeStatus.IsLocked.
+	require.Equal(t, fleet.PendingActionNone, statusMap[hostB.ID].PendingAction(), "host B acked")
+	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostB.ID].DeviceStatus(), "host B acked -> unlocked again")
+
+	require.Equal(t, fleet.PendingActionNone, statusMap[hostC.ID].PendingAction(), "host C wipe done")
+	require.Equal(t, fleet.DeviceStatusWiped, statusMap[hostC.ID].DeviceStatus(), "host C wiped")
+
+	require.Equal(t, fleet.PendingActionNone, statusMap[hostD.ID].PendingAction(), "host D no action")
+	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostD.ID].DeviceStatus(), "host D zero state")
+	require.Nil(t, statusMap[hostD.ID].LockMDMCommand, "host D must not inherit another host's command")
+	require.Nil(t, statusMap[hostD.ID].WipeMDMCommand)
+
+	// Cross-check: each populated command_uuid landed on the right host.
+	require.NotNil(t, statusMap[hostA.ID].LockMDMCommand)
+	require.Equal(t, lockA, statusMap[hostA.ID].LockMDMCommand.CommandUUID)
+	require.NotNil(t, statusMap[hostB.ID].LockMDMCommand)
+	require.Equal(t, lockB, statusMap[hostB.ID].LockMDMCommand.CommandUUID)
+	require.NotNil(t, statusMap[hostC.ID].WipeMDMCommand)
+	require.Equal(t, wipeC, statusMap[hostC.ID].WipeMDMCommand.CommandUUID)
 }
 
 func testHostTimeZone(t *testing.T, ds *Datastore) {

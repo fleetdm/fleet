@@ -1,0 +1,12 @@
+{
+  "name": "ActivityWatch",
+  "slug": "activitywatch/windows",
+  "package_identifier": "ActivityWatch.ActivityWatch",
+  "unique_identifier": "ActivityWatch",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/activitywatch_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/activitywatch_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

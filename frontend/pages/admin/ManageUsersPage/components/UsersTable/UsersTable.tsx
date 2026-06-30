@@ -9,7 +9,6 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import authToken from "utilities/auth_token";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
@@ -19,6 +18,7 @@ import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import ActionsDropdown from "components/ActionsDropdown";
 import EmptyState from "components/EmptyState";
+import { notify } from "components/ToastNotification";
 import {
   generateTableHeaders,
   combineDataSets,
@@ -53,7 +53,6 @@ interface IUsersTableProps {
 }
 const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { currentUser, isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   // STATES
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
@@ -174,11 +173,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       invitesAPI
         .destroy(userEditing.apiId)
         .then(() => {
-          renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
+          notify.success(`Successfully deleted ${userEditing?.name}.`);
         })
         .catch(() => {
-          renderFlash(
-            "error",
+          notify.error(
             `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
@@ -191,11 +189,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       usersAPI
         .destroy(userEditing.apiId)
         .then(() => {
-          renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
+          notify.success(`Successfully deleted ${userEditing?.name}.`);
         })
         .catch(() => {
-          renderFlash(
-            "error",
+          notify.error(
             `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
@@ -218,14 +215,14 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         if (isResettingCurrentUser) {
           authToken.remove();
           setTimeout(() => {
-            window.location.href = "/";
+            window.location.href = PATHS.ROOT;
           }, 500);
           return;
         }
-        renderFlash("success", "Successfully reset sessions.");
+        notify.success("Successfully reset sessions.");
       })
       .catch(() => {
-        renderFlash("error", "Could not reset sessions. Please try again.");
+        notify.error("Could not reset sessions. Please try again.");
       })
       .finally(() => {
         toggleResetSessionsUserModal();
@@ -237,13 +234,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     usersAPI
       .requirePasswordReset(userEditing.apiId, { require: true })
       .then(() => {
-        renderFlash("success", "Successfully required a password reset.");
+        notify.success("Successfully required a password reset.");
       })
       .catch(() => {
-        renderFlash(
-          "error",
-          "Could not require a password reset. Please try again."
-        );
+        notify.error("Could not require a password reset. Please try again.");
       })
       .finally(() => {
         toggleResetPasswordUserModal();

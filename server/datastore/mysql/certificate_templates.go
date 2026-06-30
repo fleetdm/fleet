@@ -171,7 +171,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 
-	var templates []*fleet.CertificateTemplateResponseSummary
+	templates := []*fleet.CertificateTemplateResponseSummary{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
 	}
@@ -322,6 +322,64 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 
 	rowsAffected, _ := result.RowsAffected()
 	return rowsAffected > 0, nil
+}
+
+// setCertTemplateVariableAssociations replaces the variable associations for a
+// certificate template in mdm_configuration_profile_variables. It deletes
+// existing rows and inserts fresh ones for the given fleetVars.
+func setCertTemplateVariableAssociations(ctx context.Context, tx sqlx.ExtContext, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+	// Always clear existing associations first.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE certificate_template_id = ?`, certTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting cert template variable associations")
+	}
+
+	if len(fleetVars) == 0 {
+		return nil
+	}
+
+	// Load fleet variable definitions to map names to IDs.
+	type varDef struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		IsPrefix bool   `db:"is_prefix"`
+	}
+	var varDefs []varDef
+	if err := sqlx.SelectContext(ctx, tx, &varDefs, `SELECT id, name, is_prefix FROM fleet_variables`); err != nil {
+		return ctxerr.Wrap(ctx, err, "loading fleet variables")
+	}
+
+	var values strings.Builder
+	var args []any
+	for _, v := range fleetVars {
+		varWithPrefix := "FLEET_VAR_" + string(v)
+		for _, def := range varDefs {
+			match := (!def.IsPrefix && def.Name == varWithPrefix) || (def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name))
+			if match {
+				values.WriteString("(?, ?),")
+				args = append(args, certTemplateID, def.ID)
+				break
+			}
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO mdm_configuration_profile_variables (certificate_template_id, fleet_variable_id)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE fleet_variable_id = VALUES(fleet_variable_id)
+	`, strings.TrimSuffix(values.String(), ","))
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting cert template variable associations")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetCertificateTemplateVariables(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+	return setCertTemplateVariableAssociations(ctx, ds.writer(ctx), certTemplateID, fleetVars)
 }
 
 func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {

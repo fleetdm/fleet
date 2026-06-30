@@ -22,6 +22,7 @@
       width: 100%; // Search bar across entire table
 
       .input-icon-field__input {
+        width: 100%;
         min-width: 213px;
         height: 36px;
       }
@@ -97,12 +98,6 @@
     }
   }
 
-  // needed to handle overflow of the table data on small screens
-  .data-table {
-    &__wrapper {
-      overflow-x: auto;
-    }
-  }
   .view-all-hosts {
     &__cell {
       display: flex;

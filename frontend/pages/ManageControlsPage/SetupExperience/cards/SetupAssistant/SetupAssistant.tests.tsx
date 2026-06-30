@@ -46,6 +46,13 @@ describe("SetupAssistant", () => {
         });
       })
     );
+    mockServer.use(
+      http.get(defaultEnrollmentProfileUrl, () => {
+        return HttpResponse.json({
+          enrollment_profile: { is_mandatory: true },
+        });
+      })
+    );
     const render = createCustomRenderer({
       withBackendMock: true,
     });

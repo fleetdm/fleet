@@ -1,11 +1,19 @@
 import React from "react";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  MDM_STATUS_TOOLTIP,
+} from "utilities/constants";
 import paths from "router/paths";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHost } from "interfaces/host";
+import {
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
+import { isChrome, isLinuxLike } from "interfaces/platform";
 
 const baseClass = "host-mdm-status-cell";
 
@@ -16,9 +24,9 @@ const HostMdmStatusCell = ({
   cell: { value },
 }: {
   row: { original: IHost };
-  cell: { value: string };
+  cell: { value: MdmEnrollmentStatus };
 }): JSX.Element => {
-  if (platform === "chrome") {
+  if (isChrome(platform) || isLinuxLike(platform)) {
     return NotSupported;
   }
 
@@ -26,9 +34,21 @@ const HostMdmStatusCell = ({
     return <span className={`${baseClass}`}>{DEFAULT_EMPTY_CELL_VALUE}</span>;
   }
 
+  const displayValue =
+    MDM_ENROLLMENT_STATUS_UI_MAP[value]?.displayName ?? value;
+
   return (
     <span className={`${baseClass}`}>
-      {value}
+      {!MDM_STATUS_TOOLTIP[value] ? (
+        displayValue
+      ) : (
+        <TooltipWrapper
+          className={`${baseClass}__tooltip`}
+          tipContent={MDM_STATUS_TOOLTIP[value]}
+        >
+          {displayValue}
+        </TooltipWrapper>
+      )}
       {mdm?.dep_profile_error && (
         <TooltipWrapper
           tipContent={

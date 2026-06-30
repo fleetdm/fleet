@@ -699,6 +699,19 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			}
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
+		var usedByProfile bool
+		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
+			SELECT EXISTS(
+				SELECT 1 FROM mdm_configuration_profile_labels WHERE label_id = ?
+				UNION ALL
+				SELECT 1 FROM mdm_declaration_labels WHERE label_id = ?
+			)`, labelID, labelID); err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if label is used by configuration profiles")
+		}
+		if usedByProfile {
+			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
+		}
+
 		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
@@ -817,14 +830,25 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
+		countFrom := "label_membership lm JOIN hosts h ON (lm.host_id = h.id)"
+		// When the team filter allows all hosts ("TRUE"),
+		// skip the join to the hosts table and count straight off the
+		// label_membership index.
+		teamFilter := ds.whereFilterHostsByTeams(filter, "h")
+		if teamFilter == "TRUE" {
+			countFrom = "label_membership lm"
+		}
 		query = fmt.Sprintf(`
-				SELECT l.*,
-					(SELECT COUNT(1)
-					 FROM label_membership lm
-					     JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s
-					 ) AS host_count
+				WITH label_host_counts AS (
+					SELECT lm.label_id, COUNT(1) AS host_count
+					FROM %s
+					WHERE %s
+					GROUP BY lm.label_id
+				)
+				SELECT l.*, COALESCE(lhc.host_count, 0) AS host_count
 				FROM labels l
-			`, ds.whereFilterHostsByTeams(filter, "h"),
+				LEFT JOIN label_host_counts lhc ON lhc.label_id = l.id
+			`, countFrom, teamFilter,
 		)
 	}
 
@@ -1247,6 +1271,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// prior to returning, params will be appended in the following order: joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
+	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
+	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	if opt.StatusFilter.IsValid() {
+		query += hostMDMSeenTimeJoin
+	}
+
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
@@ -1322,14 +1352,6 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		query += sqlJoinMDMAndroidProfilesStatus()
 	}
 
-	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
-	if opt.PolicyIDFilter == nil {
-		policyMembershipJoin = ""
-	} else if opt.PolicyResponseFilter == nil {
-		policyMembershipJoin = "LEFT " + policyMembershipJoin
-	}
-	query += policyMembershipJoin
-
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	whereParams = append(whereParams, lid)
 
@@ -1348,7 +1370,6 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
-	query, whereParams = filterHostsByPolicy(query, opt, whereParams)
 	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {

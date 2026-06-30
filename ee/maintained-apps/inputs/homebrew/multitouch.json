@@ -1,0 +1,10 @@
+{
+  "name": "Multitouch",
+  "unique_identifier": "com.brassmonkery.Multitouch",
+  "token": "multitouch",
+  "installer_format": "dmg",
+  "slug": "multitouch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

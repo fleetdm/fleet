@@ -29,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -181,10 +180,29 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
+	// Null label_id references in MDM profile/declaration label tables before deleting labels,
+	// since the application layer now blocks label deletion while referenced by a profile.
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL`); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			// Clear profile label associations first so DeleteLabel isn't blocked
+			// by the FK constraint that prevents deleting referenced labels.
+			mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+				if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID); err != nil {
+					return err
+				}
+				_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID)
+				return err
+			})
 			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
@@ -391,7 +409,7 @@ func (ts *withServer) getTestToken(email string, password string) string {
 }
 
 func GetToken(t *testing.T, email string, password string, serverURL string) string {
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
@@ -527,9 +545,13 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	return resp
 }
 
-func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password, token string) *http.Response {
+	initiator := fleet.SSOInitiatorAccountDrivenEnroll
+	if token != "" {
+		initiator = fmt.Sprintf("%s:%s", initiator, token)
+	}
 	requestParams := initiateMDMSSORequest{
-		Initiator:      fleet.SSOInitiatorAccountDrivenEnroll,
+		Initiator:      initiator,
 		UserIdentifier: username + "@example.com",
 	}
 	body, err := json.Marshal(requestParams)

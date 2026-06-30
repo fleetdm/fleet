@@ -35,11 +35,11 @@ The Fleet handbook provides team members with up-to-date information about how t
 
 At Fleet, we make changes to the handbook first.  That means, before any change to how we run the business is "live" or "official", it is first changed in the relevant [handbook pages](https://fleetdm.com/handbook) and [issue templates](https://github.com/fleetdm/confidential/tree/main/.github/ISSUE_TEMPLATE).
 
-Making changes to the handbook first [encourages](https://www.youtube.com/watch?v=aZrK8AQM8Ro) a culture of self-reliance, which is essential for daily asynchronous work as part of an all-remote team.  It keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change. 
+Making changes to the handbook first encourages a culture of self-reliance, which is essential for daily asynchronous work as part of an all-remote team.  It keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change. 
 
 > The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
 
-To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
+To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company/writing#writing).
 
 
 ## Why read documentation?
@@ -316,6 +316,10 @@ AI can't take responsibility. Only humans can. If your name is on the commit, th
 - **The value of a review is the guarantee, not the findings.** It is normal to review an AI-generated PR carefully and only find nits, or nothing at all. That doesn't mean the review was wasted. The value is the guarantee that a human read every line and understood it. Without that guarantee, we ship work no one understands, and that is how teams accumulate latent bugs, brittle abstractions, and broken systems that nobody can debug.
 
 
+## Why send LinkedIn comments to Unthread?
+
+Fleet routes LinkedIn comments to Unthread so that a dedicated team owns every comment rather than it being another inbox for a single individual to triage. Unthread surfaces comments as actionable tickets, ensuring nothing is overlooked and responders are held accountable. Reverting to this process gives accountability and repeatable success to the team best equipped to respond to comments.
+
 ## Why keep issue templates simple?
 
 At Fleet, we optimize for the person submitting the issue, not the person receiving it.
@@ -462,6 +466,37 @@ Every internal meeting is inherently "optional" in the sense that if it's not a 
 ## Why think like a historian?
 
 When choosing a title for Google docs at Fleet, include enough context that someone in the future can understand not just _what_ is being discussed, but _why_ it matters and how it fits in.  This is especially important for meeting agendas.  A bare Google Doc title like "Write up scavenger hunt" is hard to find in search and can be difficult for other people to learn from or contribute to.  Compare that with "Write up scavenger hunt for SF party on May 12 celebrating announcement" — now anyone who finds the doc later knows the purpose of the meeting, without needing to ask.  This makes the Google doc more discoverable in search, more accessible, and more useful for everyone at the company — now and in the future.
+
+
+## Why preserve large free blocks on calendars?
+
+Fleet optimizes for the customer experience.  Prospects and customers booking demos or meetings via the website need to find open time slots.  When calendars are cluttered with work blocks, focus time, or other internal holds, those blocks reduce availability for external bookings.  This creates friction for people trying to schedule time with us.
+
+Here's what to keep in mind:
+
+- **Maximize "free" availability.**  Internal calendar holds (focus time, work blocks, etc.) prevent prospects and customers from booking.  Keep calendars as open as possible for customer-facing scheduling, and be mindful that every internal hold is one fewer slot a prospect can choose.
+- **Avoid "Swiss cheese" calendars.**  When meetings are scattered throughout the day with small gaps in between, no single gap is large enough for someone to book.  This is especially problematic when events require buffer time.  For example, a 45-minute meeting with a 15-minute buffer needs a full hour of availability from multiple people simultaneously.  Consolidate meetings and keep large contiguous free blocks so that prospects and customers can actually find and book time.
+- **Keep recurring habits marked as "free" longer.**  For recurring habits and tasks (like "do your forecast", "update next steps", "send partner portland"), consider having Reclaim keep your free/busy status on "free" longer for all habits, so those blocks don't prevent prospects from booking.  The ability to choose "free" vs "busy" for habits is available on both Reclaim's free and premium tiers, so every team member can use this regardless of which Reclaim plan they're on.
+- **Book 30-minute breaks instead of 15-minute ones.**  For short breaks between calls (like bathroom breaks), you're better off booking 30-minute blocks instead of 15-minute ones.  Calendly is configured to start meetings at clean :00 or :30 times for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+### Examples
+
+Here are some examples illustrating why this matters:
+
+- Work blocks (like "do your forecast", "update next steps") will block people from being able to book time with you, even though you could take a call during those times.
+- If a meeting is 45 minutes with a 15-minute buffer (needing a full hour of availability from two people at the same time), fragmented calendars make it very hard to find openings.
+
+### FAQ
+
+**Q: "What about blocks for times when I can't really take calls anyway, like when I don't have childcare?  And my usual open time is limited because of having many external calls in a given week."**
+
+A: Those personal blocks (childcare, etc.) are fine and necessary.  The advice is about discretionary internal holds and habits that tools like Reclaim can keep marked as "free" longer.  High external call volume is great — that's the goal.  The focus is on unnecessary fragmentation from internal blocks.
+
+**Q: "Sometimes I'll put a 15-minute block after 3-4 calls in a row to go to the bathroom."**
+
+A: You're better off booking 30-minute blocks instead.  Calendly is configured to start at clean :00 or :30 for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
 
 
 #### Stubs

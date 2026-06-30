@@ -46,6 +46,12 @@ type HostOptions struct {
 	HasSetupExperienceItems bool
 	SCEPRenewalInProgress   bool
 	FromMDMMigration        bool
+	// TeamID is currently only used for resetApple to assign the host to the correct team for account driven enrollments.
+	TeamID *uint
+	// IsPersonalEnrollment indicates a manual (profile-driven) BYOD enrollment
+	// where the end user chose "Personal" on the /enroll page. For Account-Driven
+	// User Enrollments (UserEnrollmentID != "") this is set automatically.
+	IsPersonalEnrollment bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -142,7 +148,9 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 }
 
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
-	isPersonalEnrollment := false
+	// Account-Driven User Enrollment (BYOD iOS) uses UserEnrollmentID as
+	// the device identifier when UUID/serial are not yet known.
+	isPersonalEnrollment := opts.IsPersonalEnrollment
 	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
 		opts.UUID = opts.UserEnrollmentID
 		opts.HardwareSerial = opts.UserEnrollmentID
@@ -157,6 +165,7 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 		HardwareSerial: opts.HardwareSerial,
 		HardwareModel:  opts.HardwareModel,
 		Platform:       opts.Platform,
+		TeamID:         opts.TeamID,
 	}
 
 	// FIXME: Why skip this step if we're in the middle of a SCEP renewal?
@@ -304,6 +313,21 @@ func (t *HostLifecycle) deleteApple(ctx context.Context, opts HostOptions) error
 	}
 
 	if dep != nil && dep.DeletedAt == nil {
+		// Don't recreate a pending "ghost" host if a duplicate host for the same
+		// serial still exists. This happens when an operator deletes one of a set
+		// of duplicate hosts (e.g. from a Migration Assistant flow) to resolve the
+		// duplicate — restoring a ghost here would just recreate the duplicate they
+		// removed. If the surviving duplicate has no DEP assignment of its own, the
+		// deleted host's assignment is transferred to it to preserve the ABM
+		// relationship.
+		dupExists, err := t.ds.ReconcileDuplicateDEPHostOnDelete(ctx, opts.Host.HardwareSerial, opts.Host.Platform, opts.Host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile duplicate dep host")
+		}
+		if dupExists {
+			return nil
+		}
+
 		return t.restorePendingDEPHost(ctx, opts.Host, dep.ABMTokenID)
 	}
 

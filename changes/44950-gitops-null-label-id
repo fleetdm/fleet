@@ -1,1 +1,0 @@
-* Fixed a GitOps failure ("converting NULL to uint is unsupported") when moving labels from global to fleet scope, caused by deleted label associations with NULL `label_id` values in `mdm_configuration_profile_labels` and `mdm_declaration_labels`.

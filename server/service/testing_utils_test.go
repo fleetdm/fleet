@@ -435,13 +435,13 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
 	// the main handler. Otherwise, build a path-only stub from the same registration
-	// code and surface it to apiendpoints.Init for catalog validation only.
+	// code and surface it to apiendpoints.Validate for catalog validation only.
 	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, ds)
 		activitySvc, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
 			activityAuthorizer,
@@ -577,7 +577,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
-	if err := apiendpoints.Init(apiHandler, extraInitFeatureRoutes...); err != nil {
+	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
+	// that gorilla/mux can't introspect, so surface their routes to the validator
+	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
+	extraInitFeatureRoutes = append(extraInitFeatureRoutes, scim.RegisterValidationRoutes)
+	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {
 		t.Fatalf("error initializing API endpoints: %v", err)
 	}
 	rootMux.Handle("/api/", apiHandler)
@@ -635,6 +639,7 @@ func testSESPluginConfig() config.FleetConfig {
 		SecretAccessKey:  "bar",
 		StsAssumeRoleArn: "baz",
 		SourceArn:        "qux",
+		SenderDomain:     "email.example.com",
 	}
 	return c
 }

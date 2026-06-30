@@ -169,7 +169,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	}
 }
 
-func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+func TestMDMAppleConfigProfileAllowCustomFileVault(t *testing.T) {
 	cases := []struct {
 		testName     string
 		payloadTypes []string
@@ -200,50 +200,68 @@ func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			// When allowCustomOSUpdatesAndFileVault = true, these profiles should be allowed
+			// When allowCustomFileVault = true, these profiles should be allowed
 			err = parsed.ValidateUserProvided(true)
 			require.NoError(t, err)
 		})
 	}
 }
 
-func TestMDMAppleDeclarationAllowCustomOSUpdatesAndFileVault(t *testing.T) {
-	t.Run("OSUpdateDeclarationBlockedByDefault", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
-			Identifier: "test-os-update",
-		}
+func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
+	cases := []struct {
+		name        string
+		declType    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "valid configuration declaration",
+			declType: "com.apple.configuration.passcode.settings",
+			wantErr:  false,
+		},
+		{
+			// Regression test: software update enforcement used to be blocked
+			// unless a special flag was set; it is now allowed by default.
+			name:     "software update enforcement allowed by default",
+			declType: "com.apple.configuration.softwareupdate.enforcement.specific",
+			wantErr:  false,
+		},
+		{
+			name:        "forbidden declaration type",
+			declType:    "com.apple.configuration.account.mail",
+			wantErr:     true,
+			errContains: "Only configuration declarations that don’t require an asset reference are supported.",
+		},
+		{
+			name:        "status subscriptions not allowed",
+			declType:    "com.apple.configuration.management.status-subscriptions",
+			wantErr:     true,
+			errContains: "Declaration profile can’t include status subscription type.",
+		},
+		{
+			name:        "non-configuration declaration not allowed",
+			declType:    "com.apple.activation.simple",
+			wantErr:     true,
+			errContains: "Only configuration declarations (com.apple.configuration.) are supported.",
+		},
+	}
 
-		// Should fail when allowCustomOSUpdatesAndFileVault = false
-		err := decl.ValidateUserProvided(false)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "Declaration profile can’t include OS updates settings")
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			decl := &MDMAppleRawDeclaration{
+				Type:       c.declType,
+				Identifier: "test-identifier",
+			}
 
-	t.Run("OSUpdateDeclarationAllowedWhenFlagEnabled", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
-			Identifier: "test-os-update",
-		}
-
-		// Should succeed when allowCustomOSUpdatesAndFileVault = true
-		err := decl.ValidateUserProvided(true)
-		require.NoError(t, err)
-	})
-
-	t.Run("OtherDeclarationsUnaffected", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.passcode.settings",
-			Identifier: "test-passcode",
-		}
-
-		// Should succeed regardless of flag
-		err := decl.ValidateUserProvided(false)
-		require.NoError(t, err)
-
-		err = decl.ValidateUserProvided(true)
-		require.NoError(t, err)
-	})
+			err := decl.ValidateUserProvided()
+			if c.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {

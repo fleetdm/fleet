@@ -91,7 +91,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
-
+| [Usage statistics](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618)                     | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 
 ## Meetings
 
@@ -380,6 +380,8 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 
 The [Product Design](https://fleetdm.com/handbook/product-design#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
+> Temporary landing pages follow a different process. See [temporary landing pages](https://fleetdm.com/handbook/company/writing#temporary-landing-pages).
+
 
 ## Design at Fleet
 
@@ -426,7 +428,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -469,7 +471,7 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 
 ## Contributing to the handbook and docs
 
-> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in Slack.
+> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask the Head of People in Slack.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
@@ -708,6 +710,13 @@ Either way, it's up to you to make sure that your responsibilities are covered a
 ## Benefits
 
 In this section, you can find information about Fleet's benefit strategies and decisions.
+
+
+### Health coverage
+
+**US-based team members:** Fleet offers premium US benefits that includes health, dental, and life insurance, with 66%+ coverage for dependents.
+
+**International team members:** Fleet provides premium health benefits for international employees via our employer of record [Remote](https://remote.com).
 
 
 ### Paid time off

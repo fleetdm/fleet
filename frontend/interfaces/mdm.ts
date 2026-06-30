@@ -21,16 +21,22 @@ export type ITokenTeam = {
   name: string;
 };
 
-export interface IMdmAbmToken {
+export type ITokenFleet = {
+  fleet_id: number;
+  name: string;
+};
+
+export interface IMdmAbToken {
   id: number;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
-  macos_team: ITokenTeam;
-  ios_team: ITokenTeam;
-  ipados_team: ITokenTeam;
+  macos_fleet: ITokenFleet;
+  ios_fleet: ITokenFleet;
+  ipados_fleet: ITokenFleet;
+  byod_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {
@@ -55,7 +61,7 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
 export type MdmEnrollmentStatus =
   | "On (manual)"
   | "On (automatic)"
-  | "On (personal)"
+  | "On (manual - personal)"
   | "On (company-owned)"
   | "Off"
   | "Pending";
@@ -90,8 +96,8 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     displayName: "On (company-owned)",
     filterValue: "automatic",
   },
-  "On (personal)": {
-    displayName: "On (personal)",
+  "On (manual - personal)": {
+    displayName: "On (manual - personal)",
     filterValue: "personal",
   },
   Off: {
@@ -257,7 +263,7 @@ export type RecoveryLockPasswordStatus =
   | "removing_enforcement"
   | "failed";
 
-export interface IMdmSSOReponse {
+export interface IMdmSSOResponse {
   url: string;
 }
 
@@ -281,6 +287,12 @@ export enum BootstrapPackageStatus {
   FAILED = "failed",
 }
 
+export enum EndUserLocalAccountType {
+  ADMIN = "admin",
+  STANDARD = "standard",
+  NONE = "none",
+}
+
 export const isEnrolledInMdm = (
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null
 ): hostMdmEnrollmentStatus is MdmEnrollmentStatus => {
@@ -290,7 +302,7 @@ export const isEnrolledInMdm = (
   return [
     "On (automatic)",
     "On (manual)",
-    "On (personal)",
+    "On (manual - personal)",
     "On (company-owned)",
   ].includes(hostMdmEnrollmentStatus);
 };
@@ -302,11 +314,13 @@ export const isBYODManualEnrollment = (
 };
 
 /** This checks if the device is enrolled via an Apple ID user enrollment.
- * We refer to that as "account driven user enrollment" */
+ * We refer to that as "account driven user enrollment". Note that this same
+ * status now also covers manual BYOD enrollments (Apple) and Android BYO
+ * (work profile); see issue #23242. */
 export const isBYODAccountDrivenUserEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
-  return enrollmentStatus === "On (personal)";
+  return enrollmentStatus === "On (manual - personal)";
 };
 
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
@@ -319,4 +333,14 @@ export const isAutomaticDeviceEnrollment = (
     enrollmentStatus === "On (company-owned)" ||
     enrollmentStatus === "On (automatic)"
   );
+};
+
+/** Android BYO (work profile, personally-owned) enrollment. */
+export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (manual - personal)";
+};
+
+/** Android COBO (company-owned, fully managed) enrollment. */
+export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (automatic)";
 };

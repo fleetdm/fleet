@@ -198,7 +198,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
 				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
 				DEPProfileErrorFilter:             new(true),
-				DEPAssignProfileResponseFilter:    ptr.T(fleet.DEPAssignProfileResponseFailed),
+				DEPAssignProfileResponseFilter:    new(fleet.DEPAssignProfileResponseFailed),
 			},
 		},
 		"all params defined (deprecated)": {

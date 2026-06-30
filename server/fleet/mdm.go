@@ -3,6 +3,8 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -35,6 +37,10 @@ const (
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 
 	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -75,7 +81,8 @@ const (
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID" // deprecated in favor of FleetVarCertificateRenewalID, but remains for back-compat
+	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
@@ -94,7 +101,7 @@ const (
 func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
-			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
@@ -114,10 +121,17 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
-	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
-	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
+	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
+	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
+	// either form satisfies the requirement.
+	FleetVarRenewalIDRegexp = regexp.MustCompile(fmt.Sprintf(
+		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
+		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
+	))
+	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -167,7 +181,9 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte    `db:"token" json:"-"`
+	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -180,11 +196,13 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
 }
 
 type ABMTokenTeam struct {
@@ -309,6 +327,18 @@ type HostMDMProfileRetryCount struct {
 	// ProfileName is the unique name used by Windows profiles
 	ProfileName string `db:"profile_name"`
 	Retries     uint   `db:"retries"`
+}
+
+// ProfileACMECommandResult bundles the gates needed to decide whether an
+// InstallProfile ack should trigger a CertificateList refetch on macOS:
+// host platform, profile UUID, and whether the delivered profile contains a
+// com.apple.security.acme payload. Computed in a single query keyed on
+// (host_uuid, command_uuid).
+type ProfileACMECommandResult struct {
+	HostID         uint   `db:"host_id"`
+	Platform       string `db:"platform"`
+	ProfileUUID    string `db:"profile_uuid"`
+	HasACMEPayload bool   `db:"has_acme_payload"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -844,9 +874,13 @@ func labelCountMap(labels []string) map[string]int {
 	return counts
 }
 
-// MDMProfileSpecsMatch match checks if two slices contain the same spec
-// elements, regardless of order.
+// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
+// regardless of order.
+//
+// Precondition: each slice must contain at most one entry per Path.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	mustNotHaveDuplicatePaths("a", a)
+	mustNotHaveDuplicatePaths("b", b)
 	if len(a) != len(b) {
 		return false
 	}
@@ -928,6 +962,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	}
 
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
+}
+
+func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
+	if len(specs) < 2 {
+		return
+	}
+	seen := make(map[string]struct{}, len(specs))
+	for _, s := range specs {
+		if _, dup := seen[s.Path]; dup {
+			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
+		}
+		seen[s.Path] = struct{}{}
+	}
 }
 
 type MDMLabelsMode string
@@ -1339,3 +1386,42 @@ const (
 	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
 	SSOInitiatorAppleMDMSSO = "mdm_sso"
 )
+
+// ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
+// include mode may be set, no label may appear in both include and exclude lists, and the legacy
+// Labels field is normalised to LabelsIncludeAll. Errors are accumulated into invalid.
+func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, customSettings []MDMProfileSpec) {
+	for i, prof := range customSettings {
+		includeCount := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0} {
+			if b {
+				includeCount++
+			}
+		}
+		if includeCount > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+		}
+		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
+}
+
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
+func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, fmt.Errorf("generating 32-byte token: %w", err)
+	}
+	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
+	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
+	return urlEncodedToken, nil
+}

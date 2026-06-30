@@ -1,0 +1,10 @@
+{
+  "name": "Weasis",
+  "unique_identifier": "org.weasis.launcher",
+  "token": "weasis",
+  "installer_format": "pkg",
+  "slug": "weasis/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

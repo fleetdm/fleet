@@ -78,8 +78,9 @@ func touchFile(t *testing.T, name string) {
 }
 
 // TestDoFlagsUpdateWithEmptyFlags tests the scenario of Fleet flag `command_line_flags`
-// being set to an empty JSON document `{}` and Orbit osquery.flags file being
-// an empty file. Such scenario should trigger no update of flags.
+// being set to an empty JSON document `{}`. Setting it to `{}` is an explicit instruction
+// to clear osquery flags, so Orbit reconciles the osquery.flags file to empty (distinct
+// from command_line_flags being unset, which is covered by TestDoFlagsUpdateWithNilFlags).
 func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	rootDir := t.TempDir()
 	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
@@ -102,13 +103,14 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 
 	// Non-empty fleet flags and osquery.flags has empty flags.
 	testConfig = &fleet.OrbitConfig{
-		Flags: json.RawMessage(`{"--verbose": true}`),
+		Flags: json.RawMessage(`{"verbose": true}`),
 	}
 	err = fr.Run(testConfig)
 	require.NoError(t, err)
 	require.True(t, restartQueued)
 
-	// Empty Fleet flags and osquery.flags has non-empty flags.
+	// Empty Fleet flags ({}) and osquery.flags has non-empty flags: the file is
+	// cleared and a restart is triggered.
 	restartQueued = false
 	testConfig = &fleet.OrbitConfig{
 		Flags: json.RawMessage("{}"),
@@ -118,8 +120,16 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	err = fr.Run(testConfig)
 	require.NoError(t, err)
 	require.True(t, restartQueued)
+
+	contents, err := os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Empty(t, string(contents))
 }
 
+// TestDoFlagsUpdateWithNilFlags verifies that when the server is not managing
+// osquery command-line flags (command_line_flags unset, so config.Flags is
+// nil/empty), Orbit leaves the osquery.flags file untouched, preserving any
+// pre-packaged or user-provided flags.
 func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
 	rootDir := t.TempDir()
 	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
@@ -133,64 +143,47 @@ func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, restartQueued)
 
-	// Nil Flags + existing file: reconcile to empty + restart.
-	err = os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n--tls_dump=true\n"), 0o644)
+	// Nil Flags + existing user-provided file: file is preserved, no restart.
+	userFlags := "--verbose=true\n--tls_dump=true\n"
+	err = os.WriteFile(osqueryFlagsFile, []byte(userFlags), 0o644)
 	require.NoError(t, err)
 	err = fr.Run(&fleet.OrbitConfig{Flags: nil})
+	require.NoError(t, err)
+	require.False(t, restartQueued)
+
+	contents, err := os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Equal(t, userFlags, string(contents))
+
+	// Empty (but non-nil) Flags is treated the same as nil: file preserved.
+	err = fr.Run(&fleet.OrbitConfig{Flags: json.RawMessage("")})
+	require.NoError(t, err)
+	require.False(t, restartQueued)
+
+	contents, err = os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Equal(t, userFlags, string(contents))
+}
+
+// TestDoFlagsUpdateWithNullFlags verifies that the JSON literal "null" is an
+// explicit instruction to clear osquery flags, distinct from command_line_flags
+// being unset (which preserves the file).
+func TestDoFlagsUpdateWithNullFlags(t *testing.T) {
+	rootDir := t.TempDir()
+	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
+
+	var restartQueued bool
+	queueOrbitRestart := func(string) { restartQueued = true }
+	fr := NewFlagReceiver(queueOrbitRestart, FlagUpdateOptions{RootDir: rootDir})
+
+	// "null" + existing flags: the file is cleared and a restart is triggered.
+	err := os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n"), 0o644)
+	require.NoError(t, err)
+	err = fr.Run(&fleet.OrbitConfig{Flags: json.RawMessage("null")})
 	require.NoError(t, err)
 	require.True(t, restartQueued)
 
 	contents, err := os.ReadFile(osqueryFlagsFile)
 	require.NoError(t, err)
 	require.Empty(t, string(contents))
-}
-
-func TestDoFlagsUpdateStartupDebugIsFloor(t *testing.T) {
-	rootDir := t.TempDir()
-	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
-
-	var restartQueued bool
-	queueOrbitRestart := func(string) { restartQueued = true }
-	fr := NewFlagReceiver(queueOrbitRestart, FlagUpdateOptions{
-		RootDir:        rootDir,
-		StartedInDebug: true,
-	})
-
-	// Nil Flags: floor injects verbose/tls_dump.
-	err := fr.Run(&fleet.OrbitConfig{Flags: nil})
-	require.NoError(t, err)
-	require.True(t, restartQueued)
-
-	diskFlags, err := readFlagFile(rootDir)
-	require.NoError(t, err)
-	require.Equal(t, "true", diskFlags["--verbose"])
-	require.Equal(t, "true", diskFlags["--tls_dump"])
-
-	// Unrelated flag pushed: floor still preserves verbose/tls_dump.
-	restartQueued = false
-	_ = os.Remove(osqueryFlagsFile)
-	err = fr.Run(&fleet.OrbitConfig{
-		Flags: json.RawMessage(`{"distributed_interval": 30}`),
-	})
-	require.NoError(t, err)
-	require.True(t, restartQueued)
-
-	diskFlags, err = readFlagFile(rootDir)
-	require.NoError(t, err)
-	require.Equal(t, "true", diskFlags["--verbose"])
-	require.Equal(t, "true", diskFlags["--tls_dump"])
-	require.Equal(t, "30", diskFlags["--distributed_interval"])
-
-	// Admin override wins over the floor.
-	restartQueued = false
-	err = fr.Run(&fleet.OrbitConfig{
-		Flags: json.RawMessage(`{"verbose": false}`),
-	})
-	require.NoError(t, err)
-	require.True(t, restartQueued)
-
-	diskFlags, err = readFlagFile(rootDir)
-	require.NoError(t, err)
-	require.Equal(t, "false", diskFlags["--verbose"])
-	require.Equal(t, "true", diskFlags["--tls_dump"])
 }

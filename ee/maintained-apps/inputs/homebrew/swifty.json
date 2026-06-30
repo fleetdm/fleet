@@ -1,0 +1,10 @@
+{
+  "name": "Swifty",
+  "unique_identifier": "com.electron.swifty",
+  "token": "swifty",
+  "installer_format": "dmg",
+  "slug": "swifty/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

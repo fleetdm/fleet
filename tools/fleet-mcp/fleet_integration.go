@@ -3,10 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,22 +26,6 @@ import (
 // us amortize the round-trip count without overwhelming Fleet with thousands
 // of simultaneous requests.
 const teamFanOutConcurrency = 8
-
-// tempQueryNamePrefix is the prefix used by all transient saved queries created
-// by runMultiHostQuery. Sweeping leftover queries at startup uses this prefix
-// to find them.
-const tempQueryNamePrefix = "fleet-mcp-temp-"
-
-// randomHexSuffix returns a hex-encoded random string for unique temp-query
-// names. Falls back to time.Now().UnixNano() if crypto/rand is unavailable
-// (extremely unlikely, but the fallback keeps runMultiHostQuery functional).
-func randomHexSuffix(nBytes int) string {
-	b := make([]byte, nBytes)
-	if _, err := rand.Read(b); err != nil {
-		return strconv.FormatInt(time.Now().UnixNano(), 16)
-	}
-	return hex.EncodeToString(b)
-}
 
 // FleetClient represents a client for interacting with Fleet API
 type FleetClient struct {
@@ -148,6 +130,54 @@ func isLoopbackURL(rawURL string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
+type FleetIdentity struct {
+	Email   string
+	APIOnly bool
+}
+
+// WhoAmI resolves the Fleet user behind FLEET_API_KEY.
+func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("whoami request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("whoami: %s", fleetErrMsg(resp.StatusCode, errBody))
+	}
+	var body struct {
+		User struct {
+			Email   string `json:"email"`
+			APIOnly bool   `json:"api_only"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("whoami decode: %w", err)
+	}
+	return &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}, nil
+}
+
+// fleetErrMsg renders a Fleet API error.
+// It prefers Fleet's structured "message" field and, for non-JSON bodies,
+// falls back to a bounded <120 char snippet rather than dumping the full response body
+func fleetErrMsg(status int, body []byte) string {
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+	}
+	snippet := strings.TrimSpace(string(body))
+	if snippet == "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d", status)
+	}
+	if len(snippet) > 120 {
+		snippet = snippet[:120] + "…"
+	}
+	return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, snippet)
+}
+
 // HostLabel represents a label attached to a host (Fleet returns objects, not plain strings)
 type HostLabel struct {
 	ID   uint   `json:"id"`
@@ -186,7 +216,6 @@ type Policy struct {
 	ID               uint   `json:"id"`
 	Name             string `json:"name"`
 	Description      string `json:"description"`
-	Query            string `json:"query"`
 	Platform         string `json:"platform"`
 	PassingHostCount int    `json:"passing_host_count"`
 	FailingHostCount int    `json:"failing_host_count"`
@@ -246,27 +275,7 @@ type AdHocQueryResponse struct {
 	Rows   []map[string]interface{} `json:"rows"`
 }
 
-// MultiQueryRunRequest is the body for running a saved query against multiple hosts
-type MultiQueryRunRequest struct {
-	HostIDs []uint `json:"host_ids,omitempty"`
-}
-
-// LiveQueryHostResult is a single host's result from a multi-host query run
-type LiveQueryHostResult struct {
-	HostID uint                     `json:"host_id"`
-	Rows   []map[string]interface{} `json:"rows"`
-	Error  *string                  `json:"error"`
-}
-
-// MultiQueryRunResponse is the response from POST /api/v1/fleet/queries/:id/run
-type MultiQueryRunResponse struct {
-	QueryID            uint                  `json:"query_id"`
-	TargetedHostCount  int                   `json:"targeted_host_count"`
-	RespondedHostCount int                   `json:"responded_host_count"`
-	Results            []LiveQueryHostResult `json:"results"`
-}
-
-// LiveQueryResult is a unified result returned from RunLiveQuery
+// LiveQueryResult is a unified result returned from a live query run.
 type LiveQueryResult struct {
 	TargetedHostCount  int                      `json:"targeted_host_count"`
 	RespondedHostCount int                      `json:"responded_host_count"`
@@ -646,25 +655,6 @@ func (fc *FleetClient) GetLabels(ctx context.Context) ([]Label, error) {
 	return result.Labels, nil
 }
 
-// GetFleetConfig retrieves the Fleet server configuration.
-func (fc *FleetClient) GetFleetConfig(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/config", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get fleet config: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get fleet config: status code %d", resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode fleet config: %w", err)
-	}
-	return result, nil
-}
-
 // GetEndpointsWithAggregations returns the platform breakdown for the entire
 // Fleet using /api/v1/fleet/host_summary, which Fleet computes server-side
 // over the full inventory. The previous implementation called GetEndpoints(0)
@@ -746,10 +736,6 @@ func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
 }
 
 // GetHostCount retrieves the total host count without fetching all host data.
-// Always returns the unfiltered, fleet-wide count. Use GetHostCountWithFilters
-// when the caller has supplied any filter dimension — the bare /hosts/count
-// endpoint is global and would mislead the caller into thinking a filtered
-// list represents the global inventory.
 func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/hosts/count", nil)
 	if err != nil {
@@ -770,8 +756,9 @@ func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 	return result.Count, nil
 }
 
-// GetHostCountWithFilters returns the count of hosts matching the given filter
-// intersection — the count companion to GetEndpointsWithFilters.
+// GetHostCountWithFilters returns the count of hosts matching the same filter
+// scope GetEndpointsWithFilters lists, so get_endpoints' Total describes the
+// returned set rather than the global inventory.
 func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string) (int, error) {
 	if policyResponse != "" && policyID == "" {
 		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
@@ -780,21 +767,49 @@ func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, pl
 		return 0, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResponse)
 	}
 
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return 0, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	}
+
 	labelID, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
 	if err != nil {
 		return 0, err
 	}
 
-	var teamIDStr string
-	if teamName != "" {
-		teamIDs, terr := fc.resolveTeamNames(ctx, []string{teamName})
-		if terr != nil {
-			return 0, fmt.Errorf("failed to resolve fleet: %w", terr)
+	// Label + policy: /hosts/count ignores policy_id once label_id is set, so
+	// count the client-side label∩policy intersection GetEndpointsWithFilters
+	// builds (perPage=0 → no client-side cap).
+	if viaLabel && policyID != "" {
+		hosts, lerr := fc.GetEndpointsWithFilters(ctx, teamName, platform, status, query, labelName, policyID, policyResponse, 0)
+		if lerr != nil {
+			return 0, lerr
 		}
-		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+		return len(hosts), nil
 	}
 
-	params := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
+	// Everything else: /hosts/count honors the filters server-side (label_id,
+	// team_id, status, query, and policy_id when no label is set).
+	params := url.Values{}
+	if teamIDStr != "" {
+		params.Set("team_id", teamIDStr)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		params.Set("query", q)
+	}
+	if policyID != "" {
+		params.Set("policy_id", policyID)
+	}
+	if policyResponse != "" {
+		params.Set("policy_response", policyResponse)
+	}
 	if viaLabel {
 		params.Set("label_id", fmt.Sprintf("%d", labelID))
 	}
@@ -993,13 +1008,21 @@ func (fc *FleetClient) resolvePlatformOrLabelToLabelID(ctx context.Context, labe
 }
 
 // GetEndpointsWithFilters retrieves endpoints from Fleet with optional
-// server-side filters (team, status, query, label/platform, policy).
+// server-side filters.
 //
-// Routing: /api/v1/fleet/hosts ignores ?label_id= / ?platform= (it returns the
-// unfiltered list), so when a label or platform is requested we route to
-// /api/v1/fleet/labels/:label_id/hosts — which scopes by label and honors
-// team_id / status / query / policy_id / policy_response and populate_labels
-// server-side. Every other (no-label) case uses /hosts directly.
+// IMPORTANT — Fleet API quirks this function works around:
+//
+//   - /api/v1/fleet/hosts SILENTLY IGNORES ?platform= and ?label_id= query
+//     params (any value returns the unfiltered host list). To filter by
+//     label or platform we must call /api/v1/fleet/labels/:label_id/hosts
+//     instead — that endpoint actually scopes results.
+//   - /api/v1/fleet/labels/:id/hosts in turn IGNORES ?policy_id= and
+//     ?software_version_id= filters but DOES respect ?team_id= / ?status= /
+//     ?query=. So when label/platform AND policy_id/policy_response are
+//     combined, we fetch both sets and intersect by host ID.
+//   - /api/v1/fleet/hosts respects ?team_id, ?status, ?query, ?policy_id,
+//     ?policy_response, ?software_version_id — used for the no-label path
+//     and as the policy side of the intersection.
 //
 // query is a free-text substring matched case-insensitively against
 // hostname / hardware_serial / primary_ip / hardware_model / user inventory
@@ -1036,10 +1059,25 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 
 	// Path 1: no label/platform — single /hosts call with all filters server-side.
 	if !viaLabel {
-		params := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
+		params := url.Values{}
 		params.Set("populate_labels", "true")
 		if perPage > 0 {
 			params.Set("per_page", fmt.Sprintf("%d", perPage))
+		}
+		if teamIDStr != "" {
+			params.Set("team_id", teamIDStr)
+		}
+		if status != "" {
+			params.Set("status", status)
+		}
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if policyID != "" {
+			params.Set("policy_id", policyID)
+		}
+		if policyResponse != "" {
+			params.Set("policy_response", policyResponse)
 		}
 		hosts, _, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
 		if err != nil {
@@ -1051,23 +1089,123 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		return hosts, nil
 	}
 
-	// Path 2: label/platform routing — /labels/:id/hosts scopes by label and,
-	// server-side, by team_id / status / query / policy_id / policy_response,
-	// and populates labels when asked. The server does it all; the MCP just
-	// passes the filters through.
-	labelParams := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
+	// Path 2: label/platform routing — call /labels/:id/hosts with the
+	// filters that endpoint respects. Use a generous per_page so that
+	// downstream client-side intersection (if any) has the full label set.
+	labelParams := url.Values{}
 	labelParams.Set("populate_labels", "true")
-	if perPage > 0 {
-		labelParams.Set("per_page", fmt.Sprintf("%d", perPage))
+	if teamIDStr != "" {
+		labelParams.Set("team_id", teamIDStr)
 	}
+	if status != "" {
+		labelParams.Set("status", status)
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		labelParams.Set("query", q)
+	}
+	// Always pull a wide page from the label endpoint — intersection may
+	// reduce the count, and the label endpoint doesn't honor most filters.
+	labelParams.Set("per_page", "500")
 	labelHosts, _, err := fc.fetchHostsFromPath(ctx, fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?%s", labelID, labelParams.Encode()))
 	if err != nil {
 		return nil, err
 	}
-	if perPage > 0 && len(labelHosts) > perPage {
-		labelHosts = labelHosts[:perPage]
+
+	// No policy filter → cap, enrich, return.
+	//
+	// Why enrich: Fleet's /labels/:id/hosts silently ignores populate_labels=true
+	// (verified empirically) — every host in labelHosts has Labels=nil. The
+	// MCP contract is to return hosts with their Labels populated, so we
+	// hydrate via per-host /api/v1/fleet/hosts/:id calls (concurrent, bounded).
+	if policyID == "" {
+		if perPage > 0 && len(labelHosts) > perPage {
+			labelHosts = labelHosts[:perPage]
+		}
+		fc.enrichHostLabels(ctx, labelHosts)
+		return labelHosts, nil
 	}
-	return labelHosts, nil
+
+	// Path 3: label + policy combo — fetch policy side via /hosts (which DOES
+	// honor populate_labels), then intersect against the label-side ID set.
+	//
+	// Why iterate policyHosts (not labelHosts): /hosts populates Labels;
+	// /labels/:id/hosts does not. Picking from policyHosts means the result
+	// already has Labels — no per-host enrichment needed for Path 3.
+	policyParams := url.Values{}
+	policyParams.Set("policy_id", policyID)
+	policyParams.Set("populate_labels", "true")
+	if policyResponse != "" {
+		policyParams.Set("policy_response", policyResponse)
+	}
+	if teamIDStr != "" {
+		policyParams.Set("team_id", teamIDStr)
+	}
+	if status != "" {
+		policyParams.Set("status", status)
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		policyParams.Set("query", q)
+	}
+	policyParams.Set("per_page", "500")
+	policyHosts, _, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+policyParams.Encode())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch policy host set for intersection: %w", err)
+	}
+
+	labelIDs := make(map[uint]bool, len(labelHosts))
+	for _, h := range labelHosts {
+		labelIDs[h.ID] = true
+	}
+
+	intersected := make([]Endpoint, 0)
+	for _, h := range policyHosts {
+		if !labelIDs[h.ID] {
+			continue
+		}
+		intersected = append(intersected, h)
+		if perPage > 0 && len(intersected) >= perPage {
+			break
+		}
+	}
+	return intersected, nil
+}
+
+// enrichHostLabels populates each host's Labels field via per-host detail
+// fetches when Labels is nil. Used after /labels/:id/hosts (which silently
+// ignores populate_labels=true and leaves Labels unpopulated). Idempotent:
+// hosts that already carry Labels are skipped, so callers can invoke
+// liberally without re-fetching.
+//
+// Concurrency is bounded so a 200-host result doesn't fan out to 200
+// in-flight Fleet API calls. ctx propagation means MCP-level cancellation
+// stops in-flight enrichment promptly. Per-host failures are logged but do
+// not abort the whole call — the caller still gets the original list, just
+// with some hosts missing labels.
+func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
+	const enrichConcurrency = 8
+	sem := make(chan struct{}, enrichConcurrency)
+	var wg sync.WaitGroup
+	for i := range hosts {
+		if hosts[i].Labels != nil {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			full, err := fc.GetHostByID(ctx, hosts[idx].ID)
+			if err != nil {
+				logrus.Warnf("enrichHostLabels: failed to fetch host %d: %v", hosts[idx].ID, err)
+				return
+			}
+			hosts[idx].Labels = full.Labels
+		}(i)
+	}
+	wg.Wait()
 }
 
 // GetPolicyCompliance retrieves policy compliance data
@@ -1457,7 +1595,7 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create saved query: status code %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("failed to create saved query: %s", fleetErrMsg(resp.StatusCode, bodyBytes))
 	}
 
 	var result struct {
@@ -1470,10 +1608,6 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 	return &result.Query, nil
 }
 
-// RunLiveQuery executes a live query against the specified targets using Fleet's modern REST API.
-// Uses targeted API calls per dimension to avoid fetching all hosts.
-// For single hosts: uses per-host ad hoc endpoint (POST /api/v1/fleet/hosts/:id/query).
-// For multiple hosts: creates a temp saved query → runs by ID → deletes it.
 // LiveQueryTargetSpec captures every dimension that scopes a live query.
 //
 // Filter dimensions (Fleet / Platform / Label / Status / Query / PolicyID /
@@ -1642,33 +1776,6 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 	}
 }
 
-// buildHostListParams produces the shared filter query-param set used by
-// both /api/v1/fleet/hosts (listing) and /api/v1/fleet/hosts/count (count)
-// when no label/platform routing is in play. Keeping the two endpoints in
-// lockstep is important: any drift means `Total` and `Endpoints` in
-// get_endpoints stop describing the same scope. teamIDStr is the
-// already-resolved numeric team id (callers run resolveTeamNames first);
-// empty values for any arg are skipped so the resulting URL stays minimal.
-func buildHostListParams(teamIDStr, status, query, policyID, policyResponse string) url.Values {
-	params := url.Values{}
-	if teamIDStr != "" {
-		params.Set("team_id", teamIDStr)
-	}
-	if status != "" {
-		params.Set("status", status)
-	}
-	if q := strings.TrimSpace(query); q != "" {
-		params.Set("query", q)
-	}
-	if policyID != "" {
-		params.Set("policy_id", policyID)
-	}
-	if policyResponse != "" {
-		params.Set("policy_response", policyResponse)
-	}
-	return params
-}
-
 // intersectHostsByID returns hosts present in both lists, preserving the
 // order of the first list. Used for label+policy and CVE+policy intersection.
 func intersectHostsByID(a, b []Endpoint) []Endpoint {
@@ -1688,78 +1795,6 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 	return out
 }
 
-func (fc *FleetClient) RunLiveQuery(ctx context.Context, sql string, hostnames, labels, platforms, teams []string) (*LiveQueryResult, error) {
-	// Legacy entry point — preserved so existing callers keep working.
-	// New code should use RunLiveQueryWithSpec for full filter dimensions.
-	spec := LiveQueryTargetSpec{
-		Hostnames:       hostnames,
-		LegacyLabels:    labels,
-		LegacyPlatforms: platforms,
-		LegacyFleets:    teams,
-	}
-	return fc.RunLiveQueryWithSpec(ctx, sql, spec)
-}
-
-// RunLiveQueryWithSpec resolves the spec to an exact target host list using
-// the same intersection semantics as ResolveLiveQueryTargets, then dispatches
-// to single-host or multi-host osquery distribution.
-//
-// When spec.Fleet (or the legacy spec.LegacyFleets[0]) is set, the team is
-// resolved here and the team_id is threaded through runMultiHostQuery so the
-// transient saved query is created under that team instead of Global. The
-// host targeting itself is already team-scoped via ResolveLiveQueryTargets;
-// this additionally aligns the saved-query ownership / RBAC with the team.
-func (fc *FleetClient) RunLiveQueryWithSpec(ctx context.Context, sql string, spec LiveQueryTargetSpec) (*LiveQueryResult, error) {
-	targets, err := fc.ResolveLiveQueryTargets(ctx, spec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve target hosts: %w", err)
-	}
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("no matching hosts found for the provided targets")
-	}
-
-	teamID, err := fc.resolveLiveQueryTeamID(ctx, spec)
-	if err != nil {
-		return nil, err
-	}
-
-	hostIDs := make([]uint, 0, len(targets))
-	nameByID := make(map[uint]Endpoint, len(targets))
-	for _, t := range targets {
-		hostIDs = append(hostIDs, t.ID)
-		nameByID[t.ID] = t
-	}
-
-	if len(hostIDs) == 1 {
-		// Ad-hoc single-host path uses POST /hosts/:id/query directly — no
-		// saved query is created so team scoping does not apply.
-		return fc.runAdHocSingleHost(ctx, hostIDs[0], sql, nameByID)
-	}
-	return fc.runMultiHostQuery(ctx, hostIDs, sql, nameByID, teamID)
-}
-
-// resolveLiveQueryTeamID translates spec.Fleet (with LegacyFleets fallback)
-// into a *uint team_id suitable for CreateSavedQuery / CreateQueryRequest.
-// Returns (nil, nil) when no team is requested — that's the Global scope.
-func (fc *FleetClient) resolveLiveQueryTeamID(ctx context.Context, spec LiveQueryTargetSpec) (*uint, error) {
-	teamName := strings.TrimSpace(spec.Fleet)
-	if teamName == "" && len(spec.LegacyFleets) > 0 {
-		teamName = strings.TrimSpace(spec.LegacyFleets[0])
-	}
-	if teamName == "" {
-		return nil, nil
-	}
-	ids, err := fc.resolveTeamNames(ctx, []string{teamName})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve fleet %q for query scoping: %w", teamName, err)
-	}
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("fleet %q resolved to no team IDs", teamName)
-	}
-	id := ids[0]
-	return &id, nil
-}
-
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
@@ -1771,7 +1806,7 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ad hoc query failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("ad hoc query failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var adHoc AdHocQueryResponse
@@ -1808,103 +1843,6 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 	}, nil
 }
 
-// runMultiHostQuery creates a temporary saved query, runs it by ID, then deletes it.
-// Uses POST /api/v1/fleet/queries/:id/run (Fleet 4.43+ synchronous REST).
-//
-// The temp query name pairs a millisecond timestamp with 8 random bytes — the
-// timestamp keeps lexical order useful for log scans, the random suffix makes
-// concurrent invocations from the same MCP process collision-proof. If the
-// DELETE in the deferred cleanup fails (network blip, Fleet 5xx, MCP killed),
-// the leftover is logged at error level so an operator can run the startup
-// sweeper or clean it up by hand. SweepLeftoverTempQueries() also removes any
-// such residue at next MCP boot.
-func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sql string, endpointByID map[uint]Endpoint, teamID *uint) (*LiveQueryResult, error) {
-	tempName := fmt.Sprintf("%s%d-%s", tempQueryNamePrefix, time.Now().UnixMilli(), randomHexSuffix(8))
-	// teamID propagates from the caller's spec.Fleet — when set, the temp
-	// saved query lives under that team (Fleet) instead of Global, so RBAC,
-	// listings, and audit trail all reflect the intended scope.
-	savedQuery, err := fc.CreateSavedQuery(ctx, tempName, "Temporary MCP live query", sql, "", teamID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary query: %w", err)
-	}
-	defer func() {
-		// Detach from the request ctx — if the caller cancelled (MCP client
-		// hung up, request timeout), we still want to clean up the temp
-		// query rather than wait for the next startup sweep. Bound the
-		// detached call with a short timeout so a wedged Fleet doesn't pin
-		// the goroutine forever.
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", savedQuery.ID)
-		r, delErr := fc.makeFleetRequest(cleanupCtx, "DELETE", delEndpoint, nil)
-		if r != nil {
-			r.Body.Close()
-		}
-		if delErr != nil {
-			logrus.Errorf("failed to delete temp query %s (id=%d): %v — will be swept on next startup", tempName, savedQuery.ID, delErr)
-		} else if r != nil && r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
-			logrus.Errorf("temp query DELETE returned status %d for %s (id=%d) — will be swept on next startup", r.StatusCode, tempName, savedQuery.ID)
-		}
-	}()
-
-	logrus.Infof("Created temp query ID=%d, running against %d hosts", savedQuery.ID, len(hostIDs))
-
-	runEndpoint := fmt.Sprintf("/api/v1/fleet/reports/%d/run", savedQuery.ID)
-	resp, err := fc.makeFleetRequest(ctx, "POST", runEndpoint, MultiQueryRunRequest{HostIDs: hostIDs})
-	if err != nil {
-		return nil, fmt.Errorf("failed to run live query: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("live query run failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var runResp MultiQueryRunResponse
-	if err := json.NewDecoder(resp.Body).Decode(&runResp); err != nil {
-		return nil, fmt.Errorf("failed to decode live query run response: %w", err)
-	}
-
-	var enriched []map[string]interface{}
-	for _, r := range runResp.Results {
-		row := map[string]interface{}{
-			"host_id": r.HostID,
-			"rows":    r.Rows,
-		}
-		if ep, ok := endpointByID[r.HostID]; ok {
-			name := ep.DisplayName
-			if name == "" {
-				name = ep.Name
-			}
-			row["host_name"] = name
-		}
-		if r.Error != nil {
-			row["error"] = *r.Error
-		}
-		enriched = append(enriched, row)
-	}
-
-	return &LiveQueryResult{
-		TargetedHostCount:  runResp.TargetedHostCount,
-		RespondedHostCount: runResp.RespondedHostCount,
-		Results:            enriched,
-	}, nil
-}
-
-// isTempQueryName reports whether name marks a transient saved query
-// created by runMultiHostQuery. Tolerates the "[<team>] " prefix that
-// GetQueries prepends to team-scoped queries so team-scoped temp queries
-// are detected alongside global ones.
-func isTempQueryName(name string) bool {
-	if strings.HasPrefix(name, "[") {
-		if idx := strings.Index(name, "] "); idx > 0 {
-			name = name[idx+2:]
-		}
-	}
-	return strings.HasPrefix(name, tempQueryNamePrefix)
-}
-
 // endpointMatchesHostname reports whether ep's hostname-like fields (Name,
 // ComputerName, DisplayName) equal name case-insensitively. Used to verify
 // a singleton substring hit from Fleet's /hosts?query= actually matched on
@@ -1913,38 +1851,6 @@ func endpointMatchesHostname(ep Endpoint, name string) bool {
 	return strings.EqualFold(ep.Name, name) ||
 		strings.EqualFold(ep.ComputerName, name) ||
 		strings.EqualFold(ep.DisplayName, name)
-}
-
-// SweepLeftoverTempQueries deletes any saved queries whose name begins with
-// tempQueryNamePrefix. Called once at MCP startup to clean up residue from
-// previous runMultiHostQuery invocations whose deferred DELETE failed (process
-// killed mid-run, Fleet 5xx, network partition). Best-effort: errors are
-// logged but do not block startup.
-func (fc *FleetClient) SweepLeftoverTempQueries(ctx context.Context) {
-	queries, err := fc.GetQueries(ctx)
-	if err != nil {
-		logrus.Warnf("temp-query sweep: failed to list queries: %v", err)
-		return
-	}
-	swept := 0
-	for _, q := range queries {
-		if !isTempQueryName(q.Name) {
-			continue
-		}
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", q.ID)
-		r, err := fc.makeFleetRequest(ctx, "DELETE", delEndpoint, nil)
-		if r != nil {
-			r.Body.Close()
-		}
-		if err != nil {
-			logrus.Warnf("temp-query sweep: failed to delete %s (id=%d): %v", q.Name, q.ID, err)
-			continue
-		}
-		swept++
-	}
-	if swept > 0 {
-		logrus.Infof("temp-query sweep: deleted %d leftover %s* queries", swept, tempQueryNamePrefix)
-	}
 }
 
 // makeFleetRequest builds and executes a Fleet API request bound to ctx.

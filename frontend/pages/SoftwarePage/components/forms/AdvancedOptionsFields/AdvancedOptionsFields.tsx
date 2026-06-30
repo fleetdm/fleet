@@ -12,6 +12,8 @@ interface IAdvancedOptionsFieldsProps {
   showSchemaButton: boolean;
   installScriptTooltip?: string;
   installScriptHelpText: ReactNode;
+  /** Script-only packages show install script read-only — the file is the install script. */
+  installScriptReadOnly?: boolean;
   postInstallScriptHelpText: ReactNode;
   uninstallScriptTooltip?: string;
   uninstallScriptHelpText: ReactNode;
@@ -34,6 +36,7 @@ const AdvancedOptionsFields = ({
   showSchemaButton,
   installScriptTooltip,
   installScriptHelpText,
+  installScriptReadOnly = false,
   postInstallScriptHelpText,
   uninstallScriptTooltip,
   uninstallScriptHelpText,
@@ -93,7 +96,7 @@ const AdvancedOptionsFields = ({
         helpText={installScriptHelpText}
         label="Install script"
         labelTooltip={installScriptTooltip}
-        readOnly={disableFields}
+        readOnly={disableFields || installScriptReadOnly}
       />
       <Editor
         label="Post-install script"

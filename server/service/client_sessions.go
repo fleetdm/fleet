@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // Login attempts to login to the current Fleet instance. If login is successful,
 // an auth token is returned.
 func (c *Client) Login(email, password string) (string, error) {
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
@@ -33,7 +33,7 @@ func (c *Client) Login(email, password string) (string, error) {
 		)
 	}
 
-	var responseBody loginResponse
+	var responseBody fleet.LoginResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return "", fmt.Errorf("decode login response: %w", err)
@@ -46,9 +46,32 @@ func (c *Client) Login(email, password string) (string, error) {
 	return responseBody.Token, nil
 }
 
+// SSOSettings returns the SSO settings for the current Fleet instance.
+// This endpoint is unauthenticated and can be called before login.
+func (c *Client) SSOSettings() (*fleet.SessionSSOSettings, error) {
+	response, err := c.Do("GET", "/api/v1/fleet/sso", "", nil)
+	if err != nil {
+		return nil, fmt.Errorf("GET /api/v1/fleet/sso: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get SSO settings received status %d %s", response.StatusCode, extractServerErrorText(response.Body))
+	}
+
+	var responseBody struct {
+		Settings *fleet.SessionSSOSettings `json:"settings"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+		return nil, fmt.Errorf("decode SSO settings response: %w", err)
+	}
+
+	return responseBody.Settings, nil
+}
+
 // Logout attempts to logout to the current Fleet instance.
 func (c *Client) Logout() error {
 	verb, path := "POST", "/api/latest/fleet/logout"
-	var responseBody logoutResponse
+	var responseBody fleet.LogoutResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

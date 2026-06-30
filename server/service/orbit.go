@@ -91,20 +91,23 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 }
 
 // processWindowsEUAToken validates a Fleet-signed EUA token from the Windows MSI
-// installer, links the user's IdP account to the host, and returns the UPN and
-// device ID for use in post-enrollment steps.
-func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string, euaToken string) (upn string, deviceID string, err error) {
+// installer, ensures the IdP account exists, and returns the UPN, device ID,
+// and IdP account UUID. The actual host_mdm_idp_accounts row is written by
+// the caller after the host row has been created by EnrollOrbit, so that the
+// reconcileHostEmailsFromMdmIdpAccounts step inside AssociateHostMDMIdPAccount
+// can populate host_emails for the hosts list device_mapping (issue #45066).
+func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string, euaToken string) (upn string, deviceID string, idpAcctUUID string, err error) {
 	if svc.wstepCertManager == nil {
 		// Windows MDM is not configured on this server so the token cannot be validated.
 		// Fall back to prompting the user for authentication.
-		return "", "", fleet.NewOrbitIDPAuthRequiredError()
+		return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 	}
 
 	claims, tokenErr := svc.wstepCertManager.GetEUATokenClaims(euaToken)
 	if tokenErr != nil {
 		svc.logger.WarnContext(ctx, "EUA token validation failed, falling back to end user auth prompt",
 			"err", tokenErr, "host_uuid", hostUUID)
-		return "", "", fleet.NewOrbitIDPAuthRequiredError()
+		return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 	}
 	upn = claims.UPN
 	deviceID = claims.DeviceID
@@ -114,9 +117,9 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 		if fleet.IsNotFound(err) {
 			svc.logger.WarnContext(ctx, "EUA token device_id not found in windows mdm enrollments, falling back to end user auth prompt",
 				"device_id", deviceID, "host_uuid", hostUUID)
-			return "", "", fleet.NewOrbitIDPAuthRequiredError()
+			return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 		}
-		return "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
+		return "", "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
 	}
 
 	// Fetch or create the mdm_idp_accounts row for this email.
@@ -124,34 +127,40 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 	// that may have been populated by SCIM provisioning.
 	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
+		return "", "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
 	}
 	if fleet.IsNotFound(err) {
 		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
+			return "", "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
-		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctxdb.RequirePrimary(ctx, true), upn)
+		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 		if err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
+			return "", "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
 	}
 	if acct == nil {
-		return "", "", ctxerr.New(ctx, "mdm idp account not found for EUA token")
+		return "", "", "", ctxerr.New(ctx, "mdm idp account not found for EUA token")
 	}
 
-	// Link the IdP account to this host UUID in host_mdm_idp_accounts.
-	if err := svc.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, acct.UUID); err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "associating host with mdm idp account for EUA token")
-	}
-
-	return upn, deviceID, nil
+	return upn, deviceID, acct.UUID, nil
 }
 
 // EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
 func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+
+	// Force primary reads for the whole handler. EnrollOrbit is a
+	// read-after-write flow: the Setup Experience SSO callback and the MSI
+	// EUA token path both write to host_mdm_idp_accounts immediately before
+	// orbit retries enrollment, and a stale replica read here would silently
+	// reintroduce the IdP-association bugs we fixed in #45066 (and could
+	// also re-trigger END_USER_AUTH_REQUIRED on the first read of
+	// GetMDMIdPAccountByHostUUID). The enrollment endpoint is low-traffic
+	// (runs once per device, not on every check-in), so the load impact on
+	// the primary is negligible.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	logging.WithLevel(
 		logging.WithExtras(ctx,
@@ -221,7 +230,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
 
-	var euaDeviceID, euaUPN string
+	var euaDeviceID, euaUPN, euaIdpAcctUUID string
 
 	if isEndUserAuthRequired {
 		if hostInfo.HardwareUUID == "" {
@@ -252,16 +261,28 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				case platform == "windows" && euaToken != "":
 					// A Windows host already authenticated during MDM enrollment and the
 					// EUA token was passed by the MSI installer.
-					upn, deviceID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
+					upn, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
 					if err != nil {
 						return "", err
 					}
 					euaUPN = upn
 					euaDeviceID = deviceID
+					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
 				default:
-					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-					return "", fleet.NewOrbitIDPAuthRequiredError()
+					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
+					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+					if err != nil {
+						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
+					}
+					if !previouslyEnrolled {
+						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						return "", fleet.NewOrbitIDPAuthRequiredError()
+					}
+					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+						"host_uuid", hostInfo.HardwareUUID)
 				}
 			}
 		}
@@ -276,6 +297,37 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
+	}
+
+	platform := host.FleetPlatform()
+
+	// Now that EnrollOrbit has created the hosts row, reconcile host_emails with
+	// any IdP association that was written before this point — either by
+	// processWindowsEUAToken above (Windows MSI) or by the Orbit Setup
+	// Experience SSO callback (Linux/Windows, ee/server/service/mdm.go). Without
+	// this, the hosts list endpoint returns device_mapping: null even though
+	// the single-host endpoint shows IdP info via SCIM (issue #45066).
+	//
+	// Scoped to Linux and Windows only: macOS hosts reconcile host_emails via
+	// ReconcileMDMAppleEnrollRef during MDM enrollment.
+	if isEndUserAuthRequired && (platform == "linux" || platform == "windows") {
+		idpAcctUUID := euaIdpAcctUUID
+		if idpAcctUUID == "" {
+			// No EUA token in this request — see if the SSO callback already
+			// wrote a host_mdm_idp_accounts row for this host UUID.
+			if idp, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID); err != nil {
+				svc.logger.ErrorContext(ctx, "failed to look up mdm idp account for reconciliation",
+					"err", err, "host_uuid", hostInfo.HardwareUUID)
+			} else if idp != nil {
+				idpAcctUUID = idp.UUID
+			}
+		}
+		if idpAcctUUID != "" {
+			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, hostInfo.HardwareUUID, idpAcctUUID); err != nil {
+				svc.logger.ErrorContext(ctx, "failed to associate host with mdm idp account post-enrollment",
+					"err", err, "host_uuid", hostInfo.HardwareUUID, "idp_acct_uuid", idpAcctUUID)
+			}
+		}
 	}
 
 	if euaDeviceID != "" {
@@ -308,7 +360,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	// Associate the newly-enrolled host with a SCIM user if applicable.
 	// Do this only for linux and windows devices, as macOS devices
 	// are associated during MDM enrollment.
-	platform := host.FleetPlatform()
 	if platform == "linux" || platform == "windows" {
 		svc.logger.DebugContext(ctx, "attempting to associate enrolled host with SCIM user", "host_id", host.ID, "platform", platform)
 		if err := svc.ds.MaybeAssociateHostWithScimUser(ctx, host.ID); err != nil {
@@ -440,15 +491,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
-	if err != nil {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
-	}
-
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !fleet.IsNotFound(err) {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
 	}
+
+	// Derive the Fleet-MDM connection state from the host_mdm data fetched above rather than issuing a separate
+	// IsHostConnectedToFleetMDM query.
+	isConnectedToFleetMDM := mdmInfo != nil && mdmInfo.ConnectedToFleet
 
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
@@ -538,13 +588,37 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		host.Platform == "windows" &&
 		isConnectedToFleetMDM {
-		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		// One query returns the ESP awaiting-configuration value, whether the host has queued commands, and the persisted sync capability.
+		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows host config state")
 		}
-		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
-			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
-			notifs.RunSetupExperience = true
+		if state != nil {
+			// The live X-Fleet-Capabilities header is only present on this orbit-config request. Persist it (on change) so the OMA-DM
+			// management session, which has no such header, can gate poll relaxation on the stored value. Best-effort: a failed write
+			// self-heals on the next poll.
+			syncCapable := false
+			if mp, ok := capabilities.FromContext(ctx); ok {
+				syncCapable = mp.Has(fleet.CapabilityWindowsMDMSync)
+			}
+			if syncCapable != state.FleetdSyncCapable {
+				if err := svc.ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable); err != nil {
+					svc.logger.WarnContext(ctx, "persisting Windows MDM sync capability", "host_uuid", host.UUID, "err", err)
+				}
+			}
+
+			switch {
+			case state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationPending ||
+				state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationActive:
+				// During the Autopilot ESP, the setup experience flow delivers queued commands.
+				notifs.RunSetupExperience = true
+			case state.HasPendingCommands:
+				// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply
+				// without waiting for the poll.
+				if syncCapable {
+					notifs.WindowsMDMSyncRequest = true
+				}
+			}
 		}
 	}
 

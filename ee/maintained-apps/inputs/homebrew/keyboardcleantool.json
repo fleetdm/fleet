@@ -1,0 +1,10 @@
+{
+  "name": "KeyboardCleanTool",
+  "unique_identifier": "com.hegenberg.KeyboardCleanTool",
+  "token": "keyboardcleantool",
+  "installer_format": "zip",
+  "slug": "keyboardcleantool/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

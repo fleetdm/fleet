@@ -8,7 +8,9 @@ In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and 
 
 When disk encryption is enforced, hosts' disk encryption keys will be stored in Fleet.
 
-For macOS hosts that automatically enroll, end users are forced to enable disk encryption during Setup Assistant. For hosts that manually enroll, end users are forced to enable disk encryption the next time they log out and log back in. For both enroll methods, end users can't defer. 
+For macOS hosts that automatically enroll, end users are forced to enable disk encryption during Setup Assistant and the disk encryption key is automatically escrowed to Fleet. For hosts that manually enroll, end users are forced to enable disk encryption. The key gets escrowed the next time they log out and log back in. For both enroll methods, end users can't defer.
+
+> On macOS 15.7, if the end user account type is set to **Standard** or **Skip (no account)** during [setup experience](https://fleetdm.com/guides/setup-experience), FileVault cannot be enabled locally through System Settings. To encrypt the disk on these hosts, enforce disk encryption via Fleet using the steps below. This issue does not affect macOS 26.
 
 For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
 

@@ -442,11 +442,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
+		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
 		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts %s GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
@@ -581,7 +582,14 @@ func ingestKubequeryInfo(ctx context.Context, logger *slog.Logger, host *fleet.H
 	return nil
 }
 
-const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+// usesMacOSDiskEncryptionQuery probes whether FileVault is enabled on a macOS host.
+// It deliberately does not filter on `user_uuid` — that column reports the SecureToken
+// holder and can be empty for a short period after ADE setup completes, even when
+// FileVault is on and the recovery key has been escrowed. Gating on user_uuid here
+// previously caused the host to appear unencrypted (and the recovery key to remain
+// un-escrowed) until the user logged out/in to settle SecureToken propagation. See
+// https://github.com/fleetdm/fleet/issues/45369.
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1`
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
@@ -2293,7 +2301,20 @@ var (
 	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
 	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
 	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
-	basicAppSanitizers   = []struct {
+	// pythonNameVersion extracts the marketing version from python.org Windows
+	// installer names like "Python 3.14.5 (64-bit)" -> "3.14.5". The registry
+	// DisplayVersion embeds the micro version in the third segment (e.g.
+	// "3.14.5150.0"), which neither matches the real version nor sorts correctly,
+	// so we recover the true version from the name instead.
+	//
+	// python.org's installer also registers the individual component MSIs as their
+	// own ARP entries ("Python 3.14.5 Core Interpreter (64-bit)", "...Standard
+	// Library (64-bit)", "...Executables (64-bit)", etc.), all sharing the same
+	// bogus DisplayVersion. The optional middle group lets those component names
+	// normalize to the same marketing version as the bundle, so a single install
+	// doesn't show up in inventory under two different versions.
+	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
+	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2437,6 +2458,23 @@ var (
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
 				s.Release = "" // Clear release to avoid issues with vulnerability matching
+			},
+		},
+		{
+			// python.org's Windows installer reports a registry DisplayVersion like
+			// "3.14.5150.0" (the micro version is encoded into the third segment),
+			// which doesn't match the real version "3.14.5" and breaks version
+			// ordering. Recover the marketing version from the product name, e.g.
+			// "Python 3.14.5 (64-bit)" -> "3.14.5".
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "python software foundation") &&
+					pythonNameVersion.MatchString(s.Name)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
+					s.Version = matches[1]
+				}
 			},
 		},
 		{
@@ -2980,6 +3018,28 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	return query, true
 }
 
+// parseMacOSProfileInstallDate parses the install_date reported by the
+// macos_profiles and macos_user_profiles tables. The value comes straight from
+// `/usr/bin/profiles -o stdout-xml`, which seemingly formats it using the host's
+// locale in certain cases which have been observed but unfortunately not reproduced.
+// Depending on region and macOS version the time portion can be 24-hour
+// (NSDate.description, the common case) or 12-hour with an AM/PM marker, and on
+// macOS 14+ (CLDR 42) the AM/PM marker is preceded by a narrow no-break space
+// (U+202F) instead of an ASCII space.
+func parseMacOSProfileInstallDate(installDate string) (time.Time, error) {
+	// Replace narrow and standard-no-break spaces with a common ' ' space
+	normalized := strings.NewReplacer("\u202f", " ", "\u00a0", " ").Replace(installDate)
+	for _, layout := range []string{
+		"2006-01-02 15:04:05 -0700",   // 24-hour
+		"2006-01-02 3:04:05 PM -0700", // 12-hour with AM/PM
+	} {
+		if t, err := time.Parse(layout, normalized); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported install_date format %q", installDate)
+}
+
 func directIngestMacOSProfiles(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -2998,9 +3058,9 @@ func directIngestMacOSProfiles(
 
 	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
-		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		installDate, err := parseMacOSProfileInstallDate(row["install_date"])
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "directIngestMacOSProfiles parse install_date")
 		}
 		if installDate.IsZero() {
 			// this should never happen, but if it does, we should log it
@@ -3035,58 +3095,71 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
-	}
-	if updated {
-		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
-		}
-		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
-			// it taking two full refreshes to show this
-			if device.MDMNotInOOBE {
-				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
-				}
-			}
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"])
+	return err
+}
 
-			mapping := []*fleet.HostDeviceMapping{
-				{
-					HostID: host.ID,
-					Email:  device.MDMEnrollUserID,
-					Source: fleet.DeviceMappingMDMIdpAccounts,
-				},
-			}
-			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
-			}
-			// Check if the user is a valid SCIM user to manage the join table
-			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
-			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
-			}
-			if err == nil && scimUser != nil {
-				// User exists in SCIM, create/update the mapping for additional attributes
-				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
-					// Log the error but don't fail the request since the main IDP mapping succeeded
-					logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
-				}
-			} else {
-				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
-					// Log the error but don't fail the request
-					logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
-				}
-			}
+// LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
+// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes), it
+// also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
+// matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
+//
+// Returns true when UpdateMDMWindowsEnrollmentsHostUUID actually changed the row, false when it did not. The "no
+// change" case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to
+// this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
+// the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
+// rather than infer it from the boolean alone.
+func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if !updated {
+		return false, nil
+	}
+	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
+	if err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+	}
+	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+		return updated, nil
+	}
+	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
+	// reflect this state.
+	if device.MDMNotInOOBE {
+		if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
+			return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
 		}
 	}
-	return nil
+	mapping := []*fleet.HostDeviceMapping{
+		{
+			HostID: hostID,
+			Email:  device.MDMEnrollUserID,
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}
+	if err := ds.ReplaceHostDeviceMapping(ctx, hostID, mapping, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+	}
+	// Check if the user is a valid SCIM user to manage the join table.
+	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+	if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+		return updated, ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+	}
+	if err == nil && scimUser != nil {
+		// User exists in SCIM, create/update the mapping for additional attributes (idp_full_name, idp_groups, etc.).
+		if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			// Log the error but don't fail the linkage since the main IDP mapping succeeded.
+			logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+		}
+	} else {
+		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host.
+		if err := ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+		}
+	}
+	return updated, nil
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -3530,7 +3603,7 @@ func directIngestHostCertificatesDarwin(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery)
 }
 
 func directIngestHostCertificatesWindows(
@@ -3628,7 +3701,7 @@ func directIngestHostCertificatesWindows(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery)
 }
 
 func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {

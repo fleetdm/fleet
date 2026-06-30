@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "3.31.1.179",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Egnyte Desktop App' AND publisher = 'Egnyte, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Egnyte Desktop App' AND publisher = 'Egnyte, Inc.' AND version_compare(version, '3.31.1.179') < 0);"
+      },
+      "installer_url": "https://egnyte-cdn.egnyte.com/egnytedrive/win/en-us/3.31.1/EgnyteDesktopApp_3.31.1_179.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "70b84d4a",
+      "sha256": "aca64bfeacb23e4edfae7f33a831deb003da3788035dd49e8ff866afccadad85",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{03909D9B-F5F2-41F3-ABF9-4FCE077F028D}"
+    }
+  ],
+  "refs": {
+    "70b84d4a": "# Uninstall Egnyte Desktop App by finding all related product codes for its\n# upgrade code. Mirrors the generated upgrade-code uninstall, but treats the MSI\n# reboot codes as success:\n#   0    = success\n#   3010 = success, reboot required\n#   1641 = success, reboot initiated\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{03909D9B-F5F2-41F3-ABF9-4FCE077F028D}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # Bail only on a genuine failure; 0/3010/1641 are MSI success codes.\n    if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 3010 -and $process.ExitCode -ne 1641) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

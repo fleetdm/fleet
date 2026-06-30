@@ -1,0 +1,8 @@
+{
+  "name": "Icon Composer",
+  "unique_identifier": "com.apple.IconComposer",
+  "token": "icon-composer",
+  "installer_format": "dmg",
+  "slug": "icon-composer/darwin",
+  "default_categories": ["Productivity"]
+}

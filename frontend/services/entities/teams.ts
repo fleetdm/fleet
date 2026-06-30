@@ -8,8 +8,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import { ITeamIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
-  INewTeamUsersBody,
-  IRemoveTeamUserBody,
+  INewTeamUsersFormData,
+  IRemoveTeamUserFormData,
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
@@ -179,7 +179,7 @@ export default {
     return sendRequest("PATCH", path, data);
   },
 
-  addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
+  addUsers: (teamId: number | undefined, newUsers: INewTeamUsersFormData) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
@@ -194,7 +194,7 @@ export default {
   },
   removeUsers: (
     teamId: number | undefined,
-    removeUsers: IRemoveTeamUserBody
+    removeUsers: IRemoveTeamUserFormData
   ) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(

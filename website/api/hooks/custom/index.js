@@ -139,6 +139,25 @@ will be disabled and/or hidden in the UI.
       // ... Any other app-specific setup code that needs to run on lift,
       // even in production, goes here ...
 
+      // In non-production environments, make `builtStaticContent.testimonials` optional so pages that use the <scrollable-tweets> component still render before the build-static-content script has been run.
+      // To prevent the component from being empty whitespace on pages where it is used, we'll inject a single placeholder testimonial directing the user to run the build-static-content script.
+      if (sails.config.environment !== 'production') {
+        if (!_.isObject(sails.config.builtStaticContent)) {
+          sails.config.builtStaticContent = {};
+        }
+        if (!_.isArray(sails.config.builtStaticContent.testimonials) || sails.config.builtStaticContent.testimonials.length === 0) {
+          sails.config.builtStaticContent.testimonials = [{
+            quote: 'This placeholder appears because the website\'s static content has not been built. Run `sails run build-static-content` or `npm start-dev` to see real customer testimonials.',
+            quoteImageFilename: 'logo-blue-118x41@2x.png',
+            quoteAuthorName: 'Fleet',
+            quoteAuthorJobTitle: 'Placeholder testimonial',
+            quoteAuthorProfileImageFilename: 'fleet-profile-image.png',
+            quoteLinkUrl: '/',
+            productCategories: ['Device management', 'Observability', 'Software management'],
+          }];
+        }
+      }//ﬁ
+
     },
 
 
@@ -360,7 +379,7 @@ will be disabled and/or hidden in the UI.
                     }
                     let attributionCookieOrUndefined = req.cookies.marketingAttribution;// Will be undefined if this is not set.
 
-                    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+                    let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
                       emailAddress: sanitizedUser.emailAddress,
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
@@ -377,11 +396,12 @@ will be disabled and/or hidden in the UI.
                     }
                     // Create the new Fleet website page view record.
                     await sails.helpers.salesforce.createHistoricalEvent.with({
-                      salesforceContactId: recordIds.salesforceContactId,
-                      salesforceAccountId: recordIds.salesforceAccountId,
+                      salesforceContactId: recordDetails.salesforceContactId,
+                      salesforceAccountId: recordDetails.salesforceAccountId,
                       fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,
                       eventType: 'Website page view',
-                      websiteVisitReason: websiteVisitReason
+                      websiteVisitReason: websiteVisitReason,
+                      relatedCampaign: recordDetails.mostRecentCampaign,
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });

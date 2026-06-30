@@ -1,6 +1,6 @@
 import { userTeamStub } from "test/stubs";
 import createMockUser from "__mocks__/userMock";
-import { IUserUpdateBody } from "interfaces/user";
+import { IUserUpdateFormData } from "interfaces/user";
 
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
 import userManagementHelpers from "./userManagementHelpers";
@@ -8,11 +8,11 @@ import userManagementHelpers from "./userManagementHelpers";
 describe("userManagementHelpers module", () => {
   describe("generateUpdatedData function", () => {
     it("returns an object with only the difference between the two", () => {
-      const updatedTeam: IUserUpdateBody = {
+      const updatedTeam: IUserUpdateFormData = {
         ...userTeamStub,
         role: "maintainer",
       };
-      const newTeam: IUserUpdateBody = {
+      const newTeam: IUserUpdateFormData = {
         ...userTeamStub,
         id: 2,
         role: "observer",

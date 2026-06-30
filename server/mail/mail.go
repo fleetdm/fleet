@@ -33,6 +33,7 @@ func NewService(config config.FleetConfig) (fleet.MailService, error) {
 			config.SES.StsAssumeRoleArn,
 			config.SES.StsExternalID,
 			config.SES.SourceArn,
+			config.SES.SenderDomain,
 		)
 	default:
 		return &mailService{}, nil
