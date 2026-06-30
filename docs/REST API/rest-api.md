@@ -6037,7 +6037,7 @@ Add a dynamic or manual label.
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
 | hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
-| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
+| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `"darwin"`, `"windows"`, `"linux"`, `"ubuntu"`, and `"centos"`. All platforms are included by default and this option is represented by an empty string. |
 
 If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
 
