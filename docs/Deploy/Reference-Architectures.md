@@ -181,19 +181,13 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 #### AWS
 
-##### Database connection pool sizing
-
-Set `FLEET_MYSQL_MAX_OPEN_CONNS` (and `FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS`) per the database instance, not to a single fixed value. Each Fleet instance opens up to this many connections to the writer and the same to the reader, so the worst case landing on a single Aurora instance is about `Fleet instances × max_open_conns`, and roughly double that during a failover when reader connections shift onto the writer. This must stay comfortably under the instance's `max_connections`. Confirm the actual ceiling with `SELECT @@max_connections;`, since it can be raised with a custom parameter group.
-
-The recommended values for the breakpoints below are `20` for the R-class instances at 25000 hosts and above, which have ample connection headroom, and `10` for the smaller T-class instances (`db.t4g.medium`, `db.t4g.large`) at 5000 and 10000 hosts. Those T-class instances have a low default `max_connections` (roughly 90 and 135), so `10` is near their safe limit. To run a larger pool at those sizes, raise `max_connections` with a custom parameter group or move to an R-class instance.
-
 ##### Example configuration breakpoints
 
 ###### [Up to 5000 hosts](https://calculator.aws/#/estimate?id=cc26267f829536383e9b1b449ca0c56f0e844084)
 
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 6 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| --------------- | -------------- | --- | -------------------------- |
+| 6 Fargate tasks | 1024 CPU Units | 4GB | 10                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -202,9 +196,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 10000 hosts](https://calculator.aws/#/estimate?id=5ea231525450b1cd4fa847f4564351d2c17d2ee2)
 
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 8 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| --------------- | -------------- | --- | -------------------------- |
+| 8 Fargate tasks | 1024 CPU Units | 4GB | 10                         |
 
 | Dependencies | Version                 | Instance type    | Nodes |
 | ------------ |-------------------------| ---------------- | ----- |
@@ -213,9 +207,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4700e7a36ef34b84ae9ad4f444690f1df2ca3753)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 10 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 10 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -224,9 +218,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 50000 hosts](https://calculator.aws/#/estimate?id=3887d782a8f6cfeb9e0463686b5629aeb4cd678e)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 15 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 15 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -235,9 +229,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 80000 hosts](https://calculator.aws/#/estimate?id=7d0dee9241aff55fc733a9eead816baea14aee21)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 20 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 20 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -246,9 +240,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 100000 hosts](https://calculator.aws/#/estimate?id=cd17a0dda5e1ee5f919ac0a2a0ea8a6e1557e307)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 25 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 25 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -257,9 +251,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=a53e31063df9e5941b0c4b019b03ca2bd226fd48)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 40 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 40 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -268,9 +262,9 @@ The recommended values for the breakpoints below are `20` for the R-class instan
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=1f54ccc80e27a78f192b0e9db02ab957eff0c26c)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 70 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 70 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type    | Nodes |
 | ------------ |-------------------------| ---------------- | ----- |

@@ -32,14 +32,14 @@ variable "db_instance_type" {
   default     = "db.r6g.4xlarge"
 }
 
+variable "mysql_max_open_conns" {
+  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. Worst-case connections on a single Aurora instance is roughly fleet_containers * mysql_max_open_conns."
+  type        = number
+  default     = 10
+}
+
 variable "redis_instance_type" {
   description = "the redis instance type to use in loadtesting. default is cache.m6g.large"
   type        = string
   default     = "cache.m6g.large"
-}
-
-variable "mysql_max_open_conns" {
-  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. Worst-case connections on a single Aurora instance is roughly fleet_containers * mysql_max_open_conns, and double that during a failover when reader connections shift onto the writer; this must stay under the instance's max_connections (verify with SELECT @@max_connections). Default 20 is safe for the R-class instances used at 25k+ hosts; lower it for smaller T-class instances. See https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Managing.Performance.html"
-  type        = number
-  default     = 20
 }
