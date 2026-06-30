@@ -11085,7 +11085,6 @@ For Fleet-maintained apps, the `software_package` object includes two additional
 
 - `pinned_version`: The version the app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). Omitted when the app automatically updates to the latest version.
 - `fleet_maintained_versions`: The versions Fleet has cached and that are available to pin or roll back to. Each entry includes `id`, `version`, and `uploaded_at`. For example:
-
 ```json
 "software_package": {
   "name": "GoogleChrome.pkg",
