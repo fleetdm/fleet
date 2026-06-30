@@ -5,6 +5,7 @@ import (
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWhatsAppVersionShortener(t *testing.T) {
@@ -14,7 +15,7 @@ func TestWhatsAppVersionShortener(t *testing.T) {
 			Version:          "2.25.16.81",
 		}
 		result, err := WhatsAppVersionShortener(app)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "25.16.81", result.Version)
 	})
 
@@ -24,7 +25,7 @@ func TestWhatsAppVersionShortener(t *testing.T) {
 			Version:          "26.26.12",
 		}
 		result, err := WhatsAppVersionShortener(app)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "26.26.12", result.Version)
 	})
 }
