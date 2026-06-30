@@ -62,7 +62,6 @@ describe("PolicyForm - component", () => {
     isFetchingAutofillDescription: false,
     isFetchingAutofillResolution: false,
     resetAiAutofillData: jest.fn(),
-    currentAutomatedPolicies: [],
   };
 
   it("should not show the target selector in the free tier", async () => {
@@ -84,6 +83,23 @@ describe("PolicyForm - component", () => {
 
     // Check that the target selector is not present.
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
+  it("caps the policy name input at 255 characters in edit mode", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<PolicyForm {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
   });
 
   describe("in premium tier", () => {
@@ -150,7 +166,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -220,7 +235,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -303,7 +317,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -382,12 +395,11 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
       await user.hover(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
@@ -461,15 +473,14 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
-      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
 
       await waitFor(() => {
         waitFor(() => {
-          user.hover(screen.getByRole("button", { name: "Run" }));
+          user.hover(screen.getByRole("button", { name: "Run policy" }));
         });
 
         expect(
@@ -522,6 +533,55 @@ describe("PolicyForm - component", () => {
           expect(screen.getByLabelText("Custom")).toBeInTheDocument();
           expect(screen.getByLabelText("All hosts")).toBeChecked();
         });
+      });
+
+      it("preloads Custom + the Exclude tab when the policy already excludes labels", async () => {
+        const renderWithExcludeLabels = createCustomRenderer({
+          withBackendMock: true,
+          context: {
+            app: {
+              currentUser: createMockUser(),
+              currentTeam: createMockTeamSummary(),
+              isGlobalAdmin: true,
+              isOnGlobalTeam: true,
+              isPremiumTier: true,
+              config: createMockConfig(),
+            },
+            policy: {
+              policyTeamId: undefined,
+              lastEditedQueryId: mockPolicy.id,
+              lastEditedQueryName: "sumthin sumthin",
+              lastEditedQueryDescription: mockPolicy.description,
+              lastEditedQueryBody: mockPolicy.query,
+              lastEditedQueryResolution: mockPolicy.resolution,
+              lastEditedQueryCritical: mockPolicy.critical,
+              lastEditedQueryPlatform: "linux",
+              lastEditedQueryLabelsIncludeAny: [],
+              lastEditedQueryLabelsIncludeAll: [],
+              lastEditedQueryLabelsExcludeAny: [{ id: 2, name: "Fresh" }],
+              lastEditedQueryLabelsExcludeAll: [],
+              setLastEditedQueryName: jest.fn(),
+              setLastEditedQueryDescription: jest.fn(),
+              setLastEditedQueryBody: jest.fn(),
+              setLastEditedQueryResolution: jest.fn(),
+              setLastEditedQueryCritical: jest.fn(),
+              setLastEditedQueryPlatform: jest.fn(),
+            },
+          },
+        });
+
+        renderWithExcludeLabels(<PolicyForm {...defaultProps} />);
+
+        // Custom target is preselected because the policy has an exclude label.
+        await waitFor(() => {
+          expect(screen.getByLabelText("Custom")).toBeChecked();
+        });
+
+        // The excluded label round-trips into the Exclude tab as checked.
+        await userEvent.click(screen.getByText("Exclude"));
+        expect(
+          await screen.findByRole("checkbox", { name: "Fresh" })
+        ).toBeChecked();
       });
 
       it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
@@ -580,28 +640,14 @@ describe("PolicyForm - component", () => {
           expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         });
 
-        // Set a label.
+        // Switch to the Exclude tab and select a label there.
         await userEvent.click(screen.getByLabelText("Custom"));
+        await userEvent.click(screen.getByText("Exclude"));
         await userEvent.click(
           await screen.findByRole("checkbox", {
             name: "Fun",
           })
         );
-
-        // Click "Include any" to open the dropdown.
-        const includeAnyOption = screen.getByRole("option", {
-          name: "Include any",
-        });
-        await userEvent.click(includeAnyOption);
-
-        // Click "Exclude any" to select it.
-        let excludeAnyOption: unknown;
-        await waitFor(() => {
-          excludeAnyOption = screen.getByRole("option", {
-            name: "Exclude any",
-          });
-        });
-        await userEvent.click(excludeAnyOption as Element);
 
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
@@ -612,7 +658,7 @@ describe("PolicyForm - component", () => {
         expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
       });
 
-      it("should set labels_include_all when picking the Include all option", async () => {
+      it("should set labels_include_all when the include mode is All", async () => {
         const onUpdate = jest.fn();
         const props = { ...defaultProps, onUpdate };
         render(<PolicyForm {...props} />);
@@ -621,23 +667,13 @@ describe("PolicyForm - component", () => {
         });
 
         await userEvent.click(screen.getByLabelText("Custom"));
+        // Include tab is the default; switch its mode to "All".
+        await userEvent.click(screen.getByLabelText("All"));
         await userEvent.click(
           await screen.findByRole("checkbox", {
             name: "Fun",
           })
         );
-
-        // Open the scope dropdown and pick "Include all".
-        await userEvent.click(
-          screen.getByRole("option", { name: "Include any" })
-        );
-        let includeAllOption: unknown;
-        await waitFor(() => {
-          includeAllOption = screen.getByRole("option", {
-            name: "Include all",
-          });
-        });
-        await userEvent.click(includeAllOption as Element);
 
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
@@ -646,6 +682,32 @@ describe("PolicyForm - component", () => {
         expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual(["Fun"]);
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
+      });
+
+      it("should send both include and exclude labels when both tabs have selections", async () => {
+        const onUpdate = jest.fn();
+        const props = { ...defaultProps, onUpdate };
+        render(<PolicyForm {...props} />);
+        await waitFor(() => {
+          expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        });
+
+        await userEvent.click(screen.getByLabelText("Custom"));
+        // Include tab (default): select "Fun".
+        await userEvent.click(
+          await screen.findByRole("checkbox", { name: "Fun" })
+        );
+        // Exclude tab: select "Fresh".
+        await userEvent.click(screen.getByText("Exclude"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", { name: "Fresh" })
+        );
+
+        await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+        const payload = onUpdate.mock.calls[0][0];
+        expect(payload.labels_include_any).toEqual(["Fun"]);
+        expect(payload.labels_exclude_any).toEqual(["Fresh"]);
       });
 
       it("should clear labels when saving a new query in All hosts target mode", async () => {

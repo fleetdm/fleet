@@ -106,6 +106,23 @@ describe("SaveNewQueryModal", () => {
     await user.click(advancedOptionsButton);
   });
 
+  it("caps the report name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewQueryModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
   it("displays error when query name is empty", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,

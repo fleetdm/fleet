@@ -22,6 +22,19 @@ var apiEndpoints []fleet.APIEndpoint
 
 var apiEndpointsSet map[string]struct{}
 
+func init() {
+	loaded, err := loadAPIEndpoints()
+	if err != nil {
+		panic(err)
+	}
+	set := make(map[string]struct{}, len(loaded))
+	for _, e := range loaded {
+		set[e.Fingerprint()] = struct{}{}
+	}
+	apiEndpoints = loaded
+	apiEndpointsSet = set
+}
+
 // GetAPIEndpoints returns a copy of the embedded API endpoints slice.
 func GetAPIEndpoints() []fleet.APIEndpoint {
 	result := make([]fleet.APIEndpoint, len(apiEndpoints))
@@ -35,11 +48,11 @@ func IsInCatalog(fingerprint string) bool {
 	return ok
 }
 
-// Init validates that every endpoint in the embedded catalog is registered
+// Validate checks that every endpoint in the embedded catalog is registered
 // on the provided handler or one of the given feature routes. Feature routes
 // are walked on a throwaway router so callers can validate routes that are
 // declared elsewhere.
-func Init(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
+func Validate(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 	r, ok := h.(*mux.Router)
 	if !ok {
 		return fmt.Errorf("expected *mux.Router, got %T", h)
@@ -75,13 +88,8 @@ func Init(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 		collect(tmp)
 	}
 
-	loadedApiEndpoints, err := loadAPIEndpoints()
-	if err != nil {
-		return err
-	}
-
 	var missing []string
-	for _, e := range loadedApiEndpoints {
+	for _, e := range apiEndpoints {
 		if _, ok := registered[e.Fingerprint()]; !ok {
 			missing = append(missing, e.Method+" "+e.Path)
 		}
@@ -90,14 +98,6 @@ func Init(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 	if len(missing) > 0 {
 		return fmt.Errorf("the following API endpoints are unknown: %v", missing)
 	}
-
-	apiEndpoints = loadedApiEndpoints
-
-	set := make(map[string]struct{}, len(loadedApiEndpoints))
-	for _, e := range loadedApiEndpoints {
-		set[e.Fingerprint()] = struct{}{}
-	}
-	apiEndpointsSet = set
 
 	return nil
 }

@@ -460,6 +460,9 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"osquery_options":                  true,
 		"software_categories":              true,
 	}
+	_, err := ds.writer(context.Background()).ExecContext(context.Background(),
+		"DELETE FROM software_categories WHERE team_id != 0")
+	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
@@ -930,7 +933,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}
-	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc, ds)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
 	discardLogger := slog.New(slog.DiscardHandler)

@@ -1,0 +1,10 @@
+{
+  "name": "SQLPro for MySQL",
+  "unique_identifier": "com.hankinsoft.osx.mysql",
+  "token": "sqlpro-for-mysql",
+  "installer_format": "zip",
+  "slug": "sqlpro-for-mysql/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

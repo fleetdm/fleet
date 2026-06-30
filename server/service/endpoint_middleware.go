@@ -272,6 +272,9 @@ func authHeaderValue(prefix string) func(ctx context.Context, r interface{}) (st
 }
 
 func getNodeKey(r interface{}) (string, error) {
+	if hnk, ok := r.(interface{ HostNodeKey() string }); ok {
+		return hnk.HostNodeKey(), nil
+	}
 	if hnk, ok := r.(interface{ hostNodeKey() string }); ok {
 		return hnk.hostNodeKey(), nil
 	}

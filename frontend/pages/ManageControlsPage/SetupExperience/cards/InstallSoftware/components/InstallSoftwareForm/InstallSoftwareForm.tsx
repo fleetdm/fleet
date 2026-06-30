@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState, useMemo } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { isEqual } from "lodash";
 import { InjectedRouter } from "react-router";
 
@@ -6,9 +6,8 @@ import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
-import { INotification } from "interfaces/notification";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
 
-import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
@@ -92,7 +91,6 @@ const InstallSoftwareForm = ({
   refetchSoftwareTitles,
 }: IInstallSoftwareFormProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS ?? false
   );
@@ -156,7 +154,7 @@ const InstallSoftwareForm = ({
 
     setIsSaving(true);
 
-    const errorNotifications: INotification[] = [];
+    const errorToasts: INotifyBatchItem[] = [];
     let hadSuccess = false;
 
     // 1. Software selection update
@@ -170,13 +168,10 @@ const InstallSoftwareForm = ({
         hadSuccess = true;
         // Still let parent refetch even if the macOS call later fails
       } catch (e) {
-        errorNotifications.push({
-          id: "update-software",
-          alertType: "error",
-          isVisible: true,
-          // You can make this more specific if you want to inspect `e`
+        errorToasts.push({
+          variant: "error",
           message: "Couldn't save software. Please try again.",
-          persistOnPageChange: false,
+          options: { response: e },
         });
       }
     }
@@ -198,22 +193,20 @@ const InstallSoftwareForm = ({
         hadSuccess = true;
         setTouchedRequireAll(false);
       } catch (e) {
-        errorNotifications.push({
-          id: "update-require-all",
-          alertType: "error",
-          isVisible: true,
+        errorToasts.push({
+          variant: "error",
           message:
             "Couldn't update 'Cancel setup if software fails'. Please try again.",
-          persistOnPageChange: false,
+          options: { response: e },
         });
       }
     }
 
     // 3. Render flashes
-    if (errorNotifications.length > 0) {
-      renderMultiFlash({ notifications: errorNotifications });
+    if (errorToasts.length > 0) {
+      notify.batch(errorToasts);
     } else if (hadSuccess) {
-      renderFlash("success", "Successfully updated.");
+      notify.success("Successfully updated.");
     }
 
     refetchSoftwareTitles();
@@ -221,10 +214,16 @@ const InstallSoftwareForm = ({
   };
 
   const renderCustomCount = () => {
-    const orderTooltip =
-      platform === "android"
-        ? "Software order will vary."
-        : "Installation order will depend on software name, starting with 0-9 then A-Z.";
+    let orderTooltip: string;
+    if (platform === "android") {
+      orderTooltip = "Software order will vary.";
+    } else if (platform === "windows" || platform === "linux") {
+      orderTooltip =
+        "Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy.";
+    } else {
+      orderTooltip =
+        "Installation order will depend on software name, starting with 0-9 then A-Z.";
+    }
 
     return (
       <div>
@@ -287,7 +286,7 @@ const InstallSoftwareForm = ({
           <div className={`${baseClass}__macos_options`}>
             <GitOpsModeTooltipWrapper
               tipOffset={6}
-              position="bottom-start"
+              position="left"
               entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
@@ -312,7 +311,7 @@ const InstallSoftwareForm = ({
           <div className={`${baseClass}__windows_options`}>
             <GitOpsModeTooltipWrapper
               tipOffset={6}
-              position="bottom-start"
+              position="left"
               entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
@@ -323,7 +322,7 @@ const InstallSoftwareForm = ({
                   <TooltipWrapper
                     tipContent={
                       isWindowsMdmEnabled
-                        ? "If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                        ? "For hosts that automatically enroll, if any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
                         : "Turn on Windows MDM to use this option."
                     }
                     disableTooltip={disableChildren}

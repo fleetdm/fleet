@@ -31,7 +31,7 @@
     background: url('/images/homepage-hero-2500x420@2x.png');
     background-size: auto 329px;
     background-repeat: no-repeat;
-    background-position-x: calc(~'100% + -56%');
+    background-position-x: calc(~'100% + -50%');
     background-position-y: top;
   }
 
@@ -467,6 +467,45 @@
     }
   }
 
+  [purpose='comparison-table-tabs'] {
+
+    display: flex;
+    flex-direction: row;
+    border-bottom: 1px solid #E2E4EA;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    [purpose='comparison-tab'] {
+      width: 20%;
+      text-align: center;
+      padding: 16px 40px;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      display: flex;
+      img {
+        height: 20px;
+      }
+      strong {
+        color: #192147;
+        text-align: center;
+        margin-bottom: 0px;
+        font-family: Inter;
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 150%;
+        white-space: nowrap;
+      }
+      &.active {
+        border-bottom: 2px solid var(--text-text-brand, #192147);
+        strong {
+          font-weight: 700;
+        }
+      }
+    }
+
+  }
+
   [purpose='comparison-table-switch'] {
     display: flex;
     flex-direction: row;
@@ -542,6 +581,7 @@
       }
     }
   }
+
 
   [purpose='comparison-column'] {
     text-align: center;
@@ -752,9 +792,6 @@
   }
 
 
-  [purpose='bottom-gradient'] {
-    background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
-  }
 
   [purpose='bottom-cta'] {
     h1 {
@@ -1115,6 +1152,17 @@
       div {
         padding: 12px 16px;
       }
+    }
+
+    [purpose='comparison-table-tabs'] {
+      [purpose='comparison-tab'] {
+        padding: 8px 16px;
+        width: 20%;
+        strong {
+          font-size: 14px;
+        }
+      }
+
     }
 
     [purpose='comparison-table'] {

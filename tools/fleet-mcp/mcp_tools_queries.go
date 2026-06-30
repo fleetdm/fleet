@@ -10,26 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// registerQueryTools attaches query- and schema-domain MCP tools to s.
-// Tools registered: get_queries, create_saved_query, get_vetted_queries,
-// prepare_live_query, run_live_query, get_osquery_schema, refresh_osquery_schema.
-//
-// Annotation policy in this group:
-//   - get_queries: read-only, idempotent, openWorld (Fleet API).
-//   - create_saved_query: NOT read-only, NOT idempotent (creates new resource);
-//     destructiveHint stays false because creating a saved query does not
-//     mutate or remove existing data.
-//   - get_vetted_queries / get_osquery_schema / prepare_live_query: read-only,
-//     idempotent, openWorldHint=false (consults the in-memory canonical schema,
-//     refreshed periodically by the background loop in schema.go).
-//   - refresh_osquery_schema: read-only on Fleet (no API call), but openWorld=true
-//     because it talks to raw.githubusercontent.com. Not idempotent in the sense
-//     that the upstream JSON can change between calls.
-//   - run_live_query: read-only on devices (osquery SELECT only), but NOT
-//     idempotent because each invocation spawns a new live distribution.
 func registerQueryTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetQueries(s, fleetClient)
-	registerCreateSavedQuery(s, fleetClient)
 	registerGetVettedQueries(s)
 	registerPrepareLiveQuery(s, fleetClient)
 	registerRunLiveQuery(s, fleetClient)
@@ -51,72 +33,6 @@ func registerGetQueries(s *server.MCPServer, fleetClient *FleetClient) {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get queries: %v", err)), nil
 		}
 		return jsonResult(queries)
-	})
-}
-
-func registerCreateSavedQuery(s *server.MCPServer, fleetClient *FleetClient) {
-	tool := mcp.NewTool("create_saved_query",
-		mcp.WithDescription("Create a new saved query in Fleet. MUST call get_osquery_schema(platform=...) (or get_osquery_schema(tables=...) for tables outside the curated list) BEFORE writing the sql argument — column types and enum values must match the canonical schema. Assumed types (e.g. assuming windows_update_history.result_code is integer when it is text 'Succeeded'/'Failed') are the #1 cause of silent zero-row queries.\n\nTeam scoping: when `fleet` is provided, the query is created under that team (Fleet) — it appears under that team in the Fleet UI, inherits its RBAC, and is listed by per-team enumeration. Omit `fleet` only when you explicitly want the query at the Global scope. If the user mentioned a team in the conversation (e.g. 'Workstations'), pass it as `fleet`."),
-		mcp.WithString("name", mcp.Required(), mcp.Description("The name of the query")),
-		mcp.WithString("sql", mcp.Required(), mcp.Description("The OSQuery SQL statement")),
-		mcp.WithString("description", mcp.Description("Description of what the query does")),
-		mcp.WithString("platform", mcp.Description("Target platform (e.g., 'darwin,windows,linux'). Leave empty for all.")),
-		mcp.WithString("fleet", mcp.Description("Fleet (team) name to scope the query to, e.g. '💻 Workstations'. When set, the query is created under that team — visible only in that team's query list and inheriting its RBAC. Leave empty for Global scope.")),
-		// Writes new state to Fleet (a saved query that can later be scheduled / run
-		// across every device). Treat as destructive so MCP clients (Claude Desktop)
-		// surface explicit user approval rather than auto-approving as "safe."
-		mcp.WithReadOnlyHintAnnotation(false),
-		mcp.WithDestructiveHintAnnotation(true),
-		mcp.WithIdempotentHintAnnotation(false),
-	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: create_saved_query")
-
-		name, err := request.RequireString("name")
-		if err != nil || name == "" {
-			return mcp.NewToolResultError("name is required"), nil
-		}
-
-		sql, err := request.RequireString("sql")
-		if err != nil || sql == "" {
-			return mcp.NewToolResultError("sql is required"), nil
-		}
-
-		desc := getOptionalString(request, "description")
-		platform := getOptionalString(request, "platform")
-		fleet := strings.TrimSpace(getOptionalString(request, "fleet"))
-
-		// Pre-flight: validate SQL table compatibility for the declared platform
-		if platform != "" {
-			platformTargets := strings.Split(platform, ",")
-			for i, pt := range platformTargets {
-				platformTargets[i] = strings.TrimSpace(pt)
-			}
-			if valErr := ValidateSQLForPlatforms(sql, platformTargets); valErr != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("SQL platform validation failed: %v", valErr)), nil
-			}
-		}
-
-		// Resolve fleet name → team_id so the query is created under the
-		// requested team rather than Global. Empty fleet stays nil = Global.
-		var teamID *uint
-		if fleet != "" {
-			ids, terr := fleetClient.resolveTeamNames(ctx, []string{fleet})
-			if terr != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("Failed to resolve fleet %q: %v", fleet, terr)), nil
-			}
-			if len(ids) == 0 {
-				return mcp.NewToolResultError(fmt.Sprintf("Fleet %q resolved to no team IDs", fleet)), nil
-			}
-			id := ids[0]
-			teamID = &id
-		}
-
-		query, err := fleetClient.CreateSavedQuery(ctx, name, desc, sql, platform, teamID)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to create saved query: %v", err)), nil
-		}
-		return jsonResult(query)
 	})
 }
 
@@ -147,7 +63,7 @@ func registerGetVettedQueries(s *server.MCPServer) {
 
 func registerPrepareLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 	tool := mcp.NewTool("prepare_live_query",
-		mcp.WithDescription("Step 1 of 2 for running a live query. RESOLVES THE EXACT TARGET HOST SET using the same intersection semantics as get_endpoints — every dimension you set is AND-ed: fleet AND platform/label AND status AND query AND policy AND cve. Returns (a) the resolved target list (id, hostname, display_name, platform, team) so you can verify scope before firing, and (b) the OSQuery schema for the targeted platform. Explicit hostnames / host_ids combine with filter dimensions as an intersection — 'these named hosts that ALSO match the filters'.\n\nUse this — NOT a wide live-query — to pinpoint exactly what's in scope. Example: fleet='💻 Workstations' + platform='linux' resolves to ONLY the Linux Workstations hosts (e.g. 2 hosts), not all 100 Workstations hosts. Example: cve_id='CVE-2026-31431' + fleet='💻 Workstations' resolves to the host(s) actually impacted by that CVE in the team."),
+		mcp.WithDescription("Step 1 of 2 for running a live query. RESOLVES THE EXACT TARGET HOST SET using the same intersection semantics as get_endpoints — every dimension you set is AND-ed: fleet AND platform/label AND status AND query AND policy AND cve. Returns (a) the resolved target list (id, hostname, display_name, platform, team) so you can verify scope before firing, and (b) the osquery schema for the targeted platform. Explicit hostnames / host_ids combine with filter dimensions as an intersection — 'these named hosts that ALSO match the filters'.\n\nUse this — NOT a wide live-query — to pinpoint exactly what's in scope. Example: fleet='💻 Workstations' + platform='linux' resolves to ONLY the Linux Workstations hosts (e.g. 2 hosts), not all 100 Workstations hosts. Example: cve_id='CVE-2026-31431' + fleet='💻 Workstations' resolves to the host(s) actually impacted by that CVE in the team."),
 		mcp.WithString("fleet", mcp.Description("Fleet (team) name, e.g. '💻 Workstations'")),
 		mcp.WithString("platform", mcp.Description("Platform: 'macos' / 'windows' / 'linux' / 'chromeos'. Resolved server-side via the matching built-in label.")),
 		mcp.WithString("label", mcp.Description("Custom Fleet label name. Takes precedence over platform when both set.")),
@@ -259,8 +175,8 @@ func inferPlatformFromTargets(targets []Endpoint) string {
 
 func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 	tool := mcp.NewTool("run_live_query",
-		mcp.WithDescription("Step 2 of 2. MUST call get_osquery_schema(platform=<target>) (or prepare_live_query, which embeds the schema response) BEFORE writing the sql argument. This verifies column NAMES and TYPES against the canonical schema — many osquery columns are TEXT despite numeric-looking values (e.g. windows_update_history.result_code is TEXT 'Succeeded'/'Failed', not an integer). Skipping the schema check produces queries that run but silently return zero rows.\n\nResolve targets and run an OSQuery SQL statement against Fleet devices. Accepts the SAME filter dimensions as prepare_live_query (intersection across fleet, platform, label, status, query, policy, CVE, hostnames, host_ids). Resolved target set is included in the response so the caller sees exactly which hosts were queried.\n\nTeam scoping: when `fleet` is set, the transient saved query that this tool creates internally is also scoped to that team — visible only under that team in the Fleet UI / audit log, with that team's RBAC. When the user mentions a team (e.g. 'Workstations'), pass it as `fleet`; do not run queries Globally and rely on host filters alone.\n\nUse the smallest target set that answers the question. Example: a CVE remediation check should target only hosts impacted by that CVE — pass cve_id + fleet, not platform=all."),
-		mcp.WithString("sql", mcp.Required(), mcp.Description("The OSQuery SQL statement to run (e.g. 'SELECT * FROM os_version;')")),
+		mcp.WithDescription("Step 2 of 2. MUST call get_osquery_schema(platform=<target>) (or prepare_live_query, which embeds the schema response) BEFORE writing the sql argument. This verifies column NAMES and TYPES against the canonical schema — many osquery columns are TEXT despite numeric-looking values (e.g. windows_update_history.result_code is TEXT 'Succeeded'/'Failed', not an integer). Skipping the schema check produces queries that run but silently return zero rows.\n\nResolve targets and run an osquery SQL statement against Fleet devices. Accepts the SAME filter dimensions as prepare_live_query (intersection across fleet, platform, label, status, query, policy, CVE, hostnames, host_ids). Resolved target set is included in the response so the caller sees exactly which hosts were queried.\n\nTeam scoping: when `fleet` is set, only hosts in that team are targeted. When the user mentions a team (e.g. 'Workstations'), pass it as `fleet`; do not run queries Globally and rely on host filters alone.\n\nUse the smallest target set that answers the question. Example: a CVE remediation check should target only hosts impacted by that CVE — pass cve_id + fleet, not platform=all."),
+		mcp.WithString("sql", mcp.Required(), mcp.Description("The osquery SQL statement to run (e.g. 'SELECT * FROM os_version;')")),
 		mcp.WithString("fleet", mcp.Description("Fleet (team) name.")),
 		mcp.WithString("platform", mcp.Description("Platform: 'macos' / 'windows' / 'linux' / 'chromeos'.")),
 		mcp.WithString("label", mcp.Description("Custom Fleet label name. Takes precedence over platform when both set.")),
@@ -274,19 +190,19 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithString("labels", mcp.Description("LEGACY — first item only; prefer 'label'.")),
 		mcp.WithString("platforms", mcp.Description("LEGACY — first item only; prefer 'platform'.")),
 		mcp.WithString("fleets", mcp.Description("LEGACY — first item only; prefer 'fleet'.")),
-		// run_live_query fires osquery against every targeted device and creates
-		// (then deletes) a transient saved query on the Fleet server. Even when the
-		// SQL itself is a SELECT, it consumes device CPU, surfaces in EDR telemetry,
-		// and writes/deletes Fleet state. NOT read-only, IS destructive: MCP clients
-		// must prompt for explicit user approval.
+		// run_live_query fires osquery against every targeted device via an ad-hoc
+		// live query campaign. Even when the SQL itself is a SELECT, it consumes
+		// device CPU and surfaces in EDR telemetry. NOT read-only, IS destructive:
+		// MCP clients must prompt for explicit user approval.
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(true),
+		// NOT idempotent because each invocation spawns a new live distribution
 		mcp.WithIdempotentHintAnnotation(false),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logrus.Info("Tool invoked: run_live_query")
 		sql, err := request.RequireString("sql")
-		if err != nil || sql == "" {
+		if err != nil || strings.TrimSpace(sql) == "" {
 			return mcp.NewToolResultError("sql is required"), nil
 		}
 
@@ -345,14 +261,6 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 			}
 		}
 
-		// Resolve team scoping for the transient saved query that
-		// runMultiHostQuery creates. When `fleet` is set, the query lives
-		// under that team in Fleet's UI / RBAC instead of Global.
-		teamID, tErr := fleetClient.resolveLiveQueryTeamID(ctx, spec)
-		if tErr != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Team scoping failed: %v", tErr)), nil
-		}
-
 		hostIDs := make([]uint, 0, len(targets))
 		nameByID := make(map[uint]Endpoint, len(targets))
 		for _, t := range targets {
@@ -364,7 +272,7 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 		if len(hostIDs) == 1 {
 			results, err = fleetClient.runAdHocSingleHost(ctx, hostIDs[0], sql, nameByID)
 		} else {
-			results, err = fleetClient.runMultiHostQuery(ctx, hostIDs, sql, nameByID, teamID)
+			results, err = fleetClient.runMultiHostCampaign(ctx, hostIDs, sql, nameByID)
 		}
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to run live query: %v", err)), nil
@@ -459,7 +367,9 @@ func registerRefreshOsquerySchema(s *server.MCPServer) {
 		mcp.WithDescription("Force-refresh the in-memory osquery/Fleet schema from the canonical JSON at https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the same source that powers https://fleetdm.com/tables). Use when get_osquery_schema returns data that conflicts with the live docs, or after Fleet upstream releases a new osquery version. The schema also auto-refreshes in the background; manual refresh is for the rare 'I just saw a new column on fleetdm.com that the response is missing' case."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithDestructiveHintAnnotation(false),
+		// Not idempotent in the sense that the upstream JSON can change between calls.
 		mcp.WithIdempotentHintAnnotation(false),
+		// openWorld=true because it talks to raw.githubusercontent.com
 		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

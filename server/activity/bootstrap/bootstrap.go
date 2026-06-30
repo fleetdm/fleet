@@ -12,6 +12,7 @@ import (
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -30,4 +31,9 @@ func New(
 	}
 
 	return svc, routesFn
+}
+
+// RegisterTracingTiers classifies the activity context's routes for trace sampling.
+func RegisterTracingTiers(registry *tracing.Registry) {
+	service.RegisterTracingTiers(registry)
 }

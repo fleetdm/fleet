@@ -8,7 +8,6 @@ For the complete summary of changes and release binaries check out the [release 
 
 ## Which queries apply to a host
 
-![Which queries apply to a host](../website/assets/images/articles/fleet-3.12.0-1-612x287@2x.gif)
 
 Knowing which queries within a pack apply to a host is an important part of managing osquery on your endpoints. Queries collect the information that powers alerting, performance dashboards, and historical data for Incident Response scenarios, so it’s critical to know when they’re successfully configured to run against your devices.
 
@@ -16,7 +15,6 @@ In this version of Fleet, you can see which queries are scheduled to run against
 
 ## “Refetch” host vitals
 
-![“Refetch” host vitals](../website/assets/images/articles/fleet-3.12.0-2-612x288@2x.gif)
 
 When viewing host vitals in Fleet, it’s important to be confident that you’re looking at the latest information.
 

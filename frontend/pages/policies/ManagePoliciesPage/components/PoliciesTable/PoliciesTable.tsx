@@ -1,9 +1,10 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyStateProps } from "interfaces/empty_state";
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
@@ -25,6 +26,7 @@ interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onDeletePoliciesClick: (selectedTableIds: number[]) => void;
+  onAddPolicyClick: () => void;
   canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
@@ -39,12 +41,15 @@ interface IPoliciesTableProps {
   count: number;
   customControl?: () => JSX.Element | null;
   isFiltered?: boolean;
+  otherAutomationType?: OtherAutomationType;
+  onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const PoliciesTable = ({
   policiesList,
   isLoading,
   onDeletePoliciesClick,
+  onAddPolicyClick,
   canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
@@ -59,29 +64,33 @@ const PoliciesTable = ({
   count,
   customControl,
   isFiltered,
+  otherAutomationType,
+  onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyState: IEmptyStateProps = {
-    header: "You don't have any policies",
-    info:
-      "Add policies to detect device health issues and trigger automations.",
-  };
+  const isAllFleets =
+    isPremiumTier &&
+    (currentTeam?.id === null || currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID);
 
+  let emptyHeader = "No policies yet";
+  // Primo mode uses a generic empty state header
   if (isPremiumTier && !config?.partnerships?.enable_primo) {
-    if (
-      currentTeam?.id === null ||
-      currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-    ) {
-      emptyState.header += ` that apply to all fleets`;
-    } else {
-      emptyState.header += ` that apply to this fleet`;
-    }
+    emptyHeader = isAllFleets
+      ? "No policies apply to all fleets"
+      : "No policies for this fleet";
   }
 
-  if (!canAddOrDeletePolicies) {
-    emptyState.info = "";
-  }
+  const emptyState: IEmptyStateProps = {
+    header: emptyHeader,
+    info:
+      "Policies are queries that return a pass or fail result. Failures trigger fixes or prompt end users to solve them on their own.",
+    primaryButton: canAddOrDeletePolicies ? (
+      <Button onClick={onAddPolicyClick} type="button">
+        Add policy
+      </Button>
+    ) : undefined,
+  };
 
   if (searchQuery || isFiltered) {
     delete emptyState.primaryButton;
@@ -89,11 +98,8 @@ const PoliciesTable = ({
     emptyState.info = "No policies match the current filters.";
   }
 
-  const searchable = !(
-    policiesList?.length === 0 &&
-    searchQuery === "" &&
-    !isFiltered
-  );
+  const isTrulyEmpty =
+    policiesList?.length === 0 && searchQuery === "" && !isFiltered;
 
   const isPrimoMode = config?.partnerships?.enable_primo || false;
   const viewingTeamPolicies =
@@ -119,6 +125,8 @@ const PoliciesTable = ({
           {
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
+            otherAutomationType,
+            onOpenManageAutomationsModal,
           },
           isPremiumTier,
           config?.partnerships?.enable_primo
@@ -154,8 +162,8 @@ const PoliciesTable = ({
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
-        disableTableHeader={!searchable}
+        searchable
+        disableSearch={isTrulyEmpty}
         customControl={customControl}
       />
     </div>

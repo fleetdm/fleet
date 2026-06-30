@@ -1,0 +1,8 @@
+{
+  "name": "REAPER",
+  "unique_identifier": "com.cockos.reaper",
+  "token": "reaper",
+  "installer_format": "dmg",
+  "slug": "reaper/darwin",
+  "default_categories": ["Productivity"]
+}

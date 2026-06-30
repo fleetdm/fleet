@@ -12,6 +12,7 @@ import (
 
 type NotFoundError struct {
 	ID           uint
+	FleetID      uint
 	Name         string
 	Message      string
 	ResourceType string
@@ -30,6 +31,9 @@ func (e *NotFoundError) Error() string {
 	if e.ID != 0 {
 		return fmt.Sprintf("%s %d was not found in the datastore", e.ResourceType, e.ID)
 	}
+	if e.FleetID != 0 {
+		return fmt.Sprintf("%s for fleet %d was not found in the datastore", e.ResourceType, e.FleetID)
+	}
 	if e.Name != "" {
 		return fmt.Sprintf("%s %s was not found in the datastore", e.ResourceType, e.Name)
 	}
@@ -44,7 +48,12 @@ func (e *NotFoundError) WithID(id uint) error {
 	return e
 }
 
-func (e *NotFoundError) WithName(name string) error {
+func (e *NotFoundError) WithFleetID(fleetID uint) error {
+	e.FleetID = fleetID
+	return e
+}
+
+func (e *NotFoundError) WithName(name string) *NotFoundError {
 	e.Name = name
 	return e
 }

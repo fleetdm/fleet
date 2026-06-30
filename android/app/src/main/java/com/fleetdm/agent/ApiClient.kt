@@ -606,6 +606,9 @@ data class GetCertificateTemplateResponse(
     @SerialName("subject_name")
     val subjectName: String,
 
+    @SerialName("subject_alternative_name")
+    val subjectAlternativeName: String? = null,
+
     @SerialName("certificate_authority_type")
     val certificateAuthorityType: String,
 

@@ -287,6 +287,20 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 	testCases := []struct {
 		Name   string
 		Action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]
+		// Background: assertAction records one management session before the action (fCmds) and one after (sCmds)
+		// and requires them equal. Each session CONSUMES the commands it receives. Enrolling a host queues its
+		// profile installs immediately (per-host reconciler), so test setup leaves a one-time batch of installs in
+		// the queue, and whichever session runs first eats it.
+		//
+		// DrainEnrollBacklog=true runs one extra throwaway session before recording. Set it for actions that do NOT
+		// (re-)enroll: there, the pre-action session would consume the enroll-time installs (fCmds=statuses+installs),
+		// the action queues nothing, and the post-action session comes up short (sCmds=statuses only). Draining first
+		// makes both sessions observe the steady state.
+		//
+		// Leave it false for actions that DO re-enroll (e.g. delete + re-enroll): re-enrollment queues the same
+		// installs again, so fCmds (enroll delivery) equaling sCmds (re-enroll delivery) is exactly the lifecycle
+		// invariant the test exists to prove. Draining would turn that into statuses-vs-installs and fail spuriously.
+		DrainEnrollBacklog bool
 	}{
 		{
 			"wiped host turns on MDM",
@@ -342,6 +356,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				// re-enroll
 				require.NoError(t, device.Enroll())
 			},
+			false,
 		},
 		{
 			"locked host turns on MDM",
@@ -383,6 +398,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 
 				require.NoError(t, device.Enroll())
 			},
+			false,
 		},
 		{
 			"host turns on MDM features out of the blue",
@@ -394,6 +410,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					require.Error(t, device.Enroll())
 				}
 			},
+			true, // action does not re-enroll, so consume the enroll-time backlog before recording
 		},
 		{
 			"host is deleted then osquery enrolls then turns on MDM",
@@ -422,6 +439,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 
 				require.NoError(t, device.Enroll())
 			},
+			false,
 		},
 	}
 
@@ -451,6 +469,9 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				host, device := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 				require.NoError(t, err)
+				if tt.DrainEnrollBacklog {
+					s.recordWindowsHostStatus(host, device)
+				}
 				assertAction(t, host, device, tt.Action)
 			})
 
@@ -478,6 +499,9 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 				require.NoError(t, err)
 
+				if tt.DrainEnrollBacklog {
+					s.recordWindowsHostStatus(host, device)
+				}
 				assertAction(t, host, device, tt.Action)
 			})
 		})
@@ -718,7 +742,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NotEmpty(t, enrollSecrets)
 
 	// ensure there's a token for automatic enrollments
-	s.enableABM(t.Name())
+	abmToken := s.enableABM(t.Name())
 
 	// for our tests, we'll crete two ABM devices and some manual ones
 	devices := []godep.Device{
@@ -847,13 +871,42 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NotNil(t, iphoneUser)
 	require.Equal(t, iphoneUser.Email, "iphone_user@example.com")
 
+	originalServerURL := s.server.URL
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"server_settings": {
+				"server_url": "https://localhost:8080"
+			},
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "mdm.test.com",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "%s"
+				}
+			}
+		}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+
+	iPhoneBYODToken := s.LoginAccountDrivenEnrollUser("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
+	loc, err := iPhoneBYODToken.Location()
+	require.NoError(t, err)
+	require.NotNil(t, loc)
+	require.True(t, strings.HasPrefix(loc.String(), "apple-remotemanagement-user-login://authentication-results?access-token="))
+	accessToken := strings.Split(loc.String(), "apple-remotemanagement-user-login://authentication-results?access-token=")[1]
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "`+originalServerURL+`"
+		}
+	}`), http.StatusOK, &acResp)
+
 	iPhoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
 		iPhoneHwModel,
-		iphoneUser.UUID,
+		accessToken,
 	)
 	require.NoError(t, iPhoneMdmDevice.Enroll())
-	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, iphoneUser.Email)
+	assert.Equal(t, "sso_user@example.com", iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
 	// add global profiles
 	globalProfiles := [][]byte{
@@ -995,7 +1048,20 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		require.NoError(t, plist.Unmarshal(renewCmd.Raw, &fullCmd))
 
 		if wantProfile == "" {
-			s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef, wantManagedAppleID)
+			enrollProfile := s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef, wantManagedAppleID)
+			if wantManagedAppleID != "" {
+				// we see this as byod, so we update the enrollInfo to avoid fetching the profile againt from the account_driven_enroll path, as that is not how it works.
+				// and with the new challenge based setup, does not mimic the real flow well.
+				for _, payload := range enrollProfile.PayloadContent {
+					switch payload.PayloadType {
+					case "com.apple.security.scep":
+						device.EnrollInfo.SCEPURL = payload.PayloadContent.URL
+						device.EnrollInfo.SCEPChallenge = payload.PayloadContent.Challenge
+					case "com.apple.mdm":
+						device.EnrollInfo.MDMURL = payload.ServerURL
+					}
+				}
+			}
 		} else {
 			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
 			require.NoError(t, err)
@@ -1022,7 +1088,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	checkRenewCertCommand(manualEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
-	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", "sso_user@example.com")
 
 	// migrated device doesn't receive any commands because
 	// `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` is not set
@@ -1108,7 +1174,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
-	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", "sso_user@example.com")
 
 	// migrated device is still marked as migrated
 	var stillMigrated bool
@@ -1377,7 +1443,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
+	// iOS/iPadOS enrollment sets refetch_requested=true so the iphone_ipad_refetcher
+	// cron picks the host up; the flag is cleared by the DeviceInformation ack handler.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 	hostID := hostByIdentifierResp.Host.ID
 
 	triggerRefetchCron(hostID)
@@ -1385,7 +1453,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // refetch cron doesn't set the refetch_requested flag
+	// The cron queues commands but doesn't clear refetch_requested — that happens
+	// only after the device acks the DeviceInformation command below.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 4)
@@ -1431,7 +1501,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // re-enrollment also clears the refetch_requested flag
+	// Re-enrollment re-flags iOS/iPadOS hosts with refetch_requested=true so the cron
+	// will pick them up again; the flag is cleared by the next DeviceInformation ack.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 }
 
 // TestMDMLockHostUnenrolled tests that we cannot lock a macOS host that is not enrolled in MDM.

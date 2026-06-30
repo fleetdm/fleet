@@ -154,6 +154,81 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ad_config.yml"
   },
   {
+    "name": "adobe_plugins",
+    "platforms": [
+      "darwin",
+      "windows"
+    ],
+    "description": "Detects Adobe plugins (CEP extensions, UXP extensions, and native plug-ins) installed on the host by scanning well-known directories and parsing plugin manifests.",
+    "examples": "List all detected Adobe plugins (CEP and UXP extensions):\n\n```\nSELECT name, version, vendor, host_application, extension_type FROM adobe_plugins;\n```\n\nInclude native plug-ins from application directories (Photoshop, Premiere, etc.):\n\n```\nSELECT * FROM adobe_plugins WHERE scan_level = 'deep';\n```",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "required": false,
+        "description": "Full filesystem path to the plugin directory or file."
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "Plugin display name. From UXP manifest `name`, else manifest `id`, else directory or file name."
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "Plugin version from the manifest. Empty if no manifest is found."
+      },
+      {
+        "name": "vendor",
+        "type": "text",
+        "required": false,
+        "description": "Plugin author or publisher from the manifest. Empty if absent."
+      },
+      {
+        "name": "bundle_id",
+        "type": "text",
+        "required": false,
+        "description": "Plugin bundle identifier from CEP `ExtensionBundleId` or UXP `id`. Empty for native plug-ins."
+      },
+      {
+        "name": "host_application",
+        "type": "text",
+        "required": false,
+        "description": "Target Adobe application(s) such as Photoshop, Illustrator, or Premiere Pro. Comma-separated if multiple."
+      },
+      {
+        "name": "extension_type",
+        "type": "text",
+        "required": false,
+        "description": "One of `CEP`, `UXP`, or `native`. Determined by the scan path, not by manifest presence."
+      },
+      {
+        "name": "user",
+        "type": "text",
+        "required": false,
+        "description": "Local username for user-scoped plugin installs. Empty for system-wide installs."
+      },
+      {
+        "name": "platform",
+        "type": "text",
+        "required": false,
+        "description": "The host platform, either `darwin` or `windows`."
+      },
+      {
+        "name": "scan_level",
+        "type": "text",
+        "required": false,
+        "description": "WHERE-clause constraint that controls scan depth. `standard` (default) scans CEP and UXP directories only. `deep` additionally scans application-specific native plug-in directories."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/adobe_plugins",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/adobe_plugins.yml"
+  },
+  {
     "name": "alf",
     "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
@@ -4701,9 +4776,15 @@
         "type": "integer",
         "required": false,
         "description": "PID of the container process."
+      },
+      {
+        "name": "socket_path",
+        "type": "text",
+        "required": false,
+        "description": "Path to the containerd socket to query (default: /run/containerd/containerd.sock)."
       }
     ],
-    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```",
+    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```\n\nQuery containers from a k3s containerd socket:\n\n```\nSELECT * FROM containerd_containers WHERE socket_path = '/run/k3s/containerd/containerd.sock';\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
     "url": "https://fleetdm.com/tables/containerd_containers",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
@@ -4751,9 +4832,15 @@
         "type": "text",
         "required": false,
         "description": "Mount options (comma-separated)."
+      },
+      {
+        "name": "socket_path",
+        "type": "text",
+        "required": false,
+        "description": "Path to the containerd socket to query (default: /run/containerd/containerd.sock)."
       }
     ],
-    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```",
+    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```\n\nQuery mounts from a k3s containerd socket:\n\n```\nSELECT * FROM containerd_mounts WHERE socket_path = '/run/k3s/containerd/containerd.sock';\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd_mounts` table is available on Linux systems with containerd installed. It provides\ninformation about the mounts configured for containers managed by containerd.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_container_mounts` table for information about mounts in Docker containers.",
     "url": "https://fleetdm.com/tables/containerd_mounts",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_mounts.yml"
@@ -25173,6 +25260,18 @@
     "evented": false,
     "examples": "Confirm Santa is running in lockdown mode across all macOS hosts.\n```\nSELECT mode FROM santa_status;\n```",
     "columns": [
+      {
+        "name": "daemon_reachable",
+        "description": "Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the `error` column contains the santactl error and the remaining columns are NULL.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "error",
+        "description": "The error returned by `santactl status` when the daemon is unreachable (daemon_reachable=0); empty when the daemon is reachable.",
+        "required": false,
+        "type": "text"
+      },
       {
         "name": "sync_server",
         "description": "The server Santa syncs rules and configuration from",

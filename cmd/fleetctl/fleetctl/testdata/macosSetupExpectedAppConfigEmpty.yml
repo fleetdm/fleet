@@ -33,6 +33,7 @@ spec:
     zendesk: null
   mdm:
     android_enabled_and_configured: false
+    apple_business:
     apple_business_manager:
     apple_server_url: ""
     volume_purchasing_program:
@@ -46,6 +47,7 @@ spec:
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
+    windows_entra_client_ids: null
     apple_require_hardware_attestation: false
     macos_migration:
       enable: false

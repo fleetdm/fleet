@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
@@ -126,30 +127,41 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		ExcludeHostIDs: opts.ExcludeHostIDs,
 	}
 
-	filterMask, err := s.hostCache.Get(ctx, hostFilter, func(ctx context.Context) ([]byte, error) {
+	filterMask, err := s.hostCache.Get(ctx, hostFilter, func(ctx context.Context) (*roaring.Bitmap, error) {
 		hostIDs, err := s.store.GetHostIDsForFilter(ctx, hostFilter)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetch host IDs for chart filter")
 		}
-		return chart.HostIDsToBlob(hostIDs), nil
+		return chart.NewBitmap(hostIDs), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	// entityIDs semantics at the storage layer: nil = no filter (all entities);
+	// non-nil empty = match nothing (zero-valued buckets). For the CVE metric we
+	// always resolve a concrete allow-set — never nil — so that lower-severity
+	// CVEs (now collected for all severities) never leak into the chart.
 	var entityIDs []string
-	if metric == "cve" {
-		// TODO(iteration-2): replace with user-configurable filter from
-		// RequestOpts when dynamic CVE filtering ships.
-		entityIDs, err = s.store.TrackedCriticalCVEs(ctx)
+	if metric == api.MetricCVE {
+		// Severity is plumbed through the API (opts.SeverityMin/Max) but forced
+		// to critical-only this round; the severity UI lands in a follow-up.
+		// TODO(#47326): honor opts.SeverityMin/Max instead of hard-coding.
+		cveFilter := types.CVEChartFilter{
+			Categories:   opts.SoftwareFilters,
+			CVSSMin:      9.0,
+			CVSSMax:      10.0,
+			EPSSMin:      opts.EPSSMin,
+			EPSSMax:      opts.EPSSMax,
+			KnownExploit: opts.KnownExploit,
+			ExcludeCVEs:  opts.ExcludeCVEs,
+		}
+		entityIDs, err = s.store.ResolveCVEChartEntities(ctx, cveFilter)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve tracked critical CVEs")
+			return nil, ctxerr.Wrap(ctx, err, "resolve CVE chart entities")
 		}
 	}
 
-	// entityIDs semantics at the storage layer: nil = no filter; non-nil empty
-	// = match nothing (produces zero-valued buckets). Do NOT convert empty to
-	// nil here.
 	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
 	if err != nil {
 		return nil, err
@@ -158,7 +170,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	return &api.Response{
 		Metric:        metric,
 		Visualization: dataset.DefaultVisualization(),
-		TotalHosts:    chart.BlobPopcount(filterMask),
+		TotalHosts:    int(chart.BlobPopcount(filterMask)), //nolint:gosec // host counts fit comfortably in int
 		Resolution:    formatResolution(bucketSize),
 		Days:          opts.Days,
 		Filters: api.Filters{
@@ -167,6 +179,16 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			Platforms:      opts.Platforms,
 			IncludeHostIDs: opts.IncludeHostIDs,
 			ExcludeHostIDs: opts.ExcludeHostIDs,
+
+			SoftwareFilters: opts.SoftwareFilters,
+			KnownExploit:    opts.KnownExploit,
+			EPSSMin:         opts.EPSSMin,
+			EPSSMax:         opts.EPSSMax,
+			// Severity is not echoed: it's forced to critical-only this round
+			// (see above), so echoing the client's requested severity_min/max
+			// would misrepresent what was actually applied. It returns to the
+			// echo when severity becomes a real filter (#47326).
+			ExcludeCVEs: opts.ExcludeCVEs,
 		},
 		Data: data,
 	}, nil
@@ -231,7 +253,7 @@ func (s *Service) ScrubDatasetFleet(ctx context.Context, dataset string, fleetID
 		}
 		return nil
 	}
-	mask := chart.HostIDsToBlob(hostIDs)
+	mask := chart.NewBitmap(hostIDs)
 	return s.store.ApplyScrubMaskToDataset(ctx, dataset, mask, scrubBatchSize)
 }
 

@@ -60,6 +60,14 @@ const PastActivityFeed = ({
       <div>
         {activitiesList.map((activity: IHostPastActivity) => {
           const ActivityItemComponent = pastActivityComponentMap[activity.type];
+          if (!ActivityItemComponent) {
+            // Log so we catch missing frontend registrations, but don't crash the page.
+            // eslint-disable-next-line no-console
+            console.warn(
+              `No PastActivityFeed component registered for activity type: ${activity.type}`
+            );
+            return null;
+          }
           return (
             <ActivityItemComponent
               key={activity.id}

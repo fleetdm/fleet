@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -963,6 +964,117 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)
 	})
+
+	t.Run("authorization checks", func(t *testing.T) {
+		checkAuthErr := func(t *testing.T, shouldFail bool, err error) {
+			if shouldFail {
+				require.Error(t, err)
+				require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+			} else if err != nil {
+				require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
+			}
+		}
+
+		// The script and the hosts it runs on all belong to team 1.
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, TeamID: new(uint(1))}, nil
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: new(uint(1))},
+				{ID: 2, TeamID: new(uint(1))},
+			}, nil
+		}
+		// Return a non-authorization error so an authorized caller gets past the
+		// authz checks; checkAuthErr only cares whether the error is Forbidden.
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+			return "", errors.New("ok")
+		}
+
+		testCases := []struct {
+			name       string
+			user       *fleet.User
+			shouldFail bool
+		}{
+			{
+				name:       "global admin",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+				shouldFail: false,
+			},
+			{
+				name:       "global maintainer",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
+				shouldFail: false,
+			},
+			{
+				name:       "global observer",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleObserver)},
+				shouldFail: true,
+			},
+			{
+				name:       "global observer+",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
+				shouldFail: true,
+			},
+			{
+				name:       "global gitops",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
+				shouldFail: true,
+			},
+			{
+				name:       "global technician",
+				user:       &fleet.User{GlobalRole: new(fleet.RoleTechnician)},
+				shouldFail: true,
+			},
+			{
+				name:       "team admin, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+				shouldFail: false,
+			},
+			{
+				name:       "team maintainer, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				shouldFail: false,
+			},
+			{
+				name:       "team observer, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team observer+, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team gitops, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team technician, belongs to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team admin, does not belong to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+				shouldFail: true,
+			},
+			{
+				name:       "team maintainer, does not belong to script team",
+				user:       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+				shouldFail: true,
+			},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+				_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2}, nil, nil)
+				checkAuthErr(t, tt.shouldFail, err)
+			})
+		}
+	})
 }
 
 func TestWipeHostRequestDecodeBody(t *testing.T) {
@@ -1040,4 +1152,119 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBatchScriptExecutionSummary(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	t.Run("not found", func(t *testing.T) {
+		// While these not found tests seem useless, it's mainly to check that we do an authz check so we don't return 500s but the actual not found.
+		ds.BatchExecuteSummaryFunc = func(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+			return nil, platform_mysql.NotFound("batch execution").WithName(executionID)
+		}
+		t.Run("global admin → not-found", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			_, err := svc.BatchScriptExecutionSummary(ctx, "unknown-id")
+			require.Error(t, err)
+			require.True(t, fleet.IsNotFound(err))
+		})
+
+		t.Run("team admin → forbidden, no leak", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+			}})
+			_, err := svc.BatchScriptExecutionSummary(ctx, "unknown-id")
+			require.Error(t, err)
+			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+			require.False(t, fleet.IsNotFound(err))
+		})
+
+		t.Run("real DB error → wrapped, not IsNotFound", func(t *testing.T) {
+			ds.BatchExecuteSummaryFunc = func(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+				return nil, errors.New("connection refused")
+			}
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			_, err := svc.BatchScriptExecutionSummary(ctx, "any-id")
+			require.Error(t, err)
+			require.False(t, fleet.IsNotFound(err))
+		})
+	})
+}
+
+func TestBatchScriptCancel(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	t.Run("not found", func(t *testing.T) {
+		ds.ListBatchScriptExecutionsFunc = func(ctx context.Context, f fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+			return nil, platform_mysql.NotFound("batch execution").WithName(*f.ExecutionID)
+		}
+		t.Run("global admin → not-found", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			err := svc.BatchScriptCancel(ctx, "unknown-id")
+			require.Error(t, err)
+			require.True(t, fleet.IsNotFound(err))
+		})
+
+		t.Run("team admin → forbidden, no leak", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+			}})
+			err := svc.BatchScriptCancel(ctx, "unknown-id")
+			require.Error(t, err)
+			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+			require.False(t, fleet.IsNotFound(err))
+		})
+
+		t.Run("real DB error → wrapped, not IsNotFound", func(t *testing.T) {
+			ds.ListBatchScriptExecutionsFunc = func(ctx context.Context, f fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+				return nil, errors.New("connection refused")
+			}
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			err := svc.BatchScriptCancel(ctx, "any-id")
+			require.Error(t, err)
+			require.False(t, fleet.IsNotFound(err))
+		})
+	})
+}
+
+func TestBatchScriptExecutionStatus(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	t.Run("not found", func(t *testing.T) {
+		ds.ListBatchScriptExecutionsFunc = func(ctx context.Context, f fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+			return nil, platform_mysql.NotFound("batch execution").WithName(*f.ExecutionID)
+		}
+		t.Run("global admin → not-found", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			_, err := svc.BatchScriptExecutionStatus(ctx, "unknown-id")
+			require.Error(t, err)
+			require.True(t, fleet.IsNotFound(err))
+		})
+
+		t.Run("team admin → forbidden, no leak", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+			}})
+			_, err := svc.BatchScriptExecutionStatus(ctx, "unknown-id")
+			require.Error(t, err)
+			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+			require.False(t, fleet.IsNotFound(err))
+		})
+
+		t.Run("real DB error → wrapped, not IsNotFound", func(t *testing.T) {
+			ds.ListBatchScriptExecutionsFunc = func(ctx context.Context, f fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+				return nil, errors.New("connection refused")
+			}
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			_, err := svc.BatchScriptExecutionStatus(ctx, "any-id")
+			require.Error(t, err)
+			require.False(t, fleet.IsNotFound(err))
+		})
+	})
 }

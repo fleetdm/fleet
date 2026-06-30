@@ -33,7 +33,7 @@ import usePlatformSelector from "hooks/usePlatformSelector";
 
 import {
   ISchedulableQuery,
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
@@ -61,7 +61,7 @@ import Icon from "components/Icon/Icon";
 import InputField from "components/forms/fields/InputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import PageDescription from "components/PageDescription";
 
 import {
@@ -76,6 +76,8 @@ import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
 
+const NAME_MAX_LENGTH = 255;
+
 interface IEditQueryFormProps {
   router: InjectedRouter;
   location: Location;
@@ -88,9 +90,9 @@ interface IEditQueryFormProps {
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  onSubmitNewQuery: (formData: ICreateQueryRequestBody) => void;
+  onSubmitNewQuery: (formData: ICreateQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  onUpdate: (formData: ICreateQueryRequestBody) => void;
+  onUpdate: (formData: ICreateQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
@@ -464,6 +466,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
       );
     }
@@ -736,7 +739,7 @@ const EditQueryForm = ({
               </Checkbox>
               {isExistingQuery && platformSelector.render()}
               {isPremiumTier && (
-                <TargetLabelSelector
+                <DropdownTargetLabelSelector
                   selectedTargetType={selectedTargetType}
                   selectedCustomTarget={selectedCustomTarget}
                   customTargetOptions={customTargetOptions}

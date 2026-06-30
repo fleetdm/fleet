@@ -1,0 +1,10 @@
+{
+   "name": "Max",
+   "slug": "cycling74-max/darwin",
+   "unique_identifier": "com.cycling74.Max",
+   "token": "cycling74-max",
+   "installer_format": "dmg",
+   "default_categories": ["Developer tools"],
+   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/cycling74-max-install.sh",
+   "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/cycling74-max-uninstall.sh"
+}

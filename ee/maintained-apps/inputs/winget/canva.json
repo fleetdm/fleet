@@ -1,0 +1,12 @@
+{
+  "name": "Canva",
+  "slug": "canva/windows",
+  "package_identifier": "Canva.Canva",
+  "unique_identifier": "Canva",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/canva_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/canva_uninstall.ps1"
+}

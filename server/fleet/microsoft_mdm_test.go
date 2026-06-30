@@ -580,8 +580,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				<Data>5</Data>
 			</Item>
 		</Replace>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -604,8 +604,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 			</Item>
 		</Replace>`
 		// Only MaxInactivityTimeDeviceLock is protected; DevicePasswordEnabled should still get a <Delete>
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -636,9 +636,9 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				</Item>
 			</Replace>
 		</Atomic>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/BitLocker/A": true,
-			"./Device/Vendor/MSFT/BitLocker/B": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/BitLocker/A": {},
+			"./Device/Vendor/MSFT/BitLocker/B": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -663,8 +663,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				</Item>
 			</Replace>
 		</Atomic>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/BitLocker/A": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/BitLocker/A": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -811,4 +811,22 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
 		require.Equal(t, []string{"./Device/A"}, uris)
 	})
+}
+
+func TestIsFleetInternalCmdID(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"empty string", "", false},
+		{"random UUID", "550e8400-e29b-41d4-a716-446655440000", false},
+		{"unrelated prefix", "foo-internal-bar", false},
+		{"prefix only", FleetInternalCmdIDPrefix, true},
+		{"devdetail link probe", FleetInternalCmdIDPrefix + "devdetail-smbios-serial", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, IsFleetInternalCmdID(tc.in))
+		})
+	}
 }

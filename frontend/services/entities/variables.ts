@@ -1,9 +1,9 @@
-import { IVariable, IVariablePayload } from "interfaces/variables";
+import { IVariable, IVariableFormData } from "interfaces/variables";
 import sendRequest from "services";
 import { buildQueryStringFromParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 
-export interface IListVariablesRequestApiParams {
+export interface IListVariablesApiParams {
   page?: number;
   per_page?: number;
 }
@@ -19,7 +19,7 @@ export interface IListVariablesResponse {
 
 export default {
   getVariables(
-    params: IListVariablesRequestApiParams
+    params: IListVariablesApiParams
   ): Promise<IListVariablesResponse> {
     const { VARIABLES } = endpoints;
     const path = `${VARIABLES}?${buildQueryStringFromParams({
@@ -30,7 +30,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVariable(variable: IVariablePayload) {
+  addVariable(variable: IVariableFormData) {
     const { VARIABLES } = endpoints;
     return sendRequest("POST", VARIABLES, variable);
   },

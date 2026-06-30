@@ -115,20 +115,23 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   // FIXME: Handle error states for app config and team config (need specifications for this).
   // mdm is not enabled for mac or windows.
+  // TODO: Consistency with PageDescription component and empty state messaging for when mdm is not enabled.
   if (
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured
   ) {
     return (
-      <EmptyState
-        header="Additional configuration required"
-        info="MDM must be turned on to change settings on your hosts."
-        primaryButton={
-          <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-            Turn on
-          </Button>
-        }
-      />
+      <div className={baseClass}>
+        <EmptyState
+          header="Additional configuration required"
+          info="MDM must be turned on to change settings on your hosts."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
+      </div>
     );
   }
 

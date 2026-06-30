@@ -2,10 +2,9 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
-import { INewTeamUsersBody, ITeam } from "interfaces/team";
+import { INewTeamUsersFormData, ITeam } from "interfaces/team";
 import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
@@ -19,6 +18,7 @@ import Spinner from "components/Spinner";
 import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
 import AddUserModal from "pages/admin/ManageUsersPage/components/AddUserModal";
 import EditUserModal from "../../../ManageUsersPage/components/EditUserModal";
 import {
@@ -40,7 +40,6 @@ const baseClass = "team-users";
 const noUsersClass = "no-team-users";
 
 const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
     AppContext
   );
@@ -144,18 +143,13 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     teamsAPI
       .removeUsers(teamIdForApi, removedUsers)
       .then(() => {
-        renderFlash(
-          "success",
-          `Successfully removed ${userEditing?.name || "user"}`
-        );
+        notify.success(`Successfully removed ${userEditing?.name || "user"}`);
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
-          window.location.href = "/";
+          window.location.href = PATHS.ROOT;
         }
       })
-      .catch(() =>
-        renderFlash("error", "Unable to remove users. Please try again.")
-      )
+      .catch(() => notify.error("Unable to remove users. Please try again."))
       .finally(() => {
         setIsUpdatingUsers(false);
         toggleRemoveUserModal();
@@ -165,28 +159,24 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     userEditing?.id,
     userEditing?.name,
     teamIdForApi,
-    renderFlash,
     currentUser,
     toggleRemoveUserModal,
     refetchUsers,
   ]);
 
   const onAddUserSubmit = useCallback(
-    (newUsers: INewTeamUsersBody) => {
+    (newUsers: INewTeamUsersFormData) => {
       teamsAPI
         .addUsers(currentTeamDetails?.id, newUsers)
         .then(() => {
           const count = newUsers.users.length;
-          renderFlash(
-            "success",
+          notify.success(
             `${count} ${count === 1 ? "user" : "users"} successfully added to ${
               currentTeamDetails?.name
             }.`
           );
         })
-        .catch(() =>
-          renderFlash("error", "Could not add users. Please try again.")
-        )
+        .catch(() => notify.error("Could not add users. Please try again."))
         .finally(() => {
           toggleAddUserModal();
           refetchUsers();
@@ -195,7 +185,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     [
       currentTeamDetails?.id,
       currentTeamDetails?.name,
-      renderFlash,
       toggleAddUserModal,
       refetchUsers,
     ]
@@ -218,8 +207,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           const senderAddressMessage = config?.smtp_settings?.sender_address
             ? ` from ${config?.smtp_settings?.sender_address}`
             : "";
-          renderFlash(
-            "success",
+          notify.success(
             `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           refetchUsers();
@@ -242,7 +230,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               email: "A user with this email address has already been invited",
             });
           } else {
-            renderFlash("error", "Could not invite user. Please try again.");
+            notify.error("Could not invite user. Please try again.", {
+              response: userErrors,
+            });
           }
         })
         .finally(() => {
@@ -257,7 +247,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          renderFlash("success", `Successfully created ${requestData.name}.`);
+          notify.success(`Successfully created ${requestData.name}.`);
           refetchUsers();
           toggleCreateUserModal();
         })
@@ -279,7 +269,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            notify.error("Could not create user. Please try again.", {
+              response: userErrors,
+            });
           }
         })
         .finally(() => {
@@ -303,10 +295,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         usersAPI
           .update(userEditing.id, updatedAttrs)
           .then(() => {
-            renderFlash(
-              "success",
-              `Successfully edited ${userName || "user"}.`
-            );
+            notify.success(`Successfully edited ${userName || "user"}.`);
 
             if (
               currentUser &&
@@ -319,7 +308,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
                 (thisTeam) => thisTeam.id === teamIdForApi
               );
               if (selectedTeam && selectedTeam[0].role !== "admin") {
-                window.location.href = "/";
+                window.location.href = PATHS.ROOT;
               }
             } else {
               refetchUsers();
@@ -332,9 +321,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
                 email: "A user with this email address already exists",
               });
             } else {
-              renderFlash(
-                "error",
-                `Could not edit ${userName || "user"}. Please try again.`
+              notify.error(
+                `Could not edit ${userName || "user"}. Please try again.`,
+                { response: userErrors }
               );
             }
           })
@@ -342,14 +331,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             setIsUpdatingUsers(false);
           });
     },
-    [
-      userEditing,
-      renderFlash,
-      currentUser,
-      toggleEditUserModal,
-      teamIdForApi,
-      refetchUsers,
-    ]
+    [userEditing, currentUser, toggleEditUserModal, teamIdForApi, refetchUsers]
   );
 
   const onActionSelection = useCallback(
@@ -376,8 +358,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   }, [teamUsers?.length, searchString]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(onActionSelection),
-    [onActionSelection]
+    () => generateColumnConfigs(onActionSelection, currentUser),
+    [onActionSelection, currentUser]
   );
 
   if (!isRouteOk) {

@@ -2,16 +2,17 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -344,6 +345,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -422,6 +424,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -498,7 +501,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
+			return nil, newNotFoundError()
 		}
 		var isHostConnectedToFleet bool
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
@@ -585,6 +588,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
@@ -684,7 +688,7 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 			return false, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
+			return nil, newNotFoundError()
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
@@ -774,6 +778,7 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -1128,32 +1133,46 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 			return false
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
+		}
+		// GetOrbitConfig persists the live sync capability on change; default to a no-op so subtests that don't assert it don't nil-panic.
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			return nil
 		}
 
 		ctx = test.HostContext(ctx, host)
 		return ds, svc, ctx, host
 	}
 
+	// withWindowsMDMSyncCapability returns a context whose X-Fleet-Capabilities advertise CapabilityWindowsMDMSync, as a Windows fleetd that
+	// supports on-demand sync would send on its orbit config request.
+	withWindowsMDMSyncCapability := func(ctx context.Context) context.Context {
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/config", nil)
+		cm := fleet.CapabilityMap{fleet.CapabilityWindowsMDMSync: struct{}{}}
+		req.Header.Set(fleet.CapabilitiesHeader, cm.String())
+		return capabilities.NewContext(ctx, req)
+	}
+
 	t.Run("Windows host awaiting=Pending sets RunSetupExperience", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationPending, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending}, nil
 		}
 
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		assert.True(t, cfg.Notifications.RunSetupExperience)
-		assert.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+		assert.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
 	})
 
 	t.Run("Windows host awaiting=Active sets RunSetupExperience", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive}, nil
 		}
 
 		cfg, err := svc.GetOrbitConfig(ctx)
@@ -1161,46 +1180,127 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		assert.True(t, cfg.Notifications.RunSetupExperience)
 	})
 
-	t.Run("Windows host awaiting=None does not set RunSetupExperience", func(t *testing.T) {
+	t.Run("Windows host awaiting=None, no pending commands sets neither notification", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationNone, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone}, nil
 		}
 
-		cfg, err := svc.GetOrbitConfig(ctx)
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
 	})
 
-	t.Run("Windows host not enrolled (NotFound) does not set RunSetupExperience", func(t *testing.T) {
+	t.Run("Windows host with pending commands and capability sets WindowsMDMSyncRequest", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return 0, &orbitTestNotFoundErr{}
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, HasPendingCommands: true}, nil
 		}
 
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.WindowsMDMSyncRequest)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
+	})
+
+	t.Run("persists fleetd sync capability only on change", func(t *testing.T) {
+		// Capability advertised but the persisted flag is still false -> write it true (so the OMA-DM session can relax the poll).
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: false}, nil
+		}
+		var wrote *bool
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			wrote = &capable
+			return nil
+		}
+		_, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		require.NotNil(t, wrote, "should persist the capability when it differs from the stored flag")
+		assert.True(t, *wrote)
+
+		// Capability advertised and the persisted flag already true -> no write.
+		ds, svc, ctx, _ = setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: true}, nil
+		}
+		_, err = svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked, "no write when the stored flag already matches")
+
+		// No capability but the persisted flag is true (e.g. fleetd downgrade) -> write it false.
+		ds, svc, ctx, _ = setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: true}, nil
+		}
+		wrote = nil
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			wrote = &capable
+			return nil
+		}
+		_, err = svc.GetOrbitConfig(ctx) // no capability header
+		require.NoError(t, err)
+		require.NotNil(t, wrote, "should clear the capability when fleetd stops advertising it")
+		assert.False(t, *wrote)
+	})
+
+	t.Run("Windows host with pending commands but no capability does not set WindowsMDMSyncRequest", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, HasPendingCommands: true}, nil
+		}
+
+		// ctx has no X-Fleet-Capabilities, as an older fleetd that cannot sync on demand would send.
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+	})
+
+	t.Run("Windows host in ESP with pending commands prefers RunSetupExperience over sync", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending, HasPendingCommands: true}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+	})
+
+	t.Run("Windows host not enrolled (NotFound) sets neither notification", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return nil, &orbitTestNotFoundErr{}
+		}
+
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
 	})
 
 	t.Run("Windows host with non-NotFound lookup error returns the error", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return 0, errors.New("transient db error")
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return nil, errors.New("transient db error")
 		}
 
 		_, err := svc.GetOrbitConfig(ctx)
 		require.Error(t, err)
 	})
 
-	t.Run("non-Windows host does not query awaiting_configuration", func(t *testing.T) {
+	t.Run("non-Windows host does not query Windows host config state", func(t *testing.T) {
 		ds, svc, ctx, host := setupSvc(t)
 		host.Platform = "darwin"
 
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
-		assert.False(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+		assert.False(t, ds.GetMDMWindowsHostConfigStateFuncInvoked,
 			"non-Windows hosts must not invoke the Windows lookup")
 	})
 }

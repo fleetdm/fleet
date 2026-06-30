@@ -1,0 +1,60 @@
+name: adobe_plugins
+platforms:
+  - darwin
+  - windows
+description: Detects Adobe plugins (CEP extensions, UXP extensions, and native plug-ins) installed on the host by scanning well-known directories and parsing plugin manifests.
+examples: |-
+  List all detected Adobe plugins (CEP and UXP extensions):
+
+  ```
+  SELECT name, version, vendor, host_application, extension_type FROM adobe_plugins;
+  ```
+
+  Include native plug-ins from application directories (Photoshop, Premiere, etc.):
+
+  ```
+  SELECT * FROM adobe_plugins WHERE scan_level = 'deep';
+  ```
+columns:
+  - name: path
+    type: text
+    required: false
+    description: Full filesystem path to the plugin directory or file.
+  - name: name
+    type: text
+    required: false
+    description: Plugin display name. From UXP manifest `name`, else manifest `id`, else directory or file name.
+  - name: version
+    type: text
+    required: false
+    description: Plugin version from the manifest. Empty if no manifest is found.
+  - name: vendor
+    type: text
+    required: false
+    description: Plugin author or publisher from the manifest. Empty if absent.
+  - name: bundle_id
+    type: text
+    required: false
+    description: Plugin bundle identifier from CEP `ExtensionBundleId` or UXP `id`. Empty for native plug-ins.
+  - name: host_application
+    type: text
+    required: false
+    description: Target Adobe application(s) such as Photoshop, Illustrator, or Premiere Pro. Comma-separated if multiple.
+  - name: extension_type
+    type: text
+    required: false
+    description: One of `CEP`, `UXP`, or `native`. Determined by the scan path, not by manifest presence.
+  - name: user
+    type: text
+    required: false
+    description: Local username for user-scoped plugin installs. Empty for system-wide installs.
+  - name: platform
+    type: text
+    required: false
+    description: The host platform, either `darwin` or `windows`.
+  - name: scan_level
+    type: text
+    required: false
+    description: WHERE-clause constraint that controls scan depth. `standard` (default) scans CEP and UXP directories only. `deep` additionally scans application-specific native plug-in directories.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

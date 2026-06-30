@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "5.11.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Franz' AND publisher = 'Stefan Malzner';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Franz' AND publisher = 'Stefan Malzner' AND version_compare(version, '5.11.0') < 0);"
+      },
+      "installer_url": "https://github.com/meetfranz/franz/releases/download/v5.11.0/Franz-Setup-5.11.0.exe",
+      "install_script_ref": "8c009ff0",
+      "uninstall_script_ref": "226253cf",
+      "sha256": "9dda43521f1950d0976d74910d7e1513faa006196e8505b3a2cb2da3f6120826",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "226253cf": "# Attempts to locate Franz's NSIS (electron-builder) uninstaller and run it silently.\n# Franz is user-scope.\n\n$displayName = \"Franz\"\n$publisher   = \"Stefan Malzner\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName *\") -and\n    ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"Franz\" -Force -ErrorAction SilentlyContinue\nStart-Sleep -Seconds 2\n\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n} elseif ($uninstallString -match '^(.+?\\.exe)(.*)$') {\n    $exePath = $matches[1]\n} else {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n# Prefer the registry InstallLocation; fall back to the uninstaller's parent\n# directory. _?=<installdir> must match $INSTDIR for NSIS to run synchronously in-place.\n$installDir = if ($uninstall.InstallLocation -and (Test-Path -LiteralPath $uninstall.InstallLocation)) {\n    $uninstall.InstallLocation.TrimEnd('\\')\n} else {\n    (Split-Path -Parent $exePath).TrimEnd('\\')\n}\n\n$argumentList = @(\"/S\", \"_?=$installDir\")\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath     = $exePath\n        ArgumentList = $argumentList\n        NoNewWindow  = $true\n        PassThru     = $true\n        Wait         = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # Only sweep leftovers on a successful uninstall, and never a root/short path\n    if ($exitCode -eq 0 -and $installDir) {\n        $resolvedDir = $null\n        try { $resolvedDir = (Resolve-Path -LiteralPath $installDir -ErrorAction Stop).Path } catch { $resolvedDir = $null }\n        if ($resolvedDir -and ($resolvedDir -match '^[A-Za-z]:\\\\') -and ((($resolvedDir.TrimEnd('\\')) -split '\\\\').Count -ge 3) -and (Test-Path -LiteralPath $resolvedDir)) {\n            Remove-Item -LiteralPath $resolvedDir -Recurse -Force -ErrorAction SilentlyContinue\n        }\n    }\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "8c009ff0": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Franz ships as an NSIS (electron-builder) installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    # NSIS installers require /S flag for silent installation\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/S\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

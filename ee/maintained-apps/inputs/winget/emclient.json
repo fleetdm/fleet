@@ -1,0 +1,11 @@
+{
+  "name": "eM Client",
+  "slug": "emclient/windows",
+  "package_identifier": "eMClient.eMClient",
+  "unique_identifier": "eM Client",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "program_publisher": "eM Client s.r.o.",
+  "default_categories": ["Communication"]
+}

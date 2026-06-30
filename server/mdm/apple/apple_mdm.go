@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
@@ -37,13 +40,19 @@ const (
 	SCEPPath = "/mdm/apple/scep"
 	// MDMPath is Fleet's HTTP path for the core MDM service.
 	MDMPath = "/mdm/apple/mdm"
-	// MDMServiceDiscoveryPath is Fleet's HTTP path for the MDM service discovery service.
-	ServiceDiscoveryPath = "/mdm/apple/service_discovery"
+	// MDMServiceDiscoveryPath is Fleet's base HTTP path for the MDM service discovery service. And is kept for backwards compatible reasons.
+	//
+	// Deprecated: Use ServiceDiscoveryTokenPath instead.
+	ServiceDiscoveryPath      = "/mdm/apple/service_discovery"
+	ServiceDiscoveryTokenPath = "/mdm/apple/service_discovery/{token}" // nolint:gosec // Not a secret
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
 	// AccountDrivenEnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
-	AccountDrivenEnrollPath = "/api/mdm/apple/account_driven_enroll"
+	//
+	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
+	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
+	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
@@ -63,7 +72,58 @@ const (
 	DEPSyncLimit = 200
 
 	VPPLicenseNotFound = 9610
+
+	DeclarationTypeSoftwareUpdate = "com.apple.configuration.softwareupdate.enforcement.specific"
 )
+
+// MDM AccessRights bitmask values per Apple Device Management documentation.
+// https://developer.apple.com/documentation/devicemanagement/mdm#properties
+//
+// MDMAccessRightAll is the full set Fleet has always delivered historically.
+// Callers that renew an existing host's profile must compute the new value as
+// (stored_rights AND current_max_rights) to honour the monotonic-narrowing rule:
+// Apple rejects an enrollment-profile replacement that grants MORE rights than
+// the previously-installed profile.
+const (
+	MDMAccessRightAll         = 8191 // all 13 bits (2^13 - 1)
+	MDMAccessRightDeviceLock  = 4    // bit 2: Device Lock & Passcode Removal
+	MDMAccessRightDeviceErase = 8    // bit 3: Device Erase (wipe)
+)
+
+// AppleEnrollmentAccessRights returns the AccessRights bitmask to embed in a
+// manual (SCEP/ACME) enrollment profile. For personal (BYOD) devices the lock
+// and erase bits are stripped so IT admins cannot lock the device out or wipe
+// personal data; company-owned devices receive full rights.
+func AppleEnrollmentAccessRights(personal bool) int {
+	if !personal {
+		return MDMAccessRightAll
+	}
+	return MDMAccessRightAll &^ (MDMAccessRightDeviceLock | MDMAccessRightDeviceErase)
+}
+
+// FleetPersonalEnrollmentKey is the URL query-parameter key added to the MDM
+// ServerURL in enrollment profiles for personal (BYOD) devices. nanomdm surfaces
+// URL query parameters as request.Params so the Authenticate checkin handler can
+// read it and set host_mdm.is_personal_enrollment accordingly. The "byod" key
+// matches the param the OTA endpoint and the /enroll page already use.
+const FleetPersonalEnrollmentKey = "byod"
+
+// AddPersonalEnrollmentToFleetURL appends the FleetPersonalEnrollmentKey query
+// param to fleetURL when personal is true. If personal is false the URL is
+// returned unchanged so company-owned profiles carry no extra parameters.
+func AddPersonalEnrollmentToFleetURL(fleetURL string, personal bool) (string, error) {
+	if !personal {
+		return fleetURL, nil
+	}
+	u, err := url.Parse(fleetURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing configured server URL: %w", err)
+	}
+	q := u.Query()
+	q.Set(FleetPersonalEnrollmentKey, "1")
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDMPath, false)
@@ -1149,7 +1209,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 		</dict>
 		<dict>
 			<key>AccessRights</key>
-			<integer>8191</integer>
+			<integer>{{ .AccessRights }}</integer>
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
@@ -1315,7 +1375,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 		</dict>
 		<dict>
 			<key>AccessRights</key>
-			<integer>8191</integer>
+			<integer>{{ .AccessRights }}</integer>
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
@@ -1356,7 +1416,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 </dict>
 </plist>`))
 
-func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
+func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string, accessRights int) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
@@ -1373,12 +1433,14 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		SCEPChallenge string
 		Topic         string
 		ServerURL     string
+		AccessRights  int
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
+		AccessRights:  accessRights,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
@@ -1431,7 +1493,7 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 	return u.String(), nil
 }
 
-func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string) ([]byte, error) {
+func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
@@ -1450,6 +1512,7 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		ServerURL        string
 		ClientIdentifier string
 		SerialTemplate   string
+		AccessRights     int
 	}{
 		Organization:     orgName,
 		DirectoryURL:     acmeURL,
@@ -1457,6 +1520,7 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		ServerURL:        serverURL,
 		ClientIdentifier: deviceSerial,
 		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+		AccessRights:     accessRights,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
@@ -1668,7 +1732,7 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	return true, nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1683,6 +1747,9 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 	q.Set("enroll_secret", enrollSecret)
 	if idpUUID != "" {
 		q.Set("idp_uuid", idpUUID)
+	}
+	if personal {
+		q.Set("byod", "true")
 	}
 	enrollURL.RawQuery = q.Encode()
 
@@ -2301,4 +2368,30 @@ func GenerateRecoveryLockPassword() string {
 	}
 
 	return strings.Join(groups, "-")
+}
+
+func MDMPushCertTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+	}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
+	}
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", ctxerr.New(ctx, "decoding APNs certificate PEM data")
+	}
+
+	apnsCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing APNs certificate")
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
+	}
+
+	return mdmPushCertTopic, nil
 }

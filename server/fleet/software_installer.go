@@ -116,6 +116,7 @@ type SoftwareInstaller struct {
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	PinnedVersion           *string                  `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -184,6 +185,32 @@ func (p SoftwarePackageResponse) GetIconHash() string      { return p.IconHash }
 func (p SoftwarePackageResponse) GetIconFilename() string  { return p.IconFilename }
 func (p SoftwarePackageResponse) GetLocalIconHash() string { return p.LocalIconHash }
 func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconPath }
+
+// SoftwareTitleIdentifier identifies a software title using the same matching
+// semantics as the software batch-set deletion: titles match on
+// (unique_identifier, source), where unique_identifier is the bundle
+// identifier when present and the title name otherwise.
+type SoftwareTitleIdentifier struct {
+	// UniqueIdentifier is the title's bundle identifier when present,
+	// otherwise its name (mirrors software_titles.unique_identifier).
+	UniqueIdentifier string
+	// Source is the title's source (e.g. "apps", "programs").
+	Source string
+}
+
+// DeletedSoftwarePackage describes a software package that a batch-set
+// operation will delete (or, on a dry run, would delete) because its title
+// matches no incoming payload.
+type DeletedSoftwarePackage struct {
+	// TeamID is the ID of the team. A value of nil means it is scoped to
+	// hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID uint `json:"title_id" db:"title_id"`
+	// DisplayName is the team's display-name override for the title when
+	// set, otherwise the software title name.
+	DisplayName string `json:"display_name" db:"display_name"`
+}
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
@@ -401,6 +428,11 @@ type HostLastInstallData struct {
 	ExecutionID string `db:"execution_id"`
 	// Status is the status of the installation on the host.
 	Status *SoftwareInstallerStatus `db:"status"`
+	// UpdatedAt is when the install record was last updated. For a completed install
+	// this reflects when it reached its terminal status (e.g. installed), which is what
+	// requests the host refetch; it is used to throttle continuous policy automation
+	// re-installs (see continuousAutomationOnCooldown).
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
@@ -661,6 +693,8 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Pins a Fleet-maintained app to a specific or major version
+	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
 }
@@ -669,7 +703,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
+		u.PinnedVersion == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -735,6 +770,7 @@ func IsScriptPackage(ext string) bool {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
@@ -856,10 +892,10 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string   `json:"referenced_yaml_path"`
-	SHA256             string   `json:"hash_sha256"`
-	Categories         []string `json:"categories"`
-	DisplayName        string   `json:"display_name,omitempty"`
+	ReferencedYamlPath string                `json:"referenced_yaml_path"`
+	SHA256             string                `json:"hash_sha256"`
+	Categories         optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName        string                `json:"display_name,omitempty"`
 	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
 	// When false (the default), Fleet sends If-None-Match with the stored ETag
 	// on subsequent downloads. If the server returns 304 Not Modified, the
@@ -880,7 +916,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
 	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
-		len(spec.Categories) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
+		len(spec.Categories.Value) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -902,7 +938,7 @@ type MaintainedAppSpec struct {
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
-	Categories         []string              `json:"categories"`
+	Categories         optjson.Slice[string] `json:"categories,omitzero"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 }
@@ -1192,6 +1228,25 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	}
 	return 0
 }
+
+// PreflightInstallFailedError signals that Fleet failed an install before
+// reaching the device (e.g. an unresolvable Fleet variable in the managed app
+// configuration). The corresponding failed-install activity has already been
+// emitted by the time this is returned.
+//
+// Admin/self-service/policy/auto-update entry points treat the pre-flight
+// failure as success at the API layer (the activity records the outcome), so
+// the install service returns nil there. The setup-experience drivers
+// (ee/server/service/setup_experience.go, server/worker/apple_mdm.go) branch
+// only on err != nil to transition a step out of Running — without an error
+// signal they'd stash the install's command UUID and wait indefinitely for an
+// MDM command result that will never arrive. For ForSetupExperience=true the
+// install service returns this error so those drivers transition to Failure.
+type PreflightInstallFailedError struct {
+	Reason string
+}
+
+func (e *PreflightInstallFailedError) Error() string { return e.Reason }
 
 const (
 	BatchDownloadMaxRetries = 3

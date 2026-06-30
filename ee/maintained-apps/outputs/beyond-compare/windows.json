@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "5.2.2.32209",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Beyond Compare %' AND publisher = 'Scooter Software';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beyond Compare %' AND publisher = 'Scooter Software' AND version_compare(version, '5.2.2.32209') < 0);"
+      },
+      "installer_url": "https://www.scootersoftware.com/files/BCompare-5.2.2.32209.exe",
+      "install_script_ref": "5a25199c",
+      "uninstall_script_ref": "7bf824a3",
+      "sha256": "11cdb99770d2c8db50c68cf557db4641d1a162bd4362c9b18286ab7a405cf6a1",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "5a25199c": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Beyond Compare uses an Inno Setup installer.\n#   /ALLUSERS         - machine-wide install (winget's machine-scope switch)\n#   /VERYSILENT       - no UI, no progress\n#   /SUPPRESSMSGBOXES - suppress message boxes\n#   /NORESTART        - do not reboot\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/ALLUSERS /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "7bf824a3": "# Locates Beyond Compare's Inno Setup uninstaller from the registry and runs it\n# silently. Beyond Compare's DisplayName embeds the version, so match by prefix\n# and require the Scooter Software publisher.\n\n$softwareNameLike = \"Beyond Compare*\"\n$publisherLike = \"*Scooter Software*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $null\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {\n        $selected = $key\n        break\n    }\n}\n\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n# Best-effort: stop the app so the uninstaller doesn't fail on locked files.\nStop-Process -Name \"BCompare\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $selected.UninstallString\n\n# Split the uninstall string into exe + args. Handle both quoted and unquoted\n# exe paths.\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# Inno Setup silent uninstall flags.\nforeach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')) {\n    if ($existingArgs -notmatch [regex]::Escape($flag)) {\n        $existingArgs = (\"$existingArgs $flag\").Trim()\n    }\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\n$processOptions = @{\n    FilePath = $exePath\n    PassThru = $true\n    Wait = $true\n}\n\nif ($existingArgs -ne '') {\n    $processOptions.ArgumentList = $existingArgs\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

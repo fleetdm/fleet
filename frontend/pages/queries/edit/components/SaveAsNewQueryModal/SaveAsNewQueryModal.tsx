@@ -7,10 +7,10 @@ import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 
-import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
+import { ICreateQueryFormData } from "interfaces/schedulable_query";
 
 import queryAPI from "services/entities/queries";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { getErrorReason } from "interfaces/errors";
 import {
@@ -33,7 +33,7 @@ const baseClass = "save-as-new-query-modal";
 interface ISaveAsNewQueryModal {
   router: InjectedRouter;
   location: Location;
-  initialQueryData: ICreateQueryRequestBody;
+  initialQueryData: ICreateQueryFormData;
   hostId?: number;
   onExit: () => void;
 }
@@ -65,7 +65,6 @@ const SaveAsNewQueryModal = ({
   hostId,
   onExit,
 }: ISaveAsNewQueryModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState<ISANQFormData>({
@@ -159,7 +158,7 @@ const SaveAsNewQueryModal = ({
     try {
       const { query: newQuery } = await queryAPI.create(createBody);
       setIsSaving(false);
-      renderFlash("success", `Successfully added report ${newQuery.name}.`);
+      notify.success(`Successfully added report ${newQuery.name}.`);
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(newQuery.id), {
           fleet_id: newQuery.team_id,
@@ -181,7 +180,7 @@ const SaveAsNewQueryModal = ({
         errFlash = INVALID_PLATFORMS_FLASH_MESSAGE;
       }
       setIsSaving(false);
-      renderFlash("error", errFlash);
+      notify.error(errFlash, { response: createError });
     }
   };
 
@@ -197,7 +196,6 @@ const SaveAsNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          ignore1password
           parseTarget
         />
         {isPremiumTier && (userTeams?.length || 0) > 1 && (

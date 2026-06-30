@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.121.03429",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium' AND version_compare(version, '1.121.03429') < 0);"
+      },
+      "installer_url": "https://github.com/VSCodium/vscodium/releases/download/1.121.03429/VSCodiumSetup-x64-1.121.03429.exe",
+      "install_script_ref": "38852240",
+      "uninstall_script_ref": "b7b4a3ad",
+      "sha256": "4e67a8147e9fc4b9e7ef31d95d8b0d3cd3bab66caa59ada1b4de99f4243f9cdf",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "38852240": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT\", \"/SUPPRESSMSGBOXES\", \"/NORESTART\", \"/mergetasks=!runcode\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b7b4a3ad": "$displayName = \"VSCodium\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -eq $displayName\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"VSCodium\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n} else {\n    $uninstall.UninstallString\n}\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nforeach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')) {\n    if ($existingArgs -notmatch [regex]::Escape($flag)) {\n        $existingArgs = (\"$existingArgs $flag\").Trim()\n    }\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

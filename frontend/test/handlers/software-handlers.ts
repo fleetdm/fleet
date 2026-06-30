@@ -64,6 +64,17 @@ export const getSoftwareInstallResultHandler = http.get(
   }
 );
 
+// Requires Fleet Premium license (server returns 402)
+export const getSoftwareInstallResultHandlerPremiumRequired = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  () => {
+    return HttpResponse.json(
+      { message: "Requires Fleet Premium license" },
+      { status: 402 }
+    );
+  }
+);
+
 // ---- Pre install query output ----
 
 // Installed, outputs for pre-install, install, and post-install

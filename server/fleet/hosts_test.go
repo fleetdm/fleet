@@ -224,7 +224,7 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
-			expected: "On (personal)",
+			expected: "On (manual - personal)",
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
@@ -446,6 +446,65 @@ func TestMDMNameFromServerURL(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.expected, MDMNameFromServerURL(tc.serverURL))
+		})
+	}
+}
+
+func TestIsPlaceholderHardwareSerial(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		serial string
+		want   bool
+	}{
+		// Empty / whitespace.
+		{"empty", "", true},
+		{"whitespace only", "   ", true},
+		{"tabs and newline", "\t \n", true},
+
+		// Known OEM/BIOS placeholders, matched case-insensitively and trimmed.
+		{"to be filled exact", "To Be Filled By O.E.M.", true},
+		{"to be filled lower", "to be filled by o.e.m.", true},
+		{"to be filled upper", "TO BE FILLED BY O.E.M.", true},
+		{"to be filled padded", "  To Be Filled By O.E.M.  ", true},
+		{"default string", "Default string", true},
+		{"system serial number", "System Serial Number", true},
+		{"not specified", "Not Specified", true},
+		{"not applicable", "Not Applicable", true},
+		{"none", "None", true},
+		{"oem", "OEM", true},
+		{"o.e.m.", "O.E.M.", true},
+		{"default", "Default", true},
+		{"unknown", "Unknown", true},
+		{"chassis serial number", "Chassis Serial Number", true},
+		{"base board serial number", "Base Board Serial Number", true},
+		{"baseboard serial number", "Baseboard Serial Number", true},
+		{"sequential 123456789", "123456789", true},
+		{"sequential 0123456789", "0123456789", true},
+		{"sequential 1234567890", "1234567890", true},
+		{"sequential 1234567", "1234567", true},
+		{"n/a", "N/A", true},
+		{"na", "na", true},
+		{"invalid", "INVALID", true},
+
+		// Repeated-character heuristic (cannot be enumerated).
+		{"single zero", "0", true},
+		{"all zeros", "00000000", true},
+		{"all x", "xxxxxxx", true},
+		{"all dashes", "-------", true},
+		{"all dots", "........", true},
+
+		// Real, unique serials must NOT be flagged.
+		{"dell service tag", "7XQ2W13", false},
+		{"lenovo serial", "PF0ABCDE", false},
+		{"apple-style serial", "C02ABCDEFGHJ", false},
+		{"vmware unique", "VMware-56 4d 1a 2b 3c", false},
+		{"none as substring", "NONE123", false},
+		{"default as substring", "DEFAULT-7H2K", false},
+		{"leading zeros but real", "00000001", false},
+		{"long alphanumeric", "ABC123XYZ789", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, IsPlaceholderHardwareSerial(tc.serial))
 		})
 	}
 }

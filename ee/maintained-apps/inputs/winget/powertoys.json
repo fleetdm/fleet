@@ -1,0 +1,14 @@
+{
+  "name": "PowerToys",
+  "slug": "powertoys/windows",
+  "package_identifier": "Microsoft.PowerToys",
+  "unique_identifier": "PowerToys",
+  "fuzzy_match_name": true,
+  "program_publisher": "Microsoft Corporation",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/powertoys_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/powertoys_uninstall.ps1"
+}

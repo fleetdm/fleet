@@ -205,6 +205,99 @@ func TestJSONKeyRewriteReader_ArrayOfObjects(t *testing.T) {
 	}
 }
 
+// TestJSONKeyRewriteReader_SoftwareSubtreeSkipsRules verifies that keys inside
+// the `software` subtree are not subject to rename rules. The literal
+// `setup_experience` install flag on SoftwarePackageSpec / TeamSpecAppStoreApp
+// / MaintainedAppSpec items collides with the `macos_setup`↔`setup_experience`
+// rename on the MDM section, and must be passed through untouched.
+// Regression test for https://github.com/fleetdm/fleet/issues/44970.
+func TestJSONKeyRewriteReader_SoftwareSubtreeSkipsRules(t *testing.T) {
+	input := `{
+		"setup_experience": {"enable_end_user_authentication": true},
+		"software": {
+			"packages": [
+				{"url": "http://foo", "setup_experience": true},
+				{"url": "http://bar", "setup_experience": false}
+			],
+			"app_store_apps": [
+				{"app_store_id": "1", "setup_experience": null}
+			],
+			"fleet_maintained_apps": [
+				{"slug": "foo", "setup_experience": true}
+			]
+		}
+	}`
+	rules := []AliasRule{{OldKey: "macos_setup", NewKey: "setup_experience"}}
+
+	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(out, &result))
+
+	// Top-level `setup_experience` (the object) is rewritten to `macos_setup`.
+	assert.NotNil(t, result["macos_setup"], "top-level container key must be rewritten")
+	_, hasNewAtRoot := result["setup_experience"]
+	assert.False(t, hasNewAtRoot, "new key should have been rewritten at the root")
+
+	// Literal `setup_experience` flags inside software entries must NOT have
+	// been rewritten to `macos_setup`.
+	sw := result["software"].(map[string]any)
+	pkgs := sw["packages"].([]any)
+	assert.Equal(t, true, pkgs[0].(map[string]any)["setup_experience"])
+	assert.Equal(t, false, pkgs[1].(map[string]any)["setup_experience"])
+	_, hasMacOSSetupOnPkg := pkgs[0].(map[string]any)["macos_setup"]
+	assert.False(t, hasMacOSSetupOnPkg, "literal setup_experience inside software must not be rewritten")
+
+	apps := sw["app_store_apps"].([]any)
+	assert.Nil(t, apps[0].(map[string]any)["setup_experience"])
+	_, hasMacOSSetupOnApp := apps[0].(map[string]any)["macos_setup"]
+	assert.False(t, hasMacOSSetupOnApp, "null setup_experience inside software must not be rewritten")
+
+	fmas := sw["fleet_maintained_apps"].([]any)
+	assert.Equal(t, true, fmas[0].(map[string]any)["setup_experience"])
+	_, hasMacOSSetupOnFMA := fmas[0].(map[string]any)["macos_setup"]
+	assert.False(t, hasMacOSSetupOnFMA, "literal setup_experience on FMA must not be rewritten")
+}
+
+// TestRewriteOldToNewKeys_SoftwareSubtreeSkipsRules verifies the same software-
+// scope skip in the reverse direction (old→new). A client posting a YAML with
+// `setup_experience: true` on software items must not have those flags clobbered
+// to `macos_setup` during client-side normalization.
+func TestRewriteOldToNewKeys_SoftwareSubtreeSkipsRules(t *testing.T) {
+	input := `{
+		"macos_setup": {"enable_end_user_authentication": true},
+		"software": {
+			"packages": [{"url": "http://foo", "setup_experience": true}],
+			"app_store_apps": [{"app_store_id": "1", "setup_experience": true}],
+			"fleet_maintained_apps": [{"slug": "foo", "setup_experience": true}]
+		}
+	}`
+	rules := []AliasRule{{OldKey: "macos_setup", NewKey: "setup_experience"}}
+
+	out, err := RewriteOldToNewKeys([]byte(input), rules)
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(out, &result))
+
+	// Top-level old `macos_setup` is rewritten to new `setup_experience`.
+	assert.NotNil(t, result["setup_experience"], "top-level old key must be rewritten to new")
+	_, hasOldAtRoot := result["macos_setup"]
+	assert.False(t, hasOldAtRoot, "old key should have been rewritten at the root")
+
+	// Literal `setup_experience` flags inside software entries must remain.
+	sw := result["software"].(map[string]any)
+	for _, key := range []string{"packages", "app_store_apps", "fleet_maintained_apps"} {
+		items := sw[key].([]any)
+		first := items[0].(map[string]any)
+		assert.Equal(t, true, first["setup_experience"], "literal flag on %s must be preserved", key)
+		_, hasOld := first["macos_setup"]
+		assert.False(t, hasOld, "literal setup_experience on %s must not be renamed to macos_setup", key)
+	}
+}
+
 func TestJSONKeyRewriteReader_MultipleRules(t *testing.T) {
 	input := `{"team_id": 1, "team_name": "Engineering"}`
 	rules := []AliasRule{

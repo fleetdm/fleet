@@ -1,11 +1,11 @@
 import React, { useContext, useState } from "react";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "delete-entra-tenant-modal";
 
@@ -18,7 +18,6 @@ const DeleteEntraTenantModal = ({
   tenantId,
   onExit,
 }: IDeleteEntraTenantModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { setConfig, config } = useContext(AppContext);
 
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,10 +34,12 @@ const DeleteEntraTenantModal = ({
         },
       });
       setConfig(updateData);
-      renderFlash("success", "Tenant deleted successfully.");
+      notify.success("Tenant deleted successfully.");
       onExit();
     } catch (err) {
-      renderFlash("error", "Couldn't delete tenant. Please try again.");
+      notify.error("Couldn't delete tenant. Please try again.", {
+        response: err,
+      });
     } finally {
       setIsDeleting(false);
     }

@@ -24,8 +24,7 @@ To migrate hosts, we will do the following steps:
 
 ### Step 1: Enroll hosts to Fleet
 
-1. First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by installing Fleet's agent (fleetd).
-2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
+First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by installing Fleet's agent (fleetd).
 
 ### Step 2: Assign hosts in Apple Business (AB) to Fleet
 
@@ -35,11 +34,12 @@ To migrate hosts, we will do the following steps:
 
 ### Step 3: Choose migration workflow and migrate hosts
 
-There are three migration workflows in Fleet: default, end user, and [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-manager-abm).
+There are three migration workflows in Fleet: 
+- Default: Requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
+- End user: Allows the user to kick off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet, reducing the gap in MDM coverage.
+- [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-ab)
 
-The default migration workflow requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
-
-The end user migration workflow allows the user to kick off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet, reducing the gap in MDM coverage.
+Both the default and end user migration workflows require end users to have access to an admin account on their Mac. macOS asks for an admin username and password before installing the enrollment profile. The macOS Tahoe workflow supports admin and standard users.
 
 #### Default workflow
 
@@ -106,11 +106,13 @@ Then, scroll down to the **Mobile device management (MDM)** section of the Dashb
 
 _Available in Fleet Premium_
 
-When migrating from a previous MDM, end users must restart or log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
+When migrating hosts via manual enrollment profile, end users must log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
 
 To start, [enforce FileVault disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet.
 
 After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
+
+For hosts that enroll via Apple Business, end users don't need to take action. Fleet automatically escrows the FileVault key on the next host vitals refetch.
 
 ### How to turn on disk encryption
 

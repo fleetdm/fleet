@@ -4,7 +4,11 @@ hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 revisionHistoryLimit: 10 # Number of old ReplicaSets for Fleet deployment to retain for rollback (set to 0 for unlimited)
 imageRepository: fleetdm/fleet
-imageTag: v4.84.3 # Version of Fleet to deploy
+imageTag: v4.87.1 # Version of Fleet to deploy
+# imagePullPolicy is optional. If unset, Kubernetes defaults to IfNotPresent
+# for tagged images and Always for the :latest tag. Valid values: Always,
+# IfNotPresent, Never.
+# imagePullPolicy: IfNotPresent
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -109,6 +113,7 @@ fleet:
       region: ""
       endpointURL: ""
       forceS3PathStyle: false
+      gcsIAMAuth: false
       stsAssumeRoleARN: ""
   softwareInstallers:
     s3:
@@ -119,6 +124,7 @@ fleet:
       region: ""
       endpointURL: ""
       forceS3PathStyle: false
+      gcsIAMAuth: false
       stsAssumeRoleARN: ""
   license:
     secretName: ""
@@ -132,7 +138,7 @@ fleet:
     runAsUser: 3333
     runAsGroup: 3333
   # Add additional CA's to the Fleet container truststore
-  # To add CA's, set enabled: true 
+  # To add CA's, set enabled: true
   # Supports adding CA's from Config maps and Secrets
   # configMaps:
   #   - name: fleet-ca-config

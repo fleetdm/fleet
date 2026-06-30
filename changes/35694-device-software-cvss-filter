@@ -1,0 +1,1 @@
+- Added the ability to filter vulnerable software by severity (CVSS score) and known exploit status on the Fleet Desktop **My device > Software** tab (Fleet Premium). The corresponding `min_cvss_score`, `max_cvss_score`, and `exploit` query parameters were added to the `GET /device/{token}/software` API endpoint.
