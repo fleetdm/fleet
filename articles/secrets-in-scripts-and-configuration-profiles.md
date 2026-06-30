@@ -6,7 +6,7 @@
 
 In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Variables are hidden when the script or configuration profile is viewed in the Fleet UI or API.
 
-Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
+Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
 ## Add variables
 
