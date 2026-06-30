@@ -1,0 +1,10 @@
+{
+  "name": "SnapMotion",
+  "unique_identifier": "com.jeremyvizzini.snapmotion-paddle",
+  "token": "snapmotion",
+  "installer_format": "dmg",
+  "slug": "snapmotion/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

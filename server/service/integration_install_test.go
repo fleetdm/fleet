@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	software_mock "github.com/fleetdm/fleet/v4/server/mock/software"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -329,8 +330,15 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 		res.Body.Close()
 		return buf
 	}
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
-		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	// Mint directly; the activation path is exercised in end-to-end tests.
+	token := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return s.ds.CreateInHouseAppInstallToken(context.Background(), q, token, titleID, *teamID, 1)
+	})
+	res := s.DoRawNoAuth("GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s", titleID, token),
+		nil, http.StatusOK)
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)

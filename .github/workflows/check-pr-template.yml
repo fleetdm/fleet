@@ -1,0 +1,43 @@
+name: Check PR template
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    paths:
+      - "frontend/**"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+permissions:
+  pull-requests: read
+jobs:
+  check-template:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify PR body contains the PR template
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Exempt the automated release author
+          if [ "$AUTHOR" = "fleet-release" ]; then
+            echo "Author is fleet-release; skipping PR template check."
+            exit 0
+          fi
+
+          # Exempt PRs whose changed files are ALL under exempt paths
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          if [ -n "$files" ] && ! grep -qvE '^(ee/maintained-apps/|it-and-security/)' <<< "$files"; then
+            echo "All changed files are under exempt paths; skipping PR template check."
+            exit 0
+          fi
+
+          marker="QA'd all new/changed functionality manually"
+          if ! grep -qF "$marker" <<< "$BODY"; then
+            echo "::error::PR description is missing the PR template. Please fill in .github/pull_request_template.md (expected line: \"$marker\")."
+            exit 1
+          fi
+          echo "PR template present."

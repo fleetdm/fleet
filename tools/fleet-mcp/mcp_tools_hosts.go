@@ -3,20 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/sirupsen/logrus"
 )
 
-// registerHostTools attaches host- and inventory-domain MCP tools to s.
-// Tools registered: get_endpoints, get_host, get_total_system_count,
-// get_aggregate_platforms, get_fleets, get_labels.
-//
-// All tools in this group are read-only against the Fleet API, idempotent,
-// and non-destructive. They are annotated as such so MCP clients (e.g.
-// Claude Desktop) do not gate them behind destructive-action review.
 func registerHostTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetEndpoints(s, fleetClient)
 	registerGetHost(s, fleetClient)
@@ -115,11 +107,11 @@ func registerGetHost(s *server.MCPServer, fleetClient *FleetClient) {
 
 		// Case 1: explicit numeric host_id wins. Always exact.
 		if hostIDArg != "" {
-			id, parseErr := strconv.ParseUint(hostIDArg, 10, 64)
-			if parseErr != nil || id == 0 || id > uint64(^uint(0)) {
-				return mcp.NewToolResultError(fmt.Sprintf("host_id must be a positive integer, got %q", hostIDArg)), nil
+			id, err := parseHostIDArg(hostIDArg)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
 			}
-			host, err := fleetClient.GetHostByID(ctx, uint(id))
+			host, err := fleetClient.GetHostByID(ctx, id)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to get host by id: %v", err)), nil
 			}
@@ -256,14 +248,18 @@ func registerGetHostPolicies(s *server.MCPServer, fleetClient *FleetClient) {
 		identifier := getOptionalString(request, "identifier")
 		responseFilter := getOptionalString(request, "response")
 
-		if hostIDArg == "" && identifier == "" {
+		hostID, err := parseHostIDArg(hostIDArg)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		if hostID == 0 && identifier == "" {
 			return mcp.NewToolResultError("either host_id or identifier is required"), nil
 		}
 		if responseFilter != "" && responseFilter != "passing" && responseFilter != "failing" {
 			return mcp.NewToolResultError(fmt.Sprintf("response must be 'passing' or 'failing', got %q", responseFilter)), nil
 		}
 
-		host, ambiguous, candidates, err := resolveHostWithPolicies(ctx, fleetClient, hostIDArg, identifier)
+		host, ambiguous, candidates, err := resolveHostDetail(ctx, fleetClient, hostID, identifier, fleetClient.GetHostByIDWithPolicies, fleetClient.GetHostByIdentifierWithPolicies)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get host policies: %v", err)), nil
 		}
@@ -319,70 +315,4 @@ func registerGetHostPolicies(s *server.MCPServer, fleetClient *FleetClient) {
 			Policies: filtered,
 		})
 	})
-}
-
-// resolveHostWithPolicies turns a (host_id, identifier) pair into a single
-// authoritative host with populated policies, OR a candidate list when the
-// identifier is ambiguous.
-//
-// Resolution order:
-//  1. host_id set (numeric) → /hosts/:host_id?populate_policies=true. Exact.
-//  2. identifier non-numeric → query-first: /hosts?query=identifier
-//     - 0 matches → fall back to /hosts/identifier/:id (catches UUIDs, which
-//     Fleet's substring search doesn't index).
-//     - 1 match → fetch the resolved host by ID (ID-path is the only way to
-//     guarantee no silent collision when hostnames are duplicated).
-//     - 2+ matches → return ambiguous=true with candidates so the caller can
-//     re-call with host_id.
-//
-// Reasoning: Fleet's /hosts/identifier/:id endpoint silently returns ONE
-// host when multiple share the same hostname — giving callers the wrong
-// host with no warning. Going through the query endpoint first surfaces
-// collisions, then the explicit /hosts/:id resolves the chosen one with
-// no further ambiguity.
-func resolveHostWithPolicies(ctx context.Context, fleetClient *FleetClient, hostIDArg, identifier string) (host *HostWithPolicies, ambiguous bool, candidates []Endpoint, err error) {
-	// Case 1: explicit numeric host_id wins.
-	if hostIDArg != "" {
-		id, parseErr := strconv.ParseUint(hostIDArg, 10, strconv.IntSize)
-		if parseErr != nil || id == 0 {
-			return nil, false, nil, fmt.Errorf("host_id must be a positive integer, got %q", hostIDArg)
-		}
-		h, hErr := fleetClient.GetHostByIDWithPolicies(ctx, uint(id))
-		if hErr != nil {
-			return nil, false, nil, hErr
-		}
-		return h, false, nil, nil
-	}
-
-	// Case 2: identifier path — query first to detect collisions.
-	// Cap at 50 candidates: Fleet's substring matcher is permissive (e.g.
-	// "mac" hits hundreds of hosts) so we need headroom for true collisions
-	// to surface. 50 keeps the disambiguation list bounded for the AI client.
-	const maxCandidates = 50
-	cands, qErr := fleetClient.GetEndpointsWithFilters(ctx, "", "", "", identifier, "", "", "", maxCandidates)
-
-	if qErr == nil && len(cands) == 1 {
-		// One unambiguous match. Fetch by ID for guaranteed no-collision and
-		// to populate policies (the substring search doesn't return them).
-		h, hErr := fleetClient.GetHostByIDWithPolicies(ctx, cands[0].ID)
-		if hErr != nil {
-			// API hiccup — the search did find the host but the ID lookup
-			// failed. Return error rather than guess.
-			return nil, false, nil, hErr
-		}
-		return h, false, nil, nil
-	}
-	if qErr == nil && len(cands) > 1 {
-		// Multiple hosts match the substring — caller must disambiguate.
-		return nil, true, cands, nil
-	}
-
-	// Zero query matches OR query failed: fall back to the identifier
-	// endpoint for UUIDs and other identifiers Fleet's substring index
-	// doesn't reach.
-	h, idErr := fleetClient.GetHostByIdentifierWithPolicies(ctx, identifier)
-	if idErr != nil {
-		return nil, false, nil, fmt.Errorf("host not found by query or identifier: %s (substring search does NOT cover display_name — try host_id if you have it)", identifier)
-	}
-	return h, false, nil, nil
 }

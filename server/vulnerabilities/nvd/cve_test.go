@@ -677,11 +677,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.39.0:*:*:*:*:windows:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,
 		},
 		// #41586 - Admin By Request false positives on macOS/Linux

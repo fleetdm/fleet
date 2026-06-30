@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.20.1b",
+      "version": "1.21.4b",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen' AND version_compare(bundle_short_version, '1.20.1b') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen' AND version_compare(bundle_short_version, '1.21.4b') < 0);"
       },
-      "installer_url": "https://github.com/zen-browser/desktop/releases/download/1.20.1b/zen.macos-universal.dmg",
+      "installer_url": "https://github.com/zen-browser/desktop/releases/download/1.21.4b/zen.macos-universal.dmg",
       "install_script_ref": "fd25a9c8",
       "uninstall_script_ref": "6fa48a6f",
-      "sha256": "b2cfc9c5b093da8490415ee7ae839e5cb77d468c3d8827c8090e9b0f2615ff2b",
+      "sha256": "40a708776e8f251859a4fa73ed485f862eb5e1b97be356bfe014b414504fdb4a",
       "default_categories": [
         "Browsers"
       ]

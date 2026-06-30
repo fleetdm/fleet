@@ -1,0 +1,10 @@
+{
+  "name": "Hive",
+  "unique_identifier": "com.hive.app",
+  "token": "hive-app",
+  "installer_format": "dmg",
+  "slug": "hive-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

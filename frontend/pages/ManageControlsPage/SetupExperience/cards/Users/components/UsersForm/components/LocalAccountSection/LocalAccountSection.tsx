@@ -40,7 +40,7 @@ const LocalAccountSection = ({
     localAccountType !== EndUserLocalAccountType.ADMIN;
   return (
     <SettingsSection
-      title="Local account"
+      title="Local accounts"
       subTitle={
         <span>
           Currently supported for macOS hosts. End users get the default role
@@ -76,9 +76,11 @@ const LocalAccountSection = ({
         <GitOpsModeTooltipWrapper
           position="left"
           tipOffset={8}
+          isInputField
           renderChildren={(gitopsEnabled) => {
             return (
               <div className={`${baseClass}__field-group`}>
+                <h3 className={`${baseClass}__sub-header`}>End user</h3>
                 <fieldset className="form-field">
                   <Radio
                     name="localAccountType"
@@ -125,6 +127,8 @@ const LocalAccountSection = ({
                     }
                   />
                 </fieldset>
+
+                <h3 className={`${baseClass}__sub-header`}>Managed</h3>
                 <Checkbox
                   className={`${baseClass}__managed-local-account`}
                   disabled={

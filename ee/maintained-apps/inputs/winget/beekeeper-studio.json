@@ -1,0 +1,12 @@
+{
+  "name": "Beekeeper Studio",
+  "slug": "beekeeper-studio/windows",
+  "package_identifier": "beekeeper-studio.beekeeper-studio",
+  "unique_identifier": "Beekeeper Studio",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/beekeeper-studio_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/beekeeper-studio_uninstall.ps1"
+}

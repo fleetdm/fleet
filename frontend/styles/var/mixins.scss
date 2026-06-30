@@ -218,17 +218,6 @@ $max-width: 2560px;
   }
 }
 
-@mixin copy-message {
-  font-weight: $regular;
-  font-size: $x-small;
-  vertical-align: top;
-  background-color: $ui-light-grey;
-  border: solid 1px #e2e4ea;
-  border-radius: 10px;
-  padding: 2px 6px;
-  margin: -4px 0;
-}
-
 @mixin color-contrasted-sections {
   .section {
     display: flex;
@@ -444,8 +433,8 @@ $max-width: 2560px;
   // TODO: find a way to calculate these sticky positions this and use variables.
   //  will be tedious to update otherwise.
   top: 217px;
-  width: 260px;
-  padding: 0 64px 0 0;
+  width: clamp(200px, 25vw, 260px);
+  padding: 0 clamp(48px, 6.25vw, 64px) 0 0;
   list-style: none;
   font-size: $x-small;
   display: flex;

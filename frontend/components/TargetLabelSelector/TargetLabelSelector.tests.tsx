@@ -1,210 +1,115 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { noop } from "lodash";
 
-import TargetLabelSelector from "./TargetLabelSelector";
+import { ILabelSummary } from "interfaces/label";
 
-describe("TargetLabelSelector component", () => {
-  describe("renders the custom target selector when the target type is 'Custom'", () => {
-    it("with a dropdown when there are custom options to choose from", () => {
-      render(
-        <TargetLabelSelector
-          selectedTargetType="Custom"
-          selectedCustomTarget="labelIncludeAny"
-          customTargetOptions={[
-            { value: "labelIncludeAny", label: "Include any" },
-          ]}
-          selectedLabels={{}}
-          labels={[
-            { id: 1, name: "label 1", label_type: "regular" },
-            { id: 2, name: "label 2", label_type: "regular" },
-          ]}
-          onSelectCustomTarget={noop}
-          onSelectLabel={noop}
-          onSelectTargetType={noop}
-        />
-      );
+import TargetLabelSelector, { ILabelConfig } from "./TargetLabelSelector";
 
-      // custom target selector is rendering
-      expect(screen.getByRole("option", { name: "Include any" })).toBeVisible();
+const LABELS: ILabelSummary[] = [
+  { id: 1, name: "label 1", label_type: "regular" },
+  { id: 2, name: "label 2", label_type: "regular" },
+];
 
-      // lables are rendering
-      expect(screen.getByRole("checkbox", { name: "label 1" })).toBeVisible();
-      expect(screen.getByRole("checkbox", { name: "label 2" })).toBeVisible();
-    });
+const makeTab = (overrides: Partial<ILabelConfig> = {}): ILabelConfig => ({
+  selectedLabels: {},
+  onSelectLabel: noop,
+  ...overrides,
+});
 
-    it("with an optional message and no dropdown when there are no custom options to choose from", () => {
-      const HELP_TEXT = "go boldly where no target has gone before";
-      render(
-        <TargetLabelSelector
-          selectedTargetType="Custom"
-          selectedCustomTarget="labelIncludeAny"
-          customHelpText={<span>{HELP_TEXT}</span>}
-          selectedLabels={{}}
-          labels={[
-            { id: 1, name: "label 1", label_type: "regular" },
-            { id: 2, name: "label 2", label_type: "regular" },
-          ]}
-          onSelectCustomTarget={noop}
-          onSelectLabel={noop}
-          onSelectTargetType={noop}
-        />
-      );
+const renderSelector = (
+  props: Partial<React.ComponentProps<typeof TargetLabelSelector>> = {}
+) =>
+  render(
+    <TargetLabelSelector
+      selectedTargetType="Custom"
+      onSelectTargetType={noop}
+      labels={LABELS}
+      includeConfig={makeTab({ showModeToggle: true, mode: "any" })}
+      excludeConfig={makeTab()}
+      emptyStateDescription="Add a label to target a group of hosts."
+      onAddLabel={noop}
+      {...props}
+    />
+  );
 
-      // custom target help text is visible
-      expect(screen.getByText(HELP_TEXT)).toBeVisible();
+describe("TargetLabelSelector (tabbed) component", () => {
+  it("renders Include and Exclude tabs with labels in Custom mode", () => {
+    renderSelector();
 
-      expect(screen.queryByRole("option")).not.toBeInTheDocument();
-
-      // lables are rendering
-      expect(screen.getByRole("checkbox", { name: "label 1" })).toBeVisible();
-      expect(screen.getByRole("checkbox", { name: "label 2" })).toBeVisible();
-    });
+    expect(screen.getByText("Include")).toBeVisible();
+    expect(screen.getByText("Exclude")).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "label 1" })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "label 2" })).toBeVisible();
   });
 
-  it("does not render the custom target selector when the target type is 'All hosts'", () => {
-    render(
-      <TargetLabelSelector
-        selectedTargetType="All hosts"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-      />
-    );
+  it("does not render the custom tabs when the target type is 'All hosts'", () => {
+    renderSelector({ selectedTargetType: "All hosts" });
 
-    // custom target selector is not rendering
-    expect(screen.queryByRole("option", { name: "Include any" })).toBeNull();
+    expect(screen.queryByText("Include")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "label 1" })
+    ).not.toBeInTheDocument();
+  });
 
-    // lables are not rendering
-    expect(screen.queryByRole("checkbox", { name: "label 1" })).toBeNull();
-    expect(screen.queryByRole("checkbox", { name: "label 2" })).toBeNull();
+  it("renders the Any/All mode toggle on the include tab", () => {
+    renderSelector();
+
+    expect(screen.getByRole("radio", { name: "Any" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "All" })).toBeVisible();
+  });
+
+  it("does not render the mode toggle on the exclude tab when showModeToggle is false", () => {
+    renderSelector({ excludeConfig: makeTab({ showModeToggle: false }) });
+
+    fireEvent.click(screen.getByText("Exclude"));
+
+    expect(
+      screen.queryByRole("radio", { name: "Any" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "All" })
+    ).not.toBeInTheDocument();
   });
 
   it("renders selected labels as checked", () => {
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{ "label 1": true, "label 2": false }}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-      />
-    );
+    renderSelector({
+      includeConfig: makeTab({
+        showModeToggle: true,
+        mode: "any",
+        selectedLabels: { "label 1": true, "label 2": false },
+      }),
+    });
 
-    // lables are rendering
     expect(screen.getByRole("checkbox", { name: "label 1" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "label 2" })).not.toBeChecked();
   });
 
-  it("sets the title to Target by default", () => {
-    const TITLE = "Target";
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-        title={TITLE}
-      />
-    );
+  it("disables a label in the include tab when it is selected in the exclude tab", () => {
+    renderSelector({
+      excludeConfig: makeTab({ selectedLabels: { "label 1": true } }),
+    });
 
-    expect(screen.getByText(TITLE)).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "label 1" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(screen.getByRole("checkbox", { name: "label 2" })).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
   });
 
-  it("allows a custom title to be passed in", () => {
-    const TITLE = "Choose a target";
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-        title={TITLE}
-      />
-    );
+  it("renders the empty state and triggers onAddLabel when there are no labels", () => {
+    const onAddLabel = jest.fn();
+    renderSelector({ labels: [], onAddLabel });
 
-    expect(screen.getByText(TITLE)).toBeVisible();
-  });
+    expect(screen.getByText("No labels")).toBeVisible();
+    expect(
+      screen.getByText("Add a label to target a group of hosts.")
+    ).toBeVisible();
 
-  it("suppresses the title when suppressTitle is true", () => {
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-        suppressTitle
-      />
-    );
-
-    expect(screen.queryByText("Target")).not.toBeInTheDocument();
-  });
-
-  it("allows a subtitle to be passed in", () => {
-    const SUBTITLE = "Select one of the following options";
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-        subTitle={SUBTITLE}
-      />
-    );
-
-    expect(screen.getByText(SUBTITLE)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+    expect(onAddLabel).toHaveBeenCalledTimes(1);
   });
 });

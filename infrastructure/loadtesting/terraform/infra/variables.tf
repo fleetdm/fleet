@@ -60,6 +60,39 @@ variable "redis_instance_count" {
   }
 }
 
+# Optional Valkey support. Defaults keep Redis 7.1. For Valkey, set all three, e.g.:
+#   -var=redis_engine=valkey -var=redis_engine_version=8.0 -var=redis_parameter_group_family=valkey8
+variable "redis_engine" {
+  description = "The Elasticache engine to use: \"redis\" or \"valkey\"."
+  type        = string
+  default     = "redis"
+
+  validation {
+    condition     = contains(["redis", "valkey"], var.redis_engine)
+    error_message = "var.redis_engine must be either \"redis\" or \"valkey\"."
+  }
+}
+
+variable "redis_engine_version" {
+  description = "The Elasticache engine version (e.g. \"7.1\" for Redis, \"8.0\" for Valkey)."
+  type        = string
+  default     = "7.1"
+}
+
+variable "redis_parameter_group_family" {
+  description = "The Elasticache parameter group family (e.g. \"redis7\", \"valkey7\", \"valkey8\"). Must match the engine and version."
+  type        = string
+  default     = "redis7"
+
+  # Family must match the engine ("redis*" / "valkey*"). Versions aren't pinned here;
+  # bad version/family pairs fail at apply. Find valid pairs with:
+  #   aws elasticache describe-cache-engine-versions --engine <engine>
+  validation {
+    condition     = startswith(var.redis_parameter_group_family, var.redis_engine)
+    error_message = "var.redis_parameter_group_family must match var.redis_engine: use a \"redis*\" family (e.g. redis7) for the \"redis\" engine, or a \"valkey*\" family (e.g. valkey7, valkey8) for the \"valkey\" engine."
+  }
+}
+
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing with SigNoz instead of Elastic APM"
   type        = bool

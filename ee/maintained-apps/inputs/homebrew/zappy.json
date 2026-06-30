@@ -1,0 +1,10 @@
+{
+  "name": "Zappy",
+  "unique_identifier": "com.blackbeltlabs.Zappy",
+  "token": "zappy",
+  "installer_format": "dmg",
+  "slug": "zappy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

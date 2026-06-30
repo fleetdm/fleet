@@ -1,0 +1,10 @@
+{
+  "name": "Badgeify",
+  "unique_identifier": "studio.techflow.badgeify",
+  "token": "badgeify",
+  "installer_format": "dmg",
+  "slug": "badgeify/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

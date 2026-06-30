@@ -1,0 +1,10 @@
+{
+  "name": "KNIME Analytics Platform",
+  "unique_identifier": "org.knime.product",
+  "token": "knime",
+  "installer_format": "dmg",
+  "slug": "knime/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

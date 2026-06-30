@@ -62,6 +62,9 @@ agent_options:
     watchdog_utilization_limit: 130
     # --- macOS FIM ---
     enable_file_events: true
+    # --- macOS EndpointSecurity tables (requires Full Disk Access for osqueryd) ---
+    disable_endpointsecurity: false       # enables es_process_events
+    disable_endpointsecurity_fim: false   # enables es_process_file_events
     # --- Linux process + socket auditing via the audit framework ---
     disable_audit: false
     audit_allow_process_events: true
@@ -104,6 +107,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      - path: ../lib/macos/declaration-profiles/Disk management settings.json
+        labels_exclude_any:
+          - "Macs excluded from external storage restrictions"
       - path: ../lib/macos/configuration-profiles/fleet-okta-conditional-access.mobileconfig
         labels_include_any:
           - "Department: Information Technology"
@@ -140,19 +146,21 @@ controls:
         labels_exclude_any:
           - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Removable storage read-only.xml
+        labels_exclude_any:
+          - "Windows hosts excluded from external storage restrictions"
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
   scripts:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
-    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
-    - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:
@@ -191,6 +199,7 @@ policies:
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/removable-storage-read-only.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
 reports:

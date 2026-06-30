@@ -47,21 +47,6 @@
     resize: none;
   }
 
-  &__oauth-scopes-copy-icon-wrapper {
-    display: flex;
-    flex-direction: row-reverse;
-    align-items: center;
-    position: relative;
-    top: 36px;
-    right: 16px;
-    height: 0;
-    gap: 0.5rem;
-  }
-
-  &__copy-message {
-    @include copy-message;
-  }
-
   &__code {
     font-family: "SourceCodePro", $monospace;
   }

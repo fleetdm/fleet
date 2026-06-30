@@ -1,0 +1,10 @@
+{
+  "name": "Bambu Studio",
+  "unique_identifier": "com.bambulab.bambu-studio",
+  "token": "bambu-studio",
+  "installer_format": "dmg",
+  "slug": "bambu-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

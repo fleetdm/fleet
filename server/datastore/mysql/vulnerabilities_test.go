@@ -34,6 +34,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestCountVulnerabilities", testCountVulnerabilities},
 		{"TestInsertVulnerabilityCounts", testInsertVulnerabilityCounts},
 		{"TestVulnerabilityHostCountBatchInserts", testVulnerabilityHostCountBatchInserts},
+		{"TestListVulnerabilitiesCursorPagination", testListVulnerabilitiesCursorPagination},
 	}
 
 	for _, c := range cases {
@@ -526,6 +527,40 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 		})
 		require.Error(t, err)
 	})
+}
+
+func testListVulnerabilitiesCursorPagination(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	// Test cursor pagination with order keys that previously caused SQL errors
+	// due to ambiguous or unresolvable column names in the WHERE clause.
+	// See https://github.com/fleetdm/fleet/issues/45843
+	cursorTests := []struct {
+		name     string
+		orderKey string
+		after    string
+	}{
+		{"cve", "cve", "CVE-2020-1236"},
+		{"hosts_count", "hosts_count", "70"},
+		{"cve_published", "cve_published", "2020-01-01"},
+	}
+
+	for _, tc := range cursorTests {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := fleet.VulnListOptions{
+				IsEE: true,
+				ListOptions: fleet.ListOptions{
+					PerPage:        3,
+					OrderKey:       tc.orderKey,
+					OrderDirection: fleet.OrderAscending,
+					After:          tc.after,
+				},
+			}
+			list, _, err := ds.ListVulnerabilities(context.Background(), opts)
+			require.NoError(t, err)
+			require.NotEmpty(t, list)
+		})
+	}
 }
 
 func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {

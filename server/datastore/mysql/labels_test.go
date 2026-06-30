@@ -101,6 +101,7 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
 		{"ApplyLabelSpecsWithPlatformChange", testApplyLabelSpecsWithPlatformChange},
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
+		{"UpdateLabelMembershipByHostCriteriaIDP", testUpdateLabelMembershipByHostCriteriaIDP},
 		{"TeamLabels", testTeamLabels},
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
@@ -2915,6 +2916,108 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 		}
 		require.ElementsMatch(t, tt.AfterHostIDs, labelHostIDs)
 	}
+}
+
+// testUpdateLabelMembershipByHostCriteriaIDP exercises the real IdP foreign
+// vital query (end_user_idp_group) for both global and fleet/team-scoped host
+// vitals labels. This is the path that broke in #46869: fleet-scoped IdP labels
+// never got any hosts.
+func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "idp-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "idp-team2"})
+	require.NoError(t, err)
+
+	// host1 -> team1, host2 -> team2, host3 -> no team (global).
+	hosts := make([]*fleet.Host, 3)
+	teamIDs := []*uint{&team1.ID, &team2.ID, nil}
+	for i := range 3 {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("idp-%d", i)),
+			NodeKey:        new(fmt.Sprintf("idp-%d", i)),
+			UUID:           fmt.Sprintf("idp-uuid%d", i),
+			Hostname:       fmt.Sprintf("idp-host%d.local", i),
+			HardwareSerial: fmt.Sprintf("idp-hwd%d", i),
+			Platform:       "darwin",
+			TeamID:         teamIDs[i],
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	// Create a SCIM user per host, all in the "Engineering" IdP group.
+	scimUserIDs := make([]uint, 3)
+	for i := range 3 {
+		id, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName: fmt.Sprintf("idp-user%d", i),
+			Active:   new(true),
+		})
+		require.NoError(t, err)
+		scimUserIDs[i] = id
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)",
+				hosts[i].ID, id)
+			return err
+		})
+	}
+	_, err = ds.CreateScimGroup(ctx, &fleet.ScimGroup{
+		DisplayName: "Engineering",
+		ScimUsers:   scimUserIDs,
+	})
+	require.NoError(t, err)
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital: new("end_user_idp_group"),
+		Value: new("Engineering"),
+	})
+	require.NoError(t, err)
+
+	newIDPLabel := func(name string, teamID *uint) *fleet.Label {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			TeamID:              teamID,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		})
+		require.NoError(t, err)
+		return lbl
+	}
+
+	globalLabel := newIDPLabel("idp-global", nil)
+	team1Label := newIDPLabel("idp-team1-label", &team1.ID)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Global label: all three hosts (all SCIM users are in "Engineering").
+	updated, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 3, updated.HostCount)
+	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, hostIDs(globalHosts))
+
+	// Team1 label: only host1 (in team1) despite host2/host3 also being in the
+	// "Engineering" IdP group. Before the fix this returned an error / zero hosts.
+	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	require.NoError(t, err)
+	require.Equal(t, 1, updated.HostCount)
+	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
+
+	_ = team2 // team2 is used only to give host2 an out-of-team membership.
+}
+
+func hostIDs(hosts []*fleet.Host) []uint {
+	ids := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		ids = append(ids, h.ID)
+	}
+	return ids
 }
 
 func testTeamLabels(t *testing.T, ds *Datastore) {

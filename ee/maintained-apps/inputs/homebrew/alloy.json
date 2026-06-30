@@ -1,0 +1,10 @@
+{
+  "name": "Alloy",
+  "unique_identifier": "org.alloytools.alloy",
+  "token": "alloy",
+  "installer_format": "zip",
+  "slug": "alloy/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -63,7 +63,6 @@ const RenameFleetModal = ({
           placeholder="Fleet name"
           value={name}
           error={errors.name}
-          ignore1password
         />
         <div className="modal-cta-wrap">
           <Button

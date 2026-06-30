@@ -1,0 +1,10 @@
+{
+  "name": "Rize",
+  "unique_identifier": "io.rize",
+  "token": "rize",
+  "installer_format": "dmg",
+  "slug": "rize/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
