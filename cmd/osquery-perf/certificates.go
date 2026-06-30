@@ -1,0 +1,392 @@
+package main
+
+import (
+	"crypto/sha1" //nolint:gosec
+	"encoding/hex"
+	"fmt"
+	"maps"
+	"math/rand/v2"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// simulatedCert is a platform-neutral description of a certificate that
+// osquery-perf reports for the `certificates` detail query. The platform
+// renderers (darwinRow / windowsRows) translate it into the column shape
+// osquery produces on that platform.
+type simulatedCert struct {
+	ca                 bool
+	commonName         string
+	subjectCommonName  string
+	subjectOrg         string
+	subjectOrgUnit     string
+	subjectCountry     string
+	issuerCommonName   string
+	issuerOrg          string
+	issuerCountry      string
+	keyAlgorithm       string
+	keyStrength        string
+	keyUsage           string
+	signingAlgorithm   string
+	serial             string
+	notValidAfterUnix  string
+	notValidBeforeUnix string
+	// user reports whether the certificate lives in a user's store (true) or in
+	// the machine/system store (false). username is the owning user when user is
+	// true.
+	user     bool
+	username string
+}
+
+// sha1Hex returns the hex-encoded SHA1 osquery would report for this cert. It
+// is derived from the serial so that shared certs (fixed serial) dedupe to a
+// single host_certificates row across all hosts, while per-host certs (uuid
+// serial) stay unique per host.
+func (c simulatedCert) sha1Hex() string {
+	sum := sha1.Sum([]byte(c.serial)) //nolint: gosec
+	return hex.EncodeToString(sum[:])
+}
+
+// sharedCerts are reported by every simulated host (common root and
+// intermediate CAs). Their serials are fixed, so the Fleet server dedupes them
+// into a single host_certificates row referenced by every host. They are
+// machine-scoped and long-lived.
+var sharedCerts = []simulatedCert{
+	{
+		ca: true, commonName: "Fleet Root CA",
+		subjectCommonName: "Fleet Root CA", subjectOrg: "Fleet Device Management Inc.", subjectCountry: "US",
+		issuerCommonName: "Fleet Root CA", issuerOrg: "Fleet Device Management Inc.", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "4096", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-fleet-root-ca",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000", // 2020-01-01 .. 2030-01-01
+	},
+	{
+		ca: true, commonName: "Fleet Intermediate CA",
+		subjectCommonName: "Fleet Intermediate CA", subjectOrg: "Fleet Device Management Inc.", subjectOrgUnit: "Issuing", subjectCountry: "US",
+		issuerCommonName: "Fleet Root CA", issuerOrg: "Fleet Device Management Inc.", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "2048", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-fleet-intermediate-ca",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "DigiCert Global Root CA",
+		subjectCommonName: "DigiCert Global Root CA", subjectOrg: "DigiCert Inc", subjectCountry: "US",
+		issuerCommonName: "DigiCert Global Root CA", issuerOrg: "DigiCert Inc", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "2048", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-digicert-global-root-ca",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "Microsoft Root Certificate Authority 2011",
+		subjectCommonName: "Microsoft Root Certificate Authority 2011", subjectOrg: "Microsoft Corporation", subjectCountry: "US",
+		issuerCommonName: "Microsoft Root Certificate Authority 2011", issuerOrg: "Microsoft Corporation", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "4096", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-microsoft-root-ca-2011",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "GlobalSign Root CA",
+		subjectCommonName: "GlobalSign Root CA", subjectOrg: "GlobalSign nv-sa", subjectOrgUnit: "Root CA", subjectCountry: "BE",
+		issuerCommonName: "GlobalSign Root CA", issuerOrg: "GlobalSign nv-sa", issuerCountry: "BE",
+		keyAlgorithm: "rsaEncryption", keyStrength: "2048", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-globalsign-root-ca",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "USERTrust RSA Certification Authority",
+		subjectCommonName: "USERTrust RSA Certification Authority", subjectOrg: "The USERTRUST Network", subjectCountry: "US",
+		issuerCommonName: "USERTrust RSA Certification Authority", issuerOrg: "The USERTRUST Network", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "4096", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha384WithRSAEncryption", serial: "osquery-perf-shared-usertrust-rsa-ca",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "ISRG Root X1",
+		subjectCommonName: "ISRG Root X1", subjectOrg: "Internet Security Research Group", subjectCountry: "US",
+		issuerCommonName: "ISRG Root X1", issuerOrg: "Internet Security Research Group", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "4096", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-isrg-root-x1",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "Amazon Root CA 1",
+		subjectCommonName: "Amazon Root CA 1", subjectOrg: "Amazon", subjectCountry: "US",
+		issuerCommonName: "Amazon Root CA 1", issuerOrg: "Amazon", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "2048", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-amazon-root-ca-1",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "Baltimore CyberTrust Root",
+		subjectCommonName: "Baltimore CyberTrust Root", subjectOrg: "Baltimore", subjectOrgUnit: "CyberTrust", subjectCountry: "IE",
+		issuerCommonName: "Baltimore CyberTrust Root", issuerOrg: "Baltimore", issuerCountry: "IE",
+		keyAlgorithm: "rsaEncryption", keyStrength: "2048", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-baltimore-cybertrust-root",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+	{
+		ca: true, commonName: "Entrust Root Certification Authority - G2",
+		subjectCommonName: "Entrust Root Certification Authority - G2", subjectOrg: "Entrust, Inc.", subjectOrgUnit: "See www.entrust.net/legal-terms", subjectCountry: "US",
+		issuerCommonName: "Entrust Root Certification Authority - G2", issuerOrg: "Entrust, Inc.", issuerCountry: "US",
+		keyAlgorithm: "rsaEncryption", keyStrength: "2048", keyUsage: "Certificate Signing, CRL Signing",
+		signingAlgorithm: "sha256WithRSAEncryption", serial: "osquery-perf-shared-entrust-root-ca-g2",
+		notValidBeforeUnix: "1577836800", notValidAfterUnix: "1893456000",
+	},
+}
+
+const certDay = 24 * time.Hour
+
+// generateCertSpecs returns the certs this host reports: the constant shared
+// certs plus this host's per-host certs. Per-host certs are generated once and
+// cached so they're stable across polls, then occasionally churned to simulate
+// certificate rotation/installs. Shared certs are never churned.
+func (a *agent) generateCertSpecs() []simulatedCert {
+	a.certificatesMutex.Lock()
+	defer a.certificatesMutex.Unlock()
+
+	switch {
+	case a.hostCertSpecs == nil:
+		a.hostCertSpecs = a.newPerHostCertSpecs()
+	case rand.IntN(100) < 5:
+		// 5% chance for some of this host's certs to change between polls.
+		a.churnPerHostCertSpecs()
+	}
+
+	specs := make([]simulatedCert, 0, len(sharedCerts)+len(a.hostCertSpecs))
+	specs = append(specs, sharedCerts...)
+	specs = append(specs, a.hostCertSpecs...)
+	return specs
+}
+
+// newPerHostCertSpecs generates 0-10 certificates unique to this host, with
+// random (uuid) serials so each host's certs are distinct in the Fleet server.
+func (a *agent) newPerHostCertSpecs() []simulatedCert {
+	count := rand.IntN(11) // 0..10
+	users := a.hostUsers()
+	specs := make([]simulatedCert, 0, count+1)
+	for i := range count {
+		specs = append(specs, a.newPerHostCertSpec(i, users))
+	}
+	// Model a device certificate present in both the machine store and a user's
+	// store (same SHA1, two scopes), exercising the server's cross-scope
+	// handling (one host_certificates row, two host_certificate_sources rows).
+	if count > 0 && len(users) > 0 {
+		dup := specs[0]
+		dup.user = !specs[0].user
+		if dup.user {
+			dup.username = users[rand.IntN(len(users))]["username"]
+		} else {
+			dup.username = ""
+		}
+		specs = append(specs, dup)
+	}
+	return specs
+}
+
+func (a *agent) newPerHostCertSpec(i int, users []map[string]string) simulatedCert {
+	user := rand.IntN(2) == 0 && len(users) > 0
+	username := ""
+	if user {
+		username = users[rand.IntN(len(users))]["username"]
+	}
+	return simulatedCert{
+		commonName:        uuid.NewString(),
+		subjectCommonName: fmt.Sprintf("Subject %d Common Name", i),
+		subjectOrg:        fmt.Sprintf("Subject %d Inc.", i),
+		subjectOrgUnit:    fmt.Sprintf("Subject %d Org Unit", i),
+		subjectCountry:    "US",
+		issuerCommonName:  fmt.Sprintf("Issuer %d Common Name", i),
+		issuerOrg:         fmt.Sprintf("Issuer %d Inc.", i),
+		issuerCountry:     "US",
+		keyAlgorithm:      "rsaEncryption",
+		keyStrength:       "2048",
+		keyUsage:          "Data Encipherment, Key Encipherment, Digital Signature",
+		signingAlgorithm:  "sha256WithRSAEncryption",
+		serial:            uuid.NewString(),
+		// generate so that it may be expired (notAfter in [-1d, +99d])
+		notValidAfterUnix: fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.IntN(100)) * certDay).Unix()),
+		// notBefore is always in the past (1-10 days)
+		notValidBeforeUnix: fmt.Sprint(time.Now().Add(-time.Duration(rand.IntN(10)+1) * certDay).Unix()),
+		user:               user,
+		username:           username,
+	}
+}
+
+// churnPerHostCertSpecs rotates 1..N of this host's per-host certs by assigning
+// new serials (and thus new SHA1s), simulating certificate renewal/reinstall.
+func (a *agent) churnPerHostCertSpecs() {
+	if len(a.hostCertSpecs) == 0 {
+		return
+	}
+	n := rand.IntN(min(10, len(a.hostCertSpecs))) + 1
+	for range n {
+		idx := rand.IntN(len(a.hostCertSpecs))
+		a.hostCertSpecs[idx].serial = uuid.NewString()
+		a.hostCertSpecs[idx].commonName = uuid.NewString()
+		a.hostCertSpecs[idx].notValidAfterUnix = fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.IntN(100)) * certDay).Unix())
+	}
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "1"
+	}
+	return "0"
+}
+
+// darwinDN renders a slash-delimited distinguished name (e.g.
+// /C=US/O=Org/OU=Unit/CN=Name) as osquery returns on macOS. Empty fields are
+// omitted.
+func darwinDN(country, org, orgUnit, commonName string) string {
+	var b strings.Builder
+	if country != "" {
+		b.WriteString("/C=" + country)
+	}
+	if org != "" {
+		b.WriteString("/O=" + org)
+	}
+	if orgUnit != "" {
+		b.WriteString("/OU=" + orgUnit)
+	}
+	if commonName != "" {
+		b.WriteString("/CN=" + commonName)
+	}
+	return b.String()
+}
+
+// windowsDN renders an X.500 (RFC 1779) distinguished name (e.g.
+// "CN=Name, O=Org, OU=Unit, C=US") as osquery returns in subject2/issuer2 on
+// Windows starting with osquery 5.23.1.
+func windowsDN(country, org, orgUnit, commonName string) string {
+	var parts []string
+	if commonName != "" {
+		parts = append(parts, "CN="+commonName)
+	}
+	if org != "" {
+		parts = append(parts, "O="+org)
+	}
+	if orgUnit != "" {
+		parts = append(parts, "OU="+orgUnit)
+	}
+	if country != "" {
+		parts = append(parts, "C="+country)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// windowsLegacyDN renders the simple, values-only distinguished name that
+// pre-5.23.1 osquery returned in subject/issuer. Kept so the generator also
+// works against older Fleet servers that read those columns.
+func windowsLegacyDN(country, org, orgUnit, commonName string) string {
+	var parts []string
+	for _, v := range []string{commonName, orgUnit, org, country} {
+		if v != "" {
+			parts = append(parts, v)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// windowsUserSID returns a stable per-(host, user) security identifier so a
+// user's certs classify as User scope and stay consistent across polls.
+func (a *agent) windowsUserSID(username string) string {
+	var h uint32 = 2166136261
+	for i := 0; i < len(username); i++ {
+		h = (h ^ uint32(username[i])) * 16777619
+	}
+	rid := 1000 + int(h%5000)
+	return fmt.Sprintf("S-1-5-21-%d-%d-%d-%d", 1000000000+a.agentIndex, 2000000000, 3000000000, rid)
+}
+
+func (a *agent) certificatesDarwin() []map[string]string {
+	specs := a.generateCertSpecs()
+	rows := make([]map[string]string, 0, len(specs))
+	for _, c := range specs {
+		rows = append(rows, c.darwinRow())
+	}
+	return rows
+}
+
+func (c simulatedCert) darwinRow() map[string]string {
+	source := "system"
+	path := "/Library/Keychains/System.keychain"
+	if c.user {
+		source = "user"
+		path = fmt.Sprintf("/Users/%s/Library/Keychains/login.keychain-db", c.username)
+	}
+	return map[string]string{
+		"ca":                boolStr(c.ca),
+		"common_name":       c.commonName,
+		"subject":           darwinDN(c.subjectCountry, c.subjectOrg, c.subjectOrgUnit, c.subjectCommonName),
+		"issuer":            darwinDN(c.issuerCountry, c.issuerOrg, "", c.issuerCommonName),
+		"key_algorithm":     c.keyAlgorithm,
+		"key_strength":      c.keyStrength,
+		"key_usage":         c.keyUsage,
+		"signing_algorithm": c.signingAlgorithm,
+		"not_valid_after":   c.notValidAfterUnix,
+		"not_valid_before":  c.notValidBeforeUnix,
+		"serial":            c.serial,
+		"sha1":              c.sha1Hex(),
+		"source":            source,
+		"path":              path,
+	}
+}
+
+func (a *agent) certificatesWindows() []map[string]string {
+	specs := a.generateCertSpecs()
+	// User certs are enumerated from more than one hive, so allocate room for ~2
+	// rows per spec.
+	rows := make([]map[string]string, 0, len(specs)*2)
+	for _, c := range specs {
+		rows = append(rows, a.windowsRows(c)...)
+	}
+	return rows
+}
+
+// windowsRows renders the osquery `certificates` rows for a cert on Windows.
+// Machine-scoped certs produce one row. User-scoped certs produce the redundant
+// rows osquery returns from the user's Personal hive and its companion _Classes
+// hive (the Fleet server dedupes them by SHA1 + scope + username).
+func (a *agent) windowsRows(c simulatedCert) []map[string]string {
+	base := map[string]string{
+		"ca":          boolStr(c.ca),
+		"common_name": c.commonName,
+		// subject2/issuer2 are read by Fleet servers with Windows certificate
+		// support (osquery 5.23.1+); subject/issuer are kept for older servers.
+		"subject2":          windowsDN(c.subjectCountry, c.subjectOrg, c.subjectOrgUnit, c.subjectCommonName),
+		"issuer2":           windowsDN(c.issuerCountry, c.issuerOrg, "", c.issuerCommonName),
+		"subject":           windowsLegacyDN(c.subjectCountry, c.subjectOrg, c.subjectOrgUnit, c.subjectCommonName),
+		"issuer":            windowsLegacyDN(c.issuerCountry, c.issuerOrg, "", c.issuerCommonName),
+		"key_algorithm":     c.keyAlgorithm,
+		"key_strength":      c.keyStrength,
+		"key_usage":         c.keyUsage,
+		"signing_algorithm": c.signingAlgorithm,
+		"not_valid_after":   c.notValidAfterUnix,
+		"not_valid_before":  c.notValidBeforeUnix,
+		"serial":            c.serial,
+		"sha1":              c.sha1Hex(),
+	}
+
+	if !c.user {
+		row := maps.Clone(base)
+		row["sid"] = ""
+		row["username"] = ""
+		row["store_location"] = "LocalMachine"
+		row["path"] = "LocalMachine\\Personal"
+		return []map[string]string{row}
+	}
+
+	sid := a.windowsUserSID(c.username)
+	personal := maps.Clone(base)
+	personal["sid"] = sid
+	personal["username"] = c.username
+	personal["store_location"] = "Users"
+	personal["path"] = fmt.Sprintf("Users\\%s\\Personal", sid)
+
+	classes := maps.Clone(personal)
+	classes["path"] = fmt.Sprintf("Users\\%s_Classes\\Personal", sid)
+
+	return []map[string]string{personal, classes}
+}
