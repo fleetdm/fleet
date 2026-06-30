@@ -394,13 +394,6 @@ func TestParseRecoveryKey(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestRecoveryKeyListed(t *testing.T) {
-	out := "Name\ndefault-recovery\nfleet-escrow\n"
-	require.True(t, recoveryKeyListed(out, "fleet-escrow"))
-	require.True(t, recoveryKeyListed(out, "default-recovery"))
-	require.False(t, recoveryKeyListed(out, "other-key"))
-}
-
 type fakeEscrower struct {
 	responses []LuksResponse
 	err       error
@@ -412,19 +405,13 @@ func (f *fakeEscrower) SendLinuxKeyEscrowResponse(r LuksResponse) error {
 }
 
 type fakeSnapdFDE struct {
-	recoveryKey  string
-	ensureErr    error
-	removeCalled bool
+	recoveryKey string
+	ensureErr   error
 }
 
 func (f *fakeSnapdFDE) Detect(ctx context.Context) (bool, error) { return true, nil }
 func (f *fakeSnapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
 	return f.recoveryKey, f.ensureErr
-}
-
-func (f *fakeSnapdFDE) RemoveFleetRecoveryKey(ctx context.Context) error {
-	f.removeCalled = true
-	return nil
 }
 
 func TestRunRecoveryKeyEscrow(t *testing.T) {
@@ -444,7 +431,6 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 		assert.Empty(t, resp.Salt)
 		assert.Nil(t, resp.KeySlot)
 		assert.Empty(t, resp.Err)
-		assert.False(t, snapd.removeCalled)
 	})
 
 	t.Run("reports a client error when key creation fails", func(t *testing.T) {
@@ -458,15 +444,15 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 		assert.Equal(t, fleet.LUKSKeyTypeRecoveryKey, resp.KeyType)
 		assert.Empty(t, resp.Passphrase)
 		assert.NotEmpty(t, resp.Err)
-		assert.False(t, snapd.removeCalled)
 	})
 
-	t.Run("rolls back the key when escrow to the server fails", func(t *testing.T) {
+	t.Run("returns an error when escrow to the server fails", func(t *testing.T) {
+		// snapd has no recovery-key delete operation, so there is no rollback;
+		// the enrolled key is replaced on the next escrow attempt.
 		escrower := &fakeEscrower{err: errors.New("network down")}
 		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
 		lr := New(escrower)
 
 		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
-		assert.True(t, snapd.removeCalled)
 	})
 }

@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/rs/zerolog/log"
 )
 
 type LuksDump struct {
@@ -113,15 +112,18 @@ func IsSnapdManaged(dump *LuksDump) bool {
 // SnapdFDE abstracts the snapd/secboot tooling used to manage TPM-backed
 // full-disk encryption recovery keys. It is an interface so the escrow
 // orchestration can be unit tested without snapd present.
+//
+// There is intentionally no "remove recovery key" operation: neither snapd's
+// /v2/system-volumes API nor the snap-tpmctl CLI exposes recovery-key/keyslot
+// deletion (only passphrase/PIN auth factors can be removed). A recovery key is
+// retired by rotating it (regenerate/replace), which EnsureFleetRecoveryKey
+// does, so a failed escrow self-heals on the next attempt.
 type SnapdFDE interface {
 	// Detect reports whether this host uses snapd-managed TPM-backed FDE.
 	Detect(ctx context.Context) (bool, error)
 	// EnsureFleetRecoveryKey creates (or regenerates) the Fleet-owned recovery
 	// key and returns its plaintext value to escrow.
 	EnsureFleetRecoveryKey(ctx context.Context) (string, error)
-	// RemoveFleetRecoveryKey removes the Fleet-owned recovery key. Used to roll
-	// back when escrow to the Fleet server fails.
-	RemoveFleetRecoveryKey(ctx context.Context) error
 }
 
 var recoveryKeyRegexp = regexp.MustCompile(`\d{5}(?:-\d{5})+`)
@@ -134,17 +136,6 @@ func parseRecoveryKey(output string) (string, error) {
 		return "", errors.New("no recovery key found in output")
 	}
 	return key, nil
-}
-
-// recoveryKeyListed reports whether a recovery key with the given name appears
-// in the output of `snap-tpmctl list-recovery-keys`.
-func recoveryKeyListed(output, name string) bool {
-	for line := range strings.SplitSeq(output, "\n") {
-		if strings.Contains(line, name) {
-			return true
-		}
-	}
-	return false
 }
 
 // runRecoveryKeyEscrow escrows a snapd-managed recovery key for hosts using
@@ -165,11 +156,11 @@ func (lr *LuksRunner) runRecoveryKeyEscrow(ctx context.Context, snapd SnapdFDE) 
 
 	response.Passphrase = recoveryKey
 	if err := lr.escrower.SendLinuxKeyEscrowResponse(response); err != nil {
-		// The server did not record the key, so remove the one we created to
-		// avoid leaving an un-escrowed Fleet recovery key on the host.
-		if rmErr := snapd.RemoveFleetRecoveryKey(ctx); rmErr != nil {
-			log.Error().Err(rmErr).Msg("failed to remove Fleet recovery key after escrow failure")
-		}
+		// The server did not record the key. snapd exposes no way to delete a
+		// recovery-key slot, so we cannot roll the enrolled key back — but it is
+		// harmless (its secret was never stored anywhere) and the host stays
+		// pending escrow, so the next attempt regenerates and replaces it in
+		// place. Escrow therefore self-heals on retry.
 		return fmt.Errorf("escrowing recovery key: %w", err)
 	}
 

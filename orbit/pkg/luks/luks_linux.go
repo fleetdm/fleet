@@ -429,35 +429,22 @@ func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
 	return nil
 }
 
-const (
-	snapBinary       = "snap"
-	snapTPMCtlBinary = "snap-tpmctl"
-)
+// snapdFDE is the production SnapdFDE implementation. It manages TPM-backed FDE
+// recovery keys exclusively through the snapd REST API socket, which is
+// guaranteed present wherever snapd-managed FDE is in use and requires no
+// network or snap store access. Detection is pure LUKS2 metadata inspection.
+type snapdFDE struct {
+	socket *snapdSocketFDE
+}
 
-// snapTPMCtl is the production SnapdFDE implementation. It shells out to
-// snapd's `snap`/`snap-tpmctl` tooling to manage TPM-backed FDE recovery keys.
-//
-// NOTE: the exact snap-tpmctl subcommands and output format must be validated
-// on real Ubuntu 26 hardware; see the issue's verification items. The logic is
-// isolated behind the SnapdFDE interface so it can be adjusted without touching
-// the (unit-tested) escrow orchestration.
-type snapTPMCtl struct{}
+func newSnapdFDE() SnapdFDE {
+	return &snapdFDE{socket: newSnapdSocketFDE()}
+}
 
-func newSnapdFDE() SnapdFDE { return &snapTPMCtl{} }
-
-func (s *snapTPMCtl) Detect(ctx context.Context) (bool, error) {
-	// snapd ships on all modern Ubuntu, so its presence alone is not a signal.
-	// We decide purely from the LUKS2 metadata whether the volume is managed by
-	// snapd's secboot stack: plain or systemd-cryptenroll volumes are handled by
-	// the legacy passphrase path. Crucially we do NOT gate detection on
-	// snap-tpmctl being installed — that tool is an optional management snap, not
-	// installed by default, and acquiring it is the escrow step's concern. If we
-	// returned false here when the tool was missing, a TPM-backed host (which has
-	// no user passphrase) would fall through to the passphrase dialog and fail.
-	if !isInstalled(snapBinary) {
-		return false, nil
-	}
-
+func (s *snapdFDE) Detect(ctx context.Context) (bool, error) {
+	// Decide purely from the LUKS2 metadata whether the volume is managed by
+	// snapd's secboot stack; plain or systemd-cryptenroll volumes are handled by
+	// the legacy passphrase path.
 	devicePath, err := lvm.FindRootDisk()
 	if err != nil {
 		// No LUKS root partition found; nothing for us to manage.
@@ -473,72 +460,8 @@ func (s *snapTPMCtl) Detect(ctx context.Context) (bool, error) {
 	return IsSnapdManaged(dump), nil
 }
 
-func (s *snapTPMCtl) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
-	// snap-tpmctl is an optional management snap, not installed by default.
-	// Acquire it on demand; if that fails (e.g. no snap store access), surface a
-	// clear error that is reported to the Fleet server as an escrow failure so an
-	// admin can see why the key was not escrowed.
-	if err := ensureSnapTPMCtl(ctx); err != nil {
-		return "", err
-	}
-
-	// Create a dedicated Fleet-owned recovery key in its own named slot so the
-	// user's install-time default-recovery key is never disturbed. If a prior
-	// (partial) run already created it, regenerate it so we escrow a known value.
-	verb := "create-recovery-key"
-	if recoveryKeyExists(ctx, FleetRecoveryKeyName) {
-		verb = "regenerate-recovery-key"
-	}
-
-	out, err := runSnapTPMCtl(ctx, verb, FleetRecoveryKeyName)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", verb, err)
-	}
-	return parseRecoveryKey(out)
-}
-
-func (s *snapTPMCtl) RemoveFleetRecoveryKey(ctx context.Context) error {
-	if !recoveryKeyExists(ctx, FleetRecoveryKeyName) {
-		return nil
-	}
-	if _, err := runSnapTPMCtl(ctx, "remove-recovery-key", FleetRecoveryKeyName); err != nil {
-		return fmt.Errorf("removing recovery key: %w", err)
-	}
-	return nil
-}
-
-func runSnapTPMCtl(ctx context.Context, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, snapTPMCtlBinary, args...).CombinedOutput() // #nosec G204
-	if err != nil {
-		return "", fmt.Errorf("running %s %v: %w (%s)", snapTPMCtlBinary, args, err, strings.TrimSpace(string(out)))
-	}
-	return string(out), nil
-}
-
-func ensureSnapTPMCtl(ctx context.Context) error {
-	if isInstalled(snapTPMCtlBinary) {
-		return nil
-	}
-	if err := installSnapTPMCtl(ctx); err != nil {
-		return fmt.Errorf("%s is required to manage TPM-backed FDE recovery keys but could not be installed: %w", snapTPMCtlBinary, err)
-	}
-	return nil
-}
-
-func installSnapTPMCtl(ctx context.Context) error {
-	if err := exec.CommandContext(ctx, snapBinary, "install", snapTPMCtlBinary).Run(); err != nil {
-		return fmt.Errorf("snap install %s: %w", snapTPMCtlBinary, err)
-	}
-	return nil
-}
-
-func recoveryKeyExists(ctx context.Context, name string) bool {
-	out, err := runSnapTPMCtl(ctx, "list-recovery-keys")
-	if err != nil {
-		log.Debug().Err(err).Msg("listing snapd recovery keys")
-		return false
-	}
-	return recoveryKeyListed(out, name)
+func (s *snapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	return s.socket.ensureFleetRecoveryKey(ctx)
 }
 
 // isCryptsetupVersionLessThan2_4 checks if the installed cryptsetup version is less than 2.4.0

@@ -265,20 +265,30 @@ sequenceDiagram
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
 ```
 
-**Tooling.** orbit manages the snapd recovery key with the
-[`snap-tpmctl`](https://github.com/canonical/snap-tpmctl) CLI. This is an optional management snap
-that is **not installed by default** and is not part of the boot/unlock path — a TPM-backed host
-boots and auto-unlocks via snapd's initramfs regardless. orbit therefore installs `snap-tpmctl` on
-demand; if it cannot (for example, no snap store access), the escrow is reported to the server as a
-failure (the host shows "Action required"/"Failed") rather than silently falling back to the
-passphrase dialog, which cannot work on a host with no user passphrase.
+**Tooling.** orbit manages the snapd recovery key exclusively through the **snapd REST API over the
+`/run/snapd.socket` unix socket** (`POST /v2/system-volumes`), which snapd 2.74 (shipping in Ubuntu
+26.04) extended so management agents can enroll a dedicated, named recovery key. The flow is:
+`generate-recovery-key` (synchronous; returns the key value and a transient key id) →
+`add-recovery-key` (asynchronous; enrolls the key under the `fleet-escrow` name, falling back to
+`replace-recovery-key` if the slot already exists) → `check-recovery-key` (validates before
+escrow). These actions require root on the privileged socket, which orbit has, and the socket is
+guaranteed present wherever TPM-backed FDE is in use — no network or snap store access needed.
 
-A more robust, network-independent path is the snapd REST API over `/run/snapd.socket`
-(`/v2/system-volumes`), which snapd 2.74 (shipping in Ubuntu 26.04) extended so management agents can
-set a dedicated recovery key. `/run/snapd.socket` is guaranteed present wherever TPM-backed FDE is in
-use. Moving orbit's recovery-key management onto the snapd socket (rather than shelling out to
-`snap-tpmctl`) is a tracked follow-up; the exact request bodies should be confirmed against the snapd
-source or a live 26.04 host first.
+orbit deliberately does **not** shell out to the
+[`snap-tpmctl`](https://github.com/canonical/snap-tpmctl) CLI: that tool is itself just another
+client of the same socket, is GPL-licensed (the socket is a stable, language-agnostic wire
+protocol), is not installed by default, and would add a network/snap-store dependency. If a socket
+operation fails, the escrow is reported to the server as a failure (the host shows "Action
+required"/"Failed") rather than silently falling back to the passphrase dialog, which cannot work on
+a host with no user passphrase. The socket is not on the boot/unlock path either — a TPM-backed host
+boots and auto-unlocks via snapd's initramfs regardless.
+
+snapd's `/v2/system-volumes` exposes no way to delete a recovery-key slot (as of snapd 2.74 — only
+passphrase/PIN auth factors can be removed). A recovery key is retired by rotating it
+(`replace-recovery-key`), which is what enrollment does on a retry. So if escrow to the Fleet server
+fails after a key is enrolled, orbit does not (and cannot) delete it; the host stays pending escrow
+and the next attempt regenerates and replaces the key in place, so escrow self-heals on retry. The
+orphaned key is harmless because its secret was never stored anywhere.
 
 ## Key storage and security
 
