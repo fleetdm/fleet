@@ -531,14 +531,10 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 			cmd.FilesToWrite[fileName].(map[string]any)["settings"] = teamSettings
 
+			mdmConfig = team.Config.MDM
 			// Only add agent_options for regular teams (not "No Team")
 			if team.ID != 0 {
 				cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
-				mdmConfig = team.Config.MDM
-			} else {
-				// For team 0 (Unassigned), use the team's own FileVault config so
-				// generate-gitops doesn't emit the global value on the unassigned fleet.
-				mdmConfig.FileVault = team.Config.MDM.FileVault
 			}
 		}
 
