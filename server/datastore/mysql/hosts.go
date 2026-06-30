@@ -1161,9 +1161,19 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql += hostMDMSelect
 
 	if opt.DeviceMapping {
-		sql += `,
-    COALESCE(dm.device_mapping, 'null') as device_mapping
-		`
+		// Use a correlated subquery in the SELECT list (rather than a derived-table
+		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
+		// for the rows actually returned by the outer query, each as an indexed lookup on
+		// idx_host_emails_host_id_email. A derived table with GROUP BY would be fully
+		// materialized regardless of the outer LIMIT. This matches the host_additional
+		// pattern below.
+		sql += fmt.Sprintf(`,
+    COALESCE((
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s)), ']')
+        FROM host_emails he
+        WHERE he.host_id = h.id
+    ), 'null') as device_mapping
+		`, deviceMappingTranslateSourceColumn("he"))
 	}
 
 	if !opt.DisableIssues {
@@ -1305,17 +1315,9 @@ func (ds *Datastore) applyHostFilters(
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
-	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
-		SELECT
-			host_id,
-			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
-		FROM
-			host_emails
-		GROUP BY
-			host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
-	if !opt.DeviceMapping {
-		deviceMappingJoin = ""
-	}
+	// device_mapping is selected via a correlated subquery in the SELECT list (see
+	// ListHosts), so no join is needed here.
+	deviceMappingJoin := ""
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
@@ -2093,6 +2095,8 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	opt.PerPage = 0
 	// We don't need the issue counts of each host for counting hosts.
 	opt.DisableIssues = true
+	// device_mapping is never selected when counting, so skip its (expensive) subquery.
+	opt.DeviceMapping = false
 
 	var params []interface{}
 
