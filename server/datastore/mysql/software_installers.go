@@ -198,7 +198,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, 0, errors.New("validated labels must not be nil")
 	}
 
-	if err := ds.checkSoftwareConflictsByIdentifier(ctx, payload); err != nil {
+	err = ds.checkSoftwareConflictsByIdentifier(ctx, payload)
+	if err != nil {
 		return 0, 0, err
 	}
 
@@ -227,6 +228,23 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, ds.writer(ctx), payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
+	}
+
+	// Script packages dedupe by content team-wide: identical bytes are the same script, so
+	// they can't be added under a different title. Same-title duplicates are already caught
+	// by the per-title hash check. Binary installers can legitimately ship the same content
+	// with different install scripts, so they are not deduped this way.
+	if payload.StorageID != "" && fleet.IsScriptPackage(payload.Extension) {
+		teamsByHash, err := ds.GetTeamsWithInstallerByHash(ctx, payload.StorageID, "")
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "check duplicate installer by hash")
+		}
+		if _, exists := teamsByHash[ptr.ValOrZero(payload.TeamID)]; exists {
+			return 0, 0, fleet.NewInvalidArgumentError(
+				"software",
+				"Couldn't add software. An installer with identical contents already exists on this fleet.",
+			)
+		}
 	}
 
 	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
@@ -1371,13 +1389,8 @@ WHERE
   AND si.is_active = 1
 ORDER BY si.id ASC`
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	var packages []*fleet.SoftwareInstaller
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packages, query, titleID, tmID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packages, query, titleID, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software packages by team and title")
 	}
@@ -4092,8 +4105,6 @@ LIMIT 1`
 	return &installer, nil
 }
 
-const maxPackagesPerTitle = 10
-
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	conflict := func(message string) error {
 		teamName, err := ds.getTeamName(ctx, payload.TeamID)
@@ -4162,7 +4173,8 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			return err
 		}
 
-		// check if a custom package with the same hash exists
+		// A package can't repeat the same bytes within its title. Scripts also dedupe
+		// team-wide in MatchOrCreateSoftwareInstaller.
 		var dup bool
 		err = sqlx.GetContext(ctx, ds.reader(ctx), &dup, `
 			SELECT EXISTS (
@@ -4178,7 +4190,7 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			}, "duplicate package by hash")
 		}
 
-		// a title holds at most maxPackagesPerTitle custom packages
+		// a title holds at most fleet.MaxPackagesPerTitle custom packages
 		var count int
 		err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `
 			SELECT COUNT(*) FROM software_installers
@@ -4186,9 +4198,9 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "count packages on the title")
 		}
-		if count >= maxPackagesPerTitle {
+		if count >= fleet.MaxPackagesPerTitle {
 			return ctxerr.Wrap(ctx, fleet.ConflictError{
-				Message: fmt.Sprintf(fleet.SoftwarePackageLimitMessage, payload.Title, maxPackagesPerTitle),
+				Message: fmt.Sprintf(fleet.SoftwarePackageLimitMessage, payload.Title, fleet.MaxPackagesPerTitle),
 			}, "package limit reached")
 		}
 	}
@@ -4220,10 +4232,10 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 				SELECT 1
 				FROM software_installers si
 				JOIN software_titles st ON st.id = si.title_id
-				WHERE si.global_or_team_id = ? AND st.source = ? AND (st.name = ? OR (? != '' AND st.upgrade_code = ?))
+				WHERE si.global_or_team_id = ? AND st.source = ? AND (st.name = ? OR (st.upgrade_code != '' AND st.upgrade_code = ?))
 					AND (si.fleet_maintained_app_id IS NOT NULL) = ?
 			)`
-		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.Title, payload.UpgradeCode, payload.UpgradeCode, wantFMA}
+		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.Title, payload.UpgradeCode, wantFMA}
 	default:
 		return false, nil
 	}

@@ -685,10 +685,10 @@ WHERE
 		  {{end}}
 		{{end}}
 		{{if and (hasTeamID $) $.HashSHA256}}
-		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers sif WHERE sif.title_id = st.id AND sif.global_or_team_id = %d AND sif.is_active = TRUE AND sif.storage_id = ?)" $additionalWhere (teamID $)}}
+		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.storage_id = ?)" $additionalWhere (teamID $)}}
 		{{end}}
 		{{if and (hasTeamID $) $.PackageName}}
-		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers sif WHERE sif.title_id = st.id AND sif.global_or_team_id = %d AND sif.is_active = TRUE AND sif.filename = ?)" $additionalWhere (teamID $)}}
+		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.filename = ?)" $additionalWhere (teamID $)}}
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
