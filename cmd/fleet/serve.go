@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -153,6 +154,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
+	}
+
+	// Set network blocking mode for outbound integration requests.
+	switch {
+	case dev_mode.IsEnabled:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingBypassAll)
+	case config.Server.AllowPrivateNetworkIntegrations:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingPrivateAllowed)
+	default:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingFull)
 	}
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
@@ -278,7 +289,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
-	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
+	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
+		config.Redis.LiveQuerySmallTargetThreshold)
 	ssoSessionStore := sso.NewSessionStore(redisPool)
 
 	osquerydStatusLogger, osquerydResultLogger, auditLogger := initOsqueryLogging(cmd.Context(), config, license, logger, initFatal)
@@ -723,7 +735,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Validate(apiHandler); err != nil {
+		// SCIM endpoints are served by a prefix-mounted handler (see
+		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
+		// their routes to the validator explicitly.
+		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
@@ -1022,6 +1037,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		select {
 		case <-sig:
 		case <-dbFatalCh:
+		// cmd.Context() is context.Background() in production (the root command
+		// is run via Execute, not ExecuteContext), so this case never fires
+		// there. Tests run the command with a cancelable context to trigger a
+		// graceful shutdown without sending an OS signal.
+		case <-cmd.Context().Done():
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
