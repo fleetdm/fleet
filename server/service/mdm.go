@@ -2173,7 +2173,8 @@ func (svc *Service) BatchSetMDMProfiles(
 		ctx = ctxdb.BypassCachedMysql(ctx, false)
 	}
 
-	if assumeEnabled != nil {
+	// assume_enabled is only honored on dry runs
+	if dryRun && assumeEnabled != nil {
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
 
