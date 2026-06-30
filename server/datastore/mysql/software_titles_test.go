@@ -922,21 +922,18 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
-	countMultiApp := func(opts fleet.SoftwareTitleListOptions) int {
-		titles, _, _, err := ds.ListSoftwareTitles(ctx, opts, adminFilter)
-		require.NoError(t, err)
-		var n int
-		for _, tl := range titles {
-			if tl.Name == "Multi App" {
-				n++
-			}
-		}
-		return n
-	}
 
-	// the title appears once on the optimized path (no filters) and the filtered path
-	require.Equal(t, 1, countMultiApp(fleet.SoftwareTitleListOptions{TeamID: &team.ID}))
-	require.Equal(t, 1, countMultiApp(fleet.SoftwareTitleListOptions{TeamID: &team.ID, ListOptions: fleet.ListOptions{MatchQuery: "Multi App"}}))
+	// the team has only this title, so it must appear exactly once (not duplicated by the two
+	// active packages) on both the optimized path (no filters) and the filtered path
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "Multi App", titles[0].Name)
+
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, ListOptions: fleet.ListOptions{MatchQuery: "Multi App"}}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "Multi App", titles[0].Name)
 
 	// the installer count reflects both packages
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
