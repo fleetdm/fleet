@@ -9,6 +9,7 @@ import {
   isSoftwarePackage,
   InstallerType,
 } from "interfaces/software";
+import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -44,6 +45,10 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
+  /** Per-installer id on a multi-package title (#48397). When set, the PATCH
+   * targets this specific package; otherwise the request edits the legacy
+   * single-package row. */
+  installerId?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
@@ -55,11 +60,17 @@ interface IEditSoftwareModalProps {
   displayName: string;
   source?: string;
   iconUrl?: string | null;
+  /** Passed through from `SoftwareTitleDetailsPage`. When true, the modal
+   * title reads "Edit package" instead of "Edit software" — we're editing one
+   * specific installer on a title that has several, not the title's only
+   * package (#48400). */
+  canActivateMultiplePackages?: boolean;
 }
 
 const EditSoftwareModal = ({
   softwareId,
   teamId,
+  installerId,
   softwareInstaller,
   onExit,
   refetchSoftwareTitle,
@@ -71,6 +82,7 @@ const EditSoftwareModal = ({
   displayName,
   source,
   iconUrl = undefined,
+  canActivateMultiplePackages = false,
 }: IEditSoftwareModalProps) => {
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
@@ -147,29 +159,21 @@ const EditSoftwareModal = ({
     isUpdatingSoftware,
   ]);
 
-  /* 1. Delays showing the file progress modal until isUpdatingSoftware
-   * has been true for 3 seconds to prevent flashing modal on quick uploads
-   * 2. Prevents page unload during the upload
-   * 3. Cleans both up when uploading stops or the component unmounts */
+  // Block tab close / hard navigation while the PATCH is in flight.
+  useBlockNavigation(isUpdatingSoftware);
+
+  /* Delays showing the file progress modal until isUpdatingSoftware has been
+   * true for 3 seconds to prevent flashing modal on quick uploads, and
+   * hides it when uploading stops. */
   useEffect(() => {
     // Timer for delayed modal
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // Next line with e.returnValue is included for legacy support
-      // e.g.Chrome / Edge < 119
-      e.returnValue = true;
-    };
 
     if (isUpdatingSoftware) {
       // only show modal if still uploading after 3 seconds
       timeoutId = setTimeout(() => {
         setShowFileProgressModal(true);
       }, 3000);
-
-      // Prevents user from leaving page while uploading
-      addEventListener("beforeunload", beforeUnloadHandler);
     } else {
       // upload finished: hide modal and reset
       setShowFileProgressModal(false);
@@ -180,7 +184,6 @@ const EditSoftwareModal = ({
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      removeEventListener("beforeunload", beforeUnloadHandler);
     };
   }, [isUpdatingSoftware]);
 
@@ -208,6 +211,7 @@ const EditSoftwareModal = ({
         data: formData,
         orignalPackage: softwareInstaller as ISoftwarePackage,
         softwareId,
+        installerId,
         teamId,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
@@ -252,7 +256,7 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  const isOnlySelfServiceUpdated = (updates: Record<string, any>) => {
+  const isOnlySelfServiceUpdated = (updates: Record<string, unknown>) => {
     return Object.keys(updates).length === 1 && "selfService" in updates;
   };
 
@@ -393,7 +397,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title="Edit software"
+        title={canActivateMultiplePackages ? "Edit package" : "Edit software"}
         onExit={onExit}
         width="large"
       >
