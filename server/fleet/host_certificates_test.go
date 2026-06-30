@@ -174,14 +174,11 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 }
 
 func TestExtractWindowsCertificateNameDetails(t *testing.T) {
-	// osquery 5.23.1+ reports the Windows subject2 / issuer2 columns in the X.500
-	// CERT_X500_NAME_STR form: comma-separated key=value RDNs, with values quoted
-	// when they contain separators and multi-valued RDNs joined by '+'.
 	cases := []struct {
-		name      string
-		input     string
-		expected  *HostCertificateNameDetails
-		expectErr bool
+		name        string
+		input       string
+		expected    *HostCertificateNameDetails
+		errContains string // if set, parsing must return an error containing this substring
 	}{
 		{
 			name:  "basic",
@@ -230,6 +227,15 @@ func TestExtractWindowsCertificateNameDetails(t *testing.T) {
 			},
 		},
 		{
+			name:  "plus inside a quoted value is not a multi-valued RDN separator",
+			input: `CN=Name, O="A + B", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Name",
+				Organization: "A + B",
+				Country:      "US",
+			},
+		},
+		{
 			name:  "doubled quotes inside a quoted value",
 			input: `CN="A ""quoted"" name", C=US`,
 			expected: &HostCertificateNameDetails{
@@ -251,20 +257,28 @@ func TestExtractWindowsCertificateNameDetails(t *testing.T) {
 			expected: &HostCertificateNameDetails{},
 		},
 		{
+			name:  "empty fragment between separators is skipped silently",
+			input: "CN=X,,C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "X",
+				Country:    "US",
+			},
+		},
+		{
 			name:  "malformed fragment is skipped but reported, details still parsed",
 			input: "CN=Good Cert, garbage-no-equals, C=US",
 			expected: &HostCertificateNameDetails{
 				CommonName: "Good Cert",
 				Country:    "US",
 			},
-			expectErr: true,
+			errContains: "garbage-no-equals",
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, err := ExtractDetailsFromOsqueryDistinguishedName("windows", tc.input)
-			if tc.expectErr {
-				require.Error(t, err)
+			if tc.errContains != "" {
+				require.ErrorContains(t, err, tc.errContains)
 			} else {
 				require.NoError(t, err)
 			}

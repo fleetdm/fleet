@@ -3044,6 +3044,23 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
+// windowsCertRow builds an osquery Windows `certificates` table row for tests,
+// starting from a common set of base fields and applying the given overrides.
+func windowsCertRow(overrides map[string]string) map[string]string {
+	r := map[string]string{
+		"ca":                "0",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2048",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "05",
+	}
+	maps.Copy(r, overrides)
+	return r
+}
+
 func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
@@ -3058,24 +3075,6 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 		entraSID = "S-1-12-1-1234567890-1234567890-1234567890-1234567890"
 	)
 
-	// Common fields shared by every example row (osquery 5.23.1+ shapes, with the
-	// keyed subject2 / issuer2 columns).
-	base := map[string]string{
-		"ca":                "0",
-		"key_algorithm":     "RSA",
-		"key_strength":      "2048",
-		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		"not_valid_after":   "1780784467",
-		"not_valid_before":  "1749248467",
-		"serial":            "05",
-	}
-	row := func(overrides map[string]string) map[string]string {
-		r := maps.Clone(base)
-		maps.Copy(r, overrides)
-		return r
-	}
-
 	const (
 		machineSHA1 = "AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555"
 		sysAcctSHA1 = "1111AAAA2222BBBB3333CCCC4444DDDD5555EEEE"
@@ -3083,9 +3082,8 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 		entraSHA1   = "FACE1234FACE1234FACE1234FACE1234FACE1234"
 	)
 
-	// Machine-wide LocalMachine store: empty sid and empty username. The old
-	// heuristic mislabeled this as a user cert; it must be System scope.
-	machine := row(map[string]string{
+	// Machine-wide LocalMachine store: empty sid and empty username.
+	machine := windowsCertRow(map[string]string{
 		"common_name":    "Fleet Root CA",
 		"subject2":       "CN=Fleet Root CA, O=Fleet Device Management Inc., OU=Engineering, C=US",
 		"issuer2":        "CN=Fleet Root CA, O=Fleet Device Management Inc., C=US",
@@ -3096,10 +3094,9 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 		"path":           "LocalMachine\\Personal",
 	})
 
-	// LocalSystem account (S-1-5-18) store, enumerated three times across
-	// redundant hive views. These must collapse into a single System entry and be
-	// retained (a distinct cert from LocalMachine, often a device/enrollment cert).
-	sysAcctCurrentUser := row(map[string]string{
+	// LocalSystem account (S-1-5-18) store, enumerated three times across redundant hive views. These must collapse into
+	// a single System entry and be retained (a distinct cert from LocalMachine, often a device/enrollment cert).
+	sysAcctCurrentUser := windowsCertRow(map[string]string{
 		"common_name":    "Device Enrollment",
 		"subject2":       "CN=Device Enrollment, C=US",
 		"issuer2":        "CN=Fleet SCEP CA, C=US",
@@ -3116,10 +3113,9 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	sysAcctUsersHive["store_location"] = "Users"
 	sysAcctUsersHive["path"] = "Users\\S-1-5-18\\Personal"
 
-	// Real interactive user (S-1-5-21-*), present in the Personal hive and the
-	// redundant _Classes sub-hive (same base SID). These collapse into one
-	// User/Admin entry. The issuer carries a quoted comma to exercise the parser.
-	userAdmin := row(map[string]string{
+	// Real interactive user (S-1-5-21-*), present in the Personal hive and the redundant _Classes sub-hive (same base
+	// SID). These collapse into one User/Admin entry. The issuer carries a quoted comma to exercise the parser.
+	userAdmin := windowsCertRow(map[string]string{
 		"common_name":    "admin@example.com",
 		"subject2":       "CN=admin@example.com, OU=fleet-abc, OU=People, O=Example",
 		"issuer2":        `CN=SCEP CA, O="Example, Inc.", C=US`,
@@ -3135,15 +3131,13 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	userAdminClasses["path"] = "Users\\" + userSID + "_Classes\\Personal"
 
 	// The same certificate (same SHA1) also installed in a second user's store
-	// must yield a separate User entry for that user.
 	userBob := maps.Clone(userAdmin)
 	userBob["username"] = "Bob"
 	userBob["sid"] = secondUSID
 	userBob["path"] = "Users\\" + secondUSID + "\\Personal"
 
-	// An Entra ID (Azure AD) user, whose hive SID uses the S-1-12-1 prefix, must
-	// also be classified as User scope with the owner preserved.
-	entraUser := row(map[string]string{
+	// An Entra ID (Azure AD) user, whose hive SID uses the S-1-12-1 prefix
+	entraUser := windowsCertRow(map[string]string{
 		"common_name":    "entra@example.com",
 		"subject2":       "CN=entra@example.com, O=Example",
 		"issuer2":        "CN=SCEP CA, C=US",
@@ -3195,19 +3189,36 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 
 			switch k {
 			case scopeKey{machineSHA1, fleet.SystemHostCertificate, ""}:
-				// distinguished name fields are now parsed from subject2 / issuer2
+				// non-DN fields are mapped straight from the osquery row
+				require.Equal(t, "Fleet Root CA", cert.CommonName)
+				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
+				require.Equal(t, "05", cert.Serial)
+				require.Equal(t, 2048, cert.KeyStrength)
+				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.False(t, cert.CertificateAuthority)
+				// distinguished name fields are parsed from subject2 / issuer2
 				require.Equal(t, "Fleet Root CA", cert.SubjectCommonName)
 				require.Equal(t, "Fleet Device Management Inc.", cert.SubjectOrganization)
 				require.Equal(t, "Engineering", cert.SubjectOrganizationalUnit)
 				require.Equal(t, "US", cert.SubjectCountry)
 				require.Equal(t, "Fleet Root CA", cert.IssuerCommonName)
 				require.Equal(t, "US", cert.IssuerCountry)
+			case scopeKey{sysAcctSHA1, fleet.SystemHostCertificate, ""}:
+				require.Equal(t, "Device Enrollment", cert.SubjectCommonName)
+				require.Equal(t, "US", cert.SubjectCountry)
+				require.Equal(t, "Fleet SCEP CA", cert.IssuerCommonName)
 			case scopeKey{userSHA1, fleet.UserHostCertificate, "Admin"}, scopeKey{userSHA1, fleet.UserHostCertificate, "Bob"}:
 				require.Equal(t, "admin@example.com", cert.SubjectCommonName)
 				require.Equal(t, "Example", cert.SubjectOrganization)
 				require.Equal(t, "fleet-abc+OU=People", cert.SubjectOrganizationalUnit)
 				// quoted comma inside the issuer organization must be preserved
 				require.Equal(t, "Example, Inc.", cert.IssuerOrganization)
+				require.Equal(t, "SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
+			case scopeKey{entraSHA1, fleet.UserHostCertificate, "AzureAD\\entrauser"}:
+				require.Equal(t, "entra@example.com", cert.SubjectCommonName)
+				require.Equal(t, "Example", cert.SubjectOrganization)
 				require.Equal(t, "SCEP CA", cert.IssuerCommonName)
 				require.Equal(t, "US", cert.IssuerCountry)
 			}
@@ -3239,24 +3250,16 @@ func TestDirectIngestHostCertificatesWindowsMalformedDN(t *testing.T) {
 
 	// subject2 contains a non-empty fragment with no '=' (malformed osquery output).
 	// The certificate must still be ingested best-effort, not dropped.
-	row := map[string]string{
-		"ca":                "0",
-		"common_name":       "malformed.example.com",
-		"subject2":          "CN=malformed.example.com, garbage-no-equals, C=US",
-		"issuer2":           "CN=Issuer CA, C=US",
-		"key_algorithm":     "RSA",
-		"key_strength":      "2048",
-		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		"not_valid_after":   "1780784467",
-		"not_valid_before":  "1749248467",
-		"serial":            "07",
-		"sha1":              "1234123412341234123412341234123412341234",
-		"username":          "",
-		"sid":               "",
-		"store_location":    "LocalMachine",
-		"path":              "LocalMachine\\Personal",
-	}
+	row := windowsCertRow(map[string]string{
+		"common_name":    "malformed.example.com",
+		"subject2":       "CN=malformed.example.com, garbage-no-equals, C=US",
+		"issuer2":        "CN=Issuer CA, C=US",
+		"sha1":           "1234123412341234123412341234123412341234",
+		"username":       "",
+		"sid":            "",
+		"store_location": "LocalMachine",
+		"path":           "LocalMachine\\Personal",
+	})
 
 	var got []*fleet.HostCertificateRecord
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
