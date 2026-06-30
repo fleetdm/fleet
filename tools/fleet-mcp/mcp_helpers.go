@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -9,6 +10,61 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// - if hostID is present, fetch the host directly
+// - otherwise it searches by identifier query-first, falling back to the identifier endpoint for identifiers the
+// substring search misses (e.g. UUIDs).
+//
+// When the identifier matches more than one host (Fleet allows duplicate
+// hostnames), it returns ambiguous=true with the matching candidates and a nil
+// host, so the caller can surface the list and re-call with a specific host_id
+// rather than silently acting on the wrong host.
+func resolveHostDetail[T any](
+	ctx context.Context,
+	fleetClient *FleetClient,
+	hostID uint,
+	identifier string,
+	byID func(context.Context, uint) (*T, error),
+	byIdentifier func(context.Context, string) (*T, error),
+) (host *T, ambiguous bool, candidates []Endpoint, err error) {
+	if hostID != 0 {
+		h, hErr := byID(ctx, hostID)
+		if hErr != nil {
+			return nil, false, nil, hErr
+		}
+		return h, false, nil, nil
+	}
+
+	const maxCandidates = 50
+	cands, qErr := fleetClient.GetEndpointsWithFilters(ctx, "", "", "", identifier, "", "", "", maxCandidates)
+	if qErr == nil && len(cands) == 1 {
+		h, hErr := byID(ctx, cands[0].ID)
+		if hErr != nil {
+			return nil, false, nil, hErr
+		}
+		return h, false, nil, nil
+	}
+	if qErr == nil && len(cands) > 1 {
+		return nil, true, cands, nil
+	}
+
+	h, idErr := byIdentifier(ctx, identifier)
+	if idErr != nil {
+		return nil, false, nil, fmt.Errorf("host not found by query or identifier: %s (substring search does NOT cover display_name — try host_id if you have it)", identifier)
+	}
+	return h, false, nil, nil
+}
+
+func parseHostIDArg(hostIDArg string) (uint, error) {
+	if hostIDArg == "" {
+		return 0, nil
+	}
+	id, err := strconv.ParseUint(hostIDArg, 10, strconv.IntSize)
+	if err != nil || id == 0 {
+		return 0, fmt.Errorf("host_id must be a positive integer, got %q", hostIDArg)
+	}
+	return uint(id), nil
+}
 
 // getOptionalString reads an optional string argument from an MCP tool request.
 // Returns empty string if the argument is absent, non-string, or the request has
