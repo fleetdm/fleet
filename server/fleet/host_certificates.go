@@ -41,6 +41,22 @@ const (
 	HostCertificateOriginMDM     HostCertificateOrigin = "mdm"
 )
 
+// HostCertificateScope identifies a single (source, username) certificate
+// scope. It is used to tell UpdateHostCertificates which scopes the agent could
+// authoritatively enumerate during a collection cycle, so reconciliation does
+// not soft-delete certificates for a scope it could not observe.
+//
+// A user's Windows certificates are only visible to osquery while that user is
+// logged in (their registry hive is loaded), so the Windows ingestion path
+// passes the set of observed scopes and absent users' certificates are
+// preserved. The macOS path reads every keychain from disk on every run, so it
+// passes a nil slice, meaning "all scopes observed" and any absent certificate
+// may be deleted.
+type HostCertificateScope struct {
+	Source   HostCertificateSource
+	Username string
+}
+
 // HostCertificateRecord is the database model for a host certificate.
 type HostCertificateRecord struct {
 	ID     uint `json:"-" db:"id"`
@@ -275,50 +291,108 @@ func parseDarwinDN(dn string) (*HostCertificateNameDetails, error) {
 
 		value = strings.ReplaceAll(strings.Trim(value, " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
 
-		switch strings.ToUpper(key) {
-		case "C":
-			details.Country = strings.Trim(value, " ")
-		case "O":
-			details.Organization = strings.Trim(value, " ")
-		case "OU":
-			// osquery is inconsistent in how it reports certs with multiple OUs; sometimes it
-			// concatenates them all joined by `+OU=` separator within the same `/` delimited
-			// string, other times it provides multiple `/` delimited strings that each contain
-			// distinct OU values. For example, compare the following two lines:
-			//   /OU=SomeValue/OU=fleet-a3d5d6f4c-819e-4159-9a42-0d6243a80ff8/CN=SomeName
-			//   /OU=SomeValue+OU=fleet-a0c039413-d0c7-4b1f-9488-b93c865351ac/CN=SomeName
-			//
-			// To handle both cases, we collect all OU values and join them with `+OU=` below.
-			// We should probably reconsider our approaches for normalization of cert data
-			// across the board.
-			// FIXME: How should this work with the edge case covered by PR 33152 (e.g., "+" separator above)?
-			ouParts = append(ouParts, strings.Trim(value, " "))
-		case "CN":
-			details.CommonName = strings.Trim(value, " ")
-		}
+		applyDNAttribute(&details, &ouParts, key, value)
 	}
 	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
 
 	return &details, nil
 }
 
-// FIXME: parseWindowsDN takes a distinguished name string from a Windows host but does not parse it
-// because the format of the distinguished name as reported by osquery on Windows hosts is not
-// well-ordered. For now, it simply sets the provided string as the CommonName and leaves other fields
-// empty.
+// applyDNAttribute assigns a single distinguished-name attribute (key/value
+// pair) to the matching field of details. It is shared by the macOS and Windows
+// distinguished-name parsers so the attribute → field mapping stays identical
+// across platforms (only the tokenization differs). Organizational units are
+// accumulated because osquery can report multiple OU values for one
+// certificate; the caller joins them. Attributes Fleet does not display (state,
+// locality, bare dotted-decimal OIDs, ...) are ignored.
+func applyDNAttribute(details *HostCertificateNameDetails, ouParts *[]string, key, value string) {
+	switch strings.ToUpper(strings.TrimSpace(key)) {
+	case "C":
+		details.Country = value
+	case "O":
+		details.Organization = value
+	case "OU":
+		// osquery is inconsistent in how it reports certs with multiple OUs; sometimes it
+		// concatenates them all joined by `+OU=` separator within the same `/` delimited
+		// string, other times it provides multiple `/` delimited strings that each contain
+		// distinct OU values. For example, compare the following two lines:
+		//   /OU=SomeValue/OU=fleet-a3d5d6f4c-819e-4159-9a42-0d6243a80ff8/CN=SomeName
+		//   /OU=SomeValue+OU=fleet-a0c039413-d0c7-4b1f-9488-b93c865351ac/CN=SomeName
+		//
+		// To handle both cases, we collect all OU values and join them with `+OU=` (done by
+		// the caller). We should probably reconsider our approaches for normalization of cert
+		// data across the board.
+		*ouParts = append(*ouParts, value)
+	case "CN":
+		details.CommonName = value
+	}
+}
+
+// parseWindowsDN parses a distinguished name in the X.500 string form that
+// osquery emits in the `subject2` / `issuer2` columns on Windows starting with
+// osquery 5.23.1 (osquery/osquery#8963), for example:
 //
-// To address this, we will likely need to modify the osquery certificates table. The issue is that
-// osquery on Windows reports only the values in a comma-separated list without corresponding keys
-// (instead of key-value pairs as on macOS, e.g., /C=US/O=Org/OU=Unit/CN=Name),  When a value is missing
-// (country, for example), the list shifts left such that the position of the values is not
-// consistent, making it very difficult to map which value is which.
+//	CN=Example, O="Example, Inc.", OU=A + OU=B, C=US
+//
+// Relative distinguished names (RDNs) are comma-separated; a multi-valued RDN
+// joins its attributes with `+`; a value containing a separator (`,`, `+`, `=`,
+// ...) is wrapped in double quotes with any embedded quote doubled. Unlike the
+// macOS form parsed by parseDarwinDN (a slash-delimited openSSL style with the
+// attribute keys preserved), this form is comma-delimited and quoted, so it
+// needs its own tokenizer. Malformed fragments are skipped rather than failing
+// the whole certificate, since a single odd attribute should not block
+// ingestion of the batch.
 func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
-	return &HostCertificateNameDetails{
-		CommonName:         dn,
-		Country:            "",
-		Organization:       "",
-		OrganizationalUnit: "",
-	}, nil
+	var details HostCertificateNameDetails
+	var ouParts []string
+	for _, attr := range splitX500Attributes(dn) {
+		key, value, found := strings.Cut(attr, "=")
+		if !found {
+			continue
+		}
+		applyDNAttribute(&details, &ouParts, key, unquoteX500Value(strings.TrimSpace(value)))
+	}
+	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
+
+	return &details, nil
+}
+
+// splitX500Attributes splits an X.500 distinguished name into its individual
+// `key=value` attributes, treating both `,` (RDN separator) and `+`
+// (multi-valued RDN separator) as delimiters but ignoring any delimiter that
+// appears inside a double-quoted value.
+func splitX500Attributes(dn string) []string {
+	var attrs []string
+	var buf strings.Builder
+	inQuotes := false
+	for i := 0; i < len(dn); i++ {
+		c := dn[i]
+		switch {
+		case c == '"':
+			inQuotes = !inQuotes
+			buf.WriteByte(c)
+		case (c == ',' || c == '+') && !inQuotes:
+			attrs = append(attrs, buf.String())
+			buf.Reset()
+		default:
+			buf.WriteByte(c)
+		}
+	}
+	if buf.Len() > 0 {
+		attrs = append(attrs, buf.String())
+	}
+	return attrs
+}
+
+// unquoteX500Value removes the surrounding double quotes that CERT_X500_NAME_STR
+// adds to a value containing special characters, and un-doubles any escaped
+// quote inside it. A value without surrounding quotes is returned unchanged.
+func unquoteX500Value(v string) string {
+	if len(v) >= 2 && v[0] == '"' && v[len(v)-1] == '"' {
+		v = v[1 : len(v)-1]
+		v = strings.ReplaceAll(v, `""`, `"`)
+	}
+	return v
 }
 
 // DecodeHexEscapes replaces literal \xHH escape sequences with the actual byte values.

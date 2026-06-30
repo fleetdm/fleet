@@ -15676,7 +15676,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			Source:         fleet.SystemHostCertificate,
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}

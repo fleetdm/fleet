@@ -4,6 +4,7 @@ import { Row } from "react-table";
 import { IHostCertificate } from "interfaces/certificates";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 import { IListSort } from "interfaces/list_options";
+import { HostPlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
@@ -16,6 +17,7 @@ const baseClass = "certificates-table";
 
 interface ICertificatesTableProps {
   data: IGetHostCertificatesResponse;
+  hostPlatform: HostPlatform;
   showHelpText: boolean;
   page: number;
   pageSize: number;
@@ -29,6 +31,7 @@ interface ICertificatesTableProps {
 
 const CertificatesTable = ({
   data,
+  hostPlatform,
   showHelpText,
   page,
   pageSize,
@@ -67,8 +70,9 @@ const CertificatesTable = ({
 
   const helpText = showHelpText ? (
     <p>
-      Showing certificates in the system and login (user) keychain. To get all
-      certificates, you can query the certificates table.{" "}
+      {hostPlatform === "windows"
+        ? "Showing certificates in the Personal certificate store. To get all certificates, you can query the certificates table. "
+        : "Showing certificates in the system and login (user) keychain. To get all certificates, you can query the certificates table. "}
       <CustomLink
         text="Learn more"
         url="https://fleetdm.com/learn-more-about/certificates-query"

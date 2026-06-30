@@ -59,7 +59,11 @@ const CertificatesCard = ({
     return (
       <CertificatesTable
         data={data}
-        showHelpText={!isMyDevicePage && hostPlatform === "darwin"}
+        hostPlatform={hostPlatform}
+        showHelpText={
+          !isMyDevicePage &&
+          (hostPlatform === "darwin" || hostPlatform === "windows")
+        }
         page={page}
         pageSize={pageSize}
         sortDirection={sortDirection}

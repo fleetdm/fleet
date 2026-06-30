@@ -173,6 +173,92 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 	}
 }
 
+func TestExtractWindowsCertificateNameDetails(t *testing.T) {
+	// osquery 5.23.1+ reports the Windows subject2 / issuer2 columns in the X.500
+	// CERT_X500_NAME_STR form: comma-separated key=value RDNs, with values quoted
+	// when they contain separators and multi-valued RDNs joined by '+'.
+	cases := []struct {
+		name     string
+		input    string
+		expected *HostCertificateNameDetails
+	}{
+		{
+			name:  "basic",
+			input: "CN=Example, O=Example Inc, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Example",
+				Organization: "Example Inc",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "with organizational unit",
+			input: "CN=device.example.com, OU=Engineering, O=Example Inc, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:         "device.example.com",
+				OrganizationalUnit: "Engineering",
+				Organization:       "Example Inc",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "quoted value containing a comma",
+			input: `CN=Issuing CA, O="Example, Inc.", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Issuing CA",
+				Organization: "Example, Inc.",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "multiple organizational units",
+			input: "OU=Engineering, OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67, CN=Multi OU, C=US",
+			expected: &HostCertificateNameDetails{
+				OrganizationalUnit: "Engineering+OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67",
+				CommonName:         "Multi OU",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "multi-valued RDN joined by plus",
+			input: "CN=Name + OU=A + OU=B, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:         "Name",
+				OrganizationalUnit: "A+OU=B",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "doubled quotes inside a quoted value",
+			input: `CN="A ""quoted"" name", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName: `A "quoted" name`,
+				Country:    "US",
+			},
+		},
+		{
+			name:  "unmapped attributes are ignored",
+			input: "CN=Name, S=California, L=San Francisco, 2.5.4.5=ABC123, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "Name",
+				Country:    "US",
+			},
+		},
+		{
+			name:     "empty input returns empty details without error",
+			input:    "",
+			expected: &HostCertificateNameDetails{},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := ExtractDetailsFromOsqueryDistinguishedName("windows", tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
 func TestExtractHostCertificateFromMDMAppleCertificateList(t *testing.T) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
