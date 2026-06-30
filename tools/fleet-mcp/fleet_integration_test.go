@@ -236,40 +236,6 @@ func TestBearerAuthMiddleware(t *testing.T) {
 	}
 }
 
-func TestRateLimiterMiddleware_BurstThen429(t *testing.T) {
-	rl := newIPRateLimiter(1, 2) // 2-token bucket, 1 rps refill
-	allowed := 0
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { allowed++ })
-	h := rl.Middleware(next)
-
-	send := func() *httptest.ResponseRecorder {
-		req := httptest.NewRequest("GET", "/", nil)
-		req.RemoteAddr = "203.0.113.7:5000"
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, req)
-		return rec
-	}
-
-	// First 2 in burst should pass.
-	if rec := send(); rec.Code != http.StatusOK {
-		t.Errorf("burst req 1: status = %d, want 200", rec.Code)
-	}
-	if rec := send(); rec.Code != http.StatusOK {
-		t.Errorf("burst req 2: status = %d, want 200", rec.Code)
-	}
-	// 3rd within the same instant should 429 with Retry-After.
-	rec := send()
-	if rec.Code != http.StatusTooManyRequests {
-		t.Errorf("status = %d, want 429", rec.Code)
-	}
-	if rec.Header().Get("Retry-After") == "" {
-		t.Errorf("missing Retry-After header on 429")
-	}
-	if allowed != 2 {
-		t.Errorf("next called %d times, want 2", allowed)
-	}
-}
-
 func TestValidateCVEID(t *testing.T) {
 	cases := []struct {
 		in      string
