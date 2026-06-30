@@ -22,13 +22,13 @@ func TestSplunkWrite(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		require.Equal(t, splunkHECPath, r.URL.Path)
-		require.Equal(t, "Splunk test-token", r.Header.Get("Authorization"))
-		require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, splunkHECPath, r.URL.Path)
+		assert.Equal(t, "Splunk test-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 		var err error
 		receivedBody, err = io.ReadAll(r.Body)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()

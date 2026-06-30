@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -126,13 +127,9 @@ func searchSplunk(t *testing.T, marker string) []string {
 	t.Helper()
 
 	searchQuery := fmt.Sprintf(`search index=main "%s" | fields _raw`, marker)
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint:gosec // test-only, local Docker Splunk
-			},
-		},
-	}
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // test-only, local Docker Splunk
+	}))
 
 	body := fmt.Sprintf("search=%s&output_mode=json&earliest_time=-5m", searchQuery)
 	req, err := http.NewRequest(http.MethodPost, "https://localhost:8089/services/search/jobs/export", bytes.NewBufferString(body))
@@ -152,11 +149,11 @@ func searchSplunk(t *testing.T, marker string) []string {
 	var events []string
 	dec := json.NewDecoder(bytes.NewReader(respBody))
 	for dec.More() {
-		var result map[string]interface{}
+		var result map[string]any
 		if err := dec.Decode(&result); err != nil {
 			break
 		}
-		if raw, ok := result["result"].(map[string]interface{}); ok {
+		if raw, ok := result["result"].(map[string]any); ok {
 			if rawStr, ok := raw["_raw"].(string); ok {
 				events = append(events, rawStr)
 			}
