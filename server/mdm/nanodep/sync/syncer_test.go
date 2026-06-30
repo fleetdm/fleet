@@ -124,7 +124,7 @@ func TestSyncerCursorAdvancedOnCallbackSuccess(t *testing.T) {
 }
 
 // TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollowSync verifies the
-// same cursor-replay behaviour as TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollow
+// same cursor-replay behaviour as TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollowFetch
 // but for the sync phase (/devices/sync). MoreToFollow can occur on both
 // fetch and sync, and the fix must hold for both.
 func TestSyncerCursorNotAdvancedOnCallbackErrorWithMoreToFollowSync(t *testing.T) {
