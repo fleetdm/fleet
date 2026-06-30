@@ -41,17 +41,14 @@ const (
 	HostCertificateOriginMDM     HostCertificateOrigin = "mdm"
 )
 
-// HostCertificateScope identifies a single (source, username) certificate
-// scope. It is used to tell UpdateHostCertificates which scopes the agent could
-// authoritatively enumerate during a collection cycle, so reconciliation does
-// not soft-delete certificates for a scope it could not observe.
+// HostCertificateScope identifies a single (source, username) certificate scope. It is used to tell
+// UpdateHostCertificates which scopes the agent could authoritatively enumerate during a collection cycle, so
+// reconciliation does not soft-delete certificates for a scope it could not observe.
 //
-// A user's Windows certificates are only visible to osquery while that user is
-// logged in (their registry hive is loaded), so the Windows ingestion path
-// passes the set of observed scopes and absent users' certificates are
-// preserved. The macOS path reads every keychain from disk on every run, so it
-// passes a nil slice, meaning "all scopes observed" and any absent certificate
-// may be deleted.
+// A user's Windows certificates are only visible to osquery while that user is logged in (their registry hive is
+// loaded), so the Windows ingestion path passes the set of observed scopes and absent users' certificates are preserved.
+// The macOS path reads every keychain from disk on every run, so it passes a nil slice, meaning "all scopes observed"
+// and any absent certificate may be deleted.
 type HostCertificateScope struct {
 	Source   HostCertificateSource
 	Username string
@@ -298,13 +295,8 @@ func parseDarwinDN(dn string) (*HostCertificateNameDetails, error) {
 	return &details, nil
 }
 
-// applyDNAttribute assigns a single distinguished-name attribute (key/value
-// pair) to the matching field of details. It is shared by the macOS and Windows
-// distinguished-name parsers so the attribute → field mapping stays identical
-// across platforms (only the tokenization differs). Organizational units are
-// accumulated because osquery can report multiple OU values for one
-// certificate; the caller joins them. Attributes Fleet does not display (state,
-// locality, bare dotted-decimal OIDs, ...) are ignored.
+// applyDNAttribute assigns a single distinguished-name attribute (key/value pair) to the matching field of details.
+// Attributes Fleet does not display (state, locality, bare dotted-decimal OIDs, ...) are ignored.
 func applyDNAttribute(details *HostCertificateNameDetails, ouParts *[]string, key, value string) {
 	switch strings.ToUpper(strings.TrimSpace(key)) {
 	case "C":
@@ -328,33 +320,41 @@ func applyDNAttribute(details *HostCertificateNameDetails, ouParts *[]string, ke
 	}
 }
 
-// parseWindowsDN parses a distinguished name in the X.500 string form that
-// osquery emits in the `subject2` / `issuer2` columns on Windows starting with
-// osquery 5.23.1 (osquery/osquery#8963), for example:
+// parseWindowsDN parses a distinguished name in the X.500 string form that osquery emits in the `subject2` / `issuer2`
+// columns on Windows starting with osquery 5.23.1, for example:
 //
 //	CN=Example, O="Example, Inc.", OU=A + OU=B, C=US
 //
-// Relative distinguished names (RDNs) are comma-separated; a multi-valued RDN
-// joins its attributes with `+`; a value containing a separator (`,`, `+`, `=`,
-// ...) is wrapped in double quotes with any embedded quote doubled. Unlike the
-// macOS form parsed by parseDarwinDN (a slash-delimited openSSL style with the
-// attribute keys preserved), this form is comma-delimited and quoted, so it
-// needs its own tokenizer. Malformed fragments are skipped rather than failing
-// the whole certificate, since a single odd attribute should not block
-// ingestion of the batch.
+// Relative distinguished names (RDNs) are comma-separated; a multi-valued RDN joins its attributes with `+`; a value
+// containing a separator (`,`, `+`, `=`, ...) is wrapped in double quotes with any embedded quote doubled. Unlike the
+// macOS form parsed by parseDarwinDN (a slash-delimited openSSL style with the attribute keys preserved), this form is
+// comma-delimited and quoted, so it needs its own tokenizer.
+//
+// It always returns best-effort details (a single odd attribute must not drop the whole certificate). If it skips any
+// non-empty fragment that is not a valid `key=value` RDN, it also returns a non-fatal error naming those fragments, so
+// the caller can log them: that gives us visibility into malformed osquery output to refine parsing later. Empty
+// fragments (e.g. an empty DN or a trailing separator) are skipped silently as they are benign.
 func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
 	var details HostCertificateNameDetails
 	var ouParts []string
+	var malformed []string
 	for _, attr := range splitX500Attributes(dn) {
 		key, value, found := strings.Cut(attr, "=")
 		if !found {
+			if trimmed := strings.TrimSpace(attr); trimmed != "" {
+				malformed = append(malformed, trimmed)
+			}
 			continue
 		}
 		applyDNAttribute(&details, &ouParts, key, unquoteX500Value(strings.TrimSpace(value)))
 	}
 	details.OrganizationalUnit = strings.Join(ouParts, "+OU=")
 
-	return &details, nil
+	var err error
+	if len(malformed) > 0 {
+		err = fmt.Errorf("skipped %d malformed RDN fragment(s) in windows distinguished name: %q", len(malformed), malformed)
+	}
+	return &details, err
 }
 
 // splitX500Attributes splits an X.500 distinguished name into its individual

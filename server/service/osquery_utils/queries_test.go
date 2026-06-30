@@ -3231,6 +3231,48 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
+func TestDirectIngestHostCertificatesWindowsMalformedDN(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	// subject2 contains a non-empty fragment with no '=' (malformed osquery output).
+	// The certificate must still be ingested best-effort, not dropped.
+	row := map[string]string{
+		"ca":                "0",
+		"common_name":       "malformed.example.com",
+		"subject2":          "CN=malformed.example.com, garbage-no-equals, C=US",
+		"issuer2":           "CN=Issuer CA, C=US",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2048",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "07",
+		"sha1":              "1234123412341234123412341234123412341234",
+		"username":          "",
+		"sid":               "",
+		"store_location":    "LocalMachine",
+		"path":              "LocalMachine\\Personal",
+	}
+
+	var got []*fleet.HostCertificateRecord
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
+		got = certs
+		return nil
+	}
+
+	require.NoError(t, directIngestHostCertificatesWindows(ctx, logger, host, ds, []map[string]string{row}))
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+	// The cert is kept, with the parseable fields populated (the malformed fragment is dropped).
+	require.Len(t, got, 1)
+	require.Equal(t, "malformed.example.com", got[0].SubjectCommonName)
+	require.Equal(t, "US", got[0].SubjectCountry)
+	require.Equal(t, fleet.SystemHostCertificate, got[0].Source)
+}
+
 func TestGenerateSQLForAllExists(t *testing.T) {
 	// Combine two queries
 	query1 := "SELECT 1 WHERE foo = bar"

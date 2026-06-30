@@ -178,9 +178,10 @@ func TestExtractWindowsCertificateNameDetails(t *testing.T) {
 	// CERT_X500_NAME_STR form: comma-separated key=value RDNs, with values quoted
 	// when they contain separators and multi-valued RDNs joined by '+'.
 	cases := []struct {
-		name     string
-		input    string
-		expected *HostCertificateNameDetails
+		name      string
+		input     string
+		expected  *HostCertificateNameDetails
+		expectErr bool
 	}{
 		{
 			name:  "basic",
@@ -249,11 +250,25 @@ func TestExtractWindowsCertificateNameDetails(t *testing.T) {
 			input:    "",
 			expected: &HostCertificateNameDetails{},
 		},
+		{
+			name:  "malformed fragment is skipped but reported, details still parsed",
+			input: "CN=Good Cert, garbage-no-equals, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "Good Cert",
+				Country:    "US",
+			},
+			expectErr: true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, err := ExtractDetailsFromOsqueryDistinguishedName("windows", tc.input)
-			require.NoError(t, err)
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			// details are always best-effort, even when a malformed fragment is reported
 			require.Equal(t, tc.expected, actual)
 		})
 	}

@@ -3648,15 +3648,16 @@ func directIngestHostCertificatesWindows(
 		}
 		// subject2/issuer2 preserve the distinguished name attribute keys (osquery
 		// 5.23.1+); the collection query is gated on the subject2 column existing.
+		// parseWindowsDN returns best-effort details even when it skips malformed
+		// fragments, so we log the anomaly (for future handling) but still ingest
+		// the certificate rather than dropping it.
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject2"])
 		if err != nil {
-			logger.ErrorContext(ctx, "extracting subject details", "component", "service", "method", "directIngestHostCertificates", "err", err)
-			continue
+			logger.ErrorContext(ctx, "malformed certificate subject distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
 		}
 		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer2"])
 		if err != nil {
-			logger.ErrorContext(ctx, "extracting issuer details", "component", "service", "method", "directIngestHostCertificates", "err", err)
-			continue
+			logger.ErrorContext(ctx, "malformed certificate issuer distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
 		}
 
 		// Classify scope from the registry hive (sid), not the owner name. A real
