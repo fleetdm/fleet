@@ -33,9 +33,14 @@ variable "db_instance_type" {
 }
 
 variable "mysql_max_open_conns" {
-  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. Worst-case connections on a single Aurora instance is roughly fleet_containers * mysql_max_open_conns."
+  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. A single Aurora instance sees roughly fleet_containers * mysql_max_open_conns, up to 2x that on one instance during a failover or with no read replicas (when reader traffic falls back to the writer)."
   type        = number
   default     = 10
+
+  validation {
+    condition     = var.mysql_max_open_conns > 0
+    error_message = "var.mysql_max_open_conns must be greater than 0 (0 means unlimited in database/sql, which can exhaust Aurora max_connections)."
+  }
 }
 
 variable "redis_instance_type" {
