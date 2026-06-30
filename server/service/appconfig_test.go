@@ -2382,6 +2382,140 @@ func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
+	ds := new(mock.Store)
+	// Google Workspace IdP is premium-only.
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	gwIntegration := []*fleet.GoogleWorkspaceIntegration{
+		{
+			Domain:                "example.com",
+			ImpersonatedUserEmail: "admin@example.com",
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+				fleet.GoogleCalendarEmail:      "svc@example.com",
+				fleet.GoogleCalendarPrivateKey: "original-private-key",
+			}},
+		},
+	}
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		Integrations: fleet.Integrations{
+			GoogleWorkspace: gwIntegration,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	reset := func() {
+		dsAppConfig.Integrations.GoogleWorkspace = gwIntegration
+	}
+
+	t.Run("preserve API key when omitted, update other fields", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [{
+					"domain": "newdomain.com",
+					"impersonated_user_email": "newadmin@example.com"
+				}]
+			}
+		}`
+		updated, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.Len(t, dsAppConfig.Integrations.GoogleWorkspace, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleWorkspace[0].Domain)
+		require.Equal(t, "newadmin@example.com", dsAppConfig.Integrations.GoogleWorkspace[0].ImpersonatedUserEmail)
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleWorkspace[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.True(t, updated.Integrations.GoogleWorkspace[0].ApiKey.IsMasked())
+	})
+
+	t.Run("validation rejects missing impersonated_user_email", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [{
+					"domain": "example.com",
+					"impersonated_user_email": "",
+					"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+				}]
+			}
+		}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "impersonated_user_email")
+	})
+
+	t.Run("validation rejects more than one integration", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [
+					{"domain": "a.com", "impersonated_user_email": "admin@a.com", "api_key_json": {"client_email": "s@a.com", "private_key": "k"}},
+					{"domain": "b.com", "impersonated_user_email": "admin@b.com", "api_key_json": {"client_email": "s@b.com", "private_key": "k"}}
+				]
+			}
+		}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "google_workspace")
+	})
+}
+
+func TestModifyAppConfigGoogleWorkspaceRequiresPremium(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	saveCalled := false
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		saveCalled = true
+		*dsAppConfig = *conf
+		return nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	updateJSON := `{
+		"integrations": {
+			"google_workspace": [{
+				"domain": "example.com",
+				"impersonated_user_email": "admin@example.com",
+				"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+			}]
+		}
+	}`
+	_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "integrations.google_workspace")
+	require.Contains(t, err.Error(), "missing or invalid license")
+	require.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
+}
+
 func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
@@ -2683,4 +2817,93 @@ func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	raw := []byte(`{"mdm":{"macos_setup":{"bootstrap_package":""}}}`)
 	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
+}
+
+// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path
+// through PATCH /config, which ModifyTeam doesn't handle.
+func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name          string
+		mdmConfigured bool
+		startEnabled  bool
+		patch         string
+		wantErr       string
+		wantActivity  string
+	}{
+		{
+			name:    "MDM not configured rejects the change",
+			patch:   `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantErr: "setup_experience.enable_managed_local_account",
+		},
+		{
+			name:          "enabling emits the enabled activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantActivity:  fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "disabling emits the disabled activity",
+			mdmConfigured: true,
+			startEnabled:  true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			wantActivity:  fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "no-op change emits no activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			dsAppConfig.MDM.EnabledAndConfigured = tt.mdmConfigured
+			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startEnabled)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			var gotActivities []string
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, act.ActivityName())
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+				require.Empty(t, gotActivities)
+				return
+			}
+			require.NoError(t, err)
+
+			var wantActivities []string
+			if tt.wantActivity != "" {
+				wantActivities = []string{tt.wantActivity}
+			}
+			require.Equal(t, wantActivities, gotActivities)
+		})
+	}
 }

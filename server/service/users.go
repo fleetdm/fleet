@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strings"
 	"time"
@@ -1303,7 +1302,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}
@@ -1575,7 +1574,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		SMTPSettings: smtpSettings,
 		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.PasswordResetMailer{
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 			Token:    token,
 		},

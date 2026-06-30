@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.5.0",
+      "version": "4.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.manytricks.Moom';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.manytricks.Moom' AND version_compare(bundle_short_version, '4.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.manytricks.Moom' AND version_compare(bundle_short_version, '4.5.1') < 0);"
       },
-      "installer_url": "https://manytricks.com/download/_do_not_hotlink_/moom450.dmg",
+      "installer_url": "https://manytricks.com/download/_do_not_hotlink_/moom451.dmg",
       "install_script_ref": "fea184c2",
       "uninstall_script_ref": "01fcd0f3",
-      "sha256": "2db67bab024ec2fdc4ffb5044848d6cd3e6314a1669a6bbbbcd1b68f64a8cb23",
+      "sha256": "79ffff597f140b4126afad309c923742588ef1580050b83e24c6ebcbe44247d9",
       "default_categories": [
         "Utilities"
       ]

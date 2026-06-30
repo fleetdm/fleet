@@ -62,6 +62,13 @@
     gap: $pad-xsmall;
   }
 
+  &__automations {
+    .software-icon,
+    .graphic {
+      margin-right: $pad-xsmall;
+    }
+  }
+
   &__resolve dd {
     white-space: normal;
   }
