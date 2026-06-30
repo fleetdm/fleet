@@ -465,10 +465,12 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	require.NoError(t, err)
 
 	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "99.100.101.102"}}, 1)
-	assert.Equal(t, h2.ID, hosts[0].ID)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h2.ID, hosts[0].ID)
 
 	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.42"}}, 1)
-	assert.Equal(t, h2.ID, hosts[0].ID)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h2.ID, hosts[0].ID)
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
 
