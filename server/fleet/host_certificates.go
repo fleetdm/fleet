@@ -332,8 +332,7 @@ func applyDNAttribute(details *HostCertificateNameDetails, ouParts *[]string, ke
 //
 // It always returns best-effort details (a single odd attribute must not drop the whole certificate). If it skips any
 // non-empty fragment that is not a valid `key=value` RDN, it also returns a non-fatal error naming those fragments, so
-// the caller can log them: that gives us visibility into malformed osquery output to refine parsing later. Empty
-// fragments (e.g. an empty DN or a trailing separator) are skipped silently as they are benign.
+// the caller can log them
 func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
 	var details HostCertificateNameDetails
 	var ouParts []string
@@ -357,10 +356,9 @@ func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
 	return &details, err
 }
 
-// splitX500Attributes splits an X.500 distinguished name into its individual
-// `key=value` attributes, treating both `,` (RDN separator) and `+`
-// (multi-valued RDN separator) as delimiters but ignoring any delimiter that
-// appears inside a double-quoted value.
+// splitX500Attributes splits an X.500 distinguished name into its individual `key=value` attributes, treating both `,`
+// (RDN separator) and `+` (multi-valued RDN separator) as delimiters but ignoring any delimiter that appears inside a
+// double-quoted value.
 func splitX500Attributes(dn string) []string {
 	var attrs []string
 	var buf strings.Builder
@@ -384,9 +382,8 @@ func splitX500Attributes(dn string) []string {
 	return attrs
 }
 
-// unquoteX500Value removes the surrounding double quotes that CERT_X500_NAME_STR
-// adds to a value containing special characters, and un-doubles any escaped
-// quote inside it. A value without surrounding quotes is returned unchanged.
+// unquoteX500Value removes the surrounding double quotes that CERT_X500_NAME_STR adds to a value containing special
+// characters, and un-doubles any escaped quote inside it. A value without surrounding quotes is returned unchanged.
 func unquoteX500Value(v string) string {
 	if len(v) >= 2 && v[0] == '"' && v[len(v)-1] == '"' {
 		v = v[1 : len(v)-1]

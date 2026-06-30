@@ -873,12 +873,8 @@ var extraDetailQueries = map[string]DetailQuery{
 		certificates
 	WHERE
 		store = 'Personal';`,
-		// subject2/issuer2 preserve the distinguished name attribute keys (CN, O,
-		// OU, C). They are only populated on Windows starting with osquery 5.23.1
-		// (osquery/osquery#8963); on older agents the columns do not exist, so
-		// selecting them would fail the whole query. Gate on the column's presence
-		// so older agents simply collect nothing (no error, no log spew) until the
-		// bundled osquery is upgraded.
+		// subject2/issuer2 preserve the distinguished name attribute keys (CN, O, OU, C). They are only populated on
+		// Windows starting with osquery 5.23.1
 		Discovery:        `SELECT 1 FROM pragma_table_info('certificates') WHERE name = 'subject2'`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestHostCertificatesWindows,
@@ -3610,8 +3606,6 @@ func directIngestHostCertificatesDarwin(
 		return nil
 	}
 
-	// nil observedScopes: macOS reads every keychain file from disk on every run,
-	// so all scopes are observed and any absent cert may be reconciled.
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil)
 }
 
@@ -3629,9 +3623,8 @@ func directIngestHostCertificatesWindows(
 	}
 
 	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
-	// On Windows, osquery enumerates the same certificate from multiple redundant
-	// registry hives (the LocalSystem account's CurrentUser/Services views,
-	// per-user `_Classes` sub-hives, etc.), so we deduplicate by SHA1 + scope +
+	// On Windows, osquery enumerates the same certificate from multiple redundant registry hives (the LocalSystem
+	// account's CurrentUser/Services views, per-user `_Classes` sub-hives, etc.), so we deduplicate by SHA1 + scope +
 	// username.
 	seen := make(map[string]struct{}, len(rows))
 	for _, row := range rows {
@@ -3646,28 +3639,20 @@ func directIngestHostCertificatesWindows(
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
-		// subject2/issuer2 preserve the distinguished name attribute keys (osquery
-		// 5.23.1+); the collection query is gated on the subject2 column existing.
-		// parseWindowsDN returns best-effort details even when it skips malformed
-		// fragments, so we log the anomaly (for future handling) but still ingest
-		// the certificate rather than dropping it.
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject2"])
 		if err != nil {
 			logger.ErrorContext(ctx, "malformed certificate subject distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer2"])
 		if err != nil {
 			logger.ErrorContext(ctx, "malformed certificate issuer distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 
-		// Classify scope from the registry hive (sid), not the owner name. A real
-		// interactive account's hive SID is `S-1-5-21-*` (local or Active Directory
-		// accounts) or `S-1-12-1-*` (Microsoft Entra ID / Azure AD accounts on
-		// Entra-joined devices); everything else (the machine-wide LocalMachine
-		// store, which reports an empty sid, and built-in service accounts such as
-		// `S-1-5-18` SYSTEM) is System scope with no owner. The old
-		// `username == "SYSTEM"` heuristic mislabeled LocalMachine certs (blank
-		// username) as user certs.
+		// Classify scope from the registry hive security identifier (sid), not the owner name.
+		// S-1-5-21-... is local or AD account
+		// S-1-12-1-... is Entra ID account
 		source := fleet.SystemHostCertificate
 		username := ""
 		if sid := row["sid"]; strings.HasPrefix(sid, "S-1-5-21-") || strings.HasPrefix(sid, "S-1-12-1-") {
@@ -3699,14 +3684,11 @@ func directIngestHostCertificatesWindows(
 			Username:                  username,
 		}
 
-		// Deduplicate by SHA1 + scope + username. System rows all collapse
-		// (username forced to ""), and a user's redundant hive views collapse into
-		// one entry per username.
+		// Deduplicate by SHA1 + scope + username. System rows all collapse (username forced to ""), and a user's
+		// redundant hive views collapse into one entry per username.
 		key := fmt.Sprintf("%x|%s|%s", csum, source, username)
 		if _, ok := seen[key]; ok {
-			// Don't log user/cert identifiers here: usernames, registry paths, and
-			// subject/issuer values commonly contain PII (e.g. emails). host + source
-			// + sha1 is enough to diagnose a duplicate.
+			// Don't log user/cert identifiers here (PII).
 			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+scope+user",
 				"component", "service",
 				"method", "directIngestHostCertificates",
@@ -3724,17 +3706,14 @@ func directIngestHostCertificatesWindows(
 		return nil
 	}
 
-	// Tell the datastore which scopes we actually observed this run so it does not
-	// soft-delete a logged-off user's certificates (their registry hive is not
-	// loaded, so they are simply absent). System is always observed because the
-	// LocalMachine store is readable regardless of who is logged in.
+	// Tell the datastore which scopes we actually observed this run so it does not soft-delete a logged-off user's
+	// certificates.
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, windowsObservedCertScopes(certs))
 }
 
-// windowsObservedCertScopes returns the set of (source, username) scopes that
-// osquery could authoritatively enumerate in this report. System scope is
-// always included because the LocalMachine store is always readable; each user
-// that reported at least one certificate is included as its own scope.
+// windowsObservedCertScopes returns the set of (source, username) scopes that osquery could authoritatively enumerate in
+// this report. System scope is always included because the LocalMachine store is always readable; each user that
+// reported at least one certificate is included as its own scope.
 func windowsObservedCertScopes(certs []*fleet.HostCertificateRecord) []fleet.HostCertificateScope {
 	scopes := []fleet.HostCertificateScope{{Source: fleet.SystemHostCertificate}}
 	seen := map[string]struct{}{string(fleet.SystemHostCertificate) + "|": {}}
