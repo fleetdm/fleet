@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"time"
 
@@ -23,6 +24,10 @@ const (
 	splunkHealthPath = "/services/collector/health"
 	// splunkMaxBatchSize is the default max content length for HEC (1 MB).
 	splunkMaxBatchSize = 1_000_000
+	// splunkMaxSizeOfRecord is the max size of a single HEC event (1 MB).
+	splunkMaxSizeOfRecord = 1_000_000
+	// splunkMaxRetries is the maximum number of retries on transient errors.
+	splunkMaxRetries = 8
 )
 
 // splunkEvent wraps a log entry in the Splunk HEC event format.
@@ -102,6 +107,14 @@ func (w *splunkLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 			continue
 		}
 
+		if len(b) > splunkMaxSizeOfRecord {
+			w.logger.InfoContext(ctx, "dropping splunk event over 1MB limit",
+				"size", len(b),
+				"event_prefix", string(b[:min(100, len(b))])+"...",
+			)
+			continue
+		}
+
 		// If adding this event would exceed the batch size, flush first.
 		if buf.Len() > 0 && buf.Len()+len(b) > splunkMaxBatchSize {
 			if err := w.send(ctx, buf.Bytes()); err != nil {
@@ -121,6 +134,14 @@ func (w *splunkLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 }
 
 func (w *splunkLogWriter) send(ctx context.Context, payload []byte) error {
+	return w.sendWithRetry(ctx, payload, 0)
+}
+
+func (w *splunkLogWriter) sendWithRetry(ctx context.Context, payload []byte, try int) error {
+	if try > 0 {
+		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(2.0, float64(try))))
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.url+splunkHECPath, bytes.NewReader(payload))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "splunk create request")
@@ -133,6 +154,10 @@ func (w *splunkLogWriter) send(ctx context.Context, payload []byte) error {
 		return ctxerr.Wrap(ctx, err, "splunk send")
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusServiceUnavailable && try < splunkMaxRetries {
+		return w.sendWithRetry(ctx, payload, try+1)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
