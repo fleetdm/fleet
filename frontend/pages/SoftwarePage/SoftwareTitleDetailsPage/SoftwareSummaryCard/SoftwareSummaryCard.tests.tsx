@@ -87,8 +87,8 @@ describe("Software Summary Card", () => {
       return options.map((option) => option.textContent || "");
     };
 
-    it("displays Edit appearance and Edit software options for standard software packages", async () => {
-      const { user } = render(
+    it("collapses to a single pencil-icon Edit (appearance) button for standard custom software packages (#48400)", () => {
+      render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage(),
@@ -99,15 +99,17 @@ describe("Software Summary Card", () => {
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
+          canActivateMultiplePackages
         />
       );
 
-      const options = await getDropdownOptions(user);
-
-      expect(options).toContain("Edit appearance");
-      expect(options).toContain("Edit software");
-      expect(options).not.toContain("Edit configuration");
-      expect(options).not.toContain("Schedule auto updates");
+      // Custom non-FMA macOS/Linux/Windows titles drop the Actions dropdown.
+      // Per-installer Edit moves to the Library accordion row; the page-level
+      // CTA collapses to a single pencil-icon "Edit" that opens the Edit
+      // Appearance modal directly.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      const editButton = screen.getByRole("button", { name: /Edit/ });
+      expect(editButton).toBeInTheDocument();
     });
 
     it("displays Edit appearance, Edit software, Edit configuration, and Schedule auto updates for iOS/iPadOS apps", async () => {
@@ -210,8 +212,8 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Edit configuration");
     });
 
-    it("does not display Edit configuration for macOS in-house (.pkg) apps", async () => {
-      const { user } = render(
+    it("collapses macOS .pkg titles to the single-Edit button (no Edit configuration, no Actions dropdown) (#48400)", () => {
+      render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
@@ -224,14 +226,16 @@ describe("Software Summary Card", () => {
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
+          canActivateMultiplePackages
         />
       );
 
-      const options = await getDropdownOptions(user);
-
-      expect(options).toContain("Edit appearance");
-      expect(options).toContain("Edit software");
-      expect(options).not.toContain("Edit configuration");
+      // macOS in-house .pkg is a custom non-FMA, non-iOS title — collapses
+      // to the pencil Edit button. Edit configuration never applied here
+      // and the dropdown is gone entirely.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(screen.queryByText("Edit configuration")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Edit/ })).toBeInTheDocument();
     });
 
     it("does not display Edit configuration for macOS VPP apps", async () => {
@@ -239,6 +243,9 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
+            // Explicit null — `createMockSoftwareTitle` defaults to a custom
+            // package, which would otherwise hide the dropdown under #48400.
+            software_package: null,
             app_store_app: createMockAppStoreApp({ platform: "darwin" }),
           })}
           softwareId={1}
@@ -319,8 +326,8 @@ describe("Software Summary Card", () => {
       expect(options).not.toContain("Versions");
     });
 
-    it("hides Versions option for non-FMA installers", async () => {
-      const { user } = render(
+    it("hides the Actions dropdown (and therefore Versions) for non-FMA custom installers (#48400)", () => {
+      render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage(),
@@ -331,11 +338,18 @@ describe("Software Summary Card", () => {
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
+          canActivateMultiplePackages
         />
       );
 
-      const options = await getDropdownOptions(user);
-      expect(options).not.toContain("Versions");
+      // Non-FMA custom titles no longer use the Actions dropdown at all,
+      // so Versions is implicitly hidden — the whole dropdown is gone.
+      // (The `<dt>Versions</dt>` stat row in the description list remains;
+      // we're asserting against the dropdown item, not that stat.)
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("menuitem", { name: /Versions/ })
+      ).not.toBeInTheDocument();
     });
 
     it("still renders the Versions option when GitOps mode is on", async () => {
@@ -511,10 +525,16 @@ describe("Software Summary Card", () => {
     });
 
     it("renders the Self-service pill when self_service is true", () => {
+      // FMA mock — custom packages hide the title-level Self-service /
+      // Auto install / Patch chips under #48400 (per-row icons take over).
+      // FMA titles are single-package and keep the chips.
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({ self_service: true }),
+            software_package: createMockSoftwarePackage({
+              self_service: true,
+              fleet_maintained_app_id: 7,
+            }),
           })}
           softwareId={1}
           teamId={1}
@@ -526,6 +546,35 @@ describe("Software Summary Card", () => {
       );
 
       expect(screen.getByText("Self-service")).toBeInTheDocument();
+    });
+
+    it("hides the Self-service / Auto install / Patch chips for custom packages (#48400)", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              self_service: true,
+              automatic_install_policies: [
+                { id: 1, name: "Policy A", type: "dynamic" },
+              ],
+              patch_policy: { id: 42, name: "Outdated Postman" },
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
+          canActivateMultiplePackages
+        />
+      );
+
+      // Per-row icons on the Library accordion replace these for multi-
+      // package custom titles; the title-level chips would be misleading.
+      expect(screen.queryByText("Self-service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+      expect(screen.queryByText("Patch policy")).not.toBeInTheDocument();
     });
 
     it("does not render the Self-service pill when self_service is false", () => {
@@ -553,6 +602,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
               automatic_install_policies: [
                 { id: 1, name: "Policy A", type: "dynamic" },
                 { id: 2, name: "Policy B", type: "dynamic" },
@@ -576,6 +626,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
               patch_policy: { id: 42, name: "Outdated Postman" },
             }),
           })}
@@ -597,6 +648,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
               automatic_install_policies: [
                 { id: 1, name: "Policy A", type: "dynamic" },
               ],
@@ -640,6 +692,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
               automatic_install_policies: [
                 { id: 99, name: "Solo policy", type: "dynamic" },
               ],
@@ -666,6 +719,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
               automatic_install_policies: [
                 { id: 1, name: "Policy A", type: "dynamic" },
                 { id: 2, name: "Policy B", type: "dynamic" },

@@ -32,6 +32,11 @@ const baseProps: ILibraryItemAccordionProps = {
   addedAt: new Date("2026-06-15T00:00:00Z").toISOString(),
   isActive: true,
   canEditSoftware: true,
+  // The base accordion mock represents a Fleet-maintained app — that's the
+  // shape where Latest/Pinned/Major-version badges apply (#48400 scopes the
+  // "Latest" badge to FMA only). Custom-package tests opt out with
+  // `isFma: false, isCustomPackage: true` overrides.
+  isFma: true,
   installed: 32,
   pending: 5,
   failed: 3,
@@ -239,6 +244,93 @@ describe("LibraryItemAccordion", () => {
       ).not.toBeInTheDocument();
       // The static span still displays the label.
       expect(screen.getByText("All hosts")).toBeVisible();
+    });
+  });
+
+  // #48400 — custom non-FMA non-iOS rows swap the Latest badge for per-
+  // package self-service / auto-install indicators. The page passes
+  // `canActivateMultiplePackages=true` for these rows.
+  describe("custom-package row (multi-package title)", () => {
+    const customRowProps: Partial<ILibraryItemAccordionProps> = {
+      isFma: false,
+      canActivateMultiplePackages: true,
+    };
+
+    it("renders neither Latest nor the per-row icons by default", () => {
+      renderAccordion({ ...customRowProps, badgeState: "latest" });
+
+      expect(
+        screen.queryByRole("button", { name: "Latest" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Edit package" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /auto-install polic/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the self-service icon button and fires onSelfServiceClick", async () => {
+      const onSelfServiceClick = jest.fn();
+      const { user } = renderAccordion({
+        ...customRowProps,
+        badgeState: "latest",
+        isSelfService: true,
+        onSelfServiceClick,
+      });
+
+      // Self-service icon opens the per-package Edit modal; aria-label
+      // matches the modal title.
+      const button = screen.getByRole("button", { name: "Edit package" });
+      await user.click(button);
+      expect(onSelfServiceClick).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders the auto-install icon button and fires onAutoInstallClick", async () => {
+      const onAutoInstallClick = jest.fn();
+      const { user } = renderAccordion({
+        ...customRowProps,
+        badgeState: "latest",
+        hasAutoInstallPolicy: true,
+        onAutoInstallClick,
+      });
+
+      const button = screen.getByRole("button", {
+        name: "View auto-install policies",
+      });
+      await user.click(button);
+      expect(onAutoInstallClick).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the patch-policy aria-label when isPatchPolicyOnly is true", () => {
+      renderAccordion({
+        ...customRowProps,
+        badgeState: "latest",
+        hasAutoInstallPolicy: true,
+        isPatchPolicyOnly: true,
+        onAutoInstallClick: jest.fn(),
+      });
+
+      expect(
+        screen.getByRole("button", { name: "View patch policy" })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "View auto-install policies" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not render the Latest badge for a non-FMA row even when badgeState is 'latest'", () => {
+      // The Latest badge is gated on `isFma` (#48400); custom rows never
+      // surface it regardless of `canActivateMultiplePackages` / badgeState.
+      renderAccordion({
+        isFma: false,
+        canActivateMultiplePackages: false,
+        badgeState: "latest",
+      });
+
+      expect(
+        screen.queryByRole("button", { name: "Latest" })
+      ).not.toBeInTheDocument();
     });
   });
 

@@ -65,6 +65,10 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
+  /** Per-installer id on a multi-package title (#48397). When set, only this
+   * specific package is deleted; otherwise the request deletes the legacy
+   * single-package row (or VPP/FMA installer slot). */
+  installerId?: number;
   onExit: () => void;
   onSuccess: () => void;
   gitOpsModeEnabled?: boolean;
@@ -75,6 +79,7 @@ interface IDeleteSoftwareModalProps {
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
+  installerId,
   onExit,
   onSuccess,
   gitOpsModeEnabled,
@@ -86,7 +91,11 @@ const DeleteSoftwareModal = ({
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
+      await softwareAPI.deleteSoftwareInstaller(
+        softwareId,
+        teamId,
+        installerId
+      );
       notify.success("Successfully deleted software.");
       onSuccess();
     } catch (error) {
@@ -109,7 +118,7 @@ const DeleteSoftwareModal = ({
     }
     setIsDeleting(false);
     onExit();
-  }, [softwareId, teamId, onSuccess, onExit]);
+  }, [softwareId, teamId, installerId, onSuccess, onExit]);
 
   return (
     <Modal

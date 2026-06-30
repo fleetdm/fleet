@@ -123,6 +123,20 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
   /** When provided, the categories list is fetched dynamically for this fleet. */
   teamId?: number;
+  /** Set when this form is mounted inside the multi-package add modal
+   * (#48400). Renders a contextual banner just under the file chooser —
+   * GitOps copy when GitOps mode is on, the first-added-wins copy otherwise.
+   * Other call sites (single-package add page, edit modal) leave it false. */
+  multiPackageContext?: boolean;
+  /** Restricts the file picker to a specific platform/file type when set —
+   * used by the multi-package add modal so a second .pkg upload can't slip
+   * onto a Linux title. Falls back to PackageForm's full all-platforms accept
+   * + message when omitted. */
+  restrictedFileAccept?: string;
+  restrictedFileTypeLabel?: React.ReactNode;
+  /** Overrides the initial `targetType` for new (non-editing) forms. The
+   * multi-package add modal preselects `"Custom"` per Figma. */
+  initialTargetType?: string;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -147,6 +161,10 @@ const PackageForm = ({
   className,
   gitopsCompatible = false,
   teamId,
+  multiPackageContext = false,
+  restrictedFileAccept,
+  restrictedFileTypeLabel,
+  initialTargetType,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
@@ -157,7 +175,7 @@ const PackageForm = ({
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-    targetType: getTargetType(defaultSoftware),
+    targetType: initialTargetType ?? getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
     automaticInstall: false,
@@ -349,6 +367,7 @@ const PackageForm = ({
     !!formData.software && // show after selection
     !gitOpsModeEnabled && // hide in gitOps mode
     !isEditingSoftware && // show only on add, not edit
+    !multiPackageContext && // hide in the multi-package add modal — per Figma 2:130 the modal omits the deploy slider
     // automatic install is not supported for ipa packages, exe, tarball, or script packages
     !isIpaPackage &&
     !isExePackage &&
@@ -367,9 +386,14 @@ const PackageForm = ({
     </>
   );
 
-  // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
-  // 4.83 Removed option/targets from Add page
-  const showOptionsTargetsSelectors = !gitOpsModeEnabled && isEditingSoftware;
+  // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
+  // 4.83 removed option/targets from the (single-package) Add page; the
+  // multi-package Add modal (#48400) reintroduces the targets selector only,
+  // since each package on a multi-package title needs its own label scope.
+  // The options selector (self-service + categories) stays edit-only.
+  const showSoftwareOptionsSelector = !gitOpsModeEnabled && isEditingSoftware;
+  const showTargetLabelSelector =
+    !gitOpsModeEnabled && (isEditingSoftware || multiPackageContext);
 
   const renderSoftwareOptionsSelector = () => (
     <SoftwareOptionsSelector
@@ -408,8 +432,8 @@ const PackageForm = ({
         <FileUploader
           canEdit={canEditFile}
           graphicName={getGraphicName(ext || "")}
-          accept={ACCEPTED_EXTENSIONS}
-          message={renderFileTypeMessage()}
+          accept={restrictedFileAccept ?? ACCEPTED_EXTENSIONS}
+          message={restrictedFileTypeLabel ?? renderFileTypeMessage()}
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
           buttonType="brand-inverse-icon"
@@ -420,7 +444,37 @@ const PackageForm = ({
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
-        {(showDeploySoftwareSlider || showOptionsTargetsSelectors) && ( // Only show container if one of the two components will be rendered to avoid extra gap spacing
+        {multiPackageContext &&
+          (gitOpsModeEnabled ? (
+            // Preserves the apostrophe typo "it's" verbatim from Figma page
+            // 2:130 so copy stays in sync with design.
+            <InfoBanner
+              icon="info"
+              className={`${baseClass}__multi-package-banner`}
+              borderRadius="medium"
+            >
+              Add custom packages in GitOps mode so Fleet can host your
+              software. After adding, copy it&apos;s SHA-256 hash into your YAML
+              so the next GitOps workflow doesn&apos;t delete it.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/software-yaml`}
+                text="YAML docs"
+                newTab
+              />
+            </InfoBanner>
+          ) : (
+            <InfoBanner
+              icon="info"
+              className={`${baseClass}__multi-package-banner`}
+              borderRadius="medium"
+            >
+              If multiple packages target the same host, Fleet will install the
+              one that was added first.
+            </InfoBanner>
+          ))}
+        {(showDeploySoftwareSlider ||
+          showSoftwareOptionsSelector ||
+          showTargetLabelSelector) && ( // Only show container if any one component will render — avoids stray gap spacing
           <div
             // including `form` class here keeps the children fields subject to the global form
             // children styles
@@ -431,10 +485,10 @@ const PackageForm = ({
             }
           >
             {showDeploySoftwareSlider && renderSoftwareDeploySlider()}
-            {showOptionsTargetsSelectors && (
+            {(showSoftwareOptionsSelector || showTargetLabelSelector) && (
               <div className={`${baseClass}__form-frame`}>
-                {renderSoftwareOptionsSelector()}
-                {renderTargetLabelSelector()}
+                {showSoftwareOptionsSelector && renderSoftwareOptionsSelector()}
+                {showTargetLabelSelector && renderTargetLabelSelector()}
               </div>
             )}
           </div>
@@ -460,23 +514,32 @@ const PackageForm = ({
           />
         )}
         <div className={`${baseClass}__action-buttons`}>
-          {submitTooltipContent ? (
-            <TooltipWrapper
-              tipContent={submitTooltipContent}
-              underline={false}
-              showArrow
-              tipOffset={10}
-              position="left"
-            >
+          {(() => {
+            // Single source of truth for the submit button — both the
+            // tooltipped and non-tooltipped branches need identical text,
+            // disabled state, and type. A previous duplication let the
+            // "Save" / "Add software" copy drift between branches (#48400).
+            const submitButton = (
               <Button type="submit" disabled={isSubmitDisabled}>
-                {isEditingSoftware ? "Save" : "Add software"}
+                {isEditingSoftware || multiPackageContext
+                  ? "Save"
+                  : "Add software"}
               </Button>
-            </TooltipWrapper>
-          ) : (
-            <Button type="submit" disabled={isSubmitDisabled}>
-              {isEditingSoftware ? "Save" : "Add software"}
-            </Button>
-          )}
+            );
+            return submitTooltipContent ? (
+              <TooltipWrapper
+                tipContent={submitTooltipContent}
+                underline={false}
+                showArrow
+                tipOffset={10}
+                position="left"
+              >
+                {submitButton}
+              </TooltipWrapper>
+            ) : (
+              submitButton
+            );
+          })()}
 
           <Button variant="inverse" onClick={onCancel}>
             Cancel
