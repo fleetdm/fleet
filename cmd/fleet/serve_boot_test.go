@@ -90,7 +90,12 @@ func runServe(ctx context.Context, extraArgs ...string) <-chan error {
 }
 
 func waitHealthy(t *testing.T, serverAddr string) bool {
-	client := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
+	// runServeCmd sets the process-global outbound network-blocking mode
+	// (BlockingFull in the non-dev path), which blocks connections to loopback.
+	// This probe acts as an external client hitting /healthz (like a load
+	// balancer), so it must not go through Fleet's outbound SSRF dialer -- use a
+	// plain stdlib client, which uses http.DefaultTransport with no IP blocking.
+	client := &http.Client{Timeout: 2 * time.Second} //nolint:gocritic // we want to use http.Client instead of fleethttp.NewClient.
 	return assert.Eventually(t, func() bool {
 		resp, err := client.Get("http://" + serverAddr + "/healthz") //nolint:gosec
 		if err != nil {
@@ -120,6 +125,13 @@ func TestRunServeCmd(t *testing.T) {
 	if os.Getenv("MYSQL_TEST") == "" || os.Getenv("REDIS_TEST") == "" {
 		t.Skip("requires MYSQL_TEST=1 and REDIS_TEST=1")
 	}
+
+	// runServeCmd sets the process-global network blocking mode (to BlockingFull
+	// in the non-dev default path). That global is shared across the whole test
+	// binary, so restore the BlockingDisabled default on cleanup -- otherwise
+	// subsequent cmd/fleet tests that hit loopback httptest servers would be
+	// blocked.
+	t.Cleanup(func() { fleethttp.SetNetworkBlockingMode(fleethttp.BlockingDisabled) })
 
 	const dbName = "fleet_serve_boot_test"
 	// Load the schema directly (rather than via CreateMySQLDS) so this test is
