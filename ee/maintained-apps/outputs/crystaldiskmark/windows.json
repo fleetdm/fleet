@@ -3,8 +3,8 @@
     {
       "version": "9.0.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'CrystalDiskMark' AND publisher = 'Crystal Dew World';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrystalDiskMark' AND publisher = 'Crystal Dew World' AND version_compare(version, '9.0.3') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'CrystalDiskMark %' AND publisher = 'Crystal Dew World';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CrystalDiskMark %' AND publisher = 'Crystal Dew World' AND version_compare(version, '9.0.3') < 0);"
       },
       "installer_url": "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
       "install_script_ref": "9a06c3cd",
