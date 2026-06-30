@@ -12,6 +12,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import DataTable from "./DataTable/DataTable";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
+import TableLayoutContext from "./TableLayoutContext";
 
 export interface ITableQueryData {
   pageIndex: number;
@@ -511,91 +512,99 @@ const TableContainer = <T,>({
   return (
     <div className={wrapperClasses}>
       {renderFilters()}
-      <div className={`${baseClass}__data-table-block`}>
-        {/* No entities for this result. */}
-        {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
-        (searchQuery.length &&
-          data.length === 0 &&
-          !isMultiColumnFilter &&
-          !isLoading) ? (
-          <>
-            <EmptyComponent pageIndex={currentPageIndex} />
-            {/* This UI only shows if a user navigates to a table page with a URL page param that is outside the # of pages available */}
-            {currentPageIndex !== 0 && (
-              <div className={`${baseClass}__empty-page`}>
-                <div className={`${baseClass}__previous-button`}>
-                  <Pagination
-                    disableNext
-                    onNextPage={() => onPaginationChange(currentPageIndex + 1)}
-                    onPrevPage={() => onPaginationChange(currentPageIndex - 1)}
-                  />
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
-            no longer accesses rows.length because DataTable is not rendered */}
-            {!isLoading && clientFilterCount === 0 && !isMultiColumnFilter && (
+      <TableLayoutContext.Provider value={{ insideTable: true }}>
+        <div className={`${baseClass}__data-table-block`}>
+          {/* No entities for this result. */}
+          {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
+          (searchQuery.length &&
+            data.length === 0 &&
+            !isMultiColumnFilter &&
+            !isLoading) ? (
+            <>
               <EmptyComponent pageIndex={currentPageIndex} />
-            )}
-            <div
-              className={
-                isClientSideFilter && !isMultiColumnFilter
-                  ? `client-result-count-${clientFilterCount}`
-                  : ""
-              }
-            >
-              <DataTable
-                isLoading={isLoading}
-                columns={columnConfigs}
-                data={data}
-                filters={filters}
-                manualSortBy={manualSortBy}
-                sortHeader={sortHeader}
-                sortDirection={sortDirection}
-                onSort={onSortChange}
-                disableMultiRowSelect={disableMultiRowSelect}
-                showMarkAllPages={showMarkAllPages}
-                isAllPagesSelected={isAllPagesSelected}
-                toggleAllPagesSelected={toggleAllPagesSelected}
-                totalCount={totalCount}
-                resultsTitle={resultsTitle}
-                defaultPageSize={pageSize}
-                defaultPageIndex={pageIndex}
-                defaultSelectedRows={defaultSelectedRows}
-                autoResetPage={!disableAutoResetPage}
-                primarySelectAction={primarySelectAction}
-                secondarySelectActions={secondarySelectActions}
-                onSelectSingleRow={onSelectSingleRow}
-                onClickRow={onClickRow}
-                keyboardSelectableRows={keyboardSelectableRows}
-                onResultsCountChange={setClientFilterCount}
-                isClientSidePagination={isClientSidePagination}
-                onClientSidePaginationChange={onClientSidePaginationChange}
-                isClientSideFilter={isClientSideFilter}
-                disableHighlightOnHover={disableHighlightOnHover}
-                searchQuery={searchQuery}
-                searchQueryColumn={searchQueryColumn}
-                selectedDropdownFilter={selectedDropdownFilter}
-                renderTableHelpText={renderTableHelpText}
-                renderPagination={
-                  isClientSidePagination
-                    ? undefined
-                    : renderServersidePagination
+              {/* This UI only shows if a user navigates to a table page with a URL page param that is outside the # of pages available */}
+              {currentPageIndex !== 0 && (
+                <div className={`${baseClass}__empty-page`}>
+                  <div className={`${baseClass}__previous-button`}>
+                    <Pagination
+                      disableNext
+                      onNextPage={() =>
+                        onPaginationChange(currentPageIndex + 1)
+                      }
+                      onPrevPage={() =>
+                        onPaginationChange(currentPageIndex - 1)
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
+            no longer accesses rows.length because DataTable is not rendered */}
+              {!isLoading &&
+                clientFilterCount === 0 &&
+                !isMultiColumnFilter && (
+                  <EmptyComponent pageIndex={currentPageIndex} />
+                )}
+              <div
+                className={
+                  isClientSideFilter && !isMultiColumnFilter
+                    ? `client-result-count-${clientFilterCount}`
+                    : ""
                 }
-                setExportRows={setExportRows}
-                onClearSelection={onClearSelection}
-                suppressHeaderActions={suppressHeaderActions}
-                getRowId={getRowId}
-                persistSelectedRows={persistSelectedRows}
-                hideFooter={hideFooter}
-              />
-            </div>
-          </>
-        )}
-      </div>
+              >
+                <DataTable
+                  isLoading={isLoading}
+                  columns={columnConfigs}
+                  data={data}
+                  filters={filters}
+                  manualSortBy={manualSortBy}
+                  sortHeader={sortHeader}
+                  sortDirection={sortDirection}
+                  onSort={onSortChange}
+                  disableMultiRowSelect={disableMultiRowSelect}
+                  showMarkAllPages={showMarkAllPages}
+                  isAllPagesSelected={isAllPagesSelected}
+                  toggleAllPagesSelected={toggleAllPagesSelected}
+                  totalCount={totalCount}
+                  resultsTitle={resultsTitle}
+                  defaultPageSize={pageSize}
+                  defaultPageIndex={pageIndex}
+                  defaultSelectedRows={defaultSelectedRows}
+                  autoResetPage={!disableAutoResetPage}
+                  primarySelectAction={primarySelectAction}
+                  secondarySelectActions={secondarySelectActions}
+                  onSelectSingleRow={onSelectSingleRow}
+                  onClickRow={onClickRow}
+                  keyboardSelectableRows={keyboardSelectableRows}
+                  onResultsCountChange={setClientFilterCount}
+                  isClientSidePagination={isClientSidePagination}
+                  onClientSidePaginationChange={onClientSidePaginationChange}
+                  isClientSideFilter={isClientSideFilter}
+                  disableHighlightOnHover={disableHighlightOnHover}
+                  searchQuery={searchQuery}
+                  searchQueryColumn={searchQueryColumn}
+                  selectedDropdownFilter={selectedDropdownFilter}
+                  renderTableHelpText={renderTableHelpText}
+                  renderPagination={
+                    isClientSidePagination
+                      ? undefined
+                      : renderServersidePagination
+                  }
+                  setExportRows={setExportRows}
+                  onClearSelection={onClearSelection}
+                  suppressHeaderActions={suppressHeaderActions}
+                  getRowId={getRowId}
+                  persistSelectedRows={persistSelectedRows}
+                  hideFooter={hideFooter}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </TableLayoutContext.Provider>
     </div>
   );
 };
