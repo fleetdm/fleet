@@ -33,7 +33,7 @@ func TestSplunkWrite(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "main", "fleet", "fleet:json", slog.Default())
+	writer, err := NewSplunkLogWriter(server.URL, "test-token", "main", "fleet", "fleet:json", false, slog.Default())
 	require.NoError(t, err)
 
 	err = writer.Write(ctx, logs)
@@ -72,7 +72,7 @@ func TestSplunkWriteEmpty(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", slog.Default())
+	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 	require.NoError(t, err)
 
 	err = writer.Write(ctx, []json.RawMessage{})
@@ -91,7 +91,7 @@ func TestSplunkServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", slog.Default())
+	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 	require.NoError(t, err)
 
 	err = writer.Write(ctx, logs)
@@ -105,17 +105,17 @@ func TestSplunkHealthCheckFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", slog.Default())
+	_, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "health check")
 }
 
 func TestSplunkMissingConfig(t *testing.T) {
-	_, err := NewSplunkLogWriter("", "token", "", "", "", slog.Default())
+	_, err := NewSplunkLogWriter("", "token", "", "", "", false, slog.Default())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "URL")
 
-	_, err = NewSplunkLogWriter("http://localhost", "", "", "", "", slog.Default())
+	_, err = NewSplunkLogWriter("http://localhost", "", "", "", "", false, slog.Default())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "token")
 }

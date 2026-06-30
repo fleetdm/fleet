@@ -3,6 +3,7 @@ package logging
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,12 +48,19 @@ type splunkLogWriter struct {
 	logger     *slog.Logger
 }
 
-func NewSplunkLogWriter(url, token, index, source, sourceType string, logger *slog.Logger) (*splunkLogWriter, error) {
+func NewSplunkLogWriter(url, token, index, source, sourceType string, insecureSkipVerify bool, logger *slog.Logger) (*splunkLogWriter, error) {
 	if url == "" {
 		return nil, errors.New("splunk URL must not be empty")
 	}
 	if token == "" {
 		return nil, errors.New("splunk HEC token must not be empty")
+	}
+
+	clientOpts := []fleethttp.ClientOpt{fleethttp.WithTimeout(30 * time.Second)}
+	if insecureSkipVerify {
+		clientOpts = append(clientOpts, fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // user-configured option for self-signed certs
+		}))
 	}
 
 	w := &splunkLogWriter{
@@ -61,7 +69,7 @@ func NewSplunkLogWriter(url, token, index, source, sourceType string, logger *sl
 		index:      index,
 		source:     source,
 		sourceType: sourceType,
-		client:     fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second)),
+		client:     fleethttp.NewClient(clientOpts...),
 		logger:     logger,
 	}
 

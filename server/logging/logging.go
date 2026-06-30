@@ -89,11 +89,12 @@ type NatsConfig struct {
 }
 
 type SplunkConfig struct {
-	URL        string
-	Token      string
-	Index      string
-	Source     string
-	SourceType string
+	URL                string
+	Token              string
+	Index              string
+	Source             string
+	SourceType         string
+	InsecureSkipVerify bool
 }
 
 type Config struct {
@@ -236,6 +237,7 @@ func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog
 			config.Splunk.Index,
 			config.Splunk.Source,
 			config.Splunk.SourceType,
+			config.Splunk.InsecureSkipVerify,
 			logger,
 		)
 		if err != nil {

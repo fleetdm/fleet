@@ -686,11 +686,12 @@ type KafkaRESTConfig struct {
 
 // SplunkConfig defines configs for the Splunk HEC logging plugin.
 type SplunkConfig struct {
-	URL        string `json:"url" yaml:"url"`
-	Token      string `json:"token" yaml:"token"`
-	Index      string `json:"index" yaml:"index"`
-	Source     string `json:"source" yaml:"source"`
-	SourceType string `json:"source_type" yaml:"source_type"`
+	URL                string `json:"url" yaml:"url"`
+	Token              string `json:"token" yaml:"token"`
+	Index              string `json:"index" yaml:"index"`
+	Source             string `json:"source" yaml:"source"`
+	SourceType         string `json:"source_type" yaml:"source_type"`
+	InsecureSkipVerify bool   `json:"insecure_skip_verify" yaml:"insecure_skip_verify"`
 }
 
 // NatsConfig defines configs for the NATS logging plugin.
@@ -1699,6 +1700,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("splunk.index", "", "Splunk index to send events to")
 	man.addConfigString("splunk.source", "", "Splunk source value for events")
 	man.addConfigString("splunk.source_type", "", "Splunk sourcetype value for events")
+	man.addConfigBool("splunk.insecure_skip_verify", false, "Skip TLS certificate verification for Splunk HEC (for self-signed certs)")
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
@@ -2074,11 +2076,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			Timeout:          man.getConfigDuration("nats.timeout"),
 		},
 		Splunk: SplunkConfig{
-			URL:        man.getConfigString("splunk.url"),
-			Token:      man.getConfigString("splunk.token"),
-			Index:      man.getConfigString("splunk.index"),
-			Source:     man.getConfigString("splunk.source"),
-			SourceType: man.getConfigString("splunk.source_type"),
+			URL:                man.getConfigString("splunk.url"),
+			Token:              man.getConfigString("splunk.token"),
+			Index:              man.getConfigString("splunk.index"),
+			Source:             man.getConfigString("splunk.source"),
+			SourceType:         man.getConfigString("splunk.source_type"),
+			InsecureSkipVerify: man.getConfigBool("splunk.insecure_skip_verify"),
 		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
