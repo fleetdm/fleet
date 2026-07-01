@@ -1308,7 +1308,10 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"carves",
 			func(ctx context.Context) error {
-				_, err := carveStore.CleanupCarves(ctx, time.Now())
+				expired, err := carveStore.CleanupCarves(ctx, time.Now())
+				if expired > 0 {
+					logger.InfoContext(ctx, "expired carves", "count", expired)
+				}
 				return err
 			},
 		),

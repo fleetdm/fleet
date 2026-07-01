@@ -52,6 +52,8 @@ type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fle
 
 type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
 
+type ExpireCarvesFunc func(ctx context.Context, ids []int64) error
+
 type CarveFunc func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error)
 
 type CarveBySessionIdFunc func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error)
@@ -2130,6 +2132,9 @@ type DataStore struct {
 
 	UpdateCarveFunc        UpdateCarveFunc
 	UpdateCarveFuncInvoked bool
+
+	ExpireCarvesFunc        ExpireCarvesFunc
+	ExpireCarvesFuncInvoked bool
 
 	CarveFunc        CarveFunc
 	CarveFuncInvoked bool
@@ -5284,6 +5289,13 @@ func (s *DataStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetada
 	s.UpdateCarveFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateCarveFunc(ctx, metadata)
+}
+
+func (s *DataStore) ExpireCarves(ctx context.Context, ids []int64) error {
+	s.mu.Lock()
+	s.ExpireCarvesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpireCarvesFunc(ctx, ids)
 }
 
 func (s *DataStore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
