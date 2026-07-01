@@ -166,9 +166,7 @@ const SoftwareSummaryCard = ({
             }}
             tooltip={
               mergedPolicies.length === 1 ? (
-                <>
-                  Policy triggers install.
-                </>
+                <>Policy triggers install.</>
               ) : (
                 <>
                   Policies trigger install.
