@@ -283,8 +283,17 @@ type SoftwarePackage struct {
 }
 
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec, ext string) (fleet.SoftwarePackageSpec, error) {
-	if spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
-		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
+	isScript := ext == ".sh" || ext == ".ps1"
+
+	// Script-only packages are configured inline in the team YAML, so their
+	// uninstall/post-install scripts and pre-install query are allowed here;
+	// other packages keep those in a package YAML. install_script, url, and hash
+	// are never valid at the team level.
+	if spec.InstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" ||
+		(!isScript && (spec.UninstallScript.Path != "" || spec.PostInstallScript.Path != "" || spec.PreInstallQuery.Path != "")) {
+		if isScript {
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the team level", *spec.Path)
+		}
 		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
 	}
 
@@ -2188,13 +2197,17 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, err)
 					continue
 				}
-				// Script file becomes the install script for a script-only package
+				// The script file is the install script; the uninstall/post-install
+				// scripts and pre-install query come from the team YAML.
 				scriptSpec := fleet.SoftwarePackageSpec{
 					ReferencedYamlPath: resolvedPath,
 					Icon:               teamLevelPackage.Icon,
+					UninstallScript:    teamLevelPackage.UninstallScript,
+					PostInstallScript:  teamLevelPackage.PostInstallScript,
+					PreInstallQuery:    teamLevelPackage.PreInstallQuery,
 				}
-				// Icon path needs to be resolved, but since this function will set
-				// the install script it needs to be set to the correct path again.
+				// Resolve icon and script/query paths first; the install script path
+				// is set afterward since it's the script file itself.
 				scriptSpec = scriptSpec.ResolveSoftwarePackagePaths(baseDir)
 				scriptSpec.InstallScript.Path = resolvedPath
 

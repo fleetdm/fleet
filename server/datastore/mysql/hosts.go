@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip"}
+	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip", "public_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
@@ -5117,6 +5117,9 @@ func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (stri
 
 func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
+	// connected_to_fleet field mirrors IsHostConnectedToFleetMDM (and the connected_to_fleet condition in hostMDMSelect): the
+	// host_mdm row must be enrolled and the platform-specific enrollment record must be active. NOTE: if you change any of these
+	// conditions, also update IsHostConnectedToFleetMDM and the hostMDMSelect constant.
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hmdm, `
 		SELECT
 			hm.host_id,
@@ -5128,9 +5131,27 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.managed_apple_id,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
-			hdep.assign_profile_response AS dep_profile_assign_status
+			hdep.assign_profile_response AS dep_profile_assign_status,
+			CASE
+				WHEN hm.enrolled = 1 AND h.platform = 'windows' THEN EXISTS (
+					SELECT 1 FROM mdm_windows_enrollments mwe
+					WHERE mwe.host_uuid = h.uuid
+					AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
+				)
+				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'darwin') THEN EXISTS (
+					SELECT 1 FROM nano_enrollments ne
+					WHERE ne.id = h.uuid
+					AND ne.enabled = 1
+					AND ne.type IN ('Device', 'User Enrollment (Device)')
+				)
+				WHEN hm.enrolled = 1 AND h.platform = 'android' THEN 1
+				ELSE 0
+			END AS connected_to_fleet
 		FROM
 			host_mdm hm
+		LEFT OUTER JOIN
+			hosts h
+			ON h.id = hm.host_id
 		LEFT OUTER JOIN
 			mobile_device_management_solutions mdms
 			ON hm.mdm_id = mdms.id

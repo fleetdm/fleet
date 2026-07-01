@@ -8,6 +8,7 @@
   "installer_arch": "x64",
   "installer_type": "zip",
   "installer_scope": "machine",
+  "frozen": true,
   "default_categories": ["Productivity"],
   "exists_query": "SELECT 1 FROM programs WHERE (name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC';"
 }

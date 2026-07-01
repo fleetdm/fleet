@@ -162,6 +162,9 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
+  AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
+  EditedGoogleWorkspaceIntegration = "edited_google_workspace_integration",
+  DeletedGoogleWorkspaceIntegration = "deleted_google_workspace_integration",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
   InstalledCertificate = "installed_certificate",
@@ -350,6 +353,7 @@ export interface IActivityDetails {
   ticket_key?: string;
   ticket_id?: number;
   custom_variable_name?: string;
+  domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
@@ -551,6 +555,12 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
+  [ActivityType.AddedGoogleWorkspaceIntegration]:
+    "Added Google Workspace integration",
+  [ActivityType.EditedGoogleWorkspaceIntegration]:
+    "Edited Google Workspace integration",
+  [ActivityType.DeletedGoogleWorkspaceIntegration]:
+    "Deleted Google Workspace integration",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
   [ActivityType.InstalledCertificate]: "Installed certificate",
