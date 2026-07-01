@@ -28,7 +28,7 @@ Compression of the carve contents can be enabled with the `carver_compression` f
 > File carving can cause significant performance impact if multiple factors are scaled up simultaneously. To avoid overloading your Fleet instance:
 > - Target a narrow host set. Avoid running carves against all hosts.
 > - Use specific paths. Avoid wildcard paths (e.g. /tmp/* or user home directories) that may match many or large files.
-> - Mind the limits. Individual files must be under 8 GB; each file is transferred in 256 MB blocks (one database row and S3 object per block).
+> - Mind the limits. Individual files must be under 8 GB
 > - Avoid scheduled carves on broad targets. Automations that repeat carves against large host sets compound the load over time.
 > The total load scales as the product of: number of hosts × number of paths × number of matching files × average file size. Any one of these can be large in isolation, but all four at once can result in millions of database writes and terabytes of S3 data simultaneously.
 
