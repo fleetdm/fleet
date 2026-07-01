@@ -1618,6 +1618,23 @@ None.
       },
       "end_user_local_account_type": "admin"
     },
+    "apple_settings": {
+      "configuration_profiles": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/declaration.json",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+    },
     "windows_settings": {
       "custom_settings": [
         {
@@ -1987,7 +2004,12 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
       ],
       "managed_local_account_settings": {
         "enabled": true
@@ -2757,11 +2779,16 @@ _Available in Fleet Premium._
         {
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
-        },
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
       ],
       "managed_local_account_settings": {
         "enabled": true
-      },
+      }
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -6596,6 +6623,10 @@ Deletes the label specified by ID.
 - [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
+- [Create asset](#create-asset)
+- [List assets](#list-assets)
+- [Get or download asset](#get-or-download-asset)
+- [Delete asset](#delete-asset)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update Recovery Lock](#update-recovery-lock)
@@ -6627,7 +6658,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
 | labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
 
 `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
@@ -6801,9 +6832,9 @@ solely on the response status code returned by this endpoint.
 ##### Example response headers
 
 ```http
-  Content-Length: 542
-  Content-Type: application/octet-stream
-  Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
 ```
 
 ###### Example response body
@@ -6955,7 +6986,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
 | display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
@@ -6982,6 +7013,187 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 ##### Default response
 
 `204`
+
+### Create asset
+
+Add an asset to reference in a configuration profile.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
+`POST /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                                                                   |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| asset                   | file     | body | **Required.** The JSON asset declaration. The "Type" must be a valid Apple asset declaration type (e.g., "com.apple.asset.data"), and an "Identifier" must be defined. See [Apple's documentation](https://developer.apple.com/documentation/devicemanagement) for type-specific payload requirements. |
+| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the asset. If specified, the asset is available to only the configuration profile(s) that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/assets`
+
+##### Request body
+
+```
+fleet_id="1"
+asset="my-asset.json"
+```
+
+##### Example asset file (my-asset.json)
+```
+{
+    "Type": "com.apple.asset.data",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
+    "Payload": {
+        "Reference": {
+            "DataURL": "https://example.com/asset-data/data/test.txt",
+            "ContentType": "text/plain"
+        },
+        "Authentication": {
+            "Type": "MDM"
+        }
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
+```
+
+### List assets
+
+Get a list of the assets in Fleet.
+
+For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet assets are excluded from the results (i.e., only assets that are associated with "Unassigned" are listed).
+
+`GET /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| fleet_id                  | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.            |
+
+#### Example
+
+List all assets available for the "Unassigned" fleet.
+
+`GET /api/v1/fleet/assets`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "assets": [
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset.json",
+      "name": "My asset",
+      "identifier": "com.example.asset1",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset2.json",
+      "name": "My asset2",
+      "identifier": "com.example.asset2",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+  ],
+}
+```
+
+### Get or download asset
+
+`GET /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                             |
+| ------------------------- | ------- | ----- | ------------------------------------------------------- |
+| asset_uuid              | string | url   | **Required** The UUID of the asset to get.  |
+| alt                       | string  | query | If specified and set to "media", downloads the asset. |
+
+#### Example (get asset metadata)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+  "fleet_id": 0,
+  "asset": "my-asset.json",
+  "name": "My asset",
+  "identifier": "com.example.asset1",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download an asset)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 my-asset.json"
+```
+
+###### Example response body
+
+```json
+{
+  "Type": "com.apple.asset.data",
+  "Identifier": "com.example.asset1",
+  "ServerURL": "https://example.com/assets/my-asset.json"
+}
+```
+
+### Delete asset
+
+`DELETE /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| asset_uuid              | string  | url   | **Required** The UUID of the asset to delete. |
+
+#### Example
+
+`DELETE /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
 
 ### Resend configuration profile by Fleet Desktop token
 
@@ -7361,10 +7573,10 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](http
 ##### Example response headers
 
 ```http
-  Content-Length: 542
-  Content-Type: application/x-apple-aspen-config; charset=utf-8
-  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
-  X-Content-Type-Options: nosniff
+Content-Length: 542
+Content-Type: application/x-apple-aspen-config; charset=utf-8
+Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+X-Content-Type-Options: nosniff
 ```
 
 ###### Example response body
@@ -12942,6 +13154,18 @@ _Available in Fleet Premium_
           {
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/declaration.json",
+            "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
           }
         ],
         "managed_local_account_settings": {
@@ -13464,6 +13688,14 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
+        {
+          "path": "path/to/assets/asset.json"
+        },
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
       ],
       "managed_local_account_settings": {
         "enabled": true
@@ -13615,6 +13847,18 @@ _Available in Fleet Premium_
           {
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"]
+          },
+          {
+           "path": "path/to/declaration.json",
+           "labels": ["Label 1", "Label 2"]
+          },
+          {
+           "path": "path/to/assets/asset.json"
+          }
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
           }
         ],
         "managed_local_account_settings": {
