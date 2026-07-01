@@ -23,7 +23,7 @@ Learn more about automatically installing software [the Automatically install so
 > Software cannot be added to "All fleets"
 * Click the **Add software** button in the top right corner.
 * Select the **Custom package** tab.
-* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
+* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, `.py`, and `.ps1` files are supported.
 * To customize installer behavior, click on **Advanced options**.
 
 > After the initial package upload, all options can be modified by editing the software. This includes self-service, targets, advanced options (pre-install query, scripts), and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .exe, .deb, .rpm, or .ipa) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. To enable automatic installs, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
@@ -49,7 +49,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 ### Script-only packages
 
-Script-only packages (`.sh` and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` and `.py` files are supported for macOS and Linux hosts, and `.ps1` files for Windows hosts.
 
 Script-only packages are useful for:
 - Self-service scripts (e.g., connecting to a VPN, configuring printers)
