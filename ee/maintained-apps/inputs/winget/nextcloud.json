@@ -1,0 +1,10 @@
+{
+  "name": "Nextcloud",
+  "slug": "nextcloud/windows",
+  "package_identifier": "Nextcloud.NextcloudDesktop",
+  "unique_identifier": "Nextcloud",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

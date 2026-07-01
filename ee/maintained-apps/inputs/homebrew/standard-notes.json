@@ -1,0 +1,10 @@
+{
+  "name": "Standard Notes",
+  "unique_identifier": "org.standardnotes.standardnotes",
+  "token": "standard-notes",
+  "installer_format": "zip",
+  "slug": "standard-notes/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

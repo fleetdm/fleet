@@ -1,0 +1,10 @@
+{
+  "name": "KeyCastr",
+  "unique_identifier": "io.github.keycastr",
+  "token": "keycastr",
+  "installer_format": "zip",
+  "slug": "keycastr/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

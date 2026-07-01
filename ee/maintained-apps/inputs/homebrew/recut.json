@@ -1,0 +1,10 @@
+{
+  "name": "Recut",
+  "unique_identifier": "com.tinywins.recut",
+  "token": "recut",
+  "installer_format": "dmg",
+  "slug": "recut/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

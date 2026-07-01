@@ -1,8 +1,13 @@
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 import valid_url from "components/forms/validators/valid_url";
 
 import { ICustomSCEPFormData } from "./CustomSCEPForm";
+
+// Windows encodes the SCEP challenge password as an ASN.1 PrintableString, so a challenge with any character outside that set (most
+// commonly "_") fails. Keep in sync with printableStringChallengeRegexp in ee/server/service/certificate_authorities.go.
+const PRINTABLE_STRING_REGEX = /^[A-Za-z0-9'()+,./:=?-]*$/;
 
 // TODO: create a validator abstraction for this and the other form validation files
 
@@ -10,7 +15,7 @@ export interface ICustomSCEPFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
   scepURL?: { isValid: boolean; message?: string };
-  challenge?: { isValid: boolean };
+  challenge?: { isValid: boolean; message?: string };
 }
 
 type IMessageFunc = (formData: ICustomSCEPFormData) => string;
@@ -89,6 +94,18 @@ export const generateFormValidations = (
           isValid: (formData: ICustomSCEPFormData) => {
             return formData.challenge.length > 0;
           },
+        },
+        {
+          name: "printableCharacters",
+          isValid: (formData: ICustomSCEPFormData) => {
+            // Skip an unchanged (masked) challenge, so editing a CA whose challenge predates this validation isn't blocked.
+            return (
+              formData.challenge === UNCHANGED_PASSWORD_API_RESPONSE ||
+              PRINTABLE_STRING_REGEX.test(formData.challenge)
+            );
+          },
+          message:
+            "Invalid characters. Certificate enrollment only supports letters, numbers, and ' ( ) + , - . / : = ?",
         },
       ],
     },

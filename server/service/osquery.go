@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -924,8 +925,30 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
 	if hostRunningSetupExperience {
-		svc.logger.DebugContext(ctx, "skipping policy queries for host in setup experience", "host_id", host.ID)
-		return nil, false, nil
+		// During setup experience, run ONLY the policies that gate this host's pending setup-experience software, instead of the
+		// host's whole (possibly large) team policy set. All other policies stay skipped so unrelated automations do not fire
+		// mid-setup. The install itself is performed by setup experience, not by the policy automation (which is suppressed for
+		// in-setup hosts in processSoftwareForNewlyFailingPolicies).
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get host uuid for setup experience policy queries")
+		}
+		policyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		if len(policyIDs) == 0 {
+			svc.logger.DebugContext(ctx, "skipping policy queries for host in setup experience (no policy-gated items)", "host_id", host.ID)
+			return nil, false, nil
+		}
+		policyQueries, err = svc.ds.PolicyQueriesForHostFiltered(ctx, host, policyIDs)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "retrieve filtered setup experience policy queries")
+		}
+		// If a gated policy's platform/label scope excludes the host, it won't be returned here and won't run; setup experience
+		// detects that and falls back to installing the item, so we don't flag the host as "no policies" (which would bump the
+		// policy timestamp).
+		return policyQueries, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
@@ -1233,9 +1256,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 
-		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
-		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet); err != nil {
+		// setupExperienceHostUUID keys setup-experience rows (OsqueryHostID on Windows/Linux); on error it is empty, which
+		// disables setup-experience automation suppression (matches no host).
+		setupExperienceHostUUID, seuErr := fleet.HostUUIDForSetupExperience(host)
+		if seuErr != nil {
+			svc.logger.ErrorContext(ctx, "could not derive setup experience host UUID; setup-experience suppression disabled for this host",
+				"err", seuErr, "host_id", host.ID, "platform", host.Platform)
+			ctxerr.Handle(ctx, seuErr)
+		}
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, setupExperienceHostUUID, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -2002,6 +2031,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	hostOrbitNodeKey *string,
+	setupExperienceHostUUID string,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
 ) error {
@@ -2049,6 +2079,34 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 	if len(failingPoliciesWithInstaller) == 0 {
 		return nil
+	}
+
+	// Suppress the automation for any policy that gates one of this host's setup-experience items: while the host is in setup
+	// experience, setup experience performs that install itself. Installing here too would double-install.
+	if setupExperienceHostUUID != "" {
+		gatedPolicyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, setupExperienceHostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		if len(gatedPolicyIDs) > 0 {
+			gatedSet := make(map[uint]struct{}, len(gatedPolicyIDs))
+			for _, id := range gatedPolicyIDs {
+				gatedSet[id] = struct{}{}
+			}
+			kept := failingPoliciesWithInstaller[:0]
+			for _, p := range failingPoliciesWithInstaller {
+				if _, gated := gatedSet[p.ID]; gated {
+					svc.logger.DebugContext(ctx, "skipping policy automation install for host in setup experience; setup experience will install it",
+						"host_id", hostID, "policy_id", p.ID)
+					continue
+				}
+				kept = append(kept, p)
+			}
+			failingPoliciesWithInstaller = kept
+			if len(failingPoliciesWithInstaller) == 0 {
+				return nil
+			}
+		}
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
@@ -2558,14 +2616,15 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	for _, policyID := range conditionalAccessPolicyIDs {
 		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
 	}
+	var failingCAIDs []uint
 	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
 		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
 			// Ignore results for policies that are not for conditional access.
 			continue
 		}
 		if incomingPolicyResult != nil && !*incomingPolicyResult {
+			failingCAIDs = append(failingCAIDs, incomingPolicyID)
 			hostIsCompliantInFleet = false
-			break
 		}
 	}
 
@@ -2575,7 +2634,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet, failingCAIDs)
 
 	return nil
 }
@@ -2586,6 +2645,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	failingPolicyIDs []uint,
 ) {
 	go func() {
 		logger := svc.logger.With(
@@ -2595,7 +2655,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant, failingPolicyIDs); err != nil {
 			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
 		}
 		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
@@ -2612,6 +2672,7 @@ func (svc *Service) setHostConditionalAccess(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	failingPolicyIDs []uint,
 ) error {
 	ctx := context.Background()
 
@@ -2648,6 +2709,7 @@ func (svc *Service) setHostConditionalAccess(
 		time.Now().UTC(),
 	)
 	if err != nil {
+		recordConditionalAccessFailureActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, err, logger)
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
 
@@ -2664,6 +2726,12 @@ func (svc *Service) setHostConditionalAccess(
 		startTime := time.Now()
 		for range time.Tick(conditionalAccessSetWaitTime) {
 			if time.Since(startTime) > timeout {
+				// No failure activity is recorded here. SetComplianceStatus
+				// succeeded (we have a MessageID), so the push was accepted by
+				// the remote provider; we just could not confirm completion
+				// within the expected window. Recording a
+				// failed_automation_conditional_access here would
+				// misrepresent an in-flight async operation as a rejection.
 				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 			}
 			logger.DebugContext(ctx, "get compliance status message wait")
@@ -2696,7 +2764,92 @@ func (svc *Service) setHostConditionalAccess(
 		return ctxerr.Wrap(ctx, err, "set conditional access status on datastore")
 	}
 
+	if !compliant {
+		// The host was pushed non-compliant, which blocks single sign-on. The
+		// push has been accepted (and, for macOS, confirmed) at this point.
+		recordSingleSignOnBlockedActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, logger)
+	}
+
 	return nil
+}
+
+// recordConditionalAccessFailureActivity records a
+// failed_automation_conditional_access activity for the given host when
+// a compliance push to the remote provider fails. One activity is recorded per
+// failing conditional-access policy (policies the host is currently failing,
+// not all CA policies configured for the team), capturing the remote status
+// code and response body when available. Failures to record are logged and
+// swallowed so they don't mask the original error.
+func recordConditionalAccessFailureActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	hostID uint,
+	policyIDs []uint,
+	err error,
+	logger *slog.Logger,
+) {
+	if len(policyIDs) == 0 {
+		return
+	}
+
+	var statusCode int
+	if sc, ok := errors.AsType[interface {
+		error
+		StatusCode() int
+	}](err); ok {
+		statusCode = sc.StatusCode()
+	}
+
+	errResponse := ""
+	if b, ok := errors.AsType[interface {
+		error
+		Body() string
+	}](err); ok {
+		errResponse = b.Body()
+	}
+	if errResponse == "" {
+		// network-level failures (e.g. connection refused) have no server
+		// response; fall back to the error message.
+		errResponse = err.Error()
+	}
+	for _, policyID := range policyIDs {
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationConditionalAccess{
+			PolicyID:      policyID,
+			HostIDList:    []uint{hostID},
+			StatusCode:    statusCode,
+			ErrorResponse: errResponse,
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record conditional access policy automation failure activity",
+				"policy_id", policyID, "host_id", hostID, "err", actErr)
+		}
+	}
+}
+
+// recordSingleSignOnBlockedActivity records a
+// ran_automation_conditional_access activity for the given host once its
+// non-compliant status has been successfully pushed to the remote provider,
+// blocking single sign-on. One activity is recorded per conditional-access
+// policy the host is failing. Failures to record are logged and swallowed so
+// they don't affect the compliance push.
+func recordSingleSignOnBlockedActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	hostID uint,
+	policyIDs []uint,
+	logger *slog.Logger,
+) {
+	if newActivitySvc == nil || len(policyIDs) == 0 {
+		return
+	}
+	for _, policyID := range policyIDs {
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationConditionalAccess{
+			PolicyID:   policyID,
+			HostIDList: []uint{hostID},
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record single sign-on blocked policy automation activity",
+				"policy_id", policyID, "host_id", hostID, "err", actErr)
+		}
+	}
 }
 
 func (svc *Service) maybeDebugHost(

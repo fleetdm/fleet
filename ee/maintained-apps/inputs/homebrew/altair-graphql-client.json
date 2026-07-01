@@ -1,0 +1,10 @@
+{
+  "name": "Altair GraphQL Client",
+  "unique_identifier": "com.xkoji.altair",
+  "token": "altair-graphql-client",
+  "installer_format": "zip",
+  "slug": "altair-graphql-client/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

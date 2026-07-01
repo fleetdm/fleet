@@ -35,7 +35,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
   
 ### Step 2: Connect Fleet to Okta's CA
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. Okta uses NDES under the hood.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your Okta CA should appear in the list in Fleet.
@@ -77,7 +77,7 @@ The following steps show how to deploy DigiCert certificates.
 
 ### Step 3: Connect Fleet to DigiCert
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select **Add CA** and then choose **DigiCert** in the dropdown.
 3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 4. If you're using DigiCert One's cloud offering, keep the default **URL**. If you're using a self-hosted (on-prem) DigiCert One, update the URL to match the one you use to log in to your DigiCert One.
@@ -211,7 +211,7 @@ Set-Date -Date "2026-03-16 12:00:00"
 
 ### Step 2: Connect Fleet to NDES
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your NDES certificate authority (CA) should appear in the list in Fleet.
@@ -446,7 +446,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 ### Step 2: Configure Fleet with Smallstep information
 
-1. In Fleet, go to **Settings > Integrations > Certificates** and click **Add CA**. 
+1. In Fleet, go to **Settings > Integrations > Certificate enrollment** and click **Add CA**. 
 
 2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 
@@ -547,7 +547,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 2: Connect Fleet to Hydrant
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
 4. Add your Hydrant EST **URL**.
@@ -630,7 +630,7 @@ The following steps show how to deploy certificates from any certificate authori
 
 ### Step 1: Connect Fleet to a SCEP CA
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select the **Add CA** button and select **Custom Simple Certificate Enrollment Protocol (SCEP)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
 4. Add your **SCEP URL** and **Challenge**.
@@ -644,7 +644,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 1. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
 3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
@@ -911,7 +911,7 @@ This step will vary between providers. EST servers require a `username` and `pas
 
 ### Step 2: Connect Fleet to the EST server
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select **Add CA** and then choose **Custom Enrollment over Secure Transport (EST)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
 4. Add your EST **URL**.

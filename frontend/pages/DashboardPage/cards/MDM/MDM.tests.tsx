@@ -65,7 +65,7 @@ describe("MDM Card", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /On \(personal\)(.*?)3 view all hosts/i,
+        name: /On \(BYOD\)(.*?)3 view all hosts/i,
       })
     ).toBeInTheDocument();
 

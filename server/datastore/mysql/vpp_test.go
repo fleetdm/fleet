@@ -58,6 +58,7 @@ func TestVPP(t *testing.T) {
 		{"VPPClientUsers", testVPPClientUsers},
 		{"BackfillVPPAppCountriesLowestIDWins", testBackfillVPPAppCountriesLowestIDWins},
 		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
+		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
 	}
 
 	for _, c := range cases {
@@ -3689,4 +3690,46 @@ func testGetVPPTokenOwningAppInCountrySkipsExpired(t *testing.T, ds *Datastore) 
 	_, err = ds.GetVPPTokenOwningAppInCountry(ctx, "adam_expired_filter", fleet.MacOSPlatform, "us")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err), "expected NotFound when only expired tokens remain")
+}
+
+// A host with two queued VPP installs for the same app (one lower priority, the
+// other later created_at) must still be counted once: the old OR-based anti-join
+// let each row dominate the other and dropped the host entirely.
+func testVPPSummaryUpcomingPerHostNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vppdrop", BundleIdentifier: "com.app.vppdrop",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_drop", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	appID := app.VPPAppID
+
+	host := test.NewHost(t, ds, "vppdrop-host", "1", "vppdropkey", "vppdropuuid", time.Now())
+
+	// Seed two cross-dominant upcoming vpp_app_install rows for the same
+	// host+app: row B has the lower priority, row A has the later created_at.
+	insert := func(execID string, priority, createdOffsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities
+	(host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES
+	(?, ?, 1, 'vpp_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, createdOffsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO vpp_app_upcoming_activities
+	(upcoming_activity_id, adam_id, platform)
+VALUES (?, ?, ?)`, uaID, appID.AdamID, appID.Platform)
+		require.NoError(t, err)
+	}
+	insert("vppdrop-B", -1, 0)  // lower priority, earlier created_at
+	insert("vppdrop-A", 0, 100) // higher priority, later created_at
+
+	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, appID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Pending: 1}, *summary)
 }

@@ -1,0 +1,8 @@
+{
+  "name": "IBM Notifier",
+  "unique_identifier": "com.ibm.cio.notifier",
+  "token": "ibm-notifier",
+  "installer_format": "zip",
+  "slug": "ibm-notifier/darwin",
+  "default_categories": ["Developer tools"]
+}

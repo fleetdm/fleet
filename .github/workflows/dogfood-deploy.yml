@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: "The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror."
+        description: "The full image reference to deploy. Usually a tag: an RC branch tag (e.g. fleetdm/fleet:rc-minor-fleet-v4.90.0) or a release tag (e.g. fleetdm/fleet:v4.87.0). To deploy from main, do not use the floating fleetdm/fleet:main tag; pin the immutable digest instead (e.g. fleetdm/fleet@sha256:<digest>, from the main tag on Docker Hub) since per-commit hash tags are no longer published. If pull-rate limited, try the quay.io/fleetdm/fleet mirror."
         required: true
       dry_run:
         description: Dry run only? No "terraform apply"
@@ -63,6 +63,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          persist-credentials: false
       - id: fail-on-main
         run: "false"
         if: ${{ github.ref == 'main' }}

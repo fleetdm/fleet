@@ -101,6 +101,13 @@ type RedisConfig struct {
 	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
 	// Only meaningful when HostCacheEnabled is true. Hidden from --help.
 	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
+	// LiveQuerySmallTargetThreshold is the maximum number of targeted hosts for a
+	// live query to use the per-host reverse index instead of a fleet-wide
+	// bitfield. Storing small-target queries as a per-host set means a host
+	// checkin no longer issues one GETBIT per such query. Set to 0 to disable the
+	// reverse index entirely (kill-switch) and use the bitfield for all live
+	// queries.
+	LiveQuerySmallTargetThreshold int `yaml:"live_query_small_target_threshold"`
 }
 
 const (
@@ -134,6 +141,7 @@ type ServerConfig struct {
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
+	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -232,6 +240,7 @@ type AuthConfig struct {
 	SaltKeySize                 int           `yaml:"salt_key_size"`
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -481,6 +490,7 @@ type S3Config struct {
 	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
 	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
 	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
+	CarvesGCSIAMAuth       bool   `yaml:"carves_gcs_iam_auth"`
 
 	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
 	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
@@ -492,6 +502,7 @@ type S3Config struct {
 	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
 	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
 	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersGCSIAMAuth                      bool          `yaml:"software_installers_gcs_iam_auth"`
 	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
@@ -553,6 +564,7 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		StsExternalID:    s.SoftwareInstallersStsExternalID,
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
+		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -609,6 +621,7 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
+	internal.GCSIAMAuth = s.CarvesGCSIAMAuth
 
 	return internal
 }
@@ -625,6 +638,7 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
 }
 
@@ -707,6 +721,13 @@ type VulnerabilitiesConfig struct {
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
 	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities" yaml:"osv_for_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
+}
+
+// IsDisabledByInstanceCheck reports whether vulnerability processing is disabled
+// on this instance via the current_instance_checks setting ("no", or the legacy
+// "0"). It does not consider DisableSchedule, which disables processing globally.
+func (v VulnerabilitiesConfig) IsDisabledByInstanceCheck() bool {
+	return v.CurrentInstanceChecks == "no" || v.CurrentInstanceChecks == "0"
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -920,11 +941,20 @@ type MDMConfig struct {
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
-	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
+	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
 func (m MDMConfig) IsCustomFileVaultEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
+}
+
+// ValidateAndroidBatchSize checks that the configured batch size is non-negative.
+func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string)) {
+	if m.AndroidBatchSize < 0 {
+		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
+			"Android MDM configuration")
+	}
 }
 
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
@@ -1333,6 +1363,10 @@ func (man Manager) addConfigs() {
 		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
 			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
 			"redis.host_cache_enabled=false to disable the cache.")
+	man.addConfigInt("redis.live_query_small_target_threshold", 1000,
+		"Maximum number of targeted hosts for a live query to use the per-host reverse index instead of a "+
+			"fleet-wide bitfield, avoiding one GETBIT per query on every host check-in. Set to 0 to disable "+
+			"the reverse index and use the bitfield for all live queries.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1367,6 +1401,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1381,6 +1416,8 @@ func (man Manager) addConfigs() {
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
+	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
+		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1579,6 +1616,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.carves_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.carves_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 
 	// S3 for software installers
 	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
@@ -1591,6 +1629,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.software_installers_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
@@ -1748,6 +1787,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
+	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
+	man.hideConfig("mdm.android_batch_size")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1808,35 +1849,36 @@ func (man Manager) LoadConfig() FleetConfig {
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
-			Address:                   man.getConfigString("redis.address"),
-			Username:                  man.getConfigString("redis.username"),
-			Password:                  man.getConfigString("redis.password"),
-			Database:                  man.getConfigInt("redis.database"),
-			Region:                    man.getConfigString("redis.region"),
-			CacheName:                 man.getConfigString("redis.cache_name"),
-			UseTLS:                    man.getConfigBool("redis.use_tls"),
-			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
-			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
-			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
-			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
-			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
-			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
-			TLSCert:                   man.getConfigString("redis.tls_cert"),
-			TLSKey:                    man.getConfigString("redis.tls_key"),
-			TLSCA:                     man.getConfigString("redis.tls_ca"),
-			TLSServerName:             man.getConfigString("redis.tls_server_name"),
-			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
-			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
-			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
-			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
-			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
-			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
-			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
-			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
-			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
-			StsExternalID:             man.getConfigString("redis.sts_external_id"),
-			HostCacheEnabled:          man.getConfigBool("redis.host_cache_enabled"),
-			HostCacheTTL:              man.getConfigDuration("redis.host_cache_ttl"),
+			Address:                       man.getConfigString("redis.address"),
+			Username:                      man.getConfigString("redis.username"),
+			Password:                      man.getConfigString("redis.password"),
+			Database:                      man.getConfigInt("redis.database"),
+			Region:                        man.getConfigString("redis.region"),
+			CacheName:                     man.getConfigString("redis.cache_name"),
+			UseTLS:                        man.getConfigBool("redis.use_tls"),
+			DuplicateResults:              man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:                man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:                     man.getConfigDuration("redis.keep_alive"),
+			ConnectRetryAttempts:          man.getConfigInt("redis.connect_retry_attempts"),
+			ClusterFollowRedirections:     man.getConfigBool("redis.cluster_follow_redirections"),
+			ClusterReadFromReplica:        man.getConfigBool("redis.cluster_read_from_replica"),
+			TLSCert:                       man.getConfigString("redis.tls_cert"),
+			TLSKey:                        man.getConfigString("redis.tls_key"),
+			TLSCA:                         man.getConfigString("redis.tls_ca"),
+			TLSServerName:                 man.getConfigString("redis.tls_server_name"),
+			TLSHandshakeTimeout:           man.getConfigDuration("redis.tls_handshake_timeout"),
+			MaxIdleConns:                  man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:                  man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:               man.getConfigDuration("redis.conn_max_lifetime"),
+			IdleTimeout:                   man.getConfigDuration("redis.idle_timeout"),
+			ConnWaitTimeout:               man.getConfigDuration("redis.conn_wait_timeout"),
+			WriteTimeout:                  man.getConfigDuration("redis.write_timeout"),
+			ReadTimeout:                   man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:              man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:                 man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:              man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:                  man.getConfigDuration("redis.host_cache_ttl"),
+			LiveQuerySmallTargetThreshold: man.getConfigInt("redis.live_query_small_target_threshold"),
 		},
 		Server: ServerConfig{
 			Address:                          man.getConfigString("server.address"),
@@ -1862,12 +1904,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
+			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
 			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2080,6 +2124,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
+			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
@@ -2117,6 +2162,7 @@ func (man Manager) loadS3Config() S3Config {
 		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
 		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
 		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesGCSIAMAuth:       man.getConfigBool("s3.carves_gcs_iam_auth"),
 
 		Bucket:           man.getConfigString("s3.bucket"),
 		Prefix:           man.getConfigString("s3.prefix"),
@@ -2139,6 +2185,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
 		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
 		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersGCSIAMAuth:                      man.getConfigBool("s3.software_installers_gcs_iam_auth"),
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),

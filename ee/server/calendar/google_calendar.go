@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -520,6 +521,30 @@ func isInvalidGrant(err error) bool {
 		return false
 	}
 	return strings.Contains(err.Error(), `"error": "invalid_grant"`)
+}
+
+// RemoteError classifies err as a failure returned by the remote calendar
+// provider (as opposed to an internal Fleet error such as a database or lock
+// failure). When it is a remote failure it returns the HTTP status code (0 if
+// none, e.g. for OAuth token errors) and the response body.
+func RemoteError(err error) (isRemote bool, statusCode int, body string) {
+	if err == nil {
+		return false, 0, ""
+	}
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		body := ae.Body
+		if body == "" {
+			body = ae.Message
+		}
+		return true, ae.Code, str.TruncateErrorResponse(body)
+	}
+	if isInvalidGrant(err) {
+		// invalid_grant is an OAuth error returned by Google when the service
+		// account cannot impersonate the host's email (e.g. the user is not in
+		// the Workspace domain or domain-wide delegation is misconfigured).
+		return true, 0, str.TruncateErrorResponse(err.Error())
+	}
+	return false, 0, ""
 }
 
 func isRateLimited(err error) bool {
