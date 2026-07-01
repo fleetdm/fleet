@@ -1,0 +1,10 @@
+{
+  "name": "SyncMate",
+  "unique_identifier": "com.eltima.SyncMate.com.eltima.SyncMateService",
+  "token": "syncmate",
+  "installer_format": "zip",
+  "slug": "syncmate/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

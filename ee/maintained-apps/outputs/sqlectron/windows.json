@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.38.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'sqlectron' AND publisher = 'The Sqlectron Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'sqlectron' AND publisher = 'The Sqlectron Team' AND version_compare(version, '1.38.0') < 0);"
+      },
+      "installer_url": "https://github.com/sqlectron/sqlectron-gui/releases/download/v1.38.0/sqlectron-Setup-1.38.0.exe",
+      "install_script_ref": "45257f64",
+      "uninstall_script_ref": "787ea5d1",
+      "sha256": "86ded7390722d36825feddad43dd34129ceeeccabb5c9a0165c5f9fc1e6a58e2",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "45257f64": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/S\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "787ea5d1": "# Locate the uninstall entry in the registry and run it silently.\n\n$displayNameLike = \"sqlectron*\"\n$publisher = \"The Sqlectron Team\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\ntry {\n    $uninstallString = $uninstall.UninstallString\n\n    # Parse the uninstaller executable path from the UninstallString.\n    if ($uninstallString -match '^\"([^\"]+)\"') {\n        $uninstallExe = $matches[1]\n    } elseif ($uninstallString -match '^(.+?\\.exe)') {\n        $uninstallExe = $matches[1]\n    } else {\n        $uninstallExe = $uninstallString\n    }\n\n    # Determine the install directory for cleanup.\n    $installDir = $uninstall.InstallLocation\n    if (-not $installDir -or -not (Test-Path $installDir)) {\n        $installDir = Split-Path $uninstallExe -Parent\n    }\n\n    $uninstallArgs = @(\"/S\", \"_?=$installDir\")\n\n    Write-Host \"Uninstall command: $uninstallExe\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $uninstallExe\n        ArgumentList = $uninstallArgs\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    if ($installDir -and (Test-Path $installDir)) {\n        Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n    }\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

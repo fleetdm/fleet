@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.1",
+      "version": "5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles' AND version_compare(bundle_short_version, '5.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles' AND version_compare(bundle_short_version, '5.2') < 0);"
       },
-      "installer_url": "https://www.charlesproxy.com/assets/release/5.1/charles-proxy-5.1.dmg",
+      "installer_url": "https://www.charlesproxy.com/assets/release/5.2/charles-proxy-5.2.dmg",
       "install_script_ref": "cc4be781",
       "uninstall_script_ref": "29bf3c12",
-      "sha256": "0530733bca4548657d8b1726433f9bb5a0e699de26c75d91e04831e9c8948db1",
+      "sha256": "da0661a82a103c22ec86f667b1580fb8c4cceaac01e5c4c814f8bb379fa6684a",
       "default_categories": [
         "Developer tools"
       ]

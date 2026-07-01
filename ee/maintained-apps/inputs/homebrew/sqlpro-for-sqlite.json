@@ -1,0 +1,10 @@
+{
+  "name": "SQLPro for SQLite",
+  "unique_identifier": "com.hankinsoft.osx.sqliteprofessional",
+  "token": "sqlpro-for-sqlite",
+  "installer_format": "zip",
+  "slug": "sqlpro-for-sqlite/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

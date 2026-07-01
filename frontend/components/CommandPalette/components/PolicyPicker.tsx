@@ -16,6 +16,7 @@ import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/So
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 import getFleetSuffix from "./pickerCopy";
+import HighlightedLabel from "./HighlightedLabel";
 
 const baseClass = "command-palette";
 
@@ -104,7 +105,9 @@ const PolicyPicker = ({
             className={`${baseClass}__item`}
           >
             <div className={`${baseClass}__item-left`}>
-              <span className={`${baseClass}__item-label`}>{policy.name}</span>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={policy.name} query={debouncedQuery} />
+              </span>
               {showCriticalBadge && <CriticalPolicyBadge />}
               {showPatchBadge && (
                 <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>

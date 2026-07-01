@@ -1,0 +1,10 @@
+{
+  "name": "DeskTime",
+  "unique_identifier": "com.desktime.DeskTime",
+  "token": "desktime",
+  "installer_format": "dmg",
+  "slug": "desktime/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

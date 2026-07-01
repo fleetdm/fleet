@@ -40,6 +40,10 @@ export const isIosIpadosPackageType = (s: any): s is IosIpadosPackageType => {
   return iosIpadosPackageTypes.includes(s);
 };
 
+export const isScriptOnlyPackageType = (s: any): s is ScriptOnlyPackageType => {
+  return scriptOnlyPackageTypes.includes(s);
+};
+
 export const isPackageType = (s: any): s is PackageType => {
   return packageTypes.includes(s);
 };

@@ -1,0 +1,10 @@
+{
+  "name": "Copilot",
+  "unique_identifier": "com.copilot.production",
+  "token": "copilot-money",
+  "installer_format": "dmg",
+  "slug": "copilot-money/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

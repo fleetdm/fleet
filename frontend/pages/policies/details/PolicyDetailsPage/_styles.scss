@@ -12,11 +12,15 @@
   }
 
   &__name-description,
-  &__platform-list,
-  &__labels-section {
+  &__platform-list {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
+  }
+
+  &__name-description {
+    flex: 1;
+    min-width: 0;
   }
 
   &__platform-list {
@@ -35,15 +39,15 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+    overflow: hidden;
+
+    .tooltip-truncated-text {
+      min-width: 0;
+    }
 
     .critical-policy-icon {
       flex-shrink: 0;
     }
-  }
-
-  // Override DataSet 4px gap to 8px for all instances on this page
-  .data-set {
-    gap: $pad-small;
   }
 
   &__author-info {
@@ -58,17 +62,34 @@
     gap: $pad-xsmall;
   }
 
-  &__labels-help-text {
-    margin: 0;
-    font-weight: $regular;
+  &__automations {
+    .software-icon,
+    .graphic {
+      margin-right: $pad-xsmall;
+    }
   }
 
-  &__labels-list {
+  &__resolve dd {
+    white-space: normal;
+  }
+
+  &__details {
+    .data-set {
+      gap: $pad-small;
+    }
+
     display: flex;
-    flex-wrap: wrap;
-    gap: $pad-small;
-    list-style: none;
-    margin: 0;
-    padding: 0;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    padding: $pad-xlarge;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+  }
+
+  &__properties {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
   }
 }

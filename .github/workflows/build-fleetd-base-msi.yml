@@ -65,7 +65,7 @@ jobs:
           mv fleet-osquery*.msi fleetd-base.msi
 
       - name: Upload fleetd-base.msi for code signing
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unsigned-windows
           path: fleetd-base.msi
@@ -117,7 +117,7 @@ jobs:
           jq -e . >/dev/null 2>&1 <<< $(cat meta.json)
 
       - name: Upload meta.json
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: meta.json
           path: meta.json

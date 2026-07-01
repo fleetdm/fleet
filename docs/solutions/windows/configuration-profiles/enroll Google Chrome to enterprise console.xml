@@ -1,0 +1,9 @@
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/CloudManagementEnrollmentToken</LocURI>
+    </Target>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Data>&lt;enabled/&gt;&lt;data id=&quot;CloudManagementEnrollmentToken&quot; value=&quot;YOUR_CLOUD_MANAGEMENT_ENROLLMENT_TOKEN_UUID&quot;/&gt;</Data>
+  </Item>
+</Replace>

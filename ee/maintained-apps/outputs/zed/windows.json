@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.5.3",
+      "version": "1.8.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zed' AND publisher = 'Zed Industries';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zed' AND publisher = 'Zed Industries' AND version_compare(version, '1.5.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zed' AND publisher = 'Zed Industries' AND version_compare(version, '1.8.2') < 0);"
       },
-      "installer_url": "https://github.com/zed-industries/zed/releases/download/v1.5.3/Zed-x86_64.exe",
+      "installer_url": "https://github.com/zed-industries/zed/releases/download/v1.8.2/Zed-x86_64.exe",
       "install_script_ref": "e5193bc1",
       "uninstall_script_ref": "3b164442",
-      "sha256": "23f2d56e58bac639cae7f88290195830113e28bb9d24db1a395f613be92fe634",
+      "sha256": "147744ba96840924606345d4e7417fc53df77a5fb809a6bece053037378a2fd3",
       "default_categories": [
         "Developer tools"
       ]

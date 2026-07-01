@@ -9,7 +9,6 @@ import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
-import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import authToken from "utilities/auth_token";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -34,6 +33,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
+import ToastNotification from "components/ToastNotification";
 
 interface IAppProps {
   children: JSX.Element;
@@ -292,14 +292,16 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     <TableProvider>
       <QueryProvider>
         <PolicyProvider>
-          <NotificationProvider>
-            <ErrorBoundary
-              fallbackRender={renderErrorOverlay}
-              resetKeys={[location?.pathname]}
-            >
-              <div className={baseClass}>{children}</div>
-            </ErrorBoundary>
-          </NotificationProvider>
+          {/* Sonner toaster — single global mount; renders toasts
+          dispatched from `notify.*` anywhere in the app. Outside the
+          ErrorBoundary so toasts survive page-level error overlays. */}
+          <ToastNotification />
+          <ErrorBoundary
+            fallbackRender={renderErrorOverlay}
+            resetKeys={[location?.pathname]}
+          >
+            <div className={baseClass}>{children}</div>
+          </ErrorBoundary>
         </PolicyProvider>
       </QueryProvider>
     </TableProvider>

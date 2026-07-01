@@ -1,0 +1,10 @@
+{
+  "name": "Chime",
+  "unique_identifier": "com.chimehq.Edit",
+  "token": "chime",
+  "installer_format": "zip",
+  "slug": "chime/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

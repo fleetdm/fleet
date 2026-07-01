@@ -1,0 +1,10 @@
+{
+  "name": "eM Client",
+  "unique_identifier": "com.emclient.mail.client",
+  "token": "emclient",
+  "installer_format": "pkg",
+  "slug": "emclient/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

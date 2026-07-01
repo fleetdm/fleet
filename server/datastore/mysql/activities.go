@@ -14,6 +14,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -22,6 +23,38 @@ var deleteIDsBatchSize = 1000
 // hostUpcomingActivitiesAllowedOrderKeys is empty: the query supplies its own
 // ORDER BY and the service layer forces opt.OrderKey to "".
 var hostUpcomingActivitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{}
+
+var policyAutomationErrorActivityTypes = []string{
+	"failed_automation_webhook",
+	"failed_automation_ticket",
+	"failed_automation_calendar_event",
+	"failed_automation_conditional_access",
+}
+
+var policyAutomationSuccessActivityTypes = []string{
+	"ran_automation_webhook",
+	"ran_automation_ticket",
+	"ran_automation_calendar_event",
+	"ran_automation_conditional_access",
+}
+
+var policyAutomationActivityTypes = func() []string {
+	all := make([]string, 0, len(policyAutomationErrorActivityTypes)+len(policyAutomationSuccessActivityTypes))
+	all = append(all, policyAutomationErrorActivityTypes...)
+	all = append(all, policyAutomationSuccessActivityTypes...)
+	return all
+}()
+
+// The ORDER BY (and cursor WHERE) are applied to the outer subquery that wraps
+// the UNION ALL, which is aliased `t` (see ListPolicyAutomationActivities). The
+// inner per-branch aliases (ap, hsr, ...) are not in scope there, so columns are
+// qualified with `t` — which also keeps the ORDER BY unambiguous if the outer
+// query ever gains a JOIN.
+var policyAutomationActivityAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":            "t.id",
+	"created_at":    "t.created_at",
+	"activity_type": "t.activity_type",
+}
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -1491,9 +1524,15 @@ WHERE
 	insValues := make([]string, 0, len(pending))
 	insArgs := make([]any, 0, len(pending)*4)
 	for _, p := range pending {
+		// Mint inside this tx so the token rolls back with the nano_commands
+		// row on activation failure.
+		token := uuid.NewString()
+		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
+		}
 		manifestURL := fmt.Sprintf(
-			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, tid)
+			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
+			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
@@ -1535,4 +1574,246 @@ WHERE
 		}
 	}
 	return nil
+}
+
+// policyAutomationCols is the common SELECT column list for all UNION branches.
+// All branches must project the same columns in the same order.
+const policyAutomationCols = `
+    ap.id,
+    ap.created_at,
+    ap.activity_type,
+    ap.fleet_initiated,
+    ap.details,
+    ahp.host_id,
+    COALESCE(hdn.display_name, '') AS host_display_name`
+
+// policyAutomationHostJoin is the JOIN from activity_past to hosts, shared
+// across all branches. The hosts table is included so whereFilterHostsByTeams
+// can filter by h.team_id.
+const policyAutomationHostJoin = `
+    JOIN  activity_host_past  ahp ON ahp.activity_id = ap.id
+    JOIN  hosts               h   ON h.id            = ahp.host_id
+    LEFT JOIN host_display_names hdn ON hdn.host_id  = ahp.host_id`
+
+// statusOutputCols renders the trailing "status, output" column pair that every
+// UNION branch must project after policyAutomationCols. Modeling it as a struct
+// (rather than a raw SQL fragment) makes the positional contract that UNION ALL
+// relies on impossible to break by hand: both columns are always present,
+// always aliased, and always in this order, so no branch can silently reorder
+// or drop one. status and output are SQL expressions; use "NULL" for output
+// when the branch has nothing to surface.
+type statusOutputCols struct {
+	status string
+	output string
+}
+
+func (c statusOutputCols) sql() string {
+	return fmt.Sprintf("%s AS status, %s AS output", c.status, c.output)
+}
+
+// policyAutomationNamedStatusCols projects the status/output pair for the named
+// automation branch. Named activities encode their outcome in the type name —
+// every error type is prefixed "failed_" — and carry no script or install
+// output, so output is NULL.
+var policyAutomationNamedStatusCols = statusOutputCols{
+	status: `IF(ap.activity_type LIKE 'failed\_%', 'error', 'success')`,
+	output: "NULL",
+}
+
+// policyAutomationTaskBranch describes a UNION branch whose link to the policy
+// and whose success/failure state both live in a task result table (scripts,
+// in-house installs, VPP installs) rather than in the activity_past.details column.
+type policyAutomationTaskBranch struct {
+	// activityType is the activity_past.activity_type this branch matches.
+	activityType string
+	// joins are the additional JOINs binding the result table to the policy.
+	// They contain exactly one placeholder, for the policy ID.
+	joins string
+	// errorCond and successCond are the WHERE fragments selecting failed and
+	// successful tasks respectively. They are wrapped in parentheses when
+	// applied, so internal OR/AND precedence is preserved.
+	errorCond   string
+	successCond string
+	// statusCols projects the status/output pair for this branch. The
+	// statusOutputCols type guarantees the columns and their order stay in sync
+	// with every other branch.
+	statusCols statusOutputCols
+}
+
+// policyAutomationTaskBranches are the non-named-automation sources of policy
+// activities: their rows are joined to the policy through a result table's
+// policy_id column rather than through activity_past.details.policy_id.
+var policyAutomationTaskBranches = []policyAutomationTaskBranch{
+	{
+		activityType: "ran_script",
+		joins: `
+            INNER JOIN host_script_results hsr
+                ON  hsr.host_id      = ahp.host_id
+                AND hsr.execution_id = ap.details->>'$.script_execution_id'
+                AND hsr.policy_id    = ?`,
+		errorCond:   "hsr.exit_code IS NOT NULL AND hsr.exit_code != 0",
+		successCond: "hsr.exit_code = 0",
+		statusCols: statusOutputCols{
+			status: "IF(hsr.exit_code = 0, 'success', 'error')",
+			output: "hsr.output",
+		},
+	},
+	{
+		activityType: "installed_software",
+		joins: `
+            INNER JOIN host_software_installs hsi
+                ON  hsi.host_id      = ahp.host_id
+                AND hsi.execution_id = ap.details->>'$.install_uuid'
+                AND hsi.policy_id    = ?`,
+		errorCond:   "hsi.status = 'failed_install'",
+		successCond: "hsi.status = 'installed'",
+		statusCols: statusOutputCols{
+			status: "IF(hsi.status = 'installed', 'success', 'error')",
+			output: "hsi.install_script_output",
+		},
+	},
+	{
+		activityType: "installed_app_store_app",
+		joins: `
+            INNER JOIN host_vpp_software_installs hvsi
+                ON  hvsi.host_id      = ahp.host_id
+                AND hvsi.command_uuid = ap.details->>'$.command_uuid'
+                AND hvsi.policy_id    = ?
+            LEFT JOIN nano_command_results ncr
+                ON  ncr.command_uuid = hvsi.command_uuid
+                AND ncr.id = (SELECT uuid FROM hosts WHERE id = ahp.host_id)`,
+		errorCond: "hvsi.verification_failed_at IS NOT NULL OR ncr.status IN ('Error', 'CommandFormatError')",
+		// verification_at IS NOT NULL is the canonical "installed" indicator: it
+		// is set by Fleet after the MDM command result is confirmed, independently
+		// of the nano_command_results row.
+		successCond: "hvsi.verification_at IS NOT NULL",
+		// VPP apps are installed via MDM command, not a script, so there is no
+		// script output to surface.
+		statusCols: statusOutputCols{
+			status: "IF(hvsi.verification_at IS NOT NULL, 'success', 'error')",
+			output: "NULL",
+		},
+	},
+}
+
+// policyAutomationBranch is a single UNION ALL branch: a complete SELECT (minus
+// the optional host-name filter) together with its bound arguments.
+type policyAutomationBranch struct {
+	sql  string
+	args []any
+}
+
+// buildPolicyAutomationBranches assembles every UNION branch contributing to
+// the policy automation activity feed, filtered by status ("error", "success",
+// or "" for both) and scoped to the hosts visible to the viewer via filter.
+func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.TeamFilter, status string) ([]policyAutomationBranch, error) {
+	teamFilterSQL := ds.whereFilterHostsByTeams(filter, "h")
+	// Named automation activities (webhook/ticket/calendar/CA) are selected by
+	// activity_type and linked to the policy through activity_past.details.policy_id. The
+	// status filter chooses which set of types to match.
+	namedTypes := policyAutomationActivityTypes
+	switch status {
+	case "error":
+		namedTypes = policyAutomationErrorActivityTypes
+	case "success":
+		namedTypes = policyAutomationSuccessActivityTypes
+	}
+	namedSQL, namedArgs, err := sqlx.In(fmt.Sprintf(`SELECT %s, %s FROM activity_past ap %s
+        WHERE ap.activity_type IN (?)
+          AND ap.details->>'$.policy_id' = ?
+          AND %s`, policyAutomationCols, policyAutomationNamedStatusCols.sql(), policyAutomationHostJoin, teamFilterSQL), namedTypes, policyID)
+	if err != nil {
+		return nil, err
+	}
+	branches := []policyAutomationBranch{{sql: namedSQL, args: namedArgs}}
+
+	// Task activities are linked to the policy through a result table; their
+	// success/failure condition is appended based on the requested status.
+	for _, b := range policyAutomationTaskBranches {
+		// The policy_id placeholder lives in the joins (before WHERE), so it is
+		// bound before the activity_type placeholder.
+		sql := fmt.Sprintf("SELECT %s, %s FROM activity_past ap %s %s WHERE ap.activity_type = ? AND %s",
+			policyAutomationCols, b.statusCols.sql(), policyAutomationHostJoin, b.joins, teamFilterSQL)
+		args := []any{policyID, b.activityType}
+		switch status {
+		case "error":
+			sql += " AND (" + b.errorCond + ")"
+		case "success":
+			sql += " AND (" + b.successCond + ")"
+		}
+		branches = append(branches, policyAutomationBranch{sql: sql, args: args})
+	}
+	return branches, nil
+}
+
+// ListPolicyAutomationActivities returns automation activities for the given
+// policy. Each row is one (activity, host) pair. The result set combines four
+// branches via UNION ALL:
+//  1. Named policy automation activities (webhook/ticket/calendar/CA), linked
+//     via details.policy_id.
+//  2. Script-run activities (ran_script), linked via host_script_results.
+//  3. In-house software-install activities (installed_software), linked via
+//     host_software_installs.
+//  4. VPP software-install activities (installed_app_store_app), linked via
+//     host_vpp_software_installs.
+func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+	branches, err := buildPolicyAutomationBranches(ds, policyID, filter, status)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build policy automation branches")
+	}
+
+	// Apply the optional host-name filter (shared by every branch) and collect
+	// each branch's SQL and args in order.
+	parts := make([]string, 0, len(branches))
+	var allArgs []any
+	var likeArg string
+	if opts.MatchQuery != "" {
+		// Escape LIKE wildcards so host names containing '_' or '%' match literally.
+		escaped := strings.ReplaceAll(opts.MatchQuery, "_", "\\_")
+		escaped = strings.ReplaceAll(escaped, "%", "\\%")
+		likeArg = escaped + "%"
+	}
+	for _, b := range branches {
+		sql, args := b.sql, b.args
+		if opts.MatchQuery != "" {
+			sql += " AND hdn.display_name LIKE ?"
+			args = append(args, likeArg)
+		}
+		parts = append(parts, "("+sql+")")
+		allArgs = append(allArgs, args...)
+	}
+
+	// Wrap the UNION in a subquery so ORDER BY / cursor pagination apply to the
+	// combined result set rather than to any single branch.
+	unionCore := strings.Join(parts, " UNION ALL ")
+	listSQL := fmt.Sprintf("SELECT * FROM (%s) AS t", unionCore)
+	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS t_cnt", unionCore)
+
+	listSQL, listArgs, err := appendListOptionsWithCursorToSQLSecure(listSQL, allArgs, &opts, policyAutomationActivityAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
+
+	activities := []*fleet.PolicyAutomationActivity{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, listSQL, listArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select policy automation activities")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		var count uint
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countSQL, allArgs...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "count policy automation activities")
+		}
+		meta = &fleet.PaginationMetadata{
+			HasPreviousResults: opts.Page > 0,
+			TotalResults:       count,
+		}
+		if len(activities) > int(opts.PerPage) { //nolint:gosec // G115: bounded by maxPolicyAutomationActivitiesPerPage
+			meta.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, meta, nil
 }
