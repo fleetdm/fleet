@@ -34,15 +34,17 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 // CVEDataset implements api.Dataset for host CVE tracking.
 type CVEDataset struct{}
 
-func (c *CVEDataset) Name() string                       { return "cve" }
+func (c *CVEDataset) Name() string                       { return api.MetricCVE }
 func (c *CVEDataset) DefaultResolutionHours() int        { return 3 }
 func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategySnapshot }
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
 func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
-	// Only track the CVEs that the chart API currently returns.
-	// TODO: implement bitmap compression so we can track all CVEs.
-	tracked, err := store.TrackedCriticalCVEs(ctx)
+	// Collect CVEs at all severities on the curated set of tracked software and
+	// OS vulnerabilities. Display-time narrowing (critical-only this round,
+	// plus user filters) happens at read time via ResolveCVEChartEntities.
+	// TODO: implement bitmap compression so we can track more CVEs.
+	tracked, err := store.CollectibleCVEs(ctx)
 	if err != nil {
 		return err
 	}

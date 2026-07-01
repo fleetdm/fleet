@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
 import mdmAppleAPI, {
@@ -17,6 +16,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
+import { notify } from "components/ToastNotification";
 import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
@@ -109,7 +109,6 @@ const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -195,12 +194,10 @@ const SoftwareAppStoreVpp = ({
         software_title_id: softwareVppTitleId,
       } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <b>{formData.selectedApp.name}</b> successfully added.
-        </>,
-        { persistOnPageChange: true }
+        </>
       );
 
       queryClient.invalidateQueries({
@@ -220,7 +217,7 @@ const SoftwareAppStoreVpp = ({
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     setIsLoading(false);

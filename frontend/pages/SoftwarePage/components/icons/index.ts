@@ -34,6 +34,7 @@ import Airtable from "./Airtable";
 import Airtame from "./Airtame";
 import Airy from "./Airy";
 import Akiflow from "./Akiflow";
+import Alacritty from "./Alacritty";
 import Alcove from "./Alcove";
 import Aldente from "./Aldente";
 import Alloy from "./Alloy";
@@ -71,6 +72,7 @@ import AppiumInspector from "./AppiumInspector";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Applite from "./Applite";
+import Aptakube from "./Aptakube";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
 import ArduinoIde from "./ArduinoIde";
@@ -79,8 +81,12 @@ import AssetCatalogTinkerer from "./AssetCatalogTinkerer";
 import Atext from "./Atext";
 import Audacity from "./Audacity";
 import AudioHijack from "./AudioHijack";
+import Audiveris from "./Audiveris";
+import Autopsy from "./Autopsy";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AviatrixVpnClient from "./AviatrixVpnClient";
+import AwsCli from "./AwsCli";
+import AwsSamCli from "./AwsSamCli";
 import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
@@ -155,6 +161,8 @@ import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import Chatwise from "./Chatwise";
 import Cheetah3D from "./Cheetah3D";
+import ChefWorkstation from "./ChefWorkstation";
+import CherryKeys from "./CherryKeys";
 import CherryStudio from "./CherryStudio";
 import Chime from "./Chime";
 import Choosy from "./Choosy";
@@ -201,6 +209,7 @@ import Cork from "./Cork";
 import CotEditor from "./CotEditor";
 import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
+import CriblEdge from "./CriblEdge";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
 import Crystalfetch from "./Crystalfetch";
@@ -313,6 +322,7 @@ import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
 import Fig from "./Fig";
 import Figma from "./Figma";
+import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
 import FileMakerPro from "./FileMakerPro";
 import Filen from "./Filen";
@@ -806,6 +816,7 @@ import Slicer from "./Slicer";
 import Slidepad from "./Slidepad";
 import Sloth from "./Sloth";
 import Smartsheet from "./Smartsheet";
+import Smartsvn from "./Smartsvn";
 import Smoothscroll from "./Smoothscroll";
 import Smultron from "./Smultron";
 import Snagit from "./Snagit";
@@ -814,6 +825,7 @@ import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
 import Sonobus from "./Sonobus";
+import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
 import Soulver from "./Soulver";
 import Soundanchor from "./Soundanchor";
@@ -827,6 +839,7 @@ import SpitfireAudio from "./SpitfireAudio";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Splice from "./Splice";
+import Spokenly from "./Spokenly";
 import Spotify from "./Spotify";
 import Spyder from "./Spyder";
 import Sqlectron from "./Sqlectron";
@@ -940,6 +953,7 @@ import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
 import Viz from "./Viz";
 import Vlc from "./Vlc";
@@ -972,6 +986,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winlogbeat from "./Winlogbeat";
 import Winrar from "./Winrar";
 import Wins from "./Wins";
 import Winscp from "./Winscp";
@@ -1059,6 +1074,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   airtame: Airtame,
   airy: Airy,
   akiflow: Akiflow,
+  alacritty: Alacritty,
   alcove: Alcove,
   aldente: Aldente,
   alloy: Alloy,
@@ -1071,6 +1087,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
   "amazon corretto 26": AmazonCorretto26,
+  "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
   amethyst: Amethyst,
@@ -1093,6 +1110,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
   applite: Applite,
+  aptakube: Aptakube,
   arc: Arc,
   archaeology: Archaeology,
   "arduino ide": ArduinoIde,
@@ -1101,13 +1119,17 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   atext: Atext,
   audacity: Audacity,
   "audio hijack": AudioHijack,
+  audiveris: Audiveris,
+  autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
   "aws client vpn": AwsVpnClient,
+  "aws command line interface": AwsCli,
+  "aws sam command line interface": AwsSamCli,
   "aws vpn client": AwsVpnClient,
   "axure rp": AxureRp,
-  "azul zulu 25 jdk": AzulZulu25Jdk,
-  "azul zulu 25 jre": AzulZulu25Jre,
+  "azul zulu jdk": AzulZulu25Jdk,
+  "azul zulu jre": AzulZulu25Jre,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
@@ -1179,6 +1201,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "chatgpt atlas": ChatGptAtlas,
   chatwise: Chatwise,
   cheetah3d: Cheetah3D,
+  "chef workstation": ChefWorkstation,
+  "cherry keys": CherryKeys,
   "cherry studio": CherryStudio,
   chime: Chime,
   choosy: Choosy,
@@ -1223,6 +1247,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cork: Cork,
   coteditor: CotEditor,
   crashplan: CrashPlan,
+  "cribl edge": CriblEdge,
   crossover: Crossover,
   cryptomator: Cryptomator,
   crystalfetch: Crystalfetch,
@@ -1291,6 +1316,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   droplr: Droplr,
   dropshare: Dropshare,
   dropzone: Dropzone,
+  "druva insync": DruvaInSync,
   duckduckgo: Duckduckgo,
   duet: Duet,
   "duo desktop": DuoDesktop,
@@ -1341,6 +1367,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
+  filebeat: Filebeat,
   "filemaker pro": FileMakerPro,
   filen: Filen,
   "fing desktop": Fing,
@@ -1759,7 +1786,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidweaver: Rapidweaver,
   raycast: Raycast,
   readest: Readest,
+  "realvnc connect viewer": VncViewer,
   "realvnc server": RealVncServer,
+  "realvnc viewer": VncViewer,
   reaper: Reaper,
   recents: Recents,
   rectangle: Rectangle,
@@ -1834,6 +1863,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   slidepad: Slidepad,
   sloth: Sloth,
   smartsheet: Smartsheet,
+  smartsvn: Smartsvn,
   smoothscroll: Smoothscroll,
   smultron: Smultron,
   snagit: Snagit,
@@ -1842,6 +1872,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
   sonobus: Sonobus,
+  sonos: Sonos,
   soulver: Soulver,
   "sound control": SoundControl,
   soundanchor: Soundanchor,
@@ -1854,6 +1885,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   splice: Splice,
+  spokenly: Spokenly,
   spotify: Spotify,
   "sproutcube shortcat": Shortcat,
   spyder: Spyder,
@@ -1969,9 +2001,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,
+  "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
   "vpn tracker 365": VpnTracker365,
@@ -2001,6 +2035,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winlogbeat: Winlogbeat,
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.4.5",
+      "version": "4.4.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinywins.recut';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinywins.recut' AND version_compare(bundle_short_version, '4.4.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinywins.recut' AND version_compare(bundle_short_version, '4.4.8') < 0);"
       },
-      "installer_url": "https://updates.getrecut.com/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTEwLCJwdXIiOiJibG9iX2lkIn19--9d7c63821eb82ee9c5269d20cb03942c6d2b35b6/Recut_4.4.5_universal.dmg",
+      "installer_url": "https://updates.getrecut.com/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTI0LCJwdXIiOiJibG9iX2lkIn19--a60e46fe8adaf5abc2a811fd2b8dfab13e7c4289/Recut_4.4.8_universal.dmg",
       "install_script_ref": "20b86eee",
       "uninstall_script_ref": "01ea135d",
-      "sha256": "b016210eabdf5cc9ee2de18693074d0315c3155e9ee5d2069c620def49499bf4",
+      "sha256": "a703bc2e0da1abb6fafba70a0d7d18b3d1aa6f64ecc83b35ae6c76d662f008e4",
       "default_categories": [
         "Developer tools"
       ]

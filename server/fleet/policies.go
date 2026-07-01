@@ -306,11 +306,11 @@ type ModifyPolicyPayload struct {
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
-	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.

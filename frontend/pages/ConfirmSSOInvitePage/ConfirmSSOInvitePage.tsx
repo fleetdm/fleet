@@ -6,7 +6,7 @@ import { AxiosError } from "axios";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import usersAPI from "services/entities/users";
 import sessionsAPI from "services/entities/sessions";
 import inviteAPI, { IValidateInviteResponse } from "services/entities/invites";
@@ -31,7 +31,6 @@ const ConfirmSSOInvitePage = ({
 }: IConfirmSSOInvitePageProps) => {
   const { invite_token } = params;
   const { currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
     if (currentUser) {
@@ -69,10 +68,10 @@ const ConfirmSSOInvitePage = ({
         const { url } = await sessionsAPI.initializeSSO(paths.DASHBOARD);
         window.location.href = url;
       } catch (error) {
-        renderFlash("error", getErrorReason(error));
+        notify.error(getErrorReason(error), { response: error });
       }
     },
-    [invite_token, renderFlash, validInvite]
+    [invite_token, validInvite]
   );
 
   const isInvalidInvite =

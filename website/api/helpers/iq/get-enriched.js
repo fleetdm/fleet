@@ -308,7 +308,7 @@ module.exports = {
         // If we're including location information, use the prompt helper to transform the location information returned by Coresignal into a JSON object.
         if(includeEmployerHeadquartersInformation) {
           let primaryLocation = _.find(matchingCompanyPageInfo.company_locations_collection, (location)=>{
-            return location.is_primary === 1;
+            return location.is_primary === 1 && location.deleted === 0;
           });
           let locationInfo = {};
           if(primaryLocation && primaryLocation.location_address) {

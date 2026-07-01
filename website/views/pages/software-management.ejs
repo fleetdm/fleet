@@ -11,7 +11,7 @@
         </p>
         <div purpose="button-row" class="d-flex justify-content-start">
           <a purpose="cta-button" href="/contact">Get a demo</a>
-          <animated-arrow-button href="/try">Try it yourself</animated-arrow-button>
+          <animated-arrow-button href="/pricing">Compare features</animated-arrow-button>
         </div>
       </div>
 
@@ -206,7 +206,6 @@
               <p>
                 Manage app deployments and updates for macOS, iOS, and Android devices through Apple Business, VPP, and Google Play.
               </p>
-              <span purpose="feature-note">*Windows coming soon</span>
             </div>
           </div>
 
@@ -244,6 +243,21 @@
       </div>
       */ %>
 
+      <div purpose="page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h2>
+              Customize their experience
+            </h2>
+            <p>
+              Manage every aspect of how users experience app patching. Notify them ahead of updates through native notifications, Google Calendar, or your existing tooling, including Nudge and swiftDialog.
+            </p>
+          </div>
+          <div purpose="feature-image">
+            <img alt="Customize their experience" src="/images/feature-image-customize-their-experience-800x600@2x.png">
+          </div>
+        </div>
+      </div>
 
       <div purpose="page-section">
         <div purpose="feature-with-image">
@@ -364,7 +378,7 @@
     </div><%/* End of [purpose="page-content"] */%>
   </div><% /* End of [purpose="page-container"] */%>
   <%/* Cloud city banner */%>
-  <parallax-city no-background="true"></parallax-city>
+  <cloud-city></cloud-city>
 
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

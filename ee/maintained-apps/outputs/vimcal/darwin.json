@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.0.46",
+      "version": "1.0.48",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.vimcal.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.vimcal.app' AND version_compare(bundle_short_version, '1.0.46') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.vimcal.app' AND version_compare(bundle_short_version, '1.0.48') < 0);"
       },
-      "installer_url": "https://vimcal-m1.s3.amazonaws.com/Vimcal-1.0.46-arm64.dmg",
+      "installer_url": "https://vimcal-m1.s3.amazonaws.com/Vimcal-1.0.48-arm64.dmg",
       "install_script_ref": "4a38f0a5",
       "uninstall_script_ref": "7f3d36b8",
-      "sha256": "f15a308db275cedb42e32897d85ec91a39d134407a11295169c4577f71b9aadc",
+      "sha256": "f77489563c93c56a98c78040b85883690711efb17b58c654291f4a6e06f64fe7",
       "default_categories": [
         "Productivity"
       ]

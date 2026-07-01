@@ -95,6 +95,10 @@ org_settings:
     google_calendar:
     - api_key_json: # TODO: Add your Google Calendar API key JSON here
       domain: fleetdm.com
+    google_workspace:
+    - api_key_json: # TODO: Add your Google Workspace API key JSON here
+      domain: fleetdm.com
+      impersonated_user_email: admin@fleetdm.com
     jira:
     - api_token: # TODO: Add your Jira API token here
       enable_failing_policies: false
@@ -111,7 +115,8 @@ org_settings:
       url: https://some-zendesk-url.com
   mdm:
     apple_business:
-    - ios_fleet: "📱🏢 Company-owned mobile devices"
+    - byod_fleet: "📱🔐 Personal mobile devices"
+      ios_fleet: "📱🏢 Company-owned mobile devices"
       ipados_fleet: "📱🏢 Company-owned mobile devices"
       macos_fleet: "💻 Workstations"
       organization_name: Fleet Device Management Inc.

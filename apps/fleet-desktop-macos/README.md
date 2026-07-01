@@ -4,7 +4,7 @@ A native macOS application that provides end users with a self-service portal fo
 
 It also embeds the **Fleet Platform SSO (PSSO) extension** (`FleetPSSOExtension.appex`), which implements Apple's Platform Single Sign-On v2 + Password Mode so Fleet can create a Mac's local account and keep its password in sync with the user's IdP credentials. See [Platform SSO extension](#platform-sso-extension) below.
 
-> **Heads up — two things named "Fleet Desktop":** Fleet's agent already ships a tray/menu-bar component called Fleet Desktop (bundle ID `com.fleetdm.desktop`, built from `orbit/cmd/desktop`). This is a separate, standalone native app (bundle ID `com.fleetdm.fleet-desktop`) distributed as its own `.pkg`. They use different bundle IDs and can coexist.
+> **Heads up — two things named "Fleet Desktop":** Fleet's agent already ships a tray/menu-bar component called Fleet Desktop (bundle ID `com.fleetdm.desktop`, built from `orbit/cmd/desktop`). This is a separate, standalone native app (bundle ID `com.fleetdm.fleet-desktop`) distributed as its own `.pkg`. They use different bundle IDs and can coexist. [Learn more](https://fleetdm.com/guides/fleet-desktop).
 
 ## Features
 
