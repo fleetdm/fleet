@@ -147,7 +147,7 @@ func handleDevicesDelete(store *deviceStore) http.HandlerFunc {
 		if d, ok := store.byName[name]; ok {
 			delete(store.byName, name)
 			delete(store.byESID, d.EnterpriseSpecificID)
-			log.Printf("Deleted fake device: %q (ESID: %q)", name, d.EnterpriseSpecificID)
+			log.Printf("Deleted fake device: %q (ESID: %q)", name, d.EnterpriseSpecificID) // #nosec G706 -- load testing tool
 		}
 		store.mu.Unlock()
 
@@ -246,7 +246,7 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 		enterpriseID := r.PathValue("eid")
 
 		if !store.hasDevicesForEnterprise(enterpriseID) && google != nil {
-			log.Printf("Forwarding policy patch to Google AMAPI: %q", name)
+			log.Printf("Forwarding policy patch to Google AMAPI: %q", name) // #nosec G706 -- load testing tool
 			google.ForwardPoliciesPatch(w, r)
 			return
 		}
@@ -354,7 +354,7 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 
 func handleCatchAll(google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("ERROR: unhandled AMAPI endpoint: %q %q — add a handler or forwarding for this route", r.Method, r.URL.Path)
+		log.Printf("ERROR: unhandled AMAPI endpoint: %q %q — add a handler or forwarding for this route", r.Method, r.URL.Path) // #nosec G706 -- load testing tool
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotImplemented)
 		_ = json.NewEncoder(w).Encode(map[string]any{

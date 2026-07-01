@@ -7,7 +7,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/option"
 )
@@ -19,9 +21,19 @@ type googleForwarder struct {
 }
 
 func newGoogleForwarder(credentialsFile string) (*googleForwarder, error) {
+	credJSON, err := os.ReadFile(credentialsFile)
+	if err != nil {
+		return nil, fmt.Errorf("read credentials file: %w", err)
+	}
+
 	ctx := context.Background()
+	creds, err := google.CredentialsFromJSON(ctx, credJSON, androidmanagement.AndroidmanagementScope)
+	if err != nil {
+		return nil, fmt.Errorf("parse credentials: %w", err)
+	}
+
 	svc, err := androidmanagement.NewService(ctx,
-		option.WithCredentialsFile(credentialsFile),
+		option.WithCredentials(creds),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create android management service: %w", err)

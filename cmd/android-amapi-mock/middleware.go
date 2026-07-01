@@ -20,7 +20,7 @@ func forwardForRealDevice(store *deviceStore, google *googleForwarder) func(http
 			// Real device — forward via Google SDK if available
 			if google != nil {
 				hasSeenRealDevice.Store(true)
-				log.Printf("Real device request: %s %s (device: %q)", r.Method, r.URL.Path, name)
+				log.Printf("Real device request: %s %s (device: %q)", r.Method, r.URL.Path, name) // #nosec G706 -- load testing tool
 				switch r.Method {
 				case "GET":
 					google.ForwardDevicesGet(w, r)
