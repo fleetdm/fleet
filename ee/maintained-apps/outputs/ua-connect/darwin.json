@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.uaudio.ua-connect';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.uaudio.ua-connect' AND version_compare(bundle_short_version, '1.9.5') < 0);"
       },
-      "installer_url": "https://builds.uaudio.com/apps/UA_Connect/UA_Connect_1_9_5_3731_Mac.dmg",
+      "installer_url": "https://builds.uaudio.com/apps/UA_Connect/UA_Connect_1_9_5_3743_Mac.dmg",
       "install_script_ref": "3d09e295",
       "uninstall_script_ref": "0e6f3643",
-      "sha256": "e6c3c40aa7d54cf988eeaace53e842c42cd616e61292eff653416073ed188ed2",
+      "sha256": "59034c71eaae579d95d2cab936494e5a8ed8a5b03ad6d460e50c9fba73d8deb9",
       "default_categories": [
         "Productivity"
       ]

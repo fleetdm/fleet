@@ -2692,10 +2692,16 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 		}
 	}
 
-	// isPersonalEnrollment is always false for macOS hosts as our current account driven user
-	// enrollment flow does not support macOS however we will need to detect it here if that ever
-	// changes.
-	isPersonalEnrollment := false
+	// Fleet bakes byod=1 into the enrollment profile's ServerURL for personal
+	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
+	// reports that ServerURL here, so we read the flag back the same way we read
+	// the enroll reference above. Without this, the detail-query ingest would
+	// overwrite the is_personal_enrollment set by the Apple Authenticate flow.
+	// Must be read before RawQuery is cleared below.
+	var isPersonalEnrollment bool
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		isPersonalEnrollment = serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1"
+	}
 
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""

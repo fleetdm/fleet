@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.4.7",
+      "version": "2.4.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.cardhop.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.cardhop.mac' AND version_compare(bundle_short_version, '2.4.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.cardhop.mac' AND version_compare(bundle_short_version, '2.4.8') < 0);"
       },
-      "installer_url": "https://cdn.flexibits.com/Cardhop_2.4.7.zip",
+      "installer_url": "https://cdn.flexibits.com/Cardhop_2.4.8.zip",
       "install_script_ref": "30166eaf",
       "uninstall_script_ref": "0b17397d",
-      "sha256": "8c5baaa119b09121e2abd88543cf474b1218e876969fad9271fa7cf2565041bb",
+      "sha256": "cc826577b984d75b4d1cc95f8b9073cddc4be2883a0d385c887ffbe8bec1e3cd",
       "default_categories": [
         "Productivity"
       ]
