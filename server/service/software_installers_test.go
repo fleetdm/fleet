@@ -98,6 +98,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
+			ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+				return []*fleet.SoftwareInstaller{{TeamID: tt.teamID, InstallerID: 1}}, nil
+			}
 
 			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
 				return nil
@@ -145,7 +148,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID)
+			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

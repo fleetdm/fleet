@@ -1391,7 +1391,7 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
-	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
+	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
 	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
 	GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*SoftwareInstaller, error)

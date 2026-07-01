@@ -1358,6 +1358,8 @@ LIMIT 1`,
 }
 
 func (ds *Datastore) GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+	// Script contents are joined in so the API detail shape (and the edit path,
+	// which reads the existing install script) has the full package.
 	const query = `
 SELECT
   si.id,
@@ -1380,10 +1382,16 @@ SELECT
   si.url,
   COALESCE(st.name, '') AS software_title,
   COALESCE(st.bundle_identifier, '') AS bundle_identifier,
-  si.patch_query
+  si.patch_query,
+  inst.contents AS install_script,
+  COALESCE(pinst.contents, '') AS post_install_script,
+  uninst.contents AS uninstall_script
 FROM
   software_installers si
   JOIN software_titles st ON st.id = si.title_id
+  LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
+  LEFT OUTER JOIN script_contents pinst ON pinst.id = si.post_install_script_content_id
+  LEFT OUTER JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?
   AND si.is_active = 1
