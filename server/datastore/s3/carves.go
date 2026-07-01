@@ -28,6 +28,9 @@ const (
 	// when the s3.carves_cleanup_concurrency config is unset. Kept modest to stay
 	// well under S3's per-prefix request rate and avoid throttling.
 	defaultCarvesCleanupConcurrency = 32
+	// carveHeadObjectTimeout bounds each existence probe so a hung request cannot
+	// stall the whole cleanup run (which would hold up the shared cleanup cron).
+	carveHeadObjectTimeout = 30 * time.Second
 	// This is Golang's way of formatting timestrings, it's confusing, I know.
 	// If you are used to more conventional timestrings, this is equivalent
 	// to %Y/%m/%d/%H (year/month/day/hour)
@@ -209,7 +212,7 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	// below is a single batched statement, so there is no concurrent DB access.
 	var (
 		mu       sync.Mutex
-		toExpire []int64
+		toExpire []*fleet.CarveMetadata
 		probeErr error
 	)
 	sem := make(chan struct{}, concurrency)
@@ -220,17 +223,20 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 		go func(carve *fleet.CarveMetadata) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			exists, err := c.carveObjectExists(ctx, c.generateS3Key(carve))
+			// Bound each probe so a hung request cannot stall wg.Wait indefinitely.
+			probeCtx, cancel := context.WithTimeout(ctx, carveHeadObjectTimeout)
+			defer cancel()
+			exists, err := c.carveObjectExists(probeCtx, c.generateS3Key(carve))
 			mu.Lock()
 			defer mu.Unlock()
 			switch {
 			case err != nil:
 				// Only expire on a definitive not-found; treat anything else (e.g. a
-				// throttled or failed request) as transient and retry on a later run.
+				// throttled, timed-out, or failed request) as transient and retry on a
+				// later run.
 				probeErr = errors.Join(probeErr, err)
 			case !exists:
-				carve.Expired = true
-				toExpire = append(toExpire, carve.ID)
+				toExpire = append(toExpire, carve)
 			}
 		}(carve)
 	}
@@ -239,10 +245,18 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	if len(toExpire) == 0 {
 		return 0, probeErr
 	}
-	if err := c.ExpireCarves(ctx, toExpire); err != nil {
+	ids := make([]int64, len(toExpire))
+	for i, carve := range toExpire {
+		ids[i] = carve.ID
+	}
+	if err := c.ExpireCarves(ctx, ids); err != nil {
 		return 0, errors.Join(probeErr, ctxerr.Wrap(ctx, err, "s3 carve cleanup"))
 	}
-	return len(toExpire), probeErr
+	// Reflect expiry on the returned metadata only after the durable write succeeds.
+	for _, carve := range toExpire {
+		carve.Expired = true
+	}
+	return len(ids), probeErr
 }
 
 // Carve returns carve metadata by ID

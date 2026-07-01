@@ -237,14 +237,14 @@ func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
 // store. Only recommended for local testing. If the bucket no longer exists,
 // it returns nil.
 func (s *s3store) CleanupTestBucket(ctx context.Context) error {
-	// Paginate the listing and delete in pages so buckets with more than one
-	// page of objects (>1000) are fully emptied before DeleteBucket.
-	var continuationToken *string
-	for {
-		resp, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-			Bucket:            &s.bucket,
-			ContinuationToken: continuationToken,
-		})
+	// Delete every object page-by-page (the SDK paginator handles continuation
+	// tokens) so buckets with more than one page of objects are fully emptied
+	// before DeleteBucket.
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
+		Bucket: &s.bucket,
+	})
+	for paginator.HasMorePages() {
+		resp, err := paginator.NextPage(ctx)
 		if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
 			return nil
 		}
@@ -264,11 +264,6 @@ func (s *s3store) CleanupTestBucket(ctx context.Context) error {
 				return err
 			}
 		}
-
-		if resp.IsTruncated == nil || !*resp.IsTruncated || resp.NextContinuationToken == nil {
-			break
-		}
-		continuationToken = resp.NextContinuationToken
 	}
 
 	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{

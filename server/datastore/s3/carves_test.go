@@ -272,9 +272,9 @@ func TestCleanupCarvesExpiresAbsentAndBatchesWrites(t *testing.T) {
 // TestCleanupCarvesSkipsCarvesYoungerThan24h verifies that carves created within
 // the last 24h are not reconciled against S3 (and so never expired), even when
 // their object is absent. S3 lifecycle expiration has day granularity and never
-// deletes objects that recently, so checking them is wasted work and risks wrongly
-// expiring a carve whose object simply isn't listable yet. Mirrors the 24h floor
-// the MySQL-backed carve store already applies.
+// deletes objects created that recently, so checking them is wasted work and risks
+// wrongly expiring a carve whose object simply isn't listable yet. Mirrors the 24h
+// floor the MySQL-backed carve store already applies.
 //
 // Requires a running S3-compatible endpoint (set S3_STORAGE_TEST env var).
 func TestCleanupCarvesSkipsCarvesYoungerThan24h(t *testing.T) {
