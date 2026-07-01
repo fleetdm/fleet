@@ -148,7 +148,7 @@ const SoftwareSummaryCard = ({
         )}
         {hasLinkedPolicies && (
           <Chip
-            icon={isPatchPolicyOnly ? "policy" : "refresh"}
+            icon={isPatchPolicyOnly ? undefined : "refresh"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
@@ -165,7 +165,18 @@ const SoftwareSummaryCard = ({
               setShowPoliciesModal(true);
             }}
             tooltip={
-              mergedPolicies.length === 1 ? (
+              // eslint-disable-next-line no-nested-ternary
+              isPatchPolicyOnly ? (
+                mergedPolicies.length === 1 ? (
+                  <>Policy fails if the host is on an older version.</>
+                ) : (
+                  <>
+                    Policies fail if the host is on an older version.
+                    <br />
+                    Select to view policies.
+                  </>
+                )
+              ) : mergedPolicies.length === 1 ? (
                 <>Policy triggers install.</>
               ) : (
                 <>
