@@ -280,6 +280,74 @@ func TestInvalidSoapRequestWithDiscoverMsg(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestRejectUnsupportedAuth verifies that a policy/enroll request following the OnPremise auth policy with a
+// <wsse:UsernameToken> (username + plaintext password) is turned into an actionable fault, while other token errors pass
+// through unchanged.
+func TestRejectUnsupportedAuth(t *testing.T) {
+	sentinel := errors.New("binarySecurityToken is empty")
+
+	header := func(security string) []byte {
+		return []byte(`
+			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
+				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>` + security + `
+			</s:Header>
+			</s:Envelope>`)
+	}
+
+	const secretPassword = "SuperSecret-PlaintextPassword"
+	usernameToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:UsernameToken>
+						<wsse:Username>user@example.com</wsse:Username>
+						<wsse:Password>` + secretPassword + `</wsse:Password>
+					</wsse:UsernameToken>
+				</wsse:Security>`
+	binarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">dG9rZW4=</wsse:BinarySecurityToken>
+				</wsse:Security>`
+	// A present-but-empty BinarySecurityToken element (ValueType/EncodingType set, no content) is a genuine empty-token
+	// error, not OnPremise auth, so it must keep the original "binarySecurityToken is empty" error.
+	emptyBinarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"></wsse:BinarySecurityToken>
+				</wsse:Security>`
+
+	testCases := []struct {
+		name              string
+		security          string
+		wantActionableMsg bool
+	}{
+		{name: "username/password (OnPremise) is rejected with actionable message", security: usernameToken, wantActionableMsg: true},
+		{name: "binary security token passes the original error through", security: binarySecurityToken, wantActionableMsg: false},
+		{name: "present-but-empty binary security token passes the original error through", security: emptyBinarySecurityToken, wantActionableMsg: false},
+		{name: "missing security header passes the original error through", security: "", wantActionableMsg: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := header(tc.security)
+			req, err := NewSoapRequest(raw)
+			require.NoError(t, err)
+			req.Raw = raw // DecodeBody populates Raw in production; the NewSoapRequest test helper does not.
+
+			got := rejectUnsupportedAuth(&req, sentinel)
+
+			if tc.wantActionableMsg {
+				require.Contains(t, got.Error(), "is not supported")
+				require.Contains(t, got.Error(), "Microsoft Entra ID")
+				// The plaintext password must never be echoed back into the fault (and therefore the logs).
+				require.NotContains(t, got.Error(), secretPassword)
+			} else {
+				require.Equal(t, sentinel, got)
+			}
+		})
+	}
+}
+
 func TestProvisioningDocGeneration(t *testing.T) {
 	deviceIdentityFingerprint := "031336C933CC7E228B88880D78824FB2909A0A2F"
 	serverIdentityFingerprint := "F9A4F20FC50D990FDD0E3DB9AFCBF401818D5462"
