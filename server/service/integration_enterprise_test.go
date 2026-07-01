@@ -12989,8 +12989,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
-		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
+		// upload again fails: identical bytes on the same title are a hash duplicate
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -13197,8 +13197,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
-		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
+		// upload again fails: identical bytes on the same title are a hash duplicate
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -13310,8 +13310,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(),
 			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "fleet_name": null, "fleet_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
 
-		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
+		// upload again fails: identical bytes on the same title are a hash duplicate
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
@@ -27972,7 +27972,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// That logic isn't what we're trying to test here.
 	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, customPayload)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, customPayload.Title, team.Name))
+	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.SoftwareAlreadyHasFleetMaintainedAppMessage, customPayload.Title, team.Name))
 
 	// =========================================================================
 	// Section 2: UI single-add flow
@@ -28095,7 +28095,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			http.StatusConflict,
 		)
 		errMsg := extractServerErrorText(conflictResp.Body)
-		require.Contains(t, errMsg, "already has an installer available",
+		require.Contains(t, errMsg, "already has a software package",
 			"error should mention the conflict with the existing custom installer")
 
 		// Confirm the FMA was NOT added — only the original custom installer exists.
