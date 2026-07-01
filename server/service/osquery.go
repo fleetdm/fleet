@@ -2724,7 +2724,9 @@ func (svc *Service) setHostConditionalAccess(
 		)
 		logger.DebugContext(ctx, "set compliance status message sent")
 		startTime := time.Now()
-		for range time.Tick(conditionalAccessSetWaitTime) {
+		ticker := time.NewTicker(conditionalAccessSetWaitTime)
+		defer ticker.Stop()
+		for range ticker.C {
 			if time.Since(startTime) > timeout {
 				// No failure activity is recorded here. SetComplianceStatus
 				// succeeded (we have a MessageID), so the push was accepted by
