@@ -1077,6 +1077,17 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 	host1 := test.NewHost(t, s.DS, "scim-multi-1", "1", "scim-mh1-key", "scim-mh1-uuid", time.Now())
 	host2 := test.NewHost(t, s.DS, "scim-multi-2", "2", "scim-mh2-key", "scim-mh2-uuid", time.Now())
 
+	t.Cleanup(func() {
+		// This test mutates host/MDM IdP tables, but the per-subtest truncation in TestSCIM
+		// only clears SCIM tables. Clean up here to keep subtests isolated.
+		mysqltest.TruncateTables(t, s.DS,
+			"host_mdm_idp_accounts",
+			"mdm_idp_accounts",
+			"host_seen_times",
+			"host_display_names",
+			"hosts",
+		)
+	})
 	const idpUUID = "scim-multi-idp-uuid"
 	const userName = "scim.multi@example.com"
 	require.NoError(t, s.DS.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
