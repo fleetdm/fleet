@@ -402,11 +402,16 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
+    managed_local_account_settings:
+      - enabled: true   
+    end_user_local_account_type: "admin"
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+    managed_local_account_settings:
+      - enabled: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -421,6 +426,8 @@ controls:
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
+    enable_managed_local_account: true
+    end_user_local_account_type: "admin"
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -453,8 +460,15 @@ controls:
 
 ### apple_settings and windows_settings
 
-- `apple_settings.configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
-- `windows_settings.configuration_profiles` is a list of Windows configuration profiles (.xml).
+Both `apple_settings` and `windows_settings` support the following:
+
+- `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
+- `managed_local_account_settings` are settings for the managed local account.
+  - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
+
+Only `apple_settings` supports the following:
+
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
 
 Each entry can use either `path:` or `paths:`:
 
@@ -502,8 +516,8 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
-- `enable_managed_local_account` specifies whether or not to create a local admin managed account on macOS hosts (default: `false`).
-- `end_user_local_account_type` specifies the end user account type. `enable_managed_local_account` must be set to `true`. (default: `admin`).
+- `enable_managed_local_account` specifies whether or not to create a local admin managed account on macOS and Windows hosts (default: `false`).
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. `enable_managed_local_account` must be set to `true`. (default: `admin`).
 
 #### Example
 
