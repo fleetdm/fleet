@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -63,7 +66,7 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 		d.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(state) //nolint:errcheck
+		_ = json.NewEncoder(w).Encode(state)
 	}
 }
 
@@ -89,7 +92,7 @@ func handleDevicesGet(store *deviceStore) http.HandlerFunc {
 		d.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp) //nolint:errcheck
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -102,8 +105,17 @@ func handleDevicesPatch(store *deviceStore) http.HandlerFunc {
 			PolicyName string `json:"policyName"`
 		}
 		if r.Body != nil {
-			body, _ := io.ReadAll(r.Body)
-			json.Unmarshal(body, &reqBody) //nolint:errcheck
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "failed to read request body: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			if len(body) > 0 {
+				if err := json.Unmarshal(body, &reqBody); err != nil {
+					http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+			}
 		}
 
 		var appliedVersion int64
@@ -120,10 +132,10 @@ func handleDevicesPatch(store *deviceStore) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":                 name,
 			"appliedPolicyVersion": appliedVersion,
-		}) //nolint:errcheck
+		})
 	}
 }
 
@@ -158,10 +170,10 @@ func handleIssueCommand(store *deviceStore) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name": operationName,
 			"done": false,
-		}) //nolint:errcheck
+		})
 	}
 }
 
@@ -172,7 +184,21 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 		var realDevices []map[string]string
 		if google != nil {
 			enterpriseName := "enterprises/" + r.PathValue("eid")
-			realDevices = google.ForwardDevicesList(enterpriseName, r.Context())
+			var err error
+			realDevices, err = google.ForwardDevicesList(enterpriseName, r.Context())
+			if err != nil {
+				log.Printf("Failed to list real devices from Google: %v", err)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadGateway)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"error": map[string]any{
+						"code":    502,
+						"message": "failed to list real devices: " + err.Error(),
+						"status":  "BAD_GATEWAY",
+					},
+				})
+				return
+			}
 			if len(realDevices) > 0 {
 				hasSeenRealDevice.Store(true)
 			}
@@ -187,15 +213,20 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 		pageSize := 100
 		offset := 0
 		if pt := r.URL.Query().Get("pageToken"); pt != "" {
-			fmt.Sscanf(pt, "%d", &offset)
+			if v, err := strconv.Atoi(pt); err == nil {
+				offset = v
+			}
+		}
+		if offset < 0 {
+			offset = 0
+		}
+		if offset > len(allDevices) {
+			offset = len(allDevices)
 		}
 
 		end := offset + pageSize
 		if end > len(allDevices) {
 			end = len(allDevices)
-		}
-		if offset > len(allDevices) {
-			offset = len(allDevices)
 		}
 
 		resp := map[string]any{
@@ -206,7 +237,7 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp) //nolint:errcheck
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -223,20 +254,27 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 			return
 		}
 
+		var bodyBytes []byte
+		if r.Body != nil {
+			bodyBytes, _ = io.ReadAll(r.Body)
+		}
+
 		version := policyVersionCounter.Add(1)
 		store.setPolicyVersion(name, version)
 
 		if google != nil && hasSeenRealDevice.Load() {
+			fwdReq := r.Clone(context.Background())
+			fwdReq.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 			go func() {
-				google.ForwardPoliciesPatch(&discardResponseWriter{}, r)
+				google.ForwardPoliciesPatch(&discardResponseWriter{}, fwdReq)
 			}()
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":    name,
 			"version": version,
-		}) //nolint:errcheck
+		})
 	}
 }
 
@@ -249,9 +287,9 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 		store.setPolicyVersion(name, version)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"version": version,
-		}) //nolint:errcheck
+		})
 	}
 }
 
@@ -261,31 +299,31 @@ func handleEnrollmentTokenCreate() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		token := uuid.New().String()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":   "enterprises/mock/enrollmentTokens/" + token,
 			"value":  token,
 			"qrCode": fmt.Sprintf(`{"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME":"com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver","android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM":"I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg","android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION":"https://play.google.com/managed/downloadManagingApp?identifier=setup","android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE":{"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN":"%s"}}`, token),
-		}) //nolint:errcheck
+		})
 	}
 }
 
 func handleApplicationsGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":  "mock-app",
 			"title": "Mock Application",
-		}) //nolint:errcheck
+		})
 	}
 }
 
 func handleWebAppsCreate() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":  "enterprises/mock/webApps/" + uuid.New().String(),
 			"title": "Mock Web App",
-		}) //nolint:errcheck
+		})
 	}
 }
 
@@ -306,20 +344,17 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"enterprises": enterprises,
-		}) //nolint:errcheck
+		})
 	}
 }
 
 func handleCatchAll(google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if google != nil {
-			log.Printf("Unhandled request (no Google SDK mapping): %s %s", r.Method, r.URL.Path)
-		} else {
-			log.Printf("Mock AMAPI: unhandled %s %s", r.Method, r.URL.Path)
-		}
+		log.Printf("ERROR: unhandled AMAPI endpoint: %s %s — add a handler or forwarding for this route", r.Method, r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, "{}")
+		w.WriteHeader(http.StatusNotImplemented)
+		fmt.Fprintf(w, `{"error":{"code":501,"message":"mock does not handle %s %s","status":"NOT_IMPLEMENTED"}}`, r.Method, r.URL.Path)
 	}
 }

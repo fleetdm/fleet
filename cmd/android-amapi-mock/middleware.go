@@ -30,6 +30,8 @@ func forwardForRealDevice(store *deviceStore, google *googleForwarder) func(http
 					google.ForwardDevicesDelete(w, r)
 				case "POST":
 					google.ForwardIssueCommand(w, r)
+				default:
+					http.Error(w, fmt.Sprintf("unsupported method %s for device forwarding", r.Method), http.StatusMethodNotAllowed)
 				}
 				return
 			}
@@ -71,4 +73,4 @@ type discardResponseWriter struct{}
 
 func (discardResponseWriter) Header() http.Header         { return http.Header{} }
 func (discardResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
-func (discardResponseWriter) WriteHeader(int)              {}
+func (discardResponseWriter) WriteHeader(int)             {}

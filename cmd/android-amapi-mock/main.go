@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // fakeDevice holds the in-memory state for a single fake Android device.
@@ -164,8 +165,14 @@ func main() {
 	// Catch-all for unmatched /v1/ requests
 	mux.HandleFunc("/v1/", handleCatchAll(google))
 
+	srv := &http.Server{
+		Addr:         *listen,
+		Handler:      mux,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	}
 	log.Printf("Mock AMAPI proxy listening on %s", *listen)
-	log.Fatal(http.ListenAndServe(*listen, mux))
+	log.Fatal(srv.ListenAndServe())
 }
 
 // ---- Route helpers ----

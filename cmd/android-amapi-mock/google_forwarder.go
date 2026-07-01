@@ -92,7 +92,7 @@ func (g *googleForwarder) ForwardIssueCommand(w http.ResponseWriter, r *http.Req
 }
 
 // ForwardDevicesList forwards a GET .../devices request to Google and returns all device names.
-func (g *googleForwarder) ForwardDevicesList(enterpriseName string, ctx context.Context) []map[string]string {
+func (g *googleForwarder) ForwardDevicesList(enterpriseName string, ctx context.Context) ([]map[string]string, error) {
 	var allDevices []map[string]string
 	pageToken := ""
 
@@ -103,8 +103,7 @@ func (g *googleForwarder) ForwardDevicesList(enterpriseName string, ctx context.
 		}
 		resp, err := call.Do()
 		if err != nil {
-			log.Printf("googleForwarder: list devices failed: %v", err)
-			break
+			return nil, fmt.Errorf("list devices from Google: %w", err)
 		}
 		for _, d := range resp.Devices {
 			allDevices = append(allDevices, map[string]string{"name": d.Name})
@@ -115,7 +114,7 @@ func (g *googleForwarder) ForwardDevicesList(enterpriseName string, ctx context.
 		pageToken = resp.NextPageToken
 	}
 
-	return allDevices
+	return allDevices, nil
 }
 
 // ForwardPoliciesPatch forwards a PATCH .../policies/{id} request to Google.
@@ -212,7 +211,7 @@ func writeGoogleError(w http.ResponseWriter, err error) {
 	log.Printf("googleForwarder: Google API error: %v", err)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadGateway)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]any{
 			"code":    502,
 			"message": err.Error(),

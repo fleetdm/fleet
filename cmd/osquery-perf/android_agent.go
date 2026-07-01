@@ -137,14 +137,14 @@ func newAndroidAgent(
 	models := []string{"Pixel 8 Pro", "Pixel 7a", "Galaxy S24", "Galaxy A54", "Nord CE 3", "Edge 40", "X30"}
 	hardwareTypes := []string{"qcom", "exynos", "tensor", "dimensity"}
 
-	brand := brands[rand.Intn(len(brands))]
-	model := models[rand.Intn(len(models))]
-	hardware := hardwareTypes[rand.Intn(len(hardwareTypes))]
+	brand := brands[rand.Intn(len(brands))]                  // #nosec G404 -- load testing only
+	model := models[rand.Intn(len(models))]                  // #nosec G404 -- load testing only
+	hardware := hardwareTypes[rand.Intn(len(hardwareTypes))] // #nosec G404 -- load testing only
 
 	// Android versions 13-15
 	androidVersions := []string{"13", "14", "15"}
-	androidVersion := androidVersions[rand.Intn(len(androidVersions))]
-	buildNumber := fmt.Sprintf("TP1A.%d%02d%02d.003", 2024+rand.Intn(2), 1+rand.Intn(12), 1+rand.Intn(28))
+	androidVersion := androidVersions[rand.Intn(len(androidVersions))]                                     // #nosec G404 -- load testing only
+	buildNumber := fmt.Sprintf("TP1A.%d%02d%02d.003", 2024+rand.Intn(2), 1+rand.Intn(12), 1+rand.Intn(28)) // #nosec G404 -- load testing only
 
 	// Generate installed apps list
 	if appCount > len(androidApps) {
@@ -166,8 +166,8 @@ func newAndroidAgent(
 	// Memory: 4-12 GB RAM, 64-256 GB storage
 	ramOptions := []int64{4, 6, 8, 12}
 	storageOptions := []int64{64, 128, 256}
-	totalRAM := ramOptions[rand.Intn(len(ramOptions))] * 1024 * 1024 * 1024
-	totalStorage := storageOptions[rand.Intn(len(storageOptions))] * 1024 * 1024 * 1024
+	totalRAM := ramOptions[rand.Intn(len(ramOptions))] * 1024 * 1024 * 1024             // #nosec G404 -- load testing only
+	totalStorage := storageOptions[rand.Intn(len(storageOptions))] * 1024 * 1024 * 1024 // #nosec G404 -- load testing only
 
 	return &androidAgent{
 		agentIndex:           agentIndex,
@@ -357,7 +357,8 @@ func (a *androidAgent) sendStatusReport(state *proxyDeviceState) error {
 	}
 
 	// Optionally add non-compliance details
-	if rand.Float64() < a.nonComplianceProb {
+	nonCompliant := rand.Float64() < a.nonComplianceProb // #nosec G404 -- load testing only
+	if nonCompliant {
 		device.NonComplianceDetails = []*androidmanagement.NonComplianceDetail{
 			{
 				SettingName:               "passwordPolicies",
@@ -406,7 +407,7 @@ func (a *androidAgent) sendPubSubMessage(notificationType android.NotificationTy
 
 	// POST to Fleet's PubSub endpoint with the token as a query parameter
 	url := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/pubsub?token=%s", a.serverAddress, a.pubSubToken)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+	resp, err := http.Post(url, "application/json", bytes.NewReader(body)) // #nosec G107 -- URL is constructed from trusted config
 	if err != nil {
 		return fmt.Errorf("pubsub POST: %w", err)
 	}
@@ -425,8 +426,8 @@ func (a *androidAgent) generateMemoryEvents() []*androidmanagement.MemoryEvent {
 	// External storage = half of internal for simplicity
 	externalTotal := a.totalInternalStorage / 2
 	// Available = 30-80% of total
-	internalAvail := int64(float64(a.totalInternalStorage) * (0.3 + rand.Float64()*0.5))
-	externalAvail := int64(float64(externalTotal) * (0.3 + rand.Float64()*0.5))
+	internalAvail := int64(float64(a.totalInternalStorage) * (0.3 + rand.Float64()*0.5)) // #nosec G404 -- load testing only
+	externalAvail := int64(float64(externalTotal) * (0.3 + rand.Float64()*0.5))          // #nosec G404 -- load testing only
 
 	return []*androidmanagement.MemoryEvent{
 		{

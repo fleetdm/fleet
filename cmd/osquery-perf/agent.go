@@ -3769,6 +3769,7 @@ func main() {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = tlsConfig
 	http.DefaultClient.Transport = tr
+	http.DefaultClient.Timeout = 30 * time.Second
 
 	validTemplateNames := map[string]bool{
 		"macos_13.6.2.tmpl":         true,
@@ -3892,12 +3893,12 @@ func main() {
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 
 		// Android load testing flags
-		androidPubSubToken        = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
-		androidProxyAddress       = flag.String("android_proxy_address", "", "Address of the mock AMAPI proxy (e.g., http://localhost:9999)")
-		androidEnterpriseID       = flag.String("android_enterprise_id", "", "Android enterprise ID (e.g., LC03k6enk8)")
-		androidStatusInterval     = flag.Duration("android_status_interval", 1*time.Minute, "Interval between Android STATUS_REPORT messages")
-		androidAppCount           = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
-		androidNonComplianceProb  = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
+		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
+		androidProxyAddress      = flag.String("android_proxy_address", "", "Address of the mock AMAPI proxy (e.g., http://localhost:9999)")
+		androidEnterpriseID      = flag.String("android_enterprise_id", "", "Android enterprise ID (e.g., LC03k6enk8)")
+		androidStatusInterval    = flag.Duration("android_status_interval", 1*time.Minute, "Interval between Android STATUS_REPORT messages")
+		androidAppCount          = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
+		androidNonComplianceProb = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
 	)
 
 	flag.Parse()

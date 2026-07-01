@@ -301,10 +301,15 @@ func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
 
+	var errorRate float64
+	if s.osqueryEnrollments > 0 {
+		errorRate = float64(s.errors) / float64(s.osqueryEnrollments)
+	}
+
 	log.Printf(
 		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm tokens errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android errors: %d",
 		time.Since(s.StartTime).Round(time.Second),
-		float64(s.errors)/float64(s.osqueryEnrollments),
+		errorRate,
 		s.osqueryEnrollments,
 		s.orbitEnrollments,
 		s.mdmEnrollments,
