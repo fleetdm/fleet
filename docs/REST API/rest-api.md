@@ -1217,7 +1217,7 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
 
 Resends a certificate for the specified host. Currently, only Android certificates are supported.
 
-`POST /api/v1/fleet/hosts/:id/certificates/:certificate_template_id/resend`
+`POST /api/v1//certificates/:certificate_template_id/resend`
 
 #### Parameters
 
@@ -3741,6 +3741,7 @@ Returns the information of the specified host.
     "disk_encryption_enabled": true,
     "status": "online",
     "display_text": "Annas-MacBook-Pro.local",
+    "ab_source": "Apple",
     "additional": {},
     "issues": {
       "failing_policies_count": 1,
