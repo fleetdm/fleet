@@ -510,6 +510,14 @@ const (
 // upstream IdP doesn't return an expires_in.
 const pssoDefaultTokenTTL = time.Hour
 
+// pssoAccountClaimPrefix namespaces the IdP claims Fleet forwards into the
+// minted id_token so they can be referenced from the profile's
+// TokenToUserMapping (e.g. mapping AccountName to a custom "accountUsername"
+// claim for the macOS short name). Only claims whose names begin with this
+// prefix (case-insensitive) cross the IdP -> Fleet-signed-token boundary; no
+// registered OIDC/JWT claim uses it, so it can't collide with reserved claims.
+const pssoAccountClaimPrefix = "account"
+
 // pssoIDTokenIssuer returns the value the device validates the login-response
 // id_token `iss` claim against. Apple's login configuration derives the issuer
 // from the extension's configured hostname — a bare hostname with no scheme —
@@ -537,6 +545,32 @@ func pssoIdPClientFromSettings(settings *fleet.PSSOSettings) fleet.PSSOIdPClient
 		ClientSecret: settings.IdPClientSecret,
 		Scopes:       settings.IdPScopes,
 	}
+}
+
+// buildPSSOIDTokenClaims assembles the claim set for the id_token Fleet mints
+// and signs in the login response. It forwards the IdP's standard identity
+// claims plus any namespaced "account*" custom claims (so the profile's
+// TokenToUserMapping can map the macOS short name / full name to them), then
+// sets Fleet's own iss/sub/aud/nonce/iat/exp last so a misconfigured or
+// malicious IdP can never override the claims the device validates.
+func buildPSSOIDTokenClaims(idpClaims *fleet.PSSOClaims, issuer, audience, nonce string, now time.Time, expiresIn int) jwt.MapClaims {
+	out := jwt.MapClaims{
+		"email":              idpClaims.Email,
+		"name":               idpClaims.Name,
+		"preferred_username": idpClaims.PreferredUsername,
+	}
+	for k, v := range idpClaims.Extra {
+		if strings.HasPrefix(strings.ToLower(k), pssoAccountClaimPrefix) {
+			out[k] = v
+		}
+	}
+	out["iss"] = issuer
+	out["sub"] = idpClaims.Subject
+	out["aud"] = audience // request iss == the extension's clientID
+	out["nonce"] = nonce
+	out["iat"] = now.Unix()
+	out["exp"] = now.Add(time.Duration(expiresIn) * time.Second).Unix()
+	return out
 }
 
 // handlePSSOPasswordLogin services a PSSO v2 Password login request. The
@@ -589,17 +623,8 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 		expiresIn = int(pssoDefaultTokenTTL.Seconds())
 	}
 	now := time.Now()
-	idToken, err := svc.signServerJWT(ctx, jwt.MapClaims{
-		"iss":                issuer,
-		"sub":                idpClaims.Subject,
-		"aud":                claims.Issuer, // request iss == the extension's clientID
-		"nonce":              claims.Nonce,
-		"iat":                now.Unix(),
-		"exp":                now.Add(time.Duration(expiresIn) * time.Second).Unix(),
-		"email":              idpClaims.Email,
-		"name":               idpClaims.Name,
-		"preferred_username": idpClaims.PreferredUsername,
-	})
+	idTokenClaims := buildPSSOIDTokenClaims(idpClaims, issuer, claims.Issuer, claims.Nonce, now, expiresIn)
+	idToken, err := svc.signServerJWT(ctx, idTokenClaims)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sign psso id_token")
 	}
