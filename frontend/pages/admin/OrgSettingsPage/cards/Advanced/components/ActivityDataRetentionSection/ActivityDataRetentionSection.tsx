@@ -128,33 +128,33 @@ const ActivityDataRetentionSection = ({
         renderChildren={(disableChildren) => (
           <Checkbox
             disabled={disableChildren}
-            onChange={onInputChange}
+            onChange={() =>
+              onInputChange({
+                name: "disableQueryReports",
+                value: !disableQueryReports,
+              })
+            }
             name="disableQueryReports"
-            value={disableQueryReports}
-            parseTarget
+            value={!disableQueryReports}
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  <>
-                    Disabling stored results will decrease database usage,{" "}
-                    <br />
-                    but will prevent you from accessing report results in
-                    <br />
-                    Fleet and will delete existing results. This can also be{" "}
-                    <br />
-                    disabled on a per-report basis by enabling &quot;Discard{" "}
-                    <br />
-                    data&quot;.{" "}
-                    <em>
-                      (Default: <b>Off</b>)
-                    </em>
-                  </>
+                  Disabling stored results will decrease database usage,
+                  <br />
+                  but will prevent you from accessing report results in
+                  <br />
+                  Fleet and will delete existing results. This can also be
+                  <br />
+                  disabled on a per-report basis.{" "}
+                  <em>
+                    (Default: <b>On</b>)
+                  </em>
                 </>
               )
             }
-            helpText="Enabling this setting will delete all existing report results in Fleet."
+            helpText="Disabling this setting will delete all existing report results in Fleet."
           >
-            Disable stored results
+            Store report results
           </Checkbox>
         )}
       />
@@ -163,24 +163,28 @@ const ActivityDataRetentionSection = ({
         renderChildren={(disableChildren) => (
           <Checkbox
             disabled={disableChildren}
-            onChange={onInputChange}
+            onChange={() =>
+              onInputChange({
+                name: "disableHostsActive",
+                value: !disableHostsActive,
+              })
+            }
             name="disableHostsActive"
-            value={disableHostsActive}
-            parseTarget
+            value={!disableHostsActive}
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When enabled, Fleet stops collecting hourly hosts online
+                  When disabled, Fleet stops collecting hourly hosts online
                   <br />
                   data used by the dashboard chart.{" "}
                   <em>
-                    (Default: <strong>Off</strong>)
+                    (Default: <strong>On</strong>)
                   </em>
                 </>
               )
             }
           >
-            Disable hosts online historical reporting
+            Hosts online historical reporting
           </Checkbox>
         )}
       />
@@ -190,24 +194,28 @@ const ActivityDataRetentionSection = ({
           renderChildren={(disableChildren) => (
             <Checkbox
               disabled={disableChildren}
-              onChange={onInputChange}
+              onChange={() =>
+                onInputChange({
+                  name: "disableVulnerabilities",
+                  value: !disableVulnerabilities,
+                })
+              }
               name="disableVulnerabilities"
-              value={disableVulnerabilities}
-              parseTarget
+              value={!disableVulnerabilities}
               labelTooltipContent={
                 !disableChildren && (
                   <>
-                    When enabled, Fleet stops collecting historical
+                    When disabled, Fleet stops collecting historical
                     <br />
-                    vulnerability-exposure data used by the dashboard chart.{" "}
+                    vulnerability exposure data used by the dashboard chart.{" "}
                     <em>
-                      (Default: <strong>Off</strong>)
+                      (Default: <strong>On</strong>)
                     </em>
                   </>
                 )
               }
             >
-              Disable vulnerability exposure historical reporting
+              Vulnerability exposure historical reporting
             </Checkbox>
           )}
         />

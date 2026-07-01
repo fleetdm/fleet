@@ -1,0 +1,13 @@
+{
+  "name": "Jami",
+  "slug": "jami/windows",
+  "package_identifier": "SFLinux.Jami",
+  "unique_identifier": "Jami",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "program_publisher": "Savoir-Faire Linux",
+  "default_categories": [
+    "Communication"
+  ]
+}

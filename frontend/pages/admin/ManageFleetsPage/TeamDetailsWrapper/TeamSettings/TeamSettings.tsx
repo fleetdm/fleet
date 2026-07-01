@@ -1,14 +1,6 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "react-query";
-
-import { NotificationContext } from "context/notification";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -38,6 +30,7 @@ import DataError from "components/DataError";
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import { notify } from "components/ToastNotification";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -138,8 +131,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const toggleHostStatusWebhookPreviewModal = () => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
   };
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
     location,
@@ -321,27 +312,21 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         teamIdForApi
       )
       .then(() => {
-        renderFlash("success", "Successfully updated settings.");
+        notify.success("Successfully updated settings.");
         refetchTeamConfig();
         setIsInitialTeamConfig(false);
         setConfirmModalOpen(false);
       })
       .catch((errorResponse: { data: IApiError }) => {
-        renderFlash(
-          "error",
-          `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`
+        notify.error(
+          `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`,
+          { response: errorResponse }
         );
       })
       .finally(() => {
         setUpdatingTeamSettings(false);
       });
-  }, [
-    formData,
-    globalHostExpiryEnabled,
-    refetchTeamConfig,
-    renderFlash,
-    teamIdForApi,
-  ]);
+  }, [formData, globalHostExpiryEnabled, refetchTeamConfig, teamIdForApi]);
 
   const updateTeamSettings = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {

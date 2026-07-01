@@ -1,8 +1,8 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
 import hostAPI from "services/entities/hosts";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -28,27 +28,25 @@ const ClearPasscodeModal = ({
   onExit,
   onSuccess,
 }: IClearPasscodeModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isClearingPasscode, setIsClearingPasscode] = React.useState(false);
   const [confirmChecked, setConfirmChecked] = React.useState(false);
 
   const isAndroidHost = isAndroid(hostPlatform);
   const isAndroidBYO =
-    isAndroidHost && hostMdmEnrollmentStatus === "On (personal)";
+    isAndroidHost && hostMdmEnrollmentStatus === "On (manual - personal)";
 
   const onClearPasscode = async () => {
     setIsClearingPasscode(true);
     try {
       await hostAPI.clearPasscode(id);
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to clear passcode on this host."
       );
       onSuccess?.();
     } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn't send request to clear passcode on this host. Please try again."
+      notify.error(
+        "Couldn't send request to clear passcode on this host. Please try again.",
+        { response: e }
       );
     } finally {
       onExit();

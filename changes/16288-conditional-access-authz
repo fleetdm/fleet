@@ -1,0 +1,1 @@
+- Restricted authorization for conditional access Okta IdP asset endpoints so that observer and observer+ roles can no longer read them.

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -120,7 +121,7 @@ func ServeEndUserEnrollOTA(
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce, ""); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -128,7 +129,7 @@ func ServeEndUserEnrollOTA(
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce, ""); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -171,7 +172,24 @@ func ServeEndUserEnrollOTA(
 		// if we get here, IdP SSO authentication is either not required, or has
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
-		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce); err != nil {
+
+		// Clear the BYOD IdP cookie now that we are about to render the enrollment page.
+		var idpUUID string
+		fullyManaged := r.URL.Query().Get("fully_managed")
+		if authRequired && (fullyManaged == "true" || fullyManaged == "1") {
+			idpUUID = r.URL.Query().Get("enrollment_reference")
+			http.SetCookie(w, &http.Cookie{
+				Name:     shared_mdm.BYODIdpCookieName,
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				Secure:   cookieSecure,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce, idpUUID); err != nil {
 			herr(ctx, w, err.Error())
 			return
 		}
@@ -195,7 +213,7 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string) error {
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce, idpUUID string) error {
 	fs := newBinaryFileSystem("/frontend")
 	file, err := fs.Open("templates/enroll-ota.html")
 	if err != nil {
@@ -224,6 +242,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		MacMDMEnabled         bool
 		AndroidFeatureEnabled bool
 		CSPNonce              string
+		IdpUUID               string
 	}{
 		URLPrefix:             urlPrefix,
 		EnrollURL:             enrollURL,
@@ -232,6 +251,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
 		AndroidFeatureEnabled: true,
 		CSPNonce:              nonce,
+		IdpUUID:               idpUUID,
 	}); err != nil {
 		return fmt.Errorf("execute react template: %w", err)
 	}
@@ -254,10 +274,16 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+// hashedAssetRe matches build-output filenames that embed a content hash, e.g.
+// "bundle-3ccf015bc0fac64b4ce8.js" or "logo@1a2b3c4d.png". A content change
+// produces a new hash and therefore a new URL, so these are safe to cache
+// forever. Unhashed names (dev builds like "bundle.js") must keep revalidating.
+var hashedAssetRe = regexp.MustCompile(`[-@][0-9a-f]{8,}\.[a-z0-9]+$`)
+
 func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	contentTypes := []string{"text/javascript", "text/css"}
 	staticAssetsServer := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.FileServer(newBinaryFileSystem("/assets")))
-	withoutGzip := http.StripPrefix(path, staticAssetsServer)
+	withoutGzip := http.StripPrefix(path, assetCacheControl(staticAssetsServer))
 
 	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
 	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
@@ -265,4 +291,42 @@ func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	}
 
 	return withOpts(withoutGzip)
+}
+
+func assetCacheControl(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&cacheControlResponseWriter{ResponseWriter: w, path: r.URL.Path}, r)
+	})
+}
+
+type cacheControlResponseWriter struct {
+	http.ResponseWriter
+	path        string
+	wroteHeader bool
+}
+
+// WriteHeader decides Cache-Control from the final status so the long-lived
+// immutable cache is applied only to successful responses for hashed assets.
+// Caching a transient 404/500 would otherwise pin a broken asset at the browser/CDN.
+func (w *cacheControlResponseWriter) WriteHeader(status int) {
+	if !w.wroteHeader {
+		w.wroteHeader = true
+		if (status == http.StatusOK || status == http.StatusNotModified) && hashedAssetRe.MatchString(w.path) {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *cacheControlResponseWriter) Write(b []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *cacheControlResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }

@@ -210,6 +210,15 @@
           "owl": "hoot"
         }
       }
+    ],
+    "google_workspace": [
+      {
+        "domain": "fleetdm.com",
+        "impersonated_user_email": "admin@fleetdm.com",
+        "api_key_json": {
+          "owl": "hoot"
+        }
+      }
     ]
   },
   "mdm": {
@@ -219,7 +228,8 @@
         "organization_name": "Fleet Device Management Inc.",
         "macos_team": "💻 Workstations",
         "ios_team": "📱🏢 Company-owned mobile devices",
-        "ipados_team": "📱🏢 Company-owned mobile devices"
+        "ipados_team": "📱🏢 Company-owned mobile devices",
+        "byod_team": "📱🔐 Personal mobile devices"
       }
     ],
     "apple_bm_enabled_and_configured": true,

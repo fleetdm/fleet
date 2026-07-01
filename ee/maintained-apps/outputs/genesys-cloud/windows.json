@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.50.909.0",
+      "version": "2.51.916.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GenesysCloud' AND publisher = 'Genesys Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GenesysCloud' AND publisher = 'Genesys Inc.' AND version_compare(version, '2.50.909.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GenesysCloud' AND publisher = 'Genesys Inc.' AND version_compare(version, '2.51.916.0') < 0);"
       },
-      "installer_url": "https://app.mypurecloud.com/directory-windows/build-assets/2.50.909-243/genesys-cloud-windows-2.50.909-x86.msi",
+      "installer_url": "https://app.mypurecloud.com/directory-windows/build-assets/2.51.916-248/genesys-cloud-windows-2.51.916-x86.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "3d56a699",
-      "sha256": "7897e8fbe3453ef9281dde9ab12c0833962ce8f8c441d09ee8c429f8b8e65f9e",
+      "sha256": "4c63a4b793684eb1d061ee46b82ca80442bd61f5118ea90cea86f3c1164ac3bb",
       "default_categories": [
         "Communication"
       ],

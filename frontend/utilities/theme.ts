@@ -55,7 +55,15 @@ export const setThemeMode = (mode: ThemeMode): void => {
     // localStorage can throw in restricted environments; the DOM still
     // gets the updated theme below, the choice just won't persist.
   }
-  applyDarkMode(resolveDark(mode), true);
+  // Only animate when the resolved dark state actually changes. Picking
+  // System when System already resolves to the current mode (or picking
+  // the explicit mode that matches it) doesn't change anything visually,
+  // but `transition: background-image` still re-runs across the app and
+  // makes gradients (e.g. the App hero gradient) flicker because the
+  // browser can't smoothly interpolate between two identical gradients.
+  const nextDark = resolveDark(mode);
+  const currentDark = document.body.classList.contains("dark-mode");
+  applyDarkMode(nextDark, nextDark !== currentDark);
 };
 
 export const initTheme = (): void => {

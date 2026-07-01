@@ -42,6 +42,27 @@ func (s *MaintainedApp) AuthzType() string {
 	return "maintained_app"
 }
 
+// MaintainedAppListOptions contains the options for listing Fleet-maintained
+// apps. Pagination operates on distinct app names (an app's macOS and Windows
+// entries are combined into a single row in the UI), so an app is never split
+// across a page boundary. The count, however, is the total number of
+// installable apps, with each platform entry counted separately.
+type MaintainedAppListOptions struct {
+	ListOptions
+
+	// Platform optionally filters to apps that have an entry on the given
+	// platform ("darwin" or "windows"); an empty value returns all platforms.
+	// This restricts which apps appear (and the count), not which platform rows
+	// are returned: every platform entry of a matching app is still included so
+	// the UI can render all of an app's platforms.
+	Platform string
+
+	// AvailableOnly, when true, returns only apps that have not yet been added
+	// to the team (the "Hide added apps" filter). It has no effect when no team
+	// is specified, since the added/available distinction is team-scoped.
+	AvailableOnly bool
+}
+
 // NoMaintainedAppsInDatabaseError is the error type for no Fleet Maintained Apps in the database
 type NoMaintainedAppsInDatabaseError struct {
 	ErrorWithUUID

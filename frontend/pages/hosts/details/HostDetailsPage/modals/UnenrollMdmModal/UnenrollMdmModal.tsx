@@ -1,9 +1,9 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
@@ -35,8 +35,6 @@ const UnenrollMdmModal = ({
     undefined | "unenrolling" | "error"
   >(undefined);
 
-  const { renderFlash } = useContext(NotificationContext);
-
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
     try {
@@ -52,7 +50,7 @@ const UnenrollMdmModal = ({
             checks in.
           </>
         );
-      renderFlash("success", successMessage);
+      notify.success(successMessage);
       onClose();
     } catch (unenrollMdmError: unknown) {
       const errorMessage =
@@ -63,7 +61,7 @@ const UnenrollMdmModal = ({
             Failed to turn off MDM for <b>{hostName}</b>. Please try again.
           </>
         );
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: unenrollMdmError });
     }
     setRequestState(undefined);
   };

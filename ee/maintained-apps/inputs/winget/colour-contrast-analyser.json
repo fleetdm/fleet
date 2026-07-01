@@ -1,0 +1,11 @@
+{
+  "name": "Colour Contrast Analyser",
+  "slug": "colour-contrast-analyser/windows",
+  "package_identifier": "TPGi.CCAe",
+  "unique_identifier": "Colour Contrast Analyser",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "program_publisher": "Cédric Trévisan",
+  "default_categories": ["Utilities"]
+}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.6.3",
+      "version": "4.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.binarynights.ForkLift-4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.binarynights.ForkLift-4' AND version_compare(bundle_short_version, '4.6.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.binarynights.ForkLift-4' AND version_compare(bundle_short_version, '4.7.1') < 0);"
       },
-      "installer_url": "https://download.binarynights.com/ForkLift/ForkLift4.6.3.zip",
+      "installer_url": "https://download.binarynights.com/ForkLift/ForkLift4.7.1.zip",
       "install_script_ref": "050b6846",
       "uninstall_script_ref": "99e7648d",
-      "sha256": "17bbf7669c72cf42f928e21ffbc8bbfdf0267b4992994594f1d8fa0c2e99f084",
+      "sha256": "1f8950f7fc664500525c7d2eb41f209d53a18993682b026bf6d493d33ca2dedc",
       "default_categories": [
         "Productivity"
       ]
