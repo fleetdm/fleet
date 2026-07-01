@@ -253,7 +253,12 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 
 		var bodyBytes []byte
 		if r.Body != nil {
-			bodyBytes, _ = io.ReadAll(r.Body)
+			var err error
+			bodyBytes, err = io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "failed to read request body: "+err.Error(), http.StatusBadRequest)
+				return
+			}
 		}
 
 		version := policyVersionCounter.Add(1)
