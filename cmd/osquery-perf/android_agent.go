@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
@@ -137,14 +137,14 @@ func newAndroidAgent(
 	models := []string{"Pixel 8 Pro", "Pixel 7a", "Galaxy S24", "Galaxy A54", "Nord CE 3", "Edge 40", "X30"}
 	hardwareTypes := []string{"qcom", "exynos", "tensor", "dimensity"}
 
-	brand := brands[rand.Intn(len(brands))]                  // #nosec G404 -- load testing only
-	model := models[rand.Intn(len(models))]                  // #nosec G404 -- load testing only
-	hardware := hardwareTypes[rand.Intn(len(hardwareTypes))] // #nosec G404 -- load testing only
+	brand := brands[rand.IntN(len(brands))]                  // #nosec G404 -- load testing only
+	model := models[rand.IntN(len(models))]                  // #nosec G404 -- load testing only
+	hardware := hardwareTypes[rand.IntN(len(hardwareTypes))] // #nosec G404 -- load testing only
 
 	// Android versions 13-15
 	androidVersions := []string{"13", "14", "15"}
-	androidVersion := androidVersions[rand.Intn(len(androidVersions))]                                     // #nosec G404 -- load testing only
-	buildNumber := fmt.Sprintf("TP1A.%d%02d%02d.003", 2024+rand.Intn(2), 1+rand.Intn(12), 1+rand.Intn(28)) // #nosec G404 -- load testing only
+	androidVersion := androidVersions[rand.IntN(len(androidVersions))]                                     // #nosec G404 -- load testing only
+	buildNumber := fmt.Sprintf("TP1A.%d%02d%02d.003", 2024+rand.IntN(2), 1+rand.IntN(12), 1+rand.IntN(28)) // #nosec G404 -- load testing only
 
 	// Generate installed apps list
 	if appCount > len(androidApps) {
@@ -166,8 +166,8 @@ func newAndroidAgent(
 	// Memory: 4-12 GB RAM, 64-256 GB storage
 	ramOptions := []int64{4, 6, 8, 12}
 	storageOptions := []int64{64, 128, 256}
-	totalRAM := ramOptions[rand.Intn(len(ramOptions))] * 1024 * 1024 * 1024             // #nosec G404 -- load testing only
-	totalStorage := storageOptions[rand.Intn(len(storageOptions))] * 1024 * 1024 * 1024 // #nosec G404 -- load testing only
+	totalRAM := ramOptions[rand.IntN(len(ramOptions))] * 1024 * 1024 * 1024             // #nosec G404 -- load testing only
+	totalStorage := storageOptions[rand.IntN(len(storageOptions))] * 1024 * 1024 * 1024 // #nosec G404 -- load testing only
 
 	return &androidAgent{
 		agentIndex:           agentIndex,

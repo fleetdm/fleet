@@ -147,7 +147,7 @@ func handleDevicesDelete(store *deviceStore) http.HandlerFunc {
 		if d, ok := store.byName[name]; ok {
 			delete(store.byName, name)
 			delete(store.byESID, d.EnterpriseSpecificID)
-			log.Printf("Deleted fake device: %s (ESID: %s)", name, d.EnterpriseSpecificID)
+			log.Printf("Deleted fake device: %q (ESID: %q)", name, d.EnterpriseSpecificID)
 		}
 		store.mu.Unlock()
 
@@ -224,10 +224,7 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 			offset = len(allDevices)
 		}
 
-		end := offset + pageSize
-		if end > len(allDevices) {
-			end = len(allDevices)
-		}
+		end := min(offset+pageSize, len(allDevices))
 
 		resp := map[string]any{
 			"devices": allDevices[offset:end],
@@ -249,7 +246,7 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 		enterpriseID := r.PathValue("eid")
 
 		if !store.hasDevicesForEnterprise(enterpriseID) && google != nil {
-			log.Printf("Forwarding policy patch to Google AMAPI: %s", name)
+			log.Printf("Forwarding policy patch to Google AMAPI: %q", name)
 			google.ForwardPoliciesPatch(w, r)
 			return
 		}
@@ -352,9 +349,15 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 
 func handleCatchAll(google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("ERROR: unhandled AMAPI endpoint: %s %s — add a handler or forwarding for this route", r.Method, r.URL.Path)
+		log.Printf("ERROR: unhandled AMAPI endpoint: %q %q — add a handler or forwarding for this route", r.Method, r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, `{"error":{"code":501,"message":"mock does not handle %s %s","status":"NOT_IMPLEMENTED"}}`, r.Method, r.URL.Path)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]any{
+				"code":    501,
+				"message": "mock does not handle " + r.Method + " " + r.URL.Path,
+				"status":  "NOT_IMPLEMENTED",
+			},
+		})
 	}
 }
