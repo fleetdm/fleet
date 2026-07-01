@@ -98,7 +98,7 @@ const generateColumnConfigs = (
           onClick={() => onShowDetails(activity)}
         >
           <span className={`${baseClass}__details-text`}>
-            {primaryText ? <TooltipTruncatedText value={primaryText} /> : "---"}
+            {primaryText || "---"}
           </span>
           <Icon
             name="info-outline"
