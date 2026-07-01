@@ -76,7 +76,8 @@ const NoResults = ({
           return (
             <>
               <div>
-                <b>Store report results</b> is globally disabled in organization settings.
+                <b>Store report results</b> is globally disabled in organization
+                settings.
               </div>
             </>
           );
