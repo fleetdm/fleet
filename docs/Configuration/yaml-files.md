@@ -425,6 +425,8 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
+  windows_automatic_enrollment:
+    default_fleet: Unassigned
 ```
 
 ### macos_updates
@@ -529,6 +531,12 @@ The `macos_migration` section lets you control the [end user migration workflow]
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
 Can only be configured for "All fleets" (`default.yml`).
+
+### windows_automatic_enrollment
+
+The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
+
+- `default_fleet` specifies which fleet all Windows hosts go in (default: `"Unassigned"`)
 
 ## software
 
