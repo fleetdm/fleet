@@ -975,10 +975,88 @@ func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 	return result.Count, nil
 }
 
+// GetHostCountWithFilters returns the count of hosts matching the same filter
+// scope GetEndpointsWithFilters lists, so get_endpoints' Total describes the
+// returned set rather than the global inventory.
+func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string) (int, error) {
+	if policyResponse != "" && policyID == "" {
+		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
+	}
+	if policyResponse != "" && policyResponse != "passing" && policyResponse != "failing" {
+		return 0, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResponse)
+	}
+
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return 0, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	}
+
+	labelID, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
+	if err != nil {
+		return 0, err
+	}
+
+	// Label + policy: /hosts/count ignores policy_id once label_id is set, so
+	// count the client-side label∩policy intersection GetEndpointsWithFilters
+	// builds (perPage=0 → no client-side cap).
+	if viaLabel && policyID != "" {
+		hosts, lerr := fc.GetEndpointsWithFilters(ctx, teamName, platform, status, query, labelName, policyID, policyResponse, 0)
+		if lerr != nil {
+			return 0, lerr
+		}
+		return len(hosts), nil
+	}
+
+	// Everything else: /hosts/count honors the filters server-side (label_id,
+	// team_id, status, query, and policy_id when no label is set).
+	params := url.Values{}
+	if teamIDStr != "" {
+		params.Set("team_id", teamIDStr)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		params.Set("query", q)
+	}
+	if policyID != "" {
+		params.Set("policy_id", policyID)
+	}
+	if policyResponse != "" {
+		params.Set("policy_response", policyResponse)
+	}
+	if viaLabel {
+		params.Set("label_id", fmt.Sprintf("%d", labelID))
+	}
+	path := "/api/v1/fleet/hosts/count"
+	if encoded := params.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	resp, err := fc.makeFleetRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get filtered host count: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("failed to get filtered host count: status %d", resp.StatusCode)
+	}
+	var result struct {
+		Count int `json:"count"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, fmt.Errorf("failed to decode filtered host count: %w", err)
+	}
+	return result.Count, nil
+}
+
 // resolveLabelName resolves a label name to its numeric ID using exact
 // case-insensitive matching. On failure, lists available labels so the
 // caller can retry. Mirrors resolveTeamNames — no caching, calls GetLabels()
-// each invocation. Labels lists are small on dogfood so the cost is
+// each invocation. Label lists are typically small so the cost is
 // negligible and the code stays parallel with the team resolver.
 func (fc *FleetClient) resolveLabelName(ctx context.Context, name string) (uint, error) {
 	labels, err := fc.GetLabels(ctx)

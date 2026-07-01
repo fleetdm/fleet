@@ -1098,6 +1098,71 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 	})
 }
 
+// TestDirectIngestMDMMacPersonalEnrollment guards that the macOS detail-query
+// ingest reads the BYOD signal back from the profile's ServerURL (byod=1) rather
+// than hardcoding false, which would otherwise clobber the is_personal_enrollment
+// set by the Apple Authenticate flow on every check-in.
+func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	var host fleet.Host
+
+	generateRows := func(serverURL, payloadIdentifier string) []map[string]string {
+		return []map[string]string{
+			{
+				"enrolled":           "true",
+				"installed_from_dep": "false",
+				"server_url":         serverURL,
+				"payload_identifier": payloadIdentifier,
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name         string
+		mdmData      []map[string]string
+		wantPersonal bool
+	}{
+		{
+			name:         "Fleet byod=1",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet no byod",
+			mdmData:      generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "Fleet byod=1 alongside other params",
+			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet byod=0",
+			mdmData:      generateRows("https://test.example.com?byod=0", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "non-Fleet byod=1 ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", "com.unknown.mdm"),
+			wantPersonal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+				require.Equal(t, tc.wantPersonal, isPersonalEnrollment)
+				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
+				return nil
+			}
+
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.mdmData)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	}
+}
+
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
 	cases := []struct {

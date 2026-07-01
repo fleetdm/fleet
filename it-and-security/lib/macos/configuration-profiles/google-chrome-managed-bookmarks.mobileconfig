@@ -506,15 +506,21 @@
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>💻 Current sprint (#g-mdm)</string>
+                            <string>🍎 Kanban board (#g-apple-at-work)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/58</string>
+                            <string>https://github.com/orgs/fleetdm/projects/108</string>
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>📦 Current sprint (#g-software)</string>
+                            <string>❤️‍🩹 Kanban board (#g-auto-patching)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/70</string>
+                            <string>https://github.com/orgs/fleetdm/projects/109</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>⚡ Kanban board (#g-power-to-pc)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/106</string>
                         </dict>
                         <dict>
                             <key>name</key>
