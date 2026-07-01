@@ -1059,6 +1059,11 @@ const (
 	// to certify the provisioned unlock-key during key exchange. Its private key is
 	// MDMAssetPSSOSigningKey; both are minted once when the feature is first configured.
 	MDMAssetPSSOCACert MDMAssetName = "psso_ca_cert"
+	// MDMAssetPSSOEncryptionKey is the EC P-256 private key Fleet uses to decrypt
+	// the password the Mac extension encrypts "on the wire" (the embedded login
+	// assertion). It is published as an ECDH-ES encryption key in the PSSO JWKS so
+	// the extension can set it as loginRequestEncryptionPublicKey.
+	MDMAssetPSSOEncryptionKey MDMAssetName = "psso_encryption_key" //nolint:gosec // private key, not a credential string
 	// MDMAssetAppleAccountProvisioningIdPClientSecret is the OAuth ROPG IdP client
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.

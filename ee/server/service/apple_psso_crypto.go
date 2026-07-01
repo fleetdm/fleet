@@ -56,8 +56,14 @@ type pssoTokenClaims struct {
 	jwt.RegisteredClaims
 
 	// PSSO v2 Password login request.
-	GrantType    string         `json:"grant_type,omitempty"`
-	Password     string         `json:"password,omitempty"`
+	GrantType string `json:"grant_type,omitempty"`
+	Password  string `json:"password,omitempty"` // plaintext; empty when the password is encrypted in Assertion
+	// Assertion is the embedded login assertion. When the extension sets
+	// loginRequestEncryptionPublicKey, Apple drops the plaintext Password claim
+	// and instead places the password in this compact JWE
+	// (typ platformsso-encrypted-login-assertion+jwt), encrypted to Fleet's
+	// published encryption key. The outer JWT remains signed by the device key.
+	Assertion    string         `json:"assertion,omitempty"`
 	Username     string         `json:"username,omitempty"`
 	Nonce        string         `json:"nonce,omitempty"`         // Apple session nonce, echoed in the response
 	JWECrypto    *pssoJWECrypto `json:"jwe_crypto,omitempty"`    // response-encryption recipe
@@ -424,6 +430,79 @@ func buildPSSOResponseJWE(payload []byte, recipientPub *ecdsa.PublicKey, apvB64,
 	// is empty for ECDH-ES direct key agreement.
 	compact := protectedB64 + "." + "" + "." + enc(iv) + "." + enc(ct) + "." + enc(tag)
 	return []byte(compact), nil
+}
+
+// decryptPSSOInboundJWE decrypts a compact JWE the device sent us — the embedded
+// login assertion carrying the user's password. It is the inverse direction of
+// buildPSSOResponseJWE: here Fleet is the static ECDH-ES recipient
+// (recipientPriv) and the device supplied the ephemeral epk in the header.
+// go-jose reads epk/apu/apv from the protected header and runs the same Concat
+// KDF to recover the A256GCM content-encryption key (the same path the
+// login-response round-trip test relies on). alg/enc/typ are pinned to what
+// Apple emits for password encryption.
+func decryptPSSOInboundJWE(compact []byte, recipientPriv *ecdsa.PrivateKey) ([]byte, error) {
+	protectedB64, _, ok := strings.Cut(string(compact), ".")
+	if !ok {
+		return nil, errors.New("psso inbound jwe: not a compact JWE")
+	}
+	protected, err := decodeJOSEB64(protectedB64)
+	if err != nil {
+		return nil, fmt.Errorf("psso inbound jwe: decode protected header: %w", err)
+	}
+	var hdr struct {
+		Alg string `json:"alg"`
+		Enc string `json:"enc"`
+		Typ string `json:"typ"`
+	}
+	if err := json.Unmarshal(protected, &hdr); err != nil {
+		return nil, fmt.Errorf("psso inbound jwe: parse protected header: %w", err)
+	}
+	if hdr.Alg != pssoEncryptionAlg || hdr.Enc != "A256GCM" {
+		return nil, fmt.Errorf("psso inbound jwe: unsupported alg/enc %q/%q", hdr.Alg, hdr.Enc)
+	}
+	if hdr.Typ != pssoTypEncryptedLoginAssertion {
+		return nil, fmt.Errorf("psso inbound jwe: unexpected typ %q", hdr.Typ)
+	}
+
+	obj, err := jose.ParseEncrypted(string(compact))
+	if err != nil {
+		return nil, fmt.Errorf("psso inbound jwe: parse: %w", err)
+	}
+	plaintext, err := obj.Decrypt(recipientPriv)
+	if err != nil {
+		return nil, fmt.Errorf("psso inbound jwe: decrypt: %w", err)
+	}
+	return plaintext, nil
+}
+
+// parseEmbeddedAssertionPassword pulls the password out of a decrypted embedded
+// login assertion. Apple's typ ends in "+jwt", so the plaintext is a JWT whose
+// claims carry the password; a bare JSON claims object is also accepted. The
+// username is taken from the signed outer JWT, not here. The assertion is
+// encrypted-only — its integrity is covered by the outer signed JWT and the JWE
+// GCM tag, so no inner signature is verified here.
+func parseEmbeddedAssertionPassword(plaintext []byte) (string, error) {
+	s := strings.TrimSpace(string(plaintext))
+	claimsJSON := []byte(s)
+	if len(s) > 0 && s[0] != '{' {
+		// Compact JWT: header.payload[.signature]; the claims are the payload.
+		parts := strings.Split(s, ".")
+		if len(parts) < 2 {
+			return "", errors.New("psso embedded assertion: not JSON or a compact JWT")
+		}
+		decoded, derr := base64.RawURLEncoding.DecodeString(strings.TrimRight(parts[1], "="))
+		if derr != nil {
+			return "", fmt.Errorf("psso embedded assertion: decode claims segment: %w", derr)
+		}
+		claimsJSON = decoded
+	}
+	var claims struct {
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
+		return "", fmt.Errorf("psso embedded assertion: parse claims: %w", err)
+	}
+	return claims.Password, nil
 }
 
 // decodeJOSEB64 base64url-decodes a JOSE value, tolerating optional padding.

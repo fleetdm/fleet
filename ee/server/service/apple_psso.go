@@ -28,18 +28,24 @@ import (
 	jose "github.com/go-jose/go-jose/v3"
 )
 
-// pssoServiceState caches the PSSO signing key and CA certificate after first
-// load. Both are created in mdm_config_assets when the feature is first
-// configured (bootstrapPSSOAssets, core side); this layer only loads them.
+// pssoServiceState caches the PSSO signing key, CA certificate, and password
+// encryption key after first load. All are created in mdm_config_assets when the
+// feature is first configured (bootstrapPSSOAssets, core side); this layer only
+// loads them.
 type pssoServiceState struct {
-	mu         sync.Mutex
-	signingKey *ecdsa.PrivateKey
-	kid        string
-	caCert     *x509.Certificate
+	mu            sync.Mutex
+	signingKey    *ecdsa.PrivateKey
+	kid           string
+	caCert        *x509.Certificate
+	encryptionKey *ecdsa.PrivateKey
+	encKID        string
 }
 
 const (
 	pssoSigningAlg = "ES256"
+	// pssoEncryptionAlg is the JWK `alg` published for the password-encryption
+	// key and the `alg` Apple uses in the embedded login-assertion JWE.
+	pssoEncryptionAlg = "ECDH-ES"
 
 	// The host app bundle ID is included alongside the extension's just in case;
 	// PSSO validates against the extension, but listing both is harmless and matches
@@ -86,6 +92,42 @@ func (svc *Service) loadPSSOSigningKeyLocked(ctx context.Context) (*ecdsa.Privat
 	}
 	svc.pssoState.signingKey = key
 	svc.pssoState.kid = kid
+	return key, kid, nil
+}
+
+// getPSSOEncryptionKey loads Fleet's PSSO password-encryption key from
+// mdm_config_assets, caching it after first use. Like the signing key, it is
+// created when the feature is first configured (bootstrapPSSOAssets) and never
+// minted here; a missing key means the feature isn't configured.
+func (svc *Service) getPSSOEncryptionKey(ctx context.Context) (*ecdsa.PrivateKey, string, error) {
+	svc.pssoState.mu.Lock()
+	defer svc.pssoState.mu.Unlock()
+	if svc.pssoState.encryptionKey != nil {
+		return svc.pssoState.encryptionKey, svc.pssoState.encKID, nil
+	}
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetPSSOEncryptionKey},
+		nil,
+	)
+	if err != nil {
+		if isAssetNotFound(err) {
+			return nil, "", ctxerr.Wrap(ctx, err, "psso encryption key not found; configure the feature first")
+		}
+		return nil, "", ctxerr.Wrap(ctx, err, "get psso encryption key asset")
+	}
+	asset, ok := assets[fleet.MDMAssetPSSOEncryptionKey]
+	if !ok || len(asset.Value) == 0 {
+		return nil, "", ctxerr.New(ctx, "psso encryption key asset is empty")
+	}
+	// The encryption key shares the signing key's PEM encoding and kid scheme
+	// (base64url-nopad SHA-256 of the SPKI), which is the kid the extension
+	// echoes back in the embedded assertion's JWE header.
+	key, kid, err := parsePSSOSigningKeyPEM(asset.Value)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "parse stored psso encryption key")
+	}
+	svc.pssoState.encryptionKey = key
+	svc.pssoState.encKID = kid
 	return key, kid, nil
 }
 
@@ -427,30 +469,41 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 		return nil, err
 	}
 
-	// PSSO v2 Password login: a single grant_type=password round trip carrying
-	// a plaintext password and a jwe_crypto response recipe.
-	if claims.GrantType == pssoGrantTypePassword {
-		return svc.handlePSSOPasswordLogin(ctx, settings, signKey.HostUUID, claims)
-	}
-
+	// Key requests/exchanges carry a request_type and are dispatched first.
 	switch claims.RequestType {
 	case pssoRequestKey:
 		return svc.handlePSSOKeyRequest(ctx, signKey.HostUUID, claims)
 	case pssoRequestExchange:
 		return svc.handlePSSOKeyExchange(ctx, signKey.HostUUID, claims)
-	default:
-		return nil, &fleet.BadRequestError{Message: "psso token: unsupported grant_type/request_type"}
 	}
+
+	// PSSO v2 Password login. grant_type=password carries a plaintext password;
+	// when the extension enables password encryption Apple uses the JWT-bearer
+	// grant and ships the password inside an encrypted embedded assertion. Both
+	// land here and differ only in where handlePSSOPasswordLogin reads the
+	// password from.
+	if claims.GrantType == pssoGrantTypePassword || claims.GrantType == pssoGrantTypeJWTBearer {
+		return svc.handlePSSOPasswordLogin(ctx, settings, signKey.HostUUID, claims)
+	}
+	return nil, &fleet.BadRequestError{Message: "psso token: unsupported grant_type/request_type"}
 }
 
-// pssoGrantTypePassword is the grant_type the extension sends in the login
-// request JWT for Password-method PSSO.
-const pssoGrantTypePassword = "password"
-
-// JWE header `typ` media types for the responses Fleet returns.
+// PSSO grant types in the login request JWT. With plaintext passwords Apple
+// sends grant_type=password; when the password is encrypted into the embedded
+// assertion it switches to the JWT-bearer grant and the password moves out of
+// the top-level claim into the (encrypted) assertion.
 const (
-	pssoTypLoginResponse = "platformsso-login-response+jwt"
-	pssoTypKeyResponse   = "platformsso-key-response+jwt"
+	pssoGrantTypePassword  = "password"                                    //nolint:gosec // G101 not a credential, a grant type
+	pssoGrantTypeJWTBearer = "urn:ietf:params:oauth:grant-type:jwt-bearer" //nolint:gosec // G101 not a credential, a grant type
+)
+
+// JWE header `typ` media types. The first two are responses Fleet returns; the
+// last is the embedded login assertion the device sends when password
+// encryption is enabled.
+const (
+	pssoTypLoginResponse           = "platformsso-login-response+jwt"
+	pssoTypKeyResponse             = "platformsso-key-response+jwt"
+	pssoTypEncryptedLoginAssertion = "platformsso-encrypted-login-assertion+jwt"
 )
 
 // pssoDefaultTokenTTL is the id_token / refresh_token lifetime used when the
@@ -504,12 +557,17 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 	if username == "" {
 		username = claims.Subject
 	}
-	if username == "" || claims.Password == "" {
+
+	password, err := svc.resolvePSSOLoginPassword(ctx, claims)
+	if err != nil {
+		return nil, err
+	}
+	if username == "" || password == "" {
 		return nil, &fleet.BadRequestError{Message: "psso password login: missing username or password"}
 	}
 
 	idpClient := pssoIdPClientFromSettings(settings)
-	idpClaims, err := idpClient.ValidatePasswordAndGetClaims(ctx, username, claims.Password)
+	idpClaims, err := idpClient.ValidatePasswordAndGetClaims(ctx, username, password)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "psso password validation")
 	}
@@ -576,6 +634,33 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 		return nil, ctxerr.Wrap(ctx, err, "build psso login response jwe")
 	}
 	return jwe, nil
+}
+
+// resolvePSSOLoginPassword returns the plaintext password for a password login.
+// With password encryption disabled it's the plaintext Password claim. With it
+// enabled the Password claim is empty and the password lives in the encrypted
+// embedded assertion, which Fleet decrypts with its PSSO encryption key. The
+// username is always taken from the (signed) outer JWT, not the assertion.
+func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssoTokenClaims) (string, error) {
+	if claims.Password != "" {
+		return claims.Password, nil
+	}
+	if claims.Assertion == "" {
+		return "", nil
+	}
+	encKey, _, err := svc.getPSSOEncryptionKey(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "load psso encryption key")
+	}
+	plaintext, err := decryptPSSOInboundJWE([]byte(claims.Assertion), encKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypt psso login assertion")
+	}
+	password, err := parseEmbeddedAssertionPassword(plaintext)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parse psso login assertion")
+	}
+	return password, nil
 }
 
 // handlePSSOKeyRequest services a PSSO 2.0 key request (request_type
@@ -750,13 +835,28 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 		return nil, ctxerr.Wrap(ctx, err, "load psso signing key")
 	}
 
-	jwk := jose.JSONWebKey{
-		Key:       &key.PublicKey,
-		KeyID:     kid,
-		Algorithm: pssoSigningAlg,
-		Use:       "sig",
+	encKey, encKID, err := svc.getPSSOEncryptionKey(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load psso encryption key")
 	}
-	jwks := jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}}
+
+	jwks := jose.JSONWebKeySet{Keys: []jose.JSONWebKey{
+		{
+			Key:       &key.PublicKey,
+			KeyID:     kid,
+			Algorithm: pssoSigningAlg,
+			Use:       "sig",
+		},
+		// The extension sets this key as loginRequestEncryptionPublicKey and
+		// encrypts the password to it (ECDH-ES), so the password is never visible
+		// to a TLS-terminating proxy.
+		{
+			Key:       &encKey.PublicKey,
+			KeyID:     encKID,
+			Algorithm: pssoEncryptionAlg,
+			Use:       "enc",
+		},
+	}}
 	return json.Marshal(jwks)
 }
 

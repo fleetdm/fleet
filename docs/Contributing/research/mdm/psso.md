@@ -62,8 +62,9 @@ sequenceDiagram
         User->>macOS: Enter IdP password
         macOS->>Fleet: POST /api/mdm/apple/psso/nonce
         Fleet-->>macOS: nonce
-        macOS->>Fleet: POST /api/mdm/apple/psso/token (grant_type=password)<br/>signed JWT: plaintext password + jwe_crypto recipe + nonce
+        macOS->>Fleet: POST /api/mdm/apple/psso/token (grant_type=jwt-bearer)<br/>signed JWT: jwe_crypto recipe + nonce + password encrypted into the embedded assertion
         Fleet->>Fleet: Verify JWT signature by kid -> device signing key
+        Fleet->>Fleet: Decrypt embedded assertion (ECDH-ES) with PSSO encryption key -> plaintext password
         Fleet->>IdP: ROPG grant_type=password (username, password)
         alt password valid
             IdP-->>Fleet: id_token, refresh_token, expires_in
@@ -116,6 +117,15 @@ The nonce store mirrors `server/mdm/acme/internal/redis_nonces_store/` and expos
 ### JWKS signing key bootstrap
 
 The signing key(`MDMAssetPSSOSigningKey`) and the self-signed PSSO CA (`MDMAssetPSSOCACert`, backed by the same private key) are created once, the first time the feature is configured, via `bootstrapPSSOAssets` in `ModifyAppConfig` (covering the config API and GitOps). The bootstrap is idempotent and never regenerates existing assets, so the JWKS key and CA stay stable across reconfiguration and disable/re-enable.
+
+### Encrypt the password on the wire
+
+The password is the one raw credential PSSO handles, so it is encrypted end-to-end to Fleet rather than relying on TLS alone — a MITM proxy that terminates TLS  must not be able to read it else we risk inadvertent plaintext exposure.
+
+- **Separate encryption key.** A second EC P-256 key (`MDMAssetPSSOEncryptionKey`) is minted alongside the signing key in `bootstrapPSSOAssets` and published in the JWKS as a second JWK with `"use":"enc","alg":"ECDH-ES"`. It is deliberately *not* the signing key: NIST SP 800-57 §5.2 forbids using one key for both signing and encryption. The bootstrap mints each asset independently, so enabling the feature on a deployment that predates this key mints just the encryption key.
+- **Extension wiring.** When building the login configuration the extension fetches the JWKS, and if an `enc` key is present sets it as `ASAuthorizationProviderExtensionLoginConfiguration.loginRequestEncryptionPublicKey`. With that set, macOS encrypts the password into the login request instead of sending it in the clear.
+- **Wire format (per Apple's "Creating and validating a login request").** The outer login request stays a JWS signed by the device signing key, so device authentication, the single-use `request_nonce`, the `jwe_crypto` response recipe, and `username`/`sub` are unchanged and still verified as before. Only the password moves: `grant_type` becomes `urn:ietf:params:oauth:grant-type:jwt-bearer`, the plaintext `password` claim is dropped, and an `assertion` claim carries a compact JWE (`typ` `platformsso-encrypted-login-assertion+jwt`, `alg` `ECDH-ES`, `enc` `A256GCM`, with `epk`/`apu`/`apv`) encrypted to the published encryption key. Its `+jwt` plaintext is a JWT whose claims include the password.
+- **Server decryption.** `handlePSSOPasswordLogin` reads the plaintext `password` claim when present; otherwise it decrypts the `assertion` with the stored encryption key (`decryptPSSOInboundJWE`, go-jose ECDH-ES, pinning `typ`/`alg`/`enc`) and extracts the password from the recovered claims. The embedded assertion is encrypted-only — its integrity is covered by the outer JWS signature and the JWE GCM tag, so no inner signature is verified. IdP validation then proceeds unchanged.
 
 ### In-tree Swift extension (shipped with Fleet Desktop)
 

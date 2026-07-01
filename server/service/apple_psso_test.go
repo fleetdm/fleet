@@ -140,7 +140,7 @@ func parsePEMCert(t *testing.T, value []byte) *x509.Certificate {
 func TestBootstrapPSSOAssets(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("creates signing key and CA when both absent", func(t *testing.T) {
+	t.Run("creates signing key, CA, and encryption key when all absent", func(t *testing.T) {
 		store := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
 		ds := pssoBootstrapMock(store)
 
@@ -148,9 +148,11 @@ func TestBootstrapPSSOAssets(t *testing.T) {
 		require.True(t, ds.InsertMDMConfigAssetsFuncInvoked)
 		require.Contains(t, store, fleet.MDMAssetPSSOSigningKey)
 		require.Contains(t, store, fleet.MDMAssetPSSOCACert)
+		require.Contains(t, store, fleet.MDMAssetPSSOEncryptionKey)
 
 		signingKey := parsePEMSigningKey(t, store[fleet.MDMAssetPSSOSigningKey].Value)
 		caCert := parsePEMCert(t, store[fleet.MDMAssetPSSOCACert].Value)
+		encKey := parsePEMSigningKey(t, store[fleet.MDMAssetPSSOEncryptionKey].Value)
 
 		assert.True(t, caCert.IsCA)
 		// The CA is self-signed by the signing key, so its public key is the
@@ -160,13 +162,18 @@ func TestBootstrapPSSOAssets(t *testing.T) {
 		assert.True(t, caPub.Equal(&signingKey.PublicKey))
 		require.NoError(t, caCert.CheckSignatureFrom(caCert))
 		assert.WithinDuration(t, time.Now().AddDate(pssoCAValidYears, 0, 0), caCert.NotAfter, 24*time.Hour)
+
+		// The encryption key is distinct from the signing key: NIST SP 800-57
+		// forbids using one key for both signing and encryption.
+		assert.False(t, encKey.PublicKey.Equal(&signingKey.PublicKey))
 	})
 
-	t.Run("no-op when both already exist", func(t *testing.T) {
+	t.Run("no-op when all already exist", func(t *testing.T) {
 		store := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
 		require.NoError(t, bootstrapPSSOAssets(ctx, pssoBootstrapMock(store)))
 		seededKey := store[fleet.MDMAssetPSSOSigningKey].Value
 		seededCA := store[fleet.MDMAssetPSSOCACert].Value
+		seededEnc := store[fleet.MDMAssetPSSOEncryptionKey].Value
 
 		ds := pssoBootstrapMock(store)
 		require.NoError(t, bootstrapPSSOAssets(ctx, ds))
@@ -174,6 +181,28 @@ func TestBootstrapPSSOAssets(t *testing.T) {
 		assert.False(t, ds.InsertMDMConfigAssetsFuncInvoked)
 		assert.Equal(t, seededKey, store[fleet.MDMAssetPSSOSigningKey].Value)
 		assert.Equal(t, seededCA, store[fleet.MDMAssetPSSOCACert].Value)
+		assert.Equal(t, seededEnc, store[fleet.MDMAssetPSSOEncryptionKey].Value)
+	})
+
+	t.Run("creates only the encryption key when signing and CA already exist", func(t *testing.T) {
+		store := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+		require.NoError(t, bootstrapPSSOAssets(ctx, pssoBootstrapMock(store)))
+		existingKeyPEM := store[fleet.MDMAssetPSSOSigningKey].Value
+		existingCAPEM := store[fleet.MDMAssetPSSOCACert].Value
+		// Simulate a deployment configured before the encryption key existed.
+		delete(store, fleet.MDMAssetPSSOEncryptionKey)
+
+		ds := pssoBootstrapMock(store)
+		require.NoError(t, bootstrapPSSOAssets(ctx, ds))
+		require.True(t, ds.InsertMDMConfigAssetsFuncInvoked)
+
+		// The signing key and CA are preserved; only the encryption key is minted.
+		assert.Equal(t, existingKeyPEM, store[fleet.MDMAssetPSSOSigningKey].Value)
+		assert.Equal(t, existingCAPEM, store[fleet.MDMAssetPSSOCACert].Value)
+		require.Contains(t, store, fleet.MDMAssetPSSOEncryptionKey)
+		encKey := parsePEMSigningKey(t, store[fleet.MDMAssetPSSOEncryptionKey].Value)
+		signingKey := parsePEMSigningKey(t, existingKeyPEM)
+		assert.False(t, encKey.PublicKey.Equal(&signingKey.PublicKey))
 	})
 
 	t.Run("creates only the CA over the existing key when CA is missing", func(t *testing.T) {

@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	jose "github.com/go-jose/go-jose/v3"
 	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -461,6 +462,110 @@ func TestPSSO_ResolveEncryptionKey(t *testing.T) {
 		_, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID,
 			base64.RawURLEncoding.EncodeToString([]byte("not party info")))
 		require.Error(t, err)
+	})
+}
+
+// TestPSSO_InboundAssertionDecryptRoundTrip confirms Fleet can decrypt the
+// embedded login assertion the device encrypts to Fleet's PSSO encryption key.
+// The device-side JWE (ECDH-ES + A256GCM, apu/apv) has the same wire shape as a
+// Fleet login response in the opposite direction, so it's modeled with
+// buildPSSOResponseJWE: the device is the ephemeral ECDH-ES sender, Fleet the
+// static recipient.
+func TestPSSO_InboundAssertionDecryptRoundTrip(t *testing.T) {
+	encKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	apv := testAPV(t, encKey)
+	plaintext := []byte(`{"password":"hunter2","username":"foo"}`)
+
+	jwe, err := buildPSSOResponseJWE(plaintext, &encKey.PublicKey, apv, pssoTypEncryptedLoginAssertion)
+	require.NoError(t, err)
+
+	got, err := decryptPSSOInboundJWE(jwe, encKey)
+	require.NoError(t, err)
+	assert.Equal(t, plaintext, got)
+
+	// A different recipient key can't open it.
+	other, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	_, err = decryptPSSOInboundJWE(jwe, other)
+	require.Error(t, err)
+
+	// The typ is pinned: a JWE of another media type is rejected even with the
+	// right key, so a key/login response can't be replayed as a login assertion.
+	wrongTyp, err := buildPSSOResponseJWE(plaintext, &encKey.PublicKey, apv, pssoTypLoginResponse)
+	require.NoError(t, err)
+	_, err = decryptPSSOInboundJWE(wrongTyp, encKey)
+	require.ErrorContains(t, err, "unexpected typ")
+}
+
+// TestPSSO_ParseEmbeddedAssertionPassword confirms the password is extracted
+// whether the decrypted assertion is a compact JWT (Apple's +jwt typ) or a bare
+// JSON claims object. The username is read from the signed outer JWT elsewhere,
+// not from the assertion.
+func TestPSSO_ParseEmbeddedAssertionPassword(t *testing.T) {
+	t.Run("compact JWT", func(t *testing.T) {
+		header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
+		body := base64.RawURLEncoding.EncodeToString([]byte(`{"password":"pw","username":"alice"}`))
+		password, err := parseEmbeddedAssertionPassword([]byte(header + "." + body + "."))
+		require.NoError(t, err)
+		assert.Equal(t, "pw", password)
+	})
+
+	t.Run("bare JSON object", func(t *testing.T) {
+		password, err := parseEmbeddedAssertionPassword([]byte(`{"password":"pw2","username":"bob"}`))
+		require.NoError(t, err)
+		assert.Equal(t, "pw2", password)
+	})
+
+	t.Run("neither JSON nor JWT is rejected", func(t *testing.T) {
+		_, err := parseEmbeddedAssertionPassword([]byte("not-json-not-jwt"))
+		require.Error(t, err)
+	})
+}
+
+// TestPSSO_ResolveLoginPassword confirms the password is taken from the
+// plaintext claim when present, and decrypted out of the embedded assertion
+// (using Fleet's stored encryption key) when password encryption is enabled.
+func TestPSSO_ResolveLoginPassword(t *testing.T) {
+	encKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	encDER, err := x509.MarshalECPrivateKey(encKey)
+	require.NoError(t, err)
+	encPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: encDER})
+
+	newSvc := func() *Service {
+		ds := new(mock.DataStore)
+		ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			out := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+			for _, n := range names {
+				if n == fleet.MDMAssetPSSOEncryptionKey {
+					out[n] = fleet.MDMConfigAsset{Name: n, Value: encPEM}
+				}
+			}
+			return out, nil
+		}
+		return &Service{ds: ds, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	}
+
+	t.Run("plaintext password claim", func(t *testing.T) {
+		pw, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssoTokenClaims{Password: "plain"})
+		require.NoError(t, err)
+		assert.Equal(t, "plain", pw)
+	})
+
+	t.Run("encrypted embedded assertion", func(t *testing.T) {
+		apv := testAPV(t, encKey)
+		inner := []byte(`{"password":"secret","username":"carol"}`)
+		jwe, err := buildPSSOResponseJWE(inner, &encKey.PublicKey, apv, pssoTypEncryptedLoginAssertion)
+		require.NoError(t, err)
+
+		pw, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssoTokenClaims{
+			GrantType: pssoGrantTypeJWTBearer,
+			Assertion: string(jwe),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "secret", pw)
 	})
 }
 

@@ -87,7 +87,7 @@ From that it derives, under `/api/mdm/apple/psso/`:
 - `POST /nonce`        — single-use nonces for token requests
 - `POST /registration` — device key registration
 - `POST /token`        — password login / key request / key exchange
-- `GET  /jwks`         — Fleet's PSSO signing public key
+- `GET  /jwks`         — Fleet's PSSO public keys
 
 The Fleet server also serves an Apple App Site Association file at `https://<hostname>/.well-known/apple-app-site-association` containing an `authsrv` entry naming the extension's `<TeamID>.<BundleID>` — i.e. `8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension`.
 

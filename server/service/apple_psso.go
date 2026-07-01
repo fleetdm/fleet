@@ -277,16 +277,17 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 // other CAs in fleet and minted once, when the feature is first configured.
 const pssoCAValidYears = 10
 
-// bootstrapPSSOAssets ensures the Platform SSO signing key and its CA certificate
-// (which is signed by the signing key) exist in mdm_config_assets. It runs when the
-// feature is configured and is idempotent: existing assets are never regenerated, so
-// the signing key (published via JWKS) and the CA remain stable.
+// bootstrapPSSOAssets ensures the Platform SSO signing key, its CA certificate
+// (which is signed by the signing key), and the separate password-encryption key
+// exist in mdm_config_assets. It runs when the feature is configured and is
+// idempotent: existing assets are never regenerated, so the signing key and
+// encryption key (both published via JWKS) and the CA remain stable.
 func bootstrapPSSOAssets(ctx context.Context, ds fleet.Datastore) error {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx,
-		[]fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey, fleet.MDMAssetPSSOCACert},
+		[]fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey, fleet.MDMAssetPSSOCACert, fleet.MDMAssetPSSOEncryptionKey},
 		nil,
 	)
-	// A partial result (one asset present, the other missing) returns an error
+	// A partial result (some assets present, others missing) returns an error
 	// alongside the assets it did find; only a hard error with nothing usable is fatal.
 	if err != nil && !fleet.IsNotFound(err) && len(assets) == 0 {
 		return ctxerr.Wrap(ctx, err, "load psso assets")
@@ -294,11 +295,13 @@ func bootstrapPSSOAssets(ctx context.Context, ds fleet.Datastore) error {
 
 	haveKey := false
 	haveCA := false
+	haveEnc := false
 	if assets != nil {
 		_, haveKey = assets[fleet.MDMAssetPSSOSigningKey]
 		_, haveCA = assets[fleet.MDMAssetPSSOCACert]
+		_, haveEnc = assets[fleet.MDMAssetPSSOEncryptionKey]
 	}
-	if haveKey && haveCA {
+	if haveKey && haveCA && haveEnc {
 		return nil
 	}
 
@@ -337,11 +340,35 @@ func bootstrapPSSOAssets(ctx context.Context, ds fleet.Datastore) error {
 			Value: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}),
 		})
 	}
+	if !haveEnc {
+		encKeyPEM, err := generatePSSOECPrivateKeyPEM()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generate psso encryption key")
+		}
+		toInsert = append(toInsert, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetPSSOEncryptionKey,
+			Value: encKeyPEM,
+		})
+	}
 
 	if err := ds.InsertMDMConfigAssets(ctx, toInsert, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert psso assets")
 	}
 	return nil
+}
+
+// generatePSSOECPrivateKeyPEM mints a fresh P-256 private key and returns it as
+// an "EC PRIVATE KEY" PEM, the encoding the ee layer parses back.
+func generatePSSOECPrivateKeyPEM() ([]byte, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	der, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der}), nil
 }
 
 // pssoSigningKeyFromAssets parses the PSSO signing key out of a loaded asset map,

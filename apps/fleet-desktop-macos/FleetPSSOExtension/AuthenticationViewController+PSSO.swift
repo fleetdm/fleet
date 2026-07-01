@@ -24,30 +24,33 @@ extension AuthenticationViewController:
         completion: @escaping (ASAuthorizationProviderExtensionRegistrationResult) -> Void
     ) {
         self.loginManager = loginManager
-        do {
-            try applyLoginConfiguration(loginManager)
-            guard let signKey = loginManager.key(for: .userDeviceSigning),
-                  let encKey = loginManager.key(for: .userDeviceEncryption) else {
+        guard let signKey = loginManager.key(for: .userDeviceSigning),
+              let encKey = loginManager.key(for: .userDeviceEncryption) else {
+            completion(.failed)
+            return
+        }
+        guard let registrationToken = loginManager.registrationToken, !registrationToken.isEmpty else {
+            completion(.failed)
+            return
+        }
+        // applyLoginConfiguration fetches the server's encryption key over HTTP,
+        // so it runs on the Task alongside the registration POST. Report success
+        // only once Fleet has stored the keys, so the framework can't proceed to
+        // authentication with an unregistered key (which 404s at the token
+        // endpoint). This is what makes the Setup Assistant flow work.
+        Task {
+            do {
+                try await self.applyLoginConfiguration(loginManager)
+            } catch {
                 completion(.failed)
                 return
             }
-            guard let registrationToken = loginManager.registrationToken, !registrationToken.isEmpty else {
-                completion(.failed)
-                return
-            }
-            let payload = registrationPayload(
+            let payload = self.registrationPayload(
                 signing: signKey,
                 encryption: encKey,
                 registrationToken: registrationToken)
-            // stored the keys, so the framework can't proceed to authentication
-            // with an unregistered key (which 404s at the token endpoint). This
-            // is what makes the Setup Assistant flow work.
-            Task {
-                let ok = await self.postDeviceRegistration(payload: payload)
-                completion(ok ? .success : .failed)
-            }
-        } catch {
-            completion(.failed)
+            let ok = await self.postDeviceRegistration(payload: payload)
+            completion(ok ? .success : .failed)
         }
     }
 
