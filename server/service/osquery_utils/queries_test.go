@@ -1098,6 +1098,71 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 	})
 }
 
+// TestDirectIngestMDMMacPersonalEnrollment guards that the macOS detail-query
+// ingest reads the BYOD signal back from the profile's ServerURL (byod=1) rather
+// than hardcoding false, which would otherwise clobber the is_personal_enrollment
+// set by the Apple Authenticate flow on every check-in.
+func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	var host fleet.Host
+
+	generateRows := func(serverURL, payloadIdentifier string) []map[string]string {
+		return []map[string]string{
+			{
+				"enrolled":           "true",
+				"installed_from_dep": "false",
+				"server_url":         serverURL,
+				"payload_identifier": payloadIdentifier,
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name         string
+		mdmData      []map[string]string
+		wantPersonal bool
+	}{
+		{
+			name:         "Fleet byod=1",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet no byod",
+			mdmData:      generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "Fleet byod=1 alongside other params",
+			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet byod=0",
+			mdmData:      generateRows("https://test.example.com?byod=0", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "non-Fleet byod=1 ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", "com.unknown.mdm"),
+			wantPersonal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+				require.Equal(t, tc.wantPersonal, isPersonalEnrollment)
+				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
+				return nil
+			}
+
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.mdmData)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	}
+}
+
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
 	cases := []struct {
@@ -2502,9 +2567,109 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect no error: empty rows
 	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, []map[string]string{}))
 
-	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
+	// expect no error: locale-formatted install dates (12-hour with AM/PM and a
+	// narrow no-break space) as emitted by `/usr/bin/profiles` on macOS 14+
+	fixedInstall := time.Date(2026, 4, 10, 16, 25, 20, 0, time.UTC)
+	for i := range installedProfiles {
+		installedProfiles[i].InstallDate = fixedInstall
+	}
+	rows = toRows(installedProfiles)
+	for _, row := range rows {
+		row["install_date"] = "2026-04-10 4:25:20\u202fPM +0000"
+	}
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
+
+	// expect error: unrecognized install date format
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
-	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
+	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "unsupported install_date format")
+}
+
+func TestParseMacOSProfileInstallDate(t *testing.T) {
+	const (
+		nnbsp = "\u202f" // narrow no-break space (U+202F), emitted by macOS 14+ before AM/PM
+		nbsp  = "\u00a0" // no-break space (U+00A0)
+	)
+
+	mustUTC := func(s string) time.Time {
+		ts, err := time.Parse(time.RFC3339, s)
+		require.NoError(t, err)
+		return ts
+	}
+
+	for _, tc := range []struct {
+		name    string
+		input   string
+		want    time.Time
+		wantErr bool
+	}{
+		{
+			name:  "24-hour NSDate.description (common case)",
+			input: "2026-04-10 16:25:38 +0000",
+			want:  mustUTC("2026-04-10T16:25:38Z"),
+		},
+		{
+			// verbatim from a customer's `SELECT * FROM macos_profiles` output
+			name:  "12-hour PM with narrow no-break space (macOS 14+)",
+			input: "2026-04-10 4:25:20" + nnbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T16:25:20Z"),
+		},
+		{
+			// verbatim from the same customer output
+			name:  "12-hour AM with narrow no-break space",
+			input: "2024-09-25 8:53:53" + nnbsp + "AM +0000",
+			want:  mustUTC("2024-09-25T08:53:53Z"),
+		},
+		{
+			name:  "12-hour with regular space (macOS 13 and earlier)",
+			input: "2026-04-10 4:25:20 PM +0000",
+			want:  mustUTC("2026-04-10T16:25:20Z"),
+		},
+		{
+			name:  "12-hour with no-break space",
+			input: "2026-04-10 4:25:20" + nbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T16:25:20Z"),
+		},
+		{
+			name:  "noon",
+			input: "2026-04-10 12:00:00" + nnbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T12:00:00Z"),
+		},
+		{
+			name:  "after midnight",
+			input: "2026-04-10 12:30:00" + nnbsp + "AM +0000",
+			want:  mustUTC("2026-04-10T00:30:00Z"),
+		},
+		{
+			name:  "two-digit 12-hour",
+			input: "2026-04-10 11:05:00" + nnbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T23:05:00Z"),
+		},
+		{
+			name:  "non-UTC offset",
+			input: "2026-04-10 4:25:20" + nnbsp + "PM -0700",
+			want:  mustUTC("2026-04-10T23:25:20Z"),
+		},
+		{
+			name:    "unsupported format",
+			input:   "Fri Apr 10 16:25:38 PDT 2026",
+			wantErr: true,
+		},
+		{
+			name:    "empty",
+			input:   "",
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseMacOSProfileInstallDate(tc.input)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "unsupported install_date format")
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, got.Equal(tc.want), "got %s, want %s", got.UTC(), tc.want)
+		})
+	}
 }
 
 func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {

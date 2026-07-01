@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.0.5",
+      "version": "7.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%' AND version_compare(version, '7.0.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%' AND version_compare(version, '7.1.0') < 0);"
       },
-      "installer_url": "https://cdn.zoom.us/prod/7.0.5.7643/x64/zoomrooms-7.0.5.7643-x64.msi",
+      "installer_url": "https://cdn.zoom.us/prod/7.1.0.7866/x64/zoomrooms-7.1.0.7866-x64.msi",
       "install_script_ref": "790a33a6",
       "uninstall_script_ref": "6d99782c",
-      "sha256": "06c587240137610f9ebf4063f566c750d1a9a94d1ad2a53e4facb9d2da9fa49e",
+      "sha256": "4bc38835f653b7e8d73c1b3b6ec28b03c0601025d9d7f6aeb98f95c57486adfd",
       "default_categories": [
         "Communication"
       ],

@@ -118,6 +118,14 @@ interface IHostActionConfigOptions {
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
   managedAccountPasswordAvailable: boolean;
+  /**
+   * BYOD permission gates (issue #23242). Undefined when the host's stored
+   * AccessRights are not yet known; treat undefined as "allowed" to preserve
+   * pre-feature behavior.
+   */
+  wipeAllowed?: boolean;
+  lockAllowed?: boolean;
+  clearPasscodeAllowed?: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -540,12 +548,47 @@ const removeUnavailableOptions = (
   return options;
 };
 
+// Tooltip copy for the BYOD-disabled state per issue #23242. Shown when the
+// host's stored AccessRights bitmask omits the relevant bit.
+const BYOD_DISABLED_TOOLTIPS: Record<string, JSX.Element> = {
+  wipe: (
+    <>
+      Wipe permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  lock: (
+    <>
+      Lock permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  clearPasscode: (
+    <>
+      Clear passcode permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+};
+
 // Available tooltips for disabled options
 export const getDropdownOptionTooltipContent = (
   value: string | number,
   isHostOnline?: boolean,
-  scriptsGloballyDisabled?: boolean
+  scriptsGloballyDisabled?: boolean,
+  byodDisabled?: boolean
 ) => {
+  if (
+    byodDisabled &&
+    typeof value === "string" &&
+    BYOD_DISABLED_TOOLTIPS[value]
+  ) {
+    return BYOD_DISABLED_TOOLTIPS[value];
+  }
+
   if (value === "runScript" && scriptsGloballyDisabled) {
     return <>Running scripts is disabled in organization settings.</>;
   }
@@ -598,6 +641,9 @@ const modifyOptions = (
     recoveryLockPasswordAvailable,
     managedAccountStatus,
     managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
+    clearPasscodeAllowed,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -610,6 +656,33 @@ const modifyOptions = (
       );
     });
   };
+
+  // BYOD-disabled options get a different tooltip. Each action maps to its
+  // own *Allowed flag; only treat the boolean false as disabled (undefined =
+  // unknown rights, leave the action enabled).
+  const byodDisableOptions = (optionsToDisable: IDropdownOption[]) => {
+    optionsToDisable.forEach((option) => {
+      option.disabled = true;
+      option.tooltipContent = getDropdownOptionTooltipContent(
+        option.value,
+        isHostOnline,
+        scriptsGloballyDisabled,
+        true
+      );
+    });
+  };
+
+  if (wipeAllowed === false) {
+    byodDisableOptions(options.filter((option) => option.value === "wipe"));
+  }
+  if (lockAllowed === false) {
+    byodDisableOptions(options.filter((option) => option.value === "lock"));
+  }
+  if (clearPasscodeAllowed === false) {
+    byodDisableOptions(
+      options.filter((option) => option.value === "clearPasscode")
+    );
+  }
 
   let optionsToDisable: IDropdownOption[] = [];
   // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.

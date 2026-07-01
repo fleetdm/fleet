@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
     state: { type: 'string' },
     city: { type: 'string' },
-    country: { type: 'string', required: true},
+    country: { type: 'string'},
   },
 
 
@@ -24,6 +24,11 @@ module.exports = {
 
 
   fn: async function ({state, city, country}) {
+
+    if(!country) {
+      // IF a country is not provided, throw an error and log the provided inputs to help us debug the issue.
+      throw new Error(`Cannot determine Salesforce territory without a country. Provided inputs: country: ${country}, state: ${state}, city: ${city}`);
+    }
     //  ╦  ╔═╗╔═╗╦╔╗╔  ╔╦╗╔═╗  ╔═╗╔═╗╦  ╔═╗╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗
     //  ║  ║ ║║ ╦║║║║   ║ ║ ║  ╚═╗╠═╣║  ║╣ ╚═╗╠╣ ║ ║╠╦╝║  ║╣
     //  ╩═╝╚═╝╚═╝╩╝╚╝   ╩ ╚═╝  ╚═╝╩ ╩╩═╝╚═╝╚═╝╚  ╚═╝╩╚═╚═╝╚═╝

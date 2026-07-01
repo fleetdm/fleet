@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.088.0510.0004",
+      "version": "26.098.0524.0004",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft OneDrive' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft OneDrive' AND publisher = 'Microsoft Corporation' AND version_compare(version, '26.088.0510.0004') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft OneDrive' AND publisher = 'Microsoft Corporation' AND version_compare(version, '26.098.0524.0004') < 0);"
       },
-      "installer_url": "https://oneclient.sfx.ms/Win/Installers/26.088.0510.0004/amd64/OneDriveSetup.exe",
+      "installer_url": "https://oneclient.sfx.ms/Win/Installers/26.098.0524.0004/amd64/OneDriveSetup.exe",
       "install_script_ref": "ab0b56ab",
       "uninstall_script_ref": "374be511",
-      "sha256": "0e175c6e4484196f3dc388e764b5674bbb08aef6fbefef9484c885fde36306b1",
+      "sha256": "3d04143831ba248f597791e732d37a634418d7d495d2284ecf7338f256bb141c",
       "default_categories": [
         "Productivity"
       ]

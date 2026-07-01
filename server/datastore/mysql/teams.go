@@ -149,6 +149,7 @@ var teamRefs = []string{
 	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
+	"software_title_team_pins",
 	"vpp_app_configurations",
 	"software_categories",
 }

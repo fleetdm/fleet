@@ -8,6 +8,8 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow the ins
 
 To migrate Windows hosts from your current MDM solution to Fleet, follow the [Automatic Windows MDM migration](#automatic-windows-mdm-migration) instructions.
 
+> Fleet supports two ways to enroll Windows hosts: installing Fleet's agent (fleetd), and enrolling through Microsoft Entra ID. End users authenticate through Entra during enrollment, so you can use a third-party identity provider (IdP) if it's federated with Entra. Enrolling against an IdP that isn't federated with Entra isn't currently supported.
+
 ## Turn on Windows MDM
 
 ### Step 1: Generate your certificate and key
@@ -136,20 +138,24 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 13. Replace with your Fleet URL (e.g., fleet.acme.com) and select **Save**.
 
-14. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+14. On the same application, select **Overview** and copy the **Application (client) ID**.
 
-15.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
+15. In Fleet, head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment > Edit**. Under **Entra application client IDs**, select **Add**, paste the client ID, and select **Add**. Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so the client ID is required. If you don't add it, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
 
-16. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
+16. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+
+17. Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
+
+18. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
     + Device > Device.Read.All
     + Device > Device.ReadWrite.All
     + Directory > Directory.Read.All
     + Group > Group.Read.All
     + User > User.Read.All
 
-17. Select **Add permissions**.
+19. Select **Add permissions**.
 
-18. Select **Grant admin consent for [your tenant name]**, and confirm.
+20. Select **Grant admin consent for [your tenant name]**, and confirm.
 
 Now you're ready to automatically enroll Windows hosts to Fleet.
 
@@ -261,7 +267,7 @@ The Autopilot service may need a few minutes to sync after the device record cle
 
 ## Turn off Windows MDM
 
-1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) from Fleet on all your Windows hosts.
+1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1) from Fleet on all your Windows hosts. Note that this script will also remove fleetd from the hosts.
 
 2. Head to **Settings > Integrations > MDM**.
 

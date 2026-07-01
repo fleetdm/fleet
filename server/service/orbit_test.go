@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -346,6 +345,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -424,6 +424,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -499,12 +500,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		// GetOrbitConfig derives the Fleet-MDM connection state from GetHostMDM
+		// (ConnectedToFleet).
+		var connectedToFleetMDM bool
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
-		}
-		var isHostConnectedToFleet bool
-		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
-			return isHostConnectedToFleet, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: connectedToFleetMDM}, nil
 		}
 
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
@@ -524,12 +524,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 
 		checkHostVariations := func(h *fleet.Host) {
-			// host is not connected to fleet
-			isHostConnectedToFleet = false
+			// host is osquery-enrolled but not connected to Fleet MDM
+			connectedToFleetMDM = false
 			checkEmptyNudgeConfig(h)
 
-			// host has MDM turned on but is not enrolled
-			isHostConnectedToFleet = true
+			// host is connected to Fleet MDM but not osquery-enrolled
+			connectedToFleetMDM = true
 			h.OsqueryHostID = nil
 			checkEmptyNudgeConfig(h)
 		}
@@ -587,6 +587,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
@@ -686,7 +687,7 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 			return false, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
+			return nil, newNotFoundError()
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
@@ -776,6 +777,7 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -1130,7 +1132,7 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 			return false
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil

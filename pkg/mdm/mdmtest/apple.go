@@ -359,8 +359,11 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 			return fmt.Errorf("get enrollment profile from OTA URL: %w", err)
 		}
 	case c.fetchEnrollmentProfileFromMDMBYOD:
-		if err := c.fetchEnrollmentProfileFromMDMBYODURL(); err != nil {
-			return fmt.Errorf("get enrollment profile from MDM BYOD URL: %w", err)
+		if awaitingConfiguration {
+			// awaitingConfiguration=true only comes from new enrollments, and for re-enrollments we don't want to refetch the profile.
+			if err := c.fetchEnrollmentProfileFromMDMBYODURL(); err != nil {
+				return fmt.Errorf("get enrollment profile from MDM BYOD URL: %w", err)
+			}
 		}
 	default:
 		if c.EnrollInfo.SCEPURL == "" || c.EnrollInfo.MDMURL == "" || c.EnrollInfo.SCEPChallenge == "" {

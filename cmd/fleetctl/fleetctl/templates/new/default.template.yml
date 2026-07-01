@@ -52,7 +52,7 @@ org_settings:
     #
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
-    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#require-idp-authentication
     ###########################################################
     # end_user_authentication:
     #   idp_name: "Okta"  # e.g. "Entra", "Okta", "Google Workspace", etc. (Displayed to end users.)

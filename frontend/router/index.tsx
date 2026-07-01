@@ -165,6 +165,10 @@ const routes = (
             path="mdm/apple/account_driven_enroll/sso"
             component={MDMAppleSSOPage}
           />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso/:token"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>

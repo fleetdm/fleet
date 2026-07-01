@@ -352,41 +352,31 @@ export interface MergePoliciesParams {
   patchPolicy: ISoftwarePackage["patch_policy"] | null | undefined;
 }
 
-// const mergePolicies(params: MergePoliciesParams): ISoftwareInstallerPolicyUI[] = function (...) { ... }
 export const mergePolicies = ({
   automaticInstallPolicies,
   patchPolicy,
 }: MergePoliciesParams): ISoftwareInstallPolicyUI[] => {
-  // Map keyed by policy id so we can merge dynamic and patch info for the same id.
+  // Each entry's `type` Set is rebuilt rather than mutated, so two calls on the
+  // same input return independent results — safe to memoize or freeze.
   const byId = new Map<number, ISoftwareInstallPolicyUI>();
 
-  // 1. Seed the map with automatic install ("dynamic") policies.
   (automaticInstallPolicies ?? []).forEach((installPolicy) => {
-    // Type Set with "dynamic" for automatic install policies
-    const type: SoftwareInstallPolicyTypeSet = new Set(["dynamic"]);
     byId.set(installPolicy.id, {
       ...installPolicy,
-      type,
+      type: new Set(["dynamic"]),
     });
   });
 
-  // 2. Merge in the patch policy by its id, updating type if there's a match.
   if (patchPolicy) {
     const existing = byId.get(patchPolicy.id);
-
-    if (existing) {
-      // If there is already a dynamic policy with this id, just add "patch"
-      // to the existing Set so type becomes Set(["dynamic", "patch"]).
-      existing.type.add("patch");
-    } else {
-      // If there is no dynamic policy with this id, create a new entry that
-      // has only "patch" in the Set.
-      const type: SoftwareInstallPolicyTypeSet = new Set(["patch"]);
-      byId.set(patchPolicy.id, {
-        ...((patchPolicy as unknown) as ISoftwareInstallPolicy),
-        type,
-      });
-    }
+    const typeSet: SoftwareInstallPolicyTypeSet = existing
+      ? new Set([...existing.type, "patch"])
+      : new Set(["patch"]);
+    byId.set(patchPolicy.id, {
+      id: patchPolicy.id,
+      name: patchPolicy.name,
+      type: typeSet,
+    });
   }
 
   return Array.from(byId.values());
