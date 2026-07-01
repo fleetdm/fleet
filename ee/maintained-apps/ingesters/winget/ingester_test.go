@@ -456,6 +456,52 @@ func TestIngestValidations(t *testing.T) {
 				upgradeCode:       "{ABCDEF}",
 			},
 		},
+		{
+			// Many winget manifests (e.g. NSIS/Inno/burn apps like descript,
+			// electrum, protopie) don't declare a Scope. The input's
+			// installer_scope must still be honored so scope can be set for
+			// correctness without failing to find an installer.
+			name:    "scope honored when winget manifest omits scope",
+			wantErr: "",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "", // winget silent on scope
+				installerArch:  "x64",
+			},
+		},
+		{
+			// When winget DOES declare a scope, an input scope that disagrees
+			// must not silently select the wrong-scope installer.
+			name:    "scope mismatch fails when winget declares scope",
+			wantErr: "failed to find installer for app",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "user", // winget declares user, input wants machine
+				installerArch:  "x64",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
