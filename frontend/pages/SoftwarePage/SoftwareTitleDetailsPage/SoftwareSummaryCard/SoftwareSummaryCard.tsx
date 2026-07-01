@@ -168,8 +168,6 @@ const SoftwareSummaryCard = ({
               mergedPolicies.length === 1 ? (
                 <>
                   Policy triggers install.
-                  <br />
-                  Select to open policy.
                 </>
               ) : (
                 <>
