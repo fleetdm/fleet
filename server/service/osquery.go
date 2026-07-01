@@ -2666,6 +2666,13 @@ func (svc *Service) setHostConditionalAccessAsync(
 // It's a global variable to be set in tests.
 var conditionalAccessSetWaitTime = 10 * time.Second
 
+// newConditionalAccessTicker creates a ticker for the conditional access polling loop.
+// It's a package-level variable so tests can replace it to track Stop() calls.
+var newConditionalAccessTicker = func(d time.Duration) (tickCh <-chan time.Time, stop func()) {
+	t := time.NewTicker(d)
+	return t.C, t.Stop
+}
+
 func (svc *Service) setHostConditionalAccess(
 	hostID uint,
 	hostPlatform string,
@@ -2724,9 +2731,9 @@ func (svc *Service) setHostConditionalAccess(
 		)
 		logger.DebugContext(ctx, "set compliance status message sent")
 		startTime := time.Now()
-		ticker := time.NewTicker(conditionalAccessSetWaitTime)
-		defer ticker.Stop()
-		for range ticker.C {
+		tickCh, tickStop := newConditionalAccessTicker(conditionalAccessSetWaitTime)
+		defer tickStop()
+		for range tickCh {
 			if time.Since(startTime) > timeout {
 				// No failure activity is recorded here. SetComplianceStatus
 				// succeeded (we have a MessageID), so the push was accepted by
