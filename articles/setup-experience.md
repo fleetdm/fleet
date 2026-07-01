@@ -16,7 +16,7 @@ Below is the end user experience for macOS. Check out the separate videos for [i
    <iframe src="https://www.youtube.com/embed/BU0Q_8cQXuw?si=2N6abC9y1mEpFlzI" frameborder="0" allowfullscreen></iframe>
 </div>
 
-## Require IdP authentication
+## End user authentication
 
 You can require IdP authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. IdP authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
@@ -30,7 +30,7 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [GitOps](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable end user authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > Users > End user authentication > Require IdP authentication**. Alternatively, you can use [GitOps](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable end user authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
@@ -58,7 +58,11 @@ To view the password for a host's managed account, head to **Host details > Acti
 
 ## Platform SSO
 
-Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. If you use Okta, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions. PSSO can be used with or without [end user authentication](#end-user-authentication) enabled.
+Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. There are two ways to set this up:
+- Okta Platform SSO: Uses Okta's native PSSO integration. See [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions.
+- Fleet Apple account provisioning (FPSSO): Works with any OAuth ROPG-compatible IdP, including Okta (free tier). See [apple account provisioning guide] for setup instructions.
+
+This can be used with or without [end user authentication](#end-user-authentication) enabled.
 
 ## End user license agreement (EULA)
 
@@ -67,11 +71,13 @@ To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user 
 Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
 ## Managed local account
+
 Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
 
 Admins can view the current password from **Host details > Show managed account** in the Fleet UI or via the API.
 
 ### Password rotation
+
 Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
 
 > Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
