@@ -1612,7 +1612,11 @@ None.
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -1627,6 +1631,9 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1647,14 +1654,16 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false,
       "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
+      "end_user_local_account_type": "admin"
     },
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
-      "manual_agent_install": false
+      "manual_agent_install": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin"
     },
     "client_url": "https://instance.fleet.com"
   },
@@ -1979,7 +1988,11 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
         },
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -1993,7 +2006,10 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.xml",
           "labels_exclude_any": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2017,6 +2033,8 @@ Modifies the Fleet's configuration with the supplied information.
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
@@ -2567,6 +2585,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| apple_settings         | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 
@@ -2652,13 +2671,12 @@ _Available in Fleet Premium._
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication    | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication). |
-| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
-| lock_end_user_info                | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on macOS hosts that automatically enroll. |
+| Name                                 | Type    | Description   |
+| ---------------------                | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| enable_managed_local_account         | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
 <br/>
 
@@ -2666,9 +2684,22 @@ _Available in Fleet Premium._
 
 `mdm.macos_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+
+<br/>
+
+##### mdm.apple_settings
+
+`mdm.apple_settings` is an object with the following structure:
+
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
 
@@ -2676,9 +2707,11 @@ _Available in Fleet Premium._
 
 `mdm.windows_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 
 <br/>
 
@@ -2725,7 +2758,10 @@ _Available in Fleet Premium._
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -2733,7 +2769,10 @@ _Available in Fleet Premium._
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -6892,7 +6931,7 @@ For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile
 
 For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
 
-For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked “Pending,” and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
+For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked "Pending," and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
 
 For requests with 100+ profiles, requests will take 5+ seconds.
 
@@ -7561,17 +7600,17 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                           | Type    | In    | Description                                                                                 |
-| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
-| lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
-| require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
-| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
-| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
-| manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| Name                                 | Type    | In    | Description                                                                                 |
+| ------------------------------       | ------  | ----  | --------------------------------------------------------------------------------------      |
+| fleet_id                             | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
+| enable_end_user_authentication       | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| lock_end_user_info                   | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
+| require_all_software_macos           | boolean | body  | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
+| require_all_software_windows         | boolean | body  | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
+| enable_release_device_manually       | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
+| manual_agent_install                 | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -7929,16 +7968,17 @@ Delete a script that will automatically run during macOS setup.
 
 _Available in Fleet Premium_
 
-Edit managed local account enforcement settings for eligible macOS hosts.
+Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
 #### Parameters
 
-| Name                         | Type    | In    | Description                                                                          |
-| ---------------------------- | ------  | ----  | -------------------------------------------------------------------------------------|
-| fleet_id                      | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
-| enable_managed_local_account | boolean | body  | Whether to enforce creating managed local accounts on eligible hosts.                |
+| Name                                 | Type    | In    | Description                                                                          |
+| ------------------------------------ | ------  | ----  | -------------------------------------------------------------------------------------|
+| fleet_id                             | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
+| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -7951,7 +7991,8 @@ Edit managed local account enforcement settings for eligible macOS hosts.
 ```json
 {
   "fleet_id": 3,
-  "enable_managed_local_account": true
+  "enable_managed_local_account": true,
+  "end_user_local_account_type": "admin"
 }
 ```
 
@@ -8394,7 +8435,7 @@ A passing host answers "yes" to a policy if the host returns results for a polic
 
 A failing host answers "no" to a policy if the host does not return results for a policy's query.
 
-For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
+For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
 
 ### List policies
 
@@ -12221,7 +12262,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item "Falcon" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -12902,7 +12943,10 @@ _Available in Fleet Premium_
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        },
       },
       "windows_settings": {
         "custom_settings": [
@@ -12916,7 +12960,10 @@ _Available in Fleet Premium_
             "path": "path/to/profile2.xml",
             "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        },
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -12928,6 +12975,8 @@ _Available in Fleet Premium_
       "setup_experience": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
+        "enable_managed_local_account": false,
+        "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
@@ -13280,6 +13329,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
 | windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
+| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
 
@@ -13341,32 +13391,47 @@ Returned when the requested name only differs from another fleet's name by lette
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
+<br/>
+
+
+##### mdm.apple_settings
+
+`mdm.apple_settings` is an object with the following structure:
+
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
+
 
 ##### mdm.windows_settings
 
 `mdm.windows_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 
 <br/>
+
 
 ##### mdm.setup_experience
 
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication  | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
-| lock_end_user_info  | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on eligible hosts. |
-
-<br/>
+| Name                                  | Type    | Description   |
+| ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
+| lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| enable_managed_local_account          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 
 ##### Example request body
@@ -13399,7 +13464,10 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "custom_settings": [
@@ -13413,7 +13481,10 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "setup_experience": {
       "enable_end_user_authentication": false
@@ -13545,7 +13616,10 @@ _Available in Fleet Premium_
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -13559,7 +13633,10 @@ _Available in Fleet Premium_
            "path": "path/to/profile2.xml",
            "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "macos_setup": {
         "bootstrap_package": "",
