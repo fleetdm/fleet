@@ -503,17 +503,19 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   echo "Removing launchctl service ${service}"
 
   # A wildcard label can't be used with launchctl or as a plist name, so expand
-  # it to loaded service labels (nonzero PID) like Homebrew does.
+  # it to the labels of currently loaded services that match the pattern.
   local services=("$service")
   if [[ "$service" == *"*"* ]]; then
     local regex
-    # Escape regex metacharacters, then turn '*' into '.*'.
+    # Escape regex metacharacters, turn '*' into '.*', and anchor the pattern so
+    # it matches a full label rather than a substring.
     regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+    regex="^${regex}$"
     services=()
-    local pid id
-    while read -r pid _ id; do
-      [[ "$pid" =~ ^[0-9]+$ ]] || continue
-      (( pid != 0 )) || continue
+    local id
+    # Match every loaded job by label regardless of PID; launchctl list reports
+    # loaded-but-not-running jobs with a "-" in the PID column.
+    while read -r _ _ id; do
       [[ "$id" =~ $regex ]] && services+=("$id")
     done < <(launchctl list 2>/dev/null | tail -n +2)
     if [[ ${#services[@]} -eq 0 ]]; then

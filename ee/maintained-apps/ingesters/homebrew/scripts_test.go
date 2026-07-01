@@ -93,6 +93,15 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 	// The helper must expand a wildcard label before touching launchctl.
 	require.Contains(t, script, `if [[ "$service" == *"*"* ]]; then`)
 	require.Contains(t, script, `regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')`)
-	require.Contains(t, script, `while read -r pid _ id; do`)
 	require.Contains(t, script, `[[ "$id" =~ $regex ]] && services+=("$id")`)
+	// The regex must be anchored so a wildcard label matches the full label and
+	// not a substring (e.g. "ai.krisp.krispMac*" must not match
+	// "x.ai.krisp.krispMac.helper").
+	require.Contains(t, script, `regex="^${regex}$"`)
+	// launchctl list reports loaded-but-not-running jobs with a "-" (or 0) PID,
+	// so the helper must match on the label regardless of PID. Guard against a
+	// regression that filters those jobs out.
+	require.Contains(t, script, `while read -r _ _ id; do`)
+	require.NotContains(t, script, `[[ "$pid" =~ ^[0-9]+$ ]]`)
+	require.NotContains(t, script, `(( pid != 0 ))`)
 }
