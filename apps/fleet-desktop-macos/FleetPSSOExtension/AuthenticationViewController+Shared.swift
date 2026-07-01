@@ -15,13 +15,17 @@ import Security
 @available(macOS 14.0, *)
 extension AuthenticationViewController {
 
-    func registrationPayload(signing: SecKey, encryption: SecKey) -> [String: String] {
+    // registrationToken is provided by the Fleet Server in the profile's RegistrationToken key;
+    // As of writing, Fleet always requires it to register a device and derives the host identity
+    // from it (device_uuid is sent only for diagnostics).
+    func registrationPayload(signing: SecKey, encryption: SecKey, registrationToken: String) -> [String: String] {
         [
             "device_uuid": deviceUUID(),
             "device_signing_key": pemRepresentation(of: signing),
             "device_encryption_key": pemRepresentation(of: encryption),
             "signing_key_id": keyID(signing),
             "encryption_key_id": keyID(encryption),
+            "registration_token": registrationToken,
         ]
     }
 

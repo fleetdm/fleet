@@ -92,6 +92,7 @@ func (req *pssoRegistrationRequest) DecodeBody(ctx context.Context, r io.Reader,
 	req.DeviceEncryptionKey = form.Get("device_encryption_key")
 	req.SigningKeyID = form.Get("signing_key_id")
 	req.EncryptionKeyID = form.Get("encryption_key_id")
+	req.RegistrationToken = form.Get("registration_token")
 	return nil
 }
 

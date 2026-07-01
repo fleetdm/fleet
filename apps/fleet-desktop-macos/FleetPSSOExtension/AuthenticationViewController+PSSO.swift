@@ -31,8 +31,14 @@ extension AuthenticationViewController:
                 completion(.failed)
                 return
             }
-            let payload = registrationPayload(signing: signKey, encryption: encKey)
-            // POST registration directly and only report success once Fleet has
+            guard let registrationToken = loginManager.registrationToken, !registrationToken.isEmpty else {
+                completion(.failed)
+                return
+            }
+            let payload = registrationPayload(
+                signing: signKey,
+                encryption: encKey,
+                registrationToken: registrationToken)
             // stored the keys, so the framework can't proceed to authentication
             // with an unregistered key (which 404s at the token endpoint). This
             // is what makes the Setup Assistant flow work.
