@@ -14,6 +14,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as gitrepo$0 from "../internal/gitrepo/models.js";
 
+export function GitAddWorktree(repo: string, path: string, ref: string): $CancellablePromise<string> {
+    return $Call.ByID(4094837978, repo, path, ref);
+}
+
 export function GitBranchStatus(repo: string): $CancellablePromise<gitrepo$0.BranchStatus> {
     return $Call.ByID(3298050234, repo).then(($result: any) => {
         return $$createType0($result);
@@ -38,8 +42,22 @@ export function GitListBranches(repo: string, filter: string, query: string, lim
     });
 }
 
+/**
+ * Worktree management — used by multi-server to build/run different branches
+ * in parallel from one clone.
+ */
+export function GitListWorktrees(repo: string): $CancellablePromise<gitrepo$0.Worktree[]> {
+    return $Call.ByID(2234859834, repo).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
 export function GitPull(repo: string): $CancellablePromise<string> {
     return $Call.ByID(650648391, repo);
+}
+
+export function GitRemoveWorktree(repo: string, path: string, force: boolean): $CancellablePromise<string> {
+    return $Call.ByID(4143669837, repo, path, force);
 }
 
 export function GitStashAndCheckout(repo: string, branch: string): $CancellablePromise<string> {
@@ -50,3 +68,5 @@ export function GitStashAndCheckout(repo: string, branch: string): $CancellableP
 const $$createType0 = gitrepo$0.BranchStatus.createFrom;
 const $$createType1 = gitrepo$0.Branch.createFrom;
 const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = gitrepo$0.Worktree.createFrom;
+const $$createType4 = $Create.Array($$createType3);

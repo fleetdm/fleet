@@ -287,7 +287,166 @@ export class RepoProbe {
 }
 
 /**
+ * ServerPorts holds the host ports one server's stack binds to. Server 1 keeps
+ * the canonical dev defaults (8080/3306/6379/9000/9001) so existing scripts and
+ * muscle memory keep working; additional servers use offset blocks so two
+ * stacks never collide.
+ */
+export class ServerPorts {
+    /**
+     * fleet serve --server_address host port
+     */
+    "server": number;
+
+    /**
+     * docker mysql host port
+     */
+    "mysql": number;
+
+    /**
+     * docker redis host port
+     */
+    "redis": number;
+
+    /**
+     * docker s3 (object store) host port
+     */
+    "s3": number;
+
+    /**
+     * docker s3 console host port
+     */
+    "s3_console": number;
+
+    /** Creates a new ServerPorts instance. */
+    constructor($$source: Partial<ServerPorts> = {}) {
+        if (!("server" in $$source)) {
+            this["server"] = 0;
+        }
+        if (!("mysql" in $$source)) {
+            this["mysql"] = 0;
+        }
+        if (!("redis" in $$source)) {
+            this["redis"] = 0;
+        }
+        if (!("s3" in $$source)) {
+            this["s3"] = 0;
+        }
+        if (!("s3_console" in $$source)) {
+            this["s3_console"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerPorts instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerPorts {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ServerPorts($$parsedSource as Partial<ServerPorts>);
+    }
+}
+
+/**
+ * ServerProfile is one independent local Fleet server instance: its own git
+ * worktree (so it can build/run a different branch), host ports, docker compose
+ * project, and serve config. Multiple profiles can run in parallel.
+ */
+export class ServerProfile {
+    /**
+     * stable, e.g. "s1" (never reused/renumbered)
+     */
+    "id": string;
+
+    /**
+     * user-facing label, e.g. "main" / "n-1 repro"
+     */
+    "name": string;
+
+    /**
+     * accent key for the switcher/status: green|purple|blue
+     */
+    "color": string;
+
+    /**
+     * WorktreePath is the git worktree this server builds and runs from. For
+     * server 1 this is typically the primary clone; others are `git worktree
+     * add`-ed trees. nil until the user picks one.
+     */
+    "worktree_path": string | null;
+
+    /**
+     * Branch is informational (the branch the worktree was created on). The
+     * live branch is read from git; checkout happens in the Git tab.
+     */
+    "branch": string | null;
+    "ports": ServerPorts;
+
+    /**
+     * docker compose -p value
+     */
+    "compose_project": string;
+    "fleet_serve": FleetServeConfig;
+    "enabled": boolean;
+
+    /** Creates a new ServerProfile instance. */
+    constructor($$source: Partial<ServerProfile> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("color" in $$source)) {
+            this["color"] = "";
+        }
+        if (!("worktree_path" in $$source)) {
+            this["worktree_path"] = null;
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = null;
+        }
+        if (!("ports" in $$source)) {
+            this["ports"] = (new ServerPorts());
+        }
+        if (!("compose_project" in $$source)) {
+            this["compose_project"] = "";
+        }
+        if (!("fleet_serve" in $$source)) {
+            this["fleet_serve"] = (new FleetServeConfig());
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerProfile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerProfile {
+        const $$createField5_0 = $$createType5;
+        const $$createField7_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ports" in $$parsedSource) {
+            $$parsedSource["ports"] = $$createField5_0($$parsedSource["ports"]);
+        }
+        if ("fleet_serve" in $$parsedSource) {
+            $$parsedSource["fleet_serve"] = $$createField7_0($$parsedSource["fleet_serve"]);
+        }
+        return new ServerProfile($$parsedSource as Partial<ServerProfile>);
+    }
+}
+
+/**
  * Settings is the full persisted configuration.
+ * 
+ * Servers is the multi-server source of truth. The legacy single-server fields
+ * (RepoPath, FleetServe) are retained so settings written before multi-server
+ * support still parse; Load() migrates them into Servers[0]. New code reads
+ * from Servers / ActiveServerID, not the legacy fields.
  */
 export class Settings {
     "repo_path": string | null;
@@ -299,6 +458,13 @@ export class Settings {
     "fleet_serve": FleetServeConfig;
     "theme": ThemePreference;
     "favorite_crons": string[];
+
+    /**
+     * Servers is nil in a pre-multi-server file; migrate() backfills it from
+     * the legacy fields on Load so callers always see at least one server.
+     */
+    "servers": ServerProfile[];
+    "active_server_id": string;
 
     /** Creates a new Settings instance. */
     constructor($$source: Partial<Settings> = {}) {
@@ -329,6 +495,12 @@ export class Settings {
         if (!("favorite_crons" in $$source)) {
             this["favorite_crons"] = [];
         }
+        if (!("servers" in $$source)) {
+            this["servers"] = [];
+        }
+        if (!("active_server_id" in $$source)) {
+            this["active_server_id"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -337,10 +509,11 @@ export class Settings {
      * Creates a new Settings instance from a string or object.
      */
     static createFrom($$source: any = {}): Settings {
-        const $$createField4_0 = $$createType5;
-        const $$createField5_0 = $$createType6;
-        const $$createField6_0 = $$createType7;
+        const $$createField4_0 = $$createType7;
+        const $$createField5_0 = $$createType8;
+        const $$createField6_0 = $$createType6;
         const $$createField8_0 = $$createType2;
+        const $$createField9_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ngrok" in $$parsedSource) {
             $$parsedSource["ngrok"] = $$createField4_0($$parsedSource["ngrok"]);
@@ -353,6 +526,9 @@ export class Settings {
         }
         if ("favorite_crons" in $$parsedSource) {
             $$parsedSource["favorite_crons"] = $$createField8_0($$parsedSource["favorite_crons"]);
+        }
+        if ("servers" in $$parsedSource) {
+            $$parsedSource["servers"] = $$createField9_0($$parsedSource["servers"]);
         }
         return new Settings($$parsedSource as Partial<Settings>);
     }
@@ -378,6 +554,9 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = NgrokTunnel.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = NgrokConfig.createFrom;
-const $$createType6 = PythonConfig.createFrom;
-const $$createType7 = FleetServeConfig.createFrom;
+const $$createType5 = ServerPorts.createFrom;
+const $$createType6 = FleetServeConfig.createFrom;
+const $$createType7 = NgrokConfig.createFrom;
+const $$createType8 = PythonConfig.createFrom;
+const $$createType9 = ServerProfile.createFrom;
+const $$createType10 = $Create.Array($$createType9);

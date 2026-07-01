@@ -9,6 +9,8 @@ export {
     NgrokYamlInfo,
     PythonConfig,
     RepoProbe,
+    ServerPorts,
+    ServerProfile,
     Settings,
     ThemePreference
 } from "./models.js";

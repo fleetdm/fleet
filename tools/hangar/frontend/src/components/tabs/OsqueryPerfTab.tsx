@@ -8,11 +8,12 @@ import {
   type ProcEvent,
   type ProcInfo,
   type Settings,
-} from "../../lib/tauri";
+} from "../../lib/ipc";
+import { activeServer } from "../../lib/servers";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
 /// Local form shape. Saved configs persist a superset of these fields
-/// (id + name + timestamps) — see PerfConfig in tauri.ts. Loading a
+/// (id + name + timestamps) — see PerfConfig in ipc.ts. Loading a
 /// saved config populates this struct; saving copies it back.
 export interface PerfFormConfig {
   server_url: string;
@@ -128,7 +129,7 @@ function formToConfig(
 }
 
 function generateConfigId(): string {
-  // crypto.randomUUID is available in modern WebKit (Tauri target).
+  // crypto.randomUUID is available in modern WebKit (the Wails webview).
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
@@ -169,10 +170,16 @@ export function OsqueryPerfTab({
   settings: Settings;
   procs: ProcInfo[];
 }) {
-  const repoPath = settings.repo_path;
+  // Perf runs against — and `go run`s from — the active server's worktree, so
+  // load-testing targets the server you're looking at, on its own port.
+  const srv = activeServer(settings);
+  const repoPath = srv.worktree_path;
   const [templates, setTemplates] = useState<PerfTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<PerfFormConfig>(DEFAULT_PERF_FORM);
+  const [form, setForm] = useState<PerfFormConfig>(() => ({
+    ...DEFAULT_PERF_FORM,
+    server_url: `https://localhost:${srv.ports.server}`,
+  }));
   const [tails, setTails] = useState<Record<string, PerfLogLine[]>>({});
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 

@@ -3,20 +3,22 @@ import {
   api,
   type BackupEntry,
   type ProcInfo,
-  type Settings,
-} from "../../lib/tauri";
+  type ServerProfile,
+} from "../../lib/ipc";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 import { startServe, waitForExit } from "../../lib/orchestration";
+import { composeNetwork, prepareDbArgsFor, procId } from "../../lib/servers";
 import type { DockerHealth, ServeStatus } from "../../lib/useSystemHealth";
 
 const BACKUP_EXT = ".sql.gz";
 // Subdirectory under the repo where DB dumps are written and read back.
-// Must stay in sync with BACKUPS_DIRNAME in src-tauri/src/db.rs.
+// Must stay in sync with backupsDirName in internal/db/db.go.
 const BACKUPS_DIR = "db-backups";
-const RESET_DROP_ID = "db-reset-drop";
-const RESET_PREPARE_ID = "db-reset-prepare";
-const BACKUP_PROC_ID = "db-backup";
-const RESTORE_PROC_ID = "db-restore";
+// Base process ids; namespaced per server via procId(server.id, ...).
+const RESET_DROP = "db-reset-drop";
+const RESET_PREPARE = "db-reset-prepare";
+const BACKUP_PROC = "db-backup";
+const RESTORE_PROC = "db-restore";
 
 type BusyKind =
   | { kind: "backup" }
@@ -26,22 +28,22 @@ type BusyKind =
   | null;
 
 export function DatabaseTab({
-  repoPath,
-  settings,
+  server,
   currentBranch,
   procs,
   serve,
   docker,
   goToLogs,
 }: {
-  repoPath: string | null;
-  settings: Settings;
+  server: ServerProfile;
   currentBranch: string | null;
   procs: ProcInfo[];
   serve: ServeStatus;
   docker: DockerHealth;
   goToLogs: () => void;
 }) {
+  const repoPath = server.worktree_path;
+  const serveProcId = procId(server.id, "fleet-serve");
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [backupsDir, setBackupsDir] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
@@ -133,11 +135,11 @@ export function DatabaseTab({
         mysqlUp={mysqlUp}
         serveUp={serve.up}
         serveOwned={
-          procs.find((p) => p.id === "fleet-serve")?.state === "running" ||
-          procs.find((p) => p.id === "fleet-serve")?.state === "stopping"
+          procs.find((p) => p.id === serveProcId)?.state === "running" ||
+          procs.find((p) => p.id === serveProcId)?.state === "stopping"
         }
-        repoPath={repoPath}
-        settings={settings}
+        server={server}
+        serveProcId={serveProcId}
         lastBackup={lastBackup}
         backupCount={backups.length}
         backupsDir={backupsDir}
@@ -186,6 +188,7 @@ export function DatabaseTab({
           serveUp={serve.up}
           onRestore={async (entry) => {
             await runRestore(entry, {
+              server,
               repoPath,
               setBusy,
               setError,
@@ -208,6 +211,7 @@ export function DatabaseTab({
           }}
         >
           <NewBackupPanel
+            server={server}
             repoPath={repoPath}
             currentBranch={currentBranch}
             mysqlUp={mysqlUp}
@@ -225,6 +229,7 @@ export function DatabaseTab({
             procs={procs}
             onReset={async () => {
               await runReset({
+                server,
                 repoPath,
                 setBusy,
                 setError,
@@ -243,8 +248,8 @@ function StatusHeader({
   mysqlUp,
   serveUp,
   serveOwned,
-  repoPath,
-  settings,
+  server,
+  serveProcId,
   lastBackup,
   backupCount,
   backupsDir,
@@ -256,8 +261,8 @@ function StatusHeader({
   mysqlUp: boolean;
   serveUp: boolean;
   serveOwned: boolean;
-  repoPath: string;
-  settings: Settings;
+  server: ServerProfile;
+  serveProcId: string;
   lastBackup: BackupEntry | null;
   backupCount: number;
   backupsDir: string | null;
@@ -274,7 +279,7 @@ function StatusHeader({
     setServeBusy("stopping");
     setError(null);
     try {
-      await api.stopProcess("fleet-serve");
+      await api.stopProcess(serveProcId);
     } catch (e) {
       setError(String(e));
     }
@@ -285,7 +290,7 @@ function StatusHeader({
     setServeBusy("starting");
     setError(null);
     try {
-      await startServe(repoPath, settings);
+      await startServe(server);
     } catch (e) {
       setError(String(e));
     }
@@ -309,7 +314,7 @@ function StatusHeader({
           MySQL {mysqlUp ? "up" : "down"}
         </span>
         <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
-          :3306 · via docker
+          :{server.ports.mysql} · via docker
         </span>
       </div>
       <span style={{ color: "var(--app-border)" }}>│</span>
@@ -605,6 +610,7 @@ function BackupRow({
 }
 
 function NewBackupPanel({
+  server,
   repoPath,
   currentBranch,
   mysqlUp,
@@ -614,6 +620,7 @@ function NewBackupPanel({
   setError,
   goToLogs,
 }: {
+  server: ServerProfile;
   repoPath: string;
   currentBranch: string | null;
   mysqlUp: boolean;
@@ -695,13 +702,14 @@ function NewBackupPanel({
       const check = await api.dbCheckBackupName(repoPath, stem);
       setBusy({ kind: "backup" });
       await api.startProcess({
-        id: BACKUP_PROC_ID,
+        id: procId(server.id, BACKUP_PROC),
         label: `db-backup ${check.final_name}`,
         cwd: repoPath,
         program: "./tools/backup_db/backup.sh",
         args: [check.relative_path],
+        env: [["FLEET_COMPOSE_NETWORK", composeNetwork(server)]],
       });
-      const ok = await waitForExit(BACKUP_PROC_ID);
+      const ok = await waitForExit(procId(server.id, BACKUP_PROC));
       if (!ok) {
         setError(
           "Backup failed. Check the Logs tab for details.",
@@ -1139,6 +1147,7 @@ function ResetConfirmModal({
 async function runRestore(
   entry: BackupEntry,
   ctx: {
+    server: ServerProfile;
     repoPath: string;
     setBusy: (b: BusyKind) => void;
     setError: (e: string | null) => void;
@@ -1146,23 +1155,26 @@ async function runRestore(
     goToLogs: () => void;
   },
 ) {
-  const { repoPath, setBusy, setError, refresh, goToLogs: _go } = ctx;
+  const { server, repoPath, setBusy, setError, refresh, goToLogs: _go } = ctx;
   // No confirmation: parity with the original, which restored immediately on
   // click. (The old window.confirm() never actually prompted — Tauri's webview
   // silently returned true — so the effective behavior was a direct restore.)
   setBusy({ kind: "restore", name: entry.name });
   setError(null);
+  const restoreId = procId(server.id, RESTORE_PROC);
   try {
-    // restore.sh wants the path relative to cwd (the repo). We always
-    // store backups under <repo>/db-backups so this stays stable.
+    // restore.sh wants the path relative to cwd (the worktree). We always
+    // store backups under <worktree>/db-backups so this stays stable.
+    // FLEET_COMPOSE_NETWORK points it at this server's docker network.
     await api.startProcess({
-      id: RESTORE_PROC_ID,
+      id: restoreId,
       label: `db-restore ${entry.name}`,
       cwd: repoPath,
       program: "./tools/backup_db/restore.sh",
       args: [`${BACKUPS_DIR}/${entry.name}`],
+      env: [["FLEET_COMPOSE_NETWORK", composeNetwork(server)]],
     });
-    const success = await waitForExit(RESTORE_PROC_ID);
+    const success = await waitForExit(restoreId);
     if (!success) {
       setError("Restore failed. Check the Logs tab for details.");
     }
@@ -1195,26 +1207,32 @@ async function runDelete(
 }
 
 async function runReset(ctx: {
+  server: ServerProfile;
   repoPath: string;
   setBusy: (b: BusyKind) => void;
   setError: (e: string | null) => void;
   refresh: () => Promise<void>;
   goToLogs: () => void;
 }) {
-  const { repoPath, setBusy, setError, refresh } = ctx;
+  const { server, repoPath, setBusy, setError, refresh } = ctx;
   setBusy({ kind: "reset" });
   setError(null);
+  const dropId = procId(server.id, RESET_DROP);
+  const prepareId = procId(server.id, RESET_PREPARE);
   try {
     // We split the Makefile's db-reset target into two managed steps
     // so the user sees the failure point in the Logs tab if either
-    // half blows up. Same commands, just streamed.
+    // half blows up. Same commands, just streamed — scoped to this
+    // server's compose project so the right MySQL is reset.
     await api.startProcess({
-      id: RESET_DROP_ID,
+      id: dropId,
       label: "db-reset · drop+create",
       cwd: repoPath,
       program: "docker",
       args: [
         "compose",
+        "-p",
+        server.compose_project,
         "exec",
         "-T",
         "mysql",
@@ -1223,7 +1241,7 @@ async function runReset(ctx: {
         'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot',
       ],
     });
-    const dropOk = await waitForExit(RESET_DROP_ID);
+    const dropOk = await waitForExit(dropId);
     if (!dropOk) {
       setError(
         "Drop/create failed. Check the Logs tab — fleet serve still holding connections is the usual cause.",
@@ -1232,13 +1250,13 @@ async function runReset(ctx: {
       return;
     }
     await api.startProcess({
-      id: RESET_PREPARE_ID,
+      id: prepareId,
       label: "db-reset · fleet prepare db --dev",
       cwd: repoPath,
       program: "./build/fleet",
-      args: ["prepare", "db", "--dev"],
+      args: prepareDbArgsFor(server),
     });
-    const prepOk = await waitForExit(RESET_PREPARE_ID);
+    const prepOk = await waitForExit(prepareId);
     if (!prepOk) {
       setError(
         "fleet prepare db --dev failed. Check the Logs tab for details.",

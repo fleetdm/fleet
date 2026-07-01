@@ -33,6 +33,19 @@ export function GetSettings(): $CancellablePromise<settings$0.Settings> {
 }
 
 /**
+ * NewServerProfile returns a fresh server profile for the next free slot
+ * (canonical-but-offset ports, compose project, color, serve config), leaving
+ * name/worktree for the caller to fill before saving. Errors if the server cap
+ * is already reached. The slot is derived from the currently-saved servers so
+ * the new ports/project/ID never collide.
+ */
+export function NewServerProfile(): $CancellablePromise<settings$0.ServerProfile> {
+    return $Call.ByID(3299702313).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * OpenPath opens a dir or allowed file in the system file manager.
  */
 export function OpenPath(path: string, reveal: boolean): $CancellablePromise<void> {
@@ -51,7 +64,7 @@ export function OpenURL(url: string): $CancellablePromise<void> {
  */
 export function ParseNgrokYml(path: string): $CancellablePromise<settings$0.NgrokYamlInfo> {
     return $Call.ByID(488399815, path).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -61,7 +74,7 @@ export function ParseNgrokYml(path: string): $CancellablePromise<settings$0.Ngro
  */
 export function ProbeFleetRepo(path: string): $CancellablePromise<settings$0.RepoProbe[]> {
     return $Call.ByID(984256957, path).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -88,6 +101,7 @@ export function WriteTextFile(path: string, contents: string): $CancellablePromi
 
 // Private type creation functions
 const $$createType0 = settings$0.Settings.createFrom;
-const $$createType1 = settings$0.NgrokYamlInfo.createFrom;
-const $$createType2 = settings$0.RepoProbe.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType1 = settings$0.ServerProfile.createFrom;
+const $$createType2 = settings$0.NgrokYamlInfo.createFrom;
+const $$createType3 = settings$0.RepoProbe.createFrom;
+const $$createType4 = $Create.Array($$createType3);

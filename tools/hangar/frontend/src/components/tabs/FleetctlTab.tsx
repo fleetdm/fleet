@@ -4,7 +4,7 @@ import {
   type ContextInfo,
   type ResolvedBinary,
   type Settings,
-} from "../../lib/tauri";
+} from "../../lib/ipc";
 import type { ServeStatus } from "../../lib/useSystemHealth";
 import {
   CRONS,
@@ -14,6 +14,7 @@ import {
   type CronInfo,
 } from "../../lib/fleetctlCrons";
 import { waitForExit } from "../../lib/orchestration";
+import { activeServer } from "../../lib/servers";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
 type SubTab = "login" | "get" | "trigger" | "custom";
@@ -56,7 +57,7 @@ export function FleetctlTab({
   goToServer: () => void;
   goToLogs: () => void;
 }) {
-  const repoPath = settings.repo_path;
+  const repoPath = activeServer(settings).worktree_path;
   const favorites = useMemo(
     () => new Set(settings.favorite_crons),
     [settings.favorite_crons],

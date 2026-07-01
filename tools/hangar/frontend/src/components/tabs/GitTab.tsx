@@ -4,7 +4,7 @@ import {
   api,
   type Branch,
   type BranchStatus,
-} from "../../lib/tauri";
+} from "../../lib/ipc";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
 type Filter = "rc" | "main" | "all";

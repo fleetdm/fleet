@@ -5,6 +5,8 @@
 package services
 
 import (
+	"fmt"
+
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 )
@@ -29,6 +31,27 @@ func (s *SettingsService) SaveSettings(in settings.Settings) error {
 		return err
 	}
 	return settings.Save(dir, in)
+}
+
+// NewServerProfile returns a fresh server profile for the next free slot
+// (canonical-but-offset ports, compose project, color, serve config), leaving
+// name/worktree for the caller to fill before saving. Errors if the server cap
+// is already reached. The slot is derived from the currently-saved servers so
+// the new ports/project/ID never collide.
+func (s *SettingsService) NewServerProfile() (settings.ServerProfile, error) {
+	dir, err := paths.ConfigDir()
+	if err != nil {
+		return settings.ServerProfile{}, err
+	}
+	cur, err := settings.Load(dir)
+	if err != nil {
+		return settings.ServerProfile{}, err
+	}
+	p, ok := settings.NextServerProfile(cur.Servers)
+	if !ok {
+		return settings.ServerProfile{}, fmt.Errorf("server limit reached (max %d)", settings.MaxServers)
+	}
+	return p, nil
 }
 
 // ProbeFleetRepo validates a single path, or (when path is empty) discovers

@@ -1,9 +1,12 @@
-// IPC layer. Originally Tauri's `invoke`; now backed by the Wails-generated
-// service bindings. The exported types are aliases to the Go-generated models
-// (so they can't drift from the backend), and the `api.*` shape is unchanged
-// so the rest of the frontend is untouched. `cast` narrows a binding's
-// $CancellablePromise<Model> to the alias type at the boundary (same runtime
-// JSON).
+// IPC layer: the frontend's single boundary to the Go backend, backed by the
+// Wails-generated service bindings and exposed as the `api.*` surface. The
+// exported types are aliases to the Go-generated models (so they can't drift
+// from the backend). `cast` narrows a binding's $CancellablePromise<Model> to
+// the alias type at the boundary (same runtime JSON).
+//
+// (Historically this was Tauri's `invoke`; the file kept the `api.*` shape
+// across the port to Wails so callers were untouched — hence it long outlived
+// the name `tauri.ts`.)
 import {
   SettingsService,
   ProcessService,
@@ -42,9 +45,11 @@ function cast<T>(p: unknown): Promise<T> {
 // and avoids enum/literal friction in the Settings UI).
 export type ThemePreference = "system" | "light" | "dark";
 
-// Settings aliases the generated model but keeps theme as the union above.
-export type Settings = Omit<settingsM.Settings, "theme"> & {
+// Settings aliases the generated model but keeps theme as the union above and
+// servers as the FleetServeConfig-aliased ServerProfile.
+export type Settings = Omit<settingsM.Settings, "theme" | "servers"> & {
   theme: ThemePreference;
+  servers: ServerProfile[];
 };
 export type NgrokConfig = settingsM.NgrokConfig;
 export type PythonConfig = settingsM.PythonConfig;
@@ -71,6 +76,15 @@ export type CommitInfo = gitrepoM.CommitInfo;
 export type FileChange = gitrepoM.FileChange;
 export type BranchStatus = gitrepoM.BranchStatus;
 export type Branch = gitrepoM.Branch;
+export type Worktree = gitrepoM.Worktree;
+
+// Multi-server profiles. ServerProfile keeps its generated fleet_serve as the
+// FleetServeConfig alias used elsewhere; ServerPorts is a flat numeric record.
+export type ServerPorts = settingsM.ServerPorts;
+export type ServerProfile = Omit<settingsM.ServerProfile, "fleet_serve"> & {
+  fleet_serve: FleetServeConfig;
+};
+export type ComposeTarget = processesM.ComposeTarget;
 
 export type ProcInfo = processesM.ProcInfo;
 export type LogEntry = processesM.LogEntry;
@@ -154,7 +168,7 @@ export const api = {
     SettingsService.OpenPath(path, reveal ?? false),
   openUrl: (url: string) => SettingsService.OpenURL(url),
 
-  // Native folder/file pickers (replaces @tauri-apps/plugin-dialog).
+  // Native folder/file pickers (via Wails DialogService).
   pickFolder: () => DialogService.PickFolder(),
   pickFile: () => DialogService.PickFile(),
   pickFileWithFilter: (displayName: string, pattern: string) =>
@@ -180,6 +194,18 @@ export const api = {
   gitDiscardAndCheckout: (repo: string, branch: string) =>
     GitService.GitDiscardAndCheckout(repo, branch),
 
+  // Worktrees — back multi-server (each server builds/runs its own tree).
+  gitListWorktrees: (repo: string) =>
+    cast<Worktree[]>(GitService.GitListWorktrees(repo)),
+  gitAddWorktree: (repo: string, path: string, ref: string) =>
+    GitService.GitAddWorktree(repo, path, ref),
+  gitRemoveWorktree: (repo: string, path: string, force: boolean) =>
+    GitService.GitRemoveWorktree(repo, path, force),
+
+  // Server profiles.
+  newServerProfile: () =>
+    cast<ServerProfile>(SettingsService.NewServerProfile()),
+
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {
     id: string;
@@ -203,11 +229,12 @@ export const api = {
   restartProcess: (id: string) => ProcessService.RestartProcess(id),
   forgetProcess: (id: string) => ProcessService.ForgetProcess(id),
 
-  dockerComposeStatus: (cwd: string) =>
-    cast<DockerStatus>(ProcessService.DockerComposeStatus(cwd)),
-  dockerComposeDown: (cwd: string) => ProcessService.DockerComposeDown(cwd),
-  dockerComposeRestart: (cwd: string) =>
-    ProcessService.DockerComposeRestart(cwd),
+  dockerComposeStatus: (cwd: string, project: string) =>
+    cast<DockerStatus>(ProcessService.DockerComposeStatus(cwd, project)),
+  dockerComposeDown: (id: string, cwd: string, project: string) =>
+    ProcessService.DockerComposeDown(id, cwd, project),
+  dockerComposeRestart: (cwd: string, project: string) =>
+    ProcessService.DockerComposeRestart(cwd, project),
 
   serveTcpCheck: (port: number, host?: string) =>
     ProcessService.ServeTCPCheck(host ?? "", port),
@@ -265,7 +292,8 @@ export const api = {
     ),
 
   readLogWindow: (args: {
-    source: "fleet-serve" | "docker-compose" | "all";
+    // A log channel name (per-server `fleet-serve-<id>`), or "all".
+    source: string;
     since_ms: number;
     levels: string[];
     search?: string | null;
@@ -298,6 +326,6 @@ export const api = {
     cast<GitopsTargetCheck>(GitopsService.GitopsCheckTarget(dir, name)),
 
   updateTray: (state: TrayState) => TrayService.UpdateTray(state as never),
-  shutdownNow: (repoPath: string | null) =>
-    ProcessService.ShutdownNow(repoPath ?? ""),
+  shutdownNow: (targets: ComposeTarget[]) =>
+    ProcessService.ShutdownNow(targets as never),
 };

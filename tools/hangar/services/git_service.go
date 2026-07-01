@@ -22,3 +22,15 @@ func (s *GitService) GitStashAndCheckout(repo, branch string) (string, error) {
 func (s *GitService) GitDiscardAndCheckout(repo, branch string) (string, error) {
 	return gitrepo.DiscardAndCheckout(repo, branch)
 }
+
+// Worktree management — used by multi-server to build/run different branches
+// in parallel from one clone.
+func (s *GitService) GitListWorktrees(repo string) ([]gitrepo.Worktree, error) {
+	return gitrepo.ListWorktrees(repo)
+}
+func (s *GitService) GitAddWorktree(repo, path, ref string) (string, error) {
+	return gitrepo.AddWorktree(repo, path, ref)
+}
+func (s *GitService) GitRemoveWorktree(repo, path string, force bool) (string, error) {
+	return gitrepo.RemoveWorktree(repo, path, force)
+}
