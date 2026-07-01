@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.5.0",
+      "version": "6.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.bluej.BlueJ';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.bluej.BlueJ' AND version_compare(bundle_short_version, '5.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.bluej.BlueJ' AND version_compare(bundle_short_version, '6.0.0') < 0);"
       },
-      "installer_url": "https://github.com/k-pet-group/BlueJ-Greenfoot/releases/download/BLUEJ-RELEASE-5.5.0/BlueJ-mac-aarch64-5.5.0.dmg",
+      "installer_url": "https://github.com/k-pet-group/BlueJ-Greenfoot/releases/download/BLUEJ-RELEASE-6.0.0/BlueJ-mac-aarch64-6.0.0.dmg",
       "install_script_ref": "fa50ccec",
       "uninstall_script_ref": "f69f658d",
-      "sha256": "206c4b329f8b47e84b547a4f8fa5afdc9e143a803717cd47f2a1a2cacf183546",
+      "sha256": "2151ec9e1ce8d49e80c58267e5691aa71ac638997d338ecf2ea1f134da12d542",
       "default_categories": [
         "Developer tools"
       ]

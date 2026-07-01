@@ -742,7 +742,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NotEmpty(t, enrollSecrets)
 
 	// ensure there's a token for automatic enrollments
-	s.enableABM(t.Name())
+	abmToken := s.enableABM(t.Name())
 
 	// for our tests, we'll crete two ABM devices and some manual ones
 	devices := []godep.Device{
@@ -871,13 +871,42 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NotNil(t, iphoneUser)
 	require.Equal(t, iphoneUser.Email, "iphone_user@example.com")
 
+	originalServerURL := s.server.URL
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"server_settings": {
+				"server_url": "https://localhost:8080"
+			},
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "mdm.test.com",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "%s"
+				}
+			}
+		}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+
+	iPhoneBYODToken := s.LoginAccountDrivenEnrollUser("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
+	loc, err := iPhoneBYODToken.Location()
+	require.NoError(t, err)
+	require.NotNil(t, loc)
+	require.True(t, strings.HasPrefix(loc.String(), "apple-remotemanagement-user-login://authentication-results?access-token="))
+	accessToken := strings.Split(loc.String(), "apple-remotemanagement-user-login://authentication-results?access-token=")[1]
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "`+originalServerURL+`"
+		}
+	}`), http.StatusOK, &acResp)
+
 	iPhoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
 		iPhoneHwModel,
-		iphoneUser.UUID,
+		accessToken,
 	)
 	require.NoError(t, iPhoneMdmDevice.Enroll())
-	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, iphoneUser.Email)
+	assert.Equal(t, "sso_user@example.com", iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
 	// add global profiles
 	globalProfiles := [][]byte{
@@ -1019,7 +1048,20 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		require.NoError(t, plist.Unmarshal(renewCmd.Raw, &fullCmd))
 
 		if wantProfile == "" {
-			s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef, wantManagedAppleID)
+			enrollProfile := s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef, wantManagedAppleID)
+			if wantManagedAppleID != "" {
+				// we see this as byod, so we update the enrollInfo to avoid fetching the profile againt from the account_driven_enroll path, as that is not how it works.
+				// and with the new challenge based setup, does not mimic the real flow well.
+				for _, payload := range enrollProfile.PayloadContent {
+					switch payload.PayloadType {
+					case "com.apple.security.scep":
+						device.EnrollInfo.SCEPURL = payload.PayloadContent.URL
+						device.EnrollInfo.SCEPChallenge = payload.PayloadContent.Challenge
+					case "com.apple.mdm":
+						device.EnrollInfo.MDMURL = payload.ServerURL
+					}
+				}
+			}
 		} else {
 			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
 			require.NoError(t, err)
@@ -1046,7 +1088,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	checkRenewCertCommand(manualEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
-	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", "sso_user@example.com")
 
 	// migrated device doesn't receive any commands because
 	// `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` is not set
@@ -1132,7 +1174,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
-	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", "sso_user@example.com")
 
 	// migrated device is still marked as migrated
 	var stillMigrated bool

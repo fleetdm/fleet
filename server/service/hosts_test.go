@@ -2728,6 +2728,16 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 
+	// platform filtering
+	opts = fleet.ListOptions{MatchQuery: "darwin"}
+	vers, count, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, new("darwin"), nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
+
 	// pagination
 	opts = fleet.ListOptions{Page: 0, PerPage: 2}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
@@ -3719,11 +3729,11 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 		pending      fleet.PendingDeviceAction
 		wantSuppress bool
 	}{
-		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
-		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
-		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
 		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
-		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 	}
 	for _, tt := range cases {
@@ -3753,7 +3763,7 @@ func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 
 	const hostID = 1
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (manual - personal)")}}, nil
 	}
 	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 

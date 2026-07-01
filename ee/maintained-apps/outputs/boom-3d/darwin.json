@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.2.6",
+      "version": "2.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.globaldelight.Boom3D';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.globaldelight.Boom3D' AND version_compare(bundle_short_version, '2.2.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.globaldelight.Boom3D' AND version_compare(bundle_short_version, '2.3.0') < 0);"
       },
       "installer_url": "https://dfvk972795zr9.cloudfront.net/Boom3Dmac/webstore/Boom3D.dmg",
       "install_script_ref": "1284004f",

@@ -166,7 +166,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
-    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or working group.
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Track a customer promise
@@ -230,6 +230,14 @@ During the window of time available to investigate an issue, use the resources a
   - Contact the developer on-call.
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
+
+### Keep support conversations in one thread
+
+A single issue can sprawl across the customer channel, #help-customers, #help-engineering, and a product group channel, making it hard to track. To keep full context in one place:
+
+- **Talk to the customer** in the customer channel thread.
+- **Coordinate internally** in a single #help-customers thread. This is the source of truth for the issue.
+- **When asking for help** in any channel other than #help-customers (e.g., #help-engineering or a product group channel), keep the post short: summarize the ask and link to the #help-customers thread. Ask responders to reply in the #help-customers thread, not in the post, so everyone has the most context at all times.
 
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 

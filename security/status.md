@@ -316,6 +316,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
 
+### [CVE-2026-54513](https://nvd.nist.gov/vuln/detail/CVE-2026-54513)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:33:33
+
+### [CVE-2026-54512](https://nvd.nist.gov/vuln/detail/CVE-2026-54512)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:33:33
+
 ### [CVE-2026-42504](https://nvd.nist.gov/vuln/detail/CVE-2026-42504)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -667,6 +683,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2026-8461](https://nvd.nist.gov/vuln/detail/CVE-2026-8461)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process media files when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libavcodec61`,`pkg:deb/debian/libavformat61`,`pkg:deb/debian/libavutil59`,`pkg:deb/debian/libswresample5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
+### [CVE-2026-7598](https://nvd.nist.gov/vuln/detail/CVE-2026-7598)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
+### [CVE-2026-55200](https://nvd.nist.gov/vuln/detail/CVE-2026-55200)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
+### [CVE-2026-55199](https://nvd.nist.gov/vuln/detail/CVE-2026-55199)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not establish SSH connections when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-01 13:31:34
+
 ### [CVE-2026-5201](https://nvd.nist.gov/vuln/detail/CVE-2026-5201)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -690,6 +738,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libtiff6`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:42:37
+
+### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use OpenSSL (e.g. PKCS7_verify) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-06-15 08:42:45
 
 ### [CVE-2026-42011](https://nvd.nist.gov/vuln/detail/CVE-2026-42011)
 - **Author:** @lucasmrod
@@ -924,6 +980,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `bomutils`,`pkg:deb/debian/libcap2`,`pkg:deb/debian/libcap2-bin`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:25:00
+
+### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use OpenSSL (e.g. PKCS7_verify) when using fleetdm/bomutils to generate PKG packages.
+- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-06-15 08:42:45
 
 ### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
 - **Author:** @lucasmrod

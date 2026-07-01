@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.18.107",
+      "version": "3.18.113",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.milanote.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.milanote.app' AND version_compare(bundle_short_version, '3.18.107') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.milanote.app' AND version_compare(bundle_short_version, '3.18.113') < 0);"
       },
-      "installer_url": "https://milanote-app-releases.s3.amazonaws.com/Milanote-3.18.107.dmg",
+      "installer_url": "https://milanote-app-releases.s3.amazonaws.com/Milanote-3.18.113.dmg",
       "install_script_ref": "ed82e649",
       "uninstall_script_ref": "19269206",
-      "sha256": "603c13e5fc91217f9f3527c69dc698ea6c5e7582b438eae872998a9a902e1f26",
+      "sha256": "e539716804abacd5fb72be8ba34515b69e1c2420d5b927b8ae18466943a56088",
       "default_categories": [
         "Developer tools"
       ]

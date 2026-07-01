@@ -128,20 +128,29 @@ describe("hasInProgressInstallAllItems", () => {
     ).toBe(true);
   });
 
-  it("returns true for pending statuses (offline-host scheduled)", () => {
+  it("returns true for install/script in-flight statuses", () => {
+    expect(hasInProgressInstallAllItems([makeItem("installing")])).toBe(true);
+    expect(hasInProgressInstallAllItems([makeItem("running_script")])).toBe(
+      true
+    );
     expect(hasInProgressInstallAllItems([makeItem("pending_install")])).toBe(
       true
     );
-    expect(hasInProgressInstallAllItems([makeItem("pending_uninstall")])).toBe(
+    expect(hasInProgressInstallAllItems([makeItem("pending_script")])).toBe(
       true
     );
   });
 
-  it("returns true for uninstalling / updating / running_script", () => {
-    expect(hasInProgressInstallAllItems([makeItem("uninstalling")])).toBe(true);
-    expect(hasInProgressInstallAllItems([makeItem("updating")])).toBe(true);
-    expect(hasInProgressInstallAllItems([makeItem("running_script")])).toBe(
-      true
+  it("returns false for update/uninstall in-flight statuses (not install_all operations)", () => {
+    expect(hasInProgressInstallAllItems([makeItem("updating")])).toBe(false);
+    expect(hasInProgressInstallAllItems([makeItem("uninstalling")])).toBe(
+      false
+    );
+    expect(hasInProgressInstallAllItems([makeItem("pending_update")])).toBe(
+      false
+    );
+    expect(hasInProgressInstallAllItems([makeItem("pending_uninstall")])).toBe(
+      false
     );
   });
 

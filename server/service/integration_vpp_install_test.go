@@ -1815,7 +1815,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{SelfService: ptr.Bool(true), TitleID: titleID, TeamID: nil},
 		http.StatusOK, "")
 	activityData = fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_display_name": "", "software_icon_url": null, "fleet_name": null, "team_name": null,
-		"fleet_id": null, "team_id": null, "self_service": true, "software_title_id": %d}`, titleID)
+		"fleet_id": null, "team_id": null, "self_service": true, "software_title_id": %d, "pinned_version": null}`, titleID)
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// self-install request is accepted

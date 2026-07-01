@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import mdmAppleAPI from "services/entities/mdm_apple";
-import { NotificationContext } from "context/notification";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "delete-vpp-modal";
 
@@ -21,8 +21,6 @@ const DeleteVppModal = ({
   onCancel,
   onDeletedToken,
 }: IDeleteVppModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onDeleteToken = useCallback(async () => {
@@ -30,14 +28,14 @@ const DeleteVppModal = ({
 
     try {
       await mdmAppleAPI.deleteVppToken(tokenId);
-      renderFlash("success", "Deleted successfully.");
+      notify.success("Deleted successfully.");
       onDeletedToken();
     } catch (e) {
       // TODO: Check API sends back correct error messages
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      notify.error("Couldn’t delete. Please try again.", { response: e });
       onCancel();
     }
-  }, [onCancel, onDeletedToken, renderFlash, tokenId]);
+  }, [onCancel, onDeletedToken, tokenId]);
 
   return (
     <Modal

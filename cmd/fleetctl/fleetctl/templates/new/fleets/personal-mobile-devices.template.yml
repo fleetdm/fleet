@@ -25,7 +25,7 @@ controls:
     #
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
-    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#require-idp-authentication
     ###########################################################
     # enable_end_user_authentication: true
 

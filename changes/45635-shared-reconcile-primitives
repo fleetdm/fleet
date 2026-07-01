@@ -1,1 +1,0 @@
-- Refactored MDM profile label-targeting logic (include all/any, exclude any) into a shared platform-neutral package so Apple and Windows reconcilers use the same rules.
