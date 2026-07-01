@@ -736,7 +736,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.ComputerName = computerName
 	host.Host.Hostname = computerName
 	host.Host.Platform = "android"
-	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
+	host.Host.OSVersion = "Android " + androidOSVersion(device.SoftwareInfo)
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
@@ -833,12 +833,25 @@ func (svc *Service) updateHostOperatingSystem(ctx context.Context, hostID uint, 
 	}
 	if err := svc.fleetDS.UpdateHostOperatingSystem(ctx, hostID, fleet.OperatingSystem{
 		Name:     "Android",
-		Version:  device.SoftwareInfo.AndroidVersion,
+		Version:  androidOSVersion(device.SoftwareInfo),
 		Platform: "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "update Android host operating system")
 	}
 	return nil
+}
+
+// androidOSVersion folds the security patch level into the Android version,
+// e.g. "16 (2026-05-01)". Older devices that don't report a patch level fall
+// back to the bare major version ("16").
+func androidOSVersion(si *androidmanagement.SoftwareInfo) string {
+	if si == nil {
+		return ""
+	}
+	if si.SecurityPatchLevel == "" {
+		return si.AndroidVersion
+	}
+	return si.AndroidVersion + " (" + si.SecurityPatchLevel + ")"
 }
 
 func getAndroidHostKey(device *androidmanagement.Device) string {
@@ -903,7 +916,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			ComputerName:              computerName,
 			Hostname:                  computerName,
 			Platform:                  "android",
-			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
+			OSVersion:                 "Android " + androidOSVersion(device.SoftwareInfo),
 			Build:                     device.SoftwareInfo.AndroidBuildNumber,
 			Memory:                    device.MemoryInfo.TotalRam,
 			GigsTotalDiskSpace:        gigsTotalDiskSpace,
