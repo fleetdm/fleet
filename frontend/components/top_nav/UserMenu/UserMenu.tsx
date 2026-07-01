@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -6,7 +6,6 @@ import Select, {
   OptionProps,
   StylesConfig,
 } from "react-select-5";
-import { NotificationContext } from "context/notification";
 
 import { IUser } from "interfaces/user";
 import { ITeam, ITeamSummary } from "interfaces/team";
@@ -91,8 +90,6 @@ const UserMenu = ({
   // Work around preventing react-select-5 from auto focusing first option unless using keyboard
   const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
 
-  const { renderFlash } = useContext(NotificationContext);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Tab") {
@@ -161,18 +158,9 @@ const UserMenu = ({
         if (currentTeamIsAdmin) {
           onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(currentTeam.id));
         } else {
-          // Sort and pick the first team the user is admin of to display.
+          // Not an admin of the current team — redirect to the first team the
+          // user is an admin of.
           const targetTeam = getSortedTeamOptions(userAdminTeams)[0];
-          if (currentTeam) {
-            const msg = (
-              <>
-                You&apos;re not authorized to view this page for{" "}
-                <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>
-                .
-              </>
-            );
-            renderFlash("warning-filled", msg);
-          }
           onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
         }
       };

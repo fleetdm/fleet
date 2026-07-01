@@ -1,0 +1,8 @@
+{
+  "name": "Vivaldi",
+  "slug": "vivaldi/darwin",
+  "unique_identifier": "com.vivaldi.Vivaldi",
+  "token": "vivaldi",
+  "installer_format": "dmg",
+  "default_categories": ["Browsers"]
+}

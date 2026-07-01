@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.136.0",
+      "version": "1.138.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron' AND version_compare(bundle_short_version, '1.136.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron' AND version_compare(bundle_short_version, '1.138.0') < 0);"
       },
-      "installer_url": "https://calendar-desktop-release.notion-static.com/Notion%20Calendar-darwin-arm64-1.136.0.zip",
+      "installer_url": "https://calendar-desktop-release.notion-static.com/Notion%20Calendar-darwin-arm64-1.138.0.zip",
       "install_script_ref": "d0f24b42",
       "uninstall_script_ref": "e01ed013",
-      "sha256": "a374ab86c75c403baf3dc4c8f4797b1762986ae9c55624f1060e063437ae82f4",
+      "sha256": "5cb399fa9596777831aa21f411b7b86f47e6327bd58b32e0d0ba777dab71e3e4",
       "default_categories": [
         "Productivity"
       ]

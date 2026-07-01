@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.4.1",
+      "version": "5.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.darktable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.darktable' AND version_compare(bundle_short_version, '5.4.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.darktable' AND version_compare(bundle_short_version, '5.6.0') < 0);"
       },
-      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.4.1/darktable-5.4.1-arm64.dmg",
+      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.0/darktable-5.6.0-arm64.dmg",
       "install_script_ref": "7baada54",
       "uninstall_script_ref": "8b2d9bd7",
-      "sha256": "23ce74a4d7cbab30dc5e55043f97480b2a4eb1d96d602d529c9f9a428b99d041",
+      "sha256": "49aec447e891ab481e436b4c0231fc3c8d0001aad220762ae8e765d3bda5d102",
       "default_categories": [
         "Productivity"
       ]

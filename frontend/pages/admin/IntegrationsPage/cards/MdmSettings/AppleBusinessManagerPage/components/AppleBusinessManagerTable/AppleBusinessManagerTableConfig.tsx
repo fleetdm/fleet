@@ -92,8 +92,13 @@ export const generateTableConfig = (
     },
     {
       accessor: "renew_date",
-      Header: "Renew date",
-      disableSortBy: true,
+      sortType: "dateStrings",
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Renew date"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       Cell: (cellProps: IRenewDateCellProps) => (
         <RenewDateCell
           value={cellProps.cell.value}
@@ -103,17 +108,10 @@ export const generateTableConfig = (
       ),
     },
     {
-      accessor: "apple_id",
-      Header: "Apple ID",
-      disableSortBy: true,
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
       id: "macos_team",
+      sortType: "caseInsensitive",
       accessor: (originalRow) => getFleetDisplayName(originalRow.macos_fleet),
-      Header: () => {
+      Header: (cellProps: ITableHeaderProps) => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
@@ -128,17 +126,22 @@ export const generateTableConfig = (
             macOS fleet
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
       },
-      disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
       id: "ios_team",
+      sortType: "caseInsensitive",
       accessor: (originalRow) => getFleetDisplayName(originalRow.ios_fleet),
-      Header: () => {
+      Header: (cellProps: ITableHeaderProps) => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
@@ -153,17 +156,22 @@ export const generateTableConfig = (
             iOS fleet
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
       },
-      disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
       id: "ipados_team",
+      sortType: "caseInsensitive",
       accessor: (originalRow) => getFleetDisplayName(originalRow.ipados_fleet),
-      Header: () => {
+      Header: (cellProps: ITableHeaderProps) => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
@@ -178,9 +186,41 @@ export const generateTableConfig = (
             iPadOS fleet
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
       },
-      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      id: "byod_team",
+      sortType: "caseInsensitive",
+      accessor: (originalRow) => getFleetDisplayName(originalRow.byod_fleet),
+      Header: (cellProps: ITableHeaderProps) => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                iOS/iPadOS hosts that enroll via Managed Apple Account are
+                automatically added to this fleet.
+              </>
+            }
+          >
+            BYOD fleet
+          </TooltipWrapper>
+        );
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
+      },
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),

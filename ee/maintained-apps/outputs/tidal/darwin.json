@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.42.1",
+      "version": "2.43.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tidal.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tidal.desktop' AND version_compare(bundle_short_version, '2.42.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tidal.desktop' AND version_compare(bundle_short_version, '2.43.0') < 0);"
       },
-      "installer_url": "https://download.tidal.com/desktop/mac/TIDAL.arm64.2.42.1.zip",
+      "installer_url": "https://download.tidal.com/desktop/mac/TIDAL.arm64.2.43.0.zip",
       "install_script_ref": "8c502559",
       "uninstall_script_ref": "fabbd281",
-      "sha256": "b5dea51d9d840975673ad6ceaaf3bb17897efb4947217bc5e598b2a744aa1035",
+      "sha256": "60e16ce466762cd9f03e6305fa2f979b7918789a49f9e5e8a6ae72aa39db5f02",
       "default_categories": [
         "Productivity"
       ]
