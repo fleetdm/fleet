@@ -1,0 +1,1 @@
+- Made the order of a host's `device_mapping` emails deterministic (sorted by email) in host list and label host list responses.
