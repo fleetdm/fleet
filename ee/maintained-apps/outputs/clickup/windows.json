@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.5.208",
+      "version": "3.5.230",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp' AND version_compare(version, '3.5.208') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp' AND version_compare(version, '3.5.230') < 0);"
       },
-      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp-3.5.208-build-260505zrf6t7imk-x64.msi",
+      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp-3.5.230-build-260616wecrh5vza-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "38f3af4a",
-      "sha256": "875f5da2e8a24366a642f8847d7471cb8f231554a795b93894ad6d9b9762c55a",
+      "sha256": "ff83290f29366d73a4098c5400f6a8289da9428e6e9f2df9a71e3d62dfae521b",
       "default_categories": [
         "Productivity"
       ],

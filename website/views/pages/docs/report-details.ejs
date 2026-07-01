@@ -20,10 +20,10 @@
           </div>
           <p purpose="report-description"><%- report.description %></p>
           <div purpose="report-check">
-            <p>To learn more about queries, <a href="/guides/queries">check this guide</a>.</p>
+            <p>To learn more about reports, <a href="/guides/reports">check this guide</a>.</p>
             <div purpose="codeblock">
               <div purpose="codeblock-tabs" >
-                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">report</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="report.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="report.bash">Bash<span purpose="new-badge">NEW</span></a>
                 <div purpose="copy-button-tab">

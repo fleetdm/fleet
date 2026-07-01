@@ -43,10 +43,11 @@
 
   &__progress-wrapper {
     display: flex;
-    width: 184px; // using fixed width to prevent jitter when text changes: 144px + $pad-medium + 24px for text
+    width: 184px; // 144px bar + $pad-small gap + 32px text
+    flex-shrink: 0; // don't let the sibling __info collapse this wrapper to its min-content (#47539)
     justify-content: space-between;
     align-items: center;
-    gap: $pad-small; // shouldn't be necessary, but just in case
+    gap: $pad-small;
   }
 
   &__progress-bar {
@@ -64,6 +65,9 @@
   }
 
   &__progress-text {
+    width: 32px; // fixed width so "1%" → "100%" doesn't shift the bar (#47539)
+    flex-shrink: 0;
+    text-align: right;
     font-size: $x-small;
     color: $ui-fleet-black-50;
   }

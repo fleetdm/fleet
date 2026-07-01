@@ -1,12 +1,11 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
 import { IPolicyAutomationActivity } from "interfaces/policy";
-import { stringToClipboard } from "utilities/copy_text";
 import PATHS from "router/paths";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
 import Textarea from "components/Textarea";
@@ -33,15 +32,8 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { status, created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
-
-  const onCopyDetails = () => {
-    stringToClipboard(detailOutput)
-      .then(() => renderFlash("success", "Details copied to clipboard."))
-      .catch(() => renderFlash("error", "Couldn't copy to clipboard."));
-  };
 
   return (
     <Modal title="Details" onExit={onCancel} className={baseClass}>
@@ -80,14 +72,11 @@ const PolicyAutomationActivityDetailsModal = ({
             label={
               <div className={`${baseClass}__details-label`}>
                 <span>Details</span>
-                <Button
-                  variant="icon"
-                  onClick={onCopyDetails}
-                  className={`${baseClass}__copy`}
+                <CopyButton
+                  copyText={detailOutput}
+                  size="small"
                   ariaLabel="Copy details"
-                >
-                  <Icon name="copy" />
-                </Button>
+                />
               </div>
             }
           >

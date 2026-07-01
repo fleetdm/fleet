@@ -87,7 +87,47 @@ describe("InstallSoftware", () => {
 
     await waitFor(() => {
       const tooltip = screen.getByText(
-        /Installation order will depend on software name, starting with 0-9 then A-Z./i
+        "Installation order will depend on software name, starting with 0-9 then A-Z."
+      );
+      expect(tooltip).toBeInTheDocument();
+    });
+  });
+
+  it("should render the policy-aware order tooltip for Windows and Linux when there are software titles that have been selected to install at setup", async () => {
+    const { user } = render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareMacOS={false}
+        currentTeamId={1}
+        softwareTitles={[
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+          createMockSoftwareTitle(
+            createMockSoftwareTitle({
+              software_package: createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            })
+          ),
+          createMockSoftwareTitle(),
+        ]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    expect(screen.getByText(/2 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
+
+    await user.hover(screen.getByText("installed during setup"));
+
+    await waitFor(() => {
+      const tooltip = screen.getByText(
+        "Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy."
       );
       expect(tooltip).toBeInTheDocument();
     });

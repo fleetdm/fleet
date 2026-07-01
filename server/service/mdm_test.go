@@ -2224,6 +2224,99 @@ func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	require.ErrorContains(t, err, "conflicting scopes")
 }
 
+// TestMDMBatchSetProfilesWindowsAssumeEnabled is a regression test ensuring the assume_enabled flag is only honored on dry runs
+func TestMDMBatchSetProfilesWindowsAssumeEnabled(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	var windowsEnabled bool
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: windowsEnabled,
+			},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables,
+	) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string,
+		hostUUIDs []string,
+	) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	windowsProfiles := []fleet.MDMProfileBatchPayload{
+		{Name: "win-profile", Contents: []byte(`<Replace></Replace>`)},
+	}
+
+	testCases := []struct {
+		name           string
+		windowsEnabled bool
+		assumeEnabled  *bool
+		dryRun         bool
+		wantErr        string
+		wantDSInvoked  bool
+	}{
+		{
+			name:           "assume_enabled true on real run is a no-op when Windows MDM is disabled",
+			windowsEnabled: false,
+			assumeEnabled:  new(true),
+			dryRun:         false,
+			wantErr:        fleet.ErrWindowsMDMNotConfigured.Error(),
+			wantDSInvoked:  false,
+		},
+		{
+			// The legitimate GitOps dry-run flow
+			name:           "assume_enabled true on dry run validates when Windows MDM is disabled",
+			windowsEnabled: false,
+			assumeEnabled:  new(true),
+			dryRun:         true,
+			wantErr:        "",
+			wantDSInvoked:  false, // dry run never persists
+		},
+		{
+			// The legitimate real run
+			name:           "real run succeeds without assume_enabled when Windows MDM is enabled",
+			windowsEnabled: true,
+			assumeEnabled:  nil,
+			dryRun:         false,
+			wantErr:        "",
+			wantDSInvoked:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			windowsEnabled = tc.windowsEnabled
+			ds.BatchSetMDMProfilesFuncInvoked = false
+
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, false)
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantDSInvoked, ds.BatchSetMDMProfilesFuncInvoked)
+		})
+	}
+}
+
 func TestValidateProfiles(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3604,6 +3697,79 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
 		require.False(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
 	})
+}
+
+// TestGetMDMCommandResultsTeamScoping verifies that GetMDMCommandResults, called
+// without a host identifier, returns results only for hosts the caller is
+// authorized to see. A single command UUID can be enqueued to hosts on several
+// teams, so a caller who shares only one team with the command must not receive
+// the results of hosts on the other teams.
+func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil,
+		&TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	const commandUUID = "cmd-uuid-mixed-teams"
+	hostUUIDToTeam := map[string]uint{
+		"host-team1": 1,
+		"host-team2": 2,
+	}
+
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		return "darwin", nil
+	}
+
+	// The datastore loads every row for the command UUID (no host filtering),
+	// including the result and payload of hosts on teams the caller cannot see.
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, cmdUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+		return []*fleet.MDMCommandResult{
+			{HostUUID: "host-team1", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team1")},
+			{HostUUID: "host-team2", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team2")},
+		}, nil
+	}
+
+	// Mimic the real datastore's team scoping: a non-global user only sees hosts
+	// on the teams they belong to.
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		allowed := make(map[uint]struct{})
+		for _, ut := range filter.User.Teams {
+			allowed[ut.Team.ID] = struct{}{}
+		}
+		global := filter.User.GlobalRole != nil
+
+		var hosts []*fleet.Host
+		for _, u := range uuids {
+			tmID := hostUUIDToTeam[u]
+			if _, ok := allowed[tmID]; !global && !ok {
+				continue
+			}
+			h := &fleet.Host{UUID: u, Hostname: u + "-name"}
+			if tmID != 0 {
+				id := tmID
+				h.TeamID = &id
+			}
+			hosts = append(hosts, h)
+		}
+		return hosts, nil
+	}
+
+	// A team-1 observer (lowest privilege on the only team it shares with the
+	// command) must receive its own host's result and nothing from team 2.
+	teamCtx := test.UserContext(ctx, test.UserTeamObserverTeam1)
+	results, err := svc.GetMDMCommandResults(teamCtx, commandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "host-team1", results[0].HostUUID)
+	require.Equal(t, []byte("result-team1"), results[0].Result)
+	for _, res := range results {
+		require.NotEqual(t, "host-team2", res.HostUUID)
+	}
+
+	// A global admin still sees every host's result.
+	adminCtx := test.UserContext(ctx, test.UserAdmin)
+	results, err = svc.GetMDMCommandResults(adminCtx, commandUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
 }
 
 // TestProcessIncomingMDMCmdsDevDetailLinkage exercises the OMA-DM DevDetail-based linkage path that closes the race

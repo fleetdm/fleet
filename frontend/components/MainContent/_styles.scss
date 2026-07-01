@@ -3,10 +3,11 @@
   margin: 0 auto;
   padding: $pad-page;
   flex-grow: 1;
-  // overflow: auto allows for horizontal scrolling
-  // of the main-content when there is a banner. (e.g. sandbox mode)
-  // Without it the main content pushes the banner off the page.
-  overflow: auto;
+  // min-width: 0 lets this flex item shrink below its content's intrinsic
+  // min size so wide descendants don't push the document past the viewport.
+  // Pages with intrinsically wide content (data tables, etc.) must handle
+  // their own horizontal overflow scoped to that content — see #47029.
+  min-width: 0;
 
   > :not(.main-content--animation-disabled) {
     animation: fade-in 250ms ease-out;
