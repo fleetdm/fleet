@@ -54,9 +54,7 @@ const getPolicyChipTooltip = (
   return isSinglePolicy ? (
     <>Policy triggers install.</>
   ) : (
-    <>
-      Policies trigger install.
-    </>
+    <>Policies trigger install.</>
   );
 };
 
