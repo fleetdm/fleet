@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260701135344(t *testing.T) {
+func TestUp_20260701152227(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert a row before the migration to verify existing rows get the correct default.
