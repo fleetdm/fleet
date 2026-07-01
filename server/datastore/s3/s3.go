@@ -237,31 +237,41 @@ func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
 // store. Only recommended for local testing. If the bucket no longer exists,
 // it returns nil.
 func (s *s3store) CleanupTestBucket(ctx context.Context) error {
-	resp, err := s.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
-		Bucket: &s.bucket,
-	})
-	var noSuchBucket *types.NoSuchBucket
-	if errors.As(err, &noSuchBucket) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	var objs []types.ObjectIdentifier
-	for _, o := range resp.Contents {
-		objs = append(objs, types.ObjectIdentifier{Key: o.Key})
-	}
-	if len(objs) > 0 {
-		if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-			Bucket: &s.bucket,
-			Delete: &types.Delete{Objects: objs},
-		}); err != nil {
+	// Paginate the listing and delete in pages so buckets with more than one
+	// page of objects (>1000) are fully emptied before DeleteBucket.
+	var continuationToken *string
+	for {
+		resp, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            &s.bucket,
+			ContinuationToken: continuationToken,
+		})
+		if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
+			return nil
+		}
+		if err != nil {
 			return err
 		}
+
+		var objs []types.ObjectIdentifier
+		for _, o := range resp.Contents {
+			objs = append(objs, types.ObjectIdentifier{Key: o.Key})
+		}
+		if len(objs) > 0 {
+			if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+				Bucket: &s.bucket,
+				Delete: &types.Delete{Objects: objs},
+			}); err != nil {
+				return err
+			}
+		}
+
+		if resp.IsTruncated == nil || !*resp.IsTruncated || resp.NextContinuationToken == nil {
+			break
+		}
+		continuationToken = resp.NextContinuationToken
 	}
 
-	_, err = s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: &s.bucket,
 	})
 	return err
