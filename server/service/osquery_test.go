@@ -229,9 +229,8 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 		return []*fleet.Pack{{ID: 1, Name: "pack_by_label"}}, nil
 	}
 	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-		fals := false
 		return []*fleet.ScheduledQuery{
-			{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals},
+			{Name: "time", Query: "select * from time", Interval: 30, Removed: new(false)},
 		}, nil
 	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
@@ -240,7 +239,7 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 	// Global agent options with a null config. This unmarshals into a nil map,
 	// which previously caused a panic once packs were added to the config.
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":null}`))}, nil
+		return &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"config":null}`))}, nil
 	}
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil

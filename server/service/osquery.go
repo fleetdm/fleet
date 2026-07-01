@@ -420,7 +420,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 			// "config": null) sets the map to nil rather than leaving it empty.
 			// Re-initialize so later assignments (e.g. config["packs"]) don't
 			// panic with "assignment to entry in nil map".
-			config = make(map[string]interface{})
+			config = make(map[string]any)
 		}
 	}
 
