@@ -1001,7 +1001,11 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 >
 > The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
 >
-> For ACME certificates, Fleet doesn't issue the certificate, so add the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable to the `Subject` of the ACME payload (in the OU or CN), and confirm your CA includes that value in the certificate it issues. Fleet substitutes in the when it sends the profile, but the certificate the host reports must carry the value for Fleet to match and renew it. Automatic renewal of hardware-bound ACME certificates (Managed Device Attestation) is currently supported on macOS.
+> Currently, for NDES, Smallstep, ACME, and SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
+>
+> The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
+>
+> Please confirm your CA supports the OU value in the certificate it issues.
 >
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >
