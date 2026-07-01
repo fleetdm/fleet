@@ -231,6 +231,12 @@ func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog
 		}
 		return fleet.JSONLogger(writer), nil
 	case "splunk":
+		if config.Splunk.URL == "" {
+			return nil, fmt.Errorf("splunk %s logger: URL must not be empty", name)
+		}
+		if config.Splunk.Token == "" {
+			return nil, fmt.Errorf("splunk %s logger: HEC token must not be empty", name)
+		}
 		writer, err := NewSplunkLogWriter(
 			config.Splunk.URL,
 			config.Splunk.Token,

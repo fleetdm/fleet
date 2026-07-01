@@ -242,12 +242,74 @@ func TestSplunkRetryExhausted(t *testing.T) {
 	assert.Equal(t, splunkMaxRetries+1, callCount, "should exhaust all retries")
 }
 
+func TestSplunkRetryBodyIntegrity(t *testing.T) {
+	ctx := t.Context()
+	origDelay := splunkRetryDelay
+	splunkRetryDelay = func(_ int) time.Duration { return time.Millisecond }
+	t.Cleanup(func() { splunkRetryDelay = origDelay })
+
+	var bodies [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == splunkHealthPath {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, b)
+		if len(bodies) <= 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
+	require.NoError(t, err)
+
+	err = writer.Write(ctx, logs)
+	require.NoError(t, err)
+	require.Len(t, bodies, 3)
+	// Every retry must send the exact same payload
+	assert.Equal(t, bodies[0], bodies[1], "retry 1 body must match original")
+	assert.Equal(t, bodies[0], bodies[2], "retry 2 body must match original")
+	assert.NotEmpty(t, bodies[0], "body must not be empty")
+}
+
+func TestSplunkRetryNoNestedRetries(t *testing.T) {
+	ctx := t.Context()
+	origDelay := splunkRetryDelay
+	splunkRetryDelay = func(_ int) time.Duration { return time.Millisecond }
+	t.Cleanup(func() { splunkRetryDelay = origDelay })
+
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == splunkHealthPath {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		callCount++
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
+	require.NoError(t, err)
+
+	_ = writer.Write(ctx, logs)
+	// Must be exactly splunkMaxRetries+1, not exponentially more.
+	// Nested retries would produce 2^9 = 512 calls.
+	assert.Equal(t, splunkMaxRetries+1, callCount, "retries must be linear, not nested")
+}
+
 func TestSplunkMissingConfig(t *testing.T) {
-	_, err := NewSplunkLogWriter("", "token", "", "", "", false, slog.Default())
+	ctx := t.Context()
+	// Validation now happens in the factory (logging.go), not in NewSplunkLogWriter.
+	_, err := NewJSONLogger(ctx, "status", Config{Plugin: "splunk", Splunk: SplunkConfig{Token: "t"}}, slog.Default())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "URL")
 
-	_, err = NewSplunkLogWriter("http://localhost", "", "", "", "", false, slog.Default())
+	_, err = NewJSONLogger(ctx, "status", Config{Plugin: "splunk", Splunk: SplunkConfig{URL: "http://localhost"}}, slog.Default())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "token")
 }

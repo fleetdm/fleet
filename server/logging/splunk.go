@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -53,13 +52,6 @@ type splunkLogWriter struct {
 }
 
 func NewSplunkLogWriter(url, token, index, source, sourceType string, insecureSkipVerify bool, logger *slog.Logger) (*splunkLogWriter, error) {
-	if url == "" {
-		return nil, errors.New("splunk URL must not be empty")
-	}
-	if token == "" {
-		return nil, errors.New("splunk HEC token must not be empty")
-	}
-
 	clientOpts := []fleethttp.ClientOpt{fleethttp.WithTimeout(30 * time.Second)}
 	if insecureSkipVerify {
 		clientOpts = append(clientOpts, fleethttp.WithTLSClientConfig(&tls.Config{
@@ -172,7 +164,7 @@ func (w *splunkLogWriter) sendWithRetry(ctx context.Context, payload []byte, try
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return ctxerr.Errorf(ctx, "splunk HEC returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -193,7 +185,7 @@ func (w *splunkLogWriter) checkHealth() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return fmt.Errorf("HEC health check returned status %d: %s", resp.StatusCode, string(body))
 	}
 
