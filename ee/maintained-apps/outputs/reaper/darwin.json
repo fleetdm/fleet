@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.75",
+      "version": "7.76",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cockos.reaper';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cockos.reaper' AND version_compare(bundle_short_version, '7.75') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cockos.reaper' AND version_compare(bundle_short_version, '7.76') < 0);"
       },
-      "installer_url": "https://dlcf.reaper.fm/7.x/reaper775_universal.dmg",
+      "installer_url": "https://dlcf.reaper.fm/7.x/reaper776_universal.dmg",
       "install_script_ref": "812a1a26",
       "uninstall_script_ref": "544a54e5",
-      "sha256": "ad49bf372ab5433931c1d106a9ce91197b695d4731cb5638c7d62644bd0a1255",
+      "sha256": "ee518c4915dac12f3f21208f2e3525426c6a5bfa50cb7896be233ed9f67a2d27",
       "default_categories": [
         "Productivity"
       ]

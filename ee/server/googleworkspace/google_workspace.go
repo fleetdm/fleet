@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -25,6 +26,16 @@ const (
 	groupsPageSize  = 200
 	membersPageSize = 200
 )
+
+// tokenURIKey is the key holding the OAuth2 token endpoint in a service-account
+// JSON. Real Google service-account JSON always includes it; we honor it so a
+// QA/load-test fake can route the token exchange to a stub endpoint.
+const tokenURIKey = "token_uri"
+
+// endpointOverrideEnv, when set, redirects the Admin SDK Directory API base URL
+// (e.g. to the gw-directory-fake tool). For QA/load testing only — never set it
+// in production.
+const endpointOverrideEnv = "FLEET_TEST_GOOGLE_WORKSPACE_ENDPOINT"
 
 // directoryScopes are the read-only Admin SDK Directory API scopes that must be
 // authorized for the service account's client ID via domain-wide delegation in
@@ -53,7 +64,7 @@ type Directory struct {
 // NewDirectory builds a Directory that talks to the real Admin SDK Directory API
 // using the integration's service account and impersonated admin user.
 func NewDirectory(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger) (fleet.GoogleWorkspaceDirectory, error) {
-	api, err := newGoogleAPI(ctx, intg)
+	api, err := newGoogleAPI(ctx, intg, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -290,15 +301,33 @@ type googleAPI struct {
 	service *directory.Service
 }
 
-func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration) (*googleAPI, error) {
+func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger) (*googleAPI, error) {
+	// Honor token_uri from the service-account JSON (real GSA JSON always carries
+	// it). Falls back to Google's endpoint when absent.
+	tokenURL := google.JWTTokenURL
+	if v := intg.ApiKey.Values[tokenURIKey]; v != "" {
+		tokenURL = v
+	}
+
 	conf := &jwt.Config{
 		Email:      intg.ApiKey.Values[fleet.GoogleCalendarEmail],
 		Scopes:     directoryScopes,
 		PrivateKey: []byte(intg.ApiKey.Values[fleet.GoogleCalendarPrivateKey]),
-		TokenURL:   google.JWTTokenURL,
+		TokenURL:   tokenURL,
 		Subject:    intg.ImpersonatedUserEmail,
 	}
-	service, err := directory.NewService(ctx, option.WithHTTPClient(conf.Client(ctx)))
+
+	opts := []option.ClientOption{option.WithHTTPClient(conf.Client(ctx))}
+	if endpoint := os.Getenv(endpointOverrideEnv); endpoint != "" {
+		// QA/load-test only: redirect the Directory API to a fake server.
+		if logger != nil {
+			logger.WarnContext(ctx, "using Google Workspace Directory API endpoint override; do not use in production",
+				"env", endpointOverrideEnv, "endpoint", endpoint)
+		}
+		opts = append(opts, option.WithEndpoint(endpoint))
+	}
+
+	service, err := directory.NewService(ctx, opts...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create google workspace directory service")
 	}
