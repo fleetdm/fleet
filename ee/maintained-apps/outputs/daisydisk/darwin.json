@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "4.33.3",
+      "version": "4.34",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.daisydiskapp.DaisyDiskStandAlone';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.daisydiskapp.DaisyDiskStandAlone' AND version_compare(bundle_short_version, '4.33.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.daisydiskapp.DaisyDiskStandAlone' AND version_compare(bundle_short_version, '4.34') < 0);"
       },
       "installer_url": "https://daisydiskapp.com/download/DaisyDisk.zip",
       "install_script_ref": "af1b217c",

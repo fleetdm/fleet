@@ -99,6 +99,7 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
+		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"ResetPolicy", testResetPolicy},
 	}
@@ -8710,6 +8711,41 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
+}
+
+func testGetPoliciesForConditionalAccess(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// Two "No team" (team_id = 0) policies enrolled in conditional access, one
+	// per supported platform.
+	darwinPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                     "ca-darwin",
+		Query:                    "SELECT 1;",
+		Platform:                 "darwin",
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+	windowsPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                     "ca-windows",
+		Query:                    "SELECT 1;",
+		Platform:                 "windows",
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+
+	ids, err := ds.GetPoliciesForConditionalAccess(ctx, 0, "darwin")
+	require.NoError(t, err)
+	require.Equal(t, []uint{darwinPolicy.ID}, ids)
+
+	filterEscape := `nomatch%' OR platforms LIKE '%`
+	ids, err = ds.GetPoliciesForConditionalAccess(ctx, 0, filterEscape)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+	require.NotContains(t, ids, darwinPolicy.ID)
+	require.NotContains(t, ids, windowsPolicy.ID)
+
+	ids, err = ds.GetPoliciesForConditionalAccess(ctx, 0, `' OR 1=1 -- `)
+	require.NoError(t, err)
+	require.Empty(t, ids)
 }
 
 func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {

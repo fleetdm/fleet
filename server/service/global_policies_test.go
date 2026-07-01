@@ -768,3 +768,84 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		require.Nil(t, act.TeamName)
 	})
 }
+
+func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
+	const (
+		queryID   = uint(99)
+		secretSQL = "SELECT secret FROM restricted;"
+	)
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		payload         fleet.PolicyPayload
+		queryErr        error
+		wantQueryLoaded bool
+		wantErr         bool
+	}{
+		{
+			name:            "global admin from query_id loads and authorizes the query",
+			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
+			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
+			wantQueryLoaded: true,
+		},
+		{
+			name:            "global maintainer from query_id loads and authorizes the query",
+			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleMaintainer)},
+			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
+			wantQueryLoaded: true,
+		},
+		{
+			name:            "global gitops from query_id loads and authorizes the query",
+			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)},
+			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
+			wantQueryLoaded: true,
+		},
+		{
+			name:            "no query_id does not load any query",
+			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
+			payload:         fleet.PolicyPayload{Name: "inline", Query: "SELECT 1;"},
+			wantQueryLoaded: false,
+		},
+		{
+			name:            "missing referenced query fails",
+			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
+			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
+			queryErr:        &notFoundError{},
+			wantQueryLoaded: true,
+			wantErr:         true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{}
+			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+				return nil
+			}
+
+			ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+				require.Equal(t, queryID, id)
+				if tc.queryErr != nil {
+					return nil, tc.queryErr
+				}
+				return &fleet.Query{ID: id, Name: "referenced query", Query: secretSQL}, nil
+			}
+			ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+				return &fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "referenced query", Query: secretSQL}}, nil
+			}
+
+			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tc.user})
+
+			_, err := svc.NewGlobalPolicy(ctx, tc.payload)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantQueryLoaded, ds.QueryFuncInvoked)
+		})
+	}
+}

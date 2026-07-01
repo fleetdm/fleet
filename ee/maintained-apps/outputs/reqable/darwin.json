@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.1.3",
+      "version": "3.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.reqable.macosx';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.reqable.macosx' AND version_compare(bundle_short_version, '3.1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.reqable.macosx' AND version_compare(bundle_short_version, '3.2.3') < 0);"
       },
-      "installer_url": "https://github.com/reqable/reqable-app/releases/download/3.1.3/reqable-app-macos-arm64.dmg",
+      "installer_url": "https://github.com/reqable/reqable-app/releases/download/3.2.3/reqable-app-macos-arm64.dmg",
       "install_script_ref": "5d84816f",
       "uninstall_script_ref": "3319d75e",
-      "sha256": "c186aad60848d7ba89a19b5991a8d94832d0fe720565d9d42d5b13aaadd9bb81",
+      "sha256": "7b978605659da36d9186b083846a34dc7465145157a32fad4d58e37b8dd52a9c",
       "default_categories": [
         "Developer tools"
       ]

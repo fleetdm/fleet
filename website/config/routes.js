@@ -667,6 +667,7 @@ module.exports.routes = {
   'GET /lp/replace-jamf': {
     action: 'landing-pages/view-replace-jamf',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Replace Jamf with confidence',
       pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
     }
@@ -675,6 +676,7 @@ module.exports.routes = {
   'GET /lp/autonomous-endpoint-management': {
     action: 'landing-pages/view-autonomous-endpoint-management',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Autonomous endpoint management',
       pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
     }
@@ -683,6 +685,7 @@ module.exports.routes = {
   'GET /lp/apple-mdm': {
     action: 'landing-pages/view-apple-mdm',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
       pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
     }
@@ -691,6 +694,7 @@ module.exports.routes = {
   'GET /lp/android-mdm': {
     action: 'landing-pages/view-android-mdm',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
       pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
     }
@@ -699,6 +703,7 @@ module.exports.routes = {
   'GET /lp/windows-mdm': {
     action: 'landing-pages/view-windows-mdm',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
       pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
     }
@@ -707,6 +712,7 @@ module.exports.routes = {
   'GET /lp/on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'On-premise device management',
       pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
     }
@@ -715,9 +721,9 @@ module.exports.routes = {
   'GET /lp/open-source': {
     action: 'landing-pages/view-open-source',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
       pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
-      currentSection: 'platform',
     }
   },
 
@@ -1379,6 +1385,7 @@ module.exports.routes = {
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
+  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
 
   // Sitemap
   // =============================================================================================================

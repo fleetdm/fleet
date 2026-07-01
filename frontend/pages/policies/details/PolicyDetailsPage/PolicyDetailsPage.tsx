@@ -26,11 +26,13 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
+import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import { getTicketOrWebhookInfo } from "pages/policies/helpers";
@@ -341,12 +343,24 @@ const PolicyDetailsPage = ({
         title="Automations"
         value={
           <Button variant="link" onClick={openAutomationsModal}>
-            {firstAutomation.isSoftware && (
+            {firstAutomation.isSoftware ? (
               <SoftwareIcon
                 name={firstAutomation.iconName ?? firstAutomation.name}
                 url={firstAutomation.iconUrl}
                 size="small"
               />
+            ) : (
+              firstAutomation.graphicName && (
+                <Graphic
+                  name={firstAutomation.graphicName}
+                  className={
+                    firstAutomation.graphicName === "file-sh" ||
+                    firstAutomation.graphicName === "file-ps1"
+                      ? "scale-40-24"
+                      : ""
+                  }
+                />
+              )
             )}
             {firstAutomation.name}
             {moreCount > 0 && ` + ${moreCount} more`}
@@ -367,7 +381,10 @@ const PolicyDetailsPage = ({
             <div className={`${baseClass}__title-bar`}>
               <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__policy-name`}>
-                  {storedPolicy?.name}
+                  <TooltipTruncatedText
+                    value={storedPolicy?.name}
+                    fixedPositionStrategy
+                  />
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."

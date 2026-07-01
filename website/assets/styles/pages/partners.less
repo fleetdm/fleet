@@ -215,9 +215,53 @@
     flex-direction: column;
     gap: @inner-gap-s;
   }
-  [purpose='logo-carousel'] {
+
+  [purpose='logo-table'] {
+    img {
+      max-height: 32px;
+    }
+    table-layout: fixed;
+    width: 100%;
+    [purpose='logo-container'] {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    td {
+      height: 76px;
+      &:not(:last-of-type) {
+        border-right: 1px solid #E2E4EA;
+      }
+    }
+    tr:not(:last-of-type) {
+      border-bottom: 1px solid #E2E4EA;
+    }
+  }
+
+  [purpose='logos-grid'] {
     justify-content: center;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    gap: 32px;
+    img {
+      vertical-align: middle;
+      height: 32px;
+      -webkit-transform-style: preserve-3d;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+    }
+    [purpose='logo-row'] {
+      display: flex;
+      flex-direction: row;
+      gap: 32px;
+    }
+  }
+  [purpose='logo-carousel'] {
+    justify-content: center;
+    display: none;
     align-items: center;
     position: relative;
     width: 100%;
@@ -248,17 +292,17 @@
       animation: none;
       background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
     }
-  }
-  [purpose='logo-row'] {
-    white-space: nowrap;
-    animation: scroll-horizontal @animation-duration linear infinite;
-    -webkit-transform-style: preserve-3d;
-    -webkit-backface-visibility: hidden;
-    &.safari-13-scroll-animation {
-      animation: scroll-horizontal-safari-13 @animation-duration linear infinite;
-    }
-    &.ios-13-scroll-animation {
-      animation: scroll-horizontal-ios-13 @animation-duration linear infinite;
+    [purpose='logo-row'] {
+      white-space: nowrap;
+      animation: scroll-horizontal 80s linear infinite;
+      -webkit-transform-style: preserve-3d;
+      -webkit-backface-visibility: hidden;
+      &.safari-13-scroll-animation {
+        animation: scroll-horizontal-safari-13 80s linear infinite;
+      }
+      &.ios-13-scroll-animation {
+        animation: scroll-horizontal-ios-13 80s linear infinite;
+      }
     }
   }
   @keyframes scroll-horizontal {
@@ -567,6 +611,11 @@
     [purpose='landing-page-content'] {
       gap: @section-gap-m;
     }
+    [purpose='logo-table'] {
+      img {
+        max-height: 28px;
+      }
+    }
     [purpose='details-cards'] {
       display: flex;
       // align-items: flex-start;
@@ -622,6 +671,10 @@
       font-weight: 800;
       line-height: 120%;
     }
+    [purpose='logo-carousel'] {
+      display: flex;
+    }
+
     [purpose='landing-page-container'] {
       padding: 32px 24px 0px 24px;
     }

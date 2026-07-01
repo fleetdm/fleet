@@ -156,8 +156,8 @@ const EditPacksPage = ({
     packsAPI
       .update(packId, updatedPack)
       .then(() => {
-        router.push(PATHS.MANAGE_PACKS);
         notify.success(`Successfully updated this pack.`);
+        router.push(PATHS.MANAGE_PACKS);
       })
       .catch((e) => {
         if (

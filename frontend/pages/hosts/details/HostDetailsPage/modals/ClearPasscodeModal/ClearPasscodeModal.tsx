@@ -33,7 +33,7 @@ const ClearPasscodeModal = ({
 
   const isAndroidHost = isAndroid(hostPlatform);
   const isAndroidBYO =
-    isAndroidHost && hostMdmEnrollmentStatus === "On (personal)";
+    isAndroidHost && hostMdmEnrollmentStatus === "On (manual - personal)";
 
   const onClearPasscode = async () => {
     setIsClearingPasscode(true);

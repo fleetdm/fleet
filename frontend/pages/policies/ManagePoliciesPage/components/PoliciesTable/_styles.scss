@@ -1,10 +1,6 @@
 .policies-table {
   border-collapse: collapse;
 
-  .data-table__wrapper {
-    overflow-x: auto;
-  }
-
   thead {
     th {
       &.passing_host_count__header,

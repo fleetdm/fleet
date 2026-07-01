@@ -18,6 +18,11 @@
     gap: $pad-small;
   }
 
+  &__name-description {
+    flex: 1;
+    min-width: 0;
+  }
+
   &__platform-list {
     flex-direction: row;
   }
@@ -34,6 +39,11 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+    overflow: hidden;
+
+    .tooltip-truncated-text {
+      min-width: 0;
+    }
 
     .critical-policy-icon {
       flex-shrink: 0;
@@ -50,6 +60,13 @@
     display: flex;
     align-items: center;
     gap: $pad-xsmall;
+  }
+
+  &__automations {
+    .software-icon,
+    .graphic {
+      margin-right: $pad-xsmall;
+    }
   }
 
   &__resolve dd {
@@ -73,6 +90,7 @@
   &__properties {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: $pad-xlarge;
   }
 }

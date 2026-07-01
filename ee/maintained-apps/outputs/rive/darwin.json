@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.8.5094",
+      "version": "0.8.5134",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.rive.editor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.rive.editor' AND version_compare(bundle_short_version, '0.8.5094') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.rive.editor' AND version_compare(bundle_short_version, '0.8.5134') < 0);"
       },
-      "installer_url": "https://releases.rive.app/macos/0.8.5094/Rive.dmg",
+      "installer_url": "https://releases.rive.app/macos/0.8.5134/Rive.dmg",
       "install_script_ref": "2bbfee4e",
       "uninstall_script_ref": "8f862785",
-      "sha256": "7287f9520e329316f989a3f0a420e0bb081f3a18a3b8bb66c89ac68df16748dd",
+      "sha256": "6a750c7caa03d93e967a0fafb57a771517469af127a9e61a03fd5f3174198d86",
       "default_categories": [
         "Productivity"
       ]
