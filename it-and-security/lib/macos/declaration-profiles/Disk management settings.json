@@ -1,0 +1,9 @@
+{
+    "Type": "com.apple.configuration.diskmanagement.settings",
+    "Identifier": "com.fleetdm.config.diskmanagement.settings",
+    "Payload": {
+        "Restrictions": {
+            "ExternalStorage": "ReadOnly"
+        }
+    }
+}

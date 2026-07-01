@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Outlook';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Outlook' AND version_compare(bundle_short_version, '16.109.3') < 0);"
       },
-      "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.109.26053122_Installer.pkg",
+      "installer_url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.109.26053122_Installer.pkg",
       "install_script_ref": "6372af77",
       "uninstall_script_ref": "f89a23ed",
       "sha256": "1c95d6c9b8310a97f0d13f612bd2ce94c0ec546abab0d978aed12cb6d3dfbe12",

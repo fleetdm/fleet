@@ -1,0 +1,1 @@
+- Validated that a custom SCEP proxy certificate authority challenge contains only printable characters, so Windows certificate enrollment no longer fails with "The string contains a non-printable character" (for example, when the challenge contains an underscore). Existing challenges are only re-validated when changed.

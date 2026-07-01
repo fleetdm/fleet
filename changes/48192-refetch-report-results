@@ -1,0 +1,1 @@
+- Enabled automatic refreshing of report results when the window is refocused and every 5 seconds while waiting for results to arrive (skipped when report caching is disabled).

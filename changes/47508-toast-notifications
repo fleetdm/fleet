@@ -1,0 +1,1 @@
+- Redesigned in-app success and error notifications as toasts. Error notifications now persist until dismissed and can be expanded to show the server's raw response.

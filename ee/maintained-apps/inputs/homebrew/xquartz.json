@@ -1,0 +1,10 @@
+{
+  "name": "XQuartz",
+  "unique_identifier": "org.macosforge.xquartz.X11",
+  "token": "xquartz",
+  "installer_format": "pkg",
+  "slug": "xquartz/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

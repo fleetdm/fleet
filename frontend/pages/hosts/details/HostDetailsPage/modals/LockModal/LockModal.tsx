@@ -1,13 +1,13 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import PATHS from "router/paths";
-import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import hostAPI from "services/entities/hosts";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -62,7 +62,6 @@ const LockModal = ({
   onSuccess,
   onClose,
 }: ILockModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isLocking, setIsLocking] = React.useState(false);
 
@@ -73,20 +72,19 @@ const LockModal = ({
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash(
-        "success",
+      notify.success(
         isAndroidHost
           ? "Successfully sent request to lock this host."
           : "Locking host or will lock when it comes online."
       );
     } catch (e) {
       const errorReason = getErrorReason(e);
-      renderFlash(
-        "error",
+      notify.error(
         isAndroidHost
           ? errorReason ||
               "Couldn't send request to lock this host. Please try again."
-          : errorReason
+          : errorReason,
+        { response: e }
       );
     }
     setIsLocking(false);

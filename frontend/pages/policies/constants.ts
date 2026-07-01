@@ -1,6 +1,9 @@
 import { IPolicyNew } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 
+export const POLICY_TARGET_EMPTY_STATE_DESCRIPTION =
+  "Add a label to target a group of hosts.";
+
 const DEFAULT_POLICY_PLATFORM: CommaSeparatedPlatformString = "";
 
 export const DEFAULT_POLICY = {

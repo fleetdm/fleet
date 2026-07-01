@@ -217,8 +217,20 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 		return []fleet.SoftwareAutoUpdateSchedule{}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return nil, nil
+	}
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return nil, nil
+	}
+	ds.BatchNewSoftwareCategoriesFunc = func(ctx context.Context, teamID uint, names []string) error {
+		return nil
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return true, nil
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
@@ -276,6 +288,9 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	}
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
+	}
+	ds.SetCertificateTemplateVariablesFunc = func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+		return nil
 	}
 	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, certTmplID uint) error {
 		return nil

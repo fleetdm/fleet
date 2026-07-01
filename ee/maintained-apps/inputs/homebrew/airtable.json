@@ -1,0 +1,10 @@
+{
+  "name": "Airtable",
+  "unique_identifier": "com.FormaGrid.Airtable",
+  "token": "airtable",
+  "installer_format": "dmg",
+  "slug": "airtable/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

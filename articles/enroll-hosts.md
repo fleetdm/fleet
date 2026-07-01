@@ -101,7 +101,7 @@ fleetctl debug connection \
 
 ## Enroll Chromebooks
 
-> The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
+> The fleetd Chrome extension is for enrolling and managing ChromeOS hosts. To learn how to enroll other platforms, head to the [top of the guide](#enroll).
 
 ### Overview
 Google Admin uses organizational units (OUs) to organize devices and users.
@@ -160,16 +160,18 @@ In the Google Admin console:
 
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
-  - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
-  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's fleet on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
-  - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
+2. If MDM is turned on, turn it off:
+  - Windows: Skip to step 3 (Uninstall Fleet's agent).
+  - macOS: On the **Host details** page, select **Actions > Turn off MDM**.
+  - iOS/iPadOS & Android: On the **Host details** page, select **Actions > Unenroll**.
 
-3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
+3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
 > Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
+
+> The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
 ## Debugging
 

@@ -316,6 +316,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
 
+### [CVE-2026-42504](https://nvd.nist.gov/vuln/detail/CVE-2026-42504)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-42504 (GO-2026-5038) is a quadratic-complexity DoS in the Go stdlib mime package's WordDecoder.DecodeHeader (RFC 2047 encoded-word decoding), which is reached when parsing email headers (e.g. via net/mail). fleetctl does not parse email or otherwise decode RFC 2047 headers. govulncheck on ./cmd/fleetctl/... confirms the mime package is only linked transitively (via net/http) and the vulnerable symbol mime.WordDecoder.DecodeHeader is never called (finding stops at the package-import level, no call trace). Trivy flags it solely because the binary embeds the go1.26.3 toolchain. The fix lands in fleetctl 4.87.0, which will be built with Go 1.26.4; upgrading is recommended as routine hygiene.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-06-09 12:57:06
+
 ### [CVE-2026-42496](https://nvd.nist.gov/vuln/detail/CVE-2026-42496)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -683,6 +691,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:42:37
 
+### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use OpenSSL (e.g. PKCS7_verify) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-06-15 08:42:45
+
 ### [CVE-2026-42011](https://nvd.nist.gov/vuln/detail/CVE-2026-42011)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -916,6 +932,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `bomutils`,`pkg:deb/debian/libcap2`,`pkg:deb/debian/libcap2-bin`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:25:00
+
+### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use OpenSSL (e.g. PKCS7_verify) when using fleetdm/bomutils to generate PKG packages.
+- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-06-15 08:42:45
 
 ### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
 - **Author:** @lucasmrod

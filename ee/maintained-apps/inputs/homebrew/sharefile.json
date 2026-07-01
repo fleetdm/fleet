@@ -1,0 +1,10 @@
+{
+  "name": "ShareFile",
+  "unique_identifier": "com.citrixfiles.ens.service",
+  "token": "sharefile",
+  "installer_format": "dmg",
+  "slug": "sharefile/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

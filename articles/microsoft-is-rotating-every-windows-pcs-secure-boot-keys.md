@@ -8,7 +8,7 @@ Every Windows PC built since 2012 has the same set of Secure Boot certificates b
 
 But what you lose matters: the ability to receive new signed updates, new boot manager versions, new dbx revocations of vulnerable boot components 💀, and new Defender anti-bootkit lists. This extension can help you understand the state of the (Windows) union.
 
-Grab the extension here.
+[Grab the extension](https://github.com/allenhouchins/fleet-extensions/tree/main/secureboot_cert_update).
 
 ### What's expiring, and what's replacing it
 
@@ -67,7 +67,7 @@ ORDER BY hosts DESC;
 
 This tells you in one shot what you're dealing with. In most environments, you'll see a big block of **Updated**, a long tail of **WaitingOnRollout**, and a smaller set of states with needs_action \= 1.
 
-For triage, this is the work queue:
+For triage, this is the next useful query to run:
 
 ```
 SELECT

@@ -5,6 +5,8 @@ import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
+import HighlightedLabel from "./HighlightedLabel";
+import UprightEmoji from "./UprightEmoji";
 
 const baseClass = "command-palette";
 
@@ -76,11 +78,15 @@ const HostPicker = ({
                 className={dotClass}
                 aria-label={`status: ${host.status}`}
               />
-              <span className={`${baseClass}__item-label`}>{label}</span>
+              <span className={`${baseClass}__item-label`}>
+                {/* debouncedQuery, not live search — stays in sync
+                    with the debounced row list. */}
+                <HighlightedLabel text={label} query={debouncedQuery} />
+              </span>
             </span>
             {showTeamColumn && (
               <span className={`${baseClass}__host-team`}>
-                {host.team_name || "Unassigned"}
+                <UprightEmoji text={host.team_name || "Unassigned"} />
               </span>
             )}
           </Command.Item>

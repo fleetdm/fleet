@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
+import type { ActivityType, IActivityDetails } from "interfaces/activity";
 import { IScript } from "./script";
 import { ILabelPolicy } from "./label";
 
@@ -33,6 +34,20 @@ export interface IPoliciesCountResponse {
   inherited_policy_count?: number;
 }
 
+export type PolicyAutomationActivityStatus = "error" | "success";
+
+export interface IPolicyAutomationActivity {
+  id: number;
+  created_at: string;
+  type: ActivityType;
+  fleet_initiated: boolean;
+  details: IActivityDetails;
+  host_id: number;
+  host_display_name: string;
+  status: PolicyAutomationActivityStatus;
+  output: string | null;
+}
+
 export interface IPolicy {
   id: number;
   name: string;
@@ -58,6 +73,7 @@ export interface IPolicy {
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
+  labels_exclude_all?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
@@ -130,6 +146,7 @@ export interface IPolicyFormData {
   labels_include_any?: string[];
   labels_include_all?: string[];
   labels_exclude_any?: string[];
+  labels_exclude_all?: string[];
   /** Required for creating patch policy */
   type?: "dynamic" | "patch";
   /** Required for creating patch policy */

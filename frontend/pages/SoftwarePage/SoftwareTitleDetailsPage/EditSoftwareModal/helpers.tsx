@@ -33,6 +33,15 @@ export const getErrorMessage = (
     );
   } else if (reason.includes("Secret variable")) {
     return generateSecretErrMsg(err).replace("Couldn't add", "Couldn't edit");
+  } else if (reason.includes("some or all of the categories provided")) {
+    return (
+      <>
+        Couldn&apos;t edit{" "}
+        <b>{getDisplayedSoftwareName(software.name, software.display_name)}</b>.{" "}
+        Some or all of the categories provided were not found. Please refresh
+        the page and try again.
+      </>
+    );
   }
 
   return reason || DEFAULT_ERROR_MESSAGE;

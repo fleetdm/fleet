@@ -1,0 +1,10 @@
+{
+  "name": "Folx",
+  "unique_identifier": "com.eltima.Folx3",
+  "token": "folx",
+  "installer_format": "dmg",
+  "slug": "folx/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

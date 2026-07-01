@@ -100,12 +100,12 @@ jobs:
       - name: Attest binary
         if: ${{ inputs.attest }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: ${{ inputs.filename }}
 
       - name: Upload signed artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: ${{ inputs.upload_name }}
           path: ${{ inputs.filename }}

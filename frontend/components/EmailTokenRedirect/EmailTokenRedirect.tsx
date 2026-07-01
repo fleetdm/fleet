@@ -4,7 +4,7 @@ import { Params } from "react-router/lib/Router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 
@@ -18,15 +18,14 @@ const EmailTokenRedirect = ({
   params: { token },
 }: IEmailTokenRedirectProps) => {
   const { currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   useDeepEffect(() => {
     const confirmEmailChange = async () => {
       if (currentUser && token) {
         try {
           await usersAPI.confirmEmailChange(currentUser, token);
+          notify.success("Email updated successfully.");
           router.push(PATHS.ACCOUNT);
-          renderFlash("success", "Email updated successfully.");
         } catch (error) {
           console.log(error);
           router.push(PATHS.LOGIN);

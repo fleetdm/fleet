@@ -1,0 +1,10 @@
+{
+  "name": "Tabby",
+  "unique_identifier": "org.tabby",
+  "token": "tabby",
+  "installer_format": "zip",
+  "slug": "tabby/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
