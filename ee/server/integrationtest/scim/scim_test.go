@@ -1115,11 +1115,7 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), createPayload, http.StatusCreated, &createResp)
 
-	// Both hosts must expose the user's IdP host vitals through the host detail API
-	// (end_users) — the surface end users actually see. Note: device_mapping is not
-	// asserted here on purpose; its IdP email comes from host_emails/mdm_idp_accounts
-	// and would appear on both hosts regardless of the SCIM association, so it wouldn't
-	// exercise this fix.
+	// Both hosts must expose the user's IdP host vitals through the host detail API.
 	for _, hostID := range []uint{host1.ID, host2.ID} {
 		var resp struct {
 			Host struct {

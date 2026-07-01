@@ -1507,9 +1507,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 
 // testScimUserCreateAssociatesAllMatchingHosts verifies that creating a SCIM user
 // (as the IdP directory sync does) links every host whose MDM IdP account matches
-// the user, not just the first one — so a person with multiple devices gets IdP
-// host vitals on all of them. Regression test for the reverse-linker that
-// previously associated only hostIDs[0].
+// the user.
 func testScimUserCreateAssociatesAllMatchingHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
