@@ -67,7 +67,6 @@ func TestSplunkIntegration(t *testing.T) {
 		assert.Contains(t, evt, marker, "event should contain our unique marker")
 	}
 
-	t.Logf("Successfully sent and retrieved %d events from Splunk (marker: %s)", len(events), marker)
 }
 
 // TestSplunkIntegrationBatch tests batch splitting against a real Splunk instance.
@@ -99,7 +98,6 @@ func TestSplunkIntegrationBatch(t *testing.T) {
 	events := searchSplunk(t, marker)
 	require.Len(t, events, 100, "all 100 events should be indexed in Splunk")
 
-	t.Logf("Successfully sent and retrieved %d batched events from Splunk", len(events))
 }
 
 // TestSplunkIntegrationBadToken tests that sending with a bad token is rejected by HEC.
