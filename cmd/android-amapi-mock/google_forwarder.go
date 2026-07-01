@@ -27,7 +27,7 @@ func newGoogleForwarder(credentialsFile string) (*googleForwarder, error) {
 	}
 
 	ctx := context.Background()
-	creds, err := google.CredentialsFromJSON(ctx, credJSON, androidmanagement.AndroidmanagementScope)
+	creds, err := google.CredentialsFromJSON(ctx, credJSON, androidmanagement.AndroidmanagementScope) //nolint:staticcheck // SA1019 -- load testing tool, credentials are from a trusted local file
 	if err != nil {
 		return nil, fmt.Errorf("parse credentials: %w", err)
 	}
