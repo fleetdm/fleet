@@ -25,7 +25,8 @@ func Up_20260629163945(tx *sql.Tx) error {
 
 	// Collapse rows that would violate the new key: keep the lowest id per group and delete
 	// the rest. Re-point policies off the deleted rows first, since
-	// policies.software_installer_id is RESTRICT.
+	// policies.software_installer_id is RESTRICT. Keep policies.updated_at so this
+	// content-identical swap doesn't read as a policy edit.
 	const dupGroups = `
 		SELECT global_or_team_id, title_id, dedup_token, MIN(id) AS keep_id
 		FROM software_installers
@@ -40,7 +41,7 @@ func Up_20260629163945(tx *sql.Tx) error {
 			ON si.global_or_team_id = dup.global_or_team_id
 			AND si.title_id = dup.title_id
 			AND si.dedup_token = dup.dedup_token
-		SET p.software_installer_id = dup.keep_id
+		SET p.software_installer_id = dup.keep_id, p.updated_at = p.updated_at
 		WHERE si.id != dup.keep_id`, dupGroups)); err != nil {
 		return fmt.Errorf("re-pointing policies off duplicate installers: %w", err)
 	}

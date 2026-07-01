@@ -82,6 +82,8 @@ func TestUp_20260629163945(t *testing.T) {
 	policyID := execNoErrLastID(t, db, `
 		INSERT INTO policies (name, query, description, checksum, software_installer_id)
 		VALUES ('p1', 'SELECT 1', '', UNHEX(MD5('p1')), ?)`, dupB)
+	// Freeze updated_at so the re-point can be checked for not bumping it.
+	execNoErr(t, db, `UPDATE policies SET updated_at = '2020-01-01 00:00:00' WHERE id = ?`, policyID)
 
 	// Custom hash-duplicate scoped to a team, different source.
 	titleC := insertTitle("AppC", "rpm_packages")
@@ -133,10 +135,13 @@ func TestUp_20260629163945(t *testing.T) {
 	require.Zero(t, countRows(`SELECT COUNT(*) FROM software_installer_labels WHERE software_installer_id = ?`, dupB))
 	require.Zero(t, countRows(`SELECT COUNT(*) FROM software_installer_software_categories WHERE software_installer_id = ?`, dupB))
 
-	// The policy was re-pointed off the deleted row onto the survivor.
+	// The policy was re-pointed off the deleted row onto the survivor, without bumping updated_at.
 	var repointed int64
 	require.NoError(t, db.QueryRow(`SELECT software_installer_id FROM policies WHERE id = ?`, policyID).Scan(&repointed))
 	require.Equal(t, keepB, repointed)
+	var updatedAtUnchanged bool
+	require.NoError(t, db.QueryRow(`SELECT updated_at = '2020-01-01 00:00:00' FROM policies WHERE id = ?`, policyID).Scan(&updatedAtUnchanged))
+	require.True(t, updatedAtUnchanged)
 
 	// FMA same-hash-different-version rows both survive.
 	require.Equal(t, []int64{fmaOld, fmaActive}, remainingIDs(titleD))
