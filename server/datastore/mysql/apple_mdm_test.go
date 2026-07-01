@@ -95,6 +95,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
+		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"GetEnrollmentIDsWithPendingMDMAppleCommands", testGetEnrollmentIDsWithPendingMDMAppleCommands},
@@ -7594,6 +7595,56 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 2)
 	require.Equal(t, "All Hosts", labels[0].Name)
 	require.Equal(t, "macOS", labels[1].Name)
+}
+
+// testMDMAppleUpsertHostPersonalEnrollment guards the BYOD signal through the
+// Apple Authenticate flow: host_mdm.is_personal_enrollment must track the
+// fromPersonalEnrollment flag on every upsert, including when a host_mdm row
+// already exists. Regression test for the upsert dropping the flag on conflict
+// (ON DUPLICATE KEY UPDATE only rewrote `enrolled`), which left re-enrolling
+// devices stuck at their previous value.
+func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	readPersonalEnrollment := func(hostID uint) bool {
+		var isPersonal bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &isPersonal,
+				`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		return isPersonal
+	}
+
+	upsert := func(uuid string, personal bool) uint {
+		err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           uuid,
+			HardwareSerial: "serial-" + uuid,
+			HardwareModel:  "iPad13,1",
+			Platform:       "ipados",
+		}, personal)
+		require.NoError(t, err)
+		h, err := ds.HostByIdentifier(ctx, uuid)
+		require.NoError(t, err)
+		return h.ID
+	}
+
+	// Company-owned device that later re-enrolls as BYOD. The second upsert hits
+	// updateMDMAppleHostDB with an existing host_mdm row, so the flag must flip.
+	hostID := upsert("company-then-byod", false)
+	require.False(t, readPersonalEnrollment(hostID), "initial company-owned enrollment should not be personal")
+
+	require.Equal(t, hostID, upsert("company-then-byod", true))
+	require.True(t, readPersonalEnrollment(hostID), "re-enrolling as BYOD must set is_personal_enrollment")
+
+	// Re-enrolling the same device as company-owned again must clear the flag,
+	// matching the ABM/DEP resync path (fromPersonalEnrollment=false).
+	require.Equal(t, hostID, upsert("company-then-byod", false))
+	require.False(t, readPersonalEnrollment(hostID), "re-enrolling as company-owned must clear is_personal_enrollment")
+
+	// A brand-new host inserted directly as BYOD (insertMDMAppleHostDB path).
+	byodID := upsert("byod-first", true)
+	require.True(t, readPersonalEnrollment(byodID), "fresh BYOD enrollment should be personal")
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {
