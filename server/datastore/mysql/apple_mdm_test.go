@@ -52,6 +52,11 @@ func TestMDMApple(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"GetABMTokenByUniqueToken", testGetABMTokenByUniqueToken},
+		{"InsertADUEEnrollmentChallenge", testInsertADUEEnrollmentChallenge},
+		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
+		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
+		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
@@ -95,6 +100,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
+		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"GetEnrollmentIDsWithPendingMDMAppleCommands", testGetEnrollmentIDsWithPendingMDMAppleCommands},
@@ -7607,6 +7613,56 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, "macOS", labels[1].Name)
 }
 
+// testMDMAppleUpsertHostPersonalEnrollment guards the BYOD signal through the
+// Apple Authenticate flow: host_mdm.is_personal_enrollment must track the
+// fromPersonalEnrollment flag on every upsert, including when a host_mdm row
+// already exists. Regression test for the upsert dropping the flag on conflict
+// (ON DUPLICATE KEY UPDATE only rewrote `enrolled`), which left re-enrolling
+// devices stuck at their previous value.
+func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	readPersonalEnrollment := func(hostID uint) bool {
+		var isPersonal bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &isPersonal,
+				`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		return isPersonal
+	}
+
+	upsert := func(uuid string, personal bool) uint {
+		err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           uuid,
+			HardwareSerial: "serial-" + uuid,
+			HardwareModel:  "iPad13,1",
+			Platform:       "ipados",
+		}, personal)
+		require.NoError(t, err)
+		h, err := ds.HostByIdentifier(ctx, uuid)
+		require.NoError(t, err)
+		return h.ID
+	}
+
+	// Company-owned device that later re-enrolls as BYOD. The second upsert hits
+	// updateMDMAppleHostDB with an existing host_mdm row, so the flag must flip.
+	hostID := upsert("company-then-byod", false)
+	require.False(t, readPersonalEnrollment(hostID), "initial company-owned enrollment should not be personal")
+
+	require.Equal(t, hostID, upsert("company-then-byod", true))
+	require.True(t, readPersonalEnrollment(hostID), "re-enrolling as BYOD must set is_personal_enrollment")
+
+	// Re-enrolling the same device as company-owned again must clear the flag,
+	// matching the ABM/DEP resync path (fromPersonalEnrollment=false).
+	require.Equal(t, hostID, upsert("company-then-byod", false))
+	require.False(t, readPersonalEnrollment(hostID), "re-enrolling as company-owned must clear is_personal_enrollment")
+
+	// A brand-new host inserted directly as BYOD (insertMDMAppleHostDB path).
+	byodID := upsert("byod-first", true)
+	require.True(t, readPersonalEnrollment(byodID), "fresh BYOD enrollment should be personal")
+}
+
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -8175,6 +8231,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
+	tm4, err := ds.NewTeam(ctx, &fleet.Team{Name: "team4"})
+	require.NoError(t, err)
 
 	toks, err := ds.ListABMTokens(ctx)
 	require.NoError(t, err)
@@ -8212,12 +8270,14 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.BYODTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
 	tok.AppleID = "name@example.com"
 	tok.MacOSDefaultTeamID = &tm1.ID
 	tok.IOSDefaultTeamID = &tm2.ID
+	tok.BYODDefaultTeamID = &tm4.ID
 	err = ds.SaveABMToken(ctx, tok)
 	require.NoError(t, err)
 
@@ -8237,6 +8297,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
+	require.Equal(t, tm4.ID, tokReload.BYODTeam.ID)
 
 	// empty name token now doesn't exist
 	_, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -8260,6 +8323,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
 
 	// change just the encrypted token
 	encTok2 := uuid.NewString()
@@ -8282,6 +8346,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeam.Name)
 	require.Equal(t, tm3.ID, tokReload.IPadOSTeam.ID)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
+	require.Equal(t, tm4.ID, tokReload.BYODTeam.ID)
 
 	// Remove unused token
 	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
@@ -8297,6 +8364,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
+	require.Equal(t, tm4.Name, expTok.BYODTeamName) // nolint:testifylint // tm4 is the actual value.
 
 	tokCount, err = ds.GetABMTokenCount(ctx)
 	require.NoError(t, err)
@@ -12816,4 +12884,299 @@ func testRecoveryLockReadersReturnNotFoundForSoftDeleted(t *testing.T, ds *Datas
 	got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Nil(t, got)
+}
+
+func testGetABMTokenByUniqueToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Insert an ABM token.
+	encTok := uuid.NewString()
+	inserted, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "unique-token-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inserted.ID)
+
+	// Fetch the enrollment_url_token that was generated during insert.
+	var urlToken string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &urlToken, `SELECT enrollment_url_token FROM abm_tokens WHERE id = ?`, inserted.ID)
+	})
+	require.NotEmpty(t, urlToken)
+
+	// Fetch by the unique token – should succeed and return the correct token.
+	tok, err := ds.GetABMTokenByUniqueToken(ctx, urlToken)
+	require.NoError(t, err)
+	require.NotNil(t, tok)
+	require.Equal(t, inserted.ID, tok.ID)
+	require.Equal(t, "unique-token-org", tok.OrganizationName)
+
+	// Fetch with a non-existent unique token – should return a not-found error.
+	_, err = ds.GetABMTokenByUniqueToken(ctx, "no-such-token")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testInsertADUEEnrollmentChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "adue-org",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	idpUUID := uuid.NewString()
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "adue-user",
+		Fullname: "ADUE User",
+		Email:    "adue-user@example.com",
+	})
+	require.NoError(t, err)
+
+	challenge, err := ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, time.Hour)
+	require.NoError(t, err)
+	require.NotEmpty(t, challenge)
+
+	var row struct {
+		Challenge    string    `db:"challenge"`
+		ABMTokenID   *uint     `db:"abm_token_id"`
+		IDPAccountID string    `db:"idp_account_uuid"`
+		ExpiresAt    time.Time `db:"expires_at"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &row, `
+			SELECT challenge, abm_token_id, idp_account_uuid, expires_at
+			FROM mdm_adue_enrollment_challenges
+			WHERE challenge = ?
+		`, challenge)
+	})
+	require.Equal(t, challenge, row.Challenge)
+	require.Equal(t, &abmTok.ID, row.ABMTokenID)
+	require.Equal(t, idpUUID, row.IDPAccountID)
+	require.True(t, row.ExpiresAt.After(time.Now()))
+
+	// Fails with empty expiration duration
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, 0)
+	require.Error(t, err)
+
+	// Fails with invalid abm token
+	invalidABMTokenID := uint(9999)
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &invalidABMTokenID, idpUUID, time.Hour)
+	require.Error(t, err)
+
+	// Fails with empty/invalid idpUUID
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, "", time.Hour)
+	require.Error(t, err)
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, "invalid-uuid", time.Hour)
+	require.Error(t, err)
+
+	// Succeeds with nil abmTokenID
+	_, err = ds.InsertADUEEnrollmentChallenge(ctx, nil, idpUUID, time.Hour)
+	require.NoError(t, err)
+}
+
+func testConsumeADUEEnrollmentChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Shared prerequisites.
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "adue-consume-org",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	idpUUID := uuid.NewString()
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "adue-consume-user",
+		Fullname: "ADUE Consume User",
+		Email:    "adue-consume-user@example.com",
+	})
+	require.NoError(t, err)
+
+	// insertExpiredChallenge bypasses InsertADUEEnrollmentChallenge's positive-duration guard
+	// to create a challenge that is already past its expires_at.
+	insertExpiredChallenge := func(t *testing.T) string {
+		t.Helper()
+		challenge := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at) VALUES (?, ?, ?, ?)`,
+				challenge, abmTok.ID, idpUUID, time.Now().Add(-time.Hour))
+			return err
+		})
+		return challenge
+	}
+
+	t.Run("happy path: marks used_at and returns challenge", func(t *testing.T) {
+		challenge, err := ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, time.Hour)
+		require.NoError(t, err)
+
+		before, err := ds.GetADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.Nil(t, before.UsedAt)
+
+		got, err := ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, before.ID, got.ID)
+
+		after, err := ds.GetADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.NotNil(t, after.UsedAt)
+	})
+
+	t.Run("already used: returns BadRequestError", func(t *testing.T) {
+		challenge, err := ds.InsertADUEEnrollmentChallenge(ctx, &abmTok.ID, idpUUID, time.Hour)
+		require.NoError(t, err)
+
+		// First consume succeeds.
+		_, err = ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+
+		// Second consume must fail because used_at is now set.
+		_, err = ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.Error(t, err)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, badReqErr.Message, "can only be used once")
+	})
+
+	t.Run("expired: returns BadRequestError", func(t *testing.T) {
+		challenge := insertExpiredChallenge(t)
+
+		_, err := ds.ConsumeADUEEnrollmentChallenge(ctx, challenge)
+		require.Error(t, err)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.Contains(t, badReqErr.Message, "has expired")
+	})
+
+	t.Run("unknown challenge: returns not-found error", func(t *testing.T) {
+		_, err := ds.ConsumeADUEEnrollmentChallenge(ctx, "no-such-challenge-string")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testCleanupExpiredADUEEnrollmentChallenges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "adue-cleanup-org",
+		EncryptedToken:   []byte(uuid.NewString()),
+		RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	idpUUID := uuid.NewString()
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "adue-cleanup-user",
+		Fullname: "ADUE Cleanup User",
+		Email:    "adue-cleanup-user@example.com",
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	pastUsedAt := now.Add(-26 * time.Hour)
+
+	insertChallenge := func(t *testing.T, challenge string, expiresAt time.Time, usedAt *time.Time) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if usedAt != nil {
+				_, err := q.ExecContext(ctx,
+					`INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at, used_at) VALUES (?, ?, ?, ?, ?)`,
+					challenge, abmTok.ID, idpUUID, expiresAt, usedAt)
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at) VALUES (?, ?, ?, ?)`,
+				challenge, abmTok.ID, idpUUID, expiresAt)
+			return err
+		})
+	}
+
+	countChallenge := func(t *testing.T, challenge string) int {
+		t.Helper()
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM mdm_adue_enrollment_challenges WHERE challenge = ?`, challenge)
+		})
+		return count
+	}
+
+	// Non-expired, no used_at — must NOT be deleted.
+	insertChallenge(t, "non-expired-no-used", now.Add(2*time.Hour), nil)
+
+	// Non-expired, has used_at — must NOT be deleted.
+	insertChallenge(t, "non-expired-with-used", now.Add(2*time.Hour), &pastUsedAt)
+
+	// Expired more than 24 hours ago, no used_at — must be deleted.
+	insertChallenge(t, "expired-no-used", now.Add(-25*time.Hour), nil)
+
+	// Expired more than 24 hours ago, has used_at — must be deleted.
+	insertChallenge(t, "expired-with-used", now.Add(-25*time.Hour), &pastUsedAt)
+
+	require.NoError(t, ds.CleanupExpiredADUEEnrollmentChallenges(ctx))
+
+	assert.Equal(t, 1, countChallenge(t, "non-expired-no-used"), "non-expired challenge without used_at should not be deleted")
+	assert.Equal(t, 1, countChallenge(t, "non-expired-with-used"), "non-expired challenge with used_at should not be deleted")
+	assert.Equal(t, 0, countChallenge(t, "expired-no-used"), "challenge expired >24h ago without used_at should be deleted")
+	assert.Equal(t, 0, countChallenge(t, "expired-with-used"), "challenge expired >24h ago with used_at should be deleted")
+}
+
+func testGetABMOrganizationNamesAssociatedByDefaultTeams(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newTeam := func(name string) uint {
+		t.Helper()
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		return tm.ID
+	}
+	insertToken := func(org string, teamSetter func(*fleet.ABMToken)) {
+		t.Helper()
+		tok := &fleet.ABMToken{
+			OrganizationName: org,
+			EncryptedToken:   []byte(uuid.NewString()),
+			RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+		}
+		if teamSetter != nil {
+			teamSetter(tok)
+		}
+		_, err := ds.InsertABMToken(ctx, tok)
+		require.NoError(t, err)
+	}
+	assertOrgNames := func(teamID *uint, want []string) {
+		t.Helper()
+		got, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, teamID)
+		require.NoError(t, err)
+		sort.Strings(got)
+		require.Equal(t, want, got)
+	}
+
+	tm1 := newTeam("abm-default-team-1")
+	tm2 := newTeam("abm-default-team-2")
+	tm3 := newTeam("abm-default-team-3")
+
+	insertToken("org-macos", func(tok *fleet.ABMToken) { tok.MacOSDefaultTeamID = &tm1 })
+	insertToken("org-ios", func(tok *fleet.ABMToken) { tok.IOSDefaultTeamID = &tm1 })
+	insertToken("org-ipados", func(tok *fleet.ABMToken) { tok.IPadOSDefaultTeamID = &tm2 })
+	insertToken("org-byod", func(tok *fleet.ABMToken) { tok.BYODDefaultTeamID = &tm1 })
+	insertToken("org-unassigned", nil)
+
+	assertOrgNames(&tm1, []string{"org-byod", "org-ios", "org-macos"})
+	assertOrgNames(&tm2, []string{"org-ipados"})
+	assertOrgNames(&tm3, nil)
+
+	_, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, nil)
+	require.Error(t, err)
 }

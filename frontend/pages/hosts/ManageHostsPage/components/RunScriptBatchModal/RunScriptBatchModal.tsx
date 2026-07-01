@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
@@ -11,7 +11,7 @@ import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { addTeamIdCriteria, IScript } from "interfaces/script";
 import { getErrorReason } from "interfaces/errors";
@@ -66,8 +66,6 @@ const RunScriptBatchModal = ({
   isFreeTier,
   onCancel,
 }: IRunScriptBatchModal) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [currentTimeUTC, setCurrentTimeUTC] = useState<string>("");
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -172,8 +170,7 @@ const RunScriptBatchModal = ({
       try {
         await scriptsAPI.runScriptBatch(body);
         if (runMode === "schedule") {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully scheduled script.{" "}
               <CustomLink
@@ -189,8 +186,7 @@ const RunScriptBatchModal = ({
             </>
           );
         } else {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully ran script.{" "}
               <CustomLink
@@ -214,13 +210,13 @@ const RunScriptBatchModal = ({
           errorMessage =
             "Could not run script: too many hosts targeted. Please try again with fewer hosts.";
         }
-        renderFlash("error", errorMessage);
+        notify.error(errorMessage, { response: error });
         // can determine more specific error case with additional call to upcoming summary endpoint
       } finally {
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
+    [selectedHostIds, runMode, batchRunDate, batchRunTime]
   );
 
   const renderModalContent = () => {

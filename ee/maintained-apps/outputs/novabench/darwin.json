@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.0.3",
+      "version": "6.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.novabench.client';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.novabench.client' AND version_compare(bundle_short_version, '6.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.novabench.client' AND version_compare(bundle_short_version, '6.1.1') < 0);"
       },
       "installer_url": "https://novabench.com/files/novabench.dmg",
       "install_script_ref": "02eaf90e",

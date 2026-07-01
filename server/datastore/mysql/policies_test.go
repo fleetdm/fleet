@@ -98,7 +98,9 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
+		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
+		{"ResetPolicy", testResetPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8603,6 +8605,41 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
 }
 
+func testGetPoliciesForConditionalAccess(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// Two "No team" (team_id = 0) policies enrolled in conditional access, one
+	// per supported platform.
+	darwinPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                     "ca-darwin",
+		Query:                    "SELECT 1;",
+		Platform:                 "darwin",
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+	windowsPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                     "ca-windows",
+		Query:                    "SELECT 1;",
+		Platform:                 "windows",
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+
+	ids, err := ds.GetPoliciesForConditionalAccess(ctx, 0, "darwin")
+	require.NoError(t, err)
+	require.Equal(t, []uint{darwinPolicy.ID}, ids)
+
+	filterEscape := `nomatch%' OR platforms LIKE '%`
+	ids, err = ds.GetPoliciesForConditionalAccess(ctx, 0, filterEscape)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+	require.NotContains(t, ids, darwinPolicy.ID)
+	require.NotContains(t, ids, windowsPolicy.ID)
+
+	ids, err = ds.GetPoliciesForConditionalAccess(ctx, 0, `' OR 1=1 -- `)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+}
+
 func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -8647,4 +8684,141 @@ func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, 0, count, "deleted policy membership row must not exist")
+}
+
+func testResetPolicy(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two hosts.
+	host1 := test.NewHost(t, ds, "host1", "1.1.1.1", "uuid-host1", "node-key-host1", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "1.1.1.2", "uuid-host2", "node-key-host2", time.Now())
+
+	// Create a team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-team"})
+	require.NoError(t, err)
+
+	// Create a global policy (the one we will reset).
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  t.Name(),
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// Create a second policy (team policy) to prove reset is scoped.
+	otherPolicy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  t.Name() + "-other",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	// Seed policy_membership for both policies.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?,?,1),(?,?,0)`,
+			policy.ID, host1.ID,
+			policy.ID, host2.ID,
+		)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?,?,1)`,
+			otherPolicy.ID, host1.ID,
+		)
+		return err
+	})
+
+	// Seed policy_stats for both policies.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?,0,1,1)`,
+			policy.ID,
+		)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?,0,5,3)`,
+			otherPolicy.ID,
+		)
+		return err
+	})
+
+	// Create a script_content row so host_script_results FK constraints are satisfied.
+	// md5_checksum is BINARY(16) — pass raw bytes, not a hex string.
+	checksum := md5.Sum([]byte(t.Name())) //nolint:gosec // md5 only for test fixture
+	var scriptContentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
+			checksum[:], "echo test",
+		)
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
+		return err
+	})
+
+	// Seed automation result rows using real FK-valid IDs.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES (?,'reset-script-1',?,'out',0,?,2)`,
+			host1.ID, scriptContentID, policy.ID,
+		)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES (?,'other-script-1',?,'out',0,?,3)`,
+			host1.ID, scriptContentID, otherPolicy.ID,
+		)
+		return err
+	})
+
+	// --- action ---
+	require.NoError(t, ds.ResetPolicy(ctx, policy.ID))
+
+	// policy_membership for policy must be empty.
+	var memberCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &memberCount,
+			`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, policy.ID)
+	})
+	require.Equal(t, 0, memberCount, "policy_membership must be wiped")
+
+	// policy_stats for policy must be empty.
+	var statsCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &statsCount,
+			`SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, policy.ID)
+	})
+	require.Equal(t, 0, statsCount, "policy_stats must be wiped")
+
+	// attempt_number for the reset policy's script result must be 0.
+	var attemptNum int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNum,
+			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'reset-script-1'`)
+	})
+	require.Equal(t, 0, attemptNum, "automation attempt_number must be reset to 0")
+
+	// The other policy's rows must be untouched.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &memberCount,
+			`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, otherPolicy.ID)
+	})
+	require.Equal(t, 1, memberCount, "other policy membership must be untouched")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &statsCount,
+			`SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, otherPolicy.ID)
+	})
+	require.Equal(t, 1, statsCount, "other policy stats must be untouched")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNum,
+			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'other-script-1'`)
+	})
+	require.Equal(t, 3, attemptNum, "other policy attempt_number must be untouched")
 }

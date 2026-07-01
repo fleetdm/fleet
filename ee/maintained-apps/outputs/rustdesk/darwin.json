@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.4.7",
+      "version": "1.4.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.carriez.rustdesk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.carriez.rustdesk' AND version_compare(bundle_short_version, '1.4.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.carriez.rustdesk' AND version_compare(bundle_short_version, '1.4.8') < 0);"
       },
-      "installer_url": "https://github.com/rustdesk/rustdesk/releases/download/1.4.7/rustdesk-1.4.7-aarch64.dmg",
+      "installer_url": "https://github.com/rustdesk/rustdesk/releases/download/1.4.8/rustdesk-1.4.8-aarch64.dmg",
       "install_script_ref": "030ba817",
       "uninstall_script_ref": "3d6da5bf",
-      "sha256": "f77e517fa792c8d46eb9eade3a2ce74f68d7f585924fc4202719f4ed82038ead",
+      "sha256": "7f8acfb0dcab21d4c8fe570902be70a02ed0db007daa5ebfe1e0119487a5fc17",
       "default_categories": [
         "Productivity"
       ]

@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -79,6 +80,7 @@ func TestHosts(t *testing.T) {
 	}{
 		{"Save", testHostsUpdate},
 		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
+		{"MDMAppleEnrollmentPermissions", testHostMDMAppleEnrollmentPermissions},
 		{"SaveHostPackStatsDB", testSaveHostPackStatsDB},
 		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
@@ -100,8 +102,10 @@ func TestHosts(t *testing.T) {
 		{"SearchWildCards", testSearchHostsWildCards},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
+		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -177,6 +181,7 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -344,6 +349,53 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 
 	err = ds.DeletePack(context.Background(), newP.Name)
 	require.NoError(t, err)
+}
+
+func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new("perms-1"),
+		UUID:            "perms-uuid-1",
+		Hostname:        "perms.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// No host_mdm row and no permissions row yet: the COALESCE fallbacks must
+	// resolve to the unrestricted default and a non-personal enrollment. This is
+	// the path that previously failed to scan when delivered_at was selected.
+	perms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, host.UUID, perms.HostUUID)
+	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.False(t, perms.IsPersonalEnrollment)
+
+	// Record a personal (BYOD) enrollment in host_mdm; access rights still default
+	// until a permissions row is written.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com?byod=1", false, "Fleet", "", true))
+	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.True(t, perms.IsPersonalEnrollment)
+
+	// Persist the narrowed BYOD bitmask and confirm it is read back together with
+	// the personal-enrollment signal.
+	narrowed := apple_mdm.AppleEnrollmentAccessRights(true)
+	require.NoError(t, ds.SetHostMDMAppleEnrollmentPermissions(ctx, host.UUID, narrowed))
+	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, narrowed, perms.AccessRights)
+	require.True(t, perms.IsPersonalEnrollment)
+
+	// An unknown UUID is a not-found, not a scan error.
+	_, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, "does-not-exist")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
@@ -1470,6 +1522,18 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "b.cb"}}, 1)
 	require.Equal(t, 1, len(gotHosts))
 	assert.Equal(t, hosts[2].ID, gotHosts[0].ID) // matches email dbca@b.cba
+
+	// check that ListHosts also filters by public IP address
+	hosts[3].PublicIP = "203.0.113.42"
+	err = ds.UpdateHost(context.Background(), hosts[3])
+	require.NoError(t, err)
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.42"}}, 1)
+	require.Len(t, gotHosts, 1)
+	assert.Equal(t, hosts[3].ID, gotHosts[0].ID)
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
+	assert.Empty(t, gotHosts)
 }
 
 func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
@@ -2480,7 +2544,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, none, 0)
 
-	// check to make sure search on ip address works
+	// check to make sure search on private ip address works
 	h2.PrimaryIP = "99.100.101.103"
 	err = ds.UpdateHost(context.Background(), h2)
 	require.NoError(t, err)
@@ -2492,6 +2556,20 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.111")
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
+
+	// check that search on public ip address also works
+	h2.PublicIP = "1.2.3.4"
+	err = ds.UpdateHost(context.Background(), h2)
+	require.NoError(t, err)
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.4")
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	assert.Equal(t, h2.ID, hits[0].ID)
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.9")
+	require.NoError(t, err)
+	assert.Empty(t, hits)
 
 	h3.PrimaryIP = "99.100.101.104"
 	err = ds.UpdateHost(context.Background(), h3)
@@ -2978,6 +3056,64 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
 }
 
+// testHostsGenerateStatusStatisticsMobileMDMSeenTime verifies that ios/ipados hosts, which never
+// report a host_seen_times entry (no osquery), are not flagged as "missing" when they have recently
+// checked in via the Apple MDM protocol (nano_enrollments.last_seen_at).
+func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	// An ios host that enrolled long ago (created_at/detail_updated_at both > 30 days) and never
+	// checks in via osquery, so it has no host_seen_times row. Without the MDM last_seen_at fallback
+	// it would be incorrectly counted as missing.
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "ios-device",
+		UUID:            "ios-device-uuid",
+		HardwareSerial:  "ios-serial",
+		Platform:        "ios",
+		DetailUpdatedAt: now.Add(-40 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-40 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-40 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	// Backdate created_at and remove the host_seen_times row to mimic a real ios host.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET created_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
+	require.NoError(t, err)
+
+	// Recent MDM check-in: device-channel nano enrollment with a fresh last_seen_at.
+	nanoEnroll(t, ds, h, false)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-1*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	missingFilter := fleet.HostListOptions{StatusFilter: fleet.StatusMissing}
+
+	// With a recent MDM last_seen_at, the host must NOT be counted/listed as missing.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), summary.Missing30DaysCount, "ios host with recent MDM check-in should not be missing")
+
+	hosts, err := ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	assert.Empty(t, hosts, "ios host with recent MDM check-in should not appear in missing list")
+
+	// Stale MDM check-in (> 30 days): the host should now be counted/listed as missing.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount, "ios host with stale MDM check-in should be missing")
+
+	hosts, err = ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1, "ios host with stale MDM check-in should appear in missing list")
+	assert.Equal(t, h.ID, hosts[0].ID)
+}
+
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3439,6 +3575,73 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), summary.DEPAssignErrorCount)
+}
+
+// testHostsGenerateStatusStatisticsDeletedDEPAssignment is a regression test for #47605: a host
+// whose DEP assignment has been soft-deleted (e.g. removed from ABM) is still enrolled and must
+// keep counting toward the totals and per-platform counts. The `hdep.deleted_at IS NULL` filter
+// used to live in the top-level WHERE clause, which excluded such hosts from TotalsHostsCount while
+// the per-platform query still counted them. That made the denominator smaller than the sum of the
+// platform counts, so the dashboard "Hosts enrolled" chart showed the largest platform as 100%.
+func testHostsGenerateStatusStatisticsDeletedDEPAssignment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "deleted-dep-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          now.Add(30 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	setSerial := func(h *fleet.Host, serial string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, h.ID)
+			return err
+		})
+		h.HardwareSerial = serial
+	}
+
+	// platformSum sums the per-platform counts, which is what the dashboard chart adds up as the
+	// bars. It must always equal TotalsHostsCount (the chart's denominator).
+	platformSum := func(s *fleet.HostSummary) uint {
+		var total uint
+		for _, p := range s.Platforms {
+			total += p.HostsCount
+		}
+		return total
+	}
+
+	// Two darwin hosts with active DEP assignments and one non-Apple host with none.
+	hostA := test.NewHost(t, ds, "dep-a.local", "1.1.1.1", "deldep-nk-1", "deldep-nk-1", now)
+	setSerial(hostA, "SN-DELDEP-001")
+	hostB := test.NewHost(t, ds, "dep-b.local", "1.1.1.2", "deldep-nk-2", "deldep-nk-2", now)
+	setSerial(hostB, "SN-DELDEP-002")
+	hostWin := test.NewHost(t, ds, "dep-win.local", "1.1.1.3", "deldep-nk-3", "deldep-nk-3", now)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET platform = 'windows' WHERE id = ?`, hostWin.ID)
+		return err
+	})
+
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hostA, *hostB}, abmToken.ID, make(map[uint]time.Time))
+	require.NoError(t, err)
+
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), summary.TotalsHostsCount)
+	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+
+	// Soft-delete hostA's DEP assignment (e.g. it was removed from ABM). The host is still enrolled,
+	// so it must keep counting toward the total and the per-platform counts.
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{hostA.HardwareSerial})
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), summary.TotalsHostsCount)
+	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
@@ -9261,6 +9464,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid)
+          VALUES (?)
+	`, host.UUID)
+	require.NoError(t, err)
+
 	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
@@ -11473,6 +11682,76 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
+	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(false),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: hostUUID,
+				Platform:     "windows",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: hostUUID, Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	// An unknown device (no matching row) is not reported as previously enrolled: it is a new enrollment, or a host moving to
+	// a different Fleet server.
+	t.Run("unknown host", func(t *testing.T) {
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A host row that exists but never orbit-enrolled (no orbit node key, e.g. a DEP-pre-created or osquery-only row) must not
+	// be reported as previously orbit-enrolled.
+	t.Run("host exists but never orbit-enrolled", func(t *testing.T) {
+		h := test.NewHost(t, ds, "no-orbit", "", "no-orbit-key", uuid.New().String(), time.Now())
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: *h.OsqueryHostID, Platform: "ubuntu"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A Windows enrollment must not be matched to an Apple host that shares a hardware serial: HostPreviouslyOrbitEnrolled
+	// forces serial matching off for Windows. Serial matching is enabled here (isMDMEnabled=true) so the skip is provably due
+	// to the Windows guard, not a disabled serial path.
+	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
+		serial := uuid.New().String()
+		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   uuid.New().String(),
+				HardwareSerial: serial,
+				Platform:       "darwin",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Same serial, different (unmatched) UUID, Windows platform: the serial must be ignored, so no match.
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), HardwareSerial: serial, Platform: "windows"}, true)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// An empty hardware UUID is an error (orbit always sends one).
+	t.Run("empty hardware uuid", func(t *testing.T) {
+		_, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{Platform: "windows"}, false)
+		require.Error(t, err)
+	})
+}
+
 func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -13575,9 +13854,12 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	})
 
 	// Create Windows MDM response for the wipe command
+	compressedResponse, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+	require.NoError(t, err)
 	var responseID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "")
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID,
+			compressedResponse)
 		if err != nil {
 			return err
 		}

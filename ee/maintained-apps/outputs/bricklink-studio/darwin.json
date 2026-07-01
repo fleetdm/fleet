@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.26.5_1",
+      "version": "2.26.6_1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.BrickLink.Studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.BrickLink.Studio' AND version_compare(bundle_short_version, '2.26.5_1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.BrickLink.Studio' AND version_compare(bundle_short_version, '2.26.6_1') < 0);"
       },
-      "installer_url": "https://studio.download.bricklink.info/Studio2.0/Archive/2.26.5_1/Studio+2.0.pkg",
+      "installer_url": "https://studio.download.bricklink.info/Studio2.0/Archive/2.26.6_1/Studio+2.0.pkg",
       "install_script_ref": "491b9b39",
       "uninstall_script_ref": "1c500b78",
-      "sha256": "30bfa06ff56f597af5b87c3bcd2cd254d24ef266de5b0428c7c31c6c53e19caa",
+      "sha256": "e270f66d0f09948ca8d3c2fb48d1b28ba71ef2d089d4195924a52c7eb88c0b78",
       "default_categories": [
         "Productivity"
       ]

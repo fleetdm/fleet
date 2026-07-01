@@ -676,7 +676,11 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type PolicyLiteFunc func(ctx context.Context, id uint) (*fleet.PolicyLite, error)
 
+type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
+
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
+
+type ResetPolicyFunc func(ctx context.Context, policyID uint) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
@@ -926,6 +930,8 @@ type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOs
 
 type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
 
+type HostPreviouslyOrbitEnrolledFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error)
+
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
@@ -1043,6 +1049,10 @@ type SetHostMDMMigrationCompletedFunc func(ctx context.Context, hostID uint) err
 type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error
+
+type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
+
+type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string, accessRights int) error
 
 type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1260,6 +1270,8 @@ type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
+type GetABMTokenByUniqueTokenFunc func(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error)
+
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
 type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
@@ -1307,6 +1319,8 @@ type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToke
 type GetABMTokenCountFunc func(ctx context.Context) (int, error)
 
 type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
+
+type GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ClearMDMUpcomingActivitiesDBFunc func(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
@@ -1564,6 +1578,20 @@ type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, 
 
 type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error)
 
+type ListFleetMaintainedAppActiveInstallersFunc func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error)
+
+type GetSoftwareInstallerMetadataByStorageIDFunc func(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+
+type InsertFleetMaintainedAppVersionFunc func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error)
+
+type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error
+
+type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+
+type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, version string) error
+
+type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) error
+
 type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
 
 type GetCachedFMAInstallerMetadataFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error)
@@ -1738,7 +1766,7 @@ type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Contex
 
 type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep []string) error
 
@@ -1749,6 +1777,8 @@ type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint
 type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error)
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
+
+type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
 
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
 
@@ -2018,6 +2048,8 @@ type BatchDeleteCertificateTemplatesFunc func(ctx context.Context, certificateTe
 
 type CreateCertificateTemplateFunc func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error)
 
+type SetCertificateTemplateVariablesFunc func(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error
+
 type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 
 type GetCertificateTemplateByIdFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error)
@@ -2107,6 +2139,14 @@ type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamI
 type GetTraceSamplerSettingsFunc func(ctx context.Context) (*tracing.Settings, error)
 
 type SetTraceSamplerSettingsFunc func(ctx context.Context, settings *tracing.Settings) error
+
+type InsertADUEEnrollmentChallengeFunc func(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error)
+
+type GetADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
+
+type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
+
+type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3087,8 +3127,14 @@ type DataStore struct {
 	PolicyLiteFunc        PolicyLiteFunc
 	PolicyLiteFuncInvoked bool
 
+	ListPolicyAutomationActivitiesFunc        ListPolicyAutomationActivitiesFunc
+	ListPolicyAutomationActivitiesFuncInvoked bool
+
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
+
+	ResetPolicyFunc        ResetPolicyFunc
+	ResetPolicyFuncInvoked bool
 
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
@@ -3462,6 +3508,9 @@ type DataStore struct {
 	EnrollOrbitFunc        EnrollOrbitFunc
 	EnrollOrbitFuncInvoked bool
 
+	HostPreviouslyOrbitEnrolledFunc        HostPreviouslyOrbitEnrolledFunc
+	HostPreviouslyOrbitEnrolledFuncInvoked bool
+
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
 
@@ -3638,6 +3687,12 @@ type DataStore struct {
 
 	MDMAppleUpsertHostFunc        MDMAppleUpsertHostFunc
 	MDMAppleUpsertHostFuncInvoked bool
+
+	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
+	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
+
+	SetHostMDMAppleEnrollmentPermissionsFunc        SetHostMDMAppleEnrollmentPermissionsFunc
+	SetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
 
 	RestoreMDMApplePendingDEPHostFunc        RestoreMDMApplePendingDEPHostFunc
 	RestoreMDMApplePendingDEPHostFuncInvoked bool
@@ -3963,6 +4018,9 @@ type DataStore struct {
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
 
+	GetABMTokenByUniqueTokenFunc        GetABMTokenByUniqueTokenFunc
+	GetABMTokenByUniqueTokenFuncInvoked bool
+
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
 
@@ -4034,6 +4092,9 @@ type DataStore struct {
 
 	GetABMTokenOrgNamesAssociatedWithTeamFunc        GetABMTokenOrgNamesAssociatedWithTeamFunc
 	GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked bool
+
+	GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc        GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc
+	GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked bool
 
 	ClearMDMUpcomingActivitiesDBFunc        ClearMDMUpcomingActivitiesDBFunc
 	ClearMDMUpcomingActivitiesDBFuncInvoked bool
@@ -4419,6 +4480,27 @@ type DataStore struct {
 	GetFleetMaintainedVersionsByTitleIDFunc        GetFleetMaintainedVersionsByTitleIDFunc
 	GetFleetMaintainedVersionsByTitleIDFuncInvoked bool
 
+	ListFleetMaintainedAppActiveInstallersFunc        ListFleetMaintainedAppActiveInstallersFunc
+	ListFleetMaintainedAppActiveInstallersFuncInvoked bool
+
+	GetSoftwareInstallerMetadataByStorageIDFunc        GetSoftwareInstallerMetadataByStorageIDFunc
+	GetSoftwareInstallerMetadataByStorageIDFuncInvoked bool
+
+	InsertFleetMaintainedAppVersionFunc        InsertFleetMaintainedAppVersionFunc
+	InsertFleetMaintainedAppVersionFuncInvoked bool
+
+	SetFleetMaintainedAppActiveInstallerFunc        SetFleetMaintainedAppActiveInstallerFunc
+	SetFleetMaintainedAppActiveInstallerFuncInvoked bool
+
+	GetPinnedVersionFunc        GetPinnedVersionFunc
+	GetPinnedVersionFuncInvoked bool
+
+	SetPinnedVersionFunc        SetPinnedVersionFunc
+	SetPinnedVersionFuncInvoked bool
+
+	DeletePinnedVersionFunc        DeletePinnedVersionFunc
+	DeletePinnedVersionFuncInvoked bool
+
 	HasFMAInstallerVersionFunc        HasFMAInstallerVersionFunc
 	HasFMAInstallerVersionFuncInvoked bool
 
@@ -4697,6 +4779,9 @@ type DataStore struct {
 
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
+
+	ReconcileMaintainedAppSoftwareNamesFunc        ReconcileMaintainedAppSoftwareNamesFunc
+	ReconcileMaintainedAppSoftwareNamesFuncInvoked bool
 
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
@@ -5100,6 +5185,9 @@ type DataStore struct {
 	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
 	CreateCertificateTemplateFuncInvoked bool
 
+	SetCertificateTemplateVariablesFunc        SetCertificateTemplateVariablesFunc
+	SetCertificateTemplateVariablesFuncInvoked bool
+
 	DeleteCertificateTemplateFunc        DeleteCertificateTemplateFunc
 	DeleteCertificateTemplateFuncInvoked bool
 
@@ -5234,6 +5322,18 @@ type DataStore struct {
 
 	SetTraceSamplerSettingsFunc        SetTraceSamplerSettingsFunc
 	SetTraceSamplerSettingsFuncInvoked bool
+
+	InsertADUEEnrollmentChallengeFunc        InsertADUEEnrollmentChallengeFunc
+	InsertADUEEnrollmentChallengeFuncInvoked bool
+
+	GetADUEEnrollmentChallengeFunc        GetADUEEnrollmentChallengeFunc
+	GetADUEEnrollmentChallengeFuncInvoked bool
+
+	ConsumeADUEEnrollmentChallengeFunc        ConsumeADUEEnrollmentChallengeFunc
+	ConsumeADUEEnrollmentChallengeFuncInvoked bool
+
+	CleanupExpiredADUEEnrollmentChallengesFunc        CleanupExpiredADUEEnrollmentChallengesFunc
+	CleanupExpiredADUEEnrollmentChallengesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7520,11 +7620,25 @@ func (s *DataStore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite,
 	return s.PolicyLiteFunc(ctx, id)
 }
 
+func (s *DataStore) ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListPolicyAutomationActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPolicyAutomationActivitiesFunc(ctx, policyID, filter, opts, status)
+}
+
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
 	s.mu.Unlock()
 	return s.SavePolicyFunc(ctx, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
+}
+
+func (s *DataStore) ResetPolicy(ctx context.Context, policyID uint) error {
+	s.mu.Lock()
+	s.ResetPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyFunc(ctx, policyID)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
@@ -8395,6 +8509,13 @@ func (s *DataStore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnro
 	return s.EnrollOrbitFunc(ctx, opts...)
 }
 
+func (s *DataStore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+	s.mu.Lock()
+	s.HostPreviouslyOrbitEnrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostPreviouslyOrbitEnrolledFunc(ctx, hostInfo, isMDMEnabled)
+}
+
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.mu.Lock()
 	s.SerialUpdateHostFuncInvoked = true
@@ -8806,6 +8927,20 @@ func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host,
 	s.MDMAppleUpsertHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleUpsertHostFunc(ctx, mdmHost, fromPersonalEnrollment)
+}
+
+func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+	s.mu.Lock()
+	s.GetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
+	s.mu.Lock()
+	s.SetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostUUID, accessRights)
 }
 
 func (s *DataStore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
@@ -9564,6 +9699,13 @@ func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*
 	return s.GetABMTokenByOrgNameFunc(ctx, orgName)
 }
 
+func (s *DataStore) GetABMTokenByUniqueToken(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByUniqueTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByUniqueTokenFunc(ctx, uniqueToken)
+}
+
 func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
 	s.mu.Lock()
 	s.SaveABMTokenFuncInvoked = true
@@ -9730,6 +9872,13 @@ func (s *DataStore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, t
 	s.GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetABMTokenOrgNamesAssociatedWithTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error) {
+	s.mu.Lock()
+	s.GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc(ctx, teamID)
 }
 
 func (s *DataStore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
@@ -10628,6 +10777,55 @@ func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, tea
 	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID, byVersion)
 }
 
+func (s *DataStore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+	s.mu.Lock()
+	s.ListFleetMaintainedAppActiveInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListFleetMaintainedAppActiveInstallersFunc(ctx)
+}
+
+func (s *DataStore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerMetadataByStorageIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerMetadataByStorageIDFunc(ctx, storageID)
+}
+
+func (s *DataStore) InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error) {
+	s.mu.Lock()
+	s.InsertFleetMaintainedAppVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertFleetMaintainedAppVersionFunc(ctx, activeInstallerID, payload)
+}
+
+func (s *DataStore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
+	s.mu.Lock()
+	s.SetFleetMaintainedAppActiveInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetFleetMaintainedAppActiveInstallerFunc(ctx, payload, activeInstallerID)
+}
+
+func (s *DataStore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	s.mu.Lock()
+	s.GetPinnedVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPinnedVersionFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
+	s.mu.Lock()
+	s.SetPinnedVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetPinnedVersionFunc(ctx, teamID, titleID, version)
+}
+
+func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
+	s.mu.Lock()
+	s.DeletePinnedVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePinnedVersionFunc(ctx, teamID, titleID)
+}
+
 func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
 	s.mu.Lock()
 	s.HasFMAInstallerVersionFuncInvoked = true
@@ -11237,7 +11435,7 @@ func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hos
 	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
@@ -11277,6 +11475,13 @@ func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.Maintain
 	s.UpsertMaintainedAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertMaintainedAppFunc(ctx, app)
+}
+
+func (s *DataStore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileMaintainedAppSoftwareNamesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileMaintainedAppSoftwareNamesFunc(ctx)
 }
 
 func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
@@ -12217,6 +12422,13 @@ func (s *DataStore) CreateCertificateTemplate(ctx context.Context, certificateTe
 	return s.CreateCertificateTemplateFunc(ctx, certificateTemplate)
 }
 
+func (s *DataStore) SetCertificateTemplateVariables(ctx context.Context, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
+	s.mu.Lock()
+	s.SetCertificateTemplateVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetCertificateTemplateVariablesFunc(ctx, certTemplateID, fleetVars)
+}
+
 func (s *DataStore) DeleteCertificateTemplate(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteCertificateTemplateFuncInvoked = true
@@ -12530,4 +12742,32 @@ func (s *DataStore) SetTraceSamplerSettings(ctx context.Context, settings *traci
 	s.SetTraceSamplerSettingsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetTraceSamplerSettingsFunc(ctx, settings)
+}
+
+func (s *DataStore) InsertADUEEnrollmentChallenge(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error) {
+	s.mu.Lock()
+	s.InsertADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertADUEEnrollmentChallengeFunc(ctx, abmTokenID, idpAccountUUID, expiration)
+}
+
+func (s *DataStore) GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.GetADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetADUEEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.ConsumeADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeADUEEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupExpiredADUEEnrollmentChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredADUEEnrollmentChallengesFunc(ctx)
 }

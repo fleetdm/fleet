@@ -1,12 +1,12 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import { getErrorReason } from "interfaces/errors";
 import certificatesAPI from "services/entities/certificates";
-import { NotificationContext } from "context/notification";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "delete-certificate-authority-modal";
 
@@ -19,26 +19,22 @@ const DeleteCertificateAuthorityModal = ({
   certAuthority,
   onExit,
 }: IDeleteCertificateAuthorityModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const onDeleteCertAuthority = async () => {
     setIsUpdating(true);
     try {
       await certificatesAPI.deleteCertificateAuthority(certAuthority.id);
-      renderFlash(
-        "success",
-        "Successfully deleted your certificate authority."
-      );
+      notify.success("Successfully deleted your certificate authority.");
       setIsUpdating(false);
       onExit();
     } catch (e) {
       setIsUpdating(false);
       const status = (e as { status?: number })?.status;
       const reason = status === 409 ? getErrorReason(e) : "";
-      renderFlash(
-        "error",
-        reason || "Couldn't delete certificate authority. Please try again."
+      notify.error(
+        reason || "Couldn't delete certificate authority. Please try again.",
+        { response: e }
       );
     }
   };

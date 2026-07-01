@@ -29,6 +29,14 @@ interface IHostActionsDropdownProps {
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
   managedAccountPasswordAvailable?: boolean;
+  /**
+   * BYOD permission gates from the host MDM payload. Undefined when the host's
+   * stored AccessRights are not known (non-Apple-MDM or pre-#23242 hosts);
+   * treat undefined as "allowed" so the dropdown matches today's behavior.
+   */
+  wipeAllowed?: boolean;
+  lockAllowed?: boolean;
+  clearPasscodeAllowed?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -48,6 +56,9 @@ const HostActionsDropdown = ({
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
   managedAccountPasswordAvailable = false,
+  wipeAllowed,
+  lockAllowed,
+  clearPasscodeAllowed,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -105,6 +116,9 @@ const HostActionsDropdown = ({
     isManagedLocalAccountEnabled,
     managedAccountStatus,
     managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
+    clearPasscodeAllowed,
   });
 
   // No options to render. Exit early

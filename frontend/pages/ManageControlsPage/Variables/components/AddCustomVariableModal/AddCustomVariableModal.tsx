@@ -1,10 +1,12 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { IVariableFormData } from "interfaces/variables";
-import { hasStatusKey } from "interfaces/errors";
+import { hasStatusKey, getErrorReason } from "interfaces/errors";
 import variablesAPI from "services/entities/variables";
-import { NotificationContext } from "context/notification";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { notify } from "components/ToastNotification";
+import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddCustomVariableFormValidation } from "./helpers";
 
@@ -27,8 +29,6 @@ const AddCustomVariableModal = ({
   const [variableName, setVariableName] = useState("");
   const [variableValue, setVariableValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const [
     formValidation,
@@ -65,15 +65,32 @@ const AddCustomVariableModal = ({
       };
       try {
         await variablesAPI.addVariable(newVariable);
-        renderFlash("success", "Variable created.");
+        notify.success("Variable created.");
         onSave();
       } catch (error) {
         if (hasStatusKey(error) && error.status === 409) {
-          renderFlash("error", "A variable with this name already exists.");
+          notify.error("A variable with this name already exists.", {
+            response: error,
+          });
+        } else if (
+          getErrorReason(error).includes("Missing required private key")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t save. Please configure a private key.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-server-private-key`}
+                text="Learn how"
+                newTab
+                variant="flash-message-link"
+              />
+            </>,
+            { response: error }
+          );
         } else {
-          renderFlash(
-            "error",
-            "An error occurred while saving the variable. Please try again."
+          notify.error(
+            "An error occurred while saving the variable. Please try again.",
+            { response: error }
           );
         }
       } finally {
