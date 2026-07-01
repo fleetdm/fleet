@@ -60,6 +60,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -128,6 +129,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore = opts[0].KeyValueStore
 	}
 
+	// pssoNonceStore backs the PSSO single-use nonces; wired from the test Redis
+	// pool when one is provided (integration tests), nil otherwise.
+	var pssoNonceStore fleet.PSSONonceStore
+
 	task := async.NewTask(ds, nil, c, nil)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
@@ -149,6 +154,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
+			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -295,7 +301,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
-			nil, // PSSO nonce store; integration tests don't exercise PSSO
+			pssoNonceStore,
 		)
 		if err != nil {
 			panic(err)
