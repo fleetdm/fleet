@@ -48,16 +48,10 @@ const getPolicyChipTooltip = (
   isPatchPolicyOnly: boolean,
   isSinglePolicy: boolean
 ) => {
+  // A software package has at most one patch_policy, so isPatchPolicyOnly
+  // implies mergedPolicies.length === 1 — the multi-policy copy can't render.
   if (isPatchPolicyOnly) {
-    return isSinglePolicy ? (
-      <>Policy fails if the host is on an older version.</>
-    ) : (
-      <>
-        Policies fail if the host is on an older version.
-        <br />
-        Select to view policies.
-      </>
-    );
+    return <>Policy fails if the host is on an older version.</>;
   }
   return isSinglePolicy ? (
     <>Policy triggers install.</>
