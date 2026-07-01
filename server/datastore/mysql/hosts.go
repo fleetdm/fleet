@@ -4813,7 +4813,7 @@ WHERE %s`
 	// so calling it once per host is safe.
 	for _, hid := range hostIDs {
 		if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host with scim user")
+			return ctxerr.Wrapf(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host %d with scim user", hid)
 		}
 	}
 
