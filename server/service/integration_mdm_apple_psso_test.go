@@ -38,17 +38,17 @@ type pssoMockIdP struct {
 
 func (m *pssoMockIdP) handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_ = r.ParseForm()
+		_ = r.ParseForm() // nolint:gosec // dismiss G120 since this is just test code
 		m.mu.Lock()
 		m.lastForm = r.PostForm
 		m.mu.Unlock()
 
-		if r.FormValue("grant_type") != "password" {
+		if r.FormValue("grant_type") != "password" { // nolint:gosec // dismiss G120 since this is just test code
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "unsupported_grant_type"})
 			return
 		}
-		if r.FormValue("username") != m.validUser || r.FormValue("password") != m.validPass {
+		if r.FormValue("username") != m.validUser || r.FormValue("password") != m.validPass { // nolint:gosec // dismiss G120 since this is just test code
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid_grant", "error_description": "bad credentials"})
 			return
