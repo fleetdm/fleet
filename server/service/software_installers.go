@@ -42,7 +42,10 @@ type uploadSoftwareInstallerRequest struct {
 }
 
 type updateSoftwareInstallerRequest struct {
-	TitleID           uint `url:"id"`
+	TitleID uint `url:"id"`
+	// InstallerID identifies which package to edit when the title has more than
+	// one; it is required in that case and optional for single-package titles.
+	InstallerID       *uint
 	File              *multipart.FileHeader
 	TeamID            *uint
 	InstallScript     *string
@@ -120,6 +123,15 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
 		decoded.TeamID = ptr.Uint(uint(fleetID))
+	}
+
+	// installer_id targets a specific package when the title has multiple.
+	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
+		installerID, err := strconv.ParseUint(idVal[0], 10, 32)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid installer_id: %s", idVal[0])}
+		}
+		decoded.InstallerID = new(uint(installerID))
 	}
 
 	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
@@ -254,6 +266,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:           req.TitleID,
+		InstallerID:       ptr.ValOrZero(req.InstallerID),
 		TeamID:            req.TeamID,
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
@@ -500,8 +513,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
-	TitleID uint  `url:"title_id"`
+	TeamID *uint `query:"team_id" renameto:"fleet_id"`
+	// InstallerID deletes a single package; when omitted, all of the title's
+	// custom packages are deleted (title-level delete).
+	InstallerID *uint `query:"installer_id,optional"`
+	TitleID     uint  `url:"title_id"`
 }
 
 type deleteSoftwareInstallerResponse struct {
@@ -513,14 +529,14 @@ func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoCon
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
-	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID)
+	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID)
 	if err != nil {
 		return deleteSoftwareInstallerResponse{Err: err}, nil
 	}
 	return deleteSoftwareInstallerResponse{}, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

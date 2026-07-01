@@ -212,6 +212,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return addedInstaller, nil
 	}
 
+	// NOTE(#48397): with multiple packages per title this returns the first-added
+	// package's metadata, not necessarily the one just uploaded. Returning the
+	// just-added package would need a full-hydration read by installer id (the
+	// existing by-id read is intentionally light for the osquery hot path), so the
+	// authoritative multi-package view is GET /software/titles/:id (packages[]).
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
@@ -411,17 +416,49 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
 	}
 
-	// With more than one installer on the title, this edits the first-added one.
-	// Choosing a specific package to edit is handled by the precedence work.
 	if software.SoftwareInstallersCount < 1 {
 		return nil, &fleet.BadRequestError{
 			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
 		}
 	}
 
+	// existingInstaller defaults to the first-added package (fully hydrated, incl.
+	// the title-level icon used in the activity).
 	existingInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
+	}
+
+	// With more than one package on a title, the edit must target a specific
+	// package. siblings is loaded once and reused for the hash-collision check.
+	var siblings []*fleet.SoftwareInstaller
+	if software.SoftwareInstallersCount > 1 || payload.InstallerID != 0 {
+		siblings, err = svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting title packages")
+		}
+
+		switch {
+		case payload.InstallerID == 0 && software.SoftwareInstallersCount > 1:
+			return nil, &fleet.BadRequestError{
+				Message: "installer_id is required when the title has multiple packages.",
+			}
+		case payload.InstallerID != 0 && payload.InstallerID != existingInstaller.InstallerID:
+			var target *fleet.SoftwareInstaller
+			for _, p := range siblings {
+				if p.InstallerID == payload.InstallerID {
+					target = p
+					break
+				}
+			}
+			if target == nil {
+				return nil, ctxerr.Wrapf(ctx, &notFoundError{},
+					"installer %d does not belong to this title and team", payload.InstallerID)
+			}
+			// The icon is title-level, so carry it from the first-added read for the activity.
+			target.IconUrl = existingInstaller.IconUrl
+			existingInstaller = target
+		}
 	}
 
 	if payload.IsNoopPayload(software) {
@@ -500,6 +537,17 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
+			// Reject a replacement whose hash matches a different package on the same
+			// title. The per-title dedup_token key would otherwise raise a raw 1062.
+			// (siblings is empty for single-package titles, so this is a no-op there.)
+			for _, p := range siblings {
+				if p.InstallerID != existingInstaller.InstallerID && p.StorageID == payloadForNewInstallerFile.StorageID {
+					return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.SoftwarePackageHashConflictMessage, payloadForNewInstallerFile.Filename),
+					}, "edit collides with sibling package hash")
+				}
+			}
+
 			activity.SoftwarePackage = &payload.Filename
 			payload.StorageID = payloadForNewInstallerFile.StorageID
 			payload.Filename = payloadForNewInstallerFile.Filename
@@ -917,7 +965,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
 	if teamID == nil {
 		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
@@ -928,7 +976,8 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return err
 	}
 
-	// first, look for a software installer
+	// Resolve the title's type. metaInstaller is fully hydrated (incl. the
+	// title-level icon), which the per-package reads below don't carry.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
 	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -942,9 +991,42 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
 
+	// Delete a single package by installer id (an installer id always refers to a
+	// software installer, never a VPP or in-house app).
+	if installerID != nil {
+		if metaInstaller == nil {
+			return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
+		}
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting title packages")
+		}
+		for _, pkg := range pkgs {
+			if pkg.InstallerID == *installerID {
+				pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+				return svc.deleteSoftwareInstaller(ctx, pkg)
+			}
+		}
+		return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
+	}
+
 	switch {
 	case metaInstaller != nil:
-		return svc.deleteSoftwareInstaller(ctx, metaInstaller)
+		// Custom-package title: delete every package (title-level delete). FMA titles
+		// keep a single active row, so this matches the prior single-delete behavior
+		// for them. Deletes are per-package, so a package blocked by a setup-experience
+		// or patch-policy guard fails the title delete partway.
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting title packages to delete")
+		}
+		for _, pkg := range pkgs {
+			pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+			if err := svc.deleteSoftwareInstaller(ctx, pkg); err != nil {
+				return err
+			}
+		}
+		return nil
 	case metaVPP != nil:
 		return svc.deleteVPPApp(ctx, teamID, metaVPP)
 	case metaInHouse != nil:

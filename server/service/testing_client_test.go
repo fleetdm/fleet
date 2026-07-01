@@ -956,6 +956,9 @@ func (ts *withServer) updateSoftwareInstaller(
 		tmID = *payload.TeamID
 	}
 	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	if payload.InstallerID != 0 {
+		require.NoError(t, w.WriteField("installer_id", fmt.Sprintf("%d", payload.InstallerID)))
+	}
 	// add the remaining fields
 	if payload.InstallScript != nil {
 		require.NoError(t, w.WriteField("install_script", *payload.InstallScript))
