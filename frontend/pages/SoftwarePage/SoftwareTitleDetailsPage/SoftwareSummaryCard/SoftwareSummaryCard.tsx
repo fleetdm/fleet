@@ -44,6 +44,32 @@ interface ISoftwareSummaryCard {
 
 const baseClass = "software-summary-card";
 
+const getPolicyChipTooltip = (
+  isPatchPolicyOnly: boolean,
+  isSinglePolicy: boolean
+) => {
+  if (isPatchPolicyOnly) {
+    return isSinglePolicy ? (
+      <>Policy fails if the host is on an older version.</>
+    ) : (
+      <>
+        Policies fail if the host is on an older version.
+        <br />
+        Select to view policies.
+      </>
+    );
+  }
+  return isSinglePolicy ? (
+    <>Policy triggers install.</>
+  ) : (
+    <>
+      Policies trigger install.
+      <br />
+      Select to view policies.
+    </>
+  );
+};
+
 const SoftwareSummaryCard = ({
   softwareTitle,
   softwareId,
@@ -164,28 +190,10 @@ const SoftwareSummaryCard = ({
               }
               setShowPoliciesModal(true);
             }}
-            tooltip={
-              // eslint-disable-next-line no-nested-ternary
-              isPatchPolicyOnly ? (
-                mergedPolicies.length === 1 ? (
-                  <>Policy fails if the host is on an older version.</>
-                ) : (
-                  <>
-                    Policies fail if the host is on an older version.
-                    <br />
-                    Select to view policies.
-                  </>
-                )
-              ) : mergedPolicies.length === 1 ? (
-                <>Policy triggers install.</>
-              ) : (
-                <>
-                  Policies trigger install.
-                  <br />
-                  Select to view policies.
-                </>
-              )
-            }
+            tooltip={getPolicyChipTooltip(
+              isPatchPolicyOnly,
+              mergedPolicies.length === 1
+            )}
           />
         )}
       </>
