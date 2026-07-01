@@ -76,11 +76,7 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this report&apos;s results
-                in Fleet:
-              </div>
-              <div>
-                &nbsp; • Reports are globally disabled in organization settings.
+                <b>Store report results</b> is globally disabled in organization settings.
               </div>
             </>
           );
@@ -89,11 +85,7 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this report&apos;s results
-                in Fleet:
-              </div>
-              <div>
-                &nbsp; • This report has <b>Discard data</b> enabled.
+                <b>Store data</b> is disabled.
               </div>
             </>
           );
@@ -102,12 +94,7 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this report&apos;s results
-                in Fleet:
-              </div>
-              <div>
-                &nbsp; • The logging setting for this report is not{" "}
-                <b>Snapshot</b>.
+                <b>Differential logging</b> is enabled.
               </div>
             </>
           );
@@ -119,7 +106,7 @@ const NoResults = ({
         <>
           Results from this report are{" "}
           <TooltipWrapper tipContent={tipContent()}>
-            not reported in Fleet
+            not stored in Fleet
           </TooltipWrapper>
           .
         </>,
