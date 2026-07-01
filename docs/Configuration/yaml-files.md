@@ -763,6 +763,22 @@ If the fields below are omitted, they default to values specified in [the app's 
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
 - `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
+## custom_host_vitals
+
+Custom host vitals are global and can be specified inline in your `default.yml` file. 
+
++ `name` specifies the vital's name. Must be unique across all custom host vitals.
+
+
+#### Example
+
+```yaml
+custom_host_vitals:
+  - name: Asset tag
+  - name: Function
+  - name: Jamf device ID
+```
+
 ## org_settings and settings
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
