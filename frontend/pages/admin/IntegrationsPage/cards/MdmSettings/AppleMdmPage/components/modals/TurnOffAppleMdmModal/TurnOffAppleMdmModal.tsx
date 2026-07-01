@@ -4,7 +4,8 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 
-const baseClass = "turn-off-apple-mdm-modal";
+const baseClass = "modal turn-off-apple-mdm-modal";
+const bemClass = "turn-off-apple-mdm-modal";
 
 interface ITurnOffAppleMdmModalProps {
   serverUrl: string;
@@ -38,7 +39,7 @@ const TurnOffAppleMdmModal = ({
         </p>
         <InputField
           autofocus
-          inputWrapperClass={`${baseClass}__url-input`}
+          inputWrapperClass={`${bemClass}__url-input`}
           placeholder="https://fleet.example.com"
           value={enteredUrl}
           onChange={(val: string) => setEnteredUrl(val)}
