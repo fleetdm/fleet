@@ -11,12 +11,10 @@ func TestUp_20260701135344(t *testing.T) {
 
 	applyNext(t, db)
 
-	// Verify column exists with correct default.
-	var tokenInvalid int
-	err := db.QueryRow(`SELECT token_invalid FROM abm_tokens LIMIT 1`).Scan(&tokenInvalid)
-	if err == nil {
-		require.Equal(t, 0, tokenInvalid)
-	}
+	// Verify column can be selected (guards against "Unknown column" errors).
+	rows, err := db.Query(`SELECT token_invalid FROM abm_tokens LIMIT 0`)
+	require.NoError(t, err)
+	require.NoError(t, rows.Close())
 
 	// Verify column structure.
 	var colName, colType, isNullable, colDefault string
