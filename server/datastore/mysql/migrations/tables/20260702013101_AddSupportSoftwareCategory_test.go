@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260623140135(t *testing.T) {
+func TestUp_20260702013101(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// The global defaults seeded by earlier migrations should not yet include

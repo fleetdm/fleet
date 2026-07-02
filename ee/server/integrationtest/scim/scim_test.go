@@ -9,6 +9,7 @@ import (
 	"github.com/elimity-com/scim/errors"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -28,6 +29,7 @@ func TestSCIM(t *testing.T) {
 		{"Users", testUsersBasicCRUD},
 		{"Groups", testGroupsBasicCRUD},
 		{"CreateUser", testCreateUser},
+		{"CreateUserAssociatesAllMatchingHosts", testCreateUserAssociatesAllMatchingHosts},
 		{"CreateGroup", testCreateGroup},
 		{"UpdateUser", testUpdateUser},
 		{"UpdateGroup", testUpdateGroup},
@@ -1062,6 +1064,69 @@ func testCreateUser(t *testing.T, s *Suite) {
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID6), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID7), nil, http.StatusNoContent)
+}
+
+// testCreateUserAssociatesAllMatchingHosts verifies, end to end through the SCIM
+// API, that provisioning a user links every host whose MDM IdP account matches the
+// user — not just the first. This is the integration-level counterpart to the
+// datastore regression test for the multi-host reverse-linker fix.
+func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Two hosts belonging to the same person, both authenticated via the same IdP account.
+	host1 := test.NewHost(t, s.DS, "scim-multi-1", "1", "scim-mh1-key", "scim-mh1-uuid", time.Now())
+	host2 := test.NewHost(t, s.DS, "scim-multi-2", "2", "scim-mh2-key", "scim-mh2-uuid", time.Now())
+
+	t.Cleanup(func() {
+		// This test mutates host/MDM IdP tables, but the per-subtest truncation in TestSCIM
+		// only clears SCIM tables. Clean up here to keep subtests isolated.
+		mysqltest.TruncateTables(t, s.DS,
+			"host_mdm_idp_accounts",
+			"mdm_idp_accounts",
+			"host_seen_times",
+			"host_display_names",
+			"hosts",
+		)
+	})
+	const idpUUID = "scim-multi-idp-uuid"
+	const userName = "scim.multi@example.com"
+	require.NoError(t, s.DS.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: userName,
+		Fullname: "SCIM Multi",
+		Email:    userName,
+	}))
+	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID))
+	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID))
+
+	// Provision the user through the SCIM API, as an IdP would.
+	createPayload := map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": userName,
+		"name": map[string]any{
+			"givenName":  "SCIM",
+			"familyName": "Multi",
+		},
+		"emails": []map[string]any{
+			{"value": userName, "type": "work", "primary": true},
+		},
+		"active": true,
+	}
+	var createResp map[string]any
+	s.DoJSON(t, "POST", scimPath("/Users"), createPayload, http.StatusCreated, &createResp)
+
+	// Both hosts must expose the user's IdP host vitals through the host detail API.
+	for _, hostID := range []uint{host1.ID, host2.ID} {
+		var resp struct {
+			Host struct {
+				EndUsers []fleet.HostEndUser `json:"end_users"`
+			} `json:"host"`
+		}
+		s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Host.EndUsers, 1, "host %d should expose one IdP end user", hostID)
+		assert.Equal(t, userName, resp.Host.EndUsers[0].IdpUserName, "host %d idp_username", hostID)
+		assert.Equal(t, "SCIM Multi", resp.Host.EndUsers[0].IdpFullName, "host %d idp_full_name", hostID)
+	}
 }
 
 func testUpdateUser(t *testing.T, s *Suite) {
