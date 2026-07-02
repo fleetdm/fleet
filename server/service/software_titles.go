@@ -197,9 +197,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "get software packages")
 			}
 			if len(pkgs) > 0 {
-				// Display name, icon, and automatic install policies are title-level
-				// (identical across a title's packages); fetch them once from the
-				// first-added package's full metadata.
+				// Display name, icon, and policies are title-level; fetch once from the first-added package.
 				titleMeta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
 				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
@@ -226,8 +224,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					if titleMeta != nil {
 						pkg.DisplayName = titleMeta.DisplayName
 						pkg.IconUrl = titleMeta.IconUrl
-						// v1: automatic install policies are title-level. #48398 will
-						// attribute them per-installer.
+						// Automatic install policies are title-level for now.
 						pkg.AutomaticInstallPolicies = titleMeta.AutomaticInstallPolicies
 					}
 
@@ -255,8 +252,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 				}
 
-				// packages[] holds every package; software_package is retained for
-				// backwards compatibility and equals the first-added package.
+				// software_package is kept for backwards compatibility and equals the first-added package.
 				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
 				for i, pkg := range pkgs {
 					software.Packages[i] = *pkg

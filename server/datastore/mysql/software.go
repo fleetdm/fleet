@@ -7166,11 +7166,8 @@ WHERE
 	return ret, nil
 }
 
-// GetCategoriesForSoftwareInstallers returns the category names for each of the
-// given software installers, keyed by installer id. Categories are per-package
-// (unlike GetCategoriesForSoftwareTitles, which merges them across a title's
-// packages), so this is used to populate per-package categories in the
-// multi-package API responses.
+// GetCategoriesForSoftwareInstallers returns categories keyed by installer id,
+// unmerged (unlike GetCategoriesForSoftwareTitles) so packages keep their own.
 func (ds *Datastore) GetCategoriesForSoftwareInstallers(ctx context.Context, installerIDs []uint) (map[uint][]string, error) {
 	if len(installerIDs) == 0 {
 		return map[uint][]string{}, nil

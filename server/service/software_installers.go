@@ -43,8 +43,7 @@ type uploadSoftwareInstallerRequest struct {
 
 type updateSoftwareInstallerRequest struct {
 	TitleID uint `url:"id"`
-	// InstallerID identifies which package to edit when the title has more than
-	// one; it is required in that case and optional for single-package titles.
+	// InstallerID selects which package to edit; required when the title has multiple.
 	InstallerID       *uint
 	File              *multipart.FileHeader
 	TeamID            *uint
@@ -125,7 +124,6 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.TeamID = ptr.Uint(uint(fleetID))
 	}
 
-	// installer_id targets a specific package when the title has multiple.
 	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
 		installerID, err := strconv.ParseUint(idVal[0], 10, 32)
 		if err != nil {
@@ -514,8 +512,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 type deleteSoftwareInstallerRequest struct {
 	TeamID *uint `query:"team_id" renameto:"fleet_id"`
-	// InstallerID deletes a single package; when omitted, all of the title's
-	// custom packages are deleted (title-level delete).
+	// InstallerID deletes one package; omitted deletes all of the title's packages.
 	InstallerID *uint `query:"installer_id,optional"`
 	TitleID     uint  `url:"title_id"`
 }

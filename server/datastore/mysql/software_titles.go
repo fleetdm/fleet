@@ -484,15 +484,12 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 		}
 
-		// Populate the multi-package packages[] array (active custom packages only).
-		// The main query returns a single installer row per title, so the full set
-		// is fetched separately here.
+		// The main query returns one installer row per title, so fetch the full package set separately.
 		packagesByTitle, err := ds.GetSoftwarePackagesForTitles(ctx, opt.TeamID, titleIDs)
 		if err != nil {
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get packages for software titles")
 		}
-		// v1: automatic install policies are title-level, so attach the same set to
-		// every package. #48398 will attribute policies per-installer.
+		// Automatic install policies are title-level for now, so attach the same set to every package.
 		policiesByTitle := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
 		for _, p := range policies {
 			policiesByTitle[p.TitleID] = append(policiesByTitle[p.TitleID], p)
@@ -581,13 +578,11 @@ func (ds *Datastore) processSoftwareTitleResults(
 	return titles, counts, metaData, nil
 }
 
-// GetSoftwarePackagesForTitles returns the trimmed per-package information for
-// every active custom package on the given titles, keyed by title id and
-// ordered first-added first. It is used to populate the packages[] array on the
-// list-titles response; the full per-package shape lives on the detail endpoint.
-func (ds *Datastore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageOrApp, error) {
+// GetSoftwarePackagesForTitles returns trimmed per-package info for the titles'
+// active packages, keyed by title id, first-added first. Backs the list packages[].
+func (ds *Datastore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageListItem, error) {
 	if len(titleIDs) == 0 {
-		return map[uint][]fleet.SoftwarePackageOrApp{}, nil
+		return map[uint][]fleet.SoftwarePackageListItem{}, nil
 	}
 
 	const stmt = `
@@ -613,7 +608,7 @@ ORDER BY si.id ASC`
 		PackageURL  *string `db:"package_url"`
 	}
 
-	ret := make(map[uint][]fleet.SoftwarePackageOrApp)
+	ret := make(map[uint][]fleet.SoftwarePackageListItem)
 	batchSize := 32000
 	err := common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
 		query, args, err := sqlx.In(stmt, ptr.ValOrZero(teamID), titleIDsToProcess)
@@ -626,7 +621,7 @@ ORDER BY si.id ASC`
 		}
 		for _, r := range rows {
 			selfService := r.SelfService
-			ret[r.TitleID] = append(ret[r.TitleID], fleet.SoftwarePackageOrApp{
+			ret[r.TitleID] = append(ret[r.TitleID], fleet.SoftwarePackageListItem{
 				Name:        r.Name,
 				Version:     r.Version,
 				Platform:    r.Platform,

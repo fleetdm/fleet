@@ -212,12 +212,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return addedInstaller, nil
 	}
 
-	// NOTE(#48397): with multiple packages per title this returns the first-added
-	// package's metadata, not necessarily the one just uploaded. Returning the
-	// just-added package would need a full-hydration read by installer id (the
-	// existing by-id read is intentionally light for the osquery hot path), so the
-	// authoritative multi-package view is GET /software/titles/:id (packages[]).
-	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, true)
+	// Return the package just added, not the title's first-added one.
+	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, installerID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
 	}
@@ -422,15 +418,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
-	// existingInstaller defaults to the first-added package (fully hydrated, incl.
-	// the title-level icon used in the activity).
+	// Defaults to the first-added package; a specific installer_id overrides it below.
 	existingInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
 
-	// With more than one package on a title, the edit must target a specific
-	// package. siblings is loaded once and reused for the hash-collision check.
+	// siblings is reused for both installer targeting and the hash-collision check below.
 	var siblings []*fleet.SoftwareInstaller
 	if software.SoftwareInstallersCount > 1 || payload.InstallerID != 0 {
 		siblings, err = svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
@@ -455,7 +449,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrapf(ctx, &notFoundError{},
 					"installer %d does not belong to this title and team", payload.InstallerID)
 			}
-			// The icon is title-level, so carry it from the first-added read for the activity.
+			// Icon is title-level; carry it from the first-added read for the activity.
 			target.IconUrl = existingInstaller.IconUrl
 			existingInstaller = target
 		}
@@ -537,9 +531,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
-			// Reject a replacement whose hash matches a different package on the same
-			// title. The per-title dedup_token key would otherwise raise a raw 1062.
-			// (siblings is empty for single-package titles, so this is a no-op there.)
+			// Catch a sibling hash match for a friendly 409; the dedup_token key would otherwise raise a raw 1062.
 			for _, p := range siblings {
 				if p.InstallerID != existingInstaller.InstallerID && p.StorageID == payloadForNewInstallerFile.StorageID {
 					return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
@@ -873,8 +865,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
-	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later
-	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, true)
+	// re-pull the edited installer to reflect side effects; return that specific
+	// package, not the title's first-added one. May be able to optimize this out later.
+	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, payload.InstallerID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
 	}
@@ -976,8 +969,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return err
 	}
 
-	// Resolve the title's type. metaInstaller is fully hydrated (incl. the
-	// title-level icon), which the per-package reads below don't carry.
+	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
 	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -991,8 +983,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
 
-	// Delete a single package by installer id (an installer id always refers to a
-	// software installer, never a VPP or in-house app).
+	// An installer id always refers to a software installer, never a VPP or in-house app.
 	if installerID != nil {
 		if metaInstaller == nil {
 			return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
@@ -1012,10 +1003,9 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 	switch {
 	case metaInstaller != nil:
-		// Custom-package title: delete every package (title-level delete). FMA titles
-		// keep a single active row, so this matches the prior single-delete behavior
-		// for them. Deletes are per-package, so a package blocked by a setup-experience
-		// or patch-policy guard fails the title delete partway.
+		// Delete every package on the title. FMA titles keep one active row, so this
+		// matches prior behavior for them. Per-package deletes mean a guarded package
+		// (setup experience / patch policy) fails the title delete partway.
 		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting title packages to delete")
