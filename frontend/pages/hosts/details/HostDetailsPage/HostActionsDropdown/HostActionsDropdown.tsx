@@ -1,6 +1,10 @@
 import React, { useContext } from "react";
 
-import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isEnrolledInMdm,
+  MdmEnrollmentStatus,
+  RecoveryLockPasswordStatus,
+} from "interfaces/mdm";
 import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
@@ -26,6 +30,7 @@ interface IHostActionsDropdownProps {
   isRecoveryLockPasswordEnabled?: boolean;
   diskEncryptionProfileStatus?: string;
   recoveryLockPasswordAvailable?: boolean;
+  recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
   managedAccountPasswordAvailable?: boolean;
@@ -53,6 +58,7 @@ const HostActionsDropdown = ({
   isRecoveryLockPasswordEnabled = false,
   diskEncryptionProfileStatus,
   recoveryLockPasswordAvailable = false,
+  recoveryLockPasswordStatus,
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
   managedAccountPasswordAvailable = false,
@@ -113,6 +119,7 @@ const HostActionsDropdown = ({
     isRecoveryLockPasswordEnabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    recoveryLockPasswordStatus,
     isManagedLocalAccountEnabled,
     managedAccountStatus,
     managedAccountPasswordAvailable,

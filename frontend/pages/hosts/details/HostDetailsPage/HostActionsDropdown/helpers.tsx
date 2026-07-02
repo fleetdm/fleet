@@ -17,6 +17,7 @@ import {
   isAutomaticDeviceEnrollment,
   isBYODAccountDrivenUserEnrollment,
   MdmEnrollmentStatus,
+  RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
 
 import {
@@ -115,6 +116,7 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  recoveryLockPasswordStatus: RecoveryLockPasswordStatus | undefined;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
   managedAccountPasswordAvailable: boolean;
@@ -639,6 +641,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    recoveryLockPasswordStatus,
     managedAccountStatus,
     managedAccountPasswordAvailable,
     wipeAllowed,
@@ -770,13 +773,23 @@ const modifyOptions = (
     );
     if (rlpOption) {
       rlpOption.disabled = true;
-      rlpOption.tooltipContent = (
-        <>
-          Recovery Lock password is unavailable
-          <br />
-          while pending or has failed.
-        </>
-      );
+      if (recoveryLockPasswordStatus === "failed") {
+        rlpOption.tooltipContent = (
+          <>
+            Failed to retrieve Recovery Lock password.
+            <br />
+            Head to OS settings to see the error and retry.
+          </>
+        );
+      } else {
+        rlpOption.tooltipContent = (
+          <>
+            Recovery Lock password isn&apos;t available yet.
+            <br />
+            The command to retrieve it is pending.
+          </>
+        );
+      }
     }
   }
 

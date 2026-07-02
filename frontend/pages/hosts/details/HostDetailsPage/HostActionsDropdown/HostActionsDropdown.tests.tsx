@@ -2070,7 +2070,7 @@ describe("Host Actions Dropdown", () => {
       await user.hover(option);
       await waitFor(() => {
         expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
+          screen.getByText(/Recovery Lock password isn't available yet/i)
         ).toBeInTheDocument();
       });
     });
