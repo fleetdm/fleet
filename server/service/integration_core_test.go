@@ -10691,14 +10691,19 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "id,hostname,device_mapping")
 	rawCSV, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(rawCSV), `"a@b.c,b@b.c"`) // inside quotes because it contains a comma
+	// the cell is wrapped in quotes because it contains a comma; the order of the
+	// emails within it is not guaranteed (GROUP_CONCAT), so accept either order.
+	require.True(t,
+		strings.Contains(string(rawCSV), `"a@b.c,b@b.c"`) || strings.Contains(string(rawCSV), `"b@b.c,a@b.c"`),
+		string(rawCSV))
 	rows, err = csv.NewReader(bytes.NewReader(rawCSV)).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	for _, row := range rows[1:] {
 		if row[0] == fmt.Sprint(hosts[2].ID) {
-			require.Equal(t, "a@b.c,b@b.c", row[2], row)
+			// the order of the emails is not guaranteed
+			require.ElementsMatch(t, []string{"a@b.c", "b@b.c"}, strings.Split(row[2], ","), row)
 		} else {
 			require.Equal(t, "", row[2], row)
 		}
