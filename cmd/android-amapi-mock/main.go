@@ -18,6 +18,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -120,8 +121,14 @@ var hasSeenRealDevice atomic.Bool
 
 func main() {
 	listen := flag.String("listen", ":9999", "Address to listen on")
-	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\"")
+	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\" or set GOOGLE_CREDENTIALS env var")
 	flag.Parse()
+
+	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
+	credJSON := *googleCredentials
+	if credJSON == "" {
+		credJSON = os.Getenv("GOOGLE_CREDENTIALS")
+	}
 
 	policyVersionCounter.Store(1)
 
@@ -129,9 +136,9 @@ func main() {
 
 	// Set up authenticated Google API client for real device forwarding
 	var google *googleForwarder
-	if *googleCredentials != "" {
+	if credJSON != "" {
 		var err error
-		google, err = newGoogleForwarder(*googleCredentials)
+		google, err = newGoogleForwarder(credJSON)
 		if err != nil {
 			log.Fatalf("Failed to create Google forwarder: %v", err)
 		}
