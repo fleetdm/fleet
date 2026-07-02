@@ -48,6 +48,11 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
+    /** macOS-only FileVault override layered on `enable_disk_encryption`. Tolerated
+    on reads; not rendered in the UI. */
+    filevault?: {
+      prompt_enablement_at?: string;
+    };
     enable_recovery_lock_password: boolean;
     windows_require_bitlocker_pin: boolean;
     macos_updates: IAppleDeviceUpdates;

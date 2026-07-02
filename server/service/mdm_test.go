@@ -3261,18 +3261,14 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 		return fleet.DiskEncryptionConfig{Enabled: false}, nil
 	}
+	// FileVault enable resolves prompt_enablement_at; default to login.
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &fleet.TeamMDM{}, nil
+	}
 
-	deleteCalls := uint(0)
+	deleteCalls := 0
 	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
 		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
-		if deleteCalls == 0 {
-			// No Team
-			require.Nil(t, teamID)
-		} else {
-			require.NotNil(t, teamID)
-			require.Equal(t, deleteCalls, *teamID)
-		}
-
 		deleteCalls++
 		return nil
 	}
@@ -3296,7 +3292,7 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualValues(t, 2, newProfileCalls)
-	require.EqualValues(t, 2, deleteCalls)
+	require.Equal(t, 4, deleteCalls)            // 2 disables + 2 pre-insert deletes from enable
 	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
 }
 

@@ -2536,6 +2536,12 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
 		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
+		// filevault is a macOS-only override block; only set it when present so an
+		// omitted block leaves prompt_enablement_at unset (defaults to login).
+		if incoming.Controls.FileVault != nil {
+			mdmAppConfig["filevault"] = incoming.Controls.FileVault
+		}
+
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename
 			rawTeam, err := json.Marshal(team)

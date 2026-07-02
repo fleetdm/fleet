@@ -10,6 +10,10 @@ type fileVaultProfileOptions struct {
 	PayloadIdentifier    string
 	PayloadName          string
 	Base64DerCertificate string
+	// PromptEnablementAt resolves to "login" (default) or "logout". When "login",
+	// the FileVault2 force keys are emitted (force at login + Setup Assistant);
+	// "logout" drops them so an external login-time enabler owns enablement.
+	PromptEnablementAt string
 }
 
 var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -34,11 +38,11 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>ShowRecoveryKey</key>
-			<false/>
+			<false/>{{ if eq .PromptEnablementAt "login" }}
 			<key>DeferForceAtUserLoginMaxBypassAttempts</key>
 			<integer>0</integer>
 			<key>ForceEnableInSetupAssistant</key>
-			<true/>
+			<true/>{{ end }}
 		</dict>
 		<dict>
 			<key>EncryptCertPayloadUUID</key>
