@@ -749,8 +749,6 @@ org_settings:
       has_known_exploit: true
       epss_min: 0
       epss_max: 100
-      cvss_min: 9
-      cvss_max: 10
       exclude_vulnerabilities:
         - CVE-2025-50897
         - CVE-2025-76306
