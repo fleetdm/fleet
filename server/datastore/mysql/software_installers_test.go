@@ -1753,21 +1753,11 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 	})
 	require.NoError(t, err)
 
-	type aircallTitleRow struct {
-		ID          uint    `db:"id"`
-		Name        string  `db:"name"`
-		Source      string  `db:"source"`
-		UpgradeCode *string `db:"upgrade_code"`
-	}
-	var aircallBefore []aircallTitleRow
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &aircallBefore,
-		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`)
-	require.NoError(t, err)
-	require.Len(t, aircallBefore, 1)
-	require.Equal(t, "Aircall", aircallBefore[0].Name)
-	require.Equal(t, "programs", aircallBefore[0].Source)
-	require.NotNil(t, aircallBefore[0].UpgradeCode)
-	require.Equal(t, aircallUpgradeCode, *aircallBefore[0].UpgradeCode)
+	var aircallTitleIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &aircallTitleIDs, `SELECT id FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`))
+	require.Len(t, aircallTitleIDs, 1)
+	hostTitleID := aircallTitleIDs[0]
+	require.Equal(t, aircallUpgradeCode, *getUpgradeCodeForTitle(hostTitleID))
 
 	// Add the Aircall FMA for the team via gitops, with no upgrade_code on the payload.
 	aircallFile := bytes.NewReader([]byte("aircall-installer"))
@@ -1789,23 +1779,17 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// Still exactly one Aircall title, matched by name, keeping the host-reported upgrade_code.
-	var aircallAfter []aircallTitleRow
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &aircallAfter,
-		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`)
-	require.NoError(t, err)
-	require.Len(t, aircallAfter, 1, "adding the Aircall FMA should not create a duplicate software title")
-	require.Equal(t, aircallBefore[0].ID, aircallAfter[0].ID, "installer should match the existing title")
-	require.Equal(t, "Aircall", aircallAfter[0].Name)
-	require.Equal(t, "programs", aircallAfter[0].Source)
-	require.NotNil(t, aircallAfter[0].UpgradeCode, "matched title should keep the host-reported upgrade_code")
-	require.Equal(t, aircallUpgradeCode, *aircallAfter[0].UpgradeCode)
+	var aircallTitleIDsAfter []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &aircallTitleIDsAfter, `SELECT id FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`))
+	require.Equal(t, []uint{hostTitleID}, aircallTitleIDsAfter, "adding the Aircall FMA should not create a duplicate software title")
+	require.Equal(t, aircallUpgradeCode, *getUpgradeCodeForTitle(hostTitleID), "matched title should keep the host-reported upgrade_code")
 
 	// The Aircall installer should be linked to that same title.
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	require.NotNil(t, softwareInstallers[0].TitleID)
-	require.Equal(t, aircallBefore[0].ID, *softwareInstallers[0].TitleID, "installer should point at the existing title")
+	require.Equal(t, hostTitleID, *softwareInstallers[0].TitleID, "installer should point at the existing title")
 }
 
 func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *Datastore) {
