@@ -2692,6 +2692,10 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
+	// GetSoftwarePackagesByTeamAndTitleID returns every active package for the given
+	// title and team, ordered first-added first, each with its label scope.
+	GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*SoftwareInstaller, error)
+
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true
 	// the versions will be sorted by their version semver or string.

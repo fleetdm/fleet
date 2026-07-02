@@ -200,14 +200,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 
 	err = ds.checkSoftwareConflictsByIdentifier(ctx, payload)
 	if err != nil {
-		teamName, err := ds.getTeamName(ctx, payload.TeamID)
-		if err != nil {
-			return 0, 0, ctxerr.Wrap(ctx, err, "get team for installer conflict error")
-		}
-
-		return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
-			Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, payload.Title, teamName),
-		}, "vpp app conflicts with existing software installer")
+		return 0, 0, err
 	}
 
 	// Insert in house app instead of software installer
@@ -237,34 +230,20 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
 	}
 
-	// Enforce team-scoped uniqueness by storage hash, aligning upload behavior with GitOps.
-	// However, if the duplicate-by-hash is for the same title/source on the same team,
-	// let the DB unique (team,title) constraint surface the conflict (so tests expecting
-	// a 409 Conflict with "already exists" still pass).
-	// Only validate for script packages (.sh/.ps1) where content hash equals functionality.
-	// Binary installers can legitimately share content with different install scripts.
+	// Script packages dedupe by content team-wide: identical bytes are the same script, so
+	// they can't be added under a different title. Same-title duplicates are already caught
+	// by the per-title hash check. Binary installers can legitimately ship the same content
+	// with different install scripts, so they are not deduped this way.
 	if payload.StorageID != "" && fleet.IsScriptPackage(payload.Extension) {
-		var tmID uint
-		if payload.TeamID != nil {
-			tmID = *payload.TeamID
-		}
-		// Check duplicates by content hash only (ignore URL) to align with GitOps/apply rules.
 		teamsByHash, err := ds.GetTeamsWithInstallerByHash(ctx, payload.StorageID, "")
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "check duplicate installer by hash")
 		}
-		if found, exists := teamsByHash[tmID]; exists {
-			// If the existing installer has the same title and source, allow the insert to proceed
-			// so that the existing UNIQUE (global_or_team_id, title_id) constraint yields a
-			// Conflict error with the expected message.
-			// Since this is not an in-house app, only one installer per team can exist.
-			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
-				return 0, 0, fleet.NewInvalidArgumentError(
-					"software",
-					"Couldn't add software. An installer with identical contents already exists on this fleet.",
-				)
-			}
-			// If exact duplicate (same title and source), continue to let DB constraint handle it
+		if _, exists := teamsByHash[ptr.ValOrZero(payload.TeamID)]; exists {
+			return 0, 0, fleet.NewInvalidArgumentError(
+				"software",
+				"Couldn't add software. An installer with identical contents already exists on this fleet.",
+			)
 		}
 	}
 
@@ -511,27 +490,47 @@ func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID 
 	return availableName, nil
 }
 
+func softwareInstallerTitleSelect(payload *fleet.UploadSoftwareInstallerPayload) (string, []any) {
+	switch {
+	case payload.BundleIdentifier != "":
+		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
+		return `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`,
+			[]any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
+	case payload.Source == "programs" && payload.UpgradeCode != "":
+		// select by either name or upgrade code, preferring upgrade code
+		return `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND extension_for = '' AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`,
+			[]any{payload.Title, payload.Source, payload.UpgradeCode, payload.UpgradeCode}
+	default:
+		return `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`,
+			[]any{payload.Title, payload.Source}
+	}
+}
+
+func (ds *Datastore) getExistingSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	stmt, args := softwareInstallerTitleSelect(payload)
+	var titleID uint
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &titleID, stmt, args...); {
+	case err == nil:
+		return titleID, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, notFound("SoftwareTitle")
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "get existing software installer title id")
+	}
+}
+
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`
-	selectArgs := []any{payload.Title, payload.Source}
+	selectStmt, selectArgs := softwareInstallerTitleSelect(payload)
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{payload.Title, payload.Source}
 
 	// upgrade_code should be set to NULL for non-Windows software, empty or non-empty string for Windows software
 	if payload.Source == "programs" {
-		// select by either name or upgrade code, preferring upgrade code
-		if payload.UpgradeCode != "" {
-			selectStmt = `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND extension_for = '' AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`
-			selectArgs = []any{payload.Title, payload.Source, payload.UpgradeCode, payload.UpgradeCode}
-		}
 		insertStmt = `INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, ?, '', ?)`
 		insertArgs = []any{payload.Title, payload.Source, payload.UpgradeCode}
 	}
 
 	if payload.BundleIdentifier != "" {
-		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
-		selectStmt = `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
-		selectArgs = []any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = []any{payload.Title, payload.Source, payload.BundleIdentifier}
 	}
@@ -1299,7 +1298,7 @@ FROM
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?
   AND si.is_active = 1
-ORDER BY si.uploaded_at DESC, si.id DESC
+ORDER BY si.id ASC
 LIMIT 1`,
 		scriptContentsSelect, scriptContentsFrom)
 
@@ -1319,36 +1318,10 @@ LIMIT 1`,
 
 	// TODO: do we want to include labels on other queries that return software installer metadata
 	// (e.g., GetSoftwareInstallerMetadataByID)?
-	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID, softwareTypeInstaller)
+	dest.LabelsExcludeAny, dest.LabelsIncludeAny, dest.LabelsIncludeAll, err = ds.scopedSoftwareInstallerLabels(ctx, dest.InstallerID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+		return nil, err
 	}
-	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
-	for _, l := range labels {
-		switch {
-		case l.Exclude && !l.RequireAll:
-			exclAny = append(exclAny, l)
-		case !l.Exclude && l.RequireAll:
-			inclAll = append(inclAll, l)
-		case !l.Exclude && !l.RequireAll:
-			inclAny = append(inclAny, l)
-		default:
-			ds.logger.WarnContext(ctx, "software installer has an unsupported label scope", "installer_id", dest.InstallerID, "invalid_label", fmt.Sprintf("%#v", l))
-		}
-	}
-
-	var count int
-	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
-	}
-	dest.LabelsExcludeAny = exclAny
-	dest.LabelsIncludeAny = inclAny
-	dest.LabelsIncludeAll = inclAll
 
 	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {
@@ -1383,6 +1356,86 @@ LIMIT 1`,
 	}
 
 	return &dest, nil
+}
+
+func (ds *Datastore) GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+	const query = `
+SELECT
+  si.id,
+  si.team_id,
+  si.title_id,
+  si.storage_id,
+  si.fleet_maintained_app_id,
+  si.package_ids,
+  si.upgrade_code,
+  si.filename,
+  si.extension,
+  si.version,
+  si.platform,
+  si.install_script_content_id,
+  si.pre_install_query,
+  si.post_install_script_content_id,
+  si.uninstall_script_content_id,
+  si.uploaded_at,
+  si.self_service,
+  si.url,
+  COALESCE(st.name, '') AS software_title,
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier,
+  si.patch_query
+FROM
+  software_installers si
+  JOIN software_titles st ON st.id = si.title_id
+WHERE
+  si.title_id = ? AND si.global_or_team_id = ?
+  AND si.is_active = 1
+ORDER BY si.id ASC`
+
+	var packages []*fleet.SoftwareInstaller
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packages, query, titleID, ptr.ValOrZero(teamID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list software packages by team and title")
+	}
+
+	for _, pkg := range packages {
+		pkg.LabelsExcludeAny, pkg.LabelsIncludeAny, pkg.LabelsIncludeAll, err = ds.scopedSoftwareInstallerLabels(ctx, pkg.InstallerID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return packages, nil
+}
+
+func (ds *Datastore) scopedSoftwareInstallerLabels(ctx context.Context, installerID uint) (excludeAny []fleet.SoftwareScopeLabel, includeAny []fleet.SoftwareScopeLabel, includeAll []fleet.SoftwareScopeLabel, err error) {
+	labels, err := ds.getSoftwareInstallerLabels(ctx, installerID, softwareTypeInstaller)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+	}
+
+	for _, l := range labels {
+		switch {
+		case l.Exclude && !l.RequireAll:
+			excludeAny = append(excludeAny, l)
+		case !l.Exclude && l.RequireAll:
+			includeAll = append(includeAll, l)
+		case !l.Exclude && !l.RequireAll:
+			includeAny = append(includeAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "software installer has an unsupported label scope", "installer_id", installerID, "invalid_label", fmt.Sprintf("%#v", l))
+		}
+	}
+
+	var scopes int
+	for _, set := range [][]fleet.SoftwareScopeLabel{excludeAny, includeAny, includeAll} {
+		if len(set) > 0 {
+			scopes++
+		}
+	}
+	if scopes > 1 {
+		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", installerID, "include_any", fmt.Sprintf("%v", includeAny), "exclude_any", fmt.Sprintf("%v", excludeAny), "include_all", fmt.Sprintf("%v", includeAll))
+	}
+
+	return excludeAny, includeAny, includeAll, nil
 }
 
 func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint, softwareType softwareType) ([]fleet.SoftwareScopeLabel, error) {
@@ -4109,6 +4162,16 @@ LIMIT 1`
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+	conflict := func(message string) error {
+		teamName, err := ds.getTeamName(ctx, payload.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team for installer conflict error")
+		}
+		return ctxerr.Wrap(ctx, fleet.ConflictError{
+			Message: fmt.Sprintf(message, payload.Title, teamName),
+		}, "software conflicts with existing software on the title")
+	}
+
 	switch payload.Platform {
 	// currently, the platform will always be ios for .ipa files
 	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
@@ -4123,7 +4186,7 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
 			}
 			if exists {
-				return alreadyExists("VPP app", payload.Title)
+				return conflict(fleet.SoftwareAlreadyHasVPPAppMessage)
 			}
 
 			// check if equivalent installers exist, duplicate in-house apps are checked in insertInHouseApp
@@ -4132,7 +4195,7 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 				return ctxerr.Wrap(ctx, err, "check if software installer exists for title identifier")
 			}
 			if exists {
-				return alreadyExists("software installer", payload.Title)
+				return conflict(fleet.SoftwareAlreadyHasPackageMessage)
 			}
 		}
 	case string(fleet.MacOSPlatform):
@@ -4141,39 +4204,103 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
 		}
 		if exists {
-			return alreadyExists("VPP app", payload.Title)
+			return conflict(fleet.SoftwareAlreadyHasVPPAppMessage)
+		}
+	}
+
+	// custom packages and Fleet-maintained apps can't share a title
+	mixed, err := ds.checkFleetMaintainedAppExists(ctx, payload)
+	if err != nil {
+		return err
+	}
+	if mixed {
+		if payload.FleetMaintainedAppID != nil {
+			return conflict(fleet.SoftwareAlreadyHasPackageMessage)
+		}
+		return conflict(fleet.SoftwareAlreadyHasFleetMaintainedAppMessage)
+	}
+
+	if payload.FleetMaintainedAppID == nil {
+		titleID, err := ds.getExistingSoftwareInstallerTitleID(ctx, payload)
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 
-		// check only for installers, since in-house apps target iOS/iPadOS so they won't conflict
-		exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
+		// A package can't repeat the same bytes within its title. Scripts also dedupe
+		// team-wide in MatchOrCreateSoftwareInstaller.
+		var dup bool
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &dup, `
+			SELECT EXISTS (
+				SELECT 1 FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND dedup_token = ?
+			)`, ptr.ValOrZero(payload.TeamID), titleID, payload.StorageID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+			return ctxerr.Wrap(ctx, err, "check duplicate package by hash")
 		}
-		if exists {
-			return alreadyExists("installer", payload.Title)
-		}
-	case "windows", "linux":
-		// check by name before any software title renaming side effects can happen
-		exists, err := ds.checkInstallerExistsByName(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Source, payload.Platform)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if installer exists by name")
-		}
-		if exists {
-			return alreadyExists("installer", payload.Title)
+		if dup {
+			return ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.SoftwarePackageHashConflictMessage, payload.Filename),
+			}, "duplicate package by hash")
 		}
 
-		if payload.UpgradeCode != "" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.UpgradeCode, payload.Platform, softwareTypeInstaller)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for upgrade code")
-			}
-			if exists {
-				return alreadyExists("installer", payload.Title)
-			}
+		// a title holds at most fleet.MaxPackagesPerTitle custom packages
+		var count int
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+			SELECT COUNT(*) FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?`, ptr.ValOrZero(payload.TeamID), titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count packages on the title")
+		}
+		if count >= fleet.MaxPackagesPerTitle {
+			return ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.SoftwarePackageLimitMessage, payload.Title, fleet.MaxPackagesPerTitle),
+			}, "package limit reached")
 		}
 	}
 
 	return nil
+}
+
+func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (bool, error) {
+	// look for the other kind of package on the title: an FMA when adding a custom
+	// package, a custom package when adding an FMA. Matched by bundle identifier on
+	// macOS and by name or upgrade code on Windows. FMAs only exist on those platforms.
+	wantFMA := payload.FleetMaintainedAppID == nil
+	var stmt string
+	var args []any
+	switch {
+	case payload.Platform == string(fleet.MacOSPlatform) && payload.BundleIdentifier != "":
+		stmt = `
+			SELECT EXISTS (
+				SELECT 1
+				FROM software_installers si
+				JOIN software_titles st ON st.id = si.title_id
+				WHERE si.global_or_team_id = ? AND st.source = ? AND st.bundle_identifier = ?
+					AND (si.fleet_maintained_app_id IS NOT NULL) = ?
+			)`
+		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.BundleIdentifier, wantFMA}
+	case payload.Platform == "windows":
+		stmt = `
+			SELECT EXISTS (
+				SELECT 1
+				FROM software_installers si
+				JOIN software_titles st ON st.id = si.title_id
+				WHERE si.global_or_team_id = ? AND st.source = ? AND (st.name = ? OR (st.upgrade_code != '' AND st.upgrade_code = ?))
+					AND (si.fleet_maintained_app_id IS NOT NULL) = ?
+			)`
+		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.Title, payload.UpgradeCode, wantFMA}
+	default:
+		return false, nil
+	}
+
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check fleet-maintained app exists")
+	}
+	return exists, nil
 }
 
 func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {

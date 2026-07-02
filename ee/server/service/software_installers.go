@@ -411,8 +411,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
 	}
 
-	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
-	if software.SoftwareInstallersCount != 1 {
+	// With more than one installer on the title, this edits the first-added one.
+	// Choosing a specific package to edit is handled by the precedence work.
+	if software.SoftwareInstallersCount < 1 {
 		return nil, &fleet.BadRequestError{
 			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
 		}

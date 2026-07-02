@@ -68,9 +68,9 @@ SELECT
 	st.upgrade_code,
 	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
-	COUNT(si.id) as software_installers_count,
-	COUNT(vat.adam_id) AS vpp_apps_count,
-	COUNT(iha.id) AS in_house_apps_count,
+	COUNT(DISTINCT si.id) as software_installers_count,
+	COUNT(DISTINCT vat.adam_id) AS vpp_apps_count,
+	COUNT(DISTINCT iha.id) AS in_house_apps_count,
 	%s
 	vap.icon_url AS icon_url
 FROM software_titles st
@@ -632,7 +632,10 @@ SELECT
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}} AND si.is_active = TRUE
+		LEFT JOIN software_installers si ON si.id = (
+			SELECT MIN(si2.id) FROM software_installers si2
+			WHERE si2.title_id = st.id AND si2.global_or_team_id = {{teamID .}} AND si2.is_active = TRUE
+		)
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
@@ -682,10 +685,10 @@ WHERE
 		  {{end}}
 		{{end}}
 		{{if and (hasTeamID $) $.HashSHA256}}
-		  {{$additionalWhere = printf "%s AND si.storage_id = ?" $additionalWhere}}
+		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.storage_id = ?)" $additionalWhere (teamID $)}}
 		{{end}}
 		{{if and (hasTeamID $) $.PackageName}}
-		  {{$additionalWhere = printf "%s AND si.filename = ?" $additionalWhere}}
+		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.filename = ?)" $additionalWhere (teamID $)}}
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
@@ -936,8 +939,13 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		innerSQL, teamID, globalStats)
 
 	if hasTeamID {
+		// A title can hold several active installers. Join only the first-added one so the
+		// title appears once with its primary package.
 		outerSQL += fmt.Sprintf(`
-		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %[1]d AND si.is_active = TRUE
+		LEFT JOIN software_installers si ON si.id = (
+			SELECT MIN(si2.id) FROM software_installers si2
+			WHERE si2.title_id = st.id AND si2.global_or_team_id = %[1]d AND si2.is_active = TRUE
+		)
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
