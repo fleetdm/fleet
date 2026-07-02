@@ -140,6 +140,11 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// ---- Health check ----
+	mux.HandleFunc("GET /mock/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	// ---- Coordination API (osquery-perf calls these) ----
 	mux.HandleFunc("POST /mock/devices/register", handleRegister(store))
 	mux.HandleFunc("GET /mock/devices/{esid}/state", handleGetState(store))
