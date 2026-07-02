@@ -35,16 +35,6 @@
     width: 100%;
   }
 
-  .table-container__data-table-block {
-    .data-table-block {
-      .data-table {
-        &__wrapper {
-          overflow-x: auto;
-        }
-      }
-    }
-  }
-
   &__item-actions {
     display: flex;
     flex-direction: row;

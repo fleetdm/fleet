@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.12.3",
+      "version": "5.12.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.zulip.zulip-electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.zulip.zulip-electron' AND version_compare(bundle_short_version, '5.12.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.zulip.zulip-electron' AND version_compare(bundle_short_version, '5.12.4') < 0);"
       },
-      "installer_url": "https://github.com/zulip/zulip-desktop/releases/download/v5.12.3/Zulip-5.12.3-arm64.dmg",
+      "installer_url": "https://github.com/zulip/zulip-desktop/releases/download/v5.12.4/Zulip-5.12.4-arm64.dmg",
       "install_script_ref": "974a2f0c",
       "uninstall_script_ref": "8d2c9eb4",
-      "sha256": "d2fe145f0d226ba124945e25f9c9a16051e61e15fc489f20a1ce15f22c96b699",
+      "sha256": "619cce44e8305766db464c8352f15c2ba4d7bb192fac52c30d6dd1d6d199eed6",
       "default_categories": [
         "Communication"
       ]

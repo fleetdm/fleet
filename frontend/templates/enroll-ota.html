@@ -197,6 +197,47 @@
         text-align: center;
       }
 
+      .byod-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .byod-tab {
+        cursor: pointer;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 21px;
+        font-weight: 400;
+        color: #515774;
+        background: transparent;
+        border: none;
+        font-family: inherit;
+      }
+
+      .byod-tab.active {
+        background-color: #f1f0ff;
+        color: #25234a;
+        font-weight: 600;
+      }
+
+      .byod-info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        background-color: #f9fafc;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+
+      .byod-info-banner-icon {
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
       @media screen and (max-width: 1344px) and (pointer: coarse) {
         .device-instructions-content {
           gap: 24px;
@@ -320,6 +361,24 @@
           <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
           Fleet
         </h1>
+        <div>
+          <div class="byod-tabs" role="tablist">
+            <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+            <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
+          </div>
+          <div class="byod-info-banner">
+            <span class="byod-info-banner-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7.5" stroke="#515774"/>
+                <path d="M8 7v4M8 5v.5" stroke="#515774" stroke-linecap="round" stroke-width="1.5"/>
+              </svg>
+            </span>
+            <span class="byod-info-banner-text">
+              <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out.</span>
+              <span data-byod-content="company">Your organization can see and delete all device information.</span>
+            </span>
+          </div>
+        </div>
         <ol>
           <li>
             <p>
@@ -329,7 +388,7 @@
                 prompted, tap <b>Allow</b>.
               </span>
             </p>
-            <a class="download-link" href="{{.EnrollURL}}">Download</a>
+            <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
           </li>
           <li>
             <p>
@@ -375,6 +434,24 @@
       <div class="content-with-sidebar">
         <section class="device-instructions-content">
           <h1>How to turn on MDM on your Mac</h1>
+          <div>
+            <div class="byod-tabs" role="tablist">
+              <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+              <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
+            </div>
+            <div class="byod-info-banner">
+              <span class="byod-info-banner-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="8" cy="8" r="7.5" stroke="#515774"/>
+                  <path d="M8 7v4M8 5v.5" stroke="#515774" stroke-linecap="round" stroke-width="1.5"/>
+                </svg>
+              </span>
+              <span class="byod-info-banner-text">
+                <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out.</span>
+                <span data-byod-content="company">Your organization can see and delete all device information.</span>
+              </span>
+            </div>
+          </div>
           <ol>
             <li>
               <p>
@@ -384,7 +461,7 @@
                   You'll see a warning, which is expected.
                 </span>
               </p>
-              <a class="download-link" href="{{.EnrollURL}}">Download</a>
+              <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
             </li>
             <li>
               <p>
@@ -628,6 +705,71 @@
         }
       };
 
+      // Wires up the Personal (BYOD) / Company-owned tabs that appear on the
+      // macOS, iOS, and iPadOS instruction screens. The active tab determines
+      // both the visible info-banner copy and whether the Download link's URL
+      // includes &byod=true (consumed by the OTA endpoint to strip lock/erase
+      // rights from the enrollment profile for personal devices).
+      //
+      // The default selection follows the byod URL query param (set by the
+      // Add hosts modal when an admin chooses "Personal (BYOD)"); only an
+      // explicit byod=true selects personal — everything else (absent param,
+      // byod=false, byod=0) defaults to company-owned.
+      const wireBYODTabs = () => {
+        const tabs = document.querySelectorAll(".byod-tab");
+        if (tabs.length === 0) {
+          return;
+        }
+        const downloadLink = document.querySelector(".download-link");
+        if (!downloadLink) {
+          return;
+        }
+        const baseHref = downloadLink.getAttribute("data-base-href") || downloadLink.getAttribute("href");
+
+        const params = new URLSearchParams(window.location.search);
+        const initial =
+          params.get("byod") === "true" || params.get("byod") === "1"
+            ? "personal"
+            : "company";
+
+        const setSelection = (selection) => {
+          tabs.forEach((tab) => {
+            const isActive = tab.getAttribute("data-byod") === selection;
+            tab.classList.toggle("active", isActive);
+            tab.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+          document
+            .querySelectorAll("[data-byod-content]")
+            .forEach((el) => {
+              el.hidden = el.getAttribute("data-byod-content") !== selection;
+            });
+          // Append byod=true to the OTA download URL for BYOD; remove it for
+          // company-owned. Routing the DOM-sourced href through the URL parser
+          // keeps existing query params intact, resolves relative URLs against
+          // the origin, and avoids reinterpreting that value unsafely.
+          try {
+            const downloadUrl = new URL(baseHref, window.location.origin);
+            if (selection === "personal") {
+              downloadUrl.searchParams.set("byod", "true");
+            } else {
+              downloadUrl.searchParams.delete("byod");
+            }
+            downloadLink.setAttribute("href", downloadUrl.toString());
+          } catch (e) {
+            // baseHref came from the DOM; if it can't be parsed as a URL, leave
+            // the server-rendered href untouched rather than reinterpreting it.
+          }
+        };
+
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            setSelection(tab.getAttribute("data-byod"));
+          });
+        });
+
+        setSelection(initial);
+      };
+
       const setEnrollTokenUrl = (url) => {
         document.querySelector(".enroll-link").setAttribute("href", url);
       };
@@ -804,6 +946,7 @@
             window.location.href,
             document.querySelector(".qr-code")
           );
+          wireBYODTabs();
         }
 
         // handle rendering for ios and ipad
@@ -828,6 +971,7 @@
 
           renderContent(templateId);
           setIosIpadContent(platform);
+          wireBYODTabs();
         }
       });
     </script>

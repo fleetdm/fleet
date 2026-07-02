@@ -1,2 +1,0 @@
-- Added INFO-level orbit logging that records why a host (re-)enrolls: when the node key file is missing or empty, when the server rejects the node key with a 401 (including the request path), and which server is being enrolled against.
-- Hardened orbit against unexpected re-enrollments: a transient or spurious 401 no longer immediately discards a valid node key. Orbit now waits until 401s have persisted for a grace period before re-enrolling, and writes the new node key atomically so an existing key is never deleted or truncated until a replacement has been obtained.

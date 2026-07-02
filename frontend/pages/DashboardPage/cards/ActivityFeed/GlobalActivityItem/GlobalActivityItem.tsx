@@ -1693,6 +1693,22 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  googleWorkspaceIntegration: (verb: string) => (activity: IActivity) => {
+    const { domain } = activity.details ?? {};
+    return (
+      <>
+        {" "}
+        {verb} the Google Workspace integration
+        {domain ? (
+          <>
+            {" "}
+            for <strong>{domain}</strong>
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   hostBypassedConditionalAccess: (activity: IActivity) => {
     const idpFullName = activity.details?.idp_full_name;
     const hostDisplayName = activity.details?.host_display_name;
@@ -2536,6 +2552,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
+    }
+    case ActivityType.AddedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("added")(activity);
+    }
+    case ActivityType.EditedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("edited")(activity);
+    }
+    case ActivityType.DeletedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("deleted")(activity);
     }
     case ActivityType.UpdatedConditionalAccessBypass: {
       return TAGGED_TEMPLATES.updatedConditionalAccessBypass();

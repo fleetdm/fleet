@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.5.2",
+      "version": "5.5.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Memory-Cleaner-SIII';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Memory-Cleaner-SIII' AND version_compare(bundle_short_version, '5.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Memory-Cleaner-SIII' AND version_compare(bundle_short_version, '5.5.3') < 0);"
       },
-      "installer_url": "https://download.nektony.com/download/memory-cleaner/dmg/memory-cleaner.dmg?build=269",
+      "installer_url": "https://download.nektony.com/download/memory-cleaner/dmg/memory-cleaner.dmg?build=271",
       "install_script_ref": "a79acec6",
       "uninstall_script_ref": "2f570c01",
-      "sha256": "d05edd300d033b1cc4d81b33145cce4ddd2d2379619a3fd1815c620aa9ee802c",
+      "sha256": "6b1097ccc760723e1c521a851ceef68b92c4a5647e1e1d5426f644f02d7517f3",
       "default_categories": [
         "Utilities"
       ]
