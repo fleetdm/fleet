@@ -129,8 +129,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-\*** Currently, maintainers can delete users via the `DELETE,PATCH,PUT /scim/Users/:id` endpoints. In Fleet 5, this will be restricted to admins only.
-
 ## Fleet-level user permissions
 
 `Applies only to Fleet Premium`
