@@ -27,6 +27,11 @@ const (
 	waitTimeForRetry        = 10 * time.Second
 	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
+
+	// minCompletePercent is the minimum percentage of NVD's reported totalResults that
+	// must be retrieved for the pull to be accepted. It tolerates NVD's small, persistent
+	// overcount (~0.025%) while still failing on a grossly incomplete result.
+	minCompletePercent = 95
 )
 
 func panicIf(err error) {
@@ -107,9 +112,8 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 		}
 	}
 
-	// Sanity check
-	if totalResults <= 1 || len(cpes) != totalResults {
-		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
+	if err := checkResultCount(len(cpes), totalResults); err != nil {
+		log.Fatalf("%v", err)
 	}
 
 	slog.Info("Generating CPE sqlite DB...")
@@ -119,6 +123,22 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 	panicIf(err)
 
 	return dbPath
+}
+
+// checkResultCount verifies that enough CPEs were retrieved. NVD's reported
+// totalResults is consistently a few hundred higher than the number of CPEs it
+// actually returns (e.g. 1761245 reported vs 1760806 returned), so an exact match is
+// not required; only a shortfall below minCompletePercent of the reported total is
+// treated as an incomplete pull.
+func checkResultCount(got, totalResults int) error {
+	// Round the threshold up (ceiling division) so a fractional requirement still
+	// demands the next whole result rather than accepting a sub-percent shortfall.
+	minResults := (totalResults*minCompletePercent + 99) / 100
+	if totalResults <= 1 || got < minResults {
+		return fmt.Errorf("incomplete CPE pull: got %v results, need at least %v (%v%% of reported total %v)",
+			got, minResults, minCompletePercent, totalResults)
+	}
+	return nil
 }
 
 func convertToCPEItem(in nvdapi.CPE) (out cpedict.CPEItem) {

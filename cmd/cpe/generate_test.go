@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -86,4 +87,63 @@ func TestCPEDB(t *testing.T) {
 			},
 		)
 	}
+}
+
+// TestCheckResultCount covers the tolerance for NVD's overcount: a small shortfall
+// below totalResults is accepted, but a grossly incomplete pull is rejected with a
+// message that states the minimum accepted count and threshold.
+func TestCheckResultCount(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		got     int
+		total   int
+		wantErr string // expected substring in the error; "" means no error
+	}{
+		{"exact match", 100, 100, ""},
+		{"nvd overcount tolerated", 1760806, 1761245, ""}, // the real-world failing case
+		{"at threshold", 95, 100, ""},
+		{"below threshold", 94, 100, "need at least 95"},
+		{"rounds up to next whole result", 3, 4, "need at least 4"}, // ceiling: 4*95% = 3.8 -> 4
+		{"uninitialized total", 0, 1, "need at least"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkResultCount(tc.got, tc.total)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// TestGetCPEsToleratesShortfall exercises the full path: NVD reports totalResults=20
+// but returns only 19 products, exactly the 95% tolerance boundary, so generation
+// should succeed and write all 19 rather than aborting.
+func TestGetCPEsToleratesShortfall(t *testing.T) {
+	const total, returned = 20, 19
+	products := make([]string, returned)
+	for i := range products {
+		products[i] = fmt.Sprintf(
+			`{"cpe":{"deprecated":false,"cpeName":"cpe:2.3:a:vendor:product_%d:1.0:*:*:*:*:*:*:*","cpeNameId":"id-%d"}}`, i, i)
+	}
+	body := fmt.Sprintf(
+		`{"resultsPerPage":%d,"startIndex":0,"totalResults":%d,"format":"NVD_CPE","version":"2.0","timestamp":"2024-01-01T00:00:00.000","products":[%s]}`,
+		total, total, strings.Join(products, ","))
+
+	recorder := httptest.NewRecorder()
+	recorder.Header().Add("Content-Type", "application/json")
+	_, _ = recorder.WriteString(body)
+	client := mockClient{response: recorder.Result()}
+
+	dir := t.TempDir()
+	dbPath := getCPEs(&client, "API_KEY", dir)
+
+	db, err := sqlx.Open("sqlite3", dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+	var count int
+	require.NoError(t, db.Get(&count, "SELECT count(*) FROM cpe_2"))
+	require.Equal(t, returned, count, "all returned products should be written despite totalResults being higher")
 }
