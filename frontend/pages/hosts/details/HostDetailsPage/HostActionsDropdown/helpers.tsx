@@ -690,13 +690,6 @@ const modifyOptions = (
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "query")
     );
-
-    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
-    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
-      optionsToDisable = optionsToDisable.concat(
-        options.filter((option) => option.value === "mdmOff")
-      );
-    }
   }
 
   // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
