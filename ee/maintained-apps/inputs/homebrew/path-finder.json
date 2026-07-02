@@ -1,0 +1,10 @@
+{
+  "name": "Path Finder",
+  "unique_identifier": "com.cocoatech.PathFinder",
+  "token": "path-finder",
+  "installer_format": "dmg",
+  "slug": "path-finder/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

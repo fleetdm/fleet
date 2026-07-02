@@ -1,0 +1,10 @@
+{
+  "name": "OverSight",
+  "unique_identifier": "com.objective-see.oversight",
+  "token": "oversight",
+  "installer_format": "zip",
+  "slug": "oversight/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

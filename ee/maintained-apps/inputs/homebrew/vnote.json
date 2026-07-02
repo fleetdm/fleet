@@ -1,0 +1,10 @@
+{
+  "name": "VNote",
+  "unique_identifier": "com.vnotex.vnote",
+  "token": "vnote",
+  "installer_format": "zip",
+  "slug": "vnote/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

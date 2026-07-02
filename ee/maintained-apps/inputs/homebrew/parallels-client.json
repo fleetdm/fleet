@@ -1,0 +1,10 @@
+{
+  "name": "Parallels Client",
+  "unique_identifier": "com.2X.Client.Mac",
+  "token": "parallels-client",
+  "installer_format": "pkg",
+  "slug": "parallels-client/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

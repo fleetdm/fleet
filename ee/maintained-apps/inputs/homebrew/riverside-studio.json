@@ -1,0 +1,10 @@
+{
+  "name": "Riverside Studio",
+  "unique_identifier": "RVS-Riverside.fm-Mac",
+  "token": "riverside-studio",
+  "installer_format": "dmg",
+  "slug": "riverside-studio/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

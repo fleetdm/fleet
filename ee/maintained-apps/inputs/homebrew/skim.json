@@ -1,0 +1,10 @@
+{
+  "name": "Skim",
+  "unique_identifier": "net.sourceforge.skim-app.skim.bookmarks",
+  "token": "skim",
+  "installer_format": "dmg",
+  "slug": "skim/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

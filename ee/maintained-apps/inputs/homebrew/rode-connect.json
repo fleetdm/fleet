@@ -1,0 +1,10 @@
+{
+  "name": "Rode Connect",
+  "unique_identifier": "com.rode.rodeconnect",
+  "token": "rode-connect",
+  "installer_format": "zip",
+  "slug": "rode-connect/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

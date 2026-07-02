@@ -1,0 +1,10 @@
+{
+  "name": "Packages",
+  "unique_identifier": "fr.whitebox.Packages",
+  "token": "packages",
+  "installer_format": "dmg",
+  "slug": "packages/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

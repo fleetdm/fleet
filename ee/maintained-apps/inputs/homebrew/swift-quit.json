@@ -1,0 +1,10 @@
+{
+  "name": "Swift Quit",
+  "unique_identifier": "onebadidea.Swift-Quit",
+  "token": "swift-quit",
+  "installer_format": "zip",
+  "slug": "swift-quit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

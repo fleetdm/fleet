@@ -1,0 +1,10 @@
+{
+  "name": "TomatoBar",
+  "unique_identifier": "com.github.ivoronin.TomatoBar",
+  "token": "tomatobar",
+  "installer_format": "zip",
+  "slug": "tomatobar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

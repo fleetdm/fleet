@@ -1,0 +1,10 @@
+{
+  "name": "Superlist",
+  "unique_identifier": "group.com.superlist.superlist.firebase",
+  "token": "superlist",
+  "installer_format": "zip",
+  "slug": "superlist/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

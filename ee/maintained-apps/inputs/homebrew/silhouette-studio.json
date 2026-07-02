@@ -1,0 +1,10 @@
+{
+  "name": "Silhouette Studio",
+  "unique_identifier": "com.silhouettesoftware.Silhouette-Studio",
+  "token": "silhouette-studio",
+  "installer_format": "dmg",
+  "slug": "silhouette-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

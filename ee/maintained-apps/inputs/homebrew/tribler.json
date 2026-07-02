@@ -1,0 +1,10 @@
+{
+  "name": "Tribler",
+  "unique_identifier": "com.nl-tudelft-tribler",
+  "token": "tribler",
+  "installer_format": "dmg",
+  "slug": "tribler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
