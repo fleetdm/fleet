@@ -7,7 +7,7 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.6.2') < 0);"
       },
       "installer_url": "https://desktop.githubusercontent.com/releases/3.6.2-57f0b637/GitHubDesktopSetup-x64.msi",
-      "install_script_ref": "8959087b",
+      "install_script_ref": "9fe80ace",
       "uninstall_script_ref": "cfc2b24c",
       "sha256": "36a7a7faf601f0726214d14ddaaf2ea9ae1c39d3526b1f4b7c8c432fd8e770b8",
       "default_categories": [
