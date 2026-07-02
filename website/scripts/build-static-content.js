@@ -572,6 +572,7 @@ module.exports = {
 
               // Get last modified timestamp using git, and represent it as a JS timestamp.
               let lastModifiedAt;
+              let hasBeenUpdated = false;
               if(!githubAccessToken) {
                 lastModifiedAt = Date.now();
               } else if(process.env.GITHUB_REF_NAME && process.env.GITHUB_REF_NAME === 'main') {// Only add lastModifiedAt timestamps if this test is running on the main branch
@@ -580,7 +581,7 @@ module.exports = {
                   data: {
                     path: path.join(sectionRepoPath, pageRelSourcePath),
                     page: 1,
-                    per_page: 1,//eslint-disable-line camelcase
+                    per_page: 2,//eslint-disable-line camelcase
                   },
                   headers: baseHeadersForGithubRequests,
                 }).intercept((err)=>{
@@ -593,6 +594,7 @@ module.exports = {
                   throw new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
                 }
                 lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
+                hasBeenUpdated = responseData.length > 1;// If there are 2+ commits, the file has been updated since it was first added.
               }
 
               // Determine display title (human-readable title) to use for this page.
@@ -840,6 +842,7 @@ module.exports = {
                 url: rootRelativeUrlPath,
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
+                hasBeenUpdated: hasBeenUpdated,
                 htmlId: htmlId,
                 pageOrderInSectionPath: pageOrderInSection,
                 docNavCategory: docNavCategory ? docNavCategory : undefined,// FUTURE: No docs specific markdown page attributes.
