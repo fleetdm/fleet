@@ -9,7 +9,6 @@ import customHostVitalsAPI from "services/entities/custom_host_vitals_mock";
 import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 interface IDeleteCustomHostVitalModalProps {
   vital: ICustomHostVital;
@@ -58,11 +57,7 @@ const DeleteCustomHostVitalModal = ({
     >
       <div className={`${baseClass}__message`}>
         <span>
-          Are you sure you want to delete the
-          <b>
-            <TooltipTruncatedText value={vital.name} />
-          </b>
-          host vital?
+          Are you sure you want to delete the <b>{vital.name}</b> host vital?
         </span>
         <br />
         <br />
