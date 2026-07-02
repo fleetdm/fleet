@@ -143,6 +143,7 @@ var ValidLabelPlatformVariants = map[string]struct{}{
 	"":        {}, // empty platform is valid value
 	"darwin":  {},
 	"windows": {},
+	"linux":   {},
 	"ubuntu":  {},
 	"centos":  {},
 }
