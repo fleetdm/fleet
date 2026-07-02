@@ -8,6 +8,8 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow the ins
 
 To migrate Windows hosts from your current MDM solution to Fleet, follow the [Automatic Windows MDM migration](#automatic-windows-mdm-migration) instructions.
 
+> Fleet supports two ways to enroll Windows hosts: installing Fleet's agent (fleetd), and enrolling through Microsoft Entra ID. End users authenticate through Entra during enrollment, so you can use a third-party identity provider (IdP) if it's federated with Entra. Enrolling against an IdP that isn't federated with Entra isn't currently supported.
+
 ## Turn on Windows MDM
 
 ### Step 1: Generate your certificate and key

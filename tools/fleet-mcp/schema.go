@@ -184,7 +184,23 @@ func RefreshSchemaNow() error {
 }
 
 func fetchCanonicalSchema(url string) ([]byte, error) {
-	client := &http.Client{Timeout: fetchTimeout}
+	client := &http.Client{
+		Timeout: fetchTimeout,
+		// Refuse cross-host redirects: the canonical URL is a fixed
+		// githubusercontent.com path, so any redirect to a different host is
+		// unexpected and could be bent toward an internal/metadata endpoint.
+		// raw.githubusercontent.com serves 200 directly, so this
+		// does not break the normal fetch.
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+				return fmt.Errorf("refusing cross-host redirect to %q", req.URL.Host)
+			}
+			if len(via) >= 5 {
+				return errors.New("too many redirects")
+			}
+			return nil
+		},
+	}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)

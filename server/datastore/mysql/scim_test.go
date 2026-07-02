@@ -30,6 +30,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ScimUserByHostID", testScimUserByHostID},
+		{"ScimUserCreateAssociatesAllMatchingHosts", testScimUserCreateAssociatesAllMatchingHosts},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"ReplaceScimUserEmails", testReplaceScimUserEmails},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
@@ -1502,6 +1503,44 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	_, err = ds.ScimUserByHostID(t.Context(), nonExistentHostID)
 	assert.NotNil(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+// testScimUserCreateAssociatesAllMatchingHosts verifies that creating a SCIM user
+// (as the IdP directory sync does) links every host whose MDM IdP account matches
+// the user.
+func testScimUserCreateAssociatesAllMatchingHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Two hosts belonging to the same person, both carrying the same MDM IdP account.
+	host1 := test.NewHost(t, ds, "multi-host-1", "1", "mh1key", "mh1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "multi-host-2", "2", "mh2key", "mh2uuid", time.Now())
+
+	const idpUUID = "multi-idp-uuid"
+	const idpUserName = "multi.user@example.com"
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?, ?, ?, ?)`,
+		idpUUID, idpUserName, "Multi User", idpUserName)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?, ?), (?, ?)`,
+		host1.UUID, idpUUID, host2.UUID, idpUUID)
+	require.NoError(t, err)
+
+	user := fleet.ScimUser{
+		UserName:   idpUserName,
+		ExternalID: new("ext-multi"),
+		Active:     new(true),
+	}
+	user.ID, err = ds.CreateScimUser(ctx, &user)
+	require.NoError(t, err)
+
+	// Both hosts must resolve to the newly-created SCIM user.
+	for _, h := range []*fleet.Host{host1, host2} {
+		got, err := ds.ScimUserByHostID(ctx, h.ID)
+		require.NoError(t, err, "host %d should be linked to the scim user", h.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, user.ID, got.ID, "host %d linked to the wrong scim user", h.ID)
+	}
 }
 
 func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
