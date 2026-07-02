@@ -1,0 +1,1 @@
+- Android host OS versions now include the security patch level (e.g. "Android 16 (2026-05-01)"), so hosts are grouped by patch level on the OS versions page.

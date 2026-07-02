@@ -268,7 +268,9 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			expectedHostID := uint(99)
+			var capturedHost *fleet.AndroidHost
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				capturedHost = host
 				return &fleet.AndroidHost{Host: &fleet.Host{ID: expectedHostID}}, nil
 			}
 			var capturedHostID uint
@@ -288,7 +290,59 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 			enrollmentMessage := createEnrollmentMessage(t, deviceInfo)
 			// createEnrollmentMessage sets AndroidVersion="1"; override to a more
-			// realistic version so we verify it's passed through unchanged.
+			// realistic version + security patch level so we verify both are folded
+			// into the OS version as "16 (2026-05-01)".
+			data, err := base64.StdEncoding.DecodeString(enrollmentMessage.Data)
+			require.NoError(t, err)
+			var decoded androidmanagement.Device
+			require.NoError(t, json.Unmarshal(data, &decoded))
+			decoded.SoftwareInfo.AndroidVersion = "16"
+			decoded.SoftwareInfo.SecurityPatchLevel = "2026-05-01"
+			reEncoded, err := json.Marshal(decoded)
+			require.NoError(t, err)
+			enrollmentMessage.Data = base64.StdEncoding.EncodeToString(reEncoded)
+
+			err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+			require.NoError(t, err)
+
+			require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
+			require.Equal(t, expectedHostID, capturedHostID)
+			require.Equal(t, "Android", capturedOS.Name)
+			require.Equal(t, "16 (2026-05-01)", capturedOS.Version)
+			require.Equal(t, "android", capturedOS.Platform)
+			require.NotNil(t, capturedHost)
+			require.Equal(t, "Android 16 (2026-05-01)", capturedHost.Host.OSVersion)
+		})
+
+		t.Run("falls back to bare major version when no security patch level is reported", func(t *testing.T) {
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+				}, nil
+			}
+
+			expectedHostID := uint(100)
+			var capturedHost *fleet.AndroidHost
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				capturedHost = host
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: expectedHostID}}, nil
+			}
+			var capturedOS fleet.OperatingSystem
+			mockDS.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+				capturedOS = hostOS
+				return nil
+			}
+
+			enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
+			enrollTokenData, err := json.Marshal(enrollmentToken)
+			require.NoError(t, err)
+			deviceInfo := androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android-os-no-spl"),
+				EnrollmentTokenData: string(enrollTokenData),
+			}
+			enrollmentMessage := createEnrollmentMessage(t, deviceInfo)
+			// createEnrollmentMessage leaves SecurityPatchLevel empty; override the
+			// version and confirm no trailing "(...)" is appended.
 			data, err := base64.StdEncoding.DecodeString(enrollmentMessage.Data)
 			require.NoError(t, err)
 			var decoded androidmanagement.Device
@@ -302,10 +356,9 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.NoError(t, err)
 
 			require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
-			require.Equal(t, expectedHostID, capturedHostID)
-			require.Equal(t, "Android", capturedOS.Name)
 			require.Equal(t, "16", capturedOS.Version)
-			require.Equal(t, "android", capturedOS.Platform)
+			require.NotNil(t, capturedHost)
+			require.Equal(t, "Android 16", capturedHost.Host.OSVersion)
 		})
 
 		t.Run("creates device as company-owned if specified in enrollment message", func(t *testing.T) {
@@ -1000,7 +1053,8 @@ func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
 			Model:                "Pixel 8a",
 		},
 		SoftwareInfo: &androidmanagement.SoftwareInfo{
-			AndroidVersion: "16",
+			AndroidVersion:     "16",
+			SecurityPatchLevel: "2026-05-01",
 		},
 		MemoryInfo: &androidmanagement.MemoryInfo{
 			TotalRam: int64(8 * 1024 * 1024 * 1024),
@@ -1020,7 +1074,9 @@ func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
 	require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
 	require.Equal(t, expectedHostID, capturedHostID)
 	require.Equal(t, "Android", capturedOS.Name)
-	require.Equal(t, "16", capturedOS.Version)
+	// The security patch level is folded into the OS-version row so it is
+	// distinct per patch level (e.g. "16" vs "16 (2026-05-01)").
+	require.Equal(t, "16 (2026-05-01)", capturedOS.Version)
 	require.Equal(t, "android", capturedOS.Platform)
 }
 
@@ -1206,6 +1262,7 @@ func TestUpdateHost(t *testing.T) {
 			SoftwareInfo: &androidmanagement.SoftwareInfo{
 				AndroidBuildNumber: "updated-build",
 				AndroidVersion:     "15",
+				SecurityPatchLevel: "2026-05-01",
 			},
 			MemoryInfo: &androidmanagement.MemoryInfo{
 				TotalRam:             int64(16 * 1024 * 1024 * 1024),  // 16GB RAM
@@ -1240,7 +1297,7 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.ComputerName)
 		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.Hostname)
 		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.HardwareModel)
-		require.Equal(t, "Android 15", capturedHost.Host.OSVersion)
+		require.Equal(t, "Android 15 (2026-05-01)", capturedHost.Host.OSVersion)
 	})
 
 	t.Run("UUID is set from EnterpriseSpecificId", func(t *testing.T) {
