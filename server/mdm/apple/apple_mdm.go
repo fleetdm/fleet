@@ -108,6 +108,15 @@ func AppleEnrollmentAccessRights(personal bool) int {
 // matches the param the OTA endpoint and the /enroll page already use.
 const FleetPersonalEnrollmentKey = "byod"
 
+// FleetEnrollmentSubjectOU is the Organizational Unit Fleet embeds in the SCEP
+// certificate Subject of NEW-enrollment profiles (never renewals). The SCEP signer
+// copies the CSR Subject verbatim into the issued identity certificate, so this
+// marker survives into the cert the device presents at MDM Authenticate. The checkin
+// handler reads it to tell a fresh enrollment apart from a stale pending SCEP renewal
+// (see server/service/apple_mdm.go Authenticate). It must NOT be set on renewal
+// profiles, or renewals would be misclassified as fresh enrollments.
+const FleetEnrollmentSubjectOU = "Fleet Device Enrollment"
+
 // AddPersonalEnrollmentToFleetURL appends the FleetPersonalEnrollmentKey query
 // param to fleetURL when personal is true. If personal is false the URL is
 // returned unchanged so company-owned profiles carry no extra parameters.
@@ -1195,7 +1204,8 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 				<key>Subject</key>
 				<array>
 					<array><array><string>O</string><string>Fleet</string></array></array>
-					<array><array><string>CN</string><string>Fleet Identity</string></array></array>
+					{{ if .NewEnrollmentSubjectOU }}<array><array><string>OU</string><string>{{ .NewEnrollmentSubjectOU | xml }}</string></array></array>
+					{{ end }}<array><array><string>CN</string><string>Fleet Identity</string></array></array>
 				</array>
 			</dict>
 			<key>PayloadIdentifier</key>
@@ -1273,7 +1283,8 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 				<key>Subject</key>
 				<array>
 					<array><array><string>O</string><string>Fleet</string></array></array>
-					<array><array><string>CN</string><string>Fleet Identity</string></array></array>
+					{{ if .NewEnrollmentSubjectOU }}<array><array><string>OU</string><string>{{ .NewEnrollmentSubjectOU | xml }}</string></array></array>
+					{{ end }}<array><array><string>CN</string><string>Fleet Identity</string></array></array>
 				</array>
 			</dict>
 			<key>PayloadIdentifier</key>
@@ -1365,7 +1376,8 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 			<integer>1</integer>
 			<key>Subject</key>
 			<array>
-				<array>
+				{{ if .NewEnrollmentSubjectOU }}<array><array><string>OU</string><string>{{ .NewEnrollmentSubjectOU | xml }}</string></array></array>
+				{{ end }}<array>
 					<array>
 						<string>CN</string>
 						<string>{{ .SerialTemplate | xml }}</string>
@@ -1416,7 +1428,11 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 </dict>
 </plist>`))
 
-func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string, accessRights int) ([]byte, error) {
+// GenerateEnrollmentProfileMobileconfig builds a standard SCEP enrollment profile. Set newEnrollment
+// to true for profiles served from an enroll endpoint and false for SCEP renewal profiles; it controls
+// whether the SCEP Subject carries FleetEnrollmentSubjectOU, the marker the checkin handler uses to
+// distinguish a fresh enrollment from a renewal.
+func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
@@ -1428,26 +1444,30 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
-		Organization  string
-		SCEPURL       string
-		SCEPChallenge string
-		Topic         string
-		ServerURL     string
-		AccessRights  int
+		Organization           string
+		SCEPURL                string
+		SCEPChallenge          string
+		Topic                  string
+		ServerURL              string
+		AccessRights           int
+		NewEnrollmentSubjectOU string
 	}{
-		Organization:  orgName,
-		SCEPURL:       scepURL,
-		SCEPChallenge: scepChallenge,
-		Topic:         topic,
-		ServerURL:     serverURL,
-		AccessRights:  accessRights,
+		Organization:           orgName,
+		SCEPURL:                scepURL,
+		SCEPChallenge:          scepChallenge,
+		Topic:                  topic,
+		ServerURL:              serverURL,
+		AccessRights:           accessRights,
+		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return buf.Bytes(), nil
 }
 
-func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic, assignedManagedAppleID string) ([]byte, error) {
+// GenerateAccountDrivenEnrollmentProfileMobileconfig builds an account-driven (BYOD) SCEP enrollment
+// profile. See GenerateEnrollmentProfileMobileconfig for newEnrollment.
+func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic, assignedManagedAppleID string, newEnrollment bool) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
@@ -1465,6 +1485,7 @@ func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepC
 		Topic                  string
 		ServerURL              string
 		AssignedManagedAppleID string
+		NewEnrollmentSubjectOU string
 	}{
 		Organization:           orgName,
 		SCEPURL:                scepURL,
@@ -1472,10 +1493,20 @@ func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepC
 		Topic:                  topic,
 		ServerURL:              serverURL,
 		AssignedManagedAppleID: assignedManagedAppleID,
+		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// newEnrollmentSubjectOU returns the SCEP Subject OU marker for a fresh enrollment, or "" for a
+// renewal (which omits the OU so renewals aren't misclassified as fresh enrollments).
+func newEnrollmentSubjectOU(newEnrollment bool) string {
+	if newEnrollment {
+		return FleetEnrollmentSubjectOU
+	}
+	return ""
 }
 
 func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
@@ -1493,7 +1524,10 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 	return u.String(), nil
 }
 
-func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int) ([]byte, error) {
+// GenerateACMEEnrollmentProfileMobileconfig builds an ACME (hardware-attested) enrollment profile. See
+// GenerateEnrollmentProfileMobileconfig for newEnrollment; the OU marker survives because Fleet's ACME
+// signer reuses the SCEP depot signer, which copies the CSR Subject verbatim.
+func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
@@ -1506,21 +1540,23 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 
 	var buf bytes.Buffer
 	if err := acmeEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
-		Organization     string
-		DirectoryURL     string
-		Topic            string
-		ServerURL        string
-		ClientIdentifier string
-		SerialTemplate   string
-		AccessRights     int
+		Organization           string
+		DirectoryURL           string
+		Topic                  string
+		ServerURL              string
+		ClientIdentifier       string
+		SerialTemplate         string
+		AccessRights           int
+		NewEnrollmentSubjectOU string
 	}{
-		Organization:     orgName,
-		DirectoryURL:     acmeURL,
-		Topic:            topic,
-		ServerURL:        serverURL,
-		ClientIdentifier: deviceSerial,
-		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
-		AccessRights:     accessRights,
+		Organization:           orgName,
+		DirectoryURL:           acmeURL,
+		Topic:                  topic,
+		ServerURL:              serverURL,
+		ClientIdentifier:       deviceSerial,
+		SerialTemplate:         `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+		AccessRights:           accessRights,
+		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}

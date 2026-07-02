@@ -2370,6 +2370,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		hardwareSerial,
 		topic,
 		apple_mdm.MDMAccessRightAll,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
@@ -2392,6 +2393,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		apple_mdm.MDMAccessRightAll,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
@@ -3702,6 +3704,17 @@ func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType 
 	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
 
+// certIsFromNewEnrollment reports whether the device's MDM identity certificate was issued from a
+// new-enrollment profile, identified by apple_mdm.FleetEnrollmentSubjectOU in the Subject OU. Renewal
+// profiles omit this marker, so its presence means the current checkin belongs to a fresh enrollment
+// rather than a SCEP renewal.
+func certIsFromNewEnrollment(cert *x509.Certificate) bool {
+	if cert == nil {
+		return false
+	}
+	return slices.Contains(cert.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+}
+
 // Authenticate handles MDM [Authenticate][1] requests.
 //
 // This method is executed after the request has been handled by nanomdm, note
@@ -3723,6 +3736,21 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	}
 	if existingDeviceInfo != nil {
 		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress
+	}
+
+	// A pending SCEP renewal command only means "this checkin is a renewal" if the device didn't just
+	// re-enroll. New-enrollment profiles carry apple_mdm.FleetEnrollmentSubjectOU in their SCEP Subject
+	// (renewal profiles omit it), and that OU survives into the identity cert the device presents here.
+	// If it's present, treat this as a fresh enrollment: clear the stale renew_command_uuid so
+	// GetHostMDMCheckinInfo reports SCEPRenewalInProgress=false for every downstream consumer
+	// (TokenUpdate, the profile verifier, the nano_devices bootstrap logic) and the normal enrollment
+	// side effects (activity, host reset, post-enroll worker) run.
+	if scepRenewalInProgress && certIsFromNewEnrollment(r.Certificate) {
+		svc.logger.InfoContext(r.Context, "identity cert is from a new enrollment, treating as fresh enrollment despite pending SCEP renewal", "host_uuid", r.ID)
+		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {
+			return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs for fresh enrollment")
+		}
+		scepRenewalInProgress = false
 	}
 
 	// iPhones, iPads, and iPods send ProductName but not Model/ModelName,
@@ -5820,6 +5848,7 @@ func RenewSCEPCertificates(
 					scepChallenge,
 					mdmPushCertTopic,
 					key.rights,
+					false, // renewal: must NOT carry the new-enrollment Subject marker
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
@@ -5860,6 +5889,7 @@ func RenewSCEPCertificates(
 				scepChallenge,
 				mdmPushCertTopic,
 				email,
+				false, // renewal: must NOT carry the new-enrollment Subject marker
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -5902,6 +5932,7 @@ func RenewSCEPCertificates(
 			scepChallenge,
 			mdmPushCertTopic,
 			rights,
+			false, // renewal: must NOT carry the new-enrollment Subject marker
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -5954,6 +5985,7 @@ func RenewSCEPCertificates(
 			di.HardwareSerial,
 			mdmPushCertTopic,
 			acmeRights,
+			false, // renewal: must NOT carry the new-enrollment Subject marker
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
@@ -7024,6 +7056,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		accessRights,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
