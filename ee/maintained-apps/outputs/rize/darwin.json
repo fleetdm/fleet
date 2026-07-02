@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.0.7",
+      "version": "3.0.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.rize';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.rize' AND version_compare(bundle_short_version, '3.0.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.rize' AND version_compare(bundle_short_version, '3.0.15') < 0);"
       },
-      "installer_url": "https://github.com/rize-io/lua/releases/download/v3.0.7/Rize-3.0.7-arm64.dmg",
+      "installer_url": "https://github.com/rize-io/lua/releases/download/v3.0.15/Rize-3.0.15-arm64.dmg",
       "install_script_ref": "a335f511",
       "uninstall_script_ref": "8f8ad201",
-      "sha256": "7b4188fa8729d579806ebb167e12959a7ef818990a2c2d6fbf8c0d34b640fa4b",
+      "sha256": "77d01df1e49310f5dfb6958a9ed7e9e7f82ddcc96731c056eeb7231ad574d056",
       "default_categories": [
         "Productivity"
       ]
