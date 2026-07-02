@@ -232,7 +232,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return installerID, titleID, err
 	}
 
-	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
+	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, ds.writer(ctx), payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
 	}
@@ -511,7 +511,7 @@ func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID 
 	return availableName, nil
 }
 
-func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, tx sqlx.ExtContext, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`
 	selectArgs := []any{payload.Title, payload.Source}
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
@@ -536,7 +536,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		insertArgs = []any{payload.Title, payload.Source, payload.BundleIdentifier}
 	}
 
-	titleID, err := ds.optimisticGetOrInsert(ctx,
+	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx, tx,
 		&parameterizedStmt{
 			Statement: selectStmt,
 			Args:      selectArgs,
@@ -562,8 +562,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
 		}
 
-		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
 			return 0, err
 		}
 	}
@@ -2377,35 +2376,6 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 const maxCachedFMAVersions = 2
 
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-	const upsertSoftwareTitles = `
-INSERT INTO software_titles
-  (name, source, extension_for, bundle_identifier, upgrade_code)
-VALUES
-  %s
-ON DUPLICATE KEY UPDATE
-  name = VALUES(name),
-  source = VALUES(source),
-  extension_for = VALUES(extension_for),
-  bundle_identifier = VALUES(bundle_identifier)
-`
-
-	const loadSoftwareTitles = `
-SELECT
-  id
-FROM
-  software_titles
-WHERE (unique_identifier, source) IN (%s) AND extension_for = ''
-`
-
-	const getSoftwareTitle = `
-SELECT
-	id
-FROM
-	software_titles
-WHERE
-	unique_identifier = ? AND source = ? AND extension_for = ''
-`
-
 	const unsetAllInstallersFromPolicies = `
 UPDATE
   policies
@@ -2885,7 +2855,8 @@ WHERE
 			return nil
 		}
 
-		var args []any
+		titleIDs := make([]uint, 0, len(installers))
+		titleIDByInstaller := make(map[*fleet.UploadSoftwareInstallerPayload]uint, len(installers))
 		for _, installer := range installers {
 			// check for installers that target macOS if any package installer is
 			// associated with a software title that already has a VPP app for the same
@@ -2904,36 +2875,13 @@ WHERE
 				}
 			}
 
-			args = append(
-				args,
-				installer.Title,
-				installer.Source,
-				"",
-				installer.GetBundleIdentifierForDB(),
-				installer.GetUpgradeCodeForDB(),
-			)
-		}
-
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?,?),", len(installers)),
-			",",
-		)
-		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert new/edited software title")
-		}
-
-		var titleIDs []uint
-		args = []any{}
-		for _, installer := range installers {
-			args = append(args, installer.UniqueIdentifier(), installer.Source)
-		}
-		values = strings.TrimSuffix(
-			strings.Repeat(`(?,?),`, len(installers)),
-			",",
-		)
-
-		if err := sqlx.SelectContext(ctx, tx, &titleIDs, fmt.Sprintf(loadSoftwareTitles, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "load existing titles")
+			// Resolve the title the same way the single-installer add path does, to avoid duplicate titles.
+			titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tx, installer)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "get or generate software title id for installer with name %q", installer.Filename)
+			}
+			titleIDs = append(titleIDs, titleID)
+			titleIDByInstaller[installer] = titleID
 		}
 
 		stmt, args, err := sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
@@ -3097,11 +3045,7 @@ WHERE
 				postInstallScriptID = &insertID
 			}
 
-			var titleID uint
-			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, installer.UniqueIdentifier(), installer.Source)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting software title id for software installer with name %q", installer.Filename)
-			}
+			titleID := titleIDByInstaller[installer]
 
 			wasUpdatedArgs := []interface{}{
 				// package update
