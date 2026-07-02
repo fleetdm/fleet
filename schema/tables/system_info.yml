@@ -73,7 +73,7 @@ columns:
   - name: hardware_marketing_name
     type: text
     description: Hardware marketing name, e.g. "MacBook Air (13-inch, M5)".
-    - platforms:
+    platforms:
       - darwin
   - name: cpu_brand
     type: text
