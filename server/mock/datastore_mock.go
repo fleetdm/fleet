@@ -1250,6 +1250,8 @@ type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string)
 
 type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
 
+type MDMAppleDDMDeclarationItemsAssetsFunc func(ctx context.Context) ([]fleet.MDMAppleDDMDeclarationAssetItem, error)
+
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
 
 type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (hostUUIDs []string, err error)
@@ -1471,6 +1473,8 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
+
+type NewMDMAppleDeclarationAssetFunc func(ctx context.Context, asset *fleet.MDMAppleDeclarationAsset) (*fleet.MDMAppleDeclarationAsset, error)
 
 type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
@@ -3980,6 +3984,9 @@ type DataStore struct {
 	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
 	MDMAppleDDMDeclarationItemsFuncInvoked bool
 
+	MDMAppleDDMDeclarationItemsAssetsFunc        MDMAppleDDMDeclarationItemsAssetsFunc
+	MDMAppleDDMDeclarationItemsAssetsFuncInvoked bool
+
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
 
@@ -4312,6 +4319,9 @@ type DataStore struct {
 
 	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
 	NewMDMAppleDeclarationFuncInvoked bool
+
+	NewMDMAppleDeclarationAssetFunc        NewMDMAppleDeclarationAssetFunc
+	NewMDMAppleDeclarationAssetFuncInvoked bool
 
 	SetOrUpdateMDMAppleDeclarationFunc        SetOrUpdateMDMAppleDeclarationFunc
 	SetOrUpdateMDMAppleDeclarationFuncInvoked bool
@@ -9609,6 +9619,13 @@ func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID st
 	return s.MDMAppleDDMDeclarationItemsFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) MDMAppleDDMDeclarationItemsAssets(ctx context.Context) ([]fleet.MDMAppleDDMDeclarationAssetItem, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationItemsAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationItemsAssetsFunc(ctx)
+}
+
 func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
@@ -10384,6 +10401,13 @@ func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fle
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
+}
+
+func (s *DataStore) NewMDMAppleDeclarationAsset(ctx context.Context, asset *fleet.MDMAppleDeclarationAsset) (*fleet.MDMAppleDeclarationAsset, error) {
+	s.mu.Lock()
+	s.NewMDMAppleDeclarationAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAppleDeclarationAssetFunc(ctx, asset)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {

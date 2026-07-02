@@ -4840,9 +4840,10 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
+	scope,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4862,6 +4863,57 @@ INSERT INTO mdm_apple_declarations (
 	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
 }
 
+func (ds *Datastore) NewMDMAppleDeclarationAsset(ctx context.Context, asset *fleet.MDMAppleDeclarationAsset) (*fleet.MDMAppleDeclarationAsset, error) {
+	// TODO: Support fleet vars
+	assetUUID := uuid.NewString() // This does not need the platform prefix.
+	const stmt = `
+	INSERT INTO mdm_apple_declaration_assets (
+		asset_uuid,
+		identifier,
+		name,
+		raw_json,
+		uploaded_at	
+	) VALUES (
+		?, ?, ?, ?, NOW(6)	
+	)`
+
+	marshalled, err := asset.RawJSON.MarshalJSON()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshalling asset raw json")
+	}
+	encrypted, err := encrypt(marshalled, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypting asset raw json")
+	}
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, assetUUID, asset.Identifier, asset.Name, encrypted)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting new apple mdm declaration asset")
+	}
+
+	asset.AssetUUID = assetUUID
+	return asset, nil
+}
+
+func (ds *Datastore) MDMAppleDDMDeclarationItemsAssets(ctx context.Context) ([]fleet.MDMAppleDDMDeclarationAssetItem, error) {
+	const stmt = `SELECT asset_uuid, identifier, HEX(token) as token, uploaded_at, raw_json FROM mdm_apple_declaration_assets`
+	var assets []fleet.MDMAppleDDMDeclarationAssetItem
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &assets, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading apple mdm declaration assets")
+	}
+
+	// Unencrypt the raw json for returning
+	for i, asset := range assets {
+		decrypted, err := decrypt([]byte(*asset.RawJSON), ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decrypting asset raw json")
+		}
+		rawJSON := json.RawMessage(decrypted)
+		assets[i].RawJSON = &rawJSON
+	}
+
+	return assets, nil
+}
+
 func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
@@ -4870,9 +4922,10 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
+	scope,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4902,7 +4955,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON,
-			declaration.SecretsUpdatedAt,
+			declaration.Scope, declaration.SecretsUpdatedAt,
 			declaration.Name, tmID, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {

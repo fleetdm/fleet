@@ -1989,6 +1989,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*MDMAppleDDMDeclarationsToken, error)
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
+	MDMAppleDDMDeclarationItemsAssets(ctx context.Context) ([]MDMAppleDDMDeclarationAssetItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
 
@@ -2485,6 +2486,8 @@ type Datastore interface {
 	// An OS-update (software update) declaration is tracked as the team's OS-update
 	// profile within the same transaction, failing if one already exists.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+
+	NewMDMAppleDeclarationAsset(ctx context.Context, asset *MDMAppleDeclarationAsset) (*MDMAppleDeclarationAsset, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
 	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)

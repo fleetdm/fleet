@@ -102,6 +102,9 @@ func ReconcileAppleDeclarationsBatched(
 		hosts, hostLabels, currentByHost, declsByTeam, declsWithBrokenLabel,
 	)
 
+	// TODO: Split declRowsToWrite and filter out user-scoped and do similar check to profile reconciler with user-channel available.
+	// TODO: Vice-versa could we check and fail-fast on system-scoped for ADUE?
+
 	logger.DebugContext(ctx, "ddm batched reconcile: computed deltas",
 		"changed_hosts", len(changedHostUUIDs), "host_decl_rows_to_write", len(declRowsToWrite))
 

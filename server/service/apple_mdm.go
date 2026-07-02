@@ -858,7 +858,7 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	return nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, error) {
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -937,8 +937,29 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		}
 	}
 
-	d := fleet.NewMDMAppleDeclaration(data, &teamID, name, rawDecl.Type, rawDecl.Identifier)
+	// TODO Move this out to better handle across calls
+	if strings.HasPrefix(rawDecl.Type, "com.apple.asset.") {
+		asset := &fleet.MDMAppleDeclarationAsset{
+			Identifier: rawDecl.Identifier,
+			Name:       name,
+			RawJSON:    data,
+		}
+		asset, err := svc.ds.NewMDMAppleDeclarationAsset(ctx, asset)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating new apple mdm declaration asset")
+		}
+
+		// TODO: Temporary to satisfy type constraints, but warrents we might have a new method called higher up.
+		return &fleet.MDMAppleDeclaration{
+			DeclarationUUID: asset.AssetUUID,
+		}, nil
+	}
+
+	d := fleet.NewMDMAppleDeclaration(data, &teamID, name, rawDecl.Type, rawDecl.Identifier, scope)
 	d.SecretsUpdatedAt = secretsUpdatedAt
+
+	// TODO: Should we validate incoming asset references? It's a bit of extra work, and could be fragile as we will
+	// TODO: partial match on strings, but gives better instant feedback.
 
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
@@ -6142,6 +6163,21 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
 
+	// TODO: For now I send all assets to all hosts, but this should be correlated with the individual declarations.
+	// TODO: And be removed once it's no longer referenced.
+	assets, err := svc.ds.MDMAppleDDMDeclarationItemsAssets(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declaration items assets")
+	}
+
+	manifestAssets := []fleet.MDMAppleDDMManifest{}
+	for _, asset := range assets {
+		manifestAssets = append(manifestAssets, fleet.MDMAppleDDMManifest{
+			Identifier:  asset.Identifier,
+			ServerToken: asset.ServerToken,
+		})
+	}
+
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
 	var removeDeclarationUUIDsToUpdateToPending []string
@@ -6235,7 +6271,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		Declarations: fleet.MDMAppleDDMManifestItems{
 			Activations:    activations,
 			Configurations: configurations,
-			Assets:         []fleet.MDMAppleDDMManifest{},
+			Assets:         manifestAssets,
 			Management:     []fleet.MDMAppleDDMManifest{},
 		},
 		DeclarationsToken: token,
@@ -6269,9 +6305,43 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 		return svc.handleActivationDeclaration(ctx, parts, hostUUID)
 	case "configuration":
 		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID)
+	case "asset":
+		return svc.handleAssetDeclaration(ctx, parts, hostUUID)
 	default:
 		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, ctxerr.Errorf(ctx, "declaration type not supported: %s", parts[1]))
 	}
+}
+
+func (svc *MDMAppleDDMService) handleAssetDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	// TODO: Lookup based on identifier
+	assets, err := svc.ds.MDMAppleDDMDeclarationItemsAssets(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declaration items assets")
+	}
+
+	var foundAsset *fleet.MDMAppleDDMDeclarationAssetItem
+	for _, asset := range assets {
+		if asset.Identifier == parts[2] {
+			foundAsset = &asset
+			break
+		}
+	}
+
+	if foundAsset == nil {
+		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, ctxerr.Errorf(ctx, "asset not found: %s", parts[2]))
+	}
+
+	var tempd map[string]any
+	if err := json.Unmarshal([]byte(*foundAsset.RawJSON), &tempd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored asset")
+	}
+	tempd["ServerToken"] = foundAsset.ServerToken
+
+	b, err := json.Marshal(tempd)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
+	}
+	return b, nil
 }
 
 func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {

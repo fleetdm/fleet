@@ -863,6 +863,8 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
 
+	Scope PayloadScope `db:"scope" json:"scope"`
+
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
@@ -879,6 +881,19 @@ type MDMAppleDeclaration struct {
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+}
+
+type MDMAppleDeclarationAsset struct {
+	AssetUUID string `db:"asset_uuid" json:"asset_uuid"`
+
+	Identifier string          `db:"identifier" json:"identifier"`
+	Name       string          `db:"name" json:"name"`
+	RawJSON    json.RawMessage `db:"raw_json" json:"-"`
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token      string    `db:"token" json:"-"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
 }
 
 // EffectiveDDMToken computes the per-declaration token that incorporates both
@@ -905,18 +920,7 @@ type MDMAppleRawDeclaration struct {
 // ForbiddenDeclTypes is a set of declaration types that are not allowed to be
 // added by users into Fleet.
 var ForbiddenDeclTypes = map[string]struct{}{
-	"com.apple.configuration.account.caldav":               {},
-	"com.apple.configuration.account.carddav":              {},
-	"com.apple.configuration.account.exchange":             {},
-	"com.apple.configuration.account.google":               {},
-	"com.apple.configuration.account.ldap":                 {},
-	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.screensharing.connection":     {},
-	"com.apple.configuration.security.certificate":         {},
-	"com.apple.configuration.security.identity":            {},
-	"com.apple.configuration.security.passkey.attestation": {},
-	"com.apple.configuration.services.configuration-files": {},
-	"com.apple.configuration.watch.enrollment":             {},
+	"com.apple.configuration.watch.enrollment": {},
 }
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
@@ -930,8 +934,13 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 	}
 
-	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) are supported.")
+	// TODO: Are we missing a block here for software management?
+	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include software management types. To manage software, please use the Software tab.")
+	}
+
+	if !strings.HasPrefix(r.Type, "com.apple.configuration.") && !strings.HasPrefix(r.Type, "com.apple.asset.") {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) and asset declarations (com.apple.asset.) are supported.")
 	}
 
 	return err
@@ -1001,13 +1010,14 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		varsEqual
 }
 
-func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
+func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string, scope PayloadScope) *MDMAppleDeclaration {
 	var decl MDMAppleDeclaration
 
 	decl.Identifier = ident
 	decl.Name = name
 	decl.RawJSON = raw
 	decl.TeamID = teamID
+	decl.Scope = scope
 
 	return &decl
 }
@@ -1074,6 +1084,16 @@ type MDMAppleDDMDeclarationItem struct {
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
 	// extra query.
+	RawJSON *json.RawMessage `db:"raw_json"`
+}
+
+type MDMAppleDDMDeclarationAssetItem struct {
+	AssetUUID   string    `db:"asset_uuid"`
+	Identifier  string    `db:"identifier"`
+	ServerToken string    `db:"token"`
+	UploadedAt  time.Time `db:"uploaded_at"`
+
+	// This is the unencrypted content
 	RawJSON *json.RawMessage `db:"raw_json"`
 }
 
