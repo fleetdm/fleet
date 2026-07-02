@@ -1234,7 +1234,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
 	SELECT
 		host_id,
-		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
+		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s) ORDER BY email, source), ']') AS device_mapping
 	FROM
 		host_emails
 	GROUP BY

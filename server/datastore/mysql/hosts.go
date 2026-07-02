@@ -1167,7 +1167,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		// idx_host_emails_host_id_email.
 		sql += fmt.Sprintf(`,
     COALESCE((
-        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s)), ']')
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s) ORDER BY he.email, he.source), ']')
         FROM host_emails he
         WHERE he.host_id = h.id
     ), 'null') as device_mapping

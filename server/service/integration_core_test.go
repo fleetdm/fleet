@@ -6149,12 +6149,13 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 		),
 	)
 
-	// Add device mapping
+	// Add device mapping, inserted out of order to verify the response is
+	// sorted by email
 	require.NoError(
 		t, s.ds.ReplaceHostDeviceMapping(
 			context.Background(), host.ID, []*fleet.HostDeviceMapping{
-				{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
 				{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
 			}, fleet.DeviceMappingGoogleChromeProfiles,
 		),
 	)
@@ -10542,10 +10543,11 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
-	// create some device mappings for host[2]
+	// create some device mappings for host[2], inserted out of order to verify
+	// the response is sorted by email
 	err = s.ds.ReplaceHostDeviceMapping(ctx, hosts[2].ID, []*fleet.HostDeviceMapping{
-		{HostID: hosts[2].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
 		{HostID: hosts[2].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[2].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
 	}, "google_chrome_profiles")
 	require.NoError(t, err)
 
