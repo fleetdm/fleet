@@ -1,6 +1,6 @@
 # Take control of Apple beta programs with declarative device management
 
-*Blocking betas used to be all-or-nothing. With declarative device management, you decide which devices see which beta programs — here's how to get the enrollment tokens that make it work.*
+*Blocking betas used to be all-or-nothing. With declarative device management, you decide which devices see which beta programs. Here's how to get the enrollment tokens that make it work.*
 
 'Tis the season for Apple beta programs. As Apple pushes out the next wave of software across its device ecosystem, admins can get ahead of the sprawl of OSes that might land on a fleet, intentionally or not.
 
