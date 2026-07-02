@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260623140135, Down_20260623140135)
+	MigrationClient.AddMigration(Up_20260702013101, Down_20260702013101)
 }
 
-func Up_20260623140135(tx *sql.Tx) error {
+func Up_20260702013101(tx *sql.Tx) error {
 	// Add the new "🛟 Support" default self-service software category so it
 	// matches fleet.DefaultSelfServiceCategoryNames, which is used when seeding
 	// categories for newly created fleets.
@@ -37,6 +37,6 @@ SELECT '🛟 Support', t.id FROM teams t
 	return nil
 }
 
-func Down_20260623140135(tx *sql.Tx) error {
+func Down_20260702013101(tx *sql.Tx) error {
 	return nil
 }

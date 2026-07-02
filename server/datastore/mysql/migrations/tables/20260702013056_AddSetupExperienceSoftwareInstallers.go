@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260615135619, Down_20260615135619)
+	MigrationClient.AddMigration(Up_20260702013056, Down_20260702013056)
 }
 
-func Up_20260615135619(tx *sql.Tx) error {
+func Up_20260702013056(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE setup_experience_software_installers (
   software_installer_id INT UNSIGNED NOT NULL,
@@ -28,6 +28,6 @@ CREATE TABLE setup_experience_software_installers (
 	return nil
 }
 
-func Down_20260615135619(tx *sql.Tx) error {
+func Down_20260702013056(tx *sql.Tx) error {
 	return nil
 }
