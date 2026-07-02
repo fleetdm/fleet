@@ -70,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -604,6 +605,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -884,6 +886,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			commander,
 			appCfg.ServerSettings.ServerURL,
 			config,
+			svc,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}

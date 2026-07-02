@@ -25,6 +25,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1120,6 +1121,10 @@ func TestMDMConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				MacOSSetup: fleet.MacOSSetup{
 					BootstrapPackage:            optjson.String{Set: true},
@@ -1175,6 +1180,10 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
 				MacOSSetup: fleet.MacOSSetup{
@@ -1213,6 +1222,10 @@ func TestMDMConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
 				MacOSSetup: fleet.MacOSSetup{
@@ -1258,6 +1271,10 @@ func TestMDMConfig(t *testing.T) {
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup: fleet.MacOSSetup{
@@ -1299,6 +1316,10 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
@@ -1344,6 +1365,10 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "f",
@@ -1418,6 +1443,10 @@ func TestMDMConfig(t *testing.T) {
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
 			expectedMDM: fleet.MDM{
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
 				MacOSSetup: fleet.MacOSSetup{
@@ -1729,6 +1758,266 @@ func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, want, saved.MDM.WindowsEntraClientIDs.Value)
 	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
+}
+
+func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	const (
+		tokenURL  = "https://idp.example.com/oauth2/v1/token"   //nolint:gosec // G101: test URL, not a credential
+		tokenURL2 = "https://other.example.com/oauth2/v1/token" //nolint:gosec // G101: test URL, not a credential
+		clientID  = "client-id"
+		secret    = "super-secret" //nolint:gosec // G101: test value, not a real credential
+	)
+
+	// configuredAAP returns a stored AppConfig section as it looks once the
+	// feature is configured: public fields present, secret stripped (it lives in
+	// mdm_config_assets, never in the JSON).
+	configuredAAP := func() fleet.AppleAccountProvisioning {
+		return fleet.AppleAccountProvisioning{
+			OAuthIdPTokenURL: optjson.SetString(tokenURL),
+			OAuthIdPClientID: optjson.SetString(clientID),
+		}
+	}
+
+	type asserts struct {
+		insertedSecret *string // non-nil => InsertOrReplace expected with this value
+		deleted        bool    // DeleteMDMConfigAssetsByName expected
+		wantErr        string  // non-empty => ModifyAppConfig should fail containing this
+		wantMasked     bool    // response secret should be the masked placeholder
+		wantActivity   bool    // edited_account_provisioning activity expected
+	}
+
+	type trackers struct {
+		insertedSecret *string
+		deleted        bool
+		saved          *fleet.AppConfig
+		activityFired  bool
+	}
+
+	setup := func(t *testing.T, tier string, stored fleet.AppleAccountProvisioning) (fleet.Service, context.Context, *mock.Store, *trackers) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		tr := &trackers{}
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            fleet.MDM{AppleAccountProvisioning: stored},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			// Snapshot at save time: the mock hands back the same pointer that
+			// ModifyAppConfig mutates (and later obfuscates) in place, unlike a
+			// real DB read which returns a fresh copy.
+			tr.saved = conf.Copy()
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+
+		// A configured feature implies a stored secret; report it as `secret` so
+		// resending that value is detected as unchanged.
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			if !stored.Configured() {
+				return nil, newNotFoundError()
+			}
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetAppleAccountProvisioningIdPClientSecret: {Name: fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, Value: []byte(secret)},
+			}, nil
+		}
+		ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+			require.Equal(t, fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, asset.Name)
+			v := string(asset.Value)
+			tr.insertedSecret = &v
+			return nil
+		}
+		// Configuring the feature triggers bootstrapPSSOAssets, which mints and
+		// inserts the PSSO signing key + CA. The secret assertions don't touch
+		// these, so a no-op stub is enough to keep the bootstrap from panicking.
+		ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, _ []fleet.MDMConfigAsset, _ sqlx.ExtContext) error {
+			return nil
+		}
+		ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName) error {
+			require.Equal(t, []fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, names)
+			tr.deleted = true
+			return nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if _, ok := act.(fleet.ActivityTypeEditedAccountProvisioning); ok {
+				tr.activityFired = true
+			}
+			return nil
+		}
+		return svc, ctx, ds, tr
+	}
+
+	cases := []struct {
+		name      string
+		tier      string
+		stored    fleet.AppleAccountProvisioning
+		body      string
+		overwrite bool // GitOps (overwrite) mode rather than a PATCH
+		want      asserts
+	}{
+		{
+			name: "configure stores secret and masks response",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want: asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+		},
+		{
+			name: "free tier rejected",
+			tier: fleet.TierFree,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want: asserts{wantErr: ErrMissingLicense.Error()},
+		},
+		{
+			name: "invalid token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"not-a-url","oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, clientID, secret),
+			want: asserts{wantErr: "must be a valid https URL"},
+		},
+		{
+			name: "http token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"http://idp.example.com/oauth2/v1/token","oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, clientID, secret),
+			want: asserts{wantErr: "must be a valid https URL"},
+		},
+		{
+			name:   "changing token url without new secret rejected",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, fleet.MaskedPassword),
+			want:   asserts{wantErr: "must be provided when changing oauth_idp_token_url"},
+		},
+		{
+			name:   "changing token url with new secret replaces",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, "rotated-secret"),
+			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true},
+		},
+		{
+			name:   "masked secret preserved on unrelated change",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"new-client-id","oauth_idp_client_secret":%q}}}`, tokenURL, fleet.MaskedPassword),
+			want:   asserts{wantMasked: true, wantActivity: true}, // client_id changed; secret preserved (neither insert nor delete)
+		},
+		{
+			name:   "clearing config soft-deletes secret",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   `{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`,
+			want:   asserts{deleted: true, wantActivity: true},
+		},
+		{
+			name: "public fields without secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, tokenURL, clientID),
+			want: asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name: "only token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`, tokenURL),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only client id rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, clientID),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":%q}}}`, secret),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name:      "gitops with all fields stores secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:      asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+		},
+		{
+			name:      "gitops public fields without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			// GitOps is declarative: an already-stored secret does NOT satisfy the
+			// requirement; the secret must be present in the config itself.
+			name:      "gitops reapply without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name:      "gitops omitting section clears secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      `{"mdm":{}}`,
+			want:      asserts{deleted: true, wantActivity: true},
+		},
+		{
+			// No actual change: same public fields and same secret value. The
+			// stored secret is left untouched and no activity is emitted.
+			name:   "reapply identical config emits no activity",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:   asserts{wantMasked: true}, // no insert, no delete, no activity
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, ctx, ds, tr := setup(t, tc.tier, tc.stored)
+
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{Overwrite: tc.overwrite})
+			if tc.want.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.want.wantErr)
+				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
+				require.False(t, ds.DeleteMDMConfigAssetsByNameFuncInvoked)
+				require.False(t, tr.activityFired)
+				return
+			}
+			require.NoError(t, err)
+
+			if tc.want.insertedSecret != nil {
+				require.NotNil(t, tr.insertedSecret)
+				require.Equal(t, *tc.want.insertedSecret, *tr.insertedSecret)
+			} else {
+				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
+			}
+			require.Equal(t, tc.want.deleted, tr.deleted)
+
+			// The secret must never be persisted in the AppConfig JSON.
+			require.True(t, ds.SaveAppConfigFuncInvoked)
+			require.Empty(t, tr.saved.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+
+			if tc.want.wantMasked {
+				require.Equal(t, fleet.MaskedPassword, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+			}
+
+			require.Equal(t, tc.want.wantActivity, tr.activityFired)
+		})
+	}
 }
 
 // TestValidateMDMEndUserAuthScope exercises the GitOps (overwrite) MDM

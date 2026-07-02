@@ -2222,6 +2222,13 @@ func (c *Client) DoGitOps(
 		if enable, ok := macOSMigration["enable"]; !ok || enable == nil {
 			macOSMigration["enable"] = false
 		}
+		// Put in default value for apple_account_provisioning to clear the
+		// configuration if it's not set in the gitops config.
+		if incoming.Controls.AppleAccountProvisioning != nil {
+			mdmAppConfig["apple_account_provisioning"] = incoming.Controls.AppleAccountProvisioning
+		} else {
+			mdmAppConfig["apple_account_provisioning"] = map[string]any{}
+		}
 		// Put in default values for windows_enabled_and_configured
 		mdmAppConfig["windows_enabled_and_configured"] = incoming.Controls.WindowsEnabledAndConfigured
 		if incoming.Controls.WindowsEnabledAndConfigured != nil {

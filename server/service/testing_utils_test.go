@@ -295,6 +295,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
+			nil, // PSSO nonce store; integration tests don't exercise PSSO
 		)
 		if err != nil {
 			panic(err)
@@ -524,6 +525,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				commander,
 				"https://test-url.com",
 				cfg,
+				svc,
 			)
 			require.NoError(t, err)
 		}

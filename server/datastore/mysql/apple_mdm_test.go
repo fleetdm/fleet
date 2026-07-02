@@ -5603,11 +5603,18 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		_, err = ds.writer(ctx).ExecContext(ctx,
 			`INSERT INTO script_upcoming_activities (upcoming_activity_id) VALUES (?)`, uaID)
 		require.NoError(t, err)
+
+		// PSSO registration (host_uuid ref - device row plus a cascading key)
+		require.NoError(t, ds.SetOrUpdatePSSODevice(ctx, h.UUID, []fleet.PSSOKey{
+			{KID: "kid-" + h.UUID, KeyType: fleet.PSSOKeyTypeSigning, PEM: "pem-" + h.UUID},
+		}))
 	}
 
 	type counts struct {
-		label    int
-		upcoming int
+		label      int
+		upcoming   int
+		pssoDevice int
+		pssoKey    int
 	}
 	countRows := func(t *testing.T, h *fleet.Host) counts {
 		var c counts
@@ -5615,9 +5622,13 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM label_membership WHERE host_id = ?`, h.ID))
 		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.upcoming,
 			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pssoDevice,
+			`SELECT COUNT(*) FROM mdm_apple_psso_devices WHERE host_uuid = ?`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pssoKey,
+			`SELECT COUNT(*) FROM mdm_apple_psso_keys WHERE host_uuid = ?`, h.UUID))
 		return c
 	}
-	seeded := counts{label: 1, upcoming: 1}
+	seeded := counts{label: 1, upcoming: 1, pssoDevice: 1, pssoKey: 1}
 
 	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
 		hostA := newHost("clear-A")
@@ -5632,7 +5643,7 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
 
 		// host A: everything cleared
-		assert.Equal(t, counts{label: 0, upcoming: 0}, countRows(t, hostA))
+		assert.Equal(t, counts{}, countRows(t, hostA))
 
 		// host B: untouched (control - proves the reset is host-scoped)
 		assert.Equal(t, seeded, countRows(t, hostB))

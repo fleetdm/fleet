@@ -218,6 +218,10 @@ github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleAccountProvisioning	fleet.AppleAccountProvisioning
+github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPTokenURL	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientID	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientSecret	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	GitOpsConfig	fleet.GitOpsConfig
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	RepositoryURL	string

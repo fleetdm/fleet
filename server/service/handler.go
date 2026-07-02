@@ -1091,6 +1091,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollTokenPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
 	// Deprecated: Non unique token enrollment is deprecated in favour of AccountDrivenEnrollTokenPath. This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
+
+	// Apple Platform SSO (PSSO) endpoints, used by Fleet's Platform SSO
+	// extension. Unauthenticated at the HTTP layer: the token endpoint
+	// authenticates protocol-level via JWTs signed with registered device
+	// keys, and all endpoints are gated in the service layer on the feature
+	// being configured. Request bodies are capped at the endpointer's default
+	// size limit. The related /.well-known/apple-app-site-association document
+	// is served from the root mux (see registerPSSO).
+	ne.POST(pssoNoncePath, pssoNonceEndpoint, pssoNonceRequest{})
+	ne.POST(pssoRegistrationPath, pssoRegistrationEndpoint, pssoRegistrationRequest{})
+	ne.POST(pssoTokenPath, pssoTokenEndpoint, pssoTokenRequest{})
+	ne.GET(pssoJWKSPath, pssoJWKSEndpoint, pssoJWKSRequest{})
 	// This is for OAUTH2 token based auth
 	// ne.POST(apple_mdm.EnrollPath+"/token", mdmAppleAccountEnrollTokenEndpoint, mdmAppleAccountEnrollTokenRequest{})
 
@@ -1325,6 +1337,7 @@ func RegisterAppleMDMProtocolServices(
 	profileService nanomdm_service.ProfileService,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	svc fleet.Service,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
@@ -1334,6 +1347,9 @@ func RegisterAppleMDMProtocolServices(
 	}
 	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
+	}
+	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
+		return fmt.Errorf("psso: %w", err)
 	}
 	return nil
 }
@@ -1367,6 +1383,22 @@ func registerMDMServiceDiscovery(
 	})
 	mux.Handle(apple_mdm.ServiceDiscoveryTokenPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryTokenPath, fleetConfig))
 	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
+	return nil
+}
+
+func registerPSSO(
+	mux *http.ServeMux,
+	svc fleet.Service,
+	logger *slog.Logger,
+	fleetConfig config.FleetConfig,
+) error {
+	// Only the apple-app-site-association document is served from the root
+	// *http.ServeMux: Apple's CDN fetches it at a spec-defined /.well-known
+	// path that can't live under /api. The rest of the PSSO endpoints are
+	// registered on the unauthenticated endpointer in attachFleetAPIRoutes.
+	pssoLogger := logger.With("component", "mdm-apple-psso")
+	handler := pssoAASAHandler(svc, pssoLogger)
+	mux.Handle(pssoAASAPath, otel.WrapHandler(handler, pssoAASAPath, fleetConfig))
 	return nil
 }
 
