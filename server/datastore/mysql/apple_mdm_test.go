@@ -10910,6 +10910,20 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, slices.Contains(hosts, hostVerified.UUID), "verified host should NOT be eligible")
 
+	// Create BYOD (personally-owned) enrolled host. Personal enrollments have the
+	// DeviceLock/DeviceErase rights stripped, so SetRecoveryLock would fail on them.
+	teamPersonal := createTeamWithRecoveryLock("team-personal", true)
+	hostPersonal := test.NewHost(t, ds, "personal-host", "1.2.5.11", "perskey", "persuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamPersonal.ID))
+	setHostCPUType(hostPersonal.ID, "arm64e")
+	nanoEnroll(t, ds, hostPersonal, false)
+	err = ds.SetOrUpdateMDMData(ctx, hostPersonal.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true)
+	require.NoError(t, err)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostPersonal.UUID), "personally-owned (BYOD) host should NOT be eligible")
+
 	// Test no-team host with app config recovery lock enabled
 	setAppConfigRecoveryLock(true)
 	hostNoTeam := test.NewHost(t, ds, "no-team-host", "1.2.5.9", "ntkey", "ntuuid", time.Now(),
@@ -11165,6 +11179,34 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
+	})
+
+	t.Run("does not claim personally-owned (BYOD) host", func(t *testing.T) {
+		// Personal enrollments have DeviceLock/DeviceErase rights stripped, so
+		// recovery lock commands (including clear) are rejected by the device.
+		team := createTeamWithRecoveryLock(t, "personal-clear-team", true)
+		host := test.NewHost(t, ds, "personal-clear-host", "1.2.6.8", "perscleerkey", "perscleeruuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		setHostCPUType(t, host.ID, "arm64")
+		nanoEnroll(t, ds, host, false)
+		err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true)
+		require.NoError(t, err)
+
+		// Give it a verified password record that would otherwise be claimed for clear.
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Disable recovery lock for team to trigger clear.
+		team.Config.MDM.EnableRecoveryLockPassword = false
+		_, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		uuids, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+		require.NoError(t, err)
+		assert.NotContains(t, uuids, host.UUID, "personally-owned (BYOD) host should NOT be claimed for clear")
 	})
 
 	t.Run("clears stale auto_rotate_at when flipping to remove", func(t *testing.T) {
