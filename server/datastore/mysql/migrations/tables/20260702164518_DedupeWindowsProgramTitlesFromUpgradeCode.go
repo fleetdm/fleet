@@ -58,18 +58,19 @@ func Up_20260702164518(tx *sql.Tx) error {
 		return fmt.Errorf("selecting duplicate Windows program titles: %w", err)
 	}
 
-	// Re-point everything that references the drop title over to the keep title. The plain UPDATEs
-	// have no unique key on the title column. policies (patch) and software_update_schedules cascade
-	// on title delete, so they must move before the delete below. The UPDATE IGNOREs have a unique
-	// key on (team, title) where a drop row can collide with an existing keep row; move what fits
-	// and let the drop-title delete cascade away any leftovers.
+	// Re-point everything that references the drop title over to the keep title. software,
+	// software_installers (the team guard above rules out a collision), host_software_installs, and
+	// upcoming activities can't collide on the title column, so a plain UPDATE is safe. policies,
+	// software_update_schedules, and the display-name/icon/pin tables have a unique key a drop row
+	// could hit on an existing keep row, so they use UPDATE IGNORE and rely on the drop-title delete
+	// (all ON DELETE CASCADE) to clean up any leftover.
 	repoint := []string{
 		`UPDATE software SET title_id = ? WHERE title_id = ?`,
 		`UPDATE software_installers SET title_id = ? WHERE title_id = ?`,
 		`UPDATE host_software_installs SET software_title_id = ? WHERE software_title_id = ?`,
 		`UPDATE software_install_upcoming_activities SET software_title_id = ? WHERE software_title_id = ?`,
-		`UPDATE policies SET patch_software_title_id = ? WHERE patch_software_title_id = ?`,
-		`UPDATE software_update_schedules SET title_id = ? WHERE title_id = ?`,
+		`UPDATE IGNORE policies SET patch_software_title_id = ? WHERE patch_software_title_id = ?`,
+		`UPDATE IGNORE software_update_schedules SET title_id = ? WHERE title_id = ?`,
 		`UPDATE IGNORE software_title_display_names SET software_title_id = ? WHERE software_title_id = ?`,
 		`UPDATE IGNORE software_title_icons SET software_title_id = ? WHERE software_title_id = ?`,
 		`UPDATE IGNORE software_title_team_pins SET title_id = ? WHERE title_id = ?`,
