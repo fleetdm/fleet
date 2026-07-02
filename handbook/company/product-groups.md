@@ -62,7 +62,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 - Setup experience
 - OS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
 
 
 ### Software group
@@ -86,7 +86,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 - Scripts
 - End user self-service
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this product group is `#g-software`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
 
 
 ### Orchestration group
@@ -292,14 +292,15 @@ At the end of every three-week release cycle, the working group holds a 30-minut
 
 ### Working group rollout
 
-The transition to working groups happens over the next three release cycles, following a buffer cycle in 4.87.0 to give everyone time to absorb the handbook change before any team changes:
+The transition to working groups happens over the following release cycles, following a buffer cycle in 4.87.0 to give everyone time to absorb the handbook change before any team changes:
 
 | Release | Change |
 |:---|:---|
 | 4.87.0 | Handbook change published. No team changes this cycle (buffer/ramp-up). |
-| 4.88.0 | First Impressions pauses. Scott Gress joins Konstantin Sykulev on Power to the PC. |
-| 4.89.0 | Konstantin spins out to lead BYOD with Andrew Mellor. MDM becomes Apple @ Work. Software becomes Auto Patching. |
-| 4.90.0 | Orchestration product group becomes Digital Employee Experience (DEX). Security & Compliance product group becomes Supply Chain. Both become working groups. |
+| 4.89.0 | First Impressions pauses. Power to the PC continues with Konstantin Sykulev and Victor Lyuboslavsky, and continues to own Android. |
+| 4.90.0 | MDM becomes Apple @ Work. Software becomes Auto Patching. |
+| 4.91.0 | Orchestration product group becomes Digital Employee Experience (DEX). Security & Compliance product group becomes Supply Chain. Both become working groups. |
+| TBD | BYOD group spins out from Power to the PC to lead Android device management. |
 
 > When an engineer moves into a new area of the code, allocate one release cycle for ramp-up. Reduced output during that cycle is expected and planned for.
 
@@ -319,7 +320,7 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 
 
 <!--
-Paused as of the 4.88.0 release cycle.
+Paused as of the 4.89.0 release cycle.
 
 ### First Impressions group
 
@@ -330,7 +331,7 @@ The goal of the First Impressions working group is to make changes to the core F
 | Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this working group is `#g-first-impressions`.
 -->
@@ -339,11 +340,11 @@ The goal of the First Impressions working group is to make changes to the core F
 
 ### Power to the PC group
 
-The goal of the Power to the PC working group is to empower Windows users to fully leverage Fleet as an MDM.
+The goal of the Power to the PC working group is to empower Windows users to fully leverage Fleet as an MDM. This group also owns Android device management for the time being, until the BYOD group spins out.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_, [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_ (Windows), [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ (Android)
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
@@ -353,7 +354,7 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 
 
 <!--
-Planned for the 4.89.0 release cycle. See the working group rollout above.
+Planned for the 4.90.0 release cycle. See the working group rollout above.
 
 ### Apple @ Work group
 
@@ -365,7 +366,7 @@ The goal of the Apple @ Work working group is to increase the number of Apple de
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 | Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
-| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_, Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
 
 **Areas of expertise**:
 - Apple MDM protocol & configuration
@@ -374,7 +375,7 @@ The goal of the Apple @ Work working group is to increase the number of Apple de
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this working group is `#g-mdm`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this working group is `#g-apple-at-work`.
 
 
 ### Auto Patching group
@@ -398,8 +399,12 @@ The goal of the Auto Patching working group is to reduce the amount of time befo
 - End user self-service
 - Scripts
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this working group is `#g-software`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this working group is `#g-auto-patching`.
+-->
 
+
+<!--
+Spin-out date TBD. The BYOD group will spin out from Power to the PC, which owns Android device management in the meantime. See the working group rollout above.
 
 ### BYOD group
 
@@ -418,7 +423,7 @@ The goal of the BYOD working group is to enable Fleet to manage personally-owned
 
 
 <!--
-Planned for the 4.90.0 release cycle. See the working group rollout above. Inherits from the Orchestration product group.
+Planned for the 4.91.0 release cycle. See the working group rollout above. Inherits from the Orchestration product group.
 
 ### Digital Employee Experience (DEX) group
 
@@ -503,7 +508,7 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-apple-at-work`, `#g-orchestration`, `#g-auto-patching`, `#g-security-compliance`), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
 
 When an [open source contributor](https://fleetdm.com/handbook/company#open-source) proposes a change in the form of a pull request (PR), the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
@@ -524,7 +529,7 @@ When a new feature is introduced it may be labeled as experimental. Experimental
 2. Set the optional `isExperimental` property to "yes" in [pricing-features-table.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/pricing-features-table.yml).
 3. Make sure all API endpoints and configuration surface documentation contains the following message (including the anticipated version it will be marked stable):
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows. This feature's experimental status will be reevaluated in Fleet 4.89.0.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows. This feature's experimental status will be reevaluated in Fleet 4.90.0.
 
 
 ### Breaking changes
@@ -576,7 +581,7 @@ The DRI for defining and drafting issues for a product group is the product mana
 
 A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`)
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-apple-at-work`, `#g-orchestration`, `#g-auto-patching`, `#g-security-compliance`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and settled](#design-reviews)
 - [ ] Reviewed and approved during [weekly user story review](#user-story-reviews)
@@ -798,7 +803,7 @@ All unreleased bugs are addressed before publishing a release. Released bugs tha
 
 ### Notify the community about a critical bug
 
-We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-mdm`, `#g-software`, `#g-orchestration`, or `#g-security-compliance` channel with the filed bug.
+We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-apple-at-work`, `#g-auto-patching`, `#g-orchestration`, or `#g-security-compliance` channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
@@ -858,7 +863,7 @@ At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs 
 
 If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
-> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the `#g-mdm`, `#g-software`, `#g-orchestration`, or `#g-security-compliance` channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
+> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the `#g-apple-at-work`, `#g-auto-patching`, `#g-orchestration`, or `#g-security-compliance` channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
 
 
 ### After the feature is accepted
@@ -911,7 +916,7 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
-> Working groups use the bug triage process below. For product groups (#g-mdm, #g-software, #g-orchestration, and #g-security-compliance) Product Designers are responsible for triaging bugs [as they do today](https://github.com/fleetdm/fleet/blob/dbe9a3434217f2dc934c9af9778541aea60f4fc9/handbook/company/product-groups.md#inbox). Learn more about the [working group rollout](https://fleetdm.com/handbook/company/product-groups#working-group-rollout).
+> Working groups use the bug triage process below. For product groups (#g-apple-at-work, #g-auto-patching, #g-orchestration, and #g-security-compliance) Product Designers are responsible for triaging bugs [as they do today](https://github.com/fleetdm/fleet/blob/dbe9a3434217f2dc934c9af9778541aea60f4fc9/handbook/company/product-groups.md#inbox). Learn more about the [working group rollout](https://fleetdm.com/handbook/company/product-groups#working-group-rollout).
 
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
@@ -1336,7 +1341,7 @@ See the [rituals contributor docs](https://github.com/fleetdm/fleet/tree/main/do
 
 Each release cycle is marked by five essential ceremonies:
 
-1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
+1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-apple-at-work`, `#g-orchestration`, `#g-auto-patching`, `#g-security-compliance`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
 2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Scrum of scrums**: Each product group's Tech Lead, and optionally the EMs, meet once per sprint. This is a coordination technique used to scale scrum for multiple teams working on a large, complex product by having representatives from each team meet regularly to share progress, discuss dependencies, and solve inter-team issues. 

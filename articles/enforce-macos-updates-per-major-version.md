@@ -6,8 +6,8 @@ This guide shows how to work around that limitation using custom Apple DDM decla
 
 ## Prerequisites
 
-- Fleet v4.88 or earlier: enable the `mdm.allow_all_declarations` feature flag on your Fleet server before following these steps. Set the environment variable `FLEET_MDM_ALLOW_ALL_DECLARATIONS=1` and restart your Fleet server. See [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) for details.
-- Fleet v4.89 or later: this flag is enabled by default. No action needed.
+- Fleet v4.86 or earlier: enable the `mdm.allow_all_declarations` feature flag on your Fleet server before following these steps. Set the environment variable `FLEET_MDM_ALLOW_ALL_DECLARATIONS=1` and restart your Fleet server. See [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) for details.
+- Fleet v4.87 or later: this flag is enabled by default. No action needed.
 - macOS 14 or later on managed devices (required by Apple for `softwareupdate.enforcement.specific` declarations).
 - Fleet Premium (required for label-scoped profiles).
 
@@ -15,7 +15,7 @@ This guide shows how to work around that limitation using custom Apple DDM decla
 
 ## How it works
 
-You'll create one DDM declaration per supported major OS version, each targeting a specific minimum patch version. Then you'll scope each declaration to a label that identifies devices running that major OS. Fleet delivers the right declaration to the right device automatically.
+You'll create one DDM declaration per supported major OS version, each targeting a specific minimum patch version. Then you'll scope each declaration to a label that identifies devices running that major OS.
 
 ## Step 1: Create labels for each major OS version
 
@@ -40,6 +40,14 @@ SELECT 1 FROM os_version WHERE major = 26;
 ```
 
 Repeat for any other major versions you need to cover.
+
+> **Note:** If you deploy a profile that targets a version that a device is already at or above, then the profile will fail to apply to the device. The error will look similar to this:
+> 
+> ```
+> Error.ConfigurationCannotBeApplied: Configuration cannot be applied map[Error:[kSUCoreErrorDDMInvalidDeclarationFailure] Invalid declaration: target OS version (15.7) is older than current version (15.7.7)]
+> ```
+> 
+> This means that the device is already compliant and no update is needed, but Fleet will show the profile status as "Failed".
 
 ## Step 2: Create a DDM declaration for each major OS version
 

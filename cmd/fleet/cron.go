@@ -1315,7 +1315,10 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"carves",
 			func(ctx context.Context) error {
-				_, err := carveStore.CleanupCarves(ctx, time.Now())
+				expired, err := carveStore.CleanupCarves(ctx, time.Now())
+				if expired > 0 {
+					logger.InfoContext(ctx, "expired carves", "count", expired)
+				}
 				return err
 			},
 		),
@@ -2257,6 +2260,33 @@ func newMaintainedAppSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMaintainedAppsAutoUpdateSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedAppsAutoUpdate)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
+			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
 		}),
 	)
 

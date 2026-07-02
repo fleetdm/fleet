@@ -485,7 +485,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             hosts: enrolled_automated_hosts_count,
           },
           {
-            status: "On (personal)",
+            status: "On (manual - personal)",
             hosts: enrolled_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
@@ -940,6 +940,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}
+              filterDefaults={
+                featuresConfig?.vulnerability_exposure_historical_reporting
+              }
             />
           </Card>
         </div>

@@ -50,10 +50,9 @@ const createPackageYaml = ({
 
   const hyphenatedSWTitle = hyphenateString(softwareTitle);
 
-  // Script packages (.sh and .ps1) should not expose install_script,
-  // post_install_script, uninstall_script, or pre_install_query fields.
-  // The file contents themselves become the install script.
-  if (!isScriptPackage && preInstallQuery) {
+  // Script packages don't emit install_script (the file is the install script);
+  // they do support pre_install_query, post_install_script, and uninstall_script.
+  if (preInstallQuery) {
     yaml += `  pre_install_query:
     path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
 `;
@@ -65,13 +64,13 @@ const createPackageYaml = ({
 `;
   }
 
-  if (!isScriptPackage && postInstallScript) {
+  if (postInstallScript) {
     yaml += `  post_install_script:
     path: ../scripts/post-install-${hyphenatedSWTitle}.sh
 `;
   }
 
-  if (!isScriptPackage && uninstallScript) {
+  if (uninstallScript) {
     yaml += `  uninstall_script:
     path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
 `;

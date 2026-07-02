@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.4.2",
+      "version": "3.5.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Bruno' AND publisher = 'Anoop M D';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bruno' AND publisher = 'Anoop M D' AND version_compare(version, '3.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bruno' AND publisher = 'Anoop M D' AND version_compare(version, '3.5.1') < 0);"
       },
-      "installer_url": "https://github.com/usebruno/bruno/releases/download/v3.4.2/bruno_3.4.2_x64_win.msi",
+      "installer_url": "https://github.com/usebruno/bruno/releases/download/v3.5.1/bruno_3.5.1_x64_win.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "bfadc5e4",
-      "sha256": "ea801ee2d79fd502815617f4283b9c5b52403cff3115a36915ac87d3f1bbdf65",
+      "sha256": "e38ff57fc95bfa773d9cbc12666353977f744c2fff20b7361f56d838b21609d3",
       "default_categories": [
         "Developer tools"
       ],
