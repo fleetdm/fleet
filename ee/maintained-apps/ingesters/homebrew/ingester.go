@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
@@ -30,9 +32,11 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 	}
 
 	i := &brewIngester{
-		baseURL: baseBrewAPIURL,
-		logger:  logger,
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL:          baseBrewAPIURL,
+		logger:           logger,
+		client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		retryInterval:    2 * time.Second,
+		retryMaxAttempts: 5,
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
@@ -93,7 +97,23 @@ type brewIngester struct {
 	baseURL string
 	logger  *slog.Logger
 	client  *http.Client
+
+	// retryInterval and retryMaxAttempts control retries of transient brew API
+	// failures (network errors and 5xx/429 responses). formulae.brew.sh is
+	// served by GitHub Pages, which intermittently returns 503s; without
+	// retries a single blip aborts the whole ingestion run. Defaults are set in
+	// IngestApps; tests override them to keep runs fast.
+	retryInterval    time.Duration
+	retryMaxAttempts int
 }
+
+// transientErr wraps a brew API failure that is worth retrying (a network error
+// or a 5xx/429 server response). Non-transient failures (404, other 4xx) are
+// returned unwrapped so the retry loop gives up immediately.
+type transientErr struct{ err error }
+
+func (e *transientErr) Error() string { return e.err.Error() }
+func (e *transientErr) Unwrap() error { return e.err }
 
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
 	cask, err := i.fetchCask(ctx, input)
@@ -240,38 +260,96 @@ func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask,
 
 	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return cask, ctxerr.Wrap(ctx, err, "create http request")
+	interval := i.retryInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	maxAttempts := i.retryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 5
 	}
 
-	res, err := i.client.Do(req)
-	if err != nil {
-		return cask, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
+	var body []byte
+	attempt := 0
+	err := retry.Do(func() error {
+		attempt++
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return cask, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return cask, ctxerr.New(ctx, "app not found in brew API")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create http request")
 		}
-		return cask, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
+
+		res, err := i.client.Do(req)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying so
+			// we don't sleep through the backoff after the run was canceled.
+			// Checking ctx.Err() (rather than the returned error) avoids
+			// misclassifying the client's own request timeout, which we do
+			// want to retry.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			// Network-level failures are transient; retry.
+			i.logger.WarnContext(ctx, "brew API request failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "execute http request")}
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			// A truncated/interrupted read is transient; retry.
+			i.logger.WarnContext(ctx, "reading brew API response failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "read http response body")}
+		}
+
+		switch res.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusNotFound:
+			return ctxerr.New(ctx, "app not found in brew API")
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			// formulae.brew.sh (GitHub Pages) intermittently returns these;
+			// retry before giving up.
+			i.logger.WarnContext(ctx, "brew API returned transient error, retrying", "token", input.Token, "attempt", attempt, "status", res.StatusCode)
+			return &transientErr{ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, truncateBody(body))}
+		default:
+			return ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, truncateBody(body))
+		}
+	},
+		retry.WithInterval(interval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(maxAttempts),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if _, ok := errors.AsType[*transientErr](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	)
+	if err != nil {
+		return cask, err
 	}
 
 	if err := json.Unmarshal(body, &cask); err != nil {
 		return cask, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
 	}
 	return cask, nil
+}
+
+// truncateBody limits an error-response body to a sane length for log/error output.
+func truncateBody(body []byte) string {
+	if len(body) > 512 {
+		body = body[:512]
+	}
+	return string(body)
 }
 
 type inputApp struct {
