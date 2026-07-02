@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260622124734, Down_20260622124734)
+	MigrationClient.AddMigration(Up_20260702013100, Down_20260702013100)
 }
 
-func Up_20260622124734(tx *sql.Tx) error {
+func Up_20260702013100(tx *sql.Tx) error {
 	// First we modify the abm_tokens table to add the column for BYOD default team id, and a unique token for ADUE enrollments
 	_, err := tx.Exec(`ALTER TABLE abm_tokens
     ADD COLUMN byod_default_team_id INT UNSIGNED NULL,
@@ -93,6 +93,6 @@ func Up_20260622124734(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260622124734(tx *sql.Tx) error {
+func Down_20260702013100(tx *sql.Tx) error {
 	return nil
 }
