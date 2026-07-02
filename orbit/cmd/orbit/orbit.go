@@ -88,6 +88,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		versionCommand,
 		shellCommand,
+		connectivityCommand,
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
