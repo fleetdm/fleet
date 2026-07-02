@@ -12,7 +12,7 @@ Before declarative device management (DDM), your options were blunt: deploy a co
 
 - **The declaration is the easy part.** The payload is a few lines of JSON. The part that trips people up is the beta program token it references.
 
-- **Tokens come from Apple Business Manager, and fetching them by hand is tedious.** The manual flow involves generating a key pair, uploading a certificate, downloading an encrypted `.p7m`, decrypting it, and signing an OAuth request.
+- **Tokens come from Apple Business, and fetching them by hand is tedious.** The manual flow involves generating a key pair, uploading a certificate, downloading an encrypted `.p7m`, decrypting it, and signing an OAuth request.
 
 - **A free script automates the whole token dance.** Microsoft and HCS Technology Group published a script that handles the authentication flow end to end and prints a token for every beta program your organization has accepted terms for.
 
@@ -48,7 +48,7 @@ This example allows enrollment and offers a single program. Swap `ProgramEnrollm
 
 ## Where did that token come from?
 
-Apple's beta programs require a token from Apple Business Manager (ABM) before a managed device can enroll. Getting that token by hand — generating a key pair, uploading a certificate, downloading the encrypted `.p7m`, decrypting it, then signing the OAuth request — is tedious, to say the least.
+Apple's beta programs require a token from Apple Business (AB) before a managed device can enroll. Getting that token by hand — generating a key pair, uploading a certificate, downloading the encrypted `.p7m`, decrypting it, then signing the OAuth request — is tedious, to say the least.
 
 Microsoft and the team at HCS Technology Group [published a technical article](https://hcsonline.com/support/resources/white-papers/deploy-apple-software-beta-updates-with-jamf-pro-blueprints-without-an-apple-account) showing how to obtain the tokens with a [handy script](https://github.com/microsoft/shell-intune-samples/blob/master/macOS/Tools/getBetaTokens/betaTokens.sh) that automates the whole authentication flow and prints the tokens in a readable table. The README covers the details, but in short, the script grabs the available tokens using a private key and self-signed certificate uploaded to your ABM instance.
 
@@ -124,4 +124,4 @@ The betas are coming either way. The difference DDM makes is whether they arrive
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-07-02">
-<meta name="description" value="Use DDM's software update settings to control Apple beta program enrollment, and automate fetching AppleSeed tokens from Apple Business Manager.">
+<meta name="description" value="Use DDM's software update settings to control Apple beta program enrollment, and automate fetching AppleSeed tokens from Apple Business.">
