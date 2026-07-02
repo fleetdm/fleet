@@ -764,11 +764,12 @@ func checkNVDVulnerabilities(
 	if !config.DisableDataSync {
 		syncCtx, syncSpan := tracer.Start(ctx, "vuln.nvd.sync")
 		opts := nvd.SyncOptions{
-			VulnPath:             config.DatabasesPath,
-			CPEDBURL:             config.CPEDatabaseURL,
-			CPETranslationsURL:   config.CPETranslationsURL,
-			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
-			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
+			VulnPath:               config.DatabasesPath,
+			CPEDBURL:               config.CPEDatabaseURL,
+			CPETranslationsURL:     config.CPETranslationsURL,
+			CVEFeedPrefixURL:       config.CVEFeedPrefixURL,
+			CVEResolvedVersionsURL: config.CVEResolvedVersionsURL,
+			CISAKnownExploitsURL:   config.CISAKnownExploitsURL,
 		}
 		err := nvd.Sync(syncCtx, opts, logger)
 		if err != nil {

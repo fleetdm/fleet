@@ -60,6 +60,46 @@ filter items
 
 
 
+# CVE resolved versions
+
+Some NVD records describe an affected version range using only `versionEndIncluding` (the last
+vulnerable version) and omit `versionEndExcluding` (the first fixed version). When that happens,
+Fleet cannot derive `resolved_in_version` from the feed, so the fixed version is reported as empty
+even when it is publicly known.
+
+To work around this, Fleet consults a resolved-versions override in
+[cve_resolved_versions.json](./cve_resolved_versions.json). Like CPE translations, it is released in
+[GitHub](https://github.com/fleetdm/nvd) and downloaded once a day, so entries can be added or
+removed without cutting a Fleet release. It is only used as a fallback: authoritative NVD
+`versionEndExcluding` data always takes precedence, and entries should be removed once NVD publishes
+the correct data.
+
+The file is a JSON array of overrides. Each override matches a single CVE against a `vendor` and
+`product` and supplies the upstream fix version:
+
+```json
+[
+  {
+    "cve": "CVE-2025-63389",
+    "vendor": "ollama",
+    "product": "ollama",
+    "resolved_in_version": "0.12.4"
+  }
+]
+```
+
+An override is applied only to hosts that are (a) already matched as affected by the CVE, (b) whose
+software `vendor`/`product` match the override, and (c) whose version is below `resolved_in_version`.
+
+## Testing CVE resolved versions (end-to-end)
+
+Follow the same steps as [Testing CPE Translations](#testing-cpe-translations-end-to-end), but host
+and point Fleet at `cve_resolved_versions.json` instead:
+
+```bash
+FLEET_VULNERABILITIES_CVE_RESOLVED_VERSIONS_URL="http://localhost:8082/cve_resolved_versions.json" ./build/fleet serve --dev --dev_license --logging_debug
+```
+
 ## Testing CPE Translations (end-to-end)
 
 1. make the [appropriate](../../../docs/Using%20Fleet/Vulnerability-Processing.md#Improving-accuracy) changes to cpe_translations

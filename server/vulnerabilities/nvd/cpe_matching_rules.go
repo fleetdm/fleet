@@ -5,47 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
-
-// resolvedVersionOverride supplies a known upstream fix version for a CVE whose NVD record only
-// provides a versionEndIncluding constraint (so the resolved version can't be derived from the
-// feed). Like GetKnownNVDBugRules, this works around bad/incomplete data in the NVD dataset, but
-// it is consulted only as a fallback - the live NVD feed always takes precedence (see
-// getMatchingVersionEndExcluding). See https://github.com/fleetdm/fleet/issues/44800.
-type resolvedVersionOverride struct {
-	vendor            string
-	product           string
-	resolvedInVersion string
-}
-
-// knownResolvedVersionOverrides maps a CVE to its known upstream fix version. Add an entry here
-// only when NVD reports the CVE without a versionEndExcluding (so resolved_in_version comes back
-// empty) but the fix version is known. Remove the entry once NVD publishes the correct data.
-var knownResolvedVersionOverrides = map[string]resolvedVersionOverride{
-	// CVE-2025-63389: NVD lists ollama as vulnerable through (and including) v0.12.3 via
-	// versionEndIncluding with no versionEndExcluding. The fix shipped in the next release, v0.12.4.
-	"CVE-2025-63389": {vendor: "ollama", product: "ollama", resolvedInVersion: "0.12.4"},
-}
-
-// findResolvedVersionOverride returns the known resolved version for the given CVE and host
-// software, if one is configured and applicable, or an empty string otherwise. The caller must
-// already have confirmed that the host is affected by the CVE; the version guard here only avoids
-// reporting a resolved version for a host that is already at or above the fix version.
-func findResolvedVersionOverride(cve string, hostSoftwareMeta *wfn.Attributes) string {
-	override, ok := knownResolvedVersionOverrides[cve]
-	if !ok || hostSoftwareMeta == nil {
-		return ""
-	}
-	if hostSoftwareMeta.Vendor != override.vendor || hostSoftwareMeta.Product != override.product {
-		return ""
-	}
-	if feednvd.SmartVerCmp(wfn.StripSlashes(hostSoftwareMeta.Version), override.resolvedInVersion) != -1 {
-		return ""
-	}
-	return override.resolvedInVersion
-}
 
 type CPEMatchingRules []CPEMatchingRule
 

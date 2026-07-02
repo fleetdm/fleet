@@ -1038,11 +1038,16 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 	ctx := context.Background()
 	// The version-end-including fixture holds a real CVE-2025-63389 record whose only version
 	// constraint is versionEndIncluding (no versionEndExcluding), so the feed yields no resolved
-	// version and the override in knownResolvedVersionOverrides is exercised. See #44800.
+	// version and the resolved-versions override is exercised. See #44800.
 	testDict := loadDict(t,
 		"../testdata/nvdcve-1.1-2022.json.gz",
 		"../testdata/nvdcve-1.1-version-end-including.json",
 	)
+
+	// Load the real resolved-versions feed seed shipped in the repo, so the override cases below
+	// exercise the same data Fleet uses in production.
+	resolvedVersions, err := loadCVEResolvedVersions("cve_resolved_versions.json")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -1131,8 +1136,8 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 		},
 		{
 			// The feed record for this CVE (see nvdcve-1.1-version-end-including.json) only provides
-			// versionEndIncluding, so the feed yields no resolved version and it comes from
-			// knownResolvedVersionOverrides instead. See #44800.
+			// versionEndIncluding, so the feed yields no resolved version and it comes from the
+			// resolved-versions feed instead. See #44800.
 			name: "versionEndIncluding-only CVE uses resolved version override",
 			cve:  "CVE-2025-63389",
 			meta: &wfn.Attributes{
@@ -1180,7 +1185,7 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict, nil)
+			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict, resolvedVersions, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getMatchingVersionEndExcluding() error = %v, wantErr %v", err, tt.wantErr)
 				return
