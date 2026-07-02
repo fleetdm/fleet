@@ -53,7 +53,8 @@
   resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: slack/darwin
-  install_software: false
+  install_software: true
+  continuous_automations_enabled: true
   labels_include_any:
     - Macs with Slack installed
 - name: macOS - Zoom up to date

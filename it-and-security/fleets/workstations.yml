@@ -358,9 +358,13 @@ software:
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-slack-running.yml      
       categories:
         - Communication
     - slug: zoom/darwin # Zoom for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-zoom-running.yml
       self_service: true
       setup_experience: true
       categories:
