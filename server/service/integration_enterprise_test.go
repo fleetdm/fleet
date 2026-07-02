@@ -14295,6 +14295,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
+	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
@@ -14349,6 +14350,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
+	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// create some labels A, B and C
