@@ -1,1 +1,2 @@
 - Fixed Windows Fleet-maintained apps installing a duplicate copy at a different scope (per-user vs. per-machine), which left a stale copy behind and kept the patch policy reporting the host as not patched.
+- Fixed Windows Fleet-maintained apps packaged as MSIX (Slack, Microsoft Teams, Arc, Claude, Affinity, Windows App) leaving a legacy Win32 copy behind: the install script now removes leftover exe/MSI copies at both scopes before provisioning the MSIX package.
