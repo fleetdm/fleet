@@ -54,7 +54,6 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 - `/api/mdm/microsoft/enroll`: Delivers WS-Trust X.509v3 Token Enrollment (MS-WSTEP) functionality.
   - See the [section 3.4 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea) for more details.
 - `/api/mdm/microsoft/tos`: Presents end users with the Terms of Service agreement during out-of-the-box Windows setup. Required for automatic enrollment.
-- `/api/mdm/microsoft/auth`: If you use automatic enrollment, authenticates end users during out-of-the-box Windows setup. 
   - See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
  
 ### iOS and iPadOS
@@ -95,7 +94,6 @@ The `/mdm/apple/mdm` and `/api/mdm/apple/enroll` endpoints can use mTLS with the
 These endpoints don't use mTLS:
 - `/mdm/apple/scep`
 - `/api/mdm/microsoft/discovery`
-- `/api/mdm/microsoft/auth`
 - `/api/mdm/microsoft/policy`
 - `/api/mdm/microsoft/enroll`
 - `/api/mdm/microsoft/management`
