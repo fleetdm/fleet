@@ -1224,13 +1224,13 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 	}
 
 	// SoftwareInstallersCloudFrontSigner can only be set if license.IsPremium()
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
+	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {
 		// Sign the URL for the installer
 		installerURL, err := svc.getSoftwareInstallURL(ctx, details.InstallerID)
 		if err != nil {
 			// We log the error but continue to return the details without the signed URL because orbit can still
 			// try to download the installer via Fleet server.
-			svc.logger.ErrorContext(ctx, "error getting software installer URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error getting software installer URL; check signed URL configuration", "err", err)
 		} else {
 			details.SoftwareInstallerURL = installerURL
 		}

@@ -510,6 +510,12 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads, so clients fetch directly from the
+	// object store. Only supported against a GCS (storage.googleapis.com)
+	// endpoint. This is the GCS counterpart to the CloudFront signing config.
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -541,6 +547,36 @@ func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
 	}
 }
 
+// ValidateSoftwareInstallersSignedURL validates the GCS presigned-URL download
+// option. Presigned downloads are only supported against a GCS endpoint, so we
+// fail fast on any other endpoint to avoid silently proxying large files.
+func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, msg string)) {
+	if !s.SoftwareInstallersSignedURL {
+		return
+	}
+	// Validate against the parsed hostname rather than a substring match, so a
+	// URL that merely contains "storage.googleapis.com" elsewhere (e.g. a
+	// look-alike host or a path) is rejected.
+	endpoint := s.SoftwareInstallersEndpointURL
+	if !strings.Contains(endpoint, "://") {
+		// url.Parse needs a scheme to populate Hostname(); the endpoint may be
+		// configured without one (e.g. "storage.googleapis.com").
+		endpoint = "https://" + endpoint
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		initFatal(fmt.Errorf("invalid s3_software_installers_endpoint_url: %w", err),
+			"S3 software installers signed URL")
+		return
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+}
+
 func (s S3Config) BucketsAndPrefixesMatch() bool {
 	cb := s.CarvesBucket
 	if cb == "" {
@@ -568,6 +604,7 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
 		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
+		SignedURL:        s.SoftwareInstallersSignedURL,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -643,6 +680,7 @@ type S3ConfigInternal struct {
 	ForceS3PathStyle bool
 	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
+	SignedURL        bool
 }
 
 type S3CloudFrontConfig struct {
@@ -1639,6 +1677,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -2198,6 +2237,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 

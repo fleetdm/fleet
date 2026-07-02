@@ -39,6 +39,11 @@ type s3store struct {
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
 	gcs              bool
+	// signedURL, when true, makes Sign() return a presigned GET URL generated
+	// with this store's client/credentials (used for GCS, where there is no
+	// CloudFront-style signer). Gated by config and validated to require a GCS
+	// endpoint.
+	signedURL bool
 }
 
 type installerNotFoundError struct{}
@@ -57,6 +62,15 @@ func (p installerNotFoundError) IsNotFound() bool {
 func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	var opts []func(*aws_config.LoadOptions) error
 	gcsEndpoint := cfg.EndpointURL != "" && isGCS(cfg.EndpointURL)
+
+	// SignedURL presigns with SigV4 HMAC credentials, but GCSIAMAuth swaps those
+	// for placeholder static credentials plus bearer-token middleware that
+	// presigning drops (APIOptions is cleared when presigning). The two together
+	// would produce presigned URLs that can't authenticate, so reject the
+	// combination up front.
+	if cfg.SignedURL && cfg.GCSIAMAuth {
+		return nil, errors.New("software installers signed URL cannot be combined with gcs iam auth; configure HMAC credentials (access key/secret) for presigning")
+	}
 
 	if cfg.GCSIAMAuth {
 		switch {
@@ -176,6 +190,7 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
 		gcs:              gcsEndpoint,
+		signedURL:        cfg.SignedURL,
 	}, nil
 }
 

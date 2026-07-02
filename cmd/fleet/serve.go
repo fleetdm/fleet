@@ -517,6 +517,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			}
 			// Extract the CloudFront URL signer before creating the S3 stores.
 			config.S3.ValidateCloudFrontURL(initFatal)
+			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
 			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
 				// Strip newlines from private key
 				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
