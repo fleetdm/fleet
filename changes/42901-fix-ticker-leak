@@ -1,0 +1,1 @@
+- Fixed resource leak in conditional access polling loop.
