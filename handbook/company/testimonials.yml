@@ -300,6 +300,13 @@
   quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7473001724425732097?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7472995294640222210%2Curn%3Ali%3Aactivity%3A7473001724425732097%29
   quoteAuthorJobTitle: Director, Security & TechOps @ Harmonic Security
   productCategories: [Observability, Software management]
+- quote: Fleet has been the easiest MDM I’ve worked with 
+  quoteAuthorName: Josh Radcliffe
+  quoteAuthorJobTitle: Information Technology Operations Supervisor
+  quoteLinkUrl: https://www.linkedin.com/in/joshua-radcliffe-06414a102/
+  productCategories: [Device management]
+
+
 # -
 #   quote: Thank you for enabling SCIM for the admin interface! You have solved de-provisioning for us because if an admin leaves their identity gets turned off automatically by Okta. We also can quickly check user roles in Okta without needing to login to FleetDM or monitoring user_role.yaml with GitOps.
 #   quoteAuthorName: Nick Borgers
