@@ -120,8 +120,8 @@ The betas are coming either way. The difference DDM makes is whether they arrive
 *Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to manage OS settings as code?* [*Explore Fleet's GitOps workflow*](https://fleetdm.com/docs/configuration/yaml-files) *or* [*get a demo*](https://fleetdm.com/contact)*.*
 
 <meta name="articleTitle" value="Take control of Apple beta programs with declarative device management">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Harrison Ravazzolo">
+<meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-07-02">
 <meta name="description" value="Use DDM's software update settings to control Apple beta program enrollment, and automate fetching AppleSeed tokens from Apple Business Manager.">
