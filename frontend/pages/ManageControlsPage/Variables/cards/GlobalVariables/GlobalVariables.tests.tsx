@@ -7,7 +7,7 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 
-import Variables from "./Variables";
+import GlobalVariables from "./GlobalVariables";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -61,7 +61,7 @@ describe("Custom variables", () => {
     it("renders with Add CTA and edit info when user can edit", async () => {
       mockServer.use(emptyVariablesHandler);
 
-      render(<Variables {...baseProps} />);
+      render(<GlobalVariables {...baseProps} />);
       await waitFor(() => {
         expect(screen.getByText(/No custom variables/i)).toBeInTheDocument();
         expect(
@@ -69,9 +69,10 @@ describe("Custom variables", () => {
             "Add a custom variable to make it available in scripts and profiles."
           )
         ).toBeInTheDocument();
-        // Header button and EmptyState CTA button both render
+        // The header Add button stays visible on the empty state, alongside
+        // the EmptyState CTA, so both render.
         const addButtons = screen.getAllByRole("button", {
-          name: /Add custom variable/,
+          name: /Add variable/,
         });
         expect(addButtons).toHaveLength(2);
       });
@@ -90,7 +91,7 @@ describe("Custom variables", () => {
         },
       });
 
-      renderReadOnly(<Variables {...baseProps} />);
+      renderReadOnly(<GlobalVariables {...baseProps} />);
       await waitFor(() => {
         expect(screen.getByText("No custom variables")).toBeInTheDocument();
         expect(
@@ -99,7 +100,7 @@ describe("Custom variables", () => {
           )
         ).toBeInTheDocument();
         expect(
-          screen.queryByRole("button", { name: "Add custom variable" })
+          screen.queryByRole("button", { name: "Add variable" })
         ).not.toBeInTheDocument();
       });
     });
@@ -175,7 +176,7 @@ describe("Custom variables", () => {
     });
 
     it("renders when variables are saved", async () => {
-      render(<Variables {...baseProps} />);
+      render(<GlobalVariables {...baseProps} />);
       await waitFor(
         () => {
           expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
@@ -189,18 +190,18 @@ describe("Custom variables", () => {
 
     describe("gitops mode", () => {
       it("renders the add button disabled in GitOps mode", async () => {
-        renderInGOM(<Variables {...baseProps} />);
+        renderInGOM(<GlobalVariables {...baseProps} />);
 
         let addVariableButton;
         await waitFor(() => {
           addVariableButton = screen.getByRole("button", {
-            name: /Add custom variable/,
+            name: /Add variable/,
           });
 
           expect(addVariableButton).toBeInTheDocument();
         });
         if (!addVariableButton) {
-          throw new Error("Add custom variable button not found");
+          throw new Error("Add variable button not found");
         }
 
         expect(addVariableButton).toHaveAttribute("disabled");
@@ -210,38 +211,15 @@ describe("Custom variables", () => {
       });
 
       it("deleting a variable is successful in GitOps mode", async () => {
-        const { user } = renderInGOM(<Variables {...baseProps} />);
+        const { user } = renderInGOM(<GlobalVariables {...baseProps} />);
         await waitFor(() => {
-          expect(screen.getByText("Add custom variable")).toBeInTheDocument();
+          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
         });
-        // Get the element with SECRET_UNO in it.
-        let variableUno: HTMLElement | null = null;
-        await waitFor(() => {
-          variableUno = screen.getByText("SECRET_UNO");
-          expect(variableUno).toBeInTheDocument();
+        const deleteButton = screen.getByRole("button", {
+          name: "Delete SECRET_UNO",
         });
-        if (variableUno === null) {
-          throw new Error("Variable not found");
-        }
-        // Find the element with .paginated-list__row class that is ancestor to that element.
-        const variableUnoRow = (variableUno as HTMLElement).closest(
-          ".paginated-list__row"
-        );
-        expect(variableUnoRow).toBeInTheDocument();
-        if (!variableUnoRow) {
-          throw new Error("Variable row not found");
-        }
-        // Find the element with data-id="trash-icon"
-        const trashIcon = variableUnoRow.querySelector(
-          "[data-testid='trash-icon']"
-        );
-        expect(trashIcon).toBeInTheDocument();
-        if (!trashIcon) {
-          throw new Error("Trash icon not found");
-        }
-        // Click it.
-        await user.click(trashIcon);
-        // Confirm the deletion.
+        expect(deleteButton).toBeInTheDocument();
+        await user.click(deleteButton);
         await waitFor(() => {
           expect(
             screen.getByText(/Delete custom variable\?/)
@@ -281,16 +259,16 @@ describe("Custom variables", () => {
 
       let user: UserEvent;
       beforeEach(async () => {
-        ({ user } = render(<Variables {...baseProps} />));
+        ({ user } = render(<GlobalVariables {...baseProps} />));
         let addVariableButton;
         await waitFor(() => {
           addVariableButton = screen.getByRole("button", {
-            name: /Add custom variable/,
+            name: /Add variable/,
           });
           expect(addVariableButton).toBeInTheDocument();
         });
         if (!addVariableButton) {
-          throw new Error("Add custom variable button not found");
+          throw new Error("Add variable button not found");
         }
         await user.click(addVariableButton);
       });
@@ -352,37 +330,20 @@ describe("Custom variables", () => {
     });
 
     it("deleting a variable is successful", async () => {
-      const { user } = render(<Variables {...baseProps} />);
+      const { user } = render(<GlobalVariables {...baseProps} />);
       await waitFor(() => {
-        expect(screen.getByText("Add custom variable")).toBeInTheDocument();
+        expect(screen.getByText("Add variable")).toBeInTheDocument();
       });
-      // Get the element with SECRET_UNO in it.
-      let variableUno: HTMLElement | null = null;
       await waitFor(() => {
-        variableUno = screen.getByText("SECRET_UNO");
-        expect(variableUno).toBeInTheDocument();
+        expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
       });
-      if (variableUno === null) {
-        throw new Error("Variable not found");
-      }
-      // Find the element with .paginated-list__row class that is ancestor to that element.
-      const variableUnoRow = (variableUno as HTMLElement).closest(
-        ".paginated-list__row"
-      );
-      expect(variableUnoRow).toBeInTheDocument();
-      if (!variableUnoRow) {
-        throw new Error("Variable row not found");
-      }
-      // Find the element with data-id="trash-icon"
-      const trashIcon = variableUnoRow.querySelector(
-        "[data-testid='trash-icon']"
-      );
-      expect(trashIcon).toBeInTheDocument();
-      if (!trashIcon) {
-        throw new Error("Trash icon not found");
-      }
+      // The row action is a trash-icon button labeled "Delete <name>".
+      const deleteButton = screen.getByRole("button", {
+        name: "Delete SECRET_UNO",
+      });
+      expect(deleteButton).toBeInTheDocument();
       // Click it.
-      await user.click(trashIcon);
+      await user.click(deleteButton);
       // Confirm the deletion.
       await waitFor(() => {
         expect(
