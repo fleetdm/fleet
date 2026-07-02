@@ -121,12 +121,25 @@ try {
 # browser after installing and blocks until it is closed.
 Start-Process -FilePath "$exeFilePath" -ArgumentList "/S"
 
-# Poll for installation to complete
+# Poll for installation to complete. firefox.exe lands on disk before the
+# installer finishes, and the registry uninstall entry -- what Fleet's
+# detection (osquery "programs") reads -- is written last, so wait for both.
+# Exiting on the file alone races detection: the policy/validator can query
+# "programs" before the entry exists.
+$uninstallRoots = @(
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)
 $elapsed = 0
 while ($elapsed -lt $maxWaitSeconds) {
     Start-Sleep -Seconds 5
     $elapsed += 5
-    if (Test-Path "$installDir\firefox.exe") {
+    if (-not (Test-Path "$installDir\firefox.exe")) { continue }
+    $entry = Get-ChildItem -Path $uninstallRoots -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
+        Where-Object { $_.DisplayName -like 'Mozilla Firefox*ESR*' } |
+        Select-Object -First 1
+    if ($entry) {
         Write-Host "Firefox ESR installed successfully after $elapsed seconds"
         Exit 0
     }
