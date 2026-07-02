@@ -1,0 +1,151 @@
+name: Create QA ticket for Dependabot PRs
+
+# When Dependabot opens a code-dependency PR, create a QA issue on the
+# :help-qa board so the team can verify that the bump introduces no
+# behavioral regressions (see postmortem for #45763).
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  create-qa-ticket:
+    if: >
+      github.event.repository.owner.login == 'fleetdm' &&
+      github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Create QA issue and add to project board
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          PROJECT_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN_PROJECTS }}
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branch = pr.head.ref;
+
+            // Only process code dependency updates (Go modules, npm root).
+            // Skip: github-actions, docker, website npm, slackbot npm.
+            const isGomod = branch.startsWith('dependabot/gomod/');
+            const isNpm = branch.startsWith('dependabot/npm_and_yarn/')
+              && !branch.includes('/website/')
+              && !branch.includes('/fleet-slackbot/');
+
+            if (!isGomod && !isNpm) {
+              console.log(`Skipping non-code dependency PR (branch: ${branch})`);
+              return;
+            }
+
+            const ecosystem = isGomod ? 'Go' : 'npm';
+
+            // Create the QA tracking issue.
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `QA: ${pr.title}`,
+              body: [
+                `## Dependabot dependency update — QA review needed`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| **PR** | #${pr.number} |`,
+                `| **Ecosystem** | ${ecosystem} |`,
+                `| **Branch** | \`${branch}\` |`,
+                ``,
+                `### Why this needs QA`,
+                ``,
+                `Dependabot PRs update third-party dependencies. Even minor/patch bumps can`,
+                `change runtime behavior (see #45763 for a real example where a dependency`,
+                `bump silently broke SCEP certificate issuance). Please verify that the`,
+                `updated dependency does not cause regressions in related functionality.`,
+                ``,
+                `### What to check`,
+                ``,
+                `1. Review the PR diff and the dependency's changelog/release notes`,
+                `2. Identify which Fleet features use this dependency`,
+                `3. Test those features for behavioral changes`,
+                ``,
+                `---`,
+                `*This issue was automatically created by the dependabot-qa-ticket workflow.*`,
+              ].join('\n'),
+              labels: ['dependabot'],
+              assignees: ['AndreyKizimenko'],
+            });
+
+            console.log(`Created issue #${issue.data.number}`);
+
+            // Comment on the PR linking to the QA issue.
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: `QA ticket created: #${issue.data.number}`,
+            });
+
+            // --- Project board: add to :help-qa and set status to "Awaiting QA" ---
+            // Requires a PAT stored as FLEET_GITHUB_TOKEN_PROJECTS with
+            // read/write access to organization projects.
+            const projectToken = process.env.PROJECT_TOKEN;
+            if (!projectToken) {
+              core.warning(
+                'FLEET_GITHUB_TOKEN_PROJECTS secret is not configured — ' +
+                'issue was created but not added to the project board. ' +
+                'Create a fine-grained PAT with Organization Projects read/write scope.'
+              );
+              return;
+            }
+
+            const { getOctokit } = require('@actions/github');
+            const projectOctokit = getOctokit(projectToken);
+
+            const PROJECT_ID    = 'PVT_kwDOBDAnic4A5q11';        // :help-qa (#85)
+            const STATUS_FIELD  = 'PVTSSF_lADOBDAnic4A5q11zgubZ6Y';
+            const AWAITING_QA   = 'f75ad846';
+
+            // Add the issue to the project.
+            const addResult = await projectOctokit.graphql(`
+              mutation($projectId: ID!, $contentId: ID!) {
+                addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                  item { id }
+                }
+              }
+            `, {
+              projectId: PROJECT_ID,
+              contentId: issue.data.node_id,
+            });
+
+            const itemId = addResult.addProjectV2ItemById.item.id;
+            console.log(`Added to :help-qa board (item ${itemId})`);
+
+            // Set status to "Awaiting QA".
+            await projectOctokit.graphql(`
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: {singleSelectOptionId: $optionId}
+                }) {
+                  projectV2Item { id }
+                }
+              }
+            `, {
+              projectId: PROJECT_ID,
+              itemId: itemId,
+              fieldId: STATUS_FIELD,
+              optionId: AWAITING_QA,
+            });
+
+            console.log('Status set to "Awaiting QA"');
