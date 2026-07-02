@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.15.0",
+      "version": "4.15.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'chat.rocket';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'chat.rocket' AND version_compare(bundle_short_version, '4.15.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'chat.rocket' AND version_compare(bundle_short_version, '4.15.1') < 0);"
       },
-      "installer_url": "https://github.com/RocketChat/Rocket.Chat.Electron/releases/download/4.15.0/rocketchat-4.15.0-mac.dmg",
+      "installer_url": "https://github.com/RocketChat/Rocket.Chat.Electron/releases/download/4.15.1/rocketchat-4.15.1-mac.dmg",
       "install_script_ref": "8a2921c9",
       "uninstall_script_ref": "36b46743",
-      "sha256": "ec38748565dad8fd44edb216f054ce7aa4dbab9a9ebf4ef1ee6b774a6e439b04",
+      "sha256": "66ba0a5b949dc9b6be1cac267657877716ded158bffd739a52d9d82b04d2c540",
       "default_categories": [
         "Communication"
       ]
