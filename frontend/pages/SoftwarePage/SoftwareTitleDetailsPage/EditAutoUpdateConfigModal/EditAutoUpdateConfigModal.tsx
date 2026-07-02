@@ -1,36 +1,27 @@
 import React, { useState } from "react";
 import classnames from "classnames";
 import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
-import { ILabelSummary } from "interfaces/label";
-
-import { useQuery } from "react-query";
 
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { notify } from "components/ToastNotification";
 import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Checkbox from "components/forms/fields/Checkbox";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import {
-  CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
   getCustomTarget,
   getDisplayedSoftwareName,
-  generateHelpText,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
   ISoftwareAutoUpdateConfigFormValidation,
@@ -40,6 +31,61 @@ import {
 
 const baseClass = "edit-auto-update-config-modal";
 const formClass = "edit-auto-update-config-form";
+
+const getReadonlyTargetContent = (
+  appStoreApp: IAppStoreApp | null
+): JSX.Element => {
+  if (appStoreApp?.labels_include_any?.length) {
+    return (
+      <>
+        <p className={`${formClass}__target-description`}>
+          Update settings will only apply to hosts that <b>have any</b> of these
+          labels:
+        </p>
+        <ul className={`${formClass}__target-labels-list`}>
+          {appStoreApp.labels_include_any.map((label) => (
+            <li key={label.id}>{label.name}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  if (appStoreApp?.labels_include_all?.length) {
+    return (
+      <>
+        <p className={`${formClass}__target-description`}>
+          Update settings will only apply to hosts that <b>have all</b> of these
+          labels:
+        </p>
+        <ul className={`${formClass}__target-labels-list`}>
+          {appStoreApp.labels_include_all.map((label) => (
+            <li key={label.id}>{label.name}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  if (appStoreApp?.labels_exclude_any?.length) {
+    return (
+      <>
+        <p className={`${formClass}__target-description`}>
+          Update settings will only apply to hosts that{" "}
+          <b>don&apos;t have any</b> of these labels:
+        </p>
+        <ul className={`${formClass}__target-labels-list`}>
+          {appStoreApp.labels_exclude_any.map((label) => (
+            <li key={label.id}>{label.name}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  return (
+    <p className={`${formClass}__target-description`}>
+      Update settings will apply to <b>all hosts</b>.
+    </p>
+  );
+};
 
 // Schema for the form data that will be used in the UI
 // and sent to the API.
@@ -67,7 +113,7 @@ const EditAutoUpdateConfigModal = ({
 }: EditAutoUpdateConfigModal) => {
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
-  const formClassNames = classnames(formClass, {
+  const clsNames = classnames(formClass, {
     [`edit-auto-update-config-form--disabled`]: gitOpsModeEnabled,
   });
 
@@ -82,15 +128,6 @@ const EditAutoUpdateConfigModal = ({
       softwareTitle.app_store_app as IAppStoreApp
     ),
   });
-
-  // Fetch labels for DropdownTargetLabelSelector
-  const { data: labels } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-    }
-  );
 
   const [
     formValidation,
@@ -165,27 +202,6 @@ const EditAutoUpdateConfigModal = ({
     }
   };
 
-  const onSelectTargetType = (value: string) => {
-    const newData = { ...formData, targetType: value };
-    setFormData(newData);
-    setFormValidation(validateFormData(newData));
-  };
-
-  const onSelectCustomTargetOption = (value: string) => {
-    const newData = { ...formData, customTarget: value };
-    setFormData(newData);
-    setFormValidation(validateFormData(newData));
-  };
-
-  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
-    const newData = {
-      ...formData,
-      labelTargets: { ...formData.labelTargets, [name]: value },
-    };
-    setFormData(newData);
-    setFormValidation(validateFormData(newData));
-  };
-
   const earliestStartTimeError =
     formValidation.autoUpdateStartTime?.message ||
     (formValidation.windowLength?.message ? "Earliest start time" : undefined);
@@ -203,7 +219,7 @@ const EditAutoUpdateConfigModal = ({
 
   return (
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
-      <div className={formClassNames}>
+      <div className={clsNames}>
         <div className={`${formClass}__form-frame`}>
           <Card paddingSize="medium" borderRadiusSize="medium">
             <div className={`${formClass}__auto-update-config`}>
@@ -274,21 +290,14 @@ const EditAutoUpdateConfigModal = ({
             </div>
           </Card>
           <Card paddingSize="medium" borderRadiusSize="medium">
-            <DropdownTargetLabelSelector
-              selectedTargetType={formData.targetType}
-              selectedCustomTarget={formData.customTarget}
-              selectedLabels={formData.labelTargets}
-              customTargetOptions={CUSTOM_TARGET_OPTIONS}
-              className={`${formClass}__target`}
-              onSelectTargetType={onSelectTargetType}
-              onSelectCustomTarget={onSelectCustomTargetOption}
-              onSelectLabel={onSelectLabel}
-              labels={labels || []}
-              dropdownHelpText={
-                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-              }
-              subTitle="Changes to targets will also apply to self-service."
-            />
+            <div className={`${formClass}__target-readonly`}>
+              <div className="form-field__label">Target</div>
+              {getReadonlyTargetContent(softwareTitle.app_store_app)}
+              <p className={`${formClass}__target-edit-hint`}>
+                To edit the target, close this modal and select{" "}
+                <b>Actions &gt; Edit software</b>.
+              </p>
+            </div>
           </Card>
         </div>
       </div>
