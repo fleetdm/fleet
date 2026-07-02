@@ -120,7 +120,7 @@ var hasSeenRealDevice atomic.Bool
 
 func main() {
 	listen := flag.String("listen", ":9999", "Address to listen on")
-	googleCredentials := flag.String("google-credentials", "", "Path to Google service account JSON credentials file (enables forwarding for real devices)")
+	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\"")
 	flag.Parse()
 
 	policyVersionCounter.Store(1)
