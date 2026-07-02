@@ -6159,10 +6159,35 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 		),
 	)
 
+	// The device_mapping is built with GROUP_CONCAT, whose element order is not
+	// guaranteed, so normalize the ordering before comparing the two responses.
+	normalizeDeviceMapping := func(resp *listHostsResponse) {
+		for i := range resp.Hosts {
+			dm := resp.Hosts[i].DeviceMapping
+			if dm == nil {
+				continue
+			}
+			var mappings []fleet.HostDeviceMapping
+			require.NoError(t, json.Unmarshal(*dm, &mappings))
+			sort.Slice(mappings, func(a, b int) bool {
+				if mappings[a].Email != mappings[b].Email {
+					return mappings[a].Email < mappings[b].Email
+				}
+				return mappings[a].Source < mappings[b].Source
+			})
+			normalized, err := json.Marshal(mappings)
+			require.NoError(t, err)
+			raw := json.RawMessage(normalized)
+			resp.Hosts[i].DeviceMapping = &raw
+		}
+	}
+
 	// Now do the actual API calls that we will compare.
 	var hostsResp, labelsResp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true")
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true")
+	normalizeDeviceMapping(&hostsResp)
+	normalizeDeviceMapping(&labelsResp)
 
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
@@ -6172,6 +6197,8 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Do request with include_device_status, since it's an additional feature
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "include_device_status", "true")
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "include_device_status", "true")
+	normalizeDeviceMapping(&hostsResp)
+	normalizeDeviceMapping(&labelsResp)
 
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
