@@ -581,6 +581,7 @@ type softwareEntityCount struct {
 	uniqueSoftwareUninstallProb       float64
 	duplicateBundleIdentifiersPercent int
 	softwareRenaming                  bool
+	embeddedBundlePaths               bool
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -2219,7 +2220,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 		} else {
 			duplicateIdx := i - totalCommon
 			bundleIDIndex := duplicateIdx / groupSize
-			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%totalCommon)
+			parentIdx := bundleIDIndex % totalCommon
+			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", parentIdx)
 
 			var name string
 			if a.softwareCount.softwareRenaming {
@@ -2228,12 +2230,19 @@ func (a *agent) softwareMacOS() []map[string]string {
 				name = fmt.Sprintf("DuplicateBundle_%d", duplicateIdx)
 			}
 
+			var installedPath string
+			if a.softwareCount.embeddedBundlePaths {
+				installedPath = fmt.Sprintf("/some/path/Common_%d.app/Contents/Library/LoginItems/%s.app", parentIdx, name)
+			} else {
+				installedPath = fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx)
+			}
+
 			duplicateBundleSoftware = append(duplicateBundleSoftware, map[string]string{
 				"name":              name,
 				"version":           fmt.Sprintf("0.0.1%d", duplicateIdx),
 				"bundle_identifier": bundleID,
 				"source":            "apps",
-				"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx),
+				"installed_path":    installedPath,
 			})
 		}
 	}
@@ -3843,6 +3852,7 @@ func main() {
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
+		embeddedBundlePaths               = flag.Bool("embedded_bundle_paths", false, "Nest duplicate-bundle paths under their parent .app/Contents/Library/LoginItems/")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -4080,6 +4090,7 @@ func main() {
 				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 				softwareRenaming:                  *softwareRenaming,
+				embeddedBundlePaths:               *embeddedBundlePaths,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{
