@@ -96,6 +96,16 @@ func TestUp_20260629163945(t *testing.T) {
 	fmaOld := insertInstaller(titleD, nil, "darwin", "1.0", "hash-d", &fma, 0)
 	fmaActive := insertInstaller(titleD, nil, "darwin", "2.0", "hash-d", &fma, 1)
 
+	// Custom hash-duplicate where the first-added row is inactive and a later row is active.
+	// The active row must be the survivor to match the is_active reads, even though it is not
+	// the lowest id. A policy points at the inactive row that gets deleted.
+	titleF := insertTitle("AppF", "apps")
+	inactiveF := insertInstaller(titleF, nil, "darwin", "1.0", "hash-f", nil, 0)
+	activeF := insertInstaller(titleF, nil, "darwin", "2.0", "hash-f", nil, 1)
+	policyF := execNoErrLastID(t, db, `
+		INSERT INTO policies (name, query, description, checksum, software_installer_id)
+		VALUES ('pf', 'SELECT 1', '', UNHEX(MD5('pf')), ?)`, inactiveF)
+
 	applyNext(t, db)
 
 	// The version key is gone, replaced by the dedup_token key.
@@ -145,6 +155,12 @@ func TestUp_20260629163945(t *testing.T) {
 
 	// FMA same-hash-different-version rows both survive.
 	require.Equal(t, []int64{fmaOld, fmaActive}, remainingIDs(titleD))
+
+	// The active row is retained over the lower-id inactive one, and the policy re-points to it.
+	require.Equal(t, []int64{activeF}, remainingIDs(titleF))
+	var repointedF int64
+	require.NoError(t, db.QueryRow(`SELECT software_installer_id FROM policies WHERE id = ?`, policyF).Scan(&repointedF))
+	require.Equal(t, activeF, repointedF)
 
 	// New key behavior. Custom same-version-different-hash is accepted, and these could not
 	// be seeded before the migration because the old version key blocked two rows sharing a
