@@ -14,5 +14,14 @@
     <true/>
     <key>com.apple.security.network.client</key>
     <true/>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>8VBZ3948LU.com.fleetdm.fleet-desktop</string>
+    </array>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>8VBZ3948LU.com.fleetdm.fleet-desktop</string>
+        <string>8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension</string>
+    </array>
 </dict>
 </plist>
