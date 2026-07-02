@@ -48,6 +48,35 @@ func Up_20260629163945(tx *sql.Tx) error {
 		return fmt.Errorf("re-pointing policies off duplicate installers: %w", err)
 	}
 
+	// setup_experience_software_installers has an ON DELETE CASCADE FK, so a selection that
+	// lived only on a deleted duplicate would be silently dropped. Re-point those rows onto the
+	// survivor first. UPDATE IGNORE skips a row when the survivor already has that platform.
+	if _, err := tx.Exec(fmt.Sprintf(`
+		UPDATE IGNORE setup_experience_software_installers sesi
+		JOIN software_installers si ON si.id = sesi.software_installer_id
+		JOIN (%s) dup
+			ON si.global_or_team_id = dup.global_or_team_id
+			AND si.title_id = dup.title_id
+			AND si.dedup_token = dup.dedup_token
+		SET sesi.software_installer_id = dup.keep_id
+		WHERE si.id != dup.keep_id`, dupGroups)); err != nil {
+		return fmt.Errorf("re-pointing setup experience installers off duplicate installers: %w", err)
+	}
+
+	// software_install_upcoming_activities has an ON DELETE SET NULL FK, so a queued install on
+	// a deleted duplicate would be silently orphaned. Re-point pending installs onto the survivor.
+	if _, err := tx.Exec(fmt.Sprintf(`
+		UPDATE software_install_upcoming_activities siua
+		JOIN software_installers si ON si.id = siua.software_installer_id
+		JOIN (%s) dup
+			ON si.global_or_team_id = dup.global_or_team_id
+			AND si.title_id = dup.title_id
+			AND si.dedup_token = dup.dedup_token
+		SET siua.software_installer_id = dup.keep_id, siua.updated_at = siua.updated_at
+		WHERE si.id != dup.keep_id`, dupGroups)); err != nil {
+		return fmt.Errorf("re-pointing upcoming install activities off duplicate installers: %w", err)
+	}
+
 	if _, err := tx.Exec(fmt.Sprintf(`
 		DELETE si FROM software_installers si
 		JOIN (%s) dup

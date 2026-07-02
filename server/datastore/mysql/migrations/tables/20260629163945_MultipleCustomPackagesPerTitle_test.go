@@ -84,6 +84,11 @@ func TestUp_20260629163945(t *testing.T) {
 		VALUES ('p1', 'SELECT 1', '', UNHEX(MD5('p1')), ?)`, dupB)
 	// Freeze updated_at so the re-point can be checked for not bumping it.
 	execNoErr(t, db, `UPDATE policies SET updated_at = '2020-01-01 00:00:00' WHERE id = ?`, policyID)
+	// A setup experience selection living only on the deleted row (FK is ON DELETE CASCADE).
+	execNoErr(t, db, `INSERT INTO setup_experience_software_installers (software_installer_id, platform, global_or_team_id) VALUES (?, 'windows', 0)`, dupB)
+	// A pending install queued on the deleted row (FK is ON DELETE SET NULL).
+	upcomingID := execNoErrLastID(t, db, `INSERT INTO upcoming_activities (host_id, activity_type, execution_id, payload) VALUES (1, 'software_install', 'dup-install-exec', '{}')`)
+	execNoErr(t, db, `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, software_title_id) VALUES (?, ?, ?)`, upcomingID, dupB, titleB)
 
 	// Custom hash-duplicate scoped to a team, different source.
 	titleC := insertTitle("AppC", "rpm_packages")
@@ -152,6 +157,18 @@ func TestUp_20260629163945(t *testing.T) {
 	var updatedAtUnchanged bool
 	require.NoError(t, db.QueryRow(`SELECT updated_at = '2020-01-01 00:00:00' FROM policies WHERE id = ?`, policyID).Scan(&updatedAtUnchanged))
 	require.True(t, updatedAtUnchanged)
+
+	// The setup experience selection on the deleted row was re-pointed to the survivor, not
+	// dropped by the ON DELETE CASCADE.
+	var setupExperienceInstaller int64
+	require.NoError(t, db.QueryRow(`SELECT software_installer_id FROM setup_experience_software_installers WHERE platform = 'windows'`).Scan(&setupExperienceInstaller))
+	require.Equal(t, keepB, setupExperienceInstaller)
+
+	// The pending install on the deleted row was re-pointed to the survivor, not orphaned by
+	// the ON DELETE SET NULL.
+	var upcomingInstaller int64
+	require.NoError(t, db.QueryRow(`SELECT software_installer_id FROM software_install_upcoming_activities WHERE upcoming_activity_id = ?`, upcomingID).Scan(&upcomingInstaller))
+	require.Equal(t, keepB, upcomingInstaller)
 
 	// FMA same-hash-different-version rows both survive.
 	require.Equal(t, []int64{fmaOld, fmaActive}, remainingIDs(titleD))
