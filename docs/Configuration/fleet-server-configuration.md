@@ -3592,23 +3592,9 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_os_updates_and_filevault
+### mdm.enable_custom_filevault
 
 > `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
-
-*Available in Fleet Premium.*
-
-Allows users to add custom Apple MDM profiles for both OS updates and FileVault management.
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
-- Config file format:
-  ```yaml
-  mdm:
-    enable_custom_os_updates_and_filevault: true
-  ```
-
-### mdm.enable_custom_filevault
 
 *Available in Fleet Premium.*
 
