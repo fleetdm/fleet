@@ -120,48 +120,63 @@ try {
 # silentinstallhq.com). The catch: OneDriveSetup.exe spawns several child
 # processes and starts the resident OneDrive.exe, so a plain Start-Process -Wait
 # can wait indefinitely and hit the CI step timeout. Instead, start the
-# installer, then poll for the per-machine install to land (registry uninstall
-# key + the all-users binary) and return success as soon as it appears.
+# installer, then poll for the per-machine install's registry uninstall entry
+# and return success once it is registered.
 
 $process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/allusers /silent" -PassThru
 
-# Per-machine OneDrive registers an uninstall key and drops OneDrive.exe under
-# Program Files (x86) (or Program Files on x86 OS).
-$uninstallKey = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\OneDriveSetup.exe"
+# Per-machine OneDrive drops OneDrive.exe under Program Files and registers an
+# uninstall entry -- which is what Fleet's detection (osquery "programs") reads.
+# The binary lands BEFORE the entry is registered, so success requires the
+# registry entry; exiting on the binary alone races detection. Modern x64
+# builds register under the native hive, older ones under WOW6432Node.
+# OneDriveSetup.exe may also exit while a child process finishes the
+# registration, so keep polling until the deadline even after it exits.
+$uninstallKeys = @(
+  "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\OneDriveSetup.exe",
+  "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\OneDriveSetup.exe"
+)
+$uninstallRoots = @(
+  "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+  "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+)
 $exePaths = @(
   "$env:ProgramFiles\Microsoft OneDrive\OneDrive.exe",
   "${env:ProgramFiles(x86)}\Microsoft OneDrive\OneDrive.exe"
 )
 
+function Test-OneDriveRegistered {
+  foreach ($k in $uninstallKeys) {
+    if (Test-Path $k) { return $true }
+  }
+  # Fallback in case the key name drifts across OneDrive builds.
+  $entry = Get-ChildItem -Path $uninstallRoots -ErrorAction SilentlyContinue |
+    ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
+    Where-Object { $_.DisplayName -eq 'Microsoft OneDrive' } |
+    Select-Object -First 1
+  return [bool]$entry
+}
+
 $timeoutSeconds = 240
 $deadline = (Get-Date).AddSeconds($timeoutSeconds)
-$installed = $false
+$registered = $false
 
 while ((Get-Date) -lt $deadline) {
-  $exeExists = $false
-  foreach ($p in $exePaths) {
-    if ($p -and (Test-Path $p)) { $exeExists = $true; break }
-  }
-  if ((Test-Path $uninstallKey) -or $exeExists) {
-    $installed = $true
-    break
-  }
-  # If the top-level setup process exited, capture its code and stop polling.
-  if ($process.HasExited) { break }
+  if (Test-OneDriveRegistered) { $registered = $true; break }
   Start-Sleep -Seconds 5
 }
 
-# Final check in case the setup process exited right before the loop bailed.
-if (-not $installed) {
-  $exeExists = $false
-  foreach ($p in $exePaths) {
-    if ($p -and (Test-Path $p)) { $exeExists = $true; break }
-  }
-  if ((Test-Path $uninstallKey) -or $exeExists) { $installed = $true }
+if ($registered) {
+  Write-Host "OneDrive per-machine install registered."
+  Exit 0
 }
 
-if ($installed) {
-  Write-Host "OneDrive per-machine install detected."
+$exeExists = $false
+foreach ($p in $exePaths) {
+  if ($p -and (Test-Path $p)) { $exeExists = $true; break }
+}
+if ($exeExists) {
+  Write-Host "Warning: OneDrive.exe present but uninstall entry not registered within $timeoutSeconds seconds."
   Exit 0
 }
 
