@@ -1,0 +1,65 @@
+<Replace>
+  <!-- CIS 18.10.10.2.1 Allow enhanced PINs for startup -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+<!-- CIS 18.10.10.2.2 Allow Secure Boot for integrity validation: default behavior, no direct CSP -->
+<Replace>
+  <!-- CIS 18.10.10.2.3–2.10 OS drive recovery options
+       18.10.10.2.4 Allow data recovery agent: False
+       18.10.10.2.5 Require 48-digit recovery password
+       18.10.10.2.6 Do not allow 256-bit recovery key
+       18.10.10.2.7 Omit recovery options from wizard: True
+       18.10.10.2.8 Save to AD DS: True
+       18.10.10.2.9 Store passwords and key packages
+       18.10.10.2.10 Require recovery info stored before enabling BitLocker: True -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesRecoveryOptions</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>
+<data id="OSAllowDRA_Name" value="false"/>
+<data id="OSRecoveryPasswordUsageDropDown_Name" value="1"/>
+<data id="OSRecoveryKeyUsageDropDown_Name" value="0"/>
+<data id="OSHideRecoveryPage_Name" value="true"/>
+<data id="OSActiveDirectoryBackup_Name" value="true"/>
+<data id="OSActiveDirectoryBackupDropDown_Name" value="1"/>
+<data id="OSRequireActiveDirectoryBackup_Name" value="true"/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.10.2.11 Disable hardware encryption for OS drives (use software encryption) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesEncryptionType</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="OSEncryptionType_Name" value="1"/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.10.2.12–2.14 Require additional authentication at startup (no TPM bypass)
+       18.10.10.2.12 Disable passwords for OS drives (covered by startup auth)
+       18.10.10.2.13–2.14 Require TPM; no bypass for non-TPM startup key -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="ConfigureNonTPMStartupKeyUsage_Name" value="false"/>]]></Data>
+  </Item>
+</Replace>
