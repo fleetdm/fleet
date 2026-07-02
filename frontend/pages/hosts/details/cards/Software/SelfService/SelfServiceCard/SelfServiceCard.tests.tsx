@@ -239,7 +239,21 @@ describe("SelfServiceCard", () => {
     // satisfy toHaveBeenCalled().
     const pushSpy = jest.fn();
     const mockRouter = createMockRouter({ push: pushSpy });
-    const props = createTestProps({ router: mockRouter });
+    // The dropdown only lists categories that have self-service software (#48614),
+    // so the software must actually belong to "🌎 Browsers" for it to appear.
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      router: mockRouter,
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "uninstalled",
+          software_package: browserPackage,
+        },
+      ],
+    });
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
 
@@ -254,6 +268,37 @@ describe("SelfServiceCard", () => {
     expect(pushSpy).toHaveBeenCalledWith(
       expect.stringContaining("category_id=1")
     );
+  });
+
+  it("hides categories that have no self-service software (#48614)", async () => {
+    // BE returns both categories, but only "🌎 Browsers" has software for this
+    // host — "🔐 Security" should never appear in the dropdown.
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([
+        { id: 1, name: "🌎 Browsers" },
+        { id: 2, name: "🔐 Security" },
+      ])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "uninstalled",
+          software_package: browserPackage,
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+
+    render(<SelfServiceCard {...props} />);
+
+    await user.click(await screen.findByRole("button", { expanded: false }));
+    expect(await screen.findByText("🌎 Browsers")).toBeInTheDocument();
+    expect(screen.queryByText("🔐 Security")).not.toBeInTheDocument();
   });
 
   it("renders the install-all button enabled when 'All' is selected and items are eligible", () => {
