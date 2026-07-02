@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "2.6.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'WinDirStat' AND publisher = 'The WinDirStat Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'WinDirStat' AND publisher = 'The WinDirStat Team' AND version_compare(version, '2.6.2') < 0);"
+      },
+      "installer_url": "https://github.com/windirstat/windirstat/releases/download/release/v2.6.2/WinDirStat-x64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "dbd2c315",
+      "sha256": "cde821cdddd143f60aa0c3c953894a31b3b13edf3ba9d61315eab553d411aee3",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{46F106C9-090C-43D0-8815-D03BA9FA55A9}"
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "dbd2c315": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{46F106C9-090C-43D0-8815-D03BA9FA55A9}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

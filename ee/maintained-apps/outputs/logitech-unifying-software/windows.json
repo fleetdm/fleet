@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.52.33",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Logitech Unifying Software' AND publisher = 'Logitech';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logitech Unifying Software' AND publisher = 'Logitech' AND version_compare(version, '2.52.33') < 0);"
+      },
+      "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/unifying/unifying252.exe",
+      "install_script_ref": "a3795eea",
+      "uninstall_script_ref": "8ec563fd",
+      "sha256": "bea2ca4c9d9abd1ff214166d638792be974ffad7907a8a8ed0370acba800e815",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8ec563fd": "$softwareName = \"Logitech Unifying Software\"\n$softwareNameLike = \"*$softwareName*\"\n$uninstallArgs = \"/S\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -like $softwareNameLike) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n            Write-Host \"Uninstall command: $uninstallCommand\"; Write-Host \"Uninstall args: $uninstallArgs\"\n            $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }\n            if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode; Write-Host \"Uninstall exit code: $exitCode\"; break\n        }\n    }\n    if (-not $foundUninstaller) { Write-Host \"Uninstaller for '$softwareName' not found.\"; Exit 1 }\n} catch { Write-Host \"Error: $_\"; Exit 1 }\n\nExit $exitCode\n",
+    "a3795eea": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Logitech Unifying Software uses NSIS installer\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

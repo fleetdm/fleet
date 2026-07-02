@@ -1,0 +1,13 @@
+{
+  "name": "AOMEI Backupper Standard",
+  "slug": "aomei-backupper-standard/windows",
+  "package_identifier": "AOMEI.Backupper.Standard",
+  "unique_identifier": "AOMEI Backupper Standard",
+  "program_publisher": "AOMEI International Network Limited.",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/aomei_backupper_standard_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/aomei_backupper_standard_uninstall.ps1",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

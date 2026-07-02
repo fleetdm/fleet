@@ -64,6 +64,7 @@ import Antinote from "./Antinote";
 import AnyDesk from "./AnyDesk";
 import Anydo from "./Anydo";
 import Anytype from "./Anytype";
+import AomeiBackupperStandard from "./AomeiBackupperStandard";
 import Apidog from "./Apidog";
 import Apparency from "./Apparency";
 import AppCleaner from "./AppCleaner";
@@ -71,6 +72,7 @@ import AppFair from "./AppFair";
 import AppiumInspector from "./AppiumInspector";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
+import AppleItunes from "./AppleItunes";
 import Applite from "./Applite";
 import Aptakube from "./Aptakube";
 import Arc from "./Arc";
@@ -91,6 +93,7 @@ import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureDataStudio from "./AzureDataStudio";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
 import Badgeify from "./Badgeify";
@@ -240,6 +243,7 @@ import DeepL from "./DeepL";
 import Deezer from "./Deezer";
 import DefaultFolderX from "./DefaultFolderX";
 import DellCommandUpdate from "./DellCommandUpdate";
+import DellDisplayAndPeripheralManager from "./DellDisplayAndPeripheralManager";
 import Descript from "./Descript";
 import Deskpad from "./Deskpad";
 import Desktime from "./Desktime";
@@ -284,6 +288,8 @@ import Eaglefiler from "./Eaglefiler";
 import Easydict from "./Easydict";
 import Easyfind from "./Easyfind";
 import Eclipse from "./Eclipse";
+import EclipseTemurinJdk11 from "./EclipseTemurinJdk11";
+import EclipseTemurinJre8 from "./EclipseTemurinJre8";
 import Edge from "./Edge";
 import Egnyte from "./Egnyte";
 import EightXEightWork from "./8X8Work";
@@ -366,6 +372,7 @@ import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
 import Git from "./Git";
+import GitExtensions from "./GitExtensions";
 import Gitfinder from "./Gitfinder";
 import GithubCopilotForXcode from "./GithubCopilotForXcode";
 import GitHubDesktop from "./GitHubDesktop";
@@ -373,6 +380,7 @@ import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
 import GitupApp from "./GitupApp";
 import Glyphs from "./Glyphs";
+import Gnupg from "./Gnupg";
 import Go2Shell from "./Go2Shell";
 import Godot from "./Godot";
 import Godspeed from "./Godspeed";
@@ -383,6 +391,7 @@ import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWin
 import GoogleDrive from "./GoogleDrive";
 import GoogleEarthPro from "./GoogleEarthPro";
 import GoToMeeting from "./GoToMeeting";
+import Gpg4Win from "./Gpg4Win";
 import GpgKeychain from "./GpgKeychain";
 import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
@@ -488,6 +497,7 @@ import Local from "./Local";
 import Localsend from "./Localsend";
 import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
+import LogitechUnifyingSoftware from "./LogitechUnifyingSoftware";
 import LogiTune from "./LogiTune";
 import Logseq from "./Logseq";
 import Lookaway from "./Lookaway";
@@ -771,6 +781,7 @@ import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
 import Rsyncui from "./Rsyncui";
+import Rtools from "./Rtools";
 import RubyMine from "./RubyMine";
 import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
@@ -824,6 +835,7 @@ import Snapmotion from "./Snapmotion";
 import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
+import SonicwallNetextender from "./SonicwallNetextender";
 import Sonobus from "./Sonobus";
 import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
@@ -905,6 +917,7 @@ import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
 import Ticktick from "./Ticktick";
 import Tidal from "./Tidal";
+import Tightvnc from "./Tightvnc";
 import Tiles from "./Tiles";
 import Timescribe from "./Timescribe";
 import Timing from "./Timing";
@@ -920,6 +933,7 @@ import Tradingview from "./Tradingview";
 import Transfer from "./Transfer";
 import Transmission from "./Transmission";
 import Transmit from "./Transmit";
+import TreesizeFree from "./TreesizeFree";
 import Trex from "./Trex";
 import TrezorSuite from "./TrezorSuite";
 import Tripmode from "./Tripmode";
@@ -980,6 +994,7 @@ import WhatsApp from "./WhatsApp";
 import Whisky from "./Whisky";
 import Whispering from "./Whispering";
 import Wifiman from "./Wifiman";
+import Windirstat from "./Windirstat";
 import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
@@ -1011,6 +1026,7 @@ import Xnviewmp from "./Xnviewmp";
 import Xquartz from "./Xquartz";
 import Yaak from "./Yaak";
 import Yacreader from "./Yacreader";
+import Yarn from "./Yarn";
 import Yattee from "./Yattee";
 import Yippy from "./Yippy";
 import YtMusic from "./YtMusic";
@@ -1024,6 +1040,7 @@ import ZeroOneZeroEditor from "./010Editor";
 import Zettlr from "./Zettlr";
 import Zight from "./Zight";
 import Zoom from "./Zoom";
+import ZoomOutlookPlugin from "./ZoomOutlookPlugin";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 import Zulip from "./Zulip";
@@ -1103,11 +1120,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "any.do": Anydo,
   anydesk: AnyDesk,
   anytype: Anytype,
+  "aomei backupper standard": AomeiBackupperStandard,
   apidog: Apidog,
   "app fair": AppFair,
   apparency: Apparency,
   appcleaner: AppCleaner,
   "appium inspector gui": AppiumInspector,
+  itunes: AppleItunes,
   appleAppStore: AppleAppStore,
   applite: Applite,
   aptakube: Aptakube,
@@ -1130,6 +1149,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure data studio": AzureDataStudio,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
@@ -1282,6 +1302,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   deezer: Deezer,
   "default folder x": DefaultFolderX,
   "dell command update": DellCommandUpdate,
+  "dell display and peripheral manager": DellDisplayAndPeripheralManager,
   descript: Descript,
   deskpad: Deskpad,
   desktime: Desktime,
@@ -1328,6 +1349,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   easyfind: Easyfind,
   eclipse: Eclipse,
   "eclipse memory analyzer": Memoryanalyzer,
+  "eclipse temurin jdk 11": EclipseTemurinJdk11,
+  "eclipse temurin jre 8": EclipseTemurinJre8,
   edge: MicrosoftEdge,
   edrawmax: WondershareEdrawmax,
   egnyte: Egnyte,
@@ -1404,6 +1427,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   ghostty: Ghostty,
   gimp: Gimp,
   git: Git,
+  "git extensions": GitExtensions,
   gitfinder: Gitfinder,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
@@ -1411,6 +1435,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gitkraken: GitKraken,
   gitup: GitupApp,
   glyphs: Glyphs,
+  "gnu privacy guard": Gnupg,
   go2shell: Go2Shell,
   "godot engine": Godot,
   godspeed: Godspeed,
@@ -1426,6 +1451,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
+  gpg4win: Gpg4Win,
   gpodder: Gpodder,
   grammarly: GrammarlyDesktop,
   grandperspective: Grandperspective,
@@ -1530,6 +1556,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
   loom: Loom,
@@ -1819,6 +1846,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
+  rtools: Rtools,
   rubymine: RubyMine,
   runjs: Runjs,
   rustdesk: RustDesk,
@@ -1871,6 +1899,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snowsql: SnowflakeSnowsql,
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
+  "sonicwall netextender": SonicwallNetextender,
   sonobus: Sonobus,
   sonos: Sonos,
   soulver: Soulver,
@@ -1955,6 +1984,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   ticktick: Ticktick,
   tidal: Tidal,
+  tightvnc: Tightvnc,
   timescribe: Timescribe,
   timing: Timing,
   todoist: Todoist,
@@ -1969,6 +1999,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   transfer: Transfer,
   transmission: Transmission,
   transmit: Transmit,
+  "treesize free": TreesizeFree,
   trex: Trex,
   "trezor suite": TrezorSuite,
   tripmode: Tripmode,
@@ -2030,6 +2061,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
@@ -2059,6 +2091,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   xquartz: Xquartz,
   yaak: Yaak,
   yacreader: Yacreader,
+  yarn: Yarn,
   yattee: Yattee,
   yippy: Yippy,
   "youtube music": YtMusic,
@@ -2070,6 +2103,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
   zulip: Zulip,

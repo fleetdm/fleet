@@ -1,0 +1,11 @@
+{
+  "name": "Git Extensions",
+  "slug": "git-extensions/windows",
+  "package_identifier": "GitExtensionsTeam.GitExtensions",
+  "unique_identifier": "Git Extensions",
+  "program_publisher": "Git Extensions Team",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
