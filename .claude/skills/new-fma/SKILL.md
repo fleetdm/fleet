@@ -129,7 +129,7 @@ go run cmd/maintained-apps/main.go --slug="<app>/<platform>" --debug
 | `program_publisher` (winget) | Overrides the exists-query publisher when registry Publisher ≠ winget locale Publisher. |
 | `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`. A string → `name LIKE '<that string>'` verbatim (e.g. `"Mozilla Firefox % ESR %"`, `"IntelliJ IDEA 20%"`). |
 | `exists_query` (winget) | Replaces the generated exists query verbatim. The patched query is DERIVED from it (appends `AND version_compare(...) < 0`). |
-| `installer_scope` | Must match the winget manifest's Scope — you can't pick machine if only user exists. |
+| `installer_scope` | **Required, `machine` or `user`.** Must match the scope the installer actually uses. If the winget manifest declares distinct per-user/per-machine installers (e.g. PowerToys, GIMP), you must pick one it offers. If winget is *silent* on scope (common for NSIS/Inno/burn), the ingester trusts your value — so verify it from the installer's requested execution level (`requireAdministrator`/`highestAvailable` ⇒ machine; `asInvoker` ⇒ user) or MSI `ALLUSERS`, don't guess. Enforced non-empty by `TestInputInstallerScopeIsSet`. |
 
 `patch_policy_path` exists in the input struct but is **dead code** (unused since the patched query became auto-generated). Don't use it; there is no patched-query override other than shaping `exists_query` or a hard-coded per-app branch in the ingester (Docker Desktop precedent).
 
@@ -153,6 +153,8 @@ if ($u -match '^\s*"([^"]+)"\s*(.*)$') {            # quoted
 - **Don't add existence-only version skips to the validator lightly.** They make the patch policy always report "patched" (never flags outdated installs). Only when the version genuinely can't be reconciled. If osquery's version actually matches the FMA version (verify in the validator log: `Found app: '...' Version: X`), no skip is needed.
 
 **5. Scope / SYSTEM context.** Fleet runs installs as SYSTEM (elevated). A per-user installer lands in the SYSTEM profile (useless). Force machine-wide with the installer's all-users switch (`ALLUSERS=1`/`2`, `/ALLUSERS`, `G2MINSTALLFORALLUSERS=1`). A per-user uninstaller likewise can't be reached from a SYSTEM-context script (its ARP entry is in the logged-in user's HKCU).
+
+**5a. Duplicate/stale copies across scopes — never scope-narrow detection ([#48248](https://github.com/fleetdm/fleet/issues/48248)).** `programs` reads both `HKLM` and per-user hives, so the `exists` query (and the patched query derived from it) matches an app at *either* scope. If a host has the app at one scope and the FMA installs at the other, a second copy appears, the stale copy lingers unmanaged, and the scope-blind policy keeps reporting not-patched. **Do NOT fix this by narrowing the query to one hive** — that makes the policy go false-green (reports patched while an unmanaged, unpatched copy remains). Fix it in remediation: the install script removes any *other-scope* copy before installing one canonical copy at the target scope (Pattern A; see PowerToys/GIMP uninstall scripts enumerating both hives), or upgrades the existing scope's copy in place (Pattern B). Flag cross-scope data-loss risk in the PR. Keep `installer_scope`, the scripts, and the detection query consistent. Full guidance: `ee/maintained-apps/README.md` → "Install scope vs. detection".
 
 **6. Multi-version / sibling products sharing a DisplayName.**
 - Corretto 21 and 25 both register as `Amazon Corretto (x64)` — pin each with `exists_query ... AND version LIKE '<major>.%'`.
