@@ -1,0 +1,16 @@
+.view-certificate-modal {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__summary {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  textarea {
+    font-family: "SourceCodePro", $monospace;
+  }
+}
