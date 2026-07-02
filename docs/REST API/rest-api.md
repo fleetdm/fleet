@@ -3198,6 +3198,8 @@ the `software` table.
 
 > `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
+> Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're hitting this endpoint often the best practice is to reduce how frequently you call it to prevent overloading the Fleet server.
+
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
 If `software_version_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_version_id`. See [List software versions](#list-software-versions) response payload for details about this object.
@@ -3674,6 +3676,8 @@ Returns the information of the specified host.
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/121`
@@ -3980,6 +3984,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 #### Example
 
@@ -4200,8 +4205,6 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
@@ -4216,6 +4219,8 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 #### Request headers
 
