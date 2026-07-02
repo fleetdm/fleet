@@ -266,6 +266,7 @@ const QueriesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
+        iconName="filter-alt"
         isDisabled={isTrulyEmpty}
       />
     );
