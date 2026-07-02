@@ -33,11 +33,12 @@ const Variables = ({ router, params, location }: IVariablesProps) => {
   const currentSection =
     navItems.find((item) => item.urlSection === section) ?? DEFAULT_SECTION;
 
-  // Redirect unknown sections to the default section.
+  // Redirect the bare route (no section) and unknown sections to the default
+  // section, preserving the query string (e.g. the ?add_variable deep-link).
   if (
-    section &&
-    currentSection === DEFAULT_SECTION &&
-    section !== DEFAULT_SECTION.urlSection
+    !section ||
+    (currentSection === DEFAULT_SECTION &&
+      section !== DEFAULT_SECTION.urlSection)
   ) {
     router.replace(DEFAULT_SECTION.path.concat(location.search));
     return null;
