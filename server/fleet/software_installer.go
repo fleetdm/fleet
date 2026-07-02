@@ -846,6 +846,17 @@ type SoftwarePackageOrApp struct {
 	Categories              []string                 `json:"categories,omitempty"`
 }
 
+// SoftwarePackageListItem is the trimmed list-response package shape; it omits the
+// host-only last_install/last_uninstall fields that SoftwarePackageOrApp carries.
+type SoftwarePackageListItem struct {
+	Name                     string                   `json:"name"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
+	Version                  string                   `json:"version"`
+	Platform                 string                   `json:"platform"`
+	SelfService              *bool                    `json:"self_service,omitempty"`
+	PackageURL               *string                  `json:"package_url"`
+}
+
 func (s *SoftwarePackageOrApp) GetPlatform() string {
 	return s.Platform
 }
@@ -1194,6 +1205,9 @@ type SoftwareScopeLabel struct {
 
 // Max total attempts (including initial) for a non-policy software install.
 const MaxSoftwareInstallAttempts = 3
+
+// MaxPackagesPerTitle caps how many custom packages a single software title can hold per team.
+const MaxPackagesPerTitle = 10
 
 // HostSoftwareInstallOptions contains options that apply to a software or VPP
 // app install request.

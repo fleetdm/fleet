@@ -1015,6 +1015,7 @@ spec:
   id: 0
   name: foo
   software_package: null
+  packages: null
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
@@ -1040,6 +1041,7 @@ spec:
   id: 0
   name: bar
   software_package: null
+  packages: null
   source: deb_packages
   extension_for: ""
   display_name: ""
@@ -1091,6 +1093,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     },
     {
@@ -1111,6 +1114,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     }
   ]

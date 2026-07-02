@@ -12989,8 +12989,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
-		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
+		// upload again fails: identical bytes on the same title are a hash duplicate
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -13197,8 +13197,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
-		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
+		// upload again fails: identical bytes on the same title are a hash duplicate
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -13310,8 +13310,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(),
 			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "fleet_name": null, "fleet_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
 
-		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
+		// upload again fails: identical bytes on the same title are a hash duplicate
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
@@ -14295,6 +14295,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
+	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
@@ -14349,6 +14350,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
+	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// create some labels A, B and C
@@ -17118,6 +17120,217 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
 	})
 	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	// Two script packages with the same filename resolve to the same title
+	// ("deploy"), and different contents give them distinct content hashes, so
+	// they coexist as two packages under one title.
+	contentA := "#!/bin/bash\necho 'A'\n"
+	contentB := "#!/bin/bash\necho 'B'\n"
+	contentC := "#!/bin/bash\necho 'C'\n"
+	hashOf := func(s string) string { sum := sha256.Sum256([]byte(s)); return hex.EncodeToString(sum[:]) }
+
+	upload := func(content string, selfService bool, expectedStatus int, expectedErr string) {
+		fr, err := fleet.NewTempFileReader(strings.NewReader(content), func() string { return t.TempDir() })
+		require.NoError(t, err)
+		defer fr.Close()
+		s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+			Filename:      "deploy.sh",
+			TeamID:        &team.ID,
+			SelfService:   selfService,
+			InstallerFile: fr,
+		}, expectedStatus, expectedErr)
+	}
+
+	// rawSoftwareMultipart adds or edits a script package and returns the raw
+	// response body, so we can assert exactly which package the endpoint echoes.
+	rawSoftwareMultipart := func(method, path, content string, extra map[string]string) []byte {
+		fr, err := fleet.NewTempFileReader(strings.NewReader(content), func() string { return t.TempDir() })
+		require.NoError(t, err)
+		defer fr.Close()
+		var body bytes.Buffer
+		w := multipart.NewWriter(&body)
+		fw, err := w.CreateFormFile("software", "deploy.sh")
+		require.NoError(t, err)
+		_, err = io.Copy(fw, fr)
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", team.ID)))
+		require.NoError(t, w.WriteField("fleet_id", fmt.Sprintf("%d", team.ID)))
+		for k, v := range extra {
+			require.NoError(t, w.WriteField(k, v))
+		}
+		require.NoError(t, w.Close())
+		headers := map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+		r := s.DoRawWithHeaders(method, path, body.Bytes(), http.StatusOK, headers)
+		defer r.Body.Close()
+		respBody, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		return respBody
+	}
+
+	// Add a first package (A, not self-service), then a second (B, self-service).
+	// The POST response must echo the package that was just added (not the title's
+	// first-added one).
+	upload(contentA, false, http.StatusOK, "")
+	postBody := rawSoftwareMultipart("POST", "/api/latest/fleet/software/package", contentB, map[string]string{"self_service": "true"})
+	var addResp uploadSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(postBody, &addResp))
+	require.NotNil(t, addResp.SoftwarePackage)
+	require.Equal(t, hashOf(contentB), addResp.SoftwarePackage.StorageID, "POST echoes the just-added package, not first-added")
+
+	// Adding a second package emits the same added_software activity.
+	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), ``, 0)
+
+	// Re-uploading identical bytes is rejected (per-title hash dedupe).
+	upload(contentA, false, http.StatusConflict, "already added (same SHA-256 hash)")
+
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID,
+			`SELECT DISTINCT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "deploy.sh")
+	})
+	require.NotZero(t, titleID)
+
+	getTitle := func() *fleet.SoftwareTitle {
+		var resp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{},
+			http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+		return resp.SoftwareTitle
+	}
+
+	// --- Detail endpoint: full packages[] shape, software_package == first-added ---
+	title := getTitle()
+	require.Len(t, title.Packages, 2)
+	require.NotNil(t, title.SoftwarePackage)
+	require.Equal(t, title.Packages[0].InstallerID, title.SoftwarePackage.InstallerID)
+	require.Equal(t, hashOf(contentA), title.Packages[0].StorageID)
+	require.Equal(t, hashOf(contentB), title.Packages[1].StorageID)
+	require.Equal(t, hashOf(contentA), title.SoftwarePackage.StorageID)
+	// per-package fields are independent
+	require.False(t, title.Packages[0].SelfService)
+	require.True(t, title.Packages[1].SelfService)
+	// scripts are hydrated (for a script package the install script is the file)
+	require.Equal(t, contentA, title.Packages[0].InstallScript)
+	require.Equal(t, contentB, title.Packages[1].InstallScript)
+
+	installerA := title.Packages[0].InstallerID
+	installerB := title.Packages[1].InstallerID
+
+	// --- List endpoint: trimmed packages[] ---
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listResp,
+		"query", "deploy", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, listResp.SoftwareTitles, 1)
+	lt := listResp.SoftwareTitles[0]
+	require.Len(t, lt.Packages, 2)
+	require.NotNil(t, lt.SoftwarePackage)
+	require.Equal(t, "deploy.sh", lt.SoftwarePackage.Name)
+	require.Equal(t, "deploy.sh", lt.Packages[0].Name)
+	require.NotNil(t, lt.Packages[0].SelfService)
+	require.False(t, *lt.Packages[0].SelfService)
+	require.NotNil(t, lt.Packages[1].SelfService)
+	require.True(t, *lt.Packages[1].SelfService)
+
+	// The list packages[] must omit the host-only last_install/last_uninstall fields.
+	listRes := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK,
+		"query", "deploy", "team_id", fmt.Sprintf("%d", team.ID))
+	rawList, err := io.ReadAll(listRes.Body)
+	require.NoError(t, err)
+	listRes.Body.Close()
+	var rawListParsed struct {
+		SoftwareTitles []struct {
+			Packages []map[string]json.RawMessage `json:"packages"`
+		} `json:"software_titles"`
+	}
+	require.NoError(t, json.Unmarshal(rawList, &rawListParsed))
+	require.Len(t, rawListParsed.SoftwareTitles, 1)
+	require.Len(t, rawListParsed.SoftwareTitles[0].Packages, 2)
+	for _, p := range rawListParsed.SoftwareTitles[0].Packages {
+		_, hasLastInstall := p["last_install"]
+		_, hasLastUninstall := p["last_uninstall"]
+		require.False(t, hasLastInstall, "list packages[] must omit last_install")
+		require.False(t, hasLastUninstall, "list packages[] must omit last_uninstall")
+	}
+
+	// --- Edit without installer_id on a multi-package title -> 400 ---
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		TeamID:      &team.ID,
+		SelfService: new(true),
+	}, http.StatusBadRequest, "installer_id is required")
+
+	// --- Edit B's file to A's content (sibling hash collision) -> 409, both unchanged ---
+	collideFile, err := fleet.NewTempFileReader(strings.NewReader(contentA), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer collideFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		InstallerID:   installerB,
+		TeamID:        &team.ID,
+		Filename:      "deploy.sh",
+		InstallerFile: collideFile,
+	}, http.StatusConflict, "already added (same SHA-256 hash)")
+
+	title = getTitle()
+	require.Len(t, title.Packages, 2)
+	require.Equal(t, hashOf(contentA), title.Packages[0].StorageID)
+	require.Equal(t, hashOf(contentB), title.Packages[1].StorageID)
+
+	// --- Edit B's file to a new hash -> ok; A untouched; PATCH echoes the edited package ---
+	patchBody := rawSoftwareMultipart("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID),
+		contentC, map[string]string{"installer_id": fmt.Sprintf("%d", installerB)})
+	var patchResp getSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(patchBody, &patchResp))
+	require.NotNil(t, patchResp.SoftwareInstaller)
+	require.Equal(t, installerB, patchResp.SoftwareInstaller.InstallerID, "PATCH echoes the edited package, not first-added")
+	require.Equal(t, hashOf(contentC), patchResp.SoftwareInstaller.StorageID)
+	title = getTitle()
+	require.Equal(t, hashOf(contentA), title.Packages[0].StorageID)
+	require.Equal(t, hashOf(contentC), title.Packages[1].StorageID)
+
+	// --- Re-save B's current file -> no-op (200) ---
+	sameFile, err := fleet.NewTempFileReader(strings.NewReader(contentC), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer sameFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		InstallerID:   installerB,
+		TeamID:        &team.ID,
+		Filename:      "deploy.sh",
+		InstallerFile: sameFile,
+	}, http.StatusOK, "")
+	title = getTitle()
+	require.Len(t, title.Packages, 2)
+	require.Equal(t, hashOf(contentC), title.Packages[1].StorageID)
+
+	// --- Delete one package (A) -> 204, B remains and becomes first-added ---
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil,
+		http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID), "installer_id", fmt.Sprintf("%d", installerA))
+	title = getTitle()
+	require.Len(t, title.Packages, 1)
+	require.Equal(t, installerB, title.Packages[0].InstallerID)
+	require.Equal(t, installerB, title.SoftwarePackage.InstallerID)
+
+	// --- Delete all remaining (no installer_id) -> 204, no packages left ---
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil,
+		http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
+	var remaining int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &remaining,
+			`SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND title_id = ?`, team.ID, titleID)
+	})
+	require.Zero(t, remaining, "title-level delete removes all packages")
 }
 
 // 1. host reports software
@@ -27972,7 +28185,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// That logic isn't what we're trying to test here.
 	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, customPayload)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, customPayload.Title, team.Name))
+	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.SoftwareAlreadyHasFleetMaintainedAppMessage, customPayload.Title, team.Name))
 
 	// =========================================================================
 	// Section 2: UI single-add flow
@@ -28095,7 +28308,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			http.StatusConflict,
 		)
 		errMsg := extractServerErrorText(conflictResp.Body)
-		require.Contains(t, errMsg, "already has an installer available",
+		require.Contains(t, errMsg, "already has a software package",
 			"error should mention the conflict with the existing custom installer")
 
 		// Confirm the FMA was NOT added — only the original custom installer exists.

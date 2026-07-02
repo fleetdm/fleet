@@ -7165,3 +7165,41 @@ WHERE
 
 	return ret, nil
 }
+
+// GetCategoriesForSoftwareInstallers returns categories keyed by installer id,
+// unmerged (unlike GetCategoriesForSoftwareTitles) so packages keep their own.
+func (ds *Datastore) GetCategoriesForSoftwareInstallers(ctx context.Context, installerIDs []uint) (map[uint][]string, error) {
+	if len(installerIDs) == 0 {
+		return map[uint][]string{}, nil
+	}
+
+	stmt := `
+SELECT
+	sisc.software_installer_id AS installer_id,
+	sc.name AS software_category_name
+FROM
+	software_installer_software_categories sisc
+	JOIN software_categories sc ON sc.id = sisc.software_category_id
+WHERE
+	sisc.software_installer_id IN (?)
+ORDER BY sc.name`
+
+	stmt, args, err := sqlx.In(stmt, installerIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get categories for software installers by id")
+	}
+	var categories []struct {
+		InstallerID  uint   `db:"installer_id"`
+		CategoryName string `db:"software_category_name"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for software installers by id")
+	}
+
+	ret := make(map[uint][]string, len(categories))
+	for _, c := range categories {
+		ret[c.InstallerID] = append(ret[c.InstallerID], c.CategoryName)
+	}
+
+	return ret, nil
+}
