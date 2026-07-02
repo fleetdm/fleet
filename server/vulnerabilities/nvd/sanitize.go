@@ -92,6 +92,13 @@ func sanitizeSoftwareName(s *fleet.Software) string {
 	r := strings.ToLower(s.Name)
 	r = strings.TrimSuffix(r, ".app")
 
+	// Strip "python3-" prefix from python_packages names for CPE matching.
+	// On Ubuntu/Debian, pythonPackageFilter prepends "python3-" to match OVAL definitions,
+	// but the CPE database uses the bare package name (e.g. "geopandas" not "python3-geopandas").
+	if s.Source == "python_packages" {
+		r = strings.TrimPrefix(r, "python3-")
+	}
+
 	// Remove vendor, for 'apps' the vendor name is usually after the top level domain part.
 	r = strings.ReplaceAll(r, strings.ToLower(s.Vendor), "")
 	bundleParts := strings.Split(s.BundleIdentifier, ".")

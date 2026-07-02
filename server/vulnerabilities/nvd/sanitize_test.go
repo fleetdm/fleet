@@ -162,6 +162,14 @@ func TestVariations(t *testing.T) {
 			vendorVariations:  []string{"microsoft", "ms-python"},
 			productVariations: []string{"python", "ms-python.python"},
 		},
+		{
+			software:          fleet.Software{Name: "python3-geopandas", Version: "1.0.1", Source: "python_packages"},
+			productVariations: []string{"geopandas"},
+		},
+		{
+			software:          fleet.Software{Name: "python3-django", Version: "3.2.12", Source: "python_packages"},
+			productVariations: []string{"django"},
+		},
 	}
 
 	for _, tc := range variationsTestCases {
@@ -372,6 +380,54 @@ func TestSanitizedSoftwareName(t *testing.T) {
 				expected: "firefox",
 			},
 		}
+		for _, tc := range testCases {
+			tc := tc
+			actual := sanitizeSoftwareName(&tc.software)
+			require.Equal(t, tc.expected, actual)
+		}
+	})
+
+	t.Run("strips python3- prefix from python_packages", func(t *testing.T) {
+		testCases := []struct {
+			software fleet.Software
+			expected string
+		}{
+			{
+				software: fleet.Software{
+					Name:    "python3-geopandas",
+					Version: "1.0.1",
+					Source:  "python_packages",
+				},
+				expected: "geopandas",
+			},
+			{
+				software: fleet.Software{
+					Name:    "python3-django",
+					Version: "3.2.12",
+					Source:  "python_packages",
+				},
+				expected: "django",
+			},
+			{
+				// python_packages without the prefix should not be affected
+				software: fleet.Software{
+					Name:    "requests",
+					Version: "2.28.0",
+					Source:  "python_packages",
+				},
+				expected: "requests",
+			},
+			{
+				// deb_packages with python3- prefix should NOT be stripped
+				software: fleet.Software{
+					Name:    "python3-geopandas",
+					Version: "1.0.1",
+					Source:  "deb_packages",
+				},
+				expected: "python3-geopandas",
+			},
+		}
+
 		for _, tc := range testCases {
 			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
