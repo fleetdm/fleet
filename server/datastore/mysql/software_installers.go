@@ -4271,8 +4271,8 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 	wantFMA := payload.FleetMaintainedAppID == nil
 	var stmt string
 	var args []any
-	switch payload.Platform {
-	case string(fleet.MacOSPlatform):
+	switch {
+	case payload.Platform == string(fleet.MacOSPlatform) && payload.BundleIdentifier != "":
 		stmt = `
 			SELECT EXISTS (
 				SELECT 1
@@ -4282,7 +4282,7 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 					AND (si.fleet_maintained_app_id IS NOT NULL) = ?
 			)`
 		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.BundleIdentifier, wantFMA}
-	case "windows":
+	case payload.Platform == "windows":
 		stmt = `
 			SELECT EXISTS (
 				SELECT 1
