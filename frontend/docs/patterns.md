@@ -273,6 +273,39 @@ or
 />
 ```
 
+### File-local sub-components (preferred over `render*()` helpers)
+
+When a component's JSX has a branching section complex enough to feel like its
+own piece of UI, prefer defining a **file-local sub-component** below the main
+component over a `renderSomething()` helper closure. This improves readability
+and makes it easier to extract the sub-component into a separate file if needed.
+
+```tsx
+const ParentComponent = ({ a, b, c }: IParentProps) => {
+  // ...hooks, derived state, etc.
+
+  return (
+    <Modal>
+      <ModalContent a={a} b={b} c={c} />
+    </Modal>
+  );
+};
+
+interface IModalContentProps {
+  a: string;
+  b: number;
+  c: () => void;
+}
+
+const ModalContent = ({ a, b, c }: IModalContentProps) => {
+  if (/* ... */) return <Spinner />;
+  // ...
+  return <SomeUI />;
+};
+
+export default ParentComponent;
+```
+
 ### Page component pattern
 
 When creating a **top level page** (e.g. dashboard page, hosts page, policies page)
