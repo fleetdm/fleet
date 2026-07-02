@@ -175,7 +175,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 You can install software during first time macOS, iOS, iPadOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
-Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
+Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB).
 
 Add setup experience software:
 
