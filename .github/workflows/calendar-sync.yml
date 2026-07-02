@@ -1,0 +1,51 @@
+name: Sync release calendar
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply changes (false = dry-run, default)"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: tools/release/calendar-sync
+        run: pip install -r requirements.txt
+
+      - name: Run sync
+        working-directory: tools/release/calendar-sync
+        env:
+          GCAL_SERVICE_ACCOUNT_JSON: ${{ secrets.GCAL_SERVICE_ACCOUNT_JSON }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            python sync.py --apply --summary-file "$GITHUB_STEP_SUMMARY"
+          else
+            python sync.py --summary-file "$GITHUB_STEP_SUMMARY"
+          fi
