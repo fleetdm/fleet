@@ -1741,6 +1741,71 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 	// Clean up
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
+
+	// Regression test for GitHub issue #48054: a Windows FMA added via gitops must not create a
+	// duplicate software title when a host already reported the same software with an upgrade_code.
+	// Host reports Aircall (installed manually via winget) with an upgrade_code, creating a title
+	// whose unique_identifier is derived from the upgrade_code.
+	aircallHost := test.NewHost(t, ds, "aircall-host", "", "aircall-host-key", "aircall-host-uuid", time.Now())
+	aircallUpgradeCode := "{9F7A3B21-4C5D-4E6F-8A9B-0C1D2E3F4A5B}"
+	_, err = ds.UpdateHostSoftware(ctx, aircallHost.ID, []fleet.Software{
+		{Name: "Aircall", Version: "1.0", Source: "programs", UpgradeCode: &aircallUpgradeCode},
+	})
+	require.NoError(t, err)
+
+	type aircallTitleRow struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		Source      string  `db:"source"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	var aircallBefore []aircallTitleRow
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &aircallBefore,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`)
+	require.NoError(t, err)
+	require.Len(t, aircallBefore, 1)
+	require.Equal(t, "Aircall", aircallBefore[0].Name)
+	require.Equal(t, "programs", aircallBefore[0].Source)
+	require.NotNil(t, aircallBefore[0].UpgradeCode)
+	require.Equal(t, aircallUpgradeCode, *aircallBefore[0].UpgradeCode)
+
+	// Add the Aircall FMA for the team via gitops, with no upgrade_code on the payload.
+	aircallFile := bytes.NewReader([]byte("aircall-installer"))
+	aircallTFR, err := fleet.NewTempFileReader(aircallFile, t.TempDir)
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:   "install.ps1",
+		InstallerFile:   aircallTFR,
+		StorageID:       "aircall-installer",
+		Filename:        "aircall.msi",
+		Title:           "Aircall",
+		Source:          "programs",
+		Version:         "1.0",
+		UserID:          user1.ID,
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}})
+	require.NoError(t, err)
+
+	// Still exactly one Aircall title, matched by name, keeping the host-reported upgrade_code.
+	var aircallAfter []aircallTitleRow
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &aircallAfter,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`)
+	require.NoError(t, err)
+	require.Len(t, aircallAfter, 1, "adding the Aircall FMA should not create a duplicate software title")
+	require.Equal(t, aircallBefore[0].ID, aircallAfter[0].ID, "installer should match the existing title")
+	require.Equal(t, "Aircall", aircallAfter[0].Name)
+	require.Equal(t, "programs", aircallAfter[0].Source)
+	require.NotNil(t, aircallAfter[0].UpgradeCode, "matched title should keep the host-reported upgrade_code")
+	require.Equal(t, aircallUpgradeCode, *aircallAfter[0].UpgradeCode)
+
+	// The Aircall installer should be linked to that same title.
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	require.NotNil(t, softwareInstallers[0].TitleID)
+	require.Equal(t, aircallBefore[0].ID, *softwareInstallers[0].TitleID, "installer should point at the existing title")
 }
 
 func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *Datastore) {
@@ -2919,7 +2984,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
+			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, ds.writer(ctx), tt.payload)
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
 
