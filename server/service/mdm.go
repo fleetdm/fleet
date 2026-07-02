@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -1863,6 +1864,113 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	return &newMDMConfigProfileResponse{Err: err}, nil
 }
 
+type updateMDMConfigProfileRequest struct {
+	ProfileUUID      string
+	Profile          *multipart.FileHeader
+	LabelsIncludeAll []string
+	LabelsIncludeAny []string
+	LabelsExcludeAny []string
+}
+
+func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	decoded := updateMDMConfigProfileRequest{}
+
+	profileUUID, ok := mux.Vars(r)["profile_uuid"]
+	if !ok || profileUUID == "" {
+		return nil, &fleet.BadRequestError{Message: "profile_uuid is required"}
+	}
+	decoded.ProfileUUID = profileUUID
+
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	// profile file is optional on update -- labels may be edited without
+	// replacing the profile contents
+	if fhs, ok := r.MultipartForm.File["profile"]; ok && len(fhs) > 0 {
+		decoded.Profile = fhs[0]
+		if decoded.Profile.Size > fleet.MaxProfileSize {
+			return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+		}
+	}
+
+	// add labels
+	var existsInclAll, existsInclAny bool
+	decoded.LabelsIncludeAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
+	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	decoded.LabelsExcludeAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+
+	if existsInclAll && existsInclAny {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all" or "labels_include_any" can be included.`}
+	}
+
+	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...) //nolint:gocritic
+	if overlap := fleet.LabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
+	}
+
+	return &decoded, nil
+}
+
+type updateMDMConfigProfileResponse struct {
+	ProfileUUID      string   `json:"profile_uuid"`
+	HasProfile       bool     `json:"has_profile"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	Err              error    `json:"error,omitempty"`
+}
+
+func (r updateMDMConfigProfileResponse) Error() error { return r.Err }
+
+// TODO(#48342): this is plumbing-only for now -- it echoes back the decoded
+// request instead of calling into the service/datastore layer, so the HTTP
+// wiring can be exercised before the update datastore methods exist.
+func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateMDMConfigProfileRequest)
+
+	var data []byte
+	if req.Profile != nil {
+		ff, err := req.Profile.Open()
+		if err != nil {
+			return &updateMDMConfigProfileResponse{Err: err}, nil
+		}
+		defer ff.Close()
+
+		data, err = io.ReadAll(ff)
+		if err != nil {
+			return &updateMDMConfigProfileResponse{Err: err}, nil
+		}
+	}
+
+	var labels []string
+	var labelsMode fleet.MDMLabelsMode
+	switch {
+	case len(req.LabelsIncludeAny) > 0:
+		labels = req.LabelsIncludeAny
+		labelsMode = fleet.LabelsIncludeAny
+	default:
+		labels = req.LabelsIncludeAll
+		labelsMode = fleet.LabelsIncludeAll
+	}
+
+	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, data, labels, labelsMode, req.LabelsExcludeAny); err != nil {
+		return &updateMDMConfigProfileResponse{Err: err}, nil
+	}
+
+	return &updateMDMConfigProfileResponse{
+		ProfileUUID:      req.ProfileUUID,
+		HasProfile:       req.Profile != nil,
+		LabelsIncludeAll: req.LabelsIncludeAll,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+	}, nil
+}
+
 func (svc *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1883,6 +1991,19 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	// svc.authz is only available on the concrete Service struct, not on the
 	// Service interface so it cannot be done in the endpoint itself.
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
+}
+
+// UpdateMDMConfigProfile updates an existing configuration profile's contents
+// and/or label targeting in place.
+//
+// TODO(#48342): stub only for now -- performs the authz check but does not
+// yet touch the datastore.
+func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	return nil
 }
 
 func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, error) {

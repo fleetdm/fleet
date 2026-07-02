@@ -1238,6 +1238,13 @@ type Service interface {
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
 
+	// UpdateMDMConfigProfile updates an existing configuration profile's
+	// contents and/or label targeting in place.
+	//
+	// TODO(#48342): stub only for now -- performs the authz check but does
+	// not yet touch the datastore.
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) error
+
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
 
