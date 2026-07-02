@@ -23,12 +23,14 @@ func Up_20260629163945(tx *sql.Tx) error {
 		return fmt.Errorf("adding dedup_token column: %w", err)
 	}
 
-	// Collapse rows that would violate the new key: keep the lowest id per group and delete
-	// the rest. Re-point policies off the deleted rows first, since
-	// policies.software_installer_id is RESTRICT. Keep policies.updated_at so this
-	// content-identical swap doesn't read as a policy edit.
+	// Collapse rows that would violate the new key: keep the first-added active row per group
+	// (the row the reads return), or the lowest id if none is active, and delete the rest.
+	// Re-point policies off the deleted rows first, since policies.software_installer_id is
+	// RESTRICT. Keep policies.updated_at so this content-identical swap doesn't read as a
+	// policy edit.
 	const dupGroups = `
-		SELECT global_or_team_id, title_id, dedup_token, MIN(id) AS keep_id
+		SELECT global_or_team_id, title_id, dedup_token,
+			COALESCE(MIN(CASE WHEN is_active = 1 THEN id END), MIN(id)) AS keep_id
 		FROM software_installers
 		WHERE title_id IS NOT NULL
 		GROUP BY global_or_team_id, title_id, dedup_token
