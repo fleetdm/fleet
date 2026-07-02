@@ -144,9 +144,6 @@ The profiles names must be unique across all platforms and profile types for a g
 * DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
 * DDM profiles cannot be delivered to a user-channel currently, so user-scoped payloads are not supported (if they pass validation, they will be delivered to the device channel).
 
-## Special Cases
-
-- **Setup assistant**: As of Fleet v4.70.0, DDM profiles are ignored during the setup assistant phase of a macOS device. This is because Apple does not currently support the DDM protocol in this phase, it always returns a "NotNow" response to the `DeclarativeManagement` MDM command, so Fleet cannot wait for DDM profiles to be delivered before releasing the device so we ignore them and wait for after the device is configured to send them.
 
 ## Related Resources
 
