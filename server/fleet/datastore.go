@@ -848,10 +848,8 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-	// GetCategoriesForSoftwareInstallers takes a set of software installer IDs and
-	// returns a map from installer ID to the categories assigned to that installer.
-	// Unlike GetCategoriesForSoftwareTitles, categories are not merged across a
-	// title's packages, so this supports per-package categories.
+	// GetCategoriesForSoftwareInstallers returns categories keyed by installer ID,
+	// unmerged (unlike GetCategoriesForSoftwareTitles) so packages keep their own.
 	GetCategoriesForSoftwareInstallers(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
 
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
@@ -2698,16 +2696,19 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
+	// GetSoftwareInstallerMetadataByTeamTitleAndInstallerID is like
+	// GetSoftwareInstallerMetadataByTeamAndTitleID but returns a specific installer
+	// (not the first-added), so add/edit responses can echo the affected package.
+	GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
 	// GetSoftwarePackagesByTeamAndTitleID returns every active package for the given
 	// title and team, ordered first-added first, each with its label scope and
 	// script contents.
 	GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*SoftwareInstaller, error)
 
-	// GetSoftwarePackagesForTitles returns the trimmed per-package information for
-	// every active custom package on the given titles, keyed by title id and
-	// ordered first-added first. It backs the packages[] array on the list-titles
-	// response.
-	GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]SoftwarePackageOrApp, error)
+	// GetSoftwarePackagesForTitles returns trimmed per-package info for the titles'
+	// active packages, keyed by title id, first-added first; backs the list packages[].
+	GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]SoftwarePackageListItem, error)
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true

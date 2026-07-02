@@ -439,13 +439,9 @@ type SoftwareTitle struct {
 	// InHouseAppsCount is 0 or 1, indicating if the software title has
 	// an in house app (.ipa) installer
 	InHouseAppCount int `json:"-" db:"in_house_apps_count"`
-	// SoftwarePackage is the software installer information for this title. It is
-	// retained for backwards compatibility and holds the first-added (oldest)
-	// package; it is nil when the title has no packages.
+	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
-	// Packages holds every custom package added for this title (ordered
-	// first-added first). It is nil when the title has no packages, so it
-	// marshals to null.
+	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
 	// AppStoreApp is the VPP app information for this title.
 	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
@@ -530,16 +526,11 @@ type SoftwareTitleListResult struct {
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 
-	// SoftwarePackage provides software installer package information, it is
-	// only present if a software installer is available for the software title.
-	// It is retained for backwards compatibility and holds the first-added
-	// (oldest) package.
+	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
 	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
 
-	// Packages provides the trimmed package information for every custom package
-	// added for this title (ordered first-added first). It is nil (marshals to
-	// null) when the title has no packages.
-	Packages []SoftwarePackageOrApp `json:"packages"`
+	// Packages holds the trimmed per-package info, first-added first; nil (marshals to null) when none.
+	Packages []SoftwarePackageListItem `json:"packages"`
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.

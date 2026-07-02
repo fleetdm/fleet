@@ -17147,9 +17147,45 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 		}, expectedStatus, expectedErr)
 	}
 
+	// rawSoftwareMultipart adds or edits a script package and returns the raw
+	// response body, so we can assert exactly which package the endpoint echoes.
+	rawSoftwareMultipart := func(method, path, content string, extra map[string]string) []byte {
+		fr, err := fleet.NewTempFileReader(strings.NewReader(content), func() string { return t.TempDir() })
+		require.NoError(t, err)
+		defer fr.Close()
+		var body bytes.Buffer
+		w := multipart.NewWriter(&body)
+		fw, err := w.CreateFormFile("software", "deploy.sh")
+		require.NoError(t, err)
+		_, err = io.Copy(fw, fr)
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", team.ID)))
+		require.NoError(t, w.WriteField("fleet_id", fmt.Sprintf("%d", team.ID)))
+		for k, v := range extra {
+			require.NoError(t, w.WriteField(k, v))
+		}
+		require.NoError(t, w.Close())
+		headers := map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+		r := s.DoRawWithHeaders(method, path, body.Bytes(), http.StatusOK, headers)
+		defer r.Body.Close()
+		respBody, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		return respBody
+	}
+
 	// Add a first package (A, not self-service), then a second (B, self-service).
+	// The POST response must echo the package that was just added (not the title's
+	// first-added one).
 	upload(contentA, false, http.StatusOK, "")
-	upload(contentB, true, http.StatusOK, "")
+	postBody := rawSoftwareMultipart("POST", "/api/latest/fleet/software/package", contentB, map[string]string{"self_service": "true"})
+	var addResp uploadSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(postBody, &addResp))
+	require.NotNil(t, addResp.SoftwarePackage)
+	require.Equal(t, hashOf(contentB), addResp.SoftwarePackage.StorageID, "POST echoes the just-added package, not first-added")
 
 	// Adding a second package emits the same added_software activity.
 	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), ``, 0)
@@ -17204,6 +17240,27 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	require.NotNil(t, lt.Packages[1].SelfService)
 	require.True(t, *lt.Packages[1].SelfService)
 
+	// The list packages[] must omit the host-only last_install/last_uninstall fields.
+	listRes := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK,
+		"query", "deploy", "team_id", fmt.Sprintf("%d", team.ID))
+	rawList, err := io.ReadAll(listRes.Body)
+	require.NoError(t, err)
+	listRes.Body.Close()
+	var rawListParsed struct {
+		SoftwareTitles []struct {
+			Packages []map[string]json.RawMessage `json:"packages"`
+		} `json:"software_titles"`
+	}
+	require.NoError(t, json.Unmarshal(rawList, &rawListParsed))
+	require.Len(t, rawListParsed.SoftwareTitles, 1)
+	require.Len(t, rawListParsed.SoftwareTitles[0].Packages, 2)
+	for _, p := range rawListParsed.SoftwareTitles[0].Packages {
+		_, hasLastInstall := p["last_install"]
+		_, hasLastUninstall := p["last_uninstall"]
+		require.False(t, hasLastInstall, "list packages[] must omit last_install")
+		require.False(t, hasLastUninstall, "list packages[] must omit last_uninstall")
+	}
+
 	// --- Edit without installer_id on a multi-package title -> 400 ---
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
@@ -17228,17 +17285,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	require.Equal(t, hashOf(contentA), title.Packages[0].StorageID)
 	require.Equal(t, hashOf(contentB), title.Packages[1].StorageID)
 
-	// --- Edit B's file to a new hash -> ok; A untouched ---
-	newFile, err := fleet.NewTempFileReader(strings.NewReader(contentC), func() string { return t.TempDir() })
-	require.NoError(t, err)
-	defer newFile.Close()
-	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:       titleID,
-		InstallerID:   installerB,
-		TeamID:        &team.ID,
-		Filename:      "deploy.sh",
-		InstallerFile: newFile,
-	}, http.StatusOK, "")
+	// --- Edit B's file to a new hash -> ok; A untouched; PATCH echoes the edited package ---
+	patchBody := rawSoftwareMultipart("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID),
+		contentC, map[string]string{"installer_id": fmt.Sprintf("%d", installerB)})
+	var patchResp getSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(patchBody, &patchResp))
+	require.NotNil(t, patchResp.SoftwareInstaller)
+	require.Equal(t, installerB, patchResp.SoftwareInstaller.InstallerID, "PATCH echoes the edited package, not first-added")
+	require.Equal(t, hashOf(contentC), patchResp.SoftwareInstaller.StorageID)
 	title = getTitle()
 	require.Equal(t, hashOf(contentA), title.Packages[0].StorageID)
 	require.Equal(t, hashOf(contentC), title.Packages[1].StorageID)

@@ -1580,9 +1580,11 @@ type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID u
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
+type GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc func(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
+
 type GetSoftwarePackagesByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error)
 
-type GetSoftwarePackagesForTitlesFunc func(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageOrApp, error)
+type GetSoftwarePackagesForTitlesFunc func(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageListItem, error)
 
 type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error)
 
@@ -4480,6 +4482,9 @@ type DataStore struct {
 
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
+
+	GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc        GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc
+	GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFuncInvoked bool
 
 	GetSoftwarePackagesByTeamAndTitleIDFunc        GetSoftwarePackagesByTeamAndTitleIDFunc
 	GetSoftwarePackagesByTeamAndTitleIDFuncInvoked bool
@@ -10779,6 +10784,13 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
+func (s *DataStore) GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc(ctx, teamID, titleID, installerID, withScriptContents)
+}
+
 func (s *DataStore) GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetSoftwarePackagesByTeamAndTitleIDFuncInvoked = true
@@ -10786,7 +10798,7 @@ func (s *DataStore) GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, tea
 	return s.GetSoftwarePackagesByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageOrApp, error) {
+func (s *DataStore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageListItem, error) {
 	s.mu.Lock()
 	s.GetSoftwarePackagesForTitlesFuncInvoked = true
 	s.mu.Unlock()
