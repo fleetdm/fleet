@@ -48,7 +48,7 @@ const NoResults = ({
   // Converts seconds takes to update to human readable format
   const readableCheckbackTime = formatDistance(
     add(new Date(), { seconds: secondsCheckbackTime() }),
-    new Date()
+    new Date(),
   );
 
   // Collecting results state only shows if caching is enabled
@@ -56,7 +56,7 @@ const NoResults = ({
     const collectingResultsInfo = () => (
       <>
         Fleet is collecting report results. <br />
-        Check back in about {readableCheckbackTime}.
+        Check back in {readableCheckbackTime}.
       </>
     );
 
