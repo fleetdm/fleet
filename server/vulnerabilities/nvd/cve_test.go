@@ -1036,7 +1036,13 @@ func TestSyncsCVEFromURL(t *testing.T) {
 // This test is using real data from the 2022 NVD feed
 func TestGetMatchingVersionEndExcluding(t *testing.T) {
 	ctx := context.Background()
-	testDict := loadDict(t, "../testdata/nvdcve-1.1-2022.json.gz")
+	// The version-end-including fixture holds a real CVE-2025-63389 record whose only version
+	// constraint is versionEndIncluding (no versionEndExcluding), so the feed yields no resolved
+	// version and the override in knownResolvedVersionOverrides is exercised. See #44800.
+	testDict := loadDict(t,
+		"../testdata/nvdcve-1.1-2022.json.gz",
+		"../testdata/nvdcve-1.1-version-end-including.json",
+	)
 
 	tests := []struct {
 		name    string
@@ -1124,8 +1130,9 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// NVD only provides versionEndIncluding for this CVE, so the resolved version comes
-			// from knownResolvedVersionOverrides. See #44800.
+			// The feed record for this CVE (see nvdcve-1.1-version-end-including.json) only provides
+			// versionEndIncluding, so the feed yields no resolved version and it comes from
+			// knownResolvedVersionOverrides instead. See #44800.
 			name: "versionEndIncluding-only CVE uses resolved version override",
 			cve:  "CVE-2025-63389",
 			meta: &wfn.Attributes{
@@ -1245,9 +1252,9 @@ func TestGetMacOSCPEs(t *testing.T) {
 	}
 }
 
-// loadDict loads a cvefeed.Dictionary from a JSON NVD feed file.
-func loadDict(t *testing.T, path string) cvefeed.Dictionary {
-	dict, err := cvefeed.LoadJSONDictionary(path)
+// loadDict loads a cvefeed.Dictionary from one or more JSON NVD feed files, merging their entries.
+func loadDict(t *testing.T, paths ...string) cvefeed.Dictionary {
+	dict, err := cvefeed.LoadJSONDictionary(paths...)
 	if err != nil {
 		t.Fatal(err)
 	}
