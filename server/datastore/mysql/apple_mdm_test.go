@@ -2872,6 +2872,52 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, idpAccount)
 	require.Equal(t, *acc1, *idpAccount)
+
+	// Re-enrollment with the same device UUID but a different IdP email.
+	//
+	// The account UUID is the host UUID, which is the table's primary key. On a
+	// previous enrollment the device registered with "before@example.com"; on a
+	// later enrollment the user signed in with a different IdP account. The
+	// INSERT collides on the primary key (uuid), so it falls into ON DUPLICATE
+	// KEY UPDATE. If the upsert doesn't update the email column, the row keeps
+	// the old email and the subsequent lookup by the new email returns
+	// not-found, which surfaced as "retrieving new account data from IdP".
+	const reEnrollUUID = "reenroll-device-uuid"
+	beforeAcc := &fleet.MDMIdPAccount{
+		UUID:     reEnrollUUID,
+		Username: "before@example.com",
+		Email:    "before@example.com",
+		Fullname: "Before User",
+	}
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, beforeAcc))
+
+	out, err = ds.GetMDMIdPAccountByEmail(ctx, beforeAcc.Email)
+	require.NoError(t, err)
+	require.Equal(t, beforeAcc, out)
+
+	afterAcc := &fleet.MDMIdPAccount{
+		UUID:     reEnrollUUID,
+		Username: "after@example.com",
+		Email:    "after@example.com",
+		Fullname: "After User",
+	}
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, afterAcc))
+
+	// The new email must be retrievable (this is the read-back that previously
+	// failed with not-found).
+	out, err = ds.GetMDMIdPAccountByEmail(ctx, afterAcc.Email)
+	require.NoError(t, err)
+	require.Equal(t, afterAcc, out)
+
+	// It must be the same row (same UUID), with email/username/fullname updated.
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, reEnrollUUID)
+	require.NoError(t, err)
+	require.Equal(t, afterAcc, out)
+
+	// The old email no longer maps to any account.
+	out, err = ds.GetMDMIdPAccountByEmail(ctx, beforeAcc.Email)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, out)
 }
 
 func testDoNotIgnoreMDMClientError(t *testing.T, ds *Datastore) {

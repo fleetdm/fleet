@@ -6846,6 +6846,76 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.True(t, q.Has("error"))
 }
 
+// TestMDMSSOReenrollWithDifferentIdPEmail reproduces the case where a device
+// that was already registered with one IdP email re-enrolls and signs in with a
+// different IdP account. In the Orbit setup-experience flow the device's host
+// UUID is the primary key of the mdm_idp_accounts row, so the second login
+// upserts on the same row. If that upsert doesn't refresh the email column, the
+// row keeps the stale email and the read-back by the new email fails with
+// "retrieving new account data from IdP", surfacing to the device as a failed
+// SSO login (the callback redirects with error=true).
+func (s *integrationMDMTestSuite) TestMDMSSOReenrollWithDifferentIdPEmail() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	lastSubmittedProfile := &godep.Profile{}
+	s.setUpEndUserAuthentication(t, lastSubmittedProfile, false)
+
+	// The host UUID stays stable across enrollments; it becomes the IdP account
+	// primary key for the setup-experience flow. It's stored in the
+	// host_mdm_idp_accounts.account_uuid column, which is VARCHAR(36), so use a
+	// plain UUID.
+	hostUUID := uuid.NewString()
+
+	// First enrollment: the device's end user signs in as sso_user.
+	res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+	u, err := url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q := u.Query()
+	require.False(t, q.Has("error"))
+	require.True(t, q.Has("enrollment_reference"))
+	// the enrollment reference is the account UUID, which is the host UUID.
+	require.Equal(t, hostUUID, q.Get("enrollment_reference"))
+
+	// IdP account and the host association reflect sso_user.
+	s.checkStoredIdPInfo(t, hostUUID, "sso_user", "SSO User 1", "sso_user@example.com")
+	acc, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acc)
+	require.Equal(t, "sso_user@example.com", acc.Email)
+
+	// Re-enrollment: the same device signs in as a different IdP user, sso_user2.
+	// This upserts the mdm_idp_accounts row keyed on the host UUID with a new
+	// email. Before the fix, the read-back by sso_user2@example.com failed and
+	// the callback redirected with error=true.
+	res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	require.False(t, q.Has("error"), "re-enrollment with a different IdP email should not fail")
+	require.True(t, q.Has("enrollment_reference"))
+	// same host, so the account UUID (and enrollment reference) is unchanged.
+	require.Equal(t, hostUUID, q.Get("enrollment_reference"))
+
+	// The IdP account and host association now reflect sso_user2.
+	s.checkStoredIdPInfo(t, hostUUID, "sso_user2", "SSO User 2", "sso_user2@example.com")
+	acc, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acc)
+	require.Equal(t, "sso_user2@example.com", acc.Email)
+
+	// The new email is resolvable, and the old one no longer maps to an account.
+	_, err = s.ds.GetMDMIdPAccountByEmail(context.Background(), "sso_user2@example.com")
+	require.NoError(t, err)
+	_, err = s.ds.GetMDMIdPAccountByEmail(context.Background(), "sso_user@example.com")
+	require.True(t, fleet.IsNotFound(err))
+}
+
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
 	acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 	require.NoError(t, err)

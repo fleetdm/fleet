@@ -1,0 +1,1 @@
+* Fixed error in SSO re-enrollment for devices when using a different e-mail than the previous SSO enroll.
