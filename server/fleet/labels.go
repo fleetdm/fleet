@@ -474,8 +474,14 @@ func (l *Label) CalculateHostVitalsQuery() (query string, values []any, err erro
 		}
 	}
 
-	// Leave SELECT and FROM to be filled in later for flexibility.
-	query = "SELECT %s FROM %s " + strings.Join(joins, " ") + " WHERE " + whereClause + " GROUP BY hosts.id"
+	// Leave SELECT and FROM to be filled in later for flexibility. Domestic
+	// vitals have no joins, so only add the JOIN segment (and its surrounding
+	// space) when there are foreign vitals groups to avoid a doubled space.
+	joinClause := ""
+	if len(joins) > 0 {
+		joinClause = strings.Join(joins, " ") + " "
+	}
+	query = "SELECT %s FROM %s " + joinClause + "WHERE " + whereClause + " GROUP BY hosts.id"
 	return
 }
 
@@ -513,12 +519,14 @@ func parseHostVitalCriteria(criteria *HostVitalCriteria, foreignVitalsGroups map
 		op := HostVitalOperatorEqual
 		operator = &op
 	}
-	// TODO - handle different vital data types and operator types.
-	// For now, we only support equality checks.
-	if *operator != HostVitalOperatorEqual {
+	// TODO - handle different vital data types and the remaining operator types.
+	// For now, we support equality and LIKE (prefix/wildcard) matching.
+	switch *operator {
+	case HostVitalOperatorEqual, HostVitalOperatorLike:
+		return fmt.Sprintf("%s %s ?", vital.Path, *operator), nil
+	default:
 		return "", fmt.Errorf("operator %s not supported for vital %s", *operator, *criteria.Vital)
 	}
-	return fmt.Sprintf("%s = ?", vital.Path), nil
 }
 
 type MissingLabelError struct {

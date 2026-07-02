@@ -6047,8 +6047,9 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
 
 | Name        | Type   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"` or `"end_user_idp_department"`. |
+| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"`, `"end_user_idp_department"`, or `"public_ip"`. |
 | value       | string | Hosts with vital data matching this value will be added to the label. |
+| operator    | string | _Optional._ How `value` is matched against the vital. Can be `"="` (exact match, default) or `"LIKE"` (SQL `LIKE` pattern match, supports `%` and `_` wildcards). |
 
 
 #### Example

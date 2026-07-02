@@ -1,0 +1,2 @@
+* Added support for host vitals labels based on a host's public IP address (`public_ip`), in addition to the existing IdP vitals. Because Fleet derives the public IP server-side from the host's connection (osquery cannot observe it locally), this enables labeling hosts by the network they connect from — for example, the office their egress IP belongs to.
+* Added a `LIKE` operator for host vitals label criteria (in addition to the default `=`), enabling SQL wildcard pattern matching on vital values.
