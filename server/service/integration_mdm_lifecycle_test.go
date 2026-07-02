@@ -1627,3 +1627,92 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	})
 	require.NotZero(t, finalProfileID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
 }
+
+// TestSCEPRenewalVsFreshEnrollment verifies the fresh-enrollment-vs-SCEP-renewal disambiguation end to
+// end: a device that re-enrolls (fetching a fresh profile whose SCEP Subject carries the new-enrollment
+// marker OU) while a stale SCEP renewal is pending is treated as a fresh enrollment — the renewal refs
+// are cleared and mdm_enrolled re-fires. A genuine renewal (cert without the OU) keeps today's
+// short-circuit: no new mdm_enrolled activity.
+func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
+	logger := slog.New(slog.DiscardHandler)
+
+	// renewalPending reports whether any cert association for the host has a pending renewal command.
+	// This mirrors how GetHostMDMCheckinInfo derives SCEPRenewalInProgress and is robust to a host
+	// having multiple association rows (one per issued cert) after a re-key.
+	renewalPending := func(hostUUID string) bool {
+		var pending bool
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &pending,
+				`SELECT EXISTS(SELECT 1 FROM nano_cert_auth_associations WHERE id = ? AND renew_command_uuid IS NOT NULL)`, hostUUID)
+		})
+		return pending
+	}
+	forcePendingRenewal := func(hostUUID string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE nano_cert_auth_associations SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR) WHERE id = ?`, hostUUID)
+			return err
+		})
+		require.NoError(t, RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc))
+		require.True(t, renewalPending(hostUUID), "a SCEP renewal command should be pending after the renewal cron")
+	}
+	lastEnrolledActivityID := func() uint {
+		return s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(), "", 0)
+	}
+	newManualDevice := func(suffix string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		token := uuid.New().String()
+		host := createOrbitEnrolledHost(t, "darwin", suffix, s.ds)
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, token))
+		dev := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, token)
+		dev.UUID = host.UUID
+		dev.SerialNumber = host.HardwareSerial
+		return host, dev
+	}
+
+	t.Run("fresh re-enroll while a renewal is pending is treated as fresh", func(t *testing.T) {
+		host, dev := newManualDevice("scep-fresh-reenroll")
+		require.NoError(t, dev.Enroll())
+		// Fleet's fresh enrollment profile carries the new-enrollment marker OU, which the simulated
+		// device puts in its CSR and Fleet's SCEP signer preserves into the identity cert.
+		require.Contains(t, dev.EnrollInfo.SCEPSubjectOUs, apple_mdm.FleetEnrollmentSubjectOU)
+		firstEnrollID := lastEnrolledActivityID()
+
+		forcePendingRenewal(host.UUID)
+
+		// The device re-enrolls fresh (hits the enroll endpoint again) rather than processing the
+		// pending renewal command.
+		require.NoError(t, dev.Reenroll())
+
+		// The stale renewal ref is cleared and a NEW mdm_enrolled activity fired.
+		require.False(t, renewalPending(host.UUID), "renew refs should be cleared for a fresh re-enrollment")
+		require.Greater(t, lastEnrolledActivityID(), firstEnrollID, "a fresh re-enrollment must emit a new mdm_enrolled activity")
+	})
+
+	t.Run("genuine renewal keeps the short-circuit", func(t *testing.T) {
+		host, dev := newManualDevice("scep-genuine-renewal")
+		require.NoError(t, dev.Enroll())
+		firstEnrollID := lastEnrolledActivityID()
+
+		forcePendingRenewal(host.UUID)
+
+		// Simulate the device processing the renewal: it re-keys from a renewal profile, whose SCEP
+		// Subject carries no new-enrollment OU (verified in the server/mdm/apple unit tests), so the
+		// issued cert lacks the marker.
+		dev.EnrollInfo.SCEPSubjectOUs = nil
+		require.NoError(t, dev.SCEPEnroll())
+		require.NoError(t, dev.Authenticate())
+		require.NoError(t, dev.TokenUpdate(false))
+
+		// The renewal is short-circuited: refs cleared, but NO new mdm_enrolled activity.
+		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after a renewal checkin")
+		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "a genuine renewal must not emit a new mdm_enrolled activity")
+	})
+}

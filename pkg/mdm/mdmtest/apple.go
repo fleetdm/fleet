@@ -199,6 +199,12 @@ type AppleEnrollInfo struct {
 	// config.mdm.apple_require_hardware_attestation is true.
 	ACMEURL string
 
+	// SCEPSubjectOUs holds the Organizational Unit values from the enrollment profile's SCEP/ACME
+	// Subject. Fleet marks new-enrollment (non-renewal) profiles with a distinguishing OU; the
+	// simulated device includes these in its CSR so the issued identity cert carries them, mirroring a
+	// real device. This lets tests exercise the fresh-enrollment-vs-SCEP-renewal checkin logic.
+	SCEPSubjectOUs []string
+
 	// RawProfile contains the raw bytes of the enrollment profile. This is useful for tests that
 	// want to inspect the actual profile content. This field is populated regardless of the value
 	// of skipParseEnrollProf.
@@ -768,8 +774,9 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 	cert, key, err := performSCEPExchange(context.Background(), scepExchangeRequest{
 		URL: url,
 		Subject: pkix.Name{
-			CommonName:   cn,
-			Organization: []string{"fleet-organization"},
+			CommonName:         cn,
+			Organization:       []string{"fleet-organization"},
+			OrganizationalUnit: c.EnrollInfo.SCEPSubjectOUs,
 		},
 		Challenge: challenge,
 	}, logger)
@@ -1409,7 +1416,36 @@ func parseSCEPEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[s
 
 	enrollInfo.SCEPChallenge = scepChallenge
 	enrollInfo.SCEPURL = scepURL
+	enrollInfo.SCEPSubjectOUs = extractSubjectOUs(payloadContent["Subject"])
 	return &enrollInfo, nil
+}
+
+// extractSubjectOUs pulls the OU values from a parsed mobileconfig SCEP/ACME Subject, which has the
+// shape [][][]string, e.g. [[[O Fleet]] [[OU Fleet Device Enrollment]] [[CN Fleet Identity]]].
+func extractSubjectOUs(subject any) []string {
+	rdnSets, ok := subject.([]any)
+	if !ok {
+		return nil
+	}
+	var ous []string
+	for _, rdnSet := range rdnSets {
+		rdns, ok := rdnSet.([]any)
+		if !ok {
+			continue
+		}
+		for _, rdn := range rdns {
+			pair, ok := rdn.([]any)
+			if !ok || len(pair) != 2 {
+				continue
+			}
+			if key, _ := pair[0].(string); key == "OU" {
+				if val, _ := pair[1].(string); val != "" {
+					ous = append(ous, val)
+				}
+			}
+		}
+	}
+	return ous
 }
 
 func parseACMEEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[string]any) (*AppleEnrollInfo, error) {
