@@ -14,8 +14,11 @@ For Android hosts, copy this [Android configuration profile template](https://fl
 
 For macOS hosts, Fleet supports uploading Apple Declarative Device Management (DDM) profiles as `.json` files. Fleet supports the following declaration types:
 
-- **Configurations** (`com.apple.configuration.*`): Enforce settings like passcode policies, account configurations, and more.
-- **Assets** (`com.apple.asset.*`): Deploy credentials, certificates, and other assets referenced by configurations.
+#### Configurations (`com.apple.configuration.*`)
+Enforce settings like passcode policies, account configurations, and more.
+
+#### Assets (`com.apple.asset.*`)
+Deploy credentials, certificates, and other assets referenced by configurations.
 
 Each **asset declaration** `.json` must include a `Type`, `Identifier`, and `Payload` key. Example:
 
@@ -46,9 +49,17 @@ Fleet UI:
 
 2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
-3. Select **Add profile** and choose your configuration profile.
+3. Select either **Profiles** or **Assets** from the sub menu.
+  - To add a configuration profile, select **Add profile** and choose your configuration profile and target.
+  - To add an asset, select **Add asset** and choose your asset.
 
-4. To edit the OS setting, first remove the old configuration profile and then add the new one.
+Once the profile is saved, you can edit the profile's targets or replace the configuration file. Hover over the profile row and select the **pencil/edit button** to edit the following:
+
+  - Targets (all hosts or custom). For custom targets, you can edit the labels (include and/or exclude).
+  - Configuration profile. In the edit modal, hover over the uploaded file and select the **pencil/edit button** to upload a replacement file.
+  > The replacement file must match the original:
+  > - **DDM profiles:** same declaration identifier and file name
+  > - **v1 .mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
@@ -73,7 +84,10 @@ How to deliver user-scoped configuration profiles:
 #### macOS
 
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
-2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
+
+2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`.
+
+Here's an example `.mobileconfig` snippet:
 
 ```
 <?xml version="1.0" encoding="UTF-8"?>
@@ -88,9 +102,25 @@ How to deliver user-scoped configuration profiles:
 </plist>
 ```
 
+Here's an example DDM (`com.apple.configuration.*`) snippet:
+```json
+{
+    "Type": "com.apple.configuration.passcode.settings",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
+    "Payload": {
+        "RequirePasscode": true,
+        "RequireComplexPasscode": true,
+        "MinimumLength": 10,
+        "MaximumInactivityInMinutes": 1
+    }
+}
+```
+
 #### Windows
 
 1. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that all the settings in your Windows profile support the user scope. For example, the [SCEP setting](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep) supports both the device and user scope.
+
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
 #### Upgrading from below 4.71.0
@@ -98,11 +128,13 @@ How to deliver user-scoped configuration profiles:
 Fleet added support for user-scoped macOS configuration profiles in Fleet 4.71.0. If you're upgrading Fleet from a version below 4.71.0, here's how to prepare your already enrolled hosts for macOS user-scoped configuration profiles:
 
 1. If the host automatically enrolled to Fleet (via ADE), you don't need to take action. Fleet added support for the user-scoped configuration profiles on these hosts.
+
 2. To deliver user-scoped profiles to hosts that manually enrolled and turned on MDM, first turn off MDM and ask end user to [turn on MDM](https://fleetdm.com/guides/mdm-migration#migrate-hosts:~:text=If%20the%20host%20is%20not%20assigned%20to%20Fleet%20in%20ABM%20(manual%20enrollment)%2C%20the%20end%20user%20will%20be%20given%20the%20option%20to%20download%20the%20MDM%20enrollment%20profile%20on%20their%20My%20device%20page.) through the **My device** page.
 
 Edit user-scoped configuration profiles that are already installed on hosts:
 
 1. Check for profiles with `PayloadScope` set to `User`. Already deployed profiles with `PayloadScope` set to `User` won’t be re-installed on hosts automatically.
+
 2. To change them to the user-scope, update the `PayloadIdentifier`, re-add the profile to Fleet, and delete the old profile. This will uninstall the device-scope profile and install the profile in the user scope. If you're using [GitOps](https://fleetdm.com/docs/configuration/yaml-files), just update the `PayloadIdentifier` and run GitOps.
 
 In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
