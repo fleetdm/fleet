@@ -10,7 +10,7 @@ import {
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -86,7 +86,7 @@ const IntegrationForm = ({
   const validateForm = () => {
     let error = null;
 
-    if (url && !validUrl({ url, protocols: ["https"] })) {
+    if (url && !isValidURL({ url, protocols: ["https"] })) {
       error = "URL is not a valid HTTPS URL";
     }
 

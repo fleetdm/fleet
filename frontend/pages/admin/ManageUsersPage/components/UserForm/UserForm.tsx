@@ -15,10 +15,11 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import ModalFooter from "components/ModalFooter";
 import { notify } from "components/ToastNotification";
-import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email";
-// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";
+import {
+  isPresent,
+  isValidEmail,
+  validatePassword,
+} from "components/forms/validators";
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
@@ -92,12 +93,12 @@ const validate = (
 
   const { name, email, newUserType, sso_enabled, password } = formData;
 
-  if (!validatePresence(name)) {
+  if (!isPresent(name)) {
     newErrors.name = "Name field must be completed";
   }
-  if (!validatePresence(email)) {
+  if (!isPresent(email)) {
     newErrors.email = "Email field must be completed";
-  } else if (!validEmail(email)) {
+  } else if (!isValidEmail(email)) {
     newErrors.email = "Email is not a valid email";
   }
 
@@ -114,11 +115,11 @@ const validate = (
     isExistingUserForcedToPasswordAuth ||
     (!initiallyPasswordAuth && !sso_enabled)
   ) {
-    const { isValid, error } = validPassword(password || "");
+    const { isValid, error } = validatePassword(password || "");
     if (password !== null && !isValid) {
       newErrors.password = error;
     }
-    if (!validatePresence(password)) {
+    if (!isPresent(password)) {
       newErrors.password = "Password field must be completed";
     }
   }

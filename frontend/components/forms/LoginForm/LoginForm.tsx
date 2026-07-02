@@ -11,8 +11,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import paths from "router/paths";
 import { ISSOSettings } from "interfaces/ssoSettings";
-import validatePresence from "components/forms/validators/validate_presence";
-import validateEmail from "components/forms/validators/valid_email";
+import { isPresent, isValidEmail } from "components/forms/validators";
 
 const baseClass = "login-form";
 
@@ -57,13 +56,13 @@ const LoginForm = ({
 
     const validationErrors: { [key: string]: string } = {};
 
-    if (!validatePresence(email)) {
+    if (!isPresent(email)) {
       validationErrors.email = "Email field must be completed";
-    } else if (!validateEmail(email)) {
+    } else if (!isValidEmail(email)) {
       validationErrors.email = "Email must be a valid email address";
     }
 
-    if (!validatePresence(password)) {
+    if (!isPresent(password)) {
       validationErrors.password = "Password field must be completed";
     }
 
