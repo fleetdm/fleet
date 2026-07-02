@@ -53,4 +53,4 @@ For this organization, the key advantage is auditability through code. Fleet ena
 <meta name="publishedOn" value="2026-04-22">
 <meta name="description" value="See how a digital bank centralized device management, improved audit readiness, and enforced GitOps-driven compliance with self-hosted Fleet."> 
 <meta name="useBasicArticleTemplate" value="true">
-<meta name="cardTitleForCustomersPage" value="Digial bank">
+<meta name="cardTitleForCustomersPage" value="Digital bank">
