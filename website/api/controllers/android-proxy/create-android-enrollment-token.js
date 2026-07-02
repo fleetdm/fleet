@@ -59,17 +59,8 @@ module.exports = {
 
     let newEnrollmentToken = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-      // Acquire the google auth client, and bind it to all future calls
-      let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
+      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
+      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
       let enrollmentTokenCreateResponse = await androidmanagement.enterprises.enrollmentTokens.create({
         parent: `enterprises/${androidEnterpriseId}`,
