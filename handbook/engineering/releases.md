@@ -1,6 +1,13 @@
 # Releases
 
-This handbook page details Fleet's release process, including QA, release candidate management, agent releases, and post-release tasks.
+This handbook page details Fleet's release process.
+
+Fleet server and fleetd (macOS, Windows, Linux) follow a "train timetable" model: the RC branch is cut on the first Monday of each sprint regardless of what has or hasn't merged. If your work misses the cut, it goes in the next release unless you get approval to cherry-pick.
+
+- **Fleet server**: Released every three weeks (one minor + one patch per sprint). The release candidate is cut on the first Monday of each sprint.
+- **Fleetd agent** (macOS, Windows, Linux): Released via TUF (The Update Framework). The release candidate is cut at the same time as the Fleet server RC, on the first Monday of each sprint.
+- **Fleetd Android**: Released via Google Play as needed. Not on a fixed schedule.
+- **Fleetd ChromeOS**: Released via Google Admin as needed.
 
 
 ## Participate in QA Day
@@ -29,7 +36,9 @@ For each bug found, please use the [bug report template](https://github.com/flee
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the milestone is set to the version that the feature will be released in. For example, if the feature will be released in v4.71.0 and the bug did not exist prior to that version, the milestone is set to `v4.71.0`. The engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
 
-## Create a release candidate
+## Fleet server releases
+
+### Create a Fleet server release candidate
 
 All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the first Monday of the next sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
@@ -39,8 +48,7 @@ All minor releases go through the release candidate process before they are publ
 
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
-
-## Merge unreleased bug fixes into the release candidate
+### Merge bug fixes into the Fleet server release candidate
 
 Only merge unreleased bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate:
 
@@ -53,14 +61,86 @@ This process ensures your bug fix is included in `main` for future releases, as 
 
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals), the release candidate [feature merge exception process](#request-release-candidate-feature-merge-exception) may be followed.
 
-
-## Request release candidate feature merge exception
+### Request release candidate feature merge exception
 
 1. Notify product group EM that feature work will not merge into `main` before the release candidate is cut and requires a feature merge exception.
 2. EM notifies QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals).
 3. EM, QA lead, and [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) must all approve the feature work PR before it is merged into the release candidate branch.
 
 > This exception process should be avoided whenever possible. Any feature work merged into the release candidate will likely result in a significant release delay.
+
+### Prepare and publish Fleet server release
+
+The full release steps (minor and patch) are documented in the [Fleet release script README](https://github.com/fleetdm/fleet/blob/main/tools/release/README.md). The release script handles branch creation, changelog generation, tagging, publishing, and Slack announcements.
+
+### Deploy a new release to dogfood
+
+After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. Because dogfood is used for live sales demos, coordinate deploy timing as follows:
+
+- **During U.S. business hours (7am - 5pm Pacific, Monday - Friday):** `@mention` Allen Houchins (`@allenhouchins`) in Slack before deploying so he can confirm no demos are scheduled. Allen owns deploy approval during business hours.
+- **Outside U.S. business hours:** deploys are okay without coordination. We accept the risk of occasionally interrupting an international demo in exchange for unblocking releases.
+
+How to deploy a new release to dogfood:
+
+1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
+2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
+3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
+4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
+5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
+
+> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
+>
+> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
+
+
+## Fleetd releases (macOS, Windows, Linux)
+
+Fleetd is composed of several components (Orbit, Fleet Desktop, osqueryd) delivered via TUF (The Update Framework) at https://updates.fleetdm.com. The latest released versions are tracked in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
+
+### Compatibility rules
+
+Fleetd components are updated automatically by continuously polling the TUF server, whereas Fleet servers are updated manually by administrators. This difference requires strict compatibility discipline:
+
+- **Must rule**: New fleetd versions always support communication and operation with older Fleet servers. We never break on-premise Fleet deployments, and we never force users to update their servers when a new fleetd update is pushed. New agent features that require a newer server will not be available on hosts connected to an older server.
+- **Nice to have**: New Fleet server versions work with older fleetd agents. Communication is not broken, but new server features that require an updated agent will not be available on hosts still running the older version. This is generally maintained for relatively recent agent versions but may break with very old agents.
+
+
+### Create a fleetd release candidate
+
+The fleetd release candidate is cut at the same time as the Fleet server RC: on the first Monday of each sprint at 8:00 AM Pacific. The release candidate branch is created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
+
+1. Create the release candidate branch from `main` and push it.
+2. Create a release QA issue for the fleetd release.
+3. Announce the release candidate in Slack.
+
+The same cherry-pick policy applies as for the Fleet server RC: if your work misses the cut, it goes in the next release. To merge a bug fix into the fleetd release candidate:
+
+1. Merge the fix into `main`.
+2. `git checkout` the fleetd release candidate branch and create a new local branch.
+3. `git cherry-pick` your commit from `main` into your new local branch.
+4. Create a pull request from your new branch to the fleetd release candidate.
+
+### Qualify and release fleetd
+
+1. QA all milestoned tickets on `main` or the RC branch.
+2. Once QA approves, push to `edge` for 24 hours. QA runs smoke tests from the release issue during this period.
+3. If no issues are found, promote from `edge` to `stable`.
+
+For the full release steps (releasing to edge, promoting to stable, patch releases, and other TUF components), see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md#releasing).
+
+
+## Fleetd Android releases
+
+The Android app is released via Google Play as needed. It does not follow the sprint-based train schedule. Releases happen when there are meaningful changes ready to ship.
+
+For the full release steps, see the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
+
+
+## Fleetd ChromeOS releases
+
+The Chrome extension is released via [Google Admin](https://admin.google.com).
+For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
+For production releases, follow the [Chrome extension README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 
 ## Confirm latest versions of dependencies
@@ -111,50 +191,6 @@ We track these in a shared [Google Doc](https://docs.google.com/document/d/1jr8w
 
 Once coverage is agreed on, Fleet QA submits the request via [QA Wolf's Coverage Request form](https://app.qawolf.com/fleet/coverage-requests). The most recent sprints are prioritized first.
 This workflow lets QA Wolf focus on test implementation while Fleet QA stays accountable for identifying clear, high-value test needs.
-
-
-## Prepare Fleet release
-
-See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md).
-
-
-## Prepare fleetd agent release
-
-### macOS, Windows, Linux
-
-Fleetd for macOS, Windows and Linux is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
-For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
-
-### Android
-
-Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
-
-### ChromeOS
-
-The Chrome extension is released via [Google Admin](https://admin.google.com).
-For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
-For production releases, follow the [Chrome extension
-README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
-
-
-## Deploy a new release to dogfood
-
-After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. Because dogfood is used for live sales demos, coordinate deploy timing as follows:
-
-- **During U.S. business hours (7am - 5pm Pacific, Monday - Friday):** `@mention` Allen Houchins (`@allenhouchins`) in Slack before deploying so he can confirm no demos are scheduled. Allen owns deploy approval during business hours.
-- **Outside U.S. business hours:** deploys are okay without coordination. We accept the risk of occasionally interrupting an international demo in exchange for unblocking releases.
-
-How to deploy a new release to dogfood:
-
-1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
-2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
-3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
-4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
-5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-
-> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
->
-> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
 
 
 ## Conclude current milestone 
