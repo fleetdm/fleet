@@ -25,6 +25,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
 import generateTableHeaders from "./GlobalVariablesTableConfig";
@@ -33,10 +34,7 @@ import DeleteCustomVariableModal from "../../components/DeleteCustomVariableModa
 
 const baseClass = "global-variables";
 
-// TODO: fetching all variables in one request assumes a manageable number of
-// variables so TableContainer can handle search + pagination client-side.
-// Revisit server-side search/pagination if the variable count grows large.
-export const VARIABLES_PAGE_SIZE = 1000;
+export const VARIABLES_PAGE_SIZE = 20;
 
 export interface IGlobalVariablesProps {
   router: InjectedRouter;
@@ -56,15 +54,16 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
     IVariable | undefined
   >();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [pageNumber, setPageNumber] = useState(0);
 
-  const apiParams = { page: 0, per_page: VARIABLES_PAGE_SIZE };
+  const apiParams = { page: pageNumber, per_page: VARIABLES_PAGE_SIZE };
   const { data, isLoading, isFetching, refetch } = useQuery<
     IListVariablesResponse,
     Error,
     IListVariablesResponse
   >(["variables", apiParams], () => variablesAPI.getVariables(apiParams), {
-    // keepPreviousData keeps `data` populated across refetches so
-    // TableContainer (and its search box) doesn't unmount/remount empty.
+    // keepPreviousData keeps the current page visible while the next page
+    // loads, so the table doesn't flip to a spinner between page changes.
     ...DEFAULT_USE_QUERY_OPTIONS,
     keepPreviousData: true,
   });
@@ -102,6 +101,10 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
   const onClickDeleteVariable = useCallback((variable: IVariable) => {
     setVariableToDelete(variable);
     setShowDeleteModal(true);
+  }, []);
+
+  const onQueryChange = useCallback((newTableQuery: ITableQueryData) => {
+    setPageNumber(newTableQuery.pageIndex);
   }, []);
 
   const tableHeaders = useMemo(
@@ -168,7 +171,10 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
         showMarkAllPages={false}
         isAllPagesSelected={false}
         renderCount={renderCount}
-        isClientSidePagination
+        onQueryChange={onQueryChange}
+        pageIndex={pageNumber}
+        pageSize={VARIABLES_PAGE_SIZE}
+        disableNextPage={(pageNumber + 1) * VARIABLES_PAGE_SIZE >= count}
       />
     );
   };

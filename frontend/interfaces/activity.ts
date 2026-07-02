@@ -160,9 +160,6 @@ export enum ActivityType {
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedCustomVariable = "created_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
-  CreatedCustomHostVital = "created_custom_host_vital",
-  EditedCustomHostVital = "edited_custom_host_vital",
-  DeletedCustomHostVital = "deleted_custom_host_vital",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
   AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
@@ -356,8 +353,6 @@ export interface IActivityDetails {
   ticket_key?: string;
   ticket_id?: number;
   custom_variable_name?: string;
-  // TODO(#48559): align field name with the backend custom host vitals activities PR.
-  custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
@@ -527,9 +522,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   created_custom_variable: "Created custom variable",
   deleted_custom_variable: "Deleted custom variable",
-  [ActivityType.CreatedCustomHostVital]: "Created custom host vital",
-  [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
-  [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.HostDeleted]: "Host deleted",
   [ActivityType.AddedHydrant]: "Added certificate authority (CA): Hydrant",
   [ActivityType.DeletedHydrant]: "Deleted certificate authority (CA): Hydrant",
