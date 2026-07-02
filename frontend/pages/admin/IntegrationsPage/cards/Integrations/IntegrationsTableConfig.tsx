@@ -2,6 +2,7 @@ import React from "react";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 import {
   IJiraIntegration,
@@ -100,7 +101,8 @@ const generateTableHeaders = (
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => (
         <Button
-          variant="inverse-alert"
+          className="row-hover-button integrations-management__delete-button"
+          variant="icon"
           size="small"
           onClick={() =>
             actionSelectHandler(
@@ -109,7 +111,7 @@ const generateTableHeaders = (
             )
           }
         >
-          {cellProps.cell.value[0].label}
+          <Icon name="trash" />
         </Button>
       ),
     },
