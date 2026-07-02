@@ -2159,7 +2159,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 
 	// App config
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
