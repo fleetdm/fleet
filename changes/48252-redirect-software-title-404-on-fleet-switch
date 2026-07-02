@@ -1,0 +1,1 @@
+- Fixed a bug where switching fleets on a software title detail page redirected to an empty "Software not detected" state instead of the software inventory page when the title didn't exist in the new fleet.
