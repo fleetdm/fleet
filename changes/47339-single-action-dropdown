@@ -1,0 +1,1 @@
+- Fixed UI to show a direct button instead of a single-item dropdown on the Labels page (for users without edit/delete permissions) and the Integrations page (Jira/Zendesk).
