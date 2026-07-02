@@ -43,7 +43,7 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
     {
       accessor: "source",
       disableSortBy: true,
-      Header: "Keychain",
+      Header: "Scope",
       Cell: (cellProps) => {
         if (cellProps.cell.value === "system") {
           return <TextCell value="System" />;

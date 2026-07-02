@@ -1315,7 +1315,8 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDeviceHost && !!hostCertificates?.certificates.length;
+    (isAppleDeviceHost || isWindowsHost) &&
+    (isErrorHostCertificates || !!hostCertificates?.certificates.length);
 
   const renderSoftwareCard = () => {
     return (
