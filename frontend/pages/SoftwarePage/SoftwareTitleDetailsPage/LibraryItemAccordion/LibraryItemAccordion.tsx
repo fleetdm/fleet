@@ -6,11 +6,13 @@ import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { InstallerType } from "interfaces/software";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
 const baseClass = "library-item-accordion";
@@ -99,6 +101,32 @@ export interface ILibraryItemAccordionProps {
   onLabelsClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
+
+  /** Single page-level flag mirroring `SoftwareTitleDetailsPage`'s
+   * `canActivateMultiplePackages` — true for titles that can hold multiple
+   * custom packages (#48400). Drives the row's self-service / auto-install
+   * icons (and the absence of the Latest badge, which is FMA-only by gate). */
+  canActivateMultiplePackages?: boolean;
+  /** Drives the self-service icon's tooltip variant and visibility on the
+   * custom-package row. Mirrors `software_package.self_service`. */
+  isSelfService?: boolean;
+  /** Drives the auto-install icon's visibility on the custom-package row.
+   * Truthy when the package has ≥1 linked policy (auto-install OR patch). */
+  hasAutoInstallPolicy?: boolean;
+  /** When set, tooltips mention "Patch policy" instead of "Auto install" —
+   * matches the SoftwareSummaryCard chip's tooltip split. */
+  isPatchPolicyOnly?: boolean;
+  /** Self-service tooltip copy varies for Android Play Store apps. Wired
+   * through for completeness even though the current call sites only enable
+   * the custom-package path for desktop titles. */
+  isAndroidPlayStoreApp?: boolean;
+  /** Click handler for the self-service icon — opens the per-package Edit
+   * software modal (same target as the labels-count badge). */
+  onSelfServiceClick?: () => void;
+  /** Click handler for the auto-install icon — the page resolves whether to
+   * navigate straight to the single linked policy or open the PoliciesModal,
+   * scoped to THIS package's policies (#48400). */
+  onAutoInstallClick?: () => void;
 }
 
 const ALL_HOSTS_LABEL = "All hosts";
@@ -132,6 +160,13 @@ const LibraryItemAccordion = ({
   onLabelsClick,
   onDownloadClick,
   onTrashClick,
+  canActivateMultiplePackages = false,
+  isSelfService = false,
+  hasAutoInstallPolicy = false,
+  isPatchPolicyOnly = false,
+  isAndroidPlayStoreApp = false,
+  onSelfServiceClick,
+  onAutoInstallClick,
 }: ILibraryItemAccordionProps) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -179,12 +214,92 @@ const LibraryItemAccordion = ({
     handler?.();
   };
 
+  // Per-row indicator icon — tooltipped, optionally wrapped in a Button when
+  // a click handler is provided AND the caller's gate (e.g. permission) is
+  // open. Falls back to a static Icon otherwise. Used for the self-service
+  // and auto-install indicators on multi-package custom rows (#48400).
+  const renderRowActionIcon = ({
+    iconName,
+    tooltipContent,
+    ariaLabel,
+    onClick,
+    canClick = true,
+  }: {
+    iconName: IconNames;
+    tooltipContent: React.ReactNode;
+    ariaLabel: string;
+    onClick?: () => void;
+    /** When false, the icon stays static even if `onClick` is provided —
+     * used to gate clickability on permission (e.g. self-service). */
+    canClick?: boolean;
+  }) => (
+    <TooltipWrapper
+      tipContent={tooltipContent}
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={8}
+    >
+      {onClick && canClick ? (
+        <Button
+          variant="inverse"
+          onClick={handleBadgeClick(onClick)}
+          className={`${baseClass}__icon-button`}
+          ariaLabel={ariaLabel}
+        >
+          <Icon name={iconName} color="ui-fleet-black-75" />
+        </Button>
+      ) : (
+        <Icon name={iconName} color="ui-fleet-black-75" />
+      )}
+    </TooltipWrapper>
+  );
+
+  // Self-service tooltip mirrors the SoftwareSummaryCard chip's copy so the
+  // per-row indicator says the same thing the title-level chip would.
+  const renderSelfServiceIcon = () =>
+    renderRowActionIcon({
+      iconName: "user",
+      tooltipContent: getSelfServiceTooltip(
+        !!isIosOrIpadosApp,
+        !!isAndroidPlayStoreApp
+      ),
+      // Same modal opens regardless of which icon is clicked; the icon glyph
+      // carries the contextual signal ("self-service is on for this package").
+      ariaLabel: "Edit package",
+      onClick: onSelfServiceClick,
+      canClick: canEditSoftware,
+    });
+
+  // Auto-install icon navigates rather than edits — its label is verb-forward
+  // ("View") so it doesn't read as a state toggle. Patch-only and dynamic
+  // variants get their own labels for screen-reader clarity.
+  const renderAutoInstallIcon = () =>
+    renderRowActionIcon({
+      iconName: isPatchPolicyOnly ? "policy" : "refresh",
+      tooltipContent: isPatchPolicyOnly ? (
+        <>Patch policy is linked to this package.</>
+      ) : (
+        <>Policy triggers install.</>
+      ),
+      ariaLabel: isPatchPolicyOnly
+        ? "View patch policy"
+        : "View auto-install policies",
+      onClick: onAutoInstallClick,
+    });
+
   const renderHeaderBadges = () => {
     if (!isActive) return null;
 
     return (
       <div className={`${baseClass}__badges`}>
-        {badgeState === "latest" && (
+        {/* The "Latest" badge is FMA-specific — only Fleet-maintained apps
+            have a meaningful "latest available cached version" concept that
+            drives the badge state. VPP / App Store / Play Store / iOS
+            in-house and custom packages do not render this badge.
+            Pinned / Major version variants below also stay FMA-only by
+            construction (only FMA exposes version pinning). */}
+        {isFma && badgeState === "latest" && (
           <Button
             variant="inverse"
             size="small"
@@ -195,6 +310,12 @@ const LibraryItemAccordion = ({
             <span>Latest</span>
           </Button>
         )}
+        {canActivateMultiplePackages &&
+          isSelfService &&
+          renderSelfServiceIcon()}
+        {canActivateMultiplePackages &&
+          hasAutoInstallPolicy &&
+          renderAutoInstallIcon()}
         {badgeState === "pinned" && (
           <Button
             variant="inverse"

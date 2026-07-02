@@ -20,7 +20,10 @@ export interface IInfoBannerProps {
   cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
-  icon?: IconNames; // TODO: This is unused but several banners have icons within children that can be refactored to use this for consistent styling
+  /** Renders an icon to the left of the banner copy. When set, the banner
+   * switches from `space-between` to a left-aligned flex layout so the icon
+   * groups with the text rather than getting pushed to the opposite edge. */
+  icon?: IconNames;
 }
 
 const InfoBanner = ({
@@ -46,6 +49,7 @@ const InfoBanner = ({
 
   const content = (
     <>
+      {icon && <Icon name={icon} className={`${baseClass}__leading-icon`} />}
       <div className={`${baseClass}__info`}>{children}</div>
 
       {(cta || closable) && (

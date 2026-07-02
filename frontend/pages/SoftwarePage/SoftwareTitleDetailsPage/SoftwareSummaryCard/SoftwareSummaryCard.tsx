@@ -6,6 +6,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
+import { pluralize } from "utilities/strings/stringUtils";
 import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
@@ -40,6 +41,12 @@ interface ISoftwareSummaryCard {
   /** Opens the page-owned Versions modal; the Actions item is gated here by
    * `canManageVersions`. */
   onClickVersions: () => void;
+  /** Canonical "this title can hold multiple custom packages" flag (#48400),
+   * passed from `SoftwareTitleDetailsPage`. When true the card hides its
+   * Self-service / Auto install / Patch chips (Library accordion rows show
+   * per-package icons instead) and collapses the Actions dropdown into a
+   * single pencil-icon Edit-appearance button. */
+  canActivateMultiplePackages?: boolean;
 }
 
 const baseClass = "software-summary-card";
@@ -66,6 +73,7 @@ const SoftwareSummaryCard = ({
   refetchSoftwareTitle,
   onToggleViewYaml,
   onClickVersions,
+  canActivateMultiplePackages = false,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
@@ -129,6 +137,16 @@ const SoftwareSummaryCard = ({
   // not by the host OS — VPP apps can be macOS too, and an iOS/iPadOS title can
   // ship as a custom package.
   const isAppleVpp = installerType === "app-store" && !isAndroidPlayStoreApp;
+  // Multi-package custom titles pluralize the kind chip — a title with two
+  // .pkg installers reads "Custom packages", not "Custom package". Falls back
+  // to singular for single-package titles (and back-compat responses where
+  // `packages` is still null — `pluralize(0)` also returns the plural form,
+  // but those titles never reach the custom-package branch of `find` below).
+  const customPackageCount = softwareTitle.packages?.length ?? 1;
+  const customPackageChipLabel = pluralize(
+    customPackageCount,
+    "Custom package"
+  );
   // Order matters: `.find` returns the first truthy row. FMA is checked first
   // because a Fleet-maintained app uploaded as a custom package still counts
   // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
@@ -137,11 +155,19 @@ const SoftwareSummaryCard = ({
     [isFleetMaintainedApp, "Fleet-maintained"],
     [isAppleVpp, "App Store (VPP)"],
     [isAndroidPlayStoreApp, "Play Store"],
-    [isCustomPackage, "Custom package"],
+    [isCustomPackage, customPackageChipLabel],
   ] as const).find(([flag]) => flag)?.[1];
 
+  // Titles that can hold multiple custom packages (#48400) move Self-service
+  // and Auto-install/Patch indicators down to per-row icons on the Library
+  // accordion. The title-level chips would be misleading when one package is
+  // self-service and another isn't. FMA and iOS in-house .ipa keep the chips
+  // since they're single-package — the flag is owned by the page.
+  const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
+  const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
+
   const showHeaderPills =
-    !!installerKindLabel || isSelfService || hasLinkedPolicies;
+    !!installerKindLabel || showSelfServiceChip || showAutoInstallChip;
 
   const headerPills = useMemo(() => {
     if (!showHeaderPills) {
@@ -150,7 +176,7 @@ const SoftwareSummaryCard = ({
     return (
       <>
         {installerKindLabel && <Chip text={installerKindLabel} />}
-        {isSelfService && (
+        {showSelfServiceChip && (
           <Chip
             icon="user"
             text="Self-service"
@@ -160,7 +186,7 @@ const SoftwareSummaryCard = ({
             )}
           />
         )}
-        {hasLinkedPolicies && (
+        {showAutoInstallChip && (
           <Chip
             icon={isPatchPolicyOnly ? undefined : "refresh"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
@@ -189,8 +215,8 @@ const SoftwareSummaryCard = ({
   }, [
     showHeaderPills,
     installerKindLabel,
-    isSelfService,
-    hasLinkedPolicies,
+    showSelfServiceChip,
+    showAutoInstallChip,
     isPatchPolicyOnly,
     mergedPolicies,
     softwareTitle.source,
@@ -282,8 +308,16 @@ const SoftwareSummaryCard = ({
             canEditAppearance ? onClickEditAppearance : undefined
           }
           onClickEditSoftware={
-            canEditSoftware ? onClickEditSoftware : undefined
+            // Multi-package titles move per-installer editing to the Library
+            // accordion row (#48400); the page-level Edit button collapses to
+            // a single pencil-icon Edit-appearance button below. Single-package
+            // types (FMA, VPP, Google Play, iOS in-house .ipa) keep the
+            // Actions dropdown.
+            canEditSoftware && !canActivateMultiplePackages
+              ? onClickEditSoftware
+              : undefined
           }
+          useSingleEditAppearanceButton={canActivateMultiplePackages}
           onClickAddPatchPolicy={
             canPatchSoftware ? onClickAddPatchPolicy : undefined
           }

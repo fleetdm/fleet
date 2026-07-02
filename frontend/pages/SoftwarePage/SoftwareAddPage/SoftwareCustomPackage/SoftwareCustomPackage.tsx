@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
 
@@ -10,6 +10,7 @@ import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { AppContext } from "context/app";
+import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 
@@ -72,26 +73,8 @@ const SoftwareCustomPackage = ({
     }
   );
 
-  useEffect(() => {
-    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // Next line with e.returnValue is included for legacy support
-      // e.g.Chrome / Edge < 119
-      e.returnValue = true;
-    };
-
-    // set up event listener to prevent user from leaving page while uploading
-    if (uploadDetails) {
-      addEventListener("beforeunload", beforeUnloadHandler);
-    } else {
-      removeEventListener("beforeunload", beforeUnloadHandler);
-    }
-
-    // clean up event listener and timeout on component unmount
-    return () => {
-      removeEventListener("beforeunload", beforeUnloadHandler);
-    };
-  }, [uploadDetails]);
+  // Block tab close / hard navigation while an upload is in flight.
+  useBlockNavigation(!!uploadDetails);
 
   const onClickPreviewEndUserExperience = (isIosOrIpadosApp = false) => {
     setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
