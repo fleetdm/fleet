@@ -46,7 +46,7 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		WHERE
 			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
 			AND h.uuid > ?
-		ORDER BY h.uuid
+		ORDER BY h.uuid, h.id DESC
 		LIMIT ?
 	`
 
@@ -54,13 +54,44 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, afterHostUUID, batchSize); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
 	}
-	return hosts, nil
+
+	// In case of duplicate devices with the same UUID(due to past fleet bugs, etc)
+	// fleet could return multiple rows here for a single UUID. We do two things to
+	// fix that: first, the function below dedupes the results and only keeps the,
+	// one with the highest host ID but the query above also applies a second ORDER BY
+	// h.id DESC so that in the rare case the dupe is at the end of a page, we determin-
+	// istically only return the highest-id host
+	return dedupeHostsByUUID(hosts), nil
+}
+
+// dedupeHostsByUUID collapses reconcile records that share a UUID down to one,
+// keeping the highest host id, and preserves input order (the batch query
+// orders by UUID, which the cursor pagination relies on). If the tiebreaker
+// here(highest host ID) changes, the query needs to as well to account for hosts
+// on a page boundary
+func dedupeHostsByUUID(hosts []*fleet.AppleHostReconcileInfo) []*fleet.AppleHostReconcileInfo {
+	seen := make(map[string]int, len(hosts))
+	deduped := make([]*fleet.AppleHostReconcileInfo, 0, len(hosts))
+	for _, h := range hosts {
+		if i, ok := seen[h.UUID]; ok {
+			if h.HostID > deduped[i].HostID {
+				deduped[i] = h
+			}
+			continue
+		}
+		seen[h.UUID] = len(deduped)
+		deduped = append(deduped, h)
+	}
+	return deduped
 }
 
 // GetAppleMDMHostForReconcile returns the Apple-MDM reconcile info for a
 // single host UUID, or (nil, nil) if the host is not enrolled or not an
-// Apple platform. Uses the same JOIN as listAppleMDMHostsForReconcileBatchTransaction
-// so per-host and per-batch reconcile paths see the same eligibility rules.
+// Apple platform. Uses the same JOINs as
+// listAppleMDMHostsForReconcileBatchTransaction so the per-host and per-batch
+// reconcile paths share eligibility rules, and when a UUID maps to more than
+// one hosts row it resolves the duplicate the same way the batch does: the
+// highest h.id wins.
 func (ds *Datastore) GetAppleMDMHostForReconcile(
 	ctx context.Context,
 	hostUUID string,
@@ -83,6 +114,7 @@ func (ds *Datastore) GetAppleMDMHostForReconcile(
 		WHERE
 			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
 			AND h.uuid = ?
+		ORDER BY h.id DESC
 		LIMIT 1
 	`
 
