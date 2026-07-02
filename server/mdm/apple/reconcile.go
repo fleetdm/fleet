@@ -605,7 +605,7 @@ func ExecuteReconcileBatch(
 
 	// Defense in depth: the batch host query dedupes hosts by UUID at the
 	// source, but any caller could still hand us a target whose EnrollmentIDs
-	// contains the same ID twice (e.g. duplicate host rows sharing a UUID).
+	// contain the same ID twice (e.g. duplicate host rows sharing a UUID).
 	// That would make the per-command INSERT into nano_enrollment_queue collide
 	// on its (id, command_uuid) primary key and fail the whole enqueue, so
 	// collapse duplicates before we build commands.

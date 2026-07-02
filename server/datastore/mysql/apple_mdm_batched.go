@@ -55,20 +55,19 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		return nil, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
 	}
 
-	// In case of duplicate devices with the same UUID(due to past fleet bugs, etc)
-	// fleet could return multiple rows here for a single UUID. We do two things to
-	// fix that: first, the function below dedupes the results and only keeps the,
-	// one with the highest host ID but the query above also applies a second ORDER BY
-	// h.id DESC so that in the rare case the dupe is at the end of a page, we determin-
-	// istically only return the highest-id host
+	// In the rare case multiple hosts rows share the same UUID (e.g. from past bugs
+	// or DEP re-enrollment), this query can return more than one row per UUID.
+	// We dedupe in Go, keeping the highest host ID. The ORDER BY h.id DESC ensures
+	// that if a duplicate UUID lands on a page boundary, the highest-ID row is the
+	// one that makes it into the page.
 	return dedupeHostsByUUID(hosts), nil
 }
 
 // dedupeHostsByUUID collapses reconcile records that share a UUID down to one,
-// keeping the highest host id, and preserves input order (the batch query
-// orders by UUID, which the cursor pagination relies on). If the tiebreaker
-// here(highest host ID) changes, the query needs to as well to account for hosts
-// on a page boundary
+// keeping the highest host ID, and preserving input order (the batch query
+// orders by UUID, which the cursor pagination relies on). If this tiebreaker
+// changes, update the ORDER BY in listAppleMDMHostsForReconcileBatchTransaction
+// to keep pagination deterministic across page boundaries.
 func dedupeHostsByUUID(hosts []*fleet.AppleHostReconcileInfo) []*fleet.AppleHostReconcileInfo {
 	seen := make(map[string]int, len(hosts))
 	deduped := make([]*fleet.AppleHostReconcileInfo, 0, len(hosts))
