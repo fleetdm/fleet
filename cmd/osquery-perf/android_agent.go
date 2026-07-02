@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"time"
 
@@ -406,7 +407,7 @@ func (a *androidAgent) sendPubSubMessage(notificationType android.NotificationTy
 	}
 
 	// POST to Fleet's PubSub endpoint with the token as a query parameter
-	url := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/pubsub?token=%s", a.serverAddress, a.pubSubToken)
+	url := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/pubsub?token=%s", a.serverAddress, neturl.QueryEscape(a.pubSubToken))
 	resp, err := http.Post(url, "application/json", bytes.NewReader(body)) // #nosec G107 -- URL is constructed from trusted config
 	if err != nil {
 		return fmt.Errorf("pubsub POST: %w", err)
