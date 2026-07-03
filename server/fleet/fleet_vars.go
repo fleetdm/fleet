@@ -7,6 +7,7 @@ import (
 
 const (
 	ServerVarPrefix = "FLEET_VAR_"
+	CustomHostVitalPrefix = "FLEET_HOST_VITAL_"
 )
 
 // ContainsPrefixVars scans a string for variables in the form of $VAR
