@@ -1429,21 +1429,11 @@ ORDER BY si.id ASC`
 		return nil, ctxerr.Wrap(ctx, err, "list software packages by team and title")
 	}
 
-	installerIDs := make([]uint, len(packages))
-	for i, pkg := range packages {
-		installerIDs[i] = pkg.InstallerID
-	}
-	categoriesByInstaller, err := ds.GetCategoriesForSoftwareInstallers(ctx, installerIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get categories for software packages")
-	}
-
 	for _, pkg := range packages {
 		pkg.LabelsExcludeAny, pkg.LabelsIncludeAny, pkg.LabelsIncludeAll, err = ds.scopedSoftwareInstallerLabels(ctx, pkg.InstallerID)
 		if err != nil {
 			return nil, err
 		}
-		pkg.Categories = categoriesByInstaller[pkg.InstallerID]
 	}
 
 	return packages, nil
@@ -3028,7 +3018,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		}
 
 		// Validate the per-title rules inside the tx so a title created here rolls back
-		// on failure. customPackageTitleIDs feeds the source-of-truth delete after the loop.
+		// on failure, and record which titles got a custom package for the
+		// source-of-truth delete after the loop.
 		var customPackageTitleIDs []uint
 		for titleID, group := range installersByTitle {
 			if err := fleet.ValidateTitlePackages(group, teamName); err != nil {
@@ -3580,9 +3571,9 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 		}
 
-		// Source of truth for custom titles: remove any row this batch didn't write,
-		// which drops old custom versions and any leftover FMA row when a title
-		// switches to custom packages. FMA titles keep their cached versions.
+		// Source of truth for titles with custom packages: remove any row this batch
+		// didn't write, which drops old custom versions and any leftover FMA row when a
+		// title switches to custom packages. FMA titles keep their cached versions.
 		if len(customPackageTitleIDs) > 0 {
 			// Re-point policies off the dropped packages before deleting them, since the
 			// policies FK is RESTRICT. A title removed entirely is handled by the
