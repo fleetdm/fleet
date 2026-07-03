@@ -212,15 +212,16 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return addedInstaller, nil
 	}
 
-	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, true)
+	// Return the package just added, not the title's first-added one.
+	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, installerID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
 	}
 
-	if payload.AutomaticInstall {
+	if payload.AutomaticInstall && payload.AddedAutomaticInstallPolicy != nil {
 		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   addedInstaller.AutomaticInstallPolicies[0].ID,
-			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
@@ -411,17 +412,49 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
 	}
 
-	// With more than one installer on the title, this edits the first-added one.
-	// Choosing a specific package to edit is handled by the precedence work.
 	if software.SoftwareInstallersCount < 1 {
 		return nil, &fleet.BadRequestError{
 			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
 		}
 	}
 
+	// Defaults to the first-added package; a specific installer_id overrides it below.
 	existingInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
+	}
+
+	// siblings is reused for both installer targeting and the hash-collision check below.
+	var siblings []*fleet.SoftwareInstaller
+	if software.SoftwareInstallersCount > 1 || payload.InstallerID != 0 {
+		siblings, err = svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting title packages")
+		}
+
+		switch {
+		case payload.InstallerID == 0 && software.SoftwareInstallersCount > 1:
+			return nil, &fleet.BadRequestError{
+				Message: "installer_id is required when the title has multiple packages.",
+			}
+		case payload.InstallerID != 0:
+			var found bool
+			for _, p := range siblings {
+				if p.InstallerID == payload.InstallerID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, ctxerr.Wrapf(ctx, &notFoundError{},
+					"installer %d does not belong to this title and team", payload.InstallerID)
+			}
+			// hydrate the targeted package the same way as the first-added default
+			existingInstaller, err = svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, payload.InstallerID, true)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting targeted installer")
+			}
+		}
 	}
 
 	if payload.IsNoopPayload(software) {
@@ -500,6 +533,15 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
+			// Catch a sibling hash match for a friendly 409; the dedup_token key would otherwise raise a raw 1062.
+			for _, p := range siblings {
+				if p.InstallerID != existingInstaller.InstallerID && p.StorageID == payloadForNewInstallerFile.StorageID {
+					return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.SoftwarePackageHashConflictMessage, payloadForNewInstallerFile.Filename),
+					}, "edit collides with sibling package hash")
+				}
+			}
+
 			activity.SoftwarePackage = &payload.Filename
 			payload.StorageID = payloadForNewInstallerFile.StorageID
 			payload.Filename = payloadForNewInstallerFile.Filename
@@ -726,6 +768,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
 				}
 			}
+
+			// the pinned version is now the active installer; return it, not the one we pinned away from
+			payload.InstallerID = activeInstallerID
 		default:
 			if payloadForNewInstallerFile != nil {
 				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
@@ -825,8 +870,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
-	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later
-	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, true)
+	// re-pull the edited installer to reflect side effects; return that specific
+	// package, not the title's first-added one. May be able to optimize this out later.
+	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, payload.InstallerID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
 	}
@@ -917,7 +963,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
 	if teamID == nil {
 		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
@@ -928,7 +974,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return err
 	}
 
-	// first, look for a software installer
+	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
 	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -942,9 +988,40 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
 
+	// An installer id always refers to a software installer, never a VPP or in-house app.
+	if installerID != nil {
+		if metaInstaller == nil {
+			return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
+		}
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting title packages")
+		}
+		for _, pkg := range pkgs {
+			if pkg.InstallerID == *installerID {
+				pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+				return svc.deleteSoftwareInstaller(ctx, pkg)
+			}
+		}
+		return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
+	}
+
 	switch {
 	case metaInstaller != nil:
-		return svc.deleteSoftwareInstaller(ctx, metaInstaller)
+		// Delete every package on the title. FMA titles keep one active row, so this
+		// matches prior behavior for them. Per-package deletes mean a guarded package
+		// (setup experience / patch policy) fails the title delete partway.
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting title packages to delete")
+		}
+		for _, pkg := range pkgs {
+			pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+			if err := svc.deleteSoftwareInstaller(ctx, pkg); err != nil {
+				return err
+			}
+		}
+		return nil
 	case metaVPP != nil:
 		return svc.deleteVPPApp(ctx, teamID, metaVPP)
 	case metaInHouse != nil:

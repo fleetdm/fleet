@@ -483,6 +483,27 @@ func (ds *Datastore) processSoftwareTitleResults(
 				softwareList[i].DisplayName = displayName
 			}
 		}
+
+		// The main query returns one installer row per title, so fetch the full package set separately.
+		packagesByTitle, err := ds.GetSoftwarePackagesForTitles(ctx, opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get packages for software titles")
+		}
+		// Automatic install policies are title-level for now, so attach the same set to every package.
+		policiesByTitle := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
+		for _, p := range policies {
+			policiesByTitle[p.TitleID] = append(policiesByTitle[p.TitleID], p)
+		}
+		for titleID, pkgs := range packagesByTitle {
+			i, ok := titleIndex[titleID]
+			if !ok {
+				continue
+			}
+			for j := range pkgs {
+				pkgs[j].AutomaticInstallPolicies = policiesByTitle[titleID]
+			}
+			softwareList[i].Packages = pkgs
+		}
 	}
 
 	// Fetch matching versions separately to avoid aggregating nested arrays in the main query.
@@ -555,6 +576,66 @@ func (ds *Datastore) processSoftwareTitleResults(
 	}
 
 	return titles, counts, metaData, nil
+}
+
+// GetSoftwarePackagesForTitles returns trimmed per-package info for the titles'
+// active packages, keyed by title id, first-added first. Backs the list packages[].
+func (ds *Datastore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageListItem, error) {
+	if len(titleIDs) == 0 {
+		return map[uint][]fleet.SoftwarePackageListItem{}, nil
+	}
+
+	const stmt = `
+SELECT
+	si.title_id,
+	si.filename AS name,
+	si.version,
+	si.platform,
+	si.self_service,
+	si.url AS package_url
+FROM
+	software_installers si
+WHERE
+	si.global_or_team_id = ? AND si.is_active = 1 AND si.title_id IN (?)
+ORDER BY si.id ASC`
+
+	type packageRow struct {
+		TitleID     uint    `db:"title_id"`
+		Name        string  `db:"name"`
+		Version     string  `db:"version"`
+		Platform    string  `db:"platform"`
+		SelfService bool    `db:"self_service"`
+		PackageURL  *string `db:"package_url"`
+	}
+
+	ret := make(map[uint][]fleet.SoftwarePackageListItem)
+	batchSize := 32000
+	err := common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
+		query, args, err := sqlx.In(stmt, ptr.ValOrZero(teamID), titleIDsToProcess)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "sqlx.In for get packages for titles")
+		}
+		var rows []packageRow
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get packages for titles")
+		}
+		for _, r := range rows {
+			selfService := r.SelfService
+			ret[r.TitleID] = append(ret[r.TitleID], fleet.SoftwarePackageListItem{
+				Name:        r.Name,
+				Version:     r.Version,
+				Platform:    r.Platform,
+				SelfService: &selfService,
+				PackageURL:  r.PackageURL,
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }
 
 // spliceSecondaryOrderBySoftwareTitlesSQL adds a secondary order by clause, splicing it into the

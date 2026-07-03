@@ -1257,12 +1257,39 @@ WHERE
 }
 
 func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	return ds.getSoftwareInstallerMetadata(ctx, teamID, titleID, nil, withScriptContents)
+}
+
+// GetSoftwareInstallerMetadataByTeamTitleAndInstallerID returns the fully-hydrated
+// metadata for a specific installer (rather than the first-added one), so add/edit
+// responses can echo the affected package.
+func (ds *Datastore) GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	return ds.getSoftwareInstallerMetadata(ctx, teamID, titleID, &installerID, withScriptContents)
+}
+
+func (ds *Datastore) getSoftwareInstallerMetadata(ctx context.Context, teamID *uint, titleID uint, installerID *uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 	var scriptContentsSelect, scriptContentsFrom string
 	if withScriptContents {
 		scriptContentsSelect = ` , inst.contents AS install_script, COALESCE(pinst.contents, '') AS post_install_script, uninst.contents AS uninstall_script `
 		scriptContentsFrom = ` LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
 		LEFT OUTER JOIN script_contents pinst ON pinst.id = si.post_install_script_content_id
 		LEFT OUTER JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id`
+	}
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	// nil installerID selects the first-added active package; otherwise that specific one.
+	whereClause := `si.title_id = ? AND si.global_or_team_id = ?
+  AND si.is_active = 1
+ORDER BY si.id ASC
+LIMIT 1`
+	args := []any{titleID, tmID}
+	if installerID != nil {
+		whereClause = `si.id = ? AND si.title_id = ? AND si.global_or_team_id = ?`
+		args = []any{*installerID, titleID, tmID}
 	}
 
 	query := fmt.Sprintf(`
@@ -1295,19 +1322,11 @@ FROM
   LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
   %s
 WHERE
-  si.title_id = ? AND si.global_or_team_id = ?
-  AND si.is_active = 1
-ORDER BY si.id ASC
-LIMIT 1`,
-		scriptContentsSelect, scriptContentsFrom)
-
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
+  %s`,
+		scriptContentsSelect, scriptContentsFrom, whereClause)
 
 	var dest fleet.SoftwareInstaller
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, titleID, tmID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "get software installer metadata")
@@ -1322,13 +1341,21 @@ LIMIT 1`,
 		return nil, err
 	}
 
-	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
-	}
-
-	if categories, ok := categoryMap[titleID]; ok {
-		dest.Categories = categories
+	if installerID != nil {
+		// a specific package returns its own categories, not the title-merged set
+		categoryMap, err := ds.GetCategoriesForSoftwareInstallers(ctx, []uint{dest.InstallerID})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
+		}
+		dest.Categories = categoryMap[dest.InstallerID]
+	} else {
+		categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
+		}
+		if categories, ok := categoryMap[titleID]; ok {
+			dest.Categories = categories
+		}
 	}
 
 	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
@@ -1358,6 +1385,7 @@ LIMIT 1`,
 }
 
 func (ds *Datastore) GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+	// Join script contents so the detail shape and the edit path get the full package.
 	const query = `
 SELECT
   si.id,
@@ -1380,10 +1408,16 @@ SELECT
   si.url,
   COALESCE(st.name, '') AS software_title,
   COALESCE(st.bundle_identifier, '') AS bundle_identifier,
-  si.patch_query
+  si.patch_query,
+  inst.contents AS install_script,
+  COALESCE(pinst.contents, '') AS post_install_script,
+  uninst.contents AS uninstall_script
 FROM
   software_installers si
   JOIN software_titles st ON st.id = si.title_id
+  LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
+  LEFT OUTER JOIN script_contents pinst ON pinst.id = si.post_install_script_content_id
+  LEFT OUTER JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?
   AND si.is_active = 1
@@ -1490,8 +1524,15 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 		}
 		activateAffectedHostIDs = affectedHostIDs
 
-		if _, err := tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
-			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, id); err != nil {
+		// The display name is title-level (shared across sibling packages), so only remove it
+		// when this is the last installer on the title/team.
+		if _, err := tx.ExecContext(ctx, `DELETE dn FROM software_title_display_names dn
+			JOIN software_installers si ON si.title_id = dn.software_title_id AND si.global_or_team_id = dn.team_id
+			WHERE si.id = ?
+			AND NOT EXISTS (
+				SELECT 1 FROM software_installers other
+				WHERE other.title_id = si.title_id AND other.global_or_team_id = si.global_or_team_id AND other.id != si.id
+			)`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete software title display name for installer being deleted")
 		}
 

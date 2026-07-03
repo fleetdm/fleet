@@ -192,40 +192,72 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if license.IsPremium() {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
-			meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
+				return nil, ctxerr.Wrap(ctx, err, "get software packages")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
-				}
-				meta.Status = summary
-			}
-			software.SoftwarePackage = meta
-
-			// Populate FleetMaintainedVersions if this is an FMA
-			if meta != nil && meta.FleetMaintainedAppID != nil {
-				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
-				}
-				meta.FleetMaintainedVersions = fmaVersions
-
-				// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
-				pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
-				if err != nil && !errors.Is(err, sql.ErrNoRows) {
-					return nil, ctxerr.Wrap(ctx, err, "get pinned version")
-				}
-				meta.PinnedVersion = pinnedVersion
-
-				// Populate PatchPolicy if there is one
-				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+			if len(pkgs) > 0 {
+				// Display name, icon, and policies are title-level; fetch once from the first-added package.
+				titleMeta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
 				if err != nil && !fleet.IsNotFound(err) {
-					return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+					return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 				}
-				meta.PatchPolicy = patchPolicy
+
+				// Categories are per-package.
+				installerIDs := make([]uint, len(pkgs))
+				for i, pkg := range pkgs {
+					installerIDs[i] = pkg.InstallerID
+				}
+				categoriesByInstaller, err := svc.ds.GetCategoriesForSoftwareInstallers(ctx, installerIDs)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get categories for software packages")
+				}
+
+				for _, pkg := range pkgs {
+					summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, pkg.InstallerID)
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+					}
+					pkg.Status = summary
+					pkg.Categories = categoriesByInstaller[pkg.InstallerID]
+
+					if titleMeta != nil {
+						pkg.DisplayName = titleMeta.DisplayName
+						pkg.IconUrl = titleMeta.IconUrl
+						// Automatic install policies are title-level for now.
+						pkg.AutomaticInstallPolicies = titleMeta.AutomaticInstallPolicies
+					}
+
+					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
+					// An FMA title has a single active package, so this runs on it.
+					if pkg.FleetMaintainedAppID != nil {
+						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
+						}
+						pkg.FleetMaintainedVersions = fmaVersions
+
+						// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
+						pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+						if err != nil && !errors.Is(err, sql.ErrNoRows) {
+							return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+						}
+						pkg.PinnedVersion = pinnedVersion
+
+						patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+						}
+						pkg.PatchPolicy = patchPolicy
+					}
+				}
+
+				// software_package is kept for backwards compatibility and equals the first-added package.
+				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
+				for i, pkg := range pkgs {
+					software.Packages[i] = *pkg
+				}
+				software.SoftwarePackage = pkgs[0]
 			}
 		}
 
