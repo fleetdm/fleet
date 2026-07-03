@@ -7,12 +7,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260629210957, Down_20260629210957)
+	MigrationClient.AddMigration(Up_20260703153404, Down_20260703153404)
 }
 
 var fixEmbeddedTrailingNonWordChars = regexp.MustCompile(`\W+$`)
 
-func Up_20260629210957(tx *sql.Tx) error {
+func Up_20260703153404(tx *sql.Tx) error {
 	fmaNames, err := fixEmbeddedLoadFMANamesDarwin(tx)
 	if err != nil {
 		return fmt.Errorf("loading FMA names: %w", err)
@@ -151,6 +151,6 @@ func fixEmbeddedLongestCommonPrefix(strs []string) string {
 	}
 }
 
-func Down_20260629210957(tx *sql.Tx) error {
+func Down_20260703153404(tx *sql.Tx) error {
 	return nil
 }
