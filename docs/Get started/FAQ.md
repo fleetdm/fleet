@@ -11,7 +11,7 @@ Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy
 
 ## Where's the data stored?
 
-Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
+Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g., Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
 
 
 ## What options do I have for access control?  What about auditing admin activity?
