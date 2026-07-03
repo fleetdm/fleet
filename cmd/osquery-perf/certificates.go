@@ -265,18 +265,27 @@ func darwinDN(country, org, orgUnit, commonName string) string {
 func windowsDN(country, org, orgUnit, commonName string) string {
 	var parts []string
 	if commonName != "" {
-		parts = append(parts, "CN="+commonName)
+		parts = append(parts, "CN="+quoteX500Value(commonName))
 	}
 	if org != "" {
-		parts = append(parts, "O="+org)
+		parts = append(parts, "O="+quoteX500Value(org))
 	}
 	if orgUnit != "" {
-		parts = append(parts, "OU="+orgUnit)
+		parts = append(parts, "OU="+quoteX500Value(orgUnit))
 	}
 	if country != "" {
-		parts = append(parts, "C="+country)
+		parts = append(parts, "C="+quoteX500Value(country))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// quoteX500Value double-quotes an attribute value that contains a comma (doubling any embedded quotes), as
+// CERT_X500_NAME_STR does, e.g. O="Entrust, Inc.".
+func quoteX500Value(v string) string {
+	if !strings.ContainsAny(v, `,"`) {
+		return v
+	}
+	return `"` + strings.ReplaceAll(v, `"`, `""`) + `"`
 }
 
 // windowsLegacyDN renders the simple, values-only distinguished name that
