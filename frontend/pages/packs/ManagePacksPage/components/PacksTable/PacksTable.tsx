@@ -68,7 +68,7 @@ const PacksTable = ({
           className={`${baseClass}__create-button`}
           onClick={onCreatePackClick}
         >
-          Create new pack
+          Add new pack
         </Button>
       ),
     };

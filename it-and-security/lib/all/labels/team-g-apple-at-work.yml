@@ -1,0 +1,10 @@
+- name: "Team: g-apple-at-work"
+  description: Workstations used by team g-apple-at-work
+  label_membership_type: manual
+  hosts:
+    - "1742" # George
+    - "1407" # Jordan
+    - "1376" # Magnus
+    - "1676" # Andrew
+    - "1519" # Mel
+    - "1577" # Christopher

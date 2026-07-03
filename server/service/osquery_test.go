@@ -215,6 +215,52 @@ func TestGetClientConfig(t *testing.T) {
 	)
 }
 
+// TestGetClientConfigNullConfig is a regression test for a panic
+// ("assignment to entry in nil map") that occurred when a host's agent options
+// had a null "config" and the host also had packs/scheduled queries. See
+// https://github.com/fleetdm/fleet/issues/47388.
+func TestGetClientConfigNullConfig(t *testing.T) {
+	ds := new(mock.Store)
+
+	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return []*fleet.Pack{{ID: 1, Name: "pack_by_label"}}, nil
+	}
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
+		return []*fleet.ScheduledQuery{
+			{Name: "time", Query: "select * from time", Interval: 30, Removed: new(false)},
+		}, nil
+	}
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+		return nil, nil
+	}
+	// Global agent options with a null config. This unmarshals into a nil map,
+	// which previously caused a panic once packs were added to the config.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"config":null}`))}, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+
+	conf, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"pack_by_label": {
+			"queries":{
+				"time":{"query":"select * from time","interval":30,"removed":false}
+			}
+		}
+	}`,
+		string(conf["packs"].(json.RawMessage)),
+	)
+}
+
 func TestAgentOptionsForHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1205,6 +1251,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 		hostDetailQueryPrefix + "disk_space_darwin":                       {},
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
+		hostDetailQueryPrefix + "certificates_windows":                    {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

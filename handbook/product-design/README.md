@@ -84,7 +84,7 @@ Additionally:
   - If the original request is a customer promise, specify what the due date is and who it's for.
 
 - Sometimes a Product Designer in one product group drafts a user story or bug that will be specified, estimated, or implemented by another product group. This happens when the original group is constrained by design or engineering capacity. You'll know this is happening when they're a `assisting-g-*` label on the story or bug.
-  - For example, if a #g-mdm Product Designer drafts a story that #g-security-compliance will implement, the #g-mdm Product Designer invites the #g-security-compliance Tech Lead to #g-mdm design reviews. Once the story is approved, it’s brought to #g-security-compliance user story review.
+  - For example, if a #g-apple-at-work Product Designer drafts a story that #g-security-compliance will implement, the #g-apple-at-work Product Designer invites the #g-security-compliance Tech Lead to #g-apple-at-work design reviews. Once the story is approved, it’s brought to #g-security-compliance user story review.
   - At that point, the #g-security-compliance Product Designer becomes the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). They bring the story to their group’s estimation and handle questions from their team, coordinating with others as needed.
 
 >**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
@@ -184,7 +184,7 @@ If the original request is a customer request, it's up to the relevant CSA to de
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be [drafted](#drafting) and estimated in a single sprint. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
 
 1. Comment on the GitHub issue and at-mention the Head of Product Design and [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
-2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
+2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-apple-at-work, #g-auto-patching, #g-orchestration, or #g-security-compliance Slack channel.
 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
 

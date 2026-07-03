@@ -50,13 +50,18 @@ SELECT
 
 - Platforms: windows
 
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('certificates') WHERE name = 'subject2'
+```
+
 - Query:
 ```sql
 SELECT
-		ca, common_name, subject, issuer,
+		ca, common_name, subject2, issuer2,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, username,
+		serial, sha1, username, sid,
 		path
 	FROM
 		certificates

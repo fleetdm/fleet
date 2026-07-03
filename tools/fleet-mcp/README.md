@@ -4,6 +4,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for th
 
 **Transform how you interact with your endpoint data. Query osquery, check compliance, drill into per-host policy results, and investigate CVEs natively from Claude, Cursor, and any MCP-compatible AI agent.**
 
+🔗 **GitHub Repo:** [https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp](https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp)
 🔗 **Learn about MCP:** [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 🔗 **Learn about Fleet:** [https://fleetdm.com/](https://fleetdm.com/)
 
@@ -23,13 +24,13 @@ Both **SSE** (Server-Sent Events) and **stdio** transports are supported. The sa
 
 ## Tools
 
-The server exposes tools across three domains: **hosts**, **queries**, and **policies/vulnerabilities**. One of them (`run_live_query`) runs arbitrary osquery on devices, so scope the Fleet API token accordingly (see [Security model](#security-model)).
+The server exposes tools across four domains: **hosts**, **queries**, **policies/vulnerabilities**, and **inventory**. One of them (`run_live_query`) runs arbitrary osquery on devices, so scope the Fleet API token accordingly (see [Security model](#security-model)).
 
 ### Hosts
 
 | Tool | Description |
 |------|-------------|
-| `get_endpoints` | List hosts/endpoints enrolled in Fleet with rich server-side filters (`fleet`, `platform`, `status`, `query`, `label`, `policy_id`, `policy_response`, `per_page`). All filters compose in a single Fleet API call — narrow precisely instead of paginating client-side. The `query` parameter alone covers hostname / serial / primary IP / hardware model / user inventory (username, email, IdP group). |
+| `get_endpoints` | List hosts/endpoints enrolled in Fleet with rich server-side filters (`fleet`, `platform`, `status`, `query`, `label`, `policy_id`, `policy_response`, `per_page`). All filters compose — narrow precisely instead of paginating client-side, and the returned `total` reflects the filtered scope, not the global inventory. The `query` parameter alone covers hostname / serial / primary IP / hardware model / user inventory (username, email, IdP group). |
 | `get_host` | Get full details for a single host including labels, fleet, hardware serial, primary IP, and platform info. Accepts a numeric `host_id` (most precise — bypasses any hostname collisions) OR an `identifier` (exact hostname / UUID / serial / computer_name, OR a fuzzy substring). When the identifier matches multiple hosts (e.g. shared hostname), returns a candidate list with each host's id / hostname / display_name / serial / primary_ip / fleet for disambiguation. |
 | `get_host_policies` | Get the compliance status of every policy applied to a single host (global + fleet-inherited). Returns each policy with its `response` field (`pass` / `fail` / `""` for not-yet-run) plus a summary block (`failing_count`, `passing_count`, `not_run_count`, `total`). Mirrors the Fleet UI's per-host Policies tab. Accepts `host_id` (preferred) or `identifier`, with the same disambiguation behavior as `get_host`. Supports an optional `response` filter to narrow to passing or failing only. |
 | `get_total_system_count` | Total count of active enrolled systems |
@@ -58,6 +59,15 @@ The server exposes tools across three domains: **hosts**, **queries**, and **pol
 | `get_vulnerability_impact` | Aggregate count of systems impacted by a CVE |
 | `get_vulnerability_hosts` | List the specific hosts impacted by a CVE, optionally narrowed by `fleet`, `platform`, `label`, `status`, `query`. Composes a 3-step lookup (`/software/titles?vulnerable=true&query=CVE` → vulnerable version IDs → `/hosts?software_version_id=N`) and intersects client-side. Required because Fleet's `/hosts?cve=` and `/hosts?platform=` filters are silently ignored — see the Operational learnings section. |
 
+### Inventory
+
+These read from Fleet's stored host inventory (refreshed on each host check-in), so they answer "what's installed / who has an account" **without** a live osquery query — they work even for currently-offline hosts.
+
+| Tool | Description |
+|------|-------------|
+| `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) is a client-side case-insensitive filter against the osquery source table name. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
+| `get_host_users` | List OS-local user accounts on a single host as inventoried by osquery (uid, username, type, groupname, shell). Accepts `host_id` (preferred) or `host_identifier` (same disambiguation as `get_host`). Optional `query` substring filters the returned users client-side across username / uid / groupname / shell. |
+
 ### Filter dimensions at a glance
 
 | Dimension | How to filter | Notes |
@@ -76,7 +86,7 @@ Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporti
 1. If you pass `host_id` (numeric), it goes straight to `/hosts/:host_id` — exact, no collision possible.
 2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/identifier/:id` (catches UUIDs and `computer_name`-only matches).
 
-If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (e.g. one named `USS Protostar` whose hostname is `mac`) are best fetched with `host_id` from the start.
+If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (where the user-friendly display name does not match any indexed string field) are best fetched with `host_id` from the start.
 
 ## Configuration
 
@@ -84,7 +94,7 @@ Configure the server using environment variables or a `.env` file (in the same d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://dogfood.fleetdm.com` |
+| `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://your-fleet.example.com` |
 | `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). **Use the least-privileged Fleet role that covers your tools:** an **observer** / **observer-plus** token is enough for all tools - **admin is not required** |
 | `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32` (**min 32 chars — the server refuses a weaker one**). **Required on every transport (including stdio); the server refuses to start without it.** In SSE mode the server validates it on every request; in stdio mode it must be set but is not checked at runtime (the client launches the binary as a local subprocess). |
 | `PORT` | `8080` | HTTP port for SSE transport. Ignored in stdio mode. Render injects this automatically. |
@@ -305,6 +315,7 @@ tools/fleet-mcp/
   mcp_tools_hosts.go       # host-domain MCP tools
   mcp_tools_queries.go     # query-domain MCP tools
   mcp_tools_policies.go    # policy/vuln MCP tools
+  mcp_tools_inventory.go   # inventory MCP tools
   schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
   osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./tools/fleet-mcp/...`.
   vetted_queries.go        # vetted CIS-8.1 query library
@@ -319,7 +330,7 @@ Tunables (env vars) for the schema layer:
 ### Adding a new tool
 
 1. Add a method to `FleetClient` in `fleet_integration.go` that wraps the Fleet API call.
-2. Pick the right domain file (`mcp_tools_hosts.go`, `mcp_tools_queries.go`, or `mcp_tools_policies.go`) and add a `register<ToolName>` function.
+2. Pick the right domain file (`mcp_tools_hosts.go`, `mcp_tools_queries.go`, `mcp_tools_policies.go`, or `mcp_tools_inventory.go`) and add a `register<ToolName>` function.
 3. Wire the new register function into the matching `register<Domain>Tools` orchestrator at the top of the same file.
 4. Always set `readOnly` / `destructive` / `idempotent` annotations so Claude Desktop can advertise it.
 5. Build and run the smoke test from the [Smoke-test stdio mode](#smoke-test-stdio-mode-without-claude-desktop) section.
@@ -329,13 +340,14 @@ Tunables (env vars) for the schema layer:
 A few non-obvious behaviors discovered while building this:
 
 - **`?query=` substring matching covers hostname, serial, primary IP, hardware model, AND host_users (username/email/IdP groups)** — but **not** display_name. Use `host_id` for display-name-only lookups.
-- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why an identifier like `"USS Protostar"` resolves even though `?query=` doesn't match it.
+- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on the identifier endpoint even though `?query=` (which does not index `computer_name`) does not match it.
 - **Hostname collisions are real** in any sizeable fleet. Always prefer `host_id` when you have it. The substring resolver returns up to 50 candidates with `display_name` / `serial` / `primary_ip` for disambiguation.
 - **`policy_response` requires `policy_id`** at the API level. The MCP layer rejects the orphan combination upfront with a clean error rather than letting Fleet return a vague 400.
 - **Fleet's `/hosts` endpoint silently ignores several filter params we tested.** As of Fleet 4.85, passing `cve=CVE-X`, `platform=linux`, or `label_id=N` to `GET /hosts` is accepted without error but returns the unfiltered host list — the MCP cannot rely on these. Workarounds shipped in this repo:
   - **Platform / label scoping** routes through `GET /labels/:id/hosts` (which DOES honor `fleet_id` and `query`, but ALSO ignores `software_version_id` and `policy_id`, so policy + label intersection is computed client-side by host ID).
+  - **`get_endpoints` `total` is scoped to the same filters** as the listing, not the global inventory: it comes from `GET /hosts/count` with the same params (`label_id` for label/platform), except the label + `policy_id` combo where `/hosts/count` ignores `policy_id` — there the count is the size of the same client-side label∩policy intersection.
   - **CVE → hosts** is a 3-step compose in `GetHostsForCVE`: `GET /software/titles?vulnerable=true&query=CVE-X` → per-title `GET /software/titles/:id` to harvest vulnerable version IDs → `GET /hosts?software_version_id=N` per ID → intersect with fleet / status / query / label-id client-side.
-  - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2026-31431 yields 50 hosts via `?cve=`, but the correct answer is 1).
+  - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2025-12345 yields 50 hosts via `?cve=`, but the correct answer is 1).
   - Future Fleet versions may fix these — revisit `GetEndpointsWithFilters` and `GetHostsForCVE` if/when that happens.
 - **Fleet-scoped policy compliance** uses `/fleets/:fleet_id/policies/:policy_id`, not the global path. `get_policy_compliance` routes to whichever based on whether `fleet` is set.
 - **`/api/v1/fleet/host_summary` is the right endpoint for aggregate platform counts** — `GET /hosts` defaults to a 100-host page, so any client-side aggregation over `GetEndpoints(0)` is silently wrong on Fleets larger than 100 hosts. `get_aggregate_platforms` uses `host_summary` directly so totals match the Fleet UI at any inventory size.
