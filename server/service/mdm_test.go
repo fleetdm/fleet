@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,6 +35,7 @@ import (
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
@@ -1648,6 +1650,170 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				require.ErrorContains(t, err, c.wantErr)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// newUpdateMDMConfigProfileRequest builds an *http.Request with a
+// multipart/form-data body for the update configuration profile endpoint,
+// with profileUUID set as a mux URL var (empty string omits the var
+// entirely, to exercise the "missing profile_uuid" case). fields supports
+// multiple values per key, mirroring repeated form fields like
+// labels_include_any.
+func newUpdateMDMConfigProfileRequest(t *testing.T, profileUUID string, fields map[string][]string, fileContents []byte) *http.Request {
+	t.Helper()
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for key, values := range fields {
+		for _, v := range values {
+			require.NoError(t, w.WriteField(key, v))
+		}
+	}
+	if fileContents != nil {
+		fw, err := w.CreateFormFile("profile", "test.mobileconfig")
+		require.NoError(t, err)
+		_, err = fw.Write(fileContents)
+		require.NoError(t, err)
+	}
+	require.NoError(t, w.Close())
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	vars := map[string]string{}
+	if profileUUID != "" {
+		vars["profile_uuid"] = profileUUID
+	}
+	return mux.SetURLVars(req, vars)
+}
+
+func TestUpdateMDMConfigProfileDecodeRequest(t *testing.T) {
+	t.Parallel()
+
+	smallFile := []byte("<plist></plist>")
+	oversizedFile := bytes.Repeat([]byte("a"), int(fleet.MaxProfileSize)+1)
+
+	tests := []struct {
+		name        string
+		profileUUID string
+		fields      map[string][]string
+		fileContent []byte
+		wantErr     string
+		check       func(t *testing.T, req *updateMDMConfigProfileRequest)
+	}{
+		{
+			name:        "missing profile_uuid",
+			profileUUID: "",
+			wantErr:     "profile_uuid is required",
+		},
+		{
+			name:        "no fields, no file",
+			profileUUID: "abc-123",
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.Equal(t, "abc-123", req.ProfileUUID)
+				assert.Nil(t, req.Profile)
+				assert.Empty(t, req.LabelsIncludeAll)
+				assert.Empty(t, req.LabelsIncludeAny)
+				assert.Empty(t, req.LabelsExcludeAny)
+			},
+		},
+		{
+			name:        "labels_include_all with multiple values",
+			profileUUID: "abc-123",
+			fields: map[string][]string{
+				"labels_include_all": {"Label A", "Label B"},
+			},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.Equal(t, []string{"Label A", "Label B"}, req.LabelsIncludeAll)
+			},
+		},
+		{
+			name:        "labels_include_any with multiple values",
+			profileUUID: "abc-123",
+			fields: map[string][]string{
+				"labels_include_any": {"Label A", "Label B"},
+			},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.Equal(t, []string{"Label A", "Label B"}, req.LabelsIncludeAny)
+			},
+		},
+		{
+			name:        "labels_exclude_any alone is allowed",
+			profileUUID: "abc-123",
+			fields: map[string][]string{
+				"labels_exclude_any": {"Label A"},
+			},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.Equal(t, []string{"Label A"}, req.LabelsExcludeAny)
+			},
+		},
+		{
+			name:        "labels_exclude_any combined with include_any is allowed",
+			profileUUID: "abc-123",
+			fields: map[string][]string{
+				"labels_include_any": {"Label A"},
+				"labels_exclude_any": {"Label B"},
+			},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.Equal(t, []string{"Label A"}, req.LabelsIncludeAny)
+				assert.Equal(t, []string{"Label B"}, req.LabelsExcludeAny)
+			},
+		},
+		{
+			name:        "include_all and include_any together is rejected",
+			profileUUID: "abc-123",
+			fields: map[string][]string{
+				"labels_include_all": {"Label A"},
+				"labels_include_any": {"Label B"},
+			},
+			wantErr: `Only one of "labels_include_all" or "labels_include_any" can be included.`,
+		},
+		{
+			name:        "label overlapping include and exclude is rejected",
+			profileUUID: "abc-123",
+			fields: map[string][]string{
+				"labels_include_any": {"Label A"},
+				"labels_exclude_any": {"Label A"},
+			},
+			wantErr: `Label "Label A" cannot appear in both include and exclude lists.`,
+		},
+		{
+			name:        "profile file present",
+			profileUUID: "abc-123",
+			fileContent: smallFile,
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				require.NotNil(t, req.Profile)
+				assert.Equal(t, int64(len(smallFile)), req.Profile.Size)
+			},
+		},
+		{
+			name:        "oversized profile file is rejected",
+			profileUUID: "abc-123",
+			fileContent: oversizedFile,
+			wantErr:     "maximum configuration profile file size is 1 MB",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := newUpdateMDMConfigProfileRequest(t, tt.profileUUID, tt.fields, tt.fileContent)
+			result, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), req)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			decoded, ok := result.(*updateMDMConfigProfileRequest)
+			require.True(t, ok)
+			if tt.check != nil {
+				tt.check(t, decoded)
 			}
 		})
 	}
