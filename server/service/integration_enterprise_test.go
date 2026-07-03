@@ -17314,6 +17314,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	require.Len(t, title.Packages, 2)
 	require.Equal(t, hashOf(contentC), title.Packages[1].StorageID)
 
+	// A title-level display name is shared across sibling packages; deleting one must not wipe it.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)`,
+			team.ID, titleID, "My Deploy Tool")
+		return err
+	})
+	displayName := func() string {
+		var name string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &name,
+				`SELECT COALESCE(MAX(display_name), '') FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?`,
+				team.ID, titleID)
+		})
+		return name
+	}
+
 	// --- Delete one package (A) -> 204, B remains and becomes first-added ---
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil,
 		http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID), "installer_id", fmt.Sprintf("%d", installerA))
@@ -17321,10 +17338,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	require.Len(t, title.Packages, 1)
 	require.Equal(t, installerB, title.Packages[0].InstallerID)
 	require.Equal(t, installerB, title.SoftwarePackage.InstallerID)
+	require.Equal(t, "My Deploy Tool", displayName(), "deleting one of several packages must not wipe the shared display name")
 
 	// --- Delete all remaining (no installer_id) -> 204, no packages left ---
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil,
 		http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Empty(t, displayName(), "deleting the last package removes the title display name")
 	var remaining int
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &remaining,

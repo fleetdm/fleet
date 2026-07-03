@@ -218,10 +218,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
 	}
 
-	if payload.AutomaticInstall {
+	if payload.AutomaticInstall && payload.AddedAutomaticInstallPolicy != nil {
 		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   addedInstaller.AutomaticInstallPolicies[0].ID,
-			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
