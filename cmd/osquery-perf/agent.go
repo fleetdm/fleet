@@ -544,11 +544,9 @@ type agent struct {
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
 
-	// cache of this host's per-host certificates (the certs unique to this
-	// host, excluding the shared certs every host reports). Note that this
-	// requires a mutex even though only used in a.processQuery, that's because
-	// both the runLoop and the live query goroutines may call DistributedWrite
-	// (which calls processQuery).
+	// cache of this host's per-host certificates (the certs unique to this host, excluding the shared certs every host
+	// reports). Note that this requires a mutex even though only used in a.processQuery, that's because both the runLoop
+	// and the live query goroutines may call DistributedWrite (which calls processQuery).
 	certificatesMutex        sync.RWMutex
 	hostCertSpecs            []simulatedCert
 	commonSoftwareNameSuffix string

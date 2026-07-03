@@ -5,9 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
-	// osquery-perf shares one global math/rand RNG seeded from the --seed flag
-	// (see rand.Seed in agent.go) so load-test runs are reproducible; this file
-	// uses the same source rather than math/rand/v2's unseedable globals.
+	// osquery-perf shares one global math/rand RNG seeded from the --seed flag so load-test runs are reproducible
 	"math/rand" //nolint:depguard
 	"strings"
 	"time"
@@ -15,10 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// simulatedCert is a platform-neutral description of a certificate that
-// osquery-perf reports for the `certificates` detail query. The platform
-// renderers (darwinRow / windowsRows) translate it into the column shape
-// osquery produces on that platform.
+// simulatedCert is a platform-neutral description of a certificate that osquery-perf reports for the `certificates`
+// detail query.
 type simulatedCert struct {
 	ca                 bool
 	commonName         string
@@ -36,26 +32,20 @@ type simulatedCert struct {
 	serial             string
 	notValidAfterUnix  string
 	notValidBeforeUnix string
-	// user reports whether the certificate lives in a user's store (true) or in
-	// the machine/system store (false). username is the owning user when user is
-	// true.
+	// user reports whether the certificate lives in a user's store (true) or in the machine/system store (false).
 	user     bool
 	username string
 }
 
-// sha1Hex returns the hex-encoded SHA1 osquery would report for this cert. It
-// is derived from the serial so that shared certs (fixed serial) dedupe to a
-// single host_certificates row across all hosts, while per-host certs (uuid
-// serial) stay unique per host.
+// sha1Hex returns the hex-encoded SHA1 osquery would report for this cert. It is derived from the serial so that shared
+// certs (fixed serial) dedupe to a single host_certificates row across all hosts, while per-host certs (uuid serial)
+// stay unique per host.
 func (c simulatedCert) sha1Hex() string {
 	sum := sha1.Sum([]byte(c.serial)) //nolint: gosec
 	return hex.EncodeToString(sum[:])
 }
 
-// sharedCerts are reported by every simulated host (common root and
-// intermediate CAs). Their serials are fixed, so the Fleet server dedupes them
-// into a single host_certificates row referenced by every host. They are
-// machine-scoped and long-lived.
+// sharedCerts are reported by every simulated host (common root and intermediate CAs).
 var sharedCerts = []simulatedCert{
 	{
 		ca: true, commonName: "Fleet Root CA",
@@ -141,10 +131,15 @@ var sharedCerts = []simulatedCert{
 
 const certDay = 24 * time.Hour
 
-// generateCertSpecs returns the certs this host reports: the constant shared
-// certs plus this host's per-host certs. Per-host certs are generated once and
-// cached so they're stable across polls, then occasionally churned to simulate
-// certificate rotation/installs. Shared certs are never churned.
+// certChurnPercent is the percent chance that some of a host's per-host certificates rotate (new serial and SHA1),
+// simulating certificate renewal/reinstall. It is rolled each time the host answers the certificates detail query,
+// i.e. on the periodic detail refresh (osquery.detail_update_interval, 1h by default) or a forced refetch. Shared
+// certs never churn.
+const certChurnPercent = 5
+
+// generateCertSpecs returns the certs this host reports: the constant shared certs plus this host's per-host certs.
+// Per-host certs are generated once and cached so they're stable across detail-query refreshes, then occasionally
+// churned to simulate certificate rotation/installs. Shared certs are never churned.
 func (a *agent) generateCertSpecs() []simulatedCert {
 	a.certificatesMutex.Lock()
 	defer a.certificatesMutex.Unlock()
@@ -152,8 +147,7 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 	switch {
 	case a.hostCertSpecs == nil:
 		a.hostCertSpecs = a.newPerHostCertSpecs()
-	case rand.Intn(100) < 5:
-		// 5% chance for some of this host's certs to change between polls.
+	case rand.Intn(100) < certChurnPercent:
 		a.churnPerHostCertSpecs()
 	}
 
@@ -163,8 +157,7 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 	return specs
 }
 
-// newPerHostCertSpecs generates 0-10 certificates unique to this host, with
-// random (uuid) serials so each host's certs are distinct in the Fleet server.
+// newPerHostCertSpecs generates 0-10 certificates unique to this host
 func (a *agent) newPerHostCertSpecs() []simulatedCert {
 	count := rand.Intn(11) // 0..10
 	users := a.hostUsers()
@@ -172,9 +165,8 @@ func (a *agent) newPerHostCertSpecs() []simulatedCert {
 	for i := range count {
 		specs = append(specs, a.newPerHostCertSpec(i, users))
 	}
-	// Model a device certificate present in both the machine store and a user's
-	// store (same SHA1, two scopes), exercising the server's cross-scope
-	// handling (one host_certificates row, two host_certificate_sources rows).
+	// Model a device certificate present in both the machine store and a user's store (same SHA1, two scopes),
+	// exercising the server's cross-scope handling (one host_certificates row, two host_certificate_sources rows).
 	if count > 0 && len(users) > 0 {
 		dup := specs[0]
 		dup.user = !specs[0].user
@@ -217,8 +209,8 @@ func (a *agent) newPerHostCertSpec(i int, users []map[string]string) simulatedCe
 	}
 }
 
-// churnPerHostCertSpecs rotates 1..N of this host's per-host certs by assigning
-// new serials (and thus new SHA1s), simulating certificate renewal/reinstall.
+// churnPerHostCertSpecs rotates 1..N of this host's per-host certs by assigning new serials (and thus new SHA1s),
+// simulating certificate renewal/reinstall.
 func (a *agent) churnPerHostCertSpecs() {
 	if len(a.hostCertSpecs) == 0 {
 		return
@@ -239,29 +231,32 @@ func boolStr(b bool) string {
 	return "0"
 }
 
-// darwinDN renders a slash-delimited distinguished name (e.g.
-// /C=US/O=Org/OU=Unit/CN=Name) as osquery returns on macOS. Empty fields are
-// omitted.
+// darwinDN renders a slash-delimited distinguished name (e.g. /C=US/O=Org/OU=Unit/CN=Name) as osquery returns on macOS.
+// Empty fields are omitted.
 func darwinDN(country, org, orgUnit, commonName string) string {
 	var b strings.Builder
 	if country != "" {
-		b.WriteString("/C=" + country)
+		b.WriteString("/C=" + escapeDarwinDNValue(country))
 	}
 	if org != "" {
-		b.WriteString("/O=" + org)
+		b.WriteString("/O=" + escapeDarwinDNValue(org))
 	}
 	if orgUnit != "" {
-		b.WriteString("/OU=" + orgUnit)
+		b.WriteString("/OU=" + escapeDarwinDNValue(orgUnit))
 	}
 	if commonName != "" {
-		b.WriteString("/CN=" + commonName)
+		b.WriteString("/CN=" + escapeDarwinDNValue(commonName))
 	}
 	return b.String()
 }
 
-// windowsDN renders an X.500 (RFC 1779) distinguished name (e.g.
-// "CN=Name, O=Org, OU=Unit, C=US") as osquery returns in subject2/issuer2 on
-// Windows starting with osquery 5.23.1.
+// escapeDarwinDNValue backslash-escapes slashes inside an attribute value, as osquery does on macOS
+func escapeDarwinDNValue(v string) string {
+	return strings.ReplaceAll(v, "/", `\/`)
+}
+
+// windowsDN renders an X.500 (RFC 1779) distinguished name (e.g. "CN=Name, O=Org, OU=Unit, C=US") as osquery returns in
+// subject2/issuer2 on Windows starting with osquery 5.23.1.
 func windowsDN(country, org, orgUnit, commonName string) string {
 	var parts []string
 	if commonName != "" {
@@ -288,21 +283,8 @@ func quoteX500Value(v string) string {
 	return `"` + strings.ReplaceAll(v, `"`, `""`) + `"`
 }
 
-// windowsLegacyDN renders the simple, values-only distinguished name that
-// pre-5.23.1 osquery returned in subject/issuer. Kept so the generator also
-// works against older Fleet servers that read those columns.
-func windowsLegacyDN(country, org, orgUnit, commonName string) string {
-	var parts []string
-	for _, v := range []string{commonName, orgUnit, org, country} {
-		if v != "" {
-			parts = append(parts, v)
-		}
-	}
-	return strings.Join(parts, ", ")
-}
-
-// windowsUserSID returns a stable per-(host, user) security identifier so a
-// user's certs classify as User scope and stay consistent across polls.
+// windowsUserSID returns a stable per-(host, user) security identifier so a user's certs classify as User scope and stay
+// consistent across detail-query refreshes.
 func (a *agent) windowsUserSID(username string) string {
 	var h uint32 = 2166136261
 	for i := 0; i < len(username); i++ {
@@ -357,20 +339,17 @@ func (a *agent) certificatesWindows() []map[string]string {
 	return rows
 }
 
-// windowsRows renders the osquery `certificates` rows for a cert on Windows.
-// Machine-scoped certs produce one row. User-scoped certs produce the redundant
-// rows osquery returns from the user's Personal hive and its companion _Classes
+// windowsRows renders the osquery `certificates` rows for a cert on Windows. Machine-scoped certs produce one row.
+// User-scoped certs produce the redundant rows osquery returns from the user's Personal hive and its companion _Classes
 // hive (the Fleet server dedupes them by SHA1 + scope + username).
 func (a *agent) windowsRows(c simulatedCert) []map[string]string {
 	base := map[string]string{
 		"ca":          boolStr(c.ca),
 		"common_name": c.commonName,
-		// subject2/issuer2 are read by Fleet servers with Windows certificate
-		// support (osquery 5.23.1+); subject/issuer are kept for older servers.
+		// subject2/issuer2 are the X.500 distinguished name columns Fleet's Windows certificates query selects,
+		// populated on Windows starting with osquery 5.23.1.
 		"subject2":          windowsDN(c.subjectCountry, c.subjectOrg, c.subjectOrgUnit, c.subjectCommonName),
 		"issuer2":           windowsDN(c.issuerCountry, c.issuerOrg, "", c.issuerCommonName),
-		"subject":           windowsLegacyDN(c.subjectCountry, c.subjectOrg, c.subjectOrgUnit, c.subjectCommonName),
-		"issuer":            windowsLegacyDN(c.issuerCountry, c.issuerOrg, "", c.issuerCommonName),
 		"key_algorithm":     c.keyAlgorithm,
 		"key_strength":      c.keyStrength,
 		"key_usage":         c.keyUsage,
