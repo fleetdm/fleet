@@ -2887,7 +2887,7 @@ WHERE global_or_team_id = ? AND title_id IN (?) AND id NOT IN (?)
 
 	// re-point policies on dropped custom packages to the first-added surviving package
 	// (lowest id) of the same title, which always exists since the title is kept.
-	const repointDroppedPolicies = `
+	const repointDeletedInstallerPolicies = `
 UPDATE policies p
 JOIN software_installers d ON d.id = p.software_installer_id
 JOIN (
@@ -3578,7 +3578,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// Re-point policies off the dropped packages before deleting them, since the
 			// policies FK is RESTRICT. A title removed entirely is handled by the
 			// not-in-list cleanup above, so here the title always keeps a package.
-			repointStmt, repointArgs, err := sqlx.In(repointDroppedPolicies, globalOrTeamID, keptInstallerIDs, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
+			repointStmt, repointArgs, err := sqlx.In(repointDeletedInstallerPolicies, globalOrTeamID, keptInstallerIDs, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to re-point dropped policies")
 			}
@@ -3590,11 +3590,11 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to find dropped packages")
 			}
-			var droppedIDs []uint
-			if err := sqlx.SelectContext(ctx, tx, &droppedIDs, droppedStmt, droppedArgs...); err != nil {
+			var droppedInstallerIDs []uint
+			if err := sqlx.SelectContext(ctx, tx, &droppedInstallerIDs, droppedStmt, droppedArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "find dropped packages")
 			}
-			for _, id := range droppedIDs {
+			for _, id := range droppedInstallerIDs {
 				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id)
 				if err != nil {
 					return err

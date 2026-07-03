@@ -1700,6 +1700,16 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	})
 	require.Zero(t, fmaRows)
 
+	// removing the title's last package (title no longer in the batch) nulls out a
+	// policy that pointed at it, since there is no sibling to re-point to
+	orphanPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{Name: "orphan", Query: "SELECT 1;", SoftwareInstallerID: &pkgs[0].InstallerID})
+	require.NoError(t, err)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{pkg("Bravo", "com.example.bravo", "bravo-x", "1.0")})
+	require.NoError(t, err)
+	orphaned, err := ds.TeamPolicy(ctx, team.ID, orphanPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, orphaned.SoftwareInstallerID)
+
 	// A single package file (one path entry) can hold packages for different titles on a
 	// separate team, including a mix of a single-package title and a multi-package title,
 	// with one title's packages interleaved with another's. Each still lands on its own
