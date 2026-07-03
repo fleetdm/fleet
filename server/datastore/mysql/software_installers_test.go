@@ -38,7 +38,6 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"BatchSetSoftwareInstallersMultipleCustomPackages", testBatchSetSoftwareInstallersMultipleCustomPackages},
-		{"BatchSetSoftwareInstallersMixedTitles", testBatchSetSoftwareInstallersMixedTitles},
 		{"BatchSetSoftwareInstallersWithUpgradeCodes", testBatchSetSoftwareInstallersWithUpgradeCodes},
 		{"GetSoftwareInstallersPendingDeletion", testGetSoftwareInstallersPendingDeletion},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
@@ -1530,10 +1529,13 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "h1", "1", "h1key", "h1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-	// pkg builds a custom package payload for the shared "Santa" title. Each package
-	// differs only by storage id (hash) and version.
-	pkg := func(storage string, version string) *fleet.UploadSoftwareInstallerPayload {
+	// pkg builds a custom package payload for the given title. santa wraps it for the
+	// shared "Santa" title used by the single-title lifecycle checks below; each santa
+	// package differs only by storage id (hash) and version.
+	pkg := func(title string, bundle string, storage string, version string) *fleet.UploadSoftwareInstallerPayload {
 		tfr, err := fleet.NewTempFileReader(bytes.NewReader([]byte(storage)), t.TempDir)
 		require.NoError(t, err)
 		return &fleet.UploadSoftwareInstallerPayload{
@@ -1541,21 +1543,24 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 			InstallerFile:    tfr,
 			StorageID:        storage,
 			Filename:         storage,
-			Title:            "Santa",
+			Title:            title,
 			Source:           "apps",
 			Version:          version,
 			UserID:           user1.ID,
 			Platform:         "darwin",
 			URL:              "https://example.com/" + storage,
-			BundleIdentifier: "com.northpolesec.santa",
+			BundleIdentifier: bundle,
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 		}
+	}
+	santa := func(storage string, version string) *fleet.UploadSoftwareInstallerPayload {
+		return pkg("Santa", "com.northpolesec.santa", storage, version)
 	}
 
 	// apply two packages of the same title
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
-		pkg("santaA", "2026.2"),
-		pkg("santaB", "2026.4"),
+		santa("santaA", "2026.2"),
+		santa("santaB", "2026.4"),
 	})
 	require.NoError(t, err)
 
@@ -1576,8 +1581,8 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 
 	// re-apply with the list reordered: ids and order are unchanged
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
-		pkg("santaB", "2026.4"),
-		pkg("santaA", "2026.2"),
+		santa("santaB", "2026.4"),
+		santa("santaA", "2026.2"),
 	})
 	require.NoError(t, err)
 	pkgs, err = ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
@@ -1589,9 +1594,9 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 
 	// adding a package appends it after the existing ones
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
-		pkg("santaA", "2026.2"),
-		pkg("santaB", "2026.4"),
-		pkg("santaC", "2026.6"),
+		santa("santaA", "2026.2"),
+		santa("santaB", "2026.4"),
+		santa("santaC", "2026.6"),
 	})
 	require.NoError(t, err)
 	pkgs, err = ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
@@ -1602,10 +1607,20 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.Greater(t, pkgs[2].InstallerID, secondID)
 	require.Equal(t, "santaC", pkgs[2].StorageID)
 
+	// a policy and pending install point at santaA (kept) and santaB (about to be dropped)
+	keepPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{Name: "keep", Query: "SELECT 1;", SoftwareInstallerID: &firstID})
+	require.NoError(t, err)
+	dropPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{Name: "drop", Query: "SELECT 1;", SoftwareInstallerID: &secondID})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, firstID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, secondID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
 	// removing a package deletes it (source of truth), surviving siblings keep ids
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
-		pkg("santaA", "2026.2"),
-		pkg("santaC", "2026.6"),
+		santa("santaA", "2026.2"),
+		santa("santaC", "2026.6"),
 	})
 	require.NoError(t, err)
 	pkgs, err = ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
@@ -1615,10 +1630,22 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.Equal(t, "santaA", pkgs[0].StorageID)
 	require.Equal(t, "santaC", pkgs[1].StorageID)
 
+	// dropping santaB unset its policy and cancelled its pending install; santaA's are untouched
+	dropped, err := ds.TeamPolicy(ctx, team.ID, dropPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, dropped.SoftwareInstallerID)
+	kept, err := ds.TeamPolicy(ctx, team.ID, keepPolicy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, kept.SoftwareInstallerID)
+	require.Equal(t, firstID, *kept.SoftwareInstallerID)
+	pending, err := ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+
 	// a hash duplicate within the batch fails and leaves the title unchanged
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
-		pkg("santaA", "2026.2"),
-		pkg("santaA", "2026.2-dup"),
+		santa("santaA", "2026.2"),
+		santa("santaA", "2026.2-dup"),
 	})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "already added")
@@ -1629,7 +1656,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	// exceeding the per-title package limit fails
 	tooMany := make([]*fleet.UploadSoftwareInstallerPayload, 0, fleet.MaxPackagesPerTitle+1)
 	for i := range fleet.MaxPackagesPerTitle + 1 {
-		tooMany = append(tooMany, pkg(fmt.Sprintf("santa-%d", i), fmt.Sprintf("v%d", i)))
+		tooMany = append(tooMany, santa(fmt.Sprintf("santa-%d", i), fmt.Sprintf("v%d", i)))
 	}
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, tooMany)
 	require.Error(t, err)
@@ -1643,21 +1670,21 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 		UniqueIdentifier: "com.northpolesec.santa",
 	})
 	require.NoError(t, err)
-	fma := pkg("santaFMA", "2026.8")
+	fma := santa("santaFMA", "2026.8")
 	fma.FleetMaintainedAppID = new(maintainedApp.ID)
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
-		pkg("santaA", "2026.2"),
+		santa("santaA", "2026.2"),
 		fma,
 	})
 	require.Error(t, err)
 
 	// switch the title to a Fleet-maintained app, then back to a custom package:
 	// the stale FMA row must be removed so the title holds only the custom package.
-	fmaOnly := pkg("santaFMA2", "2027.1")
+	fmaOnly := santa("santaFMA2", "2027.1")
 	fmaOnly.FleetMaintainedAppID = new(maintainedApp.ID)
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{fmaOnly})
 	require.NoError(t, err)
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{pkg("santaX", "2027.2")})
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{santa("santaX", "2027.2")})
 	require.NoError(t, err)
 	pkgs, err = ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.NoError(t, err)
@@ -1670,50 +1697,27 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 			team.ID, titleID)
 	})
 	require.Zero(t, fmaRows)
-}
 
-func testBatchSetSoftwareInstallersMixedTitles(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	// A single package file (one path entry) can hold packages for different titles on a
+	// separate team, including a mix of a single-package title and a multi-package title,
+	// with one title's packages interleaved with another's. Each still lands on its own
+	// resolved title in file order.
+	mixedTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-mixed"})
 	require.NoError(t, err)
-	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	pkg := func(title string, bundle string, storage string, version string) *fleet.UploadSoftwareInstallerPayload {
-		tfr, err := fleet.NewTempFileReader(bytes.NewReader([]byte(storage)), t.TempDir)
-		require.NoError(t, err)
-		return &fleet.UploadSoftwareInstallerPayload{
-			InstallScript:    "install",
-			InstallerFile:    tfr,
-			StorageID:        storage,
-			Filename:         storage,
-			Title:            title,
-			Source:           "apps",
-			Version:          version,
-			UserID:           user.ID,
-			Platform:         "darwin",
-			URL:              "https://example.com/" + storage,
-			BundleIdentifier: bundle,
-			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		}
-	}
-
-	// A single package file (one path entry) can hold packages for different titles,
-	// including a mix of a single-package title and a multi-package title, and the
-	// packages of one title can be interleaved with another's.
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	err = ds.BatchSetSoftwareInstallers(ctx, &mixedTeam.ID, []*fleet.UploadSoftwareInstallerPayload{
 		pkg("Bravo", "com.example.bravo", "bravo-1", "1.0"),
 		pkg("Alpha", "com.example.alpha", "alpha-1", "1.0"),
 		pkg("Bravo", "com.example.bravo", "bravo-2", "2.0"),
 	})
 	require.NoError(t, err)
 
-	all, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	mixedAll, err := ds.GetSoftwareInstallers(ctx, mixedTeam.ID)
 	require.NoError(t, err)
-	require.Len(t, all, 3)
+	require.Len(t, mixedAll, 3)
 
 	// each package landed on its own resolved title: Alpha has one, Bravo has two
 	countByTitle := map[uint]int{}
-	for _, si := range all {
+	for _, si := range mixedAll {
 		require.NotNil(t, si.TitleID)
 		countByTitle[*si.TitleID]++
 	}
@@ -1729,14 +1733,13 @@ func testBatchSetSoftwareInstallersMixedTitles(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, 1, alphaCount)
 
-	// Bravo's packages keep file order (bravo-1 first-added) even though Alpha was
-	// listed between them.
-	pkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, bravoTitleID)
+	// Bravo's packages keep file order (bravo-1 first-added) even though Alpha was listed between them.
+	bravoPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &mixedTeam.ID, bravoTitleID)
 	require.NoError(t, err)
-	require.Len(t, pkgs, 2)
-	require.Equal(t, "bravo-1", pkgs[0].StorageID)
-	require.Equal(t, "bravo-2", pkgs[1].StorageID)
-	require.Less(t, pkgs[0].InstallerID, pkgs[1].InstallerID)
+	require.Len(t, bravoPkgs, 2)
+	require.Equal(t, "bravo-1", bravoPkgs[0].StorageID)
+	require.Equal(t, "bravo-2", bravoPkgs[1].StorageID)
+	require.Less(t, bravoPkgs[0].InstallerID, bravoPkgs[1].InstallerID)
 }
 
 func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore) {

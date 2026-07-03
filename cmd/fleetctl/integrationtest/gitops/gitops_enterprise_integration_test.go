@@ -396,6 +396,92 @@ settings:
 	}
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestMultiplePackagesRoundTrip() {
+	t := s.T()
+	ctx := context.Background()
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const teamName = "roundtrip_multi"
+
+	// Apply a team holding two custom packages of the same title (ruby, with
+	// different content per architecture).
+	applyDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(applyDir, "fleets"), 0o755))
+	teamFile := filepath.Join(applyDir, "fleets", "team.yml")
+	require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, `
+name: %s
+team_settings:
+  secrets:
+    - secret: roundtrip_secret
+agent_options:
+controls:
+policies:
+queries:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby_variant.deb
+`, teamName), 0o644))
+
+	_, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile})
+	require.NoError(t, err)
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// find the title that ended up with both packages
+	titleID := uint(0)
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	for _, tl := range titles {
+		p, err := s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, tl.ID)
+		require.NoError(t, err)
+		if len(p) == 2 {
+			titleID = tl.ID
+		}
+	}
+	require.NotZero(t, titleID, "the two packages should resolve to one title")
+
+	// first-added first
+	pkgs, err := s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, pkgs, 2)
+	firstID, secondID := pkgs[0].InstallerID, pkgs[1].InstallerID
+
+	// generate the team's config back out (needs an admin to read config), with real
+	// secrets so it re-applies cleanly
+	admin := fleet.User{
+		Name:       "Admin " + uuid.NewString(),
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.DS.NewUser(ctx, &admin)
+	require.NoError(t, err)
+	adminConfig := s.createFleetctlConfig(t, admin)
+
+	genDir := t.TempDir()
+	_, err = fleetctltest.RunAppNoChecks([]string{"generate-gitops", "--config", adminConfig.Name(), "--fleet", teamName, "--dir", genDir, "--insecure"})
+	require.NoError(t, err)
+
+	genTeamFiles, err := filepath.Glob(filepath.Join(genDir, "fleets", "*.yml"))
+	require.NoError(t, err)
+	require.Len(t, genTeamFiles, 1)
+
+	// re-applying the generated output is a no-op: the same two packages, same ids
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", genTeamFiles[0]})
+	require.NoError(t, err)
+
+	pkgs, err = s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, pkgs, 2)
+	require.Equal(t, firstID, pkgs[0].InstallerID)
+	require.Equal(t, secondID, pkgs[1].InstallerID)
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) createFleetctlConfig(t *testing.T, user fleet.User) *os.File {
 	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)

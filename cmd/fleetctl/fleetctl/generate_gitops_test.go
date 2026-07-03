@@ -16,7 +16,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2113,80 +2112,6 @@ func TestGenerateSoftwareMultiplePackages(t *testing.T) {
 	require.Equal(t, "install A", cmd.FilesToWrite[installA])
 	require.Equal(t, "install B", cmd.FilesToWrite[installB])
 	require.NotEqual(t, installA, installB)
-}
-
-// TestGenerateSoftwareMultiplePackagesRoundTrip generates a multi-package title,
-// writes the output to disk the way the command would, then re-parses it with the
-// gitops parser and checks the packages survive unchanged.
-func TestGenerateSoftwareMultiplePackagesRoundTrip(t *testing.T) {
-	fleetClient := &MockClientMultiPackage{}
-	appConfig, err := fleetClient.GetAppConfig()
-	require.NoError(t, err)
-	cmd := &GenerateGitopsCommand{
-		Client:       fleetClient,
-		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
-		Messages:     Messages{},
-		FilesToWrite: make(map[string]any),
-		AppConfig:    appConfig,
-		SoftwareList: make(map[uint]Software),
-	}
-
-	software, err := cmd.generateSoftware("fleets/team-a.yml", 2, "team-a", false)
-	require.NoError(t, err)
-
-	// Write everything generate produced, mirroring the real writer: .yml files are
-	// marshaled, scripts are written verbatim. The fleet file lives under fleets/ so
-	// the generated ../lib/... paths resolve.
-	dir := t.TempDir()
-	write := func(relPath string, contents []byte) {
-		full := filepath.Join(dir, relPath)
-		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
-		require.NoError(t, os.WriteFile(full, contents, 0o644))
-	}
-	for path, contents := range cmd.FilesToWrite {
-		if strings.HasSuffix(path, ".yml") {
-			b, err := yaml.Marshal(contents)
-			require.NoError(t, err)
-			write(path, b)
-		} else {
-			write(path, []byte(contents.(string)))
-		}
-	}
-	teamFile, err := yaml.Marshal(map[string]any{
-		"name":          "team-a",
-		"team_settings": map[string]any{"secrets": []any{}},
-		"agent_options": nil,
-		"controls":      nil,
-		"policies":      nil,
-		"queries":       nil,
-		"software":      software,
-	})
-	require.NoError(t, err)
-	write("fleets/team-a.yml", teamFile)
-
-	appCfg := &fleet.EnrichedAppConfig{}
-	appCfg.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	parsed, err := spec.GitOpsFromFile(filepath.Join(dir, "fleets", "team-a.yml"), filepath.Join(dir, "fleets"), appCfg, func(string, ...any) {})
-	require.NoError(t, err)
-	require.Len(t, parsed.Software.Packages, 2)
-
-	first := parsed.Software.Packages[0]
-	assert.Equal(t, santaHashA, first.SHA256)
-	assert.Equal(t, "https://example.com/santa-2026.2.pkg", first.URL)
-	assert.True(t, first.SelfService)
-	assert.Equal(t, []string{"macOS"}, first.LabelsIncludeAll)
-	assert.Empty(t, first.Categories.Value)
-	installA, err := os.ReadFile(first.InstallScript.Path)
-	require.NoError(t, err)
-	assert.Equal(t, "install A", string(installA))
-
-	second := parsed.Software.Packages[1]
-	assert.Equal(t, santaHashB, second.SHA256)
-	assert.Equal(t, []string{"Productivity"}, second.Categories.Value)
-	assert.Equal(t, []string{"macOS", "IT test team"}, second.LabelsIncludeAll)
-	installB, err := os.ReadFile(second.InstallScript.Path)
-	require.NoError(t, err)
-	assert.Equal(t, "install B", string(installB))
 }
 
 func TestGeneratePolicies(t *testing.T) {
