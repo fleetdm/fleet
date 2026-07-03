@@ -864,18 +864,15 @@ var extraDetailQueries = map[string]DetailQuery{
 	"certificates_windows": {
 		Query: `
 	SELECT
-		ca, common_name, subject2, issuer2,
+		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, username, sid,
+		serial, sha1, username,
 		path
 	FROM
 		certificates
 	WHERE
 		store = 'Personal';`,
-		// subject2/issuer2 preserve the distinguished name attribute keys (CN, O, OU, C). They are only populated on
-		// Windows starting with osquery 5.23.1
-		Discovery:        `SELECT 1 FROM pragma_table_info('certificates') WHERE name = 'subject2'`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestHostCertificatesWindows,
 	},
@@ -3612,7 +3609,7 @@ func directIngestHostCertificatesDarwin(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery)
 }
 
 func directIngestHostCertificatesWindows(
@@ -3629,41 +3626,38 @@ func directIngestHostCertificatesWindows(
 	}
 
 	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
-	// On Windows, osquery enumerates the same certificate from multiple redundant registry hives (the LocalSystem
-	// account's CurrentUser/Services views, per-user `_Classes` sub-hives, etc.), so we deduplicate by SHA1 + scope +
-	// username.
-	seen := make(map[string]struct{}, len(rows))
+	// on windows, the osquery certificates table returns duplicate
+	// entries for the same certificate if it is present in multiple
+	// certificate stores so we deduplicate them here based on the
+	// SHA1 sum + username
+	existsSha1User := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		// Unescape \xHH sequences in fields that may contain non-ASCII
 		// characters (e.g. Cyrillic) in the certificate's distinguished name.
 		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
-		row["subject2"] = fleet.DecodeHexEscapes(row["subject2"])
-		row["issuer2"] = fleet.DecodeHexEscapes(row["issuer2"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
 
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject2"])
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
-			logger.ErrorContext(ctx, "malformed certificate subject distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
-			ctxerr.Handle(ctx, err)
+			logger.ErrorContext(ctx, "extracting subject details", "component", "service", "method", "directIngestHostCertificates", "err", err)
+			continue
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer2"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
-			logger.ErrorContext(ctx, "malformed certificate issuer distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
-			ctxerr.Handle(ctx, err)
+			logger.ErrorContext(ctx, "extracting issuer details", "component", "service", "method", "directIngestHostCertificates", "err", err)
+			continue
 		}
 
-		// Classify scope from the registry hive security identifier (sid), not the owner name.
-		// S-1-5-21-... is local or AD account
-		// S-1-12-1-... is Entra ID account
-		source := fleet.SystemHostCertificate
-		username := ""
-		if sid := row["sid"]; strings.HasPrefix(sid, "S-1-5-21-") || strings.HasPrefix(sid, "S-1-12-1-") {
-			source = fleet.UserHostCertificate
-			username = row["username"]
+		username := row["username"]
+		source := fleet.UserHostCertificate
+		if username == "SYSTEM" {
+			source = fleet.SystemHostCertificate
 		}
 
 		cert := &fleet.HostCertificateRecord{
@@ -3690,20 +3684,21 @@ func directIngestHostCertificatesWindows(
 			Username:                  username,
 		}
 
-		// Deduplicate by SHA1 + scope + username. System rows all collapse (username forced to ""), and a user's
-		// redundant hive views collapse into one entry per username.
-		key := fmt.Sprintf("%x|%s|%s", csum, source, username)
-		if _, ok := seen[key]; ok {
-			// Don't log user/cert identifiers here (PII).
-			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+scope+user",
+		// deduplicate by SHA1 + Username
+		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
+		if exists := existsSha1User[sha1UserKey]; exists {
+			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+user",
 				"component", "service",
 				"method", "directIngestHostCertificates",
 				"host_id", host.ID,
-				"source", source,
-				"sha1", fmt.Sprintf("%x", csum))
+				"username", username,
+				"sha1", fmt.Sprintf("%x", csum),
+				"issuer", cert.IssuerCommonName,
+				"subject", cert.SubjectCommonName,
+				"path", row["path"])
 			continue
 		}
-		seen[key] = struct{}{}
+		existsSha1User[sha1UserKey] = true
 		certs = append(certs, cert)
 	}
 
@@ -3712,29 +3707,7 @@ func directIngestHostCertificatesWindows(
 		return nil
 	}
 
-	// Tell the datastore which scopes we actually observed this run so it does not soft-delete a logged-off user's
-	// certificates.
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, windowsObservedCertScopes(certs))
-}
-
-// windowsObservedCertScopes returns the set of (source, username) scopes that osquery could authoritatively enumerate in
-// this report. System scope is always included because the LocalMachine store is always readable; each user that
-// reported at least one certificate is included as its own scope.
-func windowsObservedCertScopes(certs []*fleet.HostCertificateRecord) []fleet.HostCertificateScope {
-	scopes := []fleet.HostCertificateScope{{Source: fleet.SystemHostCertificate}}
-	seen := map[string]struct{}{string(fleet.SystemHostCertificate) + "|": {}}
-	for _, c := range certs {
-		if c.Source != fleet.UserHostCertificate {
-			continue
-		}
-		key := string(c.Source) + "|" + c.Username
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		scopes = append(scopes, fleet.HostCertificateScope{Source: c.Source, Username: c.Username})
-	}
-	return scopes
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery)
 }
 
 func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {

@@ -17,9 +17,7 @@ import CertificatesTable from "./CertificatesTable";
 const baseClass = "certificates-card";
 
 interface ICertificatesProps {
-  // data may be undefined while the fetch is in flight or has errored; in the
-  // error case the card renders DataError below without reading it.
-  data?: IGetHostCertificatesResponse;
+  data: IGetHostCertificatesResponse;
   hostPlatform: HostPlatform;
   page: number;
   pageSize: number;
@@ -58,18 +56,10 @@ const CertificatesCard = ({
       );
     }
 
-    if (!data) {
-      return null;
-    }
-
     return (
       <CertificatesTable
         data={data}
-        hostPlatform={hostPlatform}
-        showHelpText={
-          !isMyDevicePage &&
-          (hostPlatform === "darwin" || hostPlatform === "windows")
-        }
+        showHelpText={!isMyDevicePage && hostPlatform === "darwin"}
         page={page}
         pageSize={pageSize}
         sortDirection={sortDirection}

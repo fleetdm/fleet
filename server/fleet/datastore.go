@@ -478,12 +478,10 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	// UpdateHostCertificates ingests certs reported by `origin`. Each call only soft-deletes existing rows whose origin
-	// matches, so osquery and MDM ingestion don't clobber each other's view. observedScopes further limits
-	// reconciliation to the (source, username) scopes the agent could authoritatively enumerate this run; a nil slice
-	// means every scope was observed (macOS keychains and the MDM path), while a non-nil slice (Windows) preserves
-	// certificates for scopes it could not see, e.g. a logged-off user.
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin, observedScopes []HostCertificateScope) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
+	// soft-deletes existing rows whose origin matches, so osquery and MDM
+	// ingestion don't clobber each other's view.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
 
 	// SoftDeleteMDMHostCertificatesForUnenrolledHosts soft-deletes MDM-origin
 	// cert rows for hosts reporting host_mdm.enrolled=0 — the cron complement to
