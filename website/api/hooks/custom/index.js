@@ -139,31 +139,6 @@ will be disabled and/or hidden in the UI.
       // ... Any other app-specific setup code that needs to run on lift,
       // even in production, goes here ...
 
-      // Initialize a Google API auth client for the Android Management API proxy.
-      // The googleapis library caches the OAuth2 access_token on a reused client and refreshes it automatically when it expires.
-      if (sails.config.custom.androidEnterpriseServiceAccountEmailAddress && sails.config.custom.androidEnterpriseServiceAccountPrivateKey) {
-        try {
-          let { google } = require('googleapis');
-          let googleAuth = new google.auth.GoogleAuth({
-            // The pubsub scope is included because creating/deleting an Android enterprise also provisions/removes a Pub/Sub topic and subscription.
-            scopes: [
-              'https://www.googleapis.com/auth/androidmanagement',
-              'https://www.googleapis.com/auth/pubsub',
-            ],
-            credentials: {
-              client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-              private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-            },
-          });
-          // Acquire the auth client once. Android proxy controllers reuse this shared instance via `sails.googleAuthClient`.
-          sails.googleAuthClient = await googleAuth.getClient();
-          // Get an access token
-          await sails.googleAuthClient.getAccessToken();
-        } catch (err) {
-          throw new Error('Failed to initialize the shared Google API auth client for the Android proxy endpoints. Error: '+err);
-        }
-      }//ﬁ
-
       // In non-production environments, make `builtStaticContent.testimonials` optional so pages that use the <scrollable-tweets> component still render before the build-static-content script has been run.
       // To prevent the component from being empty whitespace on pages where it is used, we'll inject a single placeholder testimonial directing the user to run the build-static-content script.
       if (sails.config.environment !== 'production') {
