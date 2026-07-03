@@ -156,5 +156,12 @@ go.mod @fleetdm/go
 # 🚀 GitHub workflows
 ##############################################################################################
 /.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
+
+##############################################################################################
+# 🤖 Claude Code configuration (agents, skills, rules, settings).
+# (Reviewed by the product group tech leads.)
+##############################################################################################
+/.claude/ @JordanMontgomery @cdcme @lucasmrod @mostlikelee @getvictor 
+
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

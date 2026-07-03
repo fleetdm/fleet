@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260617194413, Down_20260617194413)
+	MigrationClient.AddMigration(Up_20260702013058, Down_20260702013058)
 }
 
-func Up_20260617194413(tx *sql.Tx) error {
+func Up_20260702013058(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE mdm_configuration_profile_variables
 			ADD COLUMN android_profile_uuid varchar(37) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -31,6 +31,6 @@ func Up_20260617194413(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260617194413(tx *sql.Tx) error {
+func Down_20260702013058(tx *sql.Tx) error {
 	return nil
 }
