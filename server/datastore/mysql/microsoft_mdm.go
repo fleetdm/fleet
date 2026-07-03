@@ -2232,7 +2232,7 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 			SELECT profile_uuid, syncml, checksum
 			FROM mdm_windows_configuration_profiles_prior_content
 			WHERE profile_uuid IN (?)
-			ORDER BY created_at ASC`, missing)
+			ORDER BY created_at ASC, checksum ASC`, missing)
 		if pcErr != nil {
 			return nil, ctxerr.Wrap(ctx, pcErr, "building in statement for prior-content contents")
 		}

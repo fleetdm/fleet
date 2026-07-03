@@ -4364,7 +4364,7 @@ func executeWindowsProfileReconcileBatch(
 	// Enqueue supplemental <Delete> commands for LocURIs removed by profile edits, for the modify-installs collected above. A
 	// re-install only Replaces/Adds the new content, so a LocURI dropped from the profile would otherwise stay enforced on the
 	// device. For each (profile, host-version) we diff the retained prior content (fetched before the install loop) against the live
-	// version and delete the LocURIs no still-applicable profile on the host enforces (per-host protection, mirroring the remove
+	// version and delete the LocURIs that no still-applicable profile on the host enforces (per-host protection, mirroring the remove
 	// path). The host's re-install upserts its row to the new checksum separately; once it does, the (profile, old-version) retained
 	// set is GC'd.
 	if len(modifyHostsByKey) > 0 {
