@@ -729,14 +729,13 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
-
-  A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
-- `vulnerability_exposure_historical_reporting` (Fleet Premium) sets the **default** filters applied to the **Vulnerability exposure** dashboard chart when the page loads. These are display defaults only — they do not change which data Fleet collects. A user can adjust the filters in the UI, but those changes are not saved; GitOps is the only way to persist them. Each key is optional; an omitted key uses the chart's built-in default.
-  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system and kernel), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player). Omit the key to include all categories; if the key is present it must list at least one category (an empty list is rejected).
-  - `cvss_min` / `cvss_max` filter by CVSS v3 base score (`0`–`10`). (Accepted and stored now; takes effect in a future release that adds the severity control.)
-  - `epss_min` / `epss_max` filter by probability of exploit (EPSS) score, expressed as `0`–`100`.
-  - `has_known_exploit`, when `true`, shows only vulnerabilities with a known exploit (CISA KEV).
-  - `exclude_vulnerabilities` is a list of CVE identifiers to exclude.
+- `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
+  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+  - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
+  - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
+  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+ 
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -762,8 +761,6 @@ org_settings:
       has_known_exploit: true
       epss_min: 0
       epss_max: 100
-      cvss_min: 9
-      cvss_max: 10
       exclude_vulnerabilities:
         - CVE-2025-50897
         - CVE-2025-76306
