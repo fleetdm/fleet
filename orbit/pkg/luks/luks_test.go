@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -395,8 +396,9 @@ func TestParseRecoveryKey(t *testing.T) {
 }
 
 type fakeEscrower struct {
-	responses []LuksResponse
-	err       error
+	responses    []LuksResponse
+	err          error
+	capabilities fleet.CapabilityMap
 }
 
 func (f *fakeEscrower) SendLinuxKeyEscrowResponse(r LuksResponse) error {
@@ -404,22 +406,57 @@ func (f *fakeEscrower) SendLinuxKeyEscrowResponse(r LuksResponse) error {
 	return f.err
 }
 
+func (f *fakeEscrower) GetServerCapabilities() fleet.CapabilityMap {
+	if f.capabilities == nil {
+		return fleet.CapabilityMap{}
+	}
+	return f.capabilities
+}
+
+// newRecoveryKeyEscrower returns a fake escrower whose server capabilities
+// already include LUKSRecoveryKeyEscrow, so tests focused on the happy path
+// don't have to repeat the setup.
+func newRecoveryKeyEscrower() *fakeEscrower {
+	return &fakeEscrower{
+		capabilities: fleet.CapabilityMap{
+			fleet.CapabilityLUKSRecoveryKeyEscrow: {},
+		},
+	}
+}
+
+// fakeNotifier records ShowInfo invocations so tests can assert the
+// notification firing rules without a real desktop.
+type fakeNotifier struct {
+	infoCalls []dialog.InfoOptions
+}
+
+func (f *fakeNotifier) ShowEntry(dialog.EntryOptions) ([]byte, error) {
+	return nil, errors.New("unused in these tests")
+}
+
+func (f *fakeNotifier) ShowInfo(opts dialog.InfoOptions) error {
+	f.infoCalls = append(f.infoCalls, opts)
+	return nil
+}
+
 type fakeSnapdFDE struct {
 	recoveryKey string
 	ensureErr   error
+	ensureCalls int
 }
 
 func (f *fakeSnapdFDE) Detect(ctx context.Context) (bool, error) { return true, nil }
 func (f *fakeSnapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	f.ensureCalls++
 	return f.recoveryKey, f.ensureErr
 }
 
 func TestRunRecoveryKeyEscrow(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	const recoveryKey = "55055-39320-64491-48436-47667-15525-36879-32875"
 
 	t.Run("success escrows the recovery key with no salt or key slot", func(t *testing.T) {
-		escrower := &fakeEscrower{}
+		escrower := newRecoveryKeyEscrower()
 		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
 		lr := New(escrower)
 
@@ -434,7 +471,7 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 	})
 
 	t.Run("reports a client error when key creation fails", func(t *testing.T) {
-		escrower := &fakeEscrower{}
+		escrower := newRecoveryKeyEscrower()
 		snapd := &fakeSnapdFDE{ensureErr: errors.New("snap-tpmctl boom")}
 		lr := New(escrower)
 
@@ -449,10 +486,90 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 	t.Run("returns an error when escrow to the server fails", func(t *testing.T) {
 		// snapd has no recovery-key delete operation, so there is no rollback;
 		// the enrolled key is replaced on the next escrow attempt.
-		escrower := &fakeEscrower{err: errors.New("network down")}
+		escrower := newRecoveryKeyEscrower()
+		escrower.err = errors.New("network down")
 		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
 		lr := New(escrower)
 
 		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+	})
+
+	t.Run("server without capability skips snapd work entirely", func(t *testing.T) {
+		escrower := &fakeEscrower{} // no capabilities advertised
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		notifier := &fakeNotifier{}
+		lr := New(escrower)
+		lr.notifier = notifier
+
+		// First call: should notify.
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.Empty(t, escrower.responses, "must not POST to old servers")
+		assert.Zero(t, snapd.ensureCalls, "must not touch snapd against old servers")
+		require.Len(t, notifier.infoCalls, 1)
+		assert.Equal(t, recoveryKeyServerTooOldText, notifier.infoCalls[0].Text)
+
+		// Second call: notification is one-shot.
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.Len(t, notifier.infoCalls, 1, "must not spam the user")
+	})
+
+	t.Run("consecutive failures trigger one notification then stay quiet", func(t *testing.T) {
+		escrower := newRecoveryKeyEscrower()
+		escrower.err = errors.New("network down")
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		notifier := &fakeNotifier{}
+		lr := New(escrower)
+		lr.notifier = notifier
+
+		// One below the threshold — no notification yet.
+		for i := 0; i < recoveryKeyFailureNotifyThreshold-1; i++ {
+			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		}
+		assert.Empty(t, notifier.infoCalls, "must stay silent below the threshold")
+
+		// Crossing the threshold fires exactly one notification.
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Len(t, notifier.infoCalls, 1)
+		assert.Equal(t, recoveryKeyEscrowFailedText, notifier.infoCalls[0].Text)
+
+		// Further failures do not re-fire.
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.Len(t, notifier.infoCalls, 1, "notification is one-shot per streak")
+	})
+
+	t.Run("a successful escrow arms the notification for the next failure streak", func(t *testing.T) {
+		escrower := newRecoveryKeyEscrower()
+		escrower.err = errors.New("network down")
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		notifier := &fakeNotifier{}
+		lr := New(escrower)
+		lr.notifier = notifier
+
+		// Fail past the threshold to fire the notification.
+		for i := 0; i < recoveryKeyFailureNotifyThreshold; i++ {
+			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		}
+		require.Len(t, notifier.infoCalls, 1)
+
+		// Now a success resets the streak and the one-shot flag.
+		escrower.err = nil
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+
+		// A fresh streak eventually re-notifies.
+		escrower.err = errors.New("network down")
+		for i := 0; i < recoveryKeyFailureNotifyThreshold; i++ {
+			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		}
+		assert.Len(t, notifier.infoCalls, 2, "new streak should trigger a new notification")
+	})
+
+	t.Run("notifier stays optional (no dialog tool installed)", func(t *testing.T) {
+		escrower := &fakeEscrower{}
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		lr := New(escrower) // no notifier assigned
+
+		// Must not panic despite no notifier.
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
 	})
 }

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -143,7 +145,19 @@ func parseRecoveryKey(output string) (string, error) {
 // TPM-backed full-disk encryption (e.g. Ubuntu 26). Unlike the legacy
 // passphrase path it requires no end-user interaction: snapd owns the LUKS key
 // slots, so Fleet creates a dedicated recovery key and escrows it silently.
+//
+// Old Fleet servers reject the recovery-key payload shape (no Salt, no
+// KeySlot) with a misleading "passphrase, salt, and key_slot..." error. We
+// gate the whole path on CapabilityLUKSRecoveryKeyEscrow so a stale server
+// doesn't cause orbit to rotate the fleet-escrow slot's key on every retry
+// (see the add-then-replace logic in ensureFleetRecoveryKey).
 func (lr *LuksRunner) runRecoveryKeyEscrow(ctx context.Context, snapd SnapdFDE) error {
+	if !lr.escrower.GetServerCapabilities().Has(fleet.CapabilityLUKSRecoveryKeyEscrow) {
+		log.Warn().Msg("Fleet server does not advertise the LUKS recovery-key escrow capability; skipping this attempt. Upgrade the Fleet server to enable TPM-backed FDE key backup.")
+		lr.notifyServerTooOldOnce()
+		return nil
+	}
+
 	response := LuksResponse{KeyType: fleet.LUKSKeyTypeRecoveryKey}
 
 	log.Info().Msg("creating and enrolling snapd-managed FDE recovery key for escrow")
@@ -151,6 +165,7 @@ func (lr *LuksRunner) runRecoveryKeyEscrow(ctx context.Context, snapd SnapdFDE) 
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create snapd-managed recovery key; reporting escrow error to Fleet")
 		response.Err = fmt.Sprintf("creating Fleet recovery key: %s", err)
+		lr.recordRecoveryKeyFailure()
 		if sendErr := lr.escrower.SendLinuxKeyEscrowResponse(response); sendErr != nil {
 			return fmt.Errorf("reporting recovery key escrow error: %w", sendErr)
 		}
@@ -166,20 +181,118 @@ func (lr *LuksRunner) runRecoveryKeyEscrow(ctx context.Context, snapd SnapdFDE) 
 		// pending escrow, so the next attempt regenerates and replaces it in
 		// place. Escrow therefore self-heals on retry.
 		log.Error().Err(err).Msg("failed to escrow recovery key to Fleet; the host stays pending and will retry on the next check-in")
+		lr.recordRecoveryKeyFailure()
 		return fmt.Errorf("escrowing recovery key: %w", err)
 	}
 
 	log.Info().Msg("snapd-managed FDE recovery key escrowed to Fleet")
+	lr.recordRecoveryKeySuccess()
 	return nil
+}
+
+// recordRecoveryKeyFailure counts a consecutive failure and, once the
+// threshold is crossed, shows a one-shot notification informing the user that
+// their disk recovery key could not be escrowed. The one-shot flag stays set
+// until a subsequent success clears it, so we never spam.
+func (lr *LuksRunner) recordRecoveryKeyFailure() {
+	lr.mu.Lock()
+	lr.recoveryKeyFailures++
+	shouldNotify := lr.recoveryKeyFailures >= recoveryKeyFailureNotifyThreshold && !lr.recoveryKeyNotified
+	if shouldNotify {
+		lr.recoveryKeyNotified = true
+	}
+	lr.mu.Unlock()
+
+	// Dialog call outside the lock: ShowInfo can block for up to a minute
+	// while the user reads the message and we don't want to serialize other
+	// receivers behind it.
+	if shouldNotify {
+		lr.showInfo(recoveryKeyEscrowFailedTitle, recoveryKeyEscrowFailedText)
+	}
+}
+
+// recordRecoveryKeySuccess resets the failure streak so a later outage
+// triggers the notification again.
+func (lr *LuksRunner) recordRecoveryKeySuccess() {
+	lr.mu.Lock()
+	defer lr.mu.Unlock()
+	lr.recoveryKeyFailures = 0
+	lr.recoveryKeyNotified = false
+	lr.serverTooOldNotified = false
+}
+
+// notifyServerTooOldOnce shows a one-shot notification when the Fleet server
+// is too old to accept recovery-key escrow. This is distinct from the retry
+// notification because the situation is deterministic — no amount of retrying
+// will make it work until the admin upgrades — so we notify immediately, not
+// after N ticks.
+func (lr *LuksRunner) notifyServerTooOldOnce() {
+	lr.mu.Lock()
+	shouldNotify := !lr.serverTooOldNotified
+	if shouldNotify {
+		lr.serverTooOldNotified = true
+	}
+	lr.mu.Unlock()
+
+	if shouldNotify {
+		lr.showInfo(recoveryKeyServerTooOldTitle, recoveryKeyServerTooOldText)
+	}
+}
+
+// showInfo shows an info dialog if a notifier is available. On headless hosts
+// (no zenity/kdialog installed, or no logged-in GUI user) this is a no-op
+// beyond a log line; the failure surfaces via the server-side "pending escrow"
+// state on the host's page in the Fleet UI.
+func (lr *LuksRunner) showInfo(title, text string) {
+	if lr.notifier == nil {
+		return
+	}
+	if err := lr.notifier.ShowInfo(dialog.InfoOptions{
+		Title:   title,
+		Text:    text,
+		TimeOut: 1 * time.Minute,
+	}); err != nil {
+		log.Info().Err(err).Str("title", title).Msg("failed to show recovery-key escrow notification")
+	}
 }
 
 type KeyEscrower interface {
 	SendLinuxKeyEscrowResponse(LuksResponse) error
+	// GetServerCapabilities returns the capabilities the Fleet server most
+	// recently advertised via the X-Fleet-Capabilities header. Used to gate
+	// the snapd/TPM-backed FDE recovery-key escrow path on servers that
+	// understand the recovery-key payload shape.
+	GetServerCapabilities() fleet.CapabilityMap
 }
+
+// recoveryKeyFailureNotifyThreshold is the number of consecutive
+// runRecoveryKeyEscrow failures at which the user is shown a one-shot
+// notification. Config-receiver ticks run roughly every 30s, so 5 attempts is
+// ~2.5 minutes of silent retries before we bother the user.
+const recoveryKeyFailureNotifyThreshold = 5
+
+// Copy for the snapd/TPM-backed FDE recovery-key path. Unlike the passphrase
+// flow these fire only on persistent failure — successful escrow stays silent
+// because the whole point of the TPM path is minimal end-user friction.
+const (
+	recoveryKeyEscrowFailedTitle = "Disk encryption"
+	recoveryKeyEscrowFailedText  = "Fleet couldn't back up your disk recovery key. Please contact your IT admin."
+	recoveryKeyServerTooOldTitle = "Disk encryption"
+	recoveryKeyServerTooOldText  = "Your Fleet server needs an update before it can back up your disk recovery key. Please contact your IT admin."
+)
 
 type LuksRunner struct {
 	escrower KeyEscrower
-	notifier dialog.Dialog //nolint:structcheck,unused
+	notifier dialog.Dialog
+
+	// State for the snapd/TPM-backed FDE recovery-key path. Protected by mu
+	// because Run() may be invoked from the config-receiver loop and we want
+	// to be safe against future concurrent tick semantics. All fields reset
+	// on a successful escrow.
+	mu                     sync.Mutex
+	recoveryKeyFailures    int
+	recoveryKeyNotified    bool // one-shot for the escrow-failed notification
+	serverTooOldNotified   bool // one-shot for the capability-missing notification
 }
 
 type LuksResponse struct {
