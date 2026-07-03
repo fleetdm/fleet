@@ -825,6 +825,21 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 	return getSTSAuthContent(stsAuthContent), nil
 }
 
+// rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
+// is a device following the advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext
+// password) and NO <wsse:BinarySecurityToken>.
+func rejectUnsupportedAuth(req *fleet.SoapRequest, err error) error {
+	if req != nil && req.Header.Security != nil &&
+		len(req.Header.Security.Security.Content) == 0 &&
+		len(req.Header.Security.Security.Value) == 0 &&
+		len(req.Header.Security.Security.Encoding) == 0 &&
+		bytes.Contains(req.Raw, []byte("UsernameToken")) {
+		return errors.New("Username and password (OnPremise) enrollment is not supported. " +
+			"Join the device to Microsoft Entra ID, or enroll it with fleetd.")
+	}
+	return err
+}
+
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
 // GetPoliciesResponse message contains the certificate policies required for the next enrollment step. For more information about these messages, see [MS-XCEP] sections 3.1.4.1.1.1 and 3.1.4.1.1.2.
 func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
@@ -839,7 +854,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrSecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -884,7 +899,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrBinarySecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -1171,6 +1186,8 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
+	// Fleet always advertises the OnPremise auth policy. But its WSTEP handlers only accept a <wsse:BinarySecurityToken>
+	// (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined / Autopilot devices).
 	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
