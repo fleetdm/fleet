@@ -95,12 +95,8 @@ const SelfServiceCard = ({
 
   const categories = useMemo(() => categoriesData ?? [], [categoriesData]);
 
-  // Hide categories that have no self-service software for this host (#48614).
-  // enhancedSoftware holds the host's full self-service list (the API isn't
-  // paginated), so an empty category here means selecting it would show nothing.
-  // Everything downstream (filter dropdown, selected-category software,
-  // stale-link recovery) keys off this so empty categories behave as if they
-  // don't exist.
+  // Hide categories with no software. enhancedSoftware is the host's full
+  // self-service list (unpaginated), so everything downstream keys off this.
   const visibleCategories = useMemo(
     () => filterCategoriesWithSoftware(categories, enhancedSoftware),
     [categories, enhancedSoftware]
@@ -204,9 +200,7 @@ const SelfServiceCard = ({
   // contradicting what the label promises. Drop the param so the user lands
   // back on a real "All" view.
   useEffect(() => {
-    // Wait for the software list too: visibleCategories is derived from it, so
-    // acting before it loads could clear a valid category_id during the window
-    // where categories have resolved but software hasn't.
+    // Wait for software too, else a valid category_id is cleared mid-load.
     if (
       !isCategoriesSuccess ||
       !selfServiceData ||

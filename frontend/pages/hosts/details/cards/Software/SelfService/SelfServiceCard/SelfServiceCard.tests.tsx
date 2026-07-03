@@ -239,8 +239,7 @@ describe("SelfServiceCard", () => {
     // satisfy toHaveBeenCalled().
     const pushSpy = jest.fn();
     const mockRouter = createMockRouter({ push: pushSpy });
-    // The dropdown only lists categories that have self-service software (#48614),
-    // so the software must actually belong to "🌎 Browsers" for it to appear.
+    // Only categories with software appear, so the software must be in Browsers.
     const browserPackage = createMockHostSoftwarePackage({
       categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
     });
@@ -270,9 +269,8 @@ describe("SelfServiceCard", () => {
     );
   });
 
-  it("hides categories that have no self-service software (#48614)", async () => {
-    // BE returns both categories, but only "🌎 Browsers" has software for this
-    // host — "🔐 Security" should never appear in the dropdown.
+  it("hides categories that have no self-service software", async () => {
+    // BE returns both, but only Browsers has software, so Security is hidden.
     mockServer.use(
       listDeviceSelfServiceCategoriesHandler([
         { id: 1, name: "🌎 Browsers" },

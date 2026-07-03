@@ -100,15 +100,9 @@ export const filterSoftwareByCustomCategory = (
   });
 };
 
-// Returns only the categories that have at least one self-service software item
-// assigned for this host, so empty categories are hidden from the filter
-// (#48614). Category membership is resolved the same way as
-// `filterSoftwareByCustomCategory` (matching on lowercased name across
-// `software_package` and `app_store_app` categories) so the dropdown stays
-// consistent with what selecting a category would actually show. The host's
-// full self-service list is available client-side (the API isn't paginated), so
-// this reflects MDM enrollment, label scoping, and platform exactly as resolved
-// by the backend software query.
+// Keeps only categories that have at least one software item. Membership is
+// resolved the same way as `filterSoftwareByCustomCategory` so the dropdown
+// stays consistent with what selecting a category shows.
 export const filterCategoriesWithSoftware = (
   categories: ISelfServiceCategory[],
   software: IDeviceSoftwareWithUiStatus[]
