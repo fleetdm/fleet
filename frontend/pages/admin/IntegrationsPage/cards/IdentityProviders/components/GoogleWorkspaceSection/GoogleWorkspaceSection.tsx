@@ -10,7 +10,7 @@ import { notify } from "components/ToastNotification";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-import InfoBanner from "components/InfoBanner";
+import PageDescription from "components/PageDescription";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
@@ -185,11 +185,16 @@ const GoogleWorkspaceSection = ({
 
   return (
     <SettingsSection title="Google Workspace" className={baseClass}>
-      <InfoBanner>
-        Connecting Google Workspace populates IdP host vitals directly from your
-        directory. While Google Workspace is connected, SCIM provisioning (Okta,
-        Entra ID, etc.) is ignored — configure one or the other, not both.
-      </InfoBanner>
+      <PageDescription
+        content={
+          <>
+            Configure these settings to populate IdP host vitals from Google
+            Workspace. When Google Workspace is connected, Fleet ignores SCIM
+            provisioning from other IdPs (e.g Okta, Entra ID).
+          </>
+        }
+        variant="right-panel"
+      />
       <form onSubmit={onFormSubmit} autoComplete="off">
         <Card>
           <InputField
