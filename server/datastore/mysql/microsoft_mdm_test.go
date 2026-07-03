@@ -3314,6 +3314,18 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	// uploaded_at is not the same
 	require.False(t, profNoTmN1.UploadedAt.Equal(profNoTmN1b.UploadedAt))
 
+	// the pre-edit content was retained so the profile-manager cron can build <Delete> commands for LocURIs the edit dropped
+	retainedSyncML := func(t *testing.T) [][]byte {
+		t.Helper()
+		var retained [][]byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &retained,
+				`SELECT syncml FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profNoTmN1.ProfileUUID)
+		})
+		return retained
+	}
+	require.Equal(t, [][]byte{profNoTmN1.SyncML}, retainedSyncML(t))
+
 	// wait a second to ensure timestamps in the DB change
 	time.Sleep(time.Second)
 
@@ -3322,6 +3334,9 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	cp2.UploadedAt = profNoTmN1b.UploadedAt
 	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2})
+
+	// a no-change update retains nothing new
+	require.Equal(t, [][]byte{profNoTmN1.SyncML}, retainedSyncML(t))
 
 	// create a profile for Apple and team 1 with that name works
 	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("N1", "I1", 1), nil)

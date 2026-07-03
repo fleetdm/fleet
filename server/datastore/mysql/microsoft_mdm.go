@@ -1750,6 +1750,8 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 }
 
 // GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
+// Reader-backed; callers that cannot tolerate a replica-lag miss (the reconcile pass consumes each modify-install once) wrap the
+// context with ctxdb.RequirePrimary.
 func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
 	if len(keys) == 0 {
 		return nil, nil
@@ -1765,12 +1767,6 @@ func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys
 		args = append(args, k.ProfileUUID, k.Checksum)
 	}
 
-	// Read from the primary, not a replica. The reconcile pass consumes each modify-install once (the re-install advances the host's
-	// checksum, so the host won't be revisited as a modify), so a replica-lag miss here would permanently drop the supplemental
-	// <Delete>. The profile edit and the reconcile pass are both async, so the reconcile pass may run before the edit is fully
-	// committed to a replica. If we want to eliminate this primary-read requirement, we need to add retry/tracking logic (persisting
-	// a pending-delete marker per host-version).
-	ctx = ctxdb.RequirePrimary(ctx, true)
 	var rows []fleet.MDMWindowsProfilePriorContent
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting windows profile prior content")
@@ -2451,30 +2447,55 @@ ON DUPLICATE KEY UPDATE
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
-	if err != nil {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// For an existing profile whose content is changing, retain the outgoing version before the upsert overwrites it, so the
+		// profile-manager cron can build <Delete> commands for LocURIs the new content drops (the same guarantee as
+		// batchSetMDMWindowsProfilesDB's edit path). Reserved profiles updated through this method (e.g. Windows OS updates) are
+		// delivered and reconciled like any other profile, so they need the same retention.
+		var existing struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		err := sqlx.GetContext(ctx, tx, &existing,
+			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, teamID, cp.Name)
 		switch {
-		case IsDuplicate(err):
+		case err == nil:
+			if !bytes.Equal(existing.SyncML, cp.SyncML) {
+				if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{existing.ProfileUUID}); err != nil {
+					return ctxerr.Wrap(ctx, err, "retaining prior content for updated profile")
+				}
+			}
+		case errors.Is(err, sql.ErrNoRows):
+			// new profile, nothing to retain
+		default:
+			return ctxerr.Wrap(ctx, err, "loading existing windows profile before upsert")
+		}
+
+		res, err := tx.ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		if err != nil {
+			switch {
+			case IsDuplicate(err):
+				return &existsError{
+					ResourceType: "MDMWindowsConfigProfile.Name",
+					Identifier:   cp.Name,
+					TeamID:       cp.TeamID,
+				}
+			default:
+				return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+			}
+		}
+
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
 			return &existsError{
 				ResourceType: "MDMWindowsConfigProfile.Name",
 				Identifier:   cp.Name,
 				TeamID:       cp.TeamID,
 			}
-		default:
-			return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
 		}
-	}
 
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		return &existsError{
-			ResourceType: "MDMWindowsConfigProfile.Name",
-			Identifier:   cp.Name,
-			TeamID:       cp.TeamID,
-		}
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // batchSetMDMWindowsProfilesDB must be called from inside a transaction.
