@@ -821,6 +821,27 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 	})
 }
 
+func TestCanonicalLocURI(t *testing.T) {
+	t.Parallel()
+
+	// All device-scoped spellings of the same node collapse to one comparison form.
+	for _, spelling := range []string{
+		"./Device/Vendor/MSFT/Policy/Config/X",
+		"./Vendor/MSFT/Policy/Config/X",
+		"Device/Vendor/MSFT/Policy/Config/X",
+		"Vendor/MSFT/Policy/Config/X",
+		" ./Device/Vendor/MSFT/Policy/Config/X\n",
+	} {
+		require.Equal(t, "Vendor/MSFT/Policy/Config/X", CanonicalLocURI(spelling), "spelling: %q", spelling)
+	}
+	// User scope is explicit and stays distinct from device scope.
+	require.Equal(t, "User/Vendor/MSFT/X", CanonicalLocURI("./User/Vendor/MSFT/X"))
+	// Case is preserved: CSP paths are documented case-sensitive.
+	require.Equal(t, "vendor/msft/x", CanonicalLocURI("./Device/vendor/msft/x"))
+	// Only a whole "Device" segment is a scope marker, not a prefix of the first segment.
+	require.Equal(t, "DeviceLock/X", CanonicalLocURI("./DeviceLock/X"))
+}
+
 func TestIsFleetInternalCmdID(t *testing.T) {
 	for _, tc := range []struct {
 		name string

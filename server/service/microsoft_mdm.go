@@ -4292,20 +4292,22 @@ func executeWindowsProfileReconcileBatch(
 				}
 			}
 
+			// Protection compares CanonicalLocURI forms so spelling variants of the same node ("./Device/Vendor/X" vs "./Vendor/X")
+			// protect each other.
 			active := make(map[string]struct{})
 			for _, desiredUUID := range desiredByHost[hostUUID] {
 				if desiredUUID == profUUID {
 					continue
 				}
 				for _, uri := range locURIsFor(desiredUUID) {
-					active[uri] = struct{}{}
+					active[fleet.CanonicalLocURI(uri)] = struct{}{}
 				}
 			}
 			// Key on the protected subset of the removed profile's own LocURIs so hosts with identical effective protection share a
 			// single command; the common (no label, single version) case collapses to one group.
 			var keyURIs []string
 			for _, uri := range candidateURIs {
-				if _, ok := active[uri]; ok {
+				if _, ok := active[fleet.CanonicalLocURI(uri)]; ok {
 					keyURIs = append(keyURIs, uri)
 				}
 			}
@@ -4379,11 +4381,11 @@ func executeWindowsProfileReconcileBatch(
 			resolvedPrior := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(pc.SyncML, []byte(pc.ProfileUUID))
 			desired := make(map[string]struct{})
 			for _, uri := range locURIsFor(pc.ProfileUUID) { // the new (live) version's LocURIs
-				desired[uri] = struct{}{}
+				desired[fleet.CanonicalLocURI(uri)] = struct{}{}
 			}
 			var removed []string
 			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolvedPrior) {
-				if _, stillDesired := desired[uri]; !stillDesired {
+				if _, stillDesired := desired[fleet.CanonicalLocURI(uri)]; !stillDesired {
 					removed = append(removed, uri)
 				}
 			}
@@ -4414,18 +4416,19 @@ func executeWindowsProfileReconcileBatch(
 					// its old checksum and is retried on a later tick.
 					continue
 				}
+				// Protection compares CanonicalLocURI forms, like the remove path.
 				active := make(map[string]struct{})
 				for _, desiredUUID := range desiredByHost[hostUUID] {
 					if desiredUUID == k.profileUUID {
 						continue // the edited profile's new content can't protect a LocURI it no longer contains
 					}
 					for _, uri := range locURIsFor(desiredUUID) {
-						active[uri] = struct{}{}
+						active[fleet.CanonicalLocURI(uri)] = struct{}{}
 					}
 				}
 				var toDelete []string
 				for _, uri := range removedURIs {
-					if _, protected := active[uri]; !protected {
+					if _, protected := active[fleet.CanonicalLocURI(uri)]; !protected {
 						toDelete = append(toDelete, uri)
 					}
 				}

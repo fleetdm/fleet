@@ -5705,6 +5705,43 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 		require.True(t, foundReinstall, "expected the cron to enqueue the re-install carrying the new value")
 	})
 
+	t.Run("scope-prefix respelling is not a removal", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
+
+		// Windows treats "./Device/Vendor/X", "./Vendor/X", "Device/Vendor/X" and "Vendor/X" as the same device-scoped node. v1
+		// spells Keep and Shared with the explicit "./Device/" scope and Drop without it; v2 keeps the Keep node under its implicit
+		// spelling and drops Shared and Drop. Only Drop may be deleted: Keep was respelled, not removed, and Shared is protected by
+		// edit-scope-B, which enforces the same node under yet another spelling.
+		oldSyncML := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Keep</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Shared</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Vendor/MSFT/Drop</LocURI></Target><Data>1</Data></Item></Replace>`)
+		profA := &fleet.MDMWindowsConfigProfile{Name: "edit-scope-A", SyncML: oldSyncML}
+		profBShared := &fleet.MDMWindowsConfigProfile{Name: "edit-scope-B", SyncML: []byte(`<Replace><Item><Target><LocURI>Vendor/MSFT/Shared</LocURI></Target><Data>2</Data></Item></Replace>`)}
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profBShared}, nil)
+			return err
+		}))
+		profAUUID := windowsProfileUUIDByName(t, ds, "edit-scope-A")
+		installAsVerified(t, profAUUID, "edit-scope-A", oldSyncML)
+
+		profAEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-scope-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Vendor/MSFT/Keep</LocURI></Target><Data>1</Data></Item></Replace>`)}
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profAEdited, profBShared}, nil)
+			return err
+		}))
+
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+		foundDelete := false
+		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
+			if strings.Contains(s, "<Delete") {
+				foundDelete = true
+				assert.Contains(t, s, "./Vendor/MSFT/Drop", "Drop is a real removal, sent in its original spelling")
+				assert.NotContains(t, s, "Keep", "Keep was respelled, not removed")
+				assert.NotContains(t, s, "Shared", "Shared is protected by edit-scope-B under a different spelling")
+			}
+		}
+		assert.True(t, foundDelete, "expected a <Delete> for the dropped LocURI")
+	})
+
 	t.Run("host that skipped a version diffs against its own installed version", func(t *testing.T) {
 		truncateWindowsProfileTablesOnCleanup(t, ds)
 
