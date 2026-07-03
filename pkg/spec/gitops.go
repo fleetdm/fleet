@@ -2252,6 +2252,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 					continue
 				}
+
 				// A package YAML file is a list of packages. A file written as a single
 				// object is treated as a one-element list.
 				var singlePackageSpec fleet.SoftwarePackageSpec
@@ -2266,6 +2267,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
 					continue
 				}
+
 				// Collect the packages that validate and hydrate, dropping any that fail.
 				multiple := len(softwarePackageSpecs) > 1
 				var valid []*fleet.SoftwarePackageSpec

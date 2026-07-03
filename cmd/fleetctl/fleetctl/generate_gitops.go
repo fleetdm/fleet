@@ -2249,49 +2249,23 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		}
 
-		var labels []fleet.SoftwareScopeLabel
 		var labelKey string
+		var labelNames []string
 		if softwareTitle.SoftwarePackage != nil {
-			if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
-				labelKey = "labels_include_any"
-			}
-			if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
-				labelKey = "labels_exclude_any"
-			}
-			if len(softwareTitle.SoftwarePackage.LabelsIncludeAll) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsIncludeAll
-				labelKey = "labels_include_all"
-			}
+			sp := softwareTitle.SoftwarePackage
+			labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
 			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		} else {
-			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
-
-			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
-				labelKey = "labels_include_any"
-			}
-			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
-				labelKey = "labels_exclude_any"
-			}
-			if len(softwareTitle.AppStoreApp.LabelsIncludeAll) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsIncludeAll
-				labelKey = "labels_include_all"
-			}
-			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
+			app := softwareTitle.AppStoreApp
+			labelKey, labelNames = scopeLabels(app.LabelsIncludeAny, app.LabelsExcludeAny, app.LabelsIncludeAll)
+			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
-		if len(labels) > 0 {
-			labelsList := make([]string, len(labels))
-			for i, label := range labels {
-				labelsList[i] = label.LabelName
-			}
-			softwareSpec[labelKey] = labelsList
+		if labelKey != "" {
+			softwareSpec[labelKey] = labelNames
 		}
 
 		switch {
@@ -2355,7 +2329,7 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 		if pkg.PreInstallQuery != "" {
 			item["pre_install_query"] = map[string]any{"path": writeSideFile("queries", prefix+"-preinstallquery.yml", []map[string]any{{"query": pkg.PreInstallQuery}})}
 		}
-		if key, names := packageLabels(pkg); key != "" {
+		if key, names := scopeLabels(pkg.LabelsIncludeAny, pkg.LabelsExcludeAny, pkg.LabelsIncludeAll); key != "" {
 			item[key] = names
 		}
 		items = append(items, item)
@@ -2383,16 +2357,16 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 	return entry, nil
 }
 
-func packageLabels(pkg fleet.SoftwareInstaller) (string, []string) {
+func scopeLabels(includeAny []fleet.SoftwareScopeLabel, excludeAny []fleet.SoftwareScopeLabel, includeAll []fleet.SoftwareScopeLabel) (string, []string) {
 	var labels []fleet.SoftwareScopeLabel
 	var key string
 	switch {
-	case len(pkg.LabelsIncludeAny) > 0:
-		labels, key = pkg.LabelsIncludeAny, "labels_include_any"
-	case len(pkg.LabelsExcludeAny) > 0:
-		labels, key = pkg.LabelsExcludeAny, "labels_exclude_any"
-	case len(pkg.LabelsIncludeAll) > 0:
-		labels, key = pkg.LabelsIncludeAll, "labels_include_all"
+	case len(includeAny) > 0:
+		labels, key = includeAny, "labels_include_any"
+	case len(excludeAny) > 0:
+		labels, key = excludeAny, "labels_exclude_any"
+	case len(includeAll) > 0:
+		labels, key = includeAll, "labels_include_all"
 	default:
 		return "", nil
 	}
