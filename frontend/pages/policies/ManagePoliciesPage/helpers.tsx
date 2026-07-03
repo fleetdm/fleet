@@ -123,6 +123,30 @@ export const getInstallSoftwareErrorMessage = (
   return <>Could not update policy. {jsxElement}</>;
 };
 
+/**
+ * Determines which page a server-side paginated list should show after deleting
+ * `deletedCount` rows. If deleting empties the current page (e.g. the last
+ * policy on the last page was removed), it steps back one page; otherwise it
+ * stays on the current page.
+ */
+export const getPageAfterDelete = ({
+  currentPage,
+  totalCount,
+  deletedCount,
+  pageSize,
+}: {
+  currentPage: number;
+  totalCount: number;
+  deletedCount: number;
+  pageSize: number;
+}): number => {
+  const remainingCount = totalCount - deletedCount;
+  if (currentPage > 0 && remainingCount <= currentPage * pageSize) {
+    return currentPage - 1;
+  }
+  return currentPage;
+};
+
 export const getRunScriptErrorMessage = (
   result: PromiseRejectedResult,
   formData: IPolicyRunScriptFormData,

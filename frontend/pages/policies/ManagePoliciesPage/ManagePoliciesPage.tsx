@@ -65,6 +65,7 @@ import { getTicketOrWebhookInfo } from "pages/policies/helpers";
 
 import PoliciesTable from "./components/PoliciesTable";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";
+import { getPageAfterDelete } from "./helpers";
 import { DEFAULT_POLICY } from "../constants";
 import AutomationsModal from "./components/AutomationsModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -565,6 +566,28 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       notify.success("Successfully deleted policies.");
       setResetSelectedRows(true);
+
+      // If deleting the selected policies empties the current page (e.g. the
+      // last policy on the last page was removed), step back to the previous
+      // page so the user isn't left on an empty page.
+      const currentCount = isAllTeamsSelected
+        ? globalPoliciesCount
+        : teamPoliciesCountMergeInherited;
+      const pageAfterDelete = getPageAfterDelete({
+        currentPage: page,
+        totalCount: currentCount ?? 0,
+        deletedCount: selectedPolicyIds.length,
+        pageSize: DEFAULT_PAGE_SIZE,
+      });
+      if (pageAfterDelete !== page) {
+        router?.replace(
+          getNextLocationPath({
+            pathPrefix: PATHS.MANAGE_POLICIES,
+            queryParams: { ...queryParams, page: pageAfterDelete },
+          })
+        );
+      }
+
       refetchPolicies(teamIdForApi);
     } catch (e) {
       notify.error("Unable to delete policies. Please try again.", {
@@ -583,6 +606,11 @@ const ManagePolicyPage = ({
     teamIdForApi,
     teamPolicies,
     toggleDeletePoliciesModal,
+    globalPoliciesCount,
+    teamPoliciesCountMergeInherited,
+    page,
+    queryParams,
+    router,
   ]);
 
   const onChangeAutomationFilter = (val: SingleValue<CustomOptionType>) => {

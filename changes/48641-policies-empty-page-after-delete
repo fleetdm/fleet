@@ -1,0 +1,1 @@
+- Fixed the policies page landing on an empty state after deleting the last policy on a paginated page. The list now navigates to the previous page instead.
