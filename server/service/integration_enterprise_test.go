@@ -31508,14 +31508,20 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	attach(continuousPolicy.ID, continuousScript.ID)
 	attach(transitionPolicy.ID, transitionScript.ID)
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
-	completePendingScripts := func() {
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
+	bothPass := map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)}
+	completePendingScripts := func() int {
 		pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
 		require.NoError(t, err)
 		for _, hs := range pending {
@@ -31526,12 +31532,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 					*host.OrbitNodeKey, hs.ExecutionID,
 				)), http.StatusOK, &orbitPostScriptResp)
 		}
+		return len(pending)
 	}
 	// countExecutionsFor returns the number of script executions queued for a
-	// given (policy, script) pair on this host. Scripts are activated as soon
-	// as they are queued (NewHostScriptExecutionRequest calls
-	// activateNextUpcomingActivity), so they appear in host_script_results
-	// immediately — no need to also look at upcoming_activities.
+	// given (policy, script) pair on this host. Only one script activity is
+	// activated at a time per host, and a queued script only appears in
+	// host_script_results once activated — a script queued behind a pending one
+	// shows up only after the pending one completes.
 	countExecutionsFor := func(policyID, scriptID uint) int {
 		var count int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -31554,38 +31561,52 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 		}, 2*time.Second, 100*time.Millisecond, msgAndArgs...)
 	}
 
-	// Only one script can be activated at a time per host, so each step
-	// submits one policy result, waits for the script to record, then completes
-	// it before moving on (mirrors TestPolicyAutomationsContinuousSoftwareInstaller).
-	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
+	// waitForCountsAndDrain waits for the expected per-policy execution counts,
+	// completing pending scripts between polls (queued scripts only become
+	// visible as the ones ahead of them complete), then drains any remainder so
+	// the next step starts with no pending script executions.
+	waitForCountsAndDrain := func(wantContinuous, wantTransition int, msgAndArgs ...any) {
 		t.Helper()
-		submitPolicyResult(policyID, false)
-		require.EventuallyWithT(t, func(t *assert.CollectT) {
-			assert.Equal(t, wantCount, countFn(), msg)
-		}, 5*time.Second, 100*time.Millisecond)
-		completePendingScripts()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			completePendingScripts()
+			if continuousCount() == wantContinuous && transitionCount() == wantTransition {
+				break
+			}
+			if time.Now().After(deadline) {
+				require.Equal(t, wantContinuous, continuousCount(), msgAndArgs...)
+				require.Equal(t, wantTransition, transitionCount(), msgAndArgs...)
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		for range 10 {
+			if completePendingScripts() == 0 {
+				return
+			}
+		}
+		require.FailNow(t, "pending scripts did not drain")
 	}
 
-	// First failing result: pass→fail transition queues the script on both.
-	step(continuousPolicy.ID, 1, continuousCount, "first script run for continuous policy")
-	step(transitionPolicy.ID, 1, transitionCount, "first script run for transition policy")
+	// First failing results: pass→fail transition queues the script on both.
+	submitPolicyResults(bothFail)
+	waitForCountsAndDrain(1, 1, "first script run for both policies")
 
-	// Second failing result (fail→fail): only the continuous policy re-queues.
-	step(continuousPolicy.ID, 2, continuousCount, "continuous policy fires on every failing result")
-	submitPolicyResult(transitionPolicy.ID, false)
+	// Second failing results (fail→fail): only the continuous policy re-queues.
+	submitPolicyResults(bothFail)
+	waitForCountsAndDrain(2, 1, "continuous policy fires on every failing result")
 	assertCountStable(1, transitionCount, "default policy must not re-trigger on fail→fail")
 
-	// Third failing result: continuous still re-triggers, default still does not.
-	step(continuousPolicy.ID, 3, continuousCount, "continuous policy fires on every failing result")
-	submitPolicyResult(transitionPolicy.ID, false)
+	// Third failing results: continuous still re-triggers, default still does not.
+	submitPolicyResults(bothFail)
+	waitForCountsAndDrain(3, 1, "continuous policy fires on every failing result")
 	assertCountStable(1, transitionCount)
 
 	// Final: both policies pass. Neither should queue a script — passing
 	// results never trigger automations, regardless of continuous mode.
 	continuousBefore := continuousCount()
 	transitionBefore := transitionCount()
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(bothPass)
 	assertCountStable(continuousBefore, continuousCount, "continuous policy must not trigger script on passing result")
 	assertCountStable(transitionBefore, transitionCount, "transition policy must not trigger script on passing result")
 }
@@ -31819,13 +31840,18 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		}, http.StatusOK, &resp)
 	}
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
 	completePendingInstall := func() {
 		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
 		require.NoError(t, err)
@@ -31852,26 +31878,30 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		return count
 	}
 
-	// First fail: both policies queue an install (pass→fail transition).
-	submitPolicyResult(continuousPolicy.ID, false)
+	// First fail for the continuous policy (transition still passing): the
+	// pass→fail transition queues an install. Both policies share the installer,
+	// so their first failures are staggered across writes — a pending install
+	// blocks queueing another one for the same installer.
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(true)})
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 1, countInstallsFor(continuousPolicy.ID))
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
-	submitPolicyResult(transitionPolicy.ID, false)
+
+	// Transition policy now fails for the first time (pass→fail): queues its
+	// install. The continuous policy keeps failing (fail→fail) within the policy
+	// update interval: it is throttled. A successful install requests a host
+	// refetch that re-runs policies immediately, so without throttling this
+	// would be a tight install→refetch→re-run loop. It must NOT re-queue until
+	// the interval elapses.
+	submitPolicyResults(bothFail)
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 1, countInstallsFor(transitionPolicy.ID))
 	}, 5*time.Second, 100*time.Millisecond)
-	completePendingInstall()
-
-	// Second fail (fail→fail) within the policy update interval: the continuous policy
-	// is throttled. A successful install requests a host refetch that re-runs policies
-	// immediately, so without throttling this would be a tight install→refetch→re-run
-	// loop. It must NOT re-queue until the interval elapses.
-	submitPolicyResult(continuousPolicy.ID, false)
 	require.Never(t, func() bool {
 		return countInstallsFor(continuousPolicy.ID) != 1
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+	completePendingInstall()
 
 	// Age the last successful install past the policy update interval; the next failing
 	// result must re-queue (the retry happens on the next interval). The cooldown is
@@ -31887,14 +31917,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		})
 	}
 	ageInstaller()
-	submitPolicyResult(continuousPolicy.ID, false)
+	submitPolicyResults(bothFail)
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must re-fire after the cooldown elapses")
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
 
-	submitPolicyResult(transitionPolicy.ID, false)
-	// Poll for a window so a delayed enqueue doesn't slip past a one-shot check.
+	// The transition policy kept failing across the writes above (fail→fail):
+	// it must never have re-queued. Poll for a window so a delayed enqueue
+	// doesn't slip past a one-shot check.
 	require.Never(t, func() bool {
 		return countInstallsFor(transitionPolicy.ID) != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
@@ -31903,8 +31934,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	// results never trigger automations, regardless of continuous mode.
 	continuousBefore := countInstallsFor(continuousPolicy.ID)
 	transitionBefore := countInstallsFor(transitionPolicy.ID)
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)})
 	require.Never(t, func() bool {
 		return countInstallsFor(continuousPolicy.ID) != continuousBefore
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")
