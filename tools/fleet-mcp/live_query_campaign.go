@@ -87,7 +87,7 @@ func (fc *FleetClient) runMultiHostCampaign(ctx context.Context, hostIDs []uint,
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("live query campaign creation failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("live query campaign creation failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var camp createCampaignResponse
