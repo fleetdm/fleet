@@ -2039,7 +2039,7 @@ Modifies the Fleet's configuration with the supplied information.
       "apple_setup_assistant": "path/to/config.json"
     },
     "windows_automatic_enrollment": {
-        "default_fleet": "Unassigned"
+      "default_fleet": "Unassigned"
     },
     "apple_server_url": "https://instance.fleet.com"
   },
