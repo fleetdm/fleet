@@ -66,9 +66,10 @@ module.exports = {
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let newEnterprise = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
-      let pubsub = google.pubsub({version: 'v1', auth: sails.googleAuthClient});
+      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
+      let pubsub = google.pubsub({version: 'v1', auth: androidManagementAuthClient});
 
       // Create a new pubsub topic for this enterprise.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
@@ -131,7 +132,7 @@ module.exports = {
 
       // Now create the new enterprise for this Fleet server.
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises.html#create
-      let createEnterpriseResponse = await androidmanagement.enterprises.create({
+      let createEnterpriseResponse = await androidManagementConnection.enterprises.create({
         agreementAccepted: true,
         enterpriseToken: enterpriseToken,
         projectId: sails.config.custom.androidEnterpriseProjectId,

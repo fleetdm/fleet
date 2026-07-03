@@ -65,10 +65,11 @@ module.exports = {
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
     let getApplicationsResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
-      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Applications.html#get
-      let getApplicationsResult = await androidmanagement.enterprises.applications.get({
+      let getApplicationsResult = await androidManagementConnection.enterprises.applications.get({
         name: `enterprises/${androidEnterpriseId}/applications/${applicationId}`,
       });
       return getApplicationsResult.data;

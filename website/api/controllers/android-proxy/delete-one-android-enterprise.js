@@ -55,13 +55,14 @@ module.exports = {
     try {
       await sails.helpers.flow.build(async ()=>{
         let { google } = require('googleapis');
-        // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-        let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+        // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+        let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+        let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
         // Delete the android enterprise.
-        await androidmanagement.enterprises.delete({
+        await androidManagementConnection.enterprises.delete({
           name: `enterprises/${androidEnterpriseId}`,
         });
-        let pubsub = google.pubsub({version: 'v1', auth: sails.googleAuthClient});
+        let pubsub = google.pubsub({version: 'v1', auth: androidManagementAuthClient});
         // Delete the enterprise's pubsub topic
         await pubsub.projects.topics.delete({
           topic: thisAndroidEnterprise.pubsubTopicName,

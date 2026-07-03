@@ -67,11 +67,12 @@ module.exports = {
     // List android devices from an enterprises using the passed parameters
     return await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
       // Get the Android devices list from Google
-      let devicesResponse = await androidmanagement.enterprises.devices.list({
+      let devicesResponse = await androidManagementConnection.enterprises.devices.list({
         parent: `enterprises/${thisAndroidEnterprise.androidEnterpriseId}`,
         pageSize: pageSize,
         pageToken: pageToken,

@@ -59,10 +59,11 @@ module.exports = {
 
     let newEnrollmentToken = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
-      let enrollmentTokenCreateResponse = await androidmanagement.enterprises.enrollmentTokens.create({
+      let enrollmentTokenCreateResponse = await androidManagementConnection.enterprises.enrollmentTokens.create({
         parent: `enterprises/${androidEnterpriseId}`,
         // Note: Typically, we use defined inputs instead of accessing req.body directly. This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,

@@ -78,12 +78,13 @@ module.exports = {
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let modifyApplicationPolicyResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
-      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
       switch (googleAction) {
         case 'removePolicyApplications': {
-          let response = await androidmanagement.enterprises.policies.removePolicyApplications({
+          let response = await androidManagementConnection.enterprises.policies.removePolicyApplications({
             name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
             requestBody: { packageNames },
           });
@@ -91,7 +92,7 @@ module.exports = {
         }
 
         default: {
-          let response = await androidmanagement.enterprises.policies.modifyPolicyApplications({
+          let response = await androidManagementConnection.enterprises.policies.modifyPolicyApplications({
             name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
             requestBody: { changes },
           });

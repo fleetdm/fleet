@@ -33,16 +33,18 @@ module.exports = {
 
     let isEnterpriseManagedByFleet = false;
 
-    // Log into google.
-    // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     let { google } = require('googleapis');
-    let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+    let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
     // Use Google's LIST call to check if enterprise exists.
     let enterprises = [];
     let tokenForNextPageOfEnterprises;
     await sails.helpers.flow.until(async ()=>{
-      let listEnterprisesResponse = await androidmanagement.enterprises.list({
+      let listEnterprisesResponse = await androidManagementConnection.enterprises.list({
         projectId: sails.config.custom.androidEnterpriseProjectId,
         pageSize: 100,
         pageToken: tokenForNextPageOfEnterprises,

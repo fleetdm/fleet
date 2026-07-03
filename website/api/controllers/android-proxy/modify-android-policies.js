@@ -67,10 +67,11 @@ module.exports = {
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let modifyPoliciesResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
-      // Reuse the shared Google API auth client created at server startup (see api/hooks/custom/).
-      let androidmanagement = google.androidmanagement({version: 'v1', auth: sails.googleAuthClient});
+      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
+      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
-      let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
+      let patchPoliciesResponse = await androidManagementConnection.enterprises.policies.patch({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
         // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
         // This behavior should not be repeated in future Android proxy endpoints.
