@@ -359,6 +359,8 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
-  // custom variables endpoints
-  VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // global variables endpoints
+  GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // custom host vitals endpoints
+  CUSTOM_HOST_VITALS: `/${API_VERSION}/fleet/custom_host_vitals`,
 };

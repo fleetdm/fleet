@@ -15637,7 +15637,9 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
   "custom_variables": [
     {
       "id": 123,
-      "name": "SOME_API_TOKEN"
+      "name": "SOME_API_TOKEN",
+      "created_at": "2020-11-13T22:57:12Z",
+      "updated_at": "2020-11-13T22:57:12Z"
     }
   ],
   "meta": {

@@ -153,7 +153,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOptions) (
 	secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error,
 ) {
-	stmt := `SELECT id, name, updated_at FROM secret_variables WHERE true`
+	stmt := `SELECT id, name, created_at, updated_at FROM secret_variables WHERE true`
 
 	// normalize the name for full Unicode support (Unicode equivalence).
 	normMatch := norm.NFC.String(opt.MatchQuery)

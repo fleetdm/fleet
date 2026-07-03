@@ -435,9 +435,11 @@ func testListSecretVariables(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, id1, secrets[0].ID)
 		require.Equal(t, name1, secrets[0].Name)
+		require.NotEmpty(t, secrets[0].CreatedAt)
 		require.NotZero(t, secrets[0].UpdatedAt)
 		require.Equal(t, id2, secrets[1].ID)
 		require.Equal(t, name2, secrets[1].Name)
+		require.NotEmpty(t, secrets[1].CreatedAt)
 		require.NotZero(t, secrets[1].UpdatedAt)
 
 		_, err = ds.DeleteSecretVariable(ctx, id1)
