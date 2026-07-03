@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2007,6 +2008,185 @@ func (c *MockClientWithScriptPackage) GetSetupExperienceSoftware(platform string
 		return []fleet.SoftwareTitleListResult{}, nil
 	}
 	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+const (
+	santaHashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	santaHashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+type MockClientMultiPackage struct {
+	MockClient
+}
+
+func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=2" {
+		return []fleet.SoftwareTitleListResult{{
+			ID:              7,
+			Name:            "Santa",
+			HashSHA256:      new(santaHashA),
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "santa-2026.2.pkg", Platform: "darwin", Version: "2026.2"},
+		}}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientMultiPackage) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	if id == 7 {
+		return &fleet.SoftwareTitle{
+			ID:          7,
+			Name:        "Santa",
+			DisplayName: "Santa Security",
+			Packages: []fleet.SoftwareInstaller{
+				{
+					StorageID:        santaHashA,
+					URL:              "https://example.com/santa-2026.2.pkg",
+					Platform:         "darwin",
+					InstallScript:    "install A",
+					SelfService:      true,
+					LabelsIncludeAll: []fleet.SoftwareScopeLabel{{LabelName: "macOS"}},
+				},
+				{
+					StorageID:        santaHashB,
+					URL:              "https://example.com/santa-2026.4.pkg",
+					Platform:         "darwin",
+					InstallScript:    "install B",
+					SelfService:      true,
+					Categories:       []string{"Productivity"},
+					LabelsIncludeAll: []fleet.SoftwareScopeLabel{{LabelName: "macOS"}, {LabelName: "IT test team"}},
+				},
+			},
+		}, nil
+	}
+	return c.MockClient.GetSoftwareTitleByID(id, teamID)
+}
+
+func (c *MockClientMultiPackage) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
+	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+func TestGenerateSoftwareMultiplePackages(t *testing.T) {
+	fleetClient := &MockClientMultiPackage{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	res, err := cmd.generateSoftware("fleets/team-a.yml", 2, "team-a", false)
+	require.NoError(t, err)
+
+	// the fleet file references the title's packages by a single path entry
+	packages := res["packages"].([]map[string]any)
+	require.Len(t, packages, 1)
+	require.Equal(t, "Santa Security", packages[0]["display_name"])
+
+	// that path points at a package YAML file holding a two-item list, first-added
+	// first, with the per-package fields inline
+	listPath := strings.TrimPrefix(packages[0]["path"].(string), "../")
+	list := cmd.FilesToWrite[listPath].([]map[string]any)
+	require.Len(t, list, 2)
+
+	require.Equal(t, santaHashA, list[0]["hash_sha256"])
+	require.Equal(t, "https://example.com/santa-2026.2.pkg", list[0]["url"])
+	require.Equal(t, true, list[0]["self_service"])
+	require.Equal(t, []string{"macOS"}, list[0]["labels_include_all"])
+	require.NotContains(t, list[0], "categories")
+
+	require.Equal(t, santaHashB, list[1]["hash_sha256"])
+	require.Equal(t, []string{"Productivity"}, list[1]["categories"])
+	require.Equal(t, []string{"macOS", "IT test team"}, list[1]["labels_include_all"])
+
+	// each package's install script is written to its own file, referenced by a path
+	// relative to the package YAML file's directory
+	pkgDir := filepath.Dir(listPath)
+	installA := filepath.Join(pkgDir, list[0]["install_script"].(map[string]any)["path"].(string))
+	installB := filepath.Join(pkgDir, list[1]["install_script"].(map[string]any)["path"].(string))
+	require.Equal(t, "install A", cmd.FilesToWrite[installA])
+	require.Equal(t, "install B", cmd.FilesToWrite[installB])
+	require.NotEqual(t, installA, installB)
+}
+
+// TestGenerateSoftwareMultiplePackagesRoundTrip generates a multi-package title,
+// writes the output to disk the way the command would, then re-parses it with the
+// gitops parser and checks the packages survive unchanged.
+func TestGenerateSoftwareMultiplePackagesRoundTrip(t *testing.T) {
+	fleetClient := &MockClientMultiPackage{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	software, err := cmd.generateSoftware("fleets/team-a.yml", 2, "team-a", false)
+	require.NoError(t, err)
+
+	// Write everything generate produced, mirroring the real writer: .yml files are
+	// marshaled, scripts are written verbatim. The fleet file lives under fleets/ so
+	// the generated ../lib/... paths resolve.
+	dir := t.TempDir()
+	write := func(relPath string, contents []byte) {
+		full := filepath.Join(dir, relPath)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, contents, 0o644))
+	}
+	for path, contents := range cmd.FilesToWrite {
+		if strings.HasSuffix(path, ".yml") {
+			b, err := yaml.Marshal(contents)
+			require.NoError(t, err)
+			write(path, b)
+		} else {
+			write(path, []byte(contents.(string)))
+		}
+	}
+	teamFile, err := yaml.Marshal(map[string]any{
+		"name":          "team-a",
+		"team_settings": map[string]any{"secrets": []any{}},
+		"agent_options": nil,
+		"controls":      nil,
+		"policies":      nil,
+		"queries":       nil,
+		"software":      software,
+	})
+	require.NoError(t, err)
+	write("fleets/team-a.yml", teamFile)
+
+	appCfg := &fleet.EnrichedAppConfig{}
+	appCfg.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	parsed, err := spec.GitOpsFromFile(filepath.Join(dir, "fleets", "team-a.yml"), filepath.Join(dir, "fleets"), appCfg, func(string, ...any) {})
+	require.NoError(t, err)
+	require.Len(t, parsed.Software.Packages, 2)
+
+	first := parsed.Software.Packages[0]
+	assert.Equal(t, santaHashA, first.SHA256)
+	assert.Equal(t, "https://example.com/santa-2026.2.pkg", first.URL)
+	assert.True(t, first.SelfService)
+	assert.Equal(t, []string{"macOS"}, first.LabelsIncludeAll)
+	assert.Empty(t, first.Categories.Value)
+	installA, err := os.ReadFile(first.InstallScript.Path)
+	require.NoError(t, err)
+	assert.Equal(t, "install A", string(installA))
+
+	second := parsed.Software.Packages[1]
+	assert.Equal(t, santaHashB, second.SHA256)
+	assert.Equal(t, []string{"Productivity"}, second.Categories.Value)
+	assert.Equal(t, []string{"macOS", "IT test team"}, second.LabelsIncludeAll)
+	installB, err := os.ReadFile(second.InstallScript.Path)
+	require.NoError(t, err)
+	assert.Equal(t, "install B", string(installB))
 }
 
 func TestGeneratePolicies(t *testing.T) {

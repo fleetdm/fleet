@@ -2188,6 +2188,105 @@ software:
 	require.NoError(t, err)
 }
 
+func TestMultiPackageFieldPlacement(t *testing.T) {
+	t.Parallel()
+
+	const hashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const hashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	// writeConfig writes the fleet-level file plus a package YAML file and returns
+	// the parsed result (or error).
+	setup := func(t *testing.T, fleetLevel string, packageFile string) (*GitOps, error) {
+		config := getTeamConfig([]string{"software"})
+		config += "software:\n  packages:\n    - path: software/pkgs.yml\n" + fleetLevel
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "pkgs.yml"), []byte(packageFile), 0o644))
+		return GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+	}
+
+	t.Run("happy path keeps per-package fields and inherits fleet-level setup_experience", func(t *testing.T) {
+		gitops, err := setup(t,
+			"      setup_experience: true\n",
+			"- hash_sha256: "+hashA+"\n"+
+				"  self_service: true\n"+
+				"  labels_include_all: [macOS]\n"+
+				"- hash_sha256: "+hashB+"\n"+
+				"  categories: [\"Productivity\"]\n"+
+				"  labels_include_all: [macOS, IT team]\n",
+		)
+		require.NoError(t, err)
+		require.Len(t, gitops.Software.Packages, 2)
+
+		first := gitops.Software.Packages[0]
+		assert.True(t, first.SelfService)
+		assert.Equal(t, []string{"macOS"}, first.LabelsIncludeAll)
+		assert.True(t, first.InstallDuringSetup.Valid && first.InstallDuringSetup.Value)
+
+		second := gitops.Software.Packages[1]
+		assert.False(t, second.SelfService)
+		assert.Equal(t, []string{"Productivity"}, second.Categories.Value)
+		assert.Equal(t, []string{"macOS", "IT team"}, second.LabelsIncludeAll)
+		assert.True(t, second.InstallDuringSetup.Valid && second.InstallDuringSetup.Value)
+	})
+
+	for _, tc := range []struct {
+		name        string
+		fleetLevel  string
+		packageFile string
+		wantErr     string
+	}{
+		{
+			name:        "self_service in both fleet-level and package file",
+			fleetLevel:  "      self_service: true\n",
+			packageFile: "- hash_sha256: " + hashA + "\n  self_service: true\n- hash_sha256: " + hashB + "\n",
+			wantErr:     "self_service and categories can be specified either in the fleet-level file or in the package YAML file",
+		},
+		{
+			name:        "setup_experience in a package file",
+			fleetLevel:  "",
+			packageFile: "- hash_sha256: " + hashA + "\n  setup_experience: true\n- hash_sha256: " + hashB + "\n",
+			wantErr:     "setup_experience can be specified only in the fleet-level file",
+		},
+		{
+			name:        "labels in the fleet-level file",
+			fleetLevel:  "      labels_include_all: [macOS]\n",
+			packageFile: "- hash_sha256: " + hashA + "\n- hash_sha256: " + hashB + "\n",
+			wantErr:     "Labels can be specified only in the package-level file when adding multiple packages",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := setup(t, tc.fleetLevel, tc.packageFile)
+			assert.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+
+	// The setup_experience and fleet-level label rules only apply to a file with
+	// multiple packages. A single package can set setup_experience in the file and
+	// inherit labels from the fleet-level entry.
+	t.Run("single package may set setup_experience and inherit fleet-level labels", func(t *testing.T) {
+		gitops, err := setup(t,
+			"      labels_include_all: [macOS]\n",
+			"- hash_sha256: "+hashA+"\n  setup_experience: true\n",
+		)
+		require.NoError(t, err)
+		require.Len(t, gitops.Software.Packages, 1)
+		pkg := gitops.Software.Packages[0]
+		assert.True(t, pkg.InstallDuringSetup.Valid && pkg.InstallDuringSetup.Value)
+		assert.Equal(t, []string{"macOS"}, pkg.LabelsIncludeAll)
+	})
+
+	// A package file written as a single object is just a one-element list, so its
+	// per-package fields are preserved the same way.
+	t.Run("single object file keeps its per-package fields", func(t *testing.T) {
+		gitops, err := setup(t, "", "hash_sha256: "+hashA+"\nself_service: true\nlabels_include_all: [macOS]\n")
+		require.NoError(t, err)
+		require.Len(t, gitops.Software.Packages, 1)
+		assert.True(t, gitops.Software.Packages[0].SelfService)
+		assert.Equal(t, []string{"macOS"}, gitops.Software.Packages[0].LabelsIncludeAll)
+	})
+}
+
 func TestSoftwarePackagesPathWithInline(t *testing.T) {
 	t.Parallel()
 	config := getTeamConfig([]string{"software"})
