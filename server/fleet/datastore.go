@@ -1817,10 +1817,12 @@ type Datastore interface {
 	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, status MDMDeliveryStatus, detail string) (hostUUID string, expectedName string, err error)
 
 	// VerifyHostDeviceName reconciles the enforcement row for a host against the
-	// name reported by the device. It only acts on rows in the verifying or
-	// verified state: a match moves the row to verified; a mismatch moves it to
-	// failed (drift). Rows in any other state, or hosts with no row, are left
-	// untouched.
+	// name reported by the device. reportedName is the host's current name as
+	// observed at a name-ingestion site: the DeviceName in the iOS/iPadOS refetch
+	// result, or computer_name from macOS osquery system_info. It only acts on
+	// rows in the verifying or verified state: a match moves the row to verified;
+	// a mismatch moves it to failed (drift). Rows in any other state, or hosts
+	// with no row, are left untouched.
 	VerifyHostDeviceName(ctx context.Context, hostUUID, reportedName string) error
 
 	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the

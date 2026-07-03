@@ -235,9 +235,17 @@ func testHostDeviceNamesResend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMDeliveryFailed, *getDeviceNameRow(t, ds, host.UUID).Status)
 
-	// Resend resets the status to NULL so the cron re-enqueues it.
+	// Resend resets the status to NULL so the cron re-enqueues it, and clears the
+	// previous command UUID so a late ack for it can't match this row.
 	require.NoError(t, ds.ResendHostDeviceName(ctx, host.UUID))
-	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
+	row := getDeviceNameRow(t, ds, host.UUID)
+	require.Nil(t, row.Status)
+	require.Nil(t, row.CommandUUID)
+
+	// The previous command's late acknowledgment no longer matches any row.
+	_, _, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", fleet.MDMDeliveryVerifying, "")
+	require.True(t, fleet.IsNotFound(err))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "late ack must not resurrect the row")
 
 	pending, err := ds.ListHostsPendingDeviceNameCommand(ctx, 10)
 	require.NoError(t, err)

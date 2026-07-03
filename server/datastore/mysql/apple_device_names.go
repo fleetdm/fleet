@@ -90,21 +90,32 @@ func (ds *Datastore) SetHostDeviceNameCommandSent(ctx context.Context, hostUUID,
 		// The row went away between the cron listing it and sending the command
 		// (e.g. the template was cleared). The command's later result will simply
 		// not match any row and be dropped.
-		ds.logger.DebugContext(ctx, "device name command sent but no enforcement row updated", "host_uuid", hostUUID)
+		ds.logger.DebugContext(ctx, "device name command sent but no enforcement row updated", "host_uuid", hostUUID, "command_uuid", commandUUID)
 	}
 	return nil
 }
 
 func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, status fleet.MDMDeliveryStatus, detail string) (hostUUID string, expectedName string, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// staleErr is the not-found returned when no current row holds this
-		// command UUID: the command was superseded by a newer one for the same
-		// host (the row keeps only the latest). Callers must treat it as a stale
-		// result to ignore.
-		staleErr := func() error {
-			return ctxerr.Wrap(ctx, notFound("HostDeviceNameEnforcement").WithMessage("unable to match command to host"))
+		// The UPDATE is authoritative. A 0-row result means no current row holds
+		// this command UUID: it was superseded by a newer command for the same
+		// host (the row keeps only the latest) or the row was deleted. Either way
+		// the result is stale and callers must treat this not-found as ignorable.
+		const updateStmt = `
+			UPDATE host_mdm_apple_device_names
+			SET status = ?, detail = ?
+			WHERE command_uuid = ?`
+		res, err := tx.ExecContext(ctx, updateStmt, status, detail, commandUUID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "update host device name status from command %s", commandUUID)
+		}
+		if affected, _ := res.RowsAffected(); affected == 0 {
+			return ctxerr.Wrap(ctx, notFound("HostDeviceNameEnforcement").WithName(commandUUID))
 		}
 
+		// Read back the host and the name we told the device to apply so the
+		// caller can rename the host in Fleet; a plain UPDATE can't return these.
+		// The row is locked by the UPDATE above, so this can't miss.
 		var row struct {
 			HostUUID           string  `db:"host_uuid"`
 			ExpectedDeviceName *string `db:"expected_device_name"`
@@ -114,25 +125,7 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 			FROM host_mdm_apple_device_names
 			WHERE command_uuid = ?`
 		if err := sqlx.GetContext(ctx, tx, &row, selectStmt, commandUUID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return staleErr()
-			}
-			return ctxerr.Wrap(ctx, err, "get host device name enforcement by command")
-		}
-
-		const updateStmt = `
-			UPDATE host_mdm_apple_device_names
-			SET status = ?, detail = ?
-			WHERE command_uuid = ?`
-		res, err := tx.ExecContext(ctx, updateStmt, status, detail, commandUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update host device name status from command")
-		}
-		// The UPDATE is authoritative: if the row's command_uuid changed between
-		// the SELECT and here (a concurrent supersede), no row matches and the
-		// SELECTed host/expected values are stale — treat as not-found.
-		if affected, _ := res.RowsAffected(); affected == 0 {
-			return staleErr()
+			return ctxerr.Wrapf(ctx, err, "get host device name enforcement for command %s", commandUUID)
 		}
 
 		hostUUID = row.HostUUID
@@ -187,8 +180,9 @@ func (ds *Datastore) GetHostDeviceNameEnforcement(ctx context.Context, hostUUID 
 
 func (ds *Datastore) ResendHostDeviceName(ctx context.Context, hostUUID string) error {
 	// Reset the status to NULL to trigger resending on the next cron run, same as
-	// ResendHostMDMProfile.
-	const stmt = `UPDATE host_mdm_apple_device_names SET status = NULL WHERE host_uuid = ?`
+	// ResendHostMDMProfile. command_uuid is cleared too so a late acknowledgment
+	// for the previous command can't match this row and undo the resend.
+	const stmt = `UPDATE host_mdm_apple_device_names SET status = NULL, command_uuid = NULL WHERE host_uuid = ?`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {
