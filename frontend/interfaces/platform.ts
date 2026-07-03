@@ -118,6 +118,7 @@ export const HOST_LINUX_PLATFORMS = [
   "archarm", // Arch Linux ARM
   "flatcar", // Flatcar Container Linux
   "coreos", // CoreOS Container Linux
+  "cachyos", // CachyOS (Arch-based)
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
@@ -177,6 +178,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "archarm", // Arch Linux ARM
   "manjaro",
   "manjaro-arm",
+  "cachyos", // CachyOS (Arch-based)
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (
