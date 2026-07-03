@@ -1630,10 +1630,12 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.Equal(t, "santaA", pkgs[0].StorageID)
 	require.Equal(t, "santaC", pkgs[1].StorageID)
 
-	// dropping santaB unset its policy and cancelled its pending install; santaA's are untouched
+	// dropping santaB re-points its policy to the first-added surviving package (santaA)
+	// and cancels its pending install; santaA's own policy is untouched
 	dropped, err := ds.TeamPolicy(ctx, team.ID, dropPolicy.ID)
 	require.NoError(t, err)
-	require.Nil(t, dropped.SoftwareInstallerID)
+	require.NotNil(t, dropped.SoftwareInstallerID)
+	require.Equal(t, firstID, *dropped.SoftwareInstallerID)
 	kept, err := ds.TeamPolicy(ctx, team.ID, keepPolicy.ID)
 	require.NoError(t, err)
 	require.NotNil(t, kept.SoftwareInstallerID)
