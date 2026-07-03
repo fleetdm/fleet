@@ -9,12 +9,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260630100331, Down_20260630100331)
+	MigrationClient.AddMigration(Up_20260703090248, Down_20260703090248)
 }
 
 // Up_20260630100331 soft-deletes existing osquery-origin Windows host certificate rows so they are re-ingested with
 // their distinguished name (subject/issuer) parsed from osquery's keyed subject2/issuer2 columns.
-func Up_20260630100331(tx *sql.Tx) error {
+func Up_20260703090248(tx *sql.Tx) error {
 	step := incrementalMigrationStep(countWindowsHostCertsToReparse, softDeleteWindowsHostCertsForReparse)
 	if err := step(tx); err != nil {
 		return fmt.Errorf("soft-deleting windows host certificates for re-parse: %w", err)
@@ -69,6 +69,6 @@ func softDeleteWindowsHostCertsForReparse(tx *sql.Tx, increment incrementCountFn
 	}
 }
 
-func Down_20260630100331(tx *sql.Tx) error {
+func Down_20260703090248(tx *sql.Tx) error {
 	return nil
 }
