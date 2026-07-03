@@ -1429,32 +1429,24 @@ ORDER BY si.id ASC`
 		return nil, ctxerr.Wrap(ctx, err, "list software packages by team and title")
 	}
 
+	installerIDs := make([]uint, len(packages))
+	for i, pkg := range packages {
+		installerIDs[i] = pkg.InstallerID
+	}
+	categoriesByInstaller, err := ds.GetCategoriesForSoftwareInstallers(ctx, installerIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for software packages")
+	}
+
 	for _, pkg := range packages {
 		pkg.LabelsExcludeAny, pkg.LabelsIncludeAny, pkg.LabelsIncludeAll, err = ds.scopedSoftwareInstallerLabels(ctx, pkg.InstallerID)
 		if err != nil {
 			return nil, err
 		}
-		pkg.Categories, err = ds.softwareInstallerCategories(ctx, pkg.InstallerID)
-		if err != nil {
-			return nil, err
-		}
+		pkg.Categories = categoriesByInstaller[pkg.InstallerID]
 	}
 
 	return packages, nil
-}
-
-func (ds *Datastore) softwareInstallerCategories(ctx context.Context, installerID uint) ([]string, error) {
-	const stmt = `
-SELECT sc.name
-FROM software_installer_software_categories sisc
-	JOIN software_categories sc ON sc.id = sisc.software_category_id
-WHERE sisc.software_installer_id = ?
-ORDER BY sc.name`
-	var categories []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software installer categories")
-	}
-	return categories, nil
 }
 
 func (ds *Datastore) scopedSoftwareInstallerLabels(ctx context.Context, installerID uint) (excludeAny []fleet.SoftwareScopeLabel, includeAny []fleet.SoftwareScopeLabel, includeAll []fleet.SoftwareScopeLabel, err error) {
@@ -1874,14 +1866,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
-func (ds *Datastore) deleteInstallerInBatch(ctx context.Context, tx sqlx.ExtContext, id uint, unsetPolicies bool) ([]uint, error) {
-	if unsetPolicies {
-		// TODO(JK): revisit re-pointing policies to a surviving sibling package
-		// instead of unsetting when a single package of several is removed.
-		if _, err := tx.ExecContext(ctx, `UPDATE policies SET software_installer_id = NULL WHERE software_installer_id = ?`, id); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "unset policies for installer id %d", id)
-		}
-	}
+func (ds *Datastore) deleteInstallerInBatch(ctx context.Context, tx sqlx.ExtContext, id uint) ([]uint, error) {
 	affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "side effects for installer id %d", id)
@@ -2910,6 +2895,20 @@ SELECT id FROM software_installers
 WHERE global_or_team_id = ? AND title_id IN (?) AND id NOT IN (?)
 `
 
+	// re-point policies on dropped custom packages to the first-added surviving package
+	// (lowest id) of the same title, which always exists since the title is kept.
+	const repointDroppedPolicies = `
+UPDATE policies p
+JOIN software_installers d ON d.id = p.software_installer_id
+JOIN (
+	SELECT title_id, MIN(id) AS survivor_id FROM software_installers
+	WHERE global_or_team_id = ? AND id IN (?)
+	GROUP BY title_id
+) s ON s.title_id = d.title_id
+SET p.software_installer_id = s.survivor_id
+WHERE d.global_or_team_id = ? AND d.title_id IN (?) AND d.id NOT IN (?)
+`
+
 	// custom rows left on a title that is switching to a Fleet-maintained app.
 	const findStaleCustomInstallers = `
 SELECT id FROM software_installers
@@ -3029,15 +3028,15 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		}
 
 		// Validate the per-title rules inside the tx so a title created here rolls back
-		// on failure. customTitleIDs feed the source-of-truth delete after the loop.
-		var customTitleIDs []uint
+		// on failure. customPackageTitleIDs feeds the source-of-truth delete after the loop.
+		var customPackageTitleIDs []uint
 		for titleID, group := range installersByTitle {
 			if err := fleet.ValidateTitlePackages(group, teamName); err != nil {
 				return ctxerr.Wrap(ctx, err, "validate title packages")
 			}
 			for _, installer := range group {
 				if installer.FleetMaintainedAppID == nil {
-					customTitleIDs = append(customTitleIDs, titleID)
+					customPackageTitleIDs = append(customPackageTitleIDs, titleID)
 					break
 				}
 			}
@@ -3573,7 +3572,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// These installers were replaced by a newer version and had their policies
 			// re-pointed above, so delete them without touching policies.
 			for _, id := range installerIDsToDelete {
-				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id, false)
+				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id)
 				if err != nil {
 					return err
 				}
@@ -3584,8 +3583,19 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		// Source of truth for custom titles: remove any row this batch didn't write,
 		// which drops old custom versions and any leftover FMA row when a title
 		// switches to custom packages. FMA titles keep their cached versions.
-		if len(customTitleIDs) > 0 {
-			droppedStmt, droppedArgs, err := sqlx.In(findDroppedPackages, globalOrTeamID, customTitleIDs, keptInstallerIDs)
+		if len(customPackageTitleIDs) > 0 {
+			// Re-point policies off the dropped packages before deleting them, since the
+			// policies FK is RESTRICT. A title removed entirely is handled by the
+			// not-in-list cleanup above, so here the title always keeps a package.
+			repointStmt, repointArgs, err := sqlx.In(repointDroppedPolicies, globalOrTeamID, keptInstallerIDs, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to re-point dropped policies")
+			}
+			if _, err := tx.ExecContext(ctx, repointStmt, repointArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "re-point dropped policies")
+			}
+
+			droppedStmt, droppedArgs, err := sqlx.In(findDroppedPackages, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to find dropped packages")
 			}
@@ -3594,7 +3604,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				return ctxerr.Wrap(ctx, err, "find dropped packages")
 			}
 			for _, id := range droppedIDs {
-				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id, true)
+				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id)
 				if err != nil {
 					return err
 				}
