@@ -556,23 +556,18 @@ type MDMWindowsProfilePayload struct {
 	Retries          int                `db:"retries"`
 	Checksum         []byte             `db:"checksum"`
 	SecretsUpdatedAt *time.Time         `db:"secrets_updated_at"`
-
 	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
-	// install is triggered because the profile content changed (a modify, not a fresh install). It is not persisted; the cron uses it
-	// to look up the LocURIs the edit removed (keyed by this checksum) so it can enqueue the corresponding <Delete> commands.
+	// install is triggered because the profile content changed (a modify, not a fresh install).
 	PreviousInstalledChecksum []byte `db:"-"`
 }
 
-// MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile: the profile and the checksum
-// (md5(syncml)) of that version, which equals the checksum a host still on that version has installed.
+// MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile.
 type MDMWindowsProfileVersionKey struct {
 	ProfileUUID string
 	Checksum    []byte
 }
 
 // MDMWindowsProfilePriorContent is the retained syncml of a prior version of a Windows config profile (the version a host still has).
-// The profile-manager cron diffs it against the desired state to build the <Delete> commands that revert dropped settings: for an
-// edited profile, desired is the new content; for a deleted profile, desired is empty (delete everything not still enforced elsewhere).
 type MDMWindowsProfilePriorContent struct {
 	ProfileUUID string `db:"profile_uuid"`
 	Checksum    []byte `db:"checksum"`

@@ -455,12 +455,8 @@ type Datastore interface {
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
 	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
-	// deleted and edited profiles) once no host_mdm_windows_profiles row still has that version installed (reference-counted on
-	// profile_uuid + checksum).
+	// deleted and edited profiles) once no host still has the prior version installed.
 	CleanupWindowsMDMProfilePriorContent(ctx context.Context) error
-	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys. Used by the
-	// profile-manager cron to build <Delete> commands for an edited profile by diffing the version a host has against the new content.
-	GetWindowsMDMProfilePriorContents(ctx context.Context, keys []MDMWindowsProfileVersionKey) ([]MDMWindowsProfilePriorContent, error)
 	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
 	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
 	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
@@ -2198,9 +2194,7 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
-	// MDMWindowsInsertCommandForHostUUIDs is a fire-and-forget enqueue of a single command to multiple hosts identified by UUID, with
-	// no host_mdm_windows_profiles bookkeeping. Used by the profile-manager cron for supplemental <Delete> commands (LocURIs removed
-	// from an edited profile). Uses the indexed by-UUID enrollment lookup.
+	// MDMWindowsInsertCommandForHostUUIDs is a fire-and-forget enqueue of a single command to multiple hosts identified by UUID.
 	MDMWindowsInsertCommandForHostUUIDs(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
 	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
@@ -2336,6 +2330,9 @@ type Datastore interface {
 	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
 	// host UUID.
 	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
+
+	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
+	GetWindowsMDMProfilePriorContents(ctx context.Context, keys []MDMWindowsProfileVersionKey) ([]MDMWindowsProfilePriorContent, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.
