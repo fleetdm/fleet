@@ -258,6 +258,42 @@ const TableContainer = <T,>({
     [isClientSidePagination]
   );
 
+  // When server-side pagination lands on an empty page beyond the first page
+  // (e.g. the last row on the current page was just deleted, or the URL points
+  // to a page that no longer exists), navigate back to a page with data instead
+  // of stranding the user on the empty state.
+  useEffect(() => {
+    if (
+      isClientSidePagination ||
+      disablePagination ||
+      isLoading ||
+      isMultiColumnFilter ||
+      data.length !== 0 ||
+      pageIndex === 0
+    ) {
+      return;
+    }
+    const lastValidPageIndex =
+      totalCount && totalCount > 0
+        ? Math.ceil(totalCount / pageSize) - 1
+        : pageIndex - 1;
+    const targetPageIndex = Math.max(
+      0,
+      Math.min(lastValidPageIndex, pageIndex - 1)
+    );
+    onPaginationChange(targetPageIndex);
+  }, [
+    isClientSidePagination,
+    disablePagination,
+    isLoading,
+    isMultiColumnFilter,
+    data.length,
+    pageIndex,
+    totalCount,
+    pageSize,
+    onPaginationChange,
+  ]);
+
   useDeepEffect(() => {
     if (!onQueryChange) {
       return;
@@ -520,25 +556,7 @@ const TableContainer = <T,>({
             data.length === 0 &&
             !isMultiColumnFilter &&
             !isLoading) ? (
-            <>
-              <EmptyComponent pageIndex={currentPageIndex} />
-              {/* This UI only shows if a user navigates to a table page with a URL page param that is outside the # of pages available */}
-              {currentPageIndex !== 0 && (
-                <div className={`${baseClass}__empty-page`}>
-                  <div className={`${baseClass}__previous-button`}>
-                    <Pagination
-                      disableNext
-                      onNextPage={() =>
-                        onPaginationChange(currentPageIndex + 1)
-                      }
-                      onPrevPage={() =>
-                        onPaginationChange(currentPageIndex - 1)
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </>
+            <EmptyComponent pageIndex={currentPageIndex} />
           ) : (
             <>
               {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but

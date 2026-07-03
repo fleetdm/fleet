@@ -3,7 +3,6 @@ import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
   getAutomationsForPolicy,
-  getPageAfterDelete,
 } from "./helpers";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
@@ -435,81 +434,5 @@ describe("getAutomationsForPolicy", () => {
       "conditional_access",
       "other",
     ]);
-  });
-});
-
-describe("getPageAfterDelete", () => {
-  const PAGE_SIZE = 20;
-
-  it("steps back a page when the last row on the last page is deleted", () => {
-    // 21 policies, 1 on page 1 (index) -> delete it -> page 1 is now empty.
-    expect(
-      getPageAfterDelete({
-        currentPage: 1,
-        totalCount: 21,
-        deletedCount: 1,
-        pageSize: PAGE_SIZE,
-      })
-    ).toBe(0);
-  });
-
-  it("steps back a page when all rows on a full non-first page are deleted", () => {
-    // 40 policies, page 1 is full (20) -> delete all 20 -> page 1 is now empty.
-    expect(
-      getPageAfterDelete({
-        currentPage: 1,
-        totalCount: 40,
-        deletedCount: 20,
-        pageSize: PAGE_SIZE,
-      })
-    ).toBe(0);
-  });
-
-  it("stays on the current page when rows remain after deletion", () => {
-    // 40 policies on pages 0 and 1 -> delete 5 from page 1 -> 15 remain there.
-    expect(
-      getPageAfterDelete({
-        currentPage: 1,
-        totalCount: 40,
-        deletedCount: 5,
-        pageSize: PAGE_SIZE,
-      })
-    ).toBe(1);
-  });
-
-  it("never steps back below the first page", () => {
-    // Deleting the last policy on page 0 should keep the user on page 0.
-    expect(
-      getPageAfterDelete({
-        currentPage: 0,
-        totalCount: 1,
-        deletedCount: 1,
-        pageSize: PAGE_SIZE,
-      })
-    ).toBe(0);
-  });
-
-  it("steps back from a deeper page when it becomes empty", () => {
-    // 61 policies, 1 on page 3 -> delete it -> page 3 empty -> back to page 2.
-    expect(
-      getPageAfterDelete({
-        currentPage: 3,
-        totalCount: 61,
-        deletedCount: 1,
-        pageSize: PAGE_SIZE,
-      })
-    ).toBe(2);
-  });
-
-  it("stays on the current page when the total count is unknown", () => {
-    // Count query unresolved/errored -> undefined -> don't guess, stay put.
-    expect(
-      getPageAfterDelete({
-        currentPage: 2,
-        totalCount: undefined,
-        deletedCount: 1,
-        pageSize: PAGE_SIZE,
-      })
-    ).toBe(2);
   });
 });
