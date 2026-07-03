@@ -711,7 +711,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Simulate a linux with a proper version
+	// Arch Linux based distribution with a major, minor and patch should still be ingested with "rolling".
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -730,7 +730,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
-	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
