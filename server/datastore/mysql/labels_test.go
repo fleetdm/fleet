@@ -458,6 +458,22 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM)}, 2)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
 
+	// check that searching hosts in a label matches both the private and public IP address
+	h2.PrimaryIP = "99.100.101.102"
+	h2.PublicIP = "203.0.113.42"
+	err = db.UpdateHost(ctx, h2)
+	require.NoError(t, err)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "99.100.101.102"}}, 1)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h2.ID, hosts[0].ID)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.42"}}, 1)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h2.ID, hosts[0].ID)
+
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
+
 	// Test team label filtering
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
 	require.NoError(t, err)

@@ -480,17 +480,20 @@ type S3Config struct {
 	DisableSSL       bool   `yaml:"disable_ssl"`
 	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 
-	CarvesBucket           string `yaml:"carves_bucket"`
-	CarvesPrefix           string `yaml:"carves_prefix"`
-	CarvesRegion           string `yaml:"carves_region"`
-	CarvesEndpointURL      string `yaml:"carves_endpoint_url"`
-	CarvesAccessKeyID      string `yaml:"carves_access_key_id"`
-	CarvesSecretAccessKey  string `yaml:"carves_secret_access_key"`
-	CarvesStsAssumeRoleArn string `yaml:"carves_sts_assume_role_arn"`
-	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
-	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
-	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
-	CarvesGCSIAMAuth       bool   `yaml:"carves_gcs_iam_auth"`
+	CarvesBucket             string `yaml:"carves_bucket"`
+	CarvesPrefix             string `yaml:"carves_prefix"`
+	CarvesRegion             string `yaml:"carves_region"`
+	CarvesEndpointURL        string `yaml:"carves_endpoint_url"`
+	CarvesAccessKeyID        string `yaml:"carves_access_key_id"`
+	CarvesSecretAccessKey    string `yaml:"carves_secret_access_key"`
+	CarvesStsAssumeRoleArn   string `yaml:"carves_sts_assume_role_arn"`
+	CarvesStsExternalID      string `yaml:"carves_sts_external_id"`
+	CarvesDisableSSL         bool   `yaml:"carves_disable_ssl"`
+	CarvesForceS3PathStyle   bool   `yaml:"carves_force_s3_path_style"`
+	CarvesGCSIAMAuth         bool   `yaml:"carves_gcs_iam_auth"`
+	CarvesCleanupDisabled    bool   `yaml:"carves_cleanup_disabled"`
+	CarvesCleanupMaxPerRun   int    `yaml:"carves_cleanup_max_per_run"`
+	CarvesCleanupConcurrency int    `yaml:"carves_cleanup_concurrency"`
 
 	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
 	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
@@ -1617,6 +1620,9 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 	man.addConfigBool("s3.carves_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
+	man.addConfigBool("s3.carves_cleanup_disabled", false, "Disable the periodic cleanup that marks carves whose S3 object no longer exists as expired")
+	man.addConfigInt("s3.carves_cleanup_max_per_run", 1000, "Maximum number of carves the S3 cleanup reconciles (and S3 HeadObject requests it makes) per run")
+	man.addConfigInt("s3.carves_cleanup_concurrency", 32, "Number of concurrent S3 HeadObject probes the carve cleanup performs")
 
 	// S3 for software installers
 	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
@@ -2152,17 +2158,20 @@ func (man Manager) LoadConfig() FleetConfig {
 
 func (man Manager) loadS3Config() S3Config {
 	return S3Config{
-		CarvesBucket:           man.getConfigString("s3.carves_bucket"),
-		CarvesPrefix:           man.getConfigString("s3.carves_prefix"),
-		CarvesRegion:           man.getConfigString("s3.carves_region"),
-		CarvesEndpointURL:      man.getConfigString("s3.carves_endpoint_url"),
-		CarvesAccessKeyID:      man.getConfigString("s3.carves_access_key_id"),
-		CarvesSecretAccessKey:  man.getConfigString("s3.carves_secret_access_key"),
-		CarvesStsAssumeRoleArn: man.getConfigString("s3.carves_sts_assume_role_arn"),
-		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
-		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
-		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
-		CarvesGCSIAMAuth:       man.getConfigBool("s3.carves_gcs_iam_auth"),
+		CarvesBucket:             man.getConfigString("s3.carves_bucket"),
+		CarvesPrefix:             man.getConfigString("s3.carves_prefix"),
+		CarvesRegion:             man.getConfigString("s3.carves_region"),
+		CarvesEndpointURL:        man.getConfigString("s3.carves_endpoint_url"),
+		CarvesAccessKeyID:        man.getConfigString("s3.carves_access_key_id"),
+		CarvesSecretAccessKey:    man.getConfigString("s3.carves_secret_access_key"),
+		CarvesStsAssumeRoleArn:   man.getConfigString("s3.carves_sts_assume_role_arn"),
+		CarvesStsExternalID:      man.getConfigString("s3.carves_sts_external_id"),
+		CarvesDisableSSL:         man.getConfigBool("s3.carves_disable_ssl"),
+		CarvesForceS3PathStyle:   man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesGCSIAMAuth:         man.getConfigBool("s3.carves_gcs_iam_auth"),
+		CarvesCleanupDisabled:    man.getConfigBool("s3.carves_cleanup_disabled"),
+		CarvesCleanupMaxPerRun:   man.getConfigInt("s3.carves_cleanup_max_per_run"),
+		CarvesCleanupConcurrency: man.getConfigInt("s3.carves_cleanup_concurrency"),
 
 		Bucket:           man.getConfigString("s3.bucket"),
 		Prefix:           man.getConfigString("s3.prefix"),

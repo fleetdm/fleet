@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260622124734(t *testing.T) {
+func TestUp_20260702013100(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert two abm_tokens

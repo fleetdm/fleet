@@ -1,7 +1,8 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# GDevelop ships as an NSIS (Nullsoft) installer.
+# electron-builder NSIS installer; /allusers forces a machine-wide install
+# (without it, running as SYSTEM crashes with 0xc0000005).
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -13,7 +14,7 @@ try {
 
     $processOptions = @{
         FilePath = "$exeFilePath"
-        ArgumentList = "/S"
+        ArgumentList = "/S /allusers"
         PassThru = $true
         Wait = $true
         NoNewWindow = $true

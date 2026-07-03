@@ -27,6 +27,9 @@ import (
 type CarveStore interface {
 	NewCarve(ctx context.Context, metadata *CarveMetadata) (*CarveMetadata, error)
 	UpdateCarve(ctx context.Context, metadata *CarveMetadata) error
+	// ExpireCarves marks the given carves as expired in a single batched
+	// operation. It is a no-op when ids is empty.
+	ExpireCarves(ctx context.Context, ids []int64) error
 	Carve(ctx context.Context, carveId int64) (*CarveMetadata, error)
 	CarveBySessionId(ctx context.Context, sessionId string) (*CarveMetadata, error)
 	CarveByName(ctx context.Context, name string) (*CarveMetadata, error)

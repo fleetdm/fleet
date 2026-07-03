@@ -1001,6 +1001,10 @@ func (c *Client) ApplyGroup(
 		}
 
 		if len(tmFileContents) > 0 {
+			// A prior step in this GitOps run may have updated AppConfig (e.g. enabled Windows MDM), so bypass the cached AppConfig on the
+			// server. This lets profile validation read the freshly persisted state.
+			teamProfilesOpts := teamOpts
+			teamProfilesOpts.NoCache = true
 			for tmName, profs := range tmFileContents {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
@@ -1013,7 +1017,7 @@ func (c *Client) ApplyGroup(
 					} else {
 						logfn("[+] applying MDM profiles for fleet %s\n", tmName)
 					}
-					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
+					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamProfilesOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for fleet %q: %w", tmName, err)
 					}
 				}
