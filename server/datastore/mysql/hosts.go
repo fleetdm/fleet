@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip"}
+	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip", "public_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
@@ -1161,9 +1161,17 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql += hostMDMSelect
 
 	if opt.DeviceMapping {
-		sql += `,
-    COALESCE(dm.device_mapping, 'null') as device_mapping
-		`
+		// Use a correlated subquery in the SELECT list (rather than a derived-table
+		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
+		// for the rows actually returned by the outer query, each as an indexed lookup on
+		// idx_host_emails_host_id_email.
+		sql += fmt.Sprintf(`,
+    COALESCE((
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s)), ']')
+        FROM host_emails he
+        WHERE he.host_id = h.id
+    ), 'null') as device_mapping
+		`, deviceMappingTranslateSourceColumn("he"))
 	}
 
 	if !opt.DisableIssues {
@@ -1304,18 +1312,6 @@ func (ds *Datastore) applyHostFilters(
 ) (string, []interface{}, error) {
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
-
-	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
-		SELECT
-			host_id,
-			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
-		FROM
-			host_emails
-		GROUP BY
-			host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
-	if !opt.DeviceMapping {
-		deviceMappingJoin = ""
-	}
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
@@ -1485,7 +1481,6 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
-    %s
 	%s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
@@ -1493,7 +1488,6 @@ func (ds *Datastore) applyHostFilters(
 
 		// JOINs
 		hostMDMJoin,
-		deviceMappingJoin,
 		policyMembershipJoin,
 		softwareStatusJoin,
 		failingPoliciesJoin,
@@ -2093,6 +2087,8 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	opt.PerPage = 0
 	// We don't need the issue counts of each host for counting hosts.
 	opt.DisableIssues = true
+	// device_mapping is never selected when counting, so skip its (expensive) subquery.
+	opt.DeviceMapping = false
 
 	var params []interface{}
 
@@ -4800,22 +4796,21 @@ WHERE %s`
 		}
 	}
 
-	// NOTE: We don't have good unique constraints around hosts.uuid so we'll play it safe and
-	// log if we find multiple hosts for SCIM scim user (expected behavior is to find no more
-	// than one match).
-	var hid uint
-	switch {
-	case len(hostIDs) == 0:
-		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
+	if len(hostIDs) == 0 {
+		logger.DebugContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
 		return nil
-	case len(hostIDs) > 1:
-		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "host_ids", fmt.Sprintf("%+v", hostIDs))
-		// TODO: confirm desired behavior here, for now we'll just use the first one
 	}
-	hid = hostIDs[0]
 
-	if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host with scim user")
+	// A single IdP user can legitimately be associated with multiple hosts (e.g. a
+	// laptop and a desktop belonging to the same person), so associate every matching
+	// host rather than only the first one — otherwise only one host would receive the
+	// user's IdP host vitals and profile updates. associateHostWithScimUser is keyed on
+	// host_id (INSERT ... ON DUPLICATE KEY UPDATE) and handles its own profile resend,
+	// so calling it once per host is safe.
+	for _, hid := range hostIDs {
+		if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host %d with scim user", hid)
+		}
 	}
 
 	return nil
@@ -5118,6 +5113,9 @@ func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (stri
 
 func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
+	// connected_to_fleet field mirrors IsHostConnectedToFleetMDM (and the connected_to_fleet condition in hostMDMSelect): the
+	// host_mdm row must be enrolled and the platform-specific enrollment record must be active. NOTE: if you change any of these
+	// conditions, also update IsHostConnectedToFleetMDM and the hostMDMSelect constant.
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hmdm, `
 		SELECT
 			hm.host_id,
@@ -5129,9 +5127,27 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.managed_apple_id,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
-			hdep.assign_profile_response AS dep_profile_assign_status
+			hdep.assign_profile_response AS dep_profile_assign_status,
+			CASE
+				WHEN hm.enrolled = 1 AND h.platform = 'windows' THEN EXISTS (
+					SELECT 1 FROM mdm_windows_enrollments mwe
+					WHERE mwe.host_uuid = h.uuid
+					AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
+				)
+				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'darwin') THEN EXISTS (
+					SELECT 1 FROM nano_enrollments ne
+					WHERE ne.id = h.uuid
+					AND ne.enabled = 1
+					AND ne.type IN ('Device', 'User Enrollment (Device)')
+				)
+				WHEN hm.enrolled = 1 AND h.platform = 'android' THEN 1
+				ELSE 0
+			END AS connected_to_fleet
 		FROM
 			host_mdm hm
+		LEFT OUTER JOIN
+			hosts h
+			ON h.id = hm.host_id
 		LEFT OUTER JOIN
 			mobile_device_management_solutions mdms
 			ON hm.mdm_id = mdms.id

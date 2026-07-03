@@ -16470,6 +16470,60 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 }
 
+func (s *integrationEnterpriseTestSuite) TestScriptOnlyPackageAdvancedOptions() {
+	t := s.T()
+
+	// Pre-install query, post-install, and uninstall scripts were previously
+	// stripped for script-only packages; they should now persist. The install
+	// script stays file-driven and isn't editable via PATCH.
+	teamID := uint(0)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		Filename:          "script.sh",
+		TeamID:            &teamID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1 FROM osquery_info;",
+		PostInstallScript: "#!/bin/sh\necho post-install\n",
+		UninstallScript:   "#!/bin/sh\necho uninstall\n",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	titleID := getSoftwareTitleID(t, s.ds, "script", "sh_packages")
+
+	getPackage := func() *fleet.SoftwareInstaller {
+		var resp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &resp, "team_id", "0")
+		require.NotNil(t, resp.SoftwareTitle)
+		require.NotNil(t, resp.SoftwareTitle.SoftwarePackage)
+		return resp.SoftwareTitle.SoftwarePackage
+	}
+
+	pkg := getPackage()
+	// The install script is the uploaded .sh file's contents.
+	require.Contains(t, pkg.InstallScript, `echo "script"`)
+	require.Equal(t, "SELECT 1 FROM osquery_info;", pkg.PreInstallQuery)
+	require.Contains(t, pkg.PostInstallScript, "echo post-install")
+	require.Contains(t, pkg.UninstallScript, "echo uninstall")
+
+	// PATCH new advanced-option values; they should persist. A PATCH to
+	// install_script is ignored for script-only packages (file-driven).
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"team_id":             {"0"},
+		"pre_install_query":   {"SELECT 2 FROM osquery_info;"},
+		"post_install_script": {"#!/bin/sh\necho post-install-2\n"},
+		"uninstall_script":    {"#!/bin/sh\necho uninstall-2\n"},
+		"install_script":      {"#!/bin/sh\necho ignored\n"},
+	})
+	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+	pkg = getPackage()
+	require.Equal(t, "SELECT 2 FROM osquery_info;", pkg.PreInstallQuery)
+	require.Contains(t, pkg.PostInstallScript, "echo post-install-2")
+	require.Contains(t, pkg.UninstallScript, "echo uninstall-2")
+	// Install script stays the uploaded file's contents; the PATCH is ignored.
+	require.Contains(t, pkg.InstallScript, `echo "script"`)
+	require.NotContains(t, pkg.InstallScript, "echo ignored")
+}
+
 func getSoftwareTitleID(t *testing.T, ds *mysql.Datastore, title, source string) uint {
 	var id uint
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -16939,7 +16993,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	err = shFile.Rewind()
 	require.NoError(t, err)
 
-	// Test .sh file with unsupported params (should be ignored/cleared)
+	// .sh script package with advanced options, which should persist.
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename:          "install-app.sh",
 		TeamID:            &team.ID,
@@ -16956,7 +17010,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	})
 	require.NotZero(t, titleID)
 
-	// Verify unsupported params were cleared (script contents should be empty)
+	// Verify advanced options persisted (pre_install_query has its trailing ; trimmed).
 	var scriptContents struct {
 		UninstallScript   string `db:"uninstall_script"`
 		PostInstallScript string `db:"post_install_script"`
@@ -16971,23 +17025,22 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			FROM software_installers si
 			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
-			WHERE si.title_id = ?`, titleID)
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`, titleID, team.ID)
 	})
-	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should be empty")
-	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should be empty")
-	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should be empty")
+	require.Equal(t, "echo 'uninstall'", scriptContents.UninstallScript)
+	require.Equal(t, "echo 'post'", scriptContents.PostInstallScript)
+	require.Equal(t, "SELECT 1;", scriptContents.PreInstallQuery)
 
-	// Test editing script package with unsupported params (should be ignored)
+	// Editing a script package updates its advanced options.
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		Filename:          "install-app.sh",
-		UninstallScript:   new("should be cleared"),
-		PostInstallScript: new("should be cleared"),
-		PreInstallQuery:   new("should be cleared"),
+		UninstallScript:   new("echo 'updated uninstall'"),
+		PostInstallScript: new("echo 'updated post'"),
+		PreInstallQuery:   new("SELECT 2"),
 		TitleID:           titleID,
 		TeamID:            &team.ID,
 	}, http.StatusOK, "")
 
-	// Verify unsupported params are still cleared after update
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &scriptContents, `
 			SELECT
@@ -16997,11 +17050,74 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			FROM software_installers si
 			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
-			WHERE si.title_id = ?`, titleID)
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`, titleID, team.ID)
 	})
-	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should still be empty")
-	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should still be empty")
-	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should still be empty")
+	require.Equal(t, "echo 'updated uninstall'", scriptContents.UninstallScript)
+	require.Equal(t, "echo 'updated post'", scriptContents.PostInstallScript)
+	require.Equal(t, "SELECT 2", scriptContents.PreInstallQuery)
+
+	// Replacing the file updates the install script (the file is the install
+	// script), keeping install_script_content_id consistent with storage_id.
+	newSHContent := "#!/bin/bash\necho 'Installing v2...'\nexit 0\n"
+	newSHFile, err := fleet.NewTempFileReader(strings.NewReader(newSHContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer newSHFile.Close()
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		Filename:      "install-app.sh",
+		InstallerFile: newSHFile,
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	var afterReplace struct {
+		InstallScript string `db:"install_script"`
+		StorageID     string `db:"storage_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &afterReplace, `
+			SELECT COALESCE(inst.contents, '') AS install_script, si.storage_id
+			FROM software_installers si
+			LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`, titleID, team.ID)
+	})
+	require.Equal(t, newSHContent, afterReplace.InstallScript, "replacing the file should update install_script")
+	expectedHash := sha256.Sum256([]byte(newSHContent))
+	require.Equal(t, hex.EncodeToString(expectedHash[:]), afterReplace.StorageID, "storage_id should match the new file's contents")
+
+	// GitOps adds a path-based script package by sending a "script://filename" placeholder
+	// url plus the script hash. The placeholder must not be persisted.
+	installScript := "echo 'hello world'"
+	scriptSum := sha256.Sum256([]byte(installScript))
+	scriptPkg := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://hello world.sh", SHA256: hex.EncodeToString(scriptSum[:]), InstallScript: installScript},
+	}
+
+	// First apply: no matching installer yet, so this exercises the download path.
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptPkg}, http.StatusAccepted, &batchResp, "team_name", team.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+	require.Len(t, packages, 1)
+
+	var storedURL string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
+	})
+	require.Empty(t, storedURL, "script:// placeholder url must not be persisted")
+
+	// Seed a stale placeholder url like an older Fleet would, then re-apply. The hash and
+	// url now match an existing installer, so this hits the cache-hit path, which must
+	// also drop the placeholder.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET url = ? WHERE global_or_team_id = ? AND filename = ?`, "script://hello world.sh", &team.ID, "hello world.sh")
+		return err
+	})
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptPkg}, http.StatusAccepted, &batchResp, "team_name", team.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
+	})
+	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
 }
 
 // 1. host reports software
@@ -22024,9 +22140,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 }
 
 // TestScriptPackageUploadValidation tests that script packages (.sh and .ps1)
-// properly ignore unsupported fields (install_script, post_install_script,
-// uninstall_script, pre_install_query) when uploaded via the API. These fields
-// are not supported because the file contents themselves become the install script.
+// persist post_install_script, uninstall_script, and pre_install_query when
+// uploaded via the API. The install_script field stays the uploaded file's
+// contents (file-driven) and any provided install_script value is ignored.
 func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	t := s.T()
 
@@ -22042,16 +22158,16 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
-	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
+	t.Run("sh script package preserves advanced options", func(t *testing.T) {
 		installerFile, err := fleet.NewKeepFileReader(shScriptPath)
 		require.NoError(t, err)
 		defer installerFile.Close()
 
-		// Upload with unsupported fields populated
+		// install_script is ignored (the file is the install script); the rest persist.
 		payload := &fleet.UploadSoftwareInstallerPayload{
-			InstallScript:     "echo 'This should be ignored'",
-			PostInstallScript: "echo 'Post-install should be ignored'",
-			UninstallScript:   "echo 'Uninstall should be ignored'",
+			InstallScript:     "echo 'install_script is ignored'",
+			PostInstallScript: "echo 'post-install'",
+			UninstallScript:   "echo 'uninstall'",
 			PreInstallQuery:   "SELECT 1",
 			Filename:          "test-script.sh",
 			InstallerFile:     installerFile,
@@ -22059,7 +22175,6 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		// Verify fields were cleared
 		var listResp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 
@@ -22081,24 +22196,24 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		installer := titleResp.SoftwareTitle.SoftwarePackage
 
 		require.Equal(t, string(shScriptContent), installer.InstallScript, ".sh script package should have install_script from file contents")
-		require.NotEqual(t, "echo 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
-		require.Empty(t, installer.PostInstallScript, ".sh script package should not have post_install_script")
-		require.Empty(t, installer.UninstallScript, ".sh script package should not have uninstall_script")
-		require.Empty(t, installer.PreInstallQuery, ".sh script package should not have pre_install_query")
+		require.NotEqual(t, "echo 'install_script is ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Equal(t, "echo 'post-install'", installer.PostInstallScript, ".sh script package should persist post_install_script")
+		require.Equal(t, "echo 'uninstall'", installer.UninstallScript, ".sh script package should persist uninstall_script")
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".sh script package should persist pre_install_query")
 
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
 	})
 
-	t.Run("ps1 script package ignores unsupported fields", func(t *testing.T) {
+	t.Run("ps1 script package preserves advanced options", func(t *testing.T) {
 		installerFile, err := fleet.NewKeepFileReader(ps1ScriptPath)
 		require.NoError(t, err)
 		defer installerFile.Close()
 
-		// Upload with unsupported fields populated
+		// install_script is ignored (the file is the install script); the rest persist.
 		payload := &fleet.UploadSoftwareInstallerPayload{
-			InstallScript:     "Write-Host 'This should be ignored'",
-			PostInstallScript: "Write-Host 'Post-install should be ignored'",
-			UninstallScript:   "Write-Host 'Uninstall should be ignored'",
+			InstallScript:     "Write-Host 'install_script is ignored'",
+			PostInstallScript: "Write-Host 'post-install'",
+			UninstallScript:   "Write-Host 'uninstall'",
 			PreInstallQuery:   "SELECT 1",
 			Filename:          "test-script.ps1",
 			InstallerFile:     installerFile,
@@ -22106,7 +22221,6 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		// Verify fields were cleared
 		var listResp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 
@@ -22128,10 +22242,10 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		installer := titleResp.SoftwareTitle.SoftwarePackage
 
 		require.Equal(t, string(ps1ScriptContent), installer.InstallScript, ".ps1 script package should have install_script from file contents")
-		require.NotEqual(t, "Write-Host 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
-		require.Empty(t, installer.PostInstallScript, ".ps1 script package should not have post_install_script")
-		require.Empty(t, installer.UninstallScript, ".ps1 script package should not have uninstall_script")
-		require.Empty(t, installer.PreInstallQuery, ".ps1 script package should not have pre_install_query")
+		require.NotEqual(t, "Write-Host 'install_script is ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Equal(t, "Write-Host 'post-install'", installer.PostInstallScript, ".ps1 script package should persist post_install_script")
+		require.Equal(t, "Write-Host 'uninstall'", installer.UninstallScript, ".ps1 script package should persist uninstall_script")
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".ps1 script package should persist pre_install_query")
 
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
 	})

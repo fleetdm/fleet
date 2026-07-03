@@ -10,6 +10,7 @@
 - [Setup Experience](#setup-experience)
 - [Commands](#commands)
 - [Integrations](#integrations-1)
+- [SCIM](#scim)
 - [Policies](#policies)
 - [Reports](#reports)
 - [Schedule (deprecated)](#schedule)
@@ -1303,13 +1304,14 @@ None.
 - [Get carve](#get-carve)
 - [Get carve block](#get-carve-block)
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd), returning the full contents to Fleet.
 
-To initiate a file carve using the Fleet API, you can use the [live report](#run-live-report) endpoint to run a query against the `carves` table.
+File carving allows you to request files (and sets of files) and their full contents from hosts.
 
-Keep in mind that any failure when uploading a file block (like a network error) will result on a failed carved file. Starting in osquery v5.22.1, block uploads will be retried up to three times before failing.
+To initiate a file carve using the Fleet API, use the [live report](#run-live-report) endpoint to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
+Any failure when uploading a file block (like a network error) will result in a failed carved file. Block uploads are retried up to three times before failing.
+
+To learn more about executing a file carve in Fleet, head to the [file carving guide](https://fleetdm.com/guides/file-carving).
 
 ### List carves
 
@@ -4205,7 +4207,7 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
-This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). On iOS and iPadOS, authentication requires the Fleet identity SCEP certificate. This certificate is deployed to iOS/iPadOS hosts when they enroll to Fleet.
+This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
 `GET /api/v1/fleet/device/:token`
 
@@ -8090,7 +8092,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
-- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 - [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
@@ -8251,39 +8252,6 @@ None.
 ]
 ```
 
-### Get identity provider (IdP) details
-
-Get details about the most recent SCIM (System for Cross-domain Identity Management) request from your identity provider (IdP).
-
-`GET /api/v1/fleet/scim/details`
-
-
-#### Parameters
-
-None.
-
-
-#### Example
-
-`GET /api/v1/fleet/scim/details`
-
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "last_request": {
-    "requested_at": "2025-03-11T02:02:17Z",
-    "status": "success",
-    "details": "",
-  }
-}
-```
-
-
-
 ### Get Android Enterprise
 
 Get info about Android Enterprise that's connected to Fleet.
@@ -8307,6 +8275,832 @@ None.
 ```json
 {
   "android_enterprise_id": "LC0445szuv"
+}
+```
+
+---
+
+## SCIM
+
+- [List users](#list-scim-users)
+- [Create user](#create-scim-user)
+- [Get user](#get-scim-user)
+- [Replace user](#replace-scim-user)
+- [Update user](#update-scim-user)
+- [Delete user](#delete-scim-user)
+- [List groups](#list-scim-groups)
+- [Create group](#create-scim-group)
+- [Get group](#get-scim-group)
+- [Replace group](#replace-scim-group)
+- [Update group](#update-scim-group)
+- [Delete group](#delete-scim-group)
+- [Get schemas](#get-scim-schemas)
+- [Get service provider config](#get-scim-service-provider-config)
+- [Get resource types](#get-scim-resource-types)
+- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
+
+Fleet's SCIM ([System for Cross-domain Identity Management](https://datatracker.ietf.org/doc/html/rfc7644)) API endpoints are used to [map end user's identity providers (IdPs) details](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) to their hosts and automatically delete a user's Fleet account when the user is deleted or deactivated in the IdP.
+
+SCIM resource type names (e.g. `Users`, `Groups`, `Schemas`) are defined by the [SCIM spec](https://datatracker.ietf.org/doc/html/rfc7644#section-2) and must be capitalized exactly as shown to work with identity providers. This is why they differ from Fleet's usual lowercase API naming convention.
+
+### List SCIM users
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scim/Users`
+
+#### Parameters
+
+| Name       | Type    | In    | Description                                                                                            |
+| ---------- | ------- | ----- | ------------------------------------------------------------------------------------------------------ |
+| startIndex | integer | query | 1-based index of the first result to return. Defaults to 1.                                           |
+| count      | integer | query | Number of results per page. Maximum 100. Defaults to 100.                                             |
+| filter     | string  | query | SCIM filter expression. Only `userName eq "<value>"` and `emails[type eq "<type>"].value eq "<value>"` are supported. |
+
+#### Example
+
+`GET /api/v1/fleet/scim/Users`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+  "totalResults": 1,
+  "startIndex": 1,
+  "itemsPerPage": 100,
+  "Resources": [
+    {
+      "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+      "id": "1",
+      "externalId": "ext-123",
+      "userName": "user@example.com",
+      "name": {
+        "givenName": "Jane",
+        "familyName": "Doe"
+      },
+      "emails": [
+        {
+          "value": "user@example.com",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "active": true,
+      "groups": [],
+      "meta": {
+        "resourceType": "User"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### Create SCIM user
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/scim/Users`
+
+#### Parameters
+
+| Name                 | Type    | In   | Description                                                                                       |
+| -------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------- |
+| schemas              | array   | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:User"`.                        |
+| userName             | string  | body | **Required**. Unique username (typically an email address).                                        |
+| name.givenName       | string  | body | **Required**. User's first name.                                                                  |
+| name.familyName      | string  | body | **Required**. User's last name.                                                                   |
+| externalId           | string  | body | Optional. External identifier from the IdP.                                                        |
+| emails               | array   | body | Optional. List of email objects with `value`, `type`, and `primary` fields.                        |
+| active               | boolean | body | Optional. Whether the user account is active.                                                      |
+| urn:ietf:params:scim:schemas:extension:enterprise:2.0:User.department | string | body | Optional. User's department. |
+
+#### Example
+
+`POST /api/v1/fleet/scim/Users`
+
+##### Request body
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "userName": "user@example.com",
+  "externalId": "ext-123",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Doe"
+  },
+  "emails": [
+    {
+      "value": "user@example.com",
+      "type": "work",
+      "primary": true
+    }
+  ],
+  "active": true
+}
+```
+
+##### Default response
+
+`Status: 201`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "1",
+  "externalId": "ext-123",
+  "userName": "user@example.com",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Doe"
+  },
+  "emails": [
+    {
+      "value": "user@example.com",
+      "type": "work",
+      "primary": true
+    }
+  ],
+  "active": true,
+  "groups": [],
+  "meta": {
+    "resourceType": "User"
+  }
+}
+```
+
+---
+
+### Get SCIM user
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scim/Users/:id`
+
+#### Parameters
+
+| Name | Type   | In   | Description                  |
+| ---- | ------ | ---- | ---------------------------- |
+| id   | string | path | **Required**. The user's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/scim/Users/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "1",
+  "externalId": "ext-123",
+  "userName": "user@example.com",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Doe"
+  },
+  "emails": [
+    {
+      "value": "user@example.com",
+      "type": "work",
+      "primary": true
+    }
+  ],
+  "active": true,
+  "groups": [
+    {
+      "value": "group-1",
+      "$ref": "Groups/group-1",
+      "display": "Engineering"
+    }
+  ],
+  "meta": {
+    "resourceType": "User"
+  }
+}
+```
+
+---
+
+### Replace SCIM user
+
+_Available in Fleet Premium_
+
+Replaces all attributes of an existing user. Any attributes not included in the request body are cleared.
+
+`PUT /api/v1/fleet/scim/Users/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                      |
+| --------------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id              | string  | path | **Required**. The user's ID.                                                     |
+| schemas         | array   | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:User"`.       |
+| userName        | string  | body | **Required**. Unique username.                                                   |
+| name.givenName  | string  | body | **Required**. User's first name.                                                 |
+| name.familyName | string  | body | **Required**. User's last name.                                                  |
+| externalId      | string  | body | Optional. External identifier from the IdP.                                       |
+| emails          | array   | body | Optional. List of email objects with `value`, `type`, and `primary` fields.       |
+| active          | boolean | body | Optional. Whether the user account is active.                                     |
+| urn:ietf:params:scim:schemas:extension:enterprise:2.0:User.department | string | body | Optional. User's department. |
+
+#### Example
+
+`PUT /api/v1/fleet/scim/Users/1`
+
+##### Request body
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "userName": "user@example.com",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Smith"
+  },
+  "active": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "1",
+  "userName": "user@example.com",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Smith"
+  },
+  "active": true,
+  "groups": [],
+  "meta": {
+    "resourceType": "User"
+  }
+}
+```
+
+---
+
+### Update SCIM user
+
+_Available in Fleet Premium_
+
+Partially updates a user using SCIM patch operations. Supports `add`, `replace`, and `remove` operations on `userName`, `externalId`, `active`, `name.givenName`, `name.familyName`, `emails`, and `urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department`.
+
+`PATCH /api/v1/fleet/scim/Users/:id`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                            |
+| ---------- | ------ | ---- | ---------------------------------------------------------------------- |
+| id         | string | path | **Required**. The user's ID.                                           |
+| schemas    | array  | body | **Required**. Must include `"urn:ietf:params:scim:api:messages:2.0:PatchOp"`. |
+| Operations | array  | body | **Required**. List of patch operations. Each has `op`, optional `path`, and `value`. |
+
+#### Example
+
+`PATCH /api/v1/fleet/scim/Users/1`
+
+##### Request body
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations": [
+    {
+      "op": "replace",
+      "path": "active",
+      "value": false
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "1",
+  "userName": "user@example.com",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Doe"
+  },
+  "active": false,
+  "groups": [],
+  "meta": {
+    "resourceType": "User"
+  }
+}
+```
+
+---
+
+### Delete SCIM user
+
+_Available in Fleet Premium_
+
+`DELETE /api/v1/fleet/scim/Users/:id`
+
+#### Parameters
+
+| Name | Type   | In   | Description                  |
+| ---- | ------ | ---- | ---------------------------- |
+| id   | string | path | **Required**. The user's ID. |
+
+#### Example
+
+`DELETE /api/v1/fleet/scim/Users/1`
+
+##### Default response
+
+`Status: 204`
+
+No content.
+
+---
+
+### List SCIM groups
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scim/Groups`
+
+#### Parameters
+
+| Name               | Type    | In    | Description                                                                              |
+| ------------------ | ------- | ----- | ---------------------------------------------------------------------------------------- |
+| startIndex         | integer | query | 1-based index of the first result to return. Defaults to 1.                              |
+| count              | integer | query | Number of results per page. Maximum 100. Defaults to 100.                                |
+| filter             | string  | query | SCIM filter expression. Only `displayName eq "<value>"` is supported.                    |
+| excludedAttributes | string  | query | Comma-separated list of attributes to exclude. Use `members` to omit group member lists. |
+
+#### Example
+
+`GET /api/v1/fleet/scim/Groups`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+  "totalResults": 1,
+  "startIndex": 1,
+  "itemsPerPage": 100,
+  "Resources": [
+    {
+      "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+      "id": "group-1",
+      "externalId": "ext-group-123",
+      "displayName": "Engineering",
+      "members": [
+        {
+          "value": "1",
+          "type": "User"
+        }
+      ],
+      "meta": {
+        "resourceType": "Group"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### Create SCIM group
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/scim/Groups`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                                |
+| ----------- | ------ | ---- | ------------------------------------------------------------------------------------------ |
+| schemas     | array  | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:Group"`.                |
+| displayName | string | body | **Required**. Human-readable group name. Must be unique.                                   |
+| externalId  | string | body | Optional. External identifier from the IdP.                                                 |
+| members     | array  | body | Optional. List of member objects with a `value` field containing a SCIM user ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/scim/Groups`
+
+##### Request body
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+  "displayName": "Engineering",
+  "members": [
+    {
+      "value": "1"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 201`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+  "id": "group-1",
+  "displayName": "Engineering",
+  "members": [
+    {
+      "value": "1",
+      "type": "User"
+    }
+  ],
+  "meta": {
+    "resourceType": "Group"
+  }
+}
+```
+
+---
+
+### Get SCIM group
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scim/Groups/:id`
+
+#### Parameters
+
+| Name               | Type   | In    | Description                                                                              |
+| ------------------ | ------ | ----- | ---------------------------------------------------------------------------------------- |
+| id                 | string | path  | **Required**. The group's ID (format: `group-<number>`).                                 |
+| excludedAttributes | string | query | Comma-separated list of attributes to exclude. Use `members` to omit the member list.    |
+
+#### Example
+
+`GET /api/v1/fleet/scim/Groups/group-1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+  "id": "group-1",
+  "externalId": "ext-group-123",
+  "displayName": "Engineering",
+  "members": [
+    {
+      "value": "1",
+      "type": "User"
+    }
+  ],
+  "meta": {
+    "resourceType": "Group"
+  }
+}
+```
+
+---
+
+### Replace SCIM group
+
+_Available in Fleet Premium_
+
+Replaces all attributes of an existing group. Any attributes not included in the request body are cleared.
+
+`PUT /api/v1/fleet/scim/Groups/:id`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                                |
+| ----------- | ------ | ---- | ------------------------------------------------------------------------------------------ |
+| id          | string | path | **Required**. The group's ID (format: `group-<number>`).                                   |
+| schemas     | array  | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:Group"`.                |
+| displayName | string | body | **Required**. Human-readable group name. Must be unique.                                   |
+| externalId  | string | body | Optional. External identifier from the IdP.                                                 |
+| members     | array  | body | Optional. List of member objects with a `value` field containing a SCIM user ID.           |
+
+#### Example
+
+`PUT /api/v1/fleet/scim/Groups/group-1`
+
+##### Request body
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+  "displayName": "Engineering",
+  "members": [
+    {
+      "value": "1"
+    },
+    {
+      "value": "2"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+  "id": "group-1",
+  "displayName": "Engineering",
+  "members": [
+    {
+      "value": "1",
+      "type": "User"
+    },
+    {
+      "value": "2",
+      "type": "User"
+    }
+  ],
+  "meta": {
+    "resourceType": "Group"
+  }
+}
+```
+
+---
+
+### Update SCIM group
+
+_Available in Fleet Premium_
+
+Partially updates a group using SCIM patch operations. Supports `add`, `replace`, and `remove` operations on `displayName`, `externalId`, and `members`.
+
+`PATCH /api/v1/fleet/scim/Groups/:id`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                           |
+| ---------- | ------ | ---- | ------------------------------------------------------------------------------------- |
+| id         | string | path | **Required**. The group's ID (format: `group-<number>`).                              |
+| schemas    | array  | body | **Required**. Must include `"urn:ietf:params:scim:api:messages:2.0:PatchOp"`.         |
+| Operations | array  | body | **Required**. List of patch operations. Each has `op`, optional `path`, and `value`.  |
+
+#### Example
+
+`PATCH /api/v1/fleet/scim/Groups/group-1`
+
+##### Request body
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations": [
+    {
+      "op": "add",
+      "path": "members",
+      "value": [
+        {
+          "value": "3"
+        }
+      ]
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+  "id": "group-1",
+  "displayName": "Engineering",
+  "members": [
+    {
+      "value": "1",
+      "type": "User"
+    },
+    {
+      "value": "3",
+      "type": "User"
+    }
+  ],
+  "meta": {
+    "resourceType": "Group"
+  }
+}
+```
+
+---
+
+### Delete SCIM group
+
+_Available in Fleet Premium_
+
+`DELETE /api/v1/fleet/scim/Groups/:id`
+
+#### Parameters
+
+| Name | Type   | In   | Description                                              |
+| ---- | ------ | ---- | -------------------------------------------------------- |
+| id   | string | path | **Required**. The group's ID (format: `group-<number>`). |
+
+#### Example
+
+`DELETE /api/v1/fleet/scim/Groups/group-1`
+
+##### Default response
+
+`Status: 204`
+
+No content.
+
+---
+
+### Get SCIM schemas
+
+_Available in Fleet Premium_
+
+Returns the SCIM schemas supported by Fleet: the core User schema and Group schema.
+
+`GET /api/v1/fleet/scim/Schemas`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/scim/Schemas`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+  "totalResults": 2,
+  "Resources": [
+    {
+      "id": "urn:ietf:params:scim:schemas:core:2.0:User",
+      "name": "User",
+      "description": "SCIM User",
+      "attributes": [...]
+    },
+    {
+      "id": "urn:ietf:params:scim:schemas:core:2.0:Group",
+      "name": "Group",
+      "description": "SCIM Group",
+      "attributes": [...]
+    }
+  ]
+}
+```
+
+---
+
+### Get SCIM service provider config
+
+_Available in Fleet Premium_
+
+Returns Fleet's SCIM service provider configuration, including supported features.
+
+`GET /api/v1/fleet/scim/ServiceProviderConfig`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/scim/ServiceProviderConfig`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"],
+  "documentationUri": "https://fleetdm.com/docs/get-started/why-fleet",
+  "patch": {
+    "supported": true
+  },
+  "filter": {
+    "supported": true,
+    "maxResults": 100
+  },
+  "bulk": {
+    "supported": false
+  },
+  "changePassword": {
+    "supported": false
+  },
+  "sort": {
+    "supported": false
+  },
+  "etag": {
+    "supported": false
+  }
+}
+```
+
+---
+
+### Get SCIM resource types
+
+_Available in Fleet Premium_
+
+Returns the resource types supported by Fleet's SCIM implementation (`User` and `Group`).
+
+`GET /api/v1/fleet/scim/ResourceTypes`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/scim/ResourceTypes`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+  "totalResults": 2,
+  "Resources": [
+    {
+      "id": "User",
+      "name": "User",
+      "description": "User Account",
+      "endpoint": "/Users",
+      "schema": "urn:ietf:params:scim:schemas:core:2.0:User"
+    },
+    {
+      "id": "Group",
+      "name": "Group",
+      "description": "Group",
+      "endpoint": "/Groups",
+      "schema": "urn:ietf:params:scim:schemas:core:2.0:Group"
+    }
+  ]
+}
+```
+
+---
+
+### Get identity provider (IdP) details
+
+_Available in Fleet Premium_
+
+Get details about the most recent SCIM request from your identity provider (IdP). Useful for diagnosing SCIM integration issues.
+
+`GET /api/v1/fleet/scim/details`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/scim/details`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "last_request": {
+    "requested_at": "2025-03-11T02:02:17Z",
+    "status": "success",
+    "details": ""
+  }
 }
 ```
 

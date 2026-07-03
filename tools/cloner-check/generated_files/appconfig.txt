@@ -113,6 +113,10 @@ github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	Domain	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	ApiKey	fleet.GoogleCalendarApiKey
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarApiKey	Values	map[string]string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarApiKey	masked	bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleWorkspace	[]*fleet.GoogleWorkspaceIntegration
+github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	Domain	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ImpersonatedUserEmail	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet.GoogleCalendarApiKey
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	optjson.Bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
