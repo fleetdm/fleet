@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.31.1.179",
+      "version": "4.4.1.198",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Egnyte Desktop App' AND publisher = 'Egnyte, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Egnyte Desktop App' AND publisher = 'Egnyte, Inc.' AND version_compare(version, '3.31.1.179') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Egnyte Desktop App' AND publisher = 'Egnyte, Inc.' AND version_compare(version, '4.4.1.198') < 0);"
       },
-      "installer_url": "https://egnyte-cdn.egnyte.com/egnytedrive/win/en-us/3.31.1/EgnyteDesktopApp_3.31.1_179.msi",
+      "installer_url": "https://egnyte-cdn.egnyte.com/egnytedrive/win/en-us/4.4.1/EgnyteDesktopApp_4.4.1_198.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "70b84d4a",
-      "sha256": "aca64bfeacb23e4edfae7f33a831deb003da3788035dd49e8ff866afccadad85",
+      "sha256": "fed541b65a0194e828762617c8c12ff72f0f67acf9b1b67e59deb58f98a3a181",
       "default_categories": [
         "Productivity"
       ],
