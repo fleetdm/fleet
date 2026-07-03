@@ -1874,6 +1874,24 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
+func (ds *Datastore) deleteInstallerInBatch(ctx context.Context, tx sqlx.ExtContext, id uint, unsetPolicies bool) ([]uint, error) {
+	if unsetPolicies {
+		// TODO(JK): revisit re-pointing policies to a surviving sibling package
+		// instead of unsetting when a single package of several is removed.
+		if _, err := tx.ExecContext(ctx, `UPDATE policies SET software_installer_id = NULL WHERE software_installer_id = ?`, id); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "unset policies for installer id %d", id)
+		}
+	}
+	affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "side effects for installer id %d", id)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "delete installer id %d", id)
+	}
+	return affectedHostIDs, nil
+}
+
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name, st.source
@@ -2885,6 +2903,19 @@ WHERE
 	stdn.team_id = ? AND stdn.software_title_id NOT IN (?)
 `
 
+	// custom packages on a kept title that this batch didn't write: dropped versions
+	// and any leftover FMA row when a title switches to custom packages.
+	const findDroppedPackages = `
+SELECT id FROM software_installers
+WHERE global_or_team_id = ? AND title_id IN (?) AND id NOT IN (?)
+`
+
+	// custom rows left on a title that is switching to a Fleet-maintained app.
+	const findStaleCustomInstallers = `
+SELECT id FROM software_installers
+WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	teamName := fleet.TeamNameNoTeam
@@ -3143,27 +3174,6 @@ WHERE
 		displayNameIDMap := make(map[uint]string, len(titlesWithDisplayNames))
 		for _, d := range titlesWithDisplayNames {
 			displayNameIDMap[d.TitleID] = d.Name
-		}
-
-		// Cancel a removed installer's pending activities and delete it. unsetPolicies
-		// clears policies pointing at it, for callers that haven't re-pointed them.
-		deleteInstaller := func(id uint, unsetPolicies bool) error {
-			if unsetPolicies {
-				// TODO(JK): revisit re-pointing policies to a surviving sibling package
-				// instead of unsetting when a single package of several is removed.
-				if _, err := tx.ExecContext(ctx, `UPDATE policies SET software_installer_id = NULL WHERE software_installer_id = ?`, id); err != nil {
-					return ctxerr.Wrapf(ctx, err, "unset policies for installer id %d", id)
-				}
-			}
-			affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "side effects for installer id %d", id)
-			}
-			activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
-			if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id); err != nil {
-				return ctxerr.Wrapf(ctx, err, "delete installer id %d", id)
-			}
-			return nil
 		}
 
 		// installer ids written by this batch, used after the loop to remove custom
@@ -3430,10 +3440,7 @@ WHERE
 				// A title switching to an FMA can't also hold custom rows, so remove
 				// them. Their policies were already re-pointed to the active FMA.
 				var staleCustomIDs []uint
-				if err := sqlx.SelectContext(ctx, tx, &staleCustomIDs, `
-					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
-				`, globalOrTeamID, titleID); err != nil {
+				if err := sqlx.SelectContext(ctx, tx, &staleCustomIDs, findStaleCustomInstallers, globalOrTeamID, titleID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "find stale custom installers for FMA title %q", installer.Filename)
 				}
 				installerIDsToDelete = append(installerIDsToDelete, staleCustomIDs...)
@@ -3566,9 +3573,11 @@ WHERE
 			// These installers were replaced by a newer version and had their policies
 			// re-pointed above, so delete them without touching policies.
 			for _, id := range installerIDsToDelete {
-				if err := deleteInstaller(id, false); err != nil {
+				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id, false)
+				if err != nil {
 					return err
 				}
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
 			}
 		}
 
@@ -3576,9 +3585,7 @@ WHERE
 		// which drops old custom versions and any leftover FMA row when a title
 		// switches to custom packages. FMA titles keep their cached versions.
 		if len(customTitleIDs) > 0 {
-			droppedStmt, droppedArgs, err := sqlx.In(
-				`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id IN (?) AND id NOT IN (?)`,
-				globalOrTeamID, customTitleIDs, keptInstallerIDs)
+			droppedStmt, droppedArgs, err := sqlx.In(findDroppedPackages, globalOrTeamID, customTitleIDs, keptInstallerIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to find dropped packages")
 			}
@@ -3587,9 +3594,11 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "find dropped packages")
 			}
 			for _, id := range droppedIDs {
-				if err := deleteInstaller(id, true); err != nil {
+				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id, true)
+				if err != nil {
 					return err
 				}
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
 			}
 		}
 
