@@ -7872,8 +7872,8 @@ func testHostsListDeviceMappingOrder(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   ptr.String("dm-order-host"),
-		NodeKey:         ptr.String("dm-order-host"),
+		OsqueryHostID:   new("dm-order-host"),
+		NodeKey:         new("dm-order-host"),
 		Platform:        "linux",
 		Hostname:        "dm-order-host",
 		DetailUpdatedAt: time.Now(),
