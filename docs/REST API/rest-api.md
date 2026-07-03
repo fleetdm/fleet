@@ -14961,6 +14961,7 @@ Custom host vitals can be referenced in scripts and configuration profiles using
 | order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| query | string | query | Search query keywords. Searchable fields include `name` and `variable name` (`$FLEET_HOST_VITAL_<id>`, with or without the `$`.) |
 
 
 #### Example
