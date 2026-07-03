@@ -3,7 +3,7 @@ import {
   ICustomHostVitalFormData,
 } from "interfaces/custom_host_vitals";
 import sendRequest from "services";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 
 export interface IListCustomHostVitalsApiParams {
@@ -28,13 +28,13 @@ export default {
     params: IListCustomHostVitalsApiParams
   ): Promise<IListCustomHostVitalsResponse> {
     const { CUSTOM_HOST_VITALS } = endpoints;
-    const path = `${CUSTOM_HOST_VITALS}?${buildQueryStringFromParams({
+    const path = getPathWithQueryParams(CUSTOM_HOST_VITALS, {
       page: params.page,
       per_page: params.per_page,
       query: params.query,
       order_key: params.order_key,
       order_direction: params.order_direction,
-    })}`;
+    });
 
     return sendRequest("GET", path);
   },

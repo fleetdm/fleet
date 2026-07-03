@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
@@ -28,21 +28,17 @@ const Variables = ({ router, params, location }: IVariablesProps) => {
 
   const navItems = useMemo(() => getVariablesNavItems(), []);
 
-  const DEFAULT_SECTION = navItems[0];
-
-  const currentSection =
-    navItems.find((item) => item.urlSection === section) ?? DEFAULT_SECTION;
+  const defaultSection = navItems[0];
+  const matchedSection = navItems.find((item) => item.urlSection === section);
+  const currentSection = matchedSection ?? defaultSection;
 
   // Redirect the bare route (no section) and unknown sections to the default
   // section, preserving the query string (e.g. the ?add_variable deep-link).
-  if (
-    !section ||
-    (currentSection === DEFAULT_SECTION &&
-      section !== DEFAULT_SECTION.urlSection)
-  ) {
-    router.replace(DEFAULT_SECTION.path.concat(location.search));
-    return null;
-  }
+  useEffect(() => {
+    if (!matchedSection) {
+      router.replace(`${defaultSection.path}${location.search}`);
+    }
+  }, [matchedSection, defaultSection.path, location.search, router]);
 
   const CurrentCard = currentSection.Card;
 
@@ -60,7 +56,7 @@ const Variables = ({ router, params, location }: IVariablesProps) => {
         className={`${baseClass}__side-nav`}
         navItems={navItems.map((navItem) => ({
           ...navItem,
-          path: navItem.path.concat(location.search),
+          path: `${navItem.path}${location.search}`,
         }))}
         activeItem={currentSection.urlSection}
         CurrentCard={<CurrentCard router={router} location={location} />}

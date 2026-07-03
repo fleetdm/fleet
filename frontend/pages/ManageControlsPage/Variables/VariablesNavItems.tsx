@@ -10,7 +10,7 @@ export interface IVariablesCardProps {
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { add_variable?: string };
+    query: { add_variable?: string; query?: string };
   };
 }
 

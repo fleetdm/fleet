@@ -1,3 +1,5 @@
+export const CUSTOM_HOST_VITAL_NAME_MAX_LENGTH = 255;
+
 export interface ICustomHostVitalFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
@@ -24,8 +26,9 @@ const NAME_VALIDATIONS: IValidation[] = [
   },
   {
     name: "notTooLong",
-    isValid: (formData) => formData.name.trim().length <= 255,
-    message: "Name may not exceed 255 characters",
+    isValid: (formData) =>
+      formData.name.trim().length <= CUSTOM_HOST_VITAL_NAME_MAX_LENGTH,
+    message: `Name may not exceed ${CUSTOM_HOST_VITAL_NAME_MAX_LENGTH} characters`,
   },
 ];
 

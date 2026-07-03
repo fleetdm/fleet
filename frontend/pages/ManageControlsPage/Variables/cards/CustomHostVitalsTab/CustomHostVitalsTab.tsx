@@ -1,9 +1,11 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 import { ICustomHostVital } from "interfaces/custom_host_vitals";
 import { IListCustomHostVitalsResponse } from "services/entities/custom_host_vitals";
 // TODO(#48559): replace mock with live API — swap for
@@ -29,13 +31,16 @@ import DeleteCustomHostVitalModal from "../../components/DeleteCustomHostVitalMo
 
 const baseClass = "custom-host-vitals-tab";
 
-const CustomHostVitalsTab: React.FC<IVariablesCardProps> = () => {
+const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
+  router,
+  location,
+}) => {
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { gitOpsModeEnabled } = useGitOpsMode();
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const searchQuery = location.query.query ?? "";
   const [showAddModal, setShowAddModal] = useState(false);
   const [vitalToEdit, setVitalToEdit] = useState<
     ICustomHostVital | undefined
@@ -60,9 +65,26 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = () => {
   const vitals = useMemo(() => data?.custom_host_vitals ?? [], [data]);
   const count = data?.count ?? 0;
 
-  const onQueryChange = useCallback((queryData: ITableQueryData) => {
-    setSearchQuery(queryData.searchQuery);
-  }, []);
+  const onQueryChange = useCallback(
+    (queryData: ITableQueryData) => {
+      const nextSearchQuery = queryData.searchQuery;
+
+      if (nextSearchQuery === searchQuery) {
+        return;
+      }
+
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS,
+          queryParams: {
+            ...location.query,
+            query: nextSearchQuery || undefined,
+          },
+        })
+      );
+    },
+    [searchQuery, router, location.query]
+  );
 
   const onClickAdd = () => setShowAddModal(true);
 
@@ -150,6 +172,7 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = () => {
         isLoading={isFetching}
         defaultSortHeader="name"
         defaultSortDirection="asc"
+        defaultSearchQuery={searchQuery}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={() => (

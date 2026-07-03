@@ -10,7 +10,11 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 
-import { validateFormData, ICustomHostVitalFormValidation } from "./helpers";
+import {
+  validateFormData,
+  ICustomHostVitalFormValidation,
+  CUSTOM_HOST_VITAL_NAME_MAX_LENGTH,
+} from "../../helpers";
 
 const baseClass = "add-custom-host-vital-modal";
 
@@ -81,6 +85,7 @@ const AddCustomHostVitalModal = ({
           name="name"
           error={formValidation.name?.message}
           helpText="This will be the vital's label on the host detail page."
+          inputOptions={{ maxLength: CUSTOM_HOST_VITAL_NAME_MAX_LENGTH }}
         />
         <div className="modal-cta-wrap">
           <Button

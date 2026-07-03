@@ -6,6 +6,7 @@ import {
   ICustomHostVital,
   ICustomHostVitalFormData,
 } from "interfaces/custom_host_vitals";
+import { getTokenFromVitalId } from "pages/ManageControlsPage/Variables/cards/CustomHostVitalsTab/CustomHostVitalsTableConfig";
 
 import {
   IListCustomHostVitalsApiParams,
@@ -49,9 +50,13 @@ export default {
     params: IListCustomHostVitalsApiParams
   ): Promise<IListCustomHostVitalsResponse> {
     const query = (params.query ?? "").trim().toLowerCase();
+    // Mirror the intended backend behavior: `query` matches the vital name OR
+    // its variable token (`$FLEET_HOST_VITAL_<id>`), case-insensitive substring.
     const filtered = query
-      ? _mockCustomHostVitals.filter((vital) =>
-          vital.name.toLowerCase().includes(query)
+      ? _mockCustomHostVitals.filter(
+          (vital) =>
+            vital.name.toLowerCase().includes(query) ||
+            getTokenFromVitalId(vital.id).toLowerCase().includes(query)
         )
       : _mockCustomHostVitals;
 
