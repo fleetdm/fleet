@@ -1,24 +1,21 @@
 # Block and monitor EDR Freeze on macOS with Santa and Fleet
 
-EDR Freeze suspends a security tool instead of killing it, so the process still looks healthy while it quietly stops working. Santa 2026.3 can block it, and Fleet's Santa tables let you watch for it across every host. Here's how to set up both.
+*EDR Freeze suspends a security tool instead of killing it, so the process looks healthy while it quietly stops working. Santa 2026.3 can block it on macOS, and Fleet lets you ship the fix and watch for the attack across every host.*
 
----
+EDR Freeze started life on Windows — pause a security product so it stops alerting or responding, without crashing or uninstalling it. The same idea works on macOS: anything built on Apple's Endpoint Security framework can be frozen with the `pid_suspend` system call, and a suspended agent still looks healthy in every monitoring tool while an attacker slips actions past its checks or floods its event queue.
 
-## TLDR
+The good news is that the fix is well understood, and you can ship and monitor it through Fleet today. Santa, the open-source binary authorization agent for macOS, added the `AntiSuspendSigningIDs` configuration key in version 2026.3, and Fleet gives you the delivery pipeline and the visibility to go with it. Here's how the attack works and how to close it.
 
-EDR Freeze is a macOS evasion technique where an attacker with root uses `pid_suspend` to freeze a security tool. Santa protects itself against this by default — version 2026.3 adds `AntiSuspendSigningIDs` so you can protect other processes too. Deploy it through Fleet GitOps, monitor with the `santa_status`, `santa_denied`, and `santa_allowed` tables, and turn on `proc_suspend_resume` telemetry to catch the suspend attempt itself.
+## Key takeaways
 
----
+- **EDR Freeze is for staying hidden, not breaking in.** An attacker who already has root uses `pid_suspend` to freeze a security agent at the Mach task level. `ps` and Activity Monitor still show a healthy process, but it can't authorize, alert, or record anything.
+- **Santa defends itself by default, and 2026.3 defends the rest of your stack.** List your other agents' code-signing identities under `AntiSuspendSigningIDs` and Santa denies the suspension before it ever takes effect.
+- **The protection ships as a reviewed config change, not new infrastructure.** The key goes into a `.mobileconfig` profile in Git, deploys through Fleet GitOps and MDM, and rolls back with a `git revert`. No Santa sync server required.
+- **Fleet watches every host for the conditions the attack relies on.** The `santa_status`, `santa_denied`, and `santa_allowed` tables catch agents that aren't answering, hosts in the wrong mode, missing rules, and denial gaps.
+- **Santa's telemetry catches the suspend attempt itself.** Turn on `proc_suspend_resume` telemetry and forward it to your SIEM to alert the moment anything tries to freeze a protected process.
+- **Independent signals cover what a frozen agent can't report.** Sequence-number gaps, server-side telemetry silence, deadline-kill log messages, and canary events all fire even when the agent is asleep.
 
-EDR Freeze started life on Windows — pause a security product so it stops alerting or responding, without crashing or uninstalling it. The process stays put, looks healthy in every monitoring tool, and simply stops doing its job. No kernel exploit needed.
-
-The same idea works on macOS. Anything built on Apple's Endpoint Security framework can be frozen with the `pid_suspend` system call. Once a tool is suspended, an attacker can either slip an action past its authorization checks or fill its event queue so the activity leaves no trace.
-
-The good news is that the fix is well understood, and you can ship and monitor it through Fleet today. Santa, the open-source binary authorization agent for macOS, added the `AntiSuspendSigningIDs` configuration key in version 2026.3. Fleet pushes that configuration through GitOps and gives you three Santa osquery tables for watching the agent's health and decisions across your fleet.
-
-If you haven't deployed Santa with Fleet yet, start with the two-part series and come back:
-- [Part 1: Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server)
-- [Part 2: How we deployed Santa at Fleet](https://fleetdm.com/articles/how-we-deployed-santa-at-fleet)
+<a purpose="cta-button" href="https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server">Deploy Santa with Fleet</a>
 
 ## How EDR Freeze works on macOS
 
@@ -44,9 +41,14 @@ Notification (NOTIFY) events reach clients through a per-client queue with a his
 
 Traditionally, Santa needs a dedicated sync server to distribute rules, collect events, and manage configuration. That's one more piece of infrastructure to stand up, secure, and maintain.
 
-Fleet replaces it with tools you already use. You define Santa's configuration as code in `.mobileconfig` profiles in Git, Fleet and Apple MDM push them to your macOS hosts, and Fleet's osquery integration collects Santa's events. Rule and configuration changes go through pull request review, deploy on their own, and roll back with a `git revert`. No sync server required.
+Fleet replaces it with tools you already use. You define Santa's configuration as code in `.mobileconfig` profiles in Git, Fleet and Apple MDM push them to your macOS hosts, and Fleet's agent collects Santa's events. Rule and configuration changes go through pull request review, deploy on their own, and roll back with a `git revert`. No sync server required.
 
-The two-part series above covers the full setup — deploying the Santa app, splitting app config and rules into separate profiles, and collecting denied-binary logs. EDR Freeze protection slots straight into that same model.
+If you haven't deployed Santa with Fleet yet, start with the two-part series and come back:
+
+- [Part 1: Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server)
+- [Part 2: How we deployed Santa at Fleet](https://fleetdm.com/articles/how-we-deployed-santa-at-fleet)
+
+The series covers the full setup — deploying the Santa app, splitting app config and rules into separate profiles, and collecting denied-binary logs. EDR Freeze protection slots straight into that same model.
 
 ## Block it with Santa 2026.3
 
@@ -88,7 +90,7 @@ Ship the edit the way you ship any Santa change — open a pull request, get it 
 
 ## Monitor the attack with Fleet's Santa tables
 
-Blocking the attack is only half the job. You also want to know when something tries, and to confirm your agents stay healthy and enforcing. Fleet's agent ships three Santa osquery tables, so you can monitor every macOS host from one place — `santa_status`, `santa_denied`, and `santa_allowed`. Turn them into scheduled queries and policies and you've got continuous coverage of the conditions EDR Freeze relies on.
+Blocking the attack is only half the job. You also want to know when something tries, and to confirm your agents stay healthy and enforcing. Fleet's agent ships three Santa tables, so you can monitor every macOS host from one place — `santa_status`, `santa_denied`, and `santa_allowed`. Turn them into scheduled reports and policies and you've got continuous coverage of the conditions EDR Freeze relies on.
 
 ### Confirm Santa is alive and healthy: santa_status
 
@@ -134,11 +136,11 @@ ORDER BY timestamp DESC
 
 The whole point of the bypass is to run something that should have been denied. So if a binary you expect Santa to block stops showing up in `santa_denied` on one host while it's still denied everywhere else, correlate that host's `santa_status` and suspend telemetry.
 
-Fleet keeps the most recent 10,000 allowed and denied events per host — for scheduled queries, set `differential_ignore_removals` to stay within osquery's watchdog limits.
+Fleet keeps the most recent 10,000 allowed and denied events per host — for scheduled reports, set `differential_ignore_removals` to stay within the agent's watchdog limits.
 
 ### Catch the suspend attempt itself: Santa telemetry
 
-The tables above cover Santa's state and its execution decisions. They don't record `pid_suspend` calls. The suspend attempt itself is captured by Santa's `proc_suspend_resume` telemetry, which you turned on with the `proc_suspend_resume` key.
+The tables above cover Santa's state and its execution decisions. They don't record `pid_suspend` calls. The suspend attempt itself is captured by Santa's `proc_suspend_resume` telemetry, which you turned on earlier in the profile.
 
 Collect Santa's event log the same way the deployment series collects denied logs, forward it to your SIEM, and alert on any suspend that targets one of your protected processes or any Endpoint Security client.
 
@@ -165,7 +167,14 @@ On a test host, you can also confirm Santa's protection end to end by writing a 
 
 EDR Freeze proved that suspending a security process is a practical evasion technique, and the same principle carries over to macOS through `pid_suspend`. Santa's self-protection has been possible since macOS 11, and version 2026.3 lets you extend it to the rest of your stack with `AntiSuspendSigningIDs`.
 
-With Fleet, blocking and monitoring the attack is a reviewed, version-controlled change to a profile you already manage, backed by tables you can query across every host. Add the key, list the signing IDs, turn on the telemetry, and watch `santa_status`, `santa_denied`, and `santa_allowed` for the conditions the attack depends on. No sync server, no extra infrastructure, and a clear audit trail for every change.
+With Fleet, blocking and monitoring the attack is a reviewed, version-controlled change to a profile you already manage, backed by tables you can query across every host. No sync server, no extra infrastructure, and a clear audit trail for every change.
+
+## See it live
+
+The fastest path is to work through the [Santa deployment series](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) and add the `AntiSuspendSigningIDs` key to your app-config profile. If you'd like a hand getting there, two good next steps:
+
+- [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through blocking and monitoring EDR Freeze in your environment.
+- [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Managing Santa's configuration as code is exactly what our hands-on workshop covers: profiles in Git, reviewed in pull requests, deployed through CI.
 
 ## Resources
 
@@ -181,4 +190,4 @@ With Fleet, blocking and monitoring the attack is a reviewed, version-controlled
 <meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-06-29">
-<meta name="description" value="Learn how EDR Freeze works on macOS, how Santa 2026.3 blocks it with AntiSuspendSigningIDs, and using Fleet's Santa osquery tables to monitor it.">
+<meta name="description" value="Learn how EDR Freeze works on macOS, how Santa 2026.3 blocks it with AntiSuspendSigningIDs, and how to monitor for it with Fleet's Santa tables.">

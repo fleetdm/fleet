@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260611202649, Down_20260611202649)
+	MigrationClient.AddMigration(Up_20260702013055, Down_20260702013055)
 }
 
-func Up_20260611202649(tx *sql.Tx) error {
+func Up_20260702013055(tx *sql.Tx) error {
 	// When a Windows MDM configuration profile is deleted, its <Delete> commands cannot be generated until the profile-manager cron
 	// reconciles the surviving host_mdm_windows_profiles rows, but the SyncML those <Delete> commands are built from lives only on the
 	// now-deleted definition row. This table retains that content (profile_uuid, team_id, name, syncml) past the logical delete so the
@@ -44,6 +44,6 @@ func Up_20260611202649(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260611202649(tx *sql.Tx) error {
+func Down_20260702013055(tx *sql.Tx) error {
 	return nil
 }
