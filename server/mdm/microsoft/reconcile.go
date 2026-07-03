@@ -104,6 +104,10 @@ func ComputeWindowsReconcileDeltas(
 				Detail:        c.Detail,
 				Status:        c.Status,
 				CommandUUID:   c.CommandUUID,
+				// The version the host has installed. The reconciler builds this host's <Delete> from this exact version's retained
+				// content when available, and writing it to the remove row keeps that retained version alive (reference-counted GC)
+				// until the remove resolves.
+				Checksum: c.Checksum,
 			})
 		}
 	}

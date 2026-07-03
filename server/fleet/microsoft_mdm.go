@@ -1925,21 +1925,24 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 		return nil
 	}
 
+	// The returned URIs are compared across profile versions and across profiles (edit-diffing, shared-LocURI protection) and become
+	// <Delete> targets. Trim surrounding whitespace so a formatting-only change to a LocURI's spelling is not treated as a different
+	// node, which would generate a <Delete> for a node the new version still enforces.
 	var uris []string
 	for _, cmd := range cmds {
 		if cmd.XMLName.Local == CmdAtomic {
 			for _, nested := range cmd.ReplaceCommands {
-				if uri := nested.GetTargetURI(); uri != "" {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
 					uris = append(uris, uri)
 				}
 			}
 			for _, nested := range cmd.AddCommands {
-				if uri := nested.GetTargetURI(); uri != "" {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
 					uris = append(uris, uri)
 				}
 			}
 		} else if cmd.XMLName.Local == CmdReplace || cmd.XMLName.Local == CmdAdd {
-			if uri := cmd.GetTargetURI(); uri != "" {
+			if uri := strings.TrimSpace(cmd.GetTargetURI()); uri != "" {
 				uris = append(uris, uri)
 			}
 		}

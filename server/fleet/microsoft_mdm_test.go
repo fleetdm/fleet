@@ -811,6 +811,14 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
 		require.Equal(t, []string{"./Device/A"}, uris)
 	})
+
+	t.Run("surrounding whitespace trimmed", func(t *testing.T) {
+		// A formatting-only spelling change (e.g. an editor reflowing the LocURI text) must not make the same node look like a
+		// different URI: edit-diffing would otherwise emit a <Delete> for a node the new version still enforces.
+		xml := "<Replace><Item><Target><LocURI>\n\t\t./Device/A </LocURI></Target></Item></Replace><Atomic><Add><Item><Target><LocURI> ./Device/B\n</LocURI></Target></Item></Add></Atomic>"
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A", "./Device/B"}, uris)
+	})
 }
 
 func TestIsFleetInternalCmdID(t *testing.T) {

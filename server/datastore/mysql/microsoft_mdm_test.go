@@ -5516,6 +5516,57 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			assert.Contains(t, string(rawCmd), "./Device/Z")
 		}
 	})
+
+	t.Run("stale-version host gets delete built from its own version", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
+
+		// v1 has X and Y; v2 drops Y. h1 applied v1 and went offline; h2 applied v2. Deleting the profile must build h1's
+		// <Delete> from v1 (X and Y) and h2's from v2 (X only): building both from the newest retained version would leave Y
+		// enforced on h1 forever.
+		syncMLv1 := []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>1</Data></Item></Replace>`)
+		syncMLv2 := []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace>`)
+
+		setProfile := func(t *testing.T, syncML []byte) {
+			t.Helper()
+			prof := &fleet.MDMWindowsConfigProfile{Name: "stale-prof", SyncML: syncML}
+			require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+				return err
+			}))
+		}
+		installVerified := func(t *testing.T, profUUID, hostUUID string, syncML []byte) {
+			t.Helper()
+			verified := fleet.MDMDeliveryVerified
+			checksum := md5.Sum(syncML) // nolint:gosec // checksum for comparison, not security
+			require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				{ProfileUUID: profUUID, ProfileName: "stale-prof", HostUUID: hostUUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: checksum[:]},
+			}))
+		}
+
+		setProfile(t, syncMLv1)
+		profUUID := windowsProfileUUIDByName(t, ds, "stale-prof")
+		installVerified(t, profUUID, h1.UUID, syncMLv1) // h1 applied v1, then went offline
+		setProfile(t, syncMLv2)                         // the edit retains v1; h1 never applies v2
+		installVerified(t, profUUID, h2.UUID, syncMLv2) // h2 applied v2
+
+		// Delete the profile (retains v2) and run the cron.
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{}, nil)
+			return err
+		})
+		require.NoError(t, err)
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+		h1Cmd := string(rawWindowsDeleteCommandForHostProfile(t, ds, h1.UUID, profUUID))
+		require.NotEmpty(t, h1Cmd, "h1 should have a queued <Delete>")
+		assert.Contains(t, h1Cmd, "./Device/X", "h1: X was in its installed version")
+		assert.Contains(t, h1Cmd, "./Device/Y", "h1: Y was in its installed version (v1) even though the newest version dropped it")
+
+		h2Cmd := string(rawWindowsDeleteCommandForHostProfile(t, ds, h2.UUID, profUUID))
+		require.NotEmpty(t, h2Cmd, "h2 should have a queued <Delete>")
+		assert.Contains(t, h2Cmd, "./Device/X", "h2: X was in its installed version")
+		assert.NotContains(t, h2Cmd, "./Device/Y", "h2: its installed version (v2) never had Y")
+	})
 }
 
 // testEditProfileDeletesRemovedLocURIs verifies the deferred removed-LocURI revert path; the request retains the removed LocURIs
