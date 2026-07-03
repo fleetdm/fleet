@@ -255,7 +255,7 @@ will be disabled and/or hidden in the UI.
           // Sort the events by their start time, and save the list to a new global.
           sails.futureGitopsWorkshops = _.sortBy(futureGitopsWorkshops, 'startsAt');
         }
-      })
+      });
 
     },
 
