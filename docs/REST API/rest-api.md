@@ -15032,7 +15032,7 @@ Create custom host vitals for displaying custom fields on individual hosts.
 
 ###  Update custom host vital
 
-Create custom host vitals for displaying custom fields on individual hosts.
+Update (rename) a custom host vital.
 
 `PATCH /api/v1/fleet/custom_host_vitals/:id`
 
