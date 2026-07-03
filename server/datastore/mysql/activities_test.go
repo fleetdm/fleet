@@ -801,10 +801,10 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_2, pendingActs[3].UUID)
 
 	// listing scripts ready to execute returns script1_1
-	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
+	pendingScriptIDs, _, err := ds.ListReadyToExecuteUpcomingActivities(ctx, h1.ID, false)
 	require.NoError(t, err)
-	require.Len(t, pendingScripts, 1)
-	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
+	require.Len(t, pendingScriptIDs, 1)
+	require.Equal(t, script1_1, pendingScriptIDs[0])
 
 	// get host script result while there are no results yet returns the current status
 	scriptRes, err := ds.GetHostScriptExecutionResult(ctx, script1_1)
@@ -896,7 +896,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// the software install request is not active yet, so with only active, returns nothing
-	pendingSw, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, h1.ID)
+	_, pendingSw, err := ds.ListReadyToExecuteUpcomingActivities(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 0)
 
@@ -1630,17 +1630,12 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			// the next upcoming activity (and only this one) should show up in those
 			// lists of ready-to-process activities.
 			var gotExecIDs []string
-			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID, false)
+			readyScripts, readySWInstalls, err := ds.ListReadyToExecuteUpcomingActivities(ctx, c.host.ID, false)
 			require.NoError(t, err)
-			require.True(t, len(scripts) <= 1)
-			if len(scripts) == 1 {
-				gotExecIDs = append(gotExecIDs, scripts[0].ExecutionID)
-			}
-
-			sws, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, c.host.ID)
-			require.NoError(t, err)
-			require.True(t, len(sws) <= 1)
-			gotExecIDs = append(gotExecIDs, sws...)
+			require.True(t, len(readyScripts) <= 1)
+			gotExecIDs = append(gotExecIDs, readyScripts...)
+			require.True(t, len(readySWInstalls) <= 1)
+			gotExecIDs = append(gotExecIDs, readySWInstalls...)
 
 			var nanoExecIDs []string
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

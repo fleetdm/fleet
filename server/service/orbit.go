@@ -491,9 +491,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	// Skip the GetHostMDM query for Linux hosts where the MDM info is never
+	// used. At scale this avoids one MySQL query per check-in for a large
+	// fraction of the fleet.
+	var mdmInfo *fleet.HostMDM
+	if !fleet.IsLinux(host.Platform) {
+		mdmInfo, err = svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+		}
 	}
 
 	// Derive the Fleet-MDM connection state from the host_mdm data fetched above rather than issuing a separate
@@ -622,32 +628,24 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	// load the (active, ready to execute) pending script executions for that host
-	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	// load the (active, ready to execute) pending script and software install
+	// executions for that host, in a single query since this endpoint is hit
+	// by every fleetd agent on every check-in
+	pendingScripts, pendingInstalls, err := svc.ds.ListReadyToExecuteUpcomingActivities(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}
-	if len(pending) > 0 {
-		execIDs := make([]string, 0, len(pending))
-		for _, p := range pending {
-			execIDs = append(execIDs, p.ExecutionID)
-		}
-		notifs.PendingScriptExecutionIDs = execIDs
+	if len(pendingScripts) > 0 {
+		notifs.PendingScriptExecutionIDs = pendingScripts
+	}
+	if len(pendingInstalls) > 0 {
+		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
 		host.DiskEncryptionEnabled != nil &&
 		*host.DiskEncryptionEnabled &&
 		svc.ds.IsHostPendingEscrow(ctx, host.ID)
-
-	// load the (active, ready to execute) pending software install executions for that host
-	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	if len(pendingInstalls) > 0 {
-		notifs.PendingSoftwareInstallerIDs = pendingInstalls
-	}
 
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {

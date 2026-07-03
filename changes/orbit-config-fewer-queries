@@ -1,0 +1,1 @@
+- Reduced MySQL queries per orbit config check-in by combining two upcoming activities queries into one and skipping MDM info lookup for Linux hosts.

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -309,21 +310,85 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal)
 }
 
-func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+// ListReadyToExecuteUpcomingActivities returns, in a single query on the
+// upcoming activities queue, the execution IDs of the activated (ready to
+// execute) script executions (including software uninstalls, which run as
+// scripts) and software installs for the given host. This is used by the
+// high-frequency orbit config endpoint, so it is important that it stays a
+// single cheap query.
+func (ds *Datastore) ListReadyToExecuteUpcomingActivities(ctx context.Context, hostID uint, onlyInternalScripts bool) (scriptExecIDs, softwareInstallExecIDs []string, err error) {
+	internalWhere := ""
+	if onlyInternalScripts {
+		// software_uninstalls are implicitly internal
+		internalWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
+	}
+	stmt := fmt.Sprintf(`
+	SELECT
+		ua.execution_id,
+		ua.activity_type,
+		ua.priority,
+		ua.created_at
+	FROM
+		upcoming_activities ua
+	WHERE
+		ua.host_id = ? AND
+		ua.activated_at IS NOT NULL AND
+		(
+			ua.activity_type = 'software_install' OR
+			(ua.activity_type IN ('script', 'software_uninstall')%s)
+		)`, internalWhere)
+
+	type upcomingRow struct {
+		ExecutionID  string    `db:"execution_id"`
+		ActivityType string    `db:"activity_type"`
+		Priority     int       `db:"priority"`
+		CreatedAt    time.Time `db:"created_at"`
+	}
+	var rows []upcomingRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list ready to execute upcoming activities")
+	}
+
+	var scripts, installs []upcomingRow
+	for _, row := range rows {
+		if row.ActivityType == "software_install" {
+			installs = append(installs, row)
+		} else {
+			scripts = append(scripts, row)
+		}
+	}
+	// preserve the ordering previously applied by the separate queries:
+	// scripts are ordered by priority DESC, created_at ASC and software
+	// installs by priority ASC, created_at ASC.
+	sort.SliceStable(scripts, func(a, b int) bool {
+		if scripts[a].Priority != scripts[b].Priority {
+			return scripts[a].Priority > scripts[b].Priority
+		}
+		return scripts[a].CreatedAt.Before(scripts[b].CreatedAt)
+	})
+	sort.SliceStable(installs, func(a, b int) bool {
+		if installs[a].Priority != installs[b].Priority {
+			return installs[a].Priority < installs[b].Priority
+		}
+		return installs[a].CreatedAt.Before(installs[b].CreatedAt)
+	})
+	for _, row := range scripts {
+		scriptExecIDs = append(scriptExecIDs, row.ExecutionID)
+	}
+	for _, row := range installs {
+		softwareInstallExecIDs = append(softwareInstallExecIDs, row.ExecutionID)
+	}
+	return scriptExecIDs, softwareInstallExecIDs, nil
 }
 
-func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
 	if onlyShowInternal {
 		// software_uninstalls are implicitly internal
 		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
-	}
-	if onlyReadyToExecute {
-		extraWhere += " AND ua.activated_at IS NOT NULL"
 	}
 	// this selects software uninstalls too as they run as scripts
 	listStmt := fmt.Sprintf(`

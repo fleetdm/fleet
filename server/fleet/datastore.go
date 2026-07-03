@@ -2519,10 +2519,15 @@ type Datastore interface {
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
-	// ListReadyToExecuteScriptsForHost is like ListPendingHostScriptExecutions
-	// except that it only returns those that are ready to execute ("activated" in
-	// the upcoming activities queue, available for orbit to process).
-	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	// ListReadyToExecuteUpcomingActivities returns, in a single query, the
+	// execution IDs of the ready to execute ("activated" in the upcoming
+	// activities queue, available for orbit to process) script executions --
+	// including software uninstalls, which run as scripts -- and software
+	// installs for the given host. Pass onlyInternalScripts as true to return
+	// only script executions that run when script execution is globally
+	// disabled (uninstall/lock/unlock/wipe); software installs are unaffected
+	// by that flag.
+	ListReadyToExecuteUpcomingActivities(ctx context.Context, hostID uint, onlyInternalScripts bool) (scriptExecIDs, softwareInstallExecIDs []string, err error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
@@ -2666,11 +2671,6 @@ type Datastore interface {
 	// ListPendingSoftwareInstalls returns a list of software
 	// installer execution IDs that have not yet been run for a given host
 	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
-	// ListReadyToExecuteSoftwareInstalls is like ListPendingSoftwareInstalls
-	// except that it only returns software installs that are ready to execute
-	// ("activated" in the upcoming activities queue, available for orbit to
-	// process).
-	ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)

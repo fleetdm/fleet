@@ -1486,7 +1486,7 @@ type GetSelfServiceUninstallScriptExecutionResultFunc func(ctx context.Context, 
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
-type ListReadyToExecuteScriptsForHostFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
+type ListReadyToExecuteUpcomingActivitiesFunc func(ctx context.Context, hostID uint, onlyInternalScripts bool) (scriptExecIDs []string, softwareInstallExecIDs []string, err error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1565,8 +1565,6 @@ type ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc func(ctx context.
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
-
-type ListReadyToExecuteSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
@@ -4334,8 +4332,8 @@ type DataStore struct {
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
 
-	ListReadyToExecuteScriptsForHostFunc        ListReadyToExecuteScriptsForHostFunc
-	ListReadyToExecuteScriptsForHostFuncInvoked bool
+	ListReadyToExecuteUpcomingActivitiesFunc        ListReadyToExecuteUpcomingActivitiesFunc
+	ListReadyToExecuteUpcomingActivitiesFuncInvoked bool
 
 	NewScriptFunc        NewScriptFunc
 	NewScriptFuncInvoked bool
@@ -4453,9 +4451,6 @@ type DataStore struct {
 
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
-
-	ListReadyToExecuteSoftwareInstallsFunc        ListReadyToExecuteSoftwareInstallsFunc
-	ListReadyToExecuteSoftwareInstallsFuncInvoked bool
 
 	GetHostLastInstallDataFunc        GetHostLastInstallDataFunc
 	GetHostLastInstallDataFuncInvoked bool
@@ -10435,11 +10430,11 @@ func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID 
 	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
 }
 
-func (s *DataStore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+func (s *DataStore) ListReadyToExecuteUpcomingActivities(ctx context.Context, hostID uint, onlyInternalScripts bool) (scriptExecIDs []string, softwareInstallExecIDs []string, err error) {
 	s.mu.Lock()
-	s.ListReadyToExecuteScriptsForHostFuncInvoked = true
+	s.ListReadyToExecuteUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListReadyToExecuteScriptsForHostFunc(ctx, hostID, onlyShowInternal)
+	return s.ListReadyToExecuteUpcomingActivitiesFunc(ctx, hostID, onlyInternalScripts)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -10713,13 +10708,6 @@ func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint
 	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
-}
-
-func (s *DataStore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	s.mu.Lock()
-	s.ListReadyToExecuteSoftwareInstallsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListReadyToExecuteSoftwareInstallsFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
