@@ -63,7 +63,7 @@ module.exports = {
     }//ﬁ
 
 
-
+    // Build a JSON FAQ to insert into this page's header.
     let pageFaqForSeo = {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
