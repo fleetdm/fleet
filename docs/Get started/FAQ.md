@@ -97,8 +97,6 @@ The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 Fleet supports the latest, stable releases of all major browsers and platforms.
 
-We test each browser on Windows whenever possible, because our engineering team primarily uses macOS.
-
 **Note:** This information also applies to [fleetdm.com](https://www.fleetdm.com).
 
 
