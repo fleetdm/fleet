@@ -273,9 +273,11 @@ const TableContainer = <T,>({
     ) {
       return;
     }
+    // When the total count is known (including a known-empty 0), jump straight
+    // to the last page that has data; when it's unknown, step back one page.
     const lastValidPageIndex =
-      totalCount && totalCount > 0
-        ? Math.ceil(totalCount / pageSize) - 1
+      totalCount !== undefined
+        ? Math.max(0, Math.ceil(totalCount / pageSize) - 1)
         : pageIndex - 1;
     const targetPageIndex = Math.max(
       0,

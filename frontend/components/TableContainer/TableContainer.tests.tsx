@@ -141,4 +141,34 @@ describe("TableContainer - server-side empty page", () => {
     });
     expect(screen.queryByText("No items found")).not.toBeInTheDocument();
   });
+
+  it("jumps straight to the first page when the total count is a known zero", async () => {
+    const onQueryChange = jest.fn();
+
+    render(
+      <TableContainer
+        columnConfigs={COLUMN_CONFIGS}
+        data={[]}
+        isLoading={false}
+        emptyComponent={EmptyComponent}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        pageIndex={3}
+        totalCount={0}
+        onQueryChange={onQueryChange}
+        defaultSortHeader="name"
+      />
+    );
+
+    await waitFor(() => {
+      expect(onQueryChange).toHaveBeenCalled();
+      expect(lastRequestedPageIndex(onQueryChange)).toBe(0);
+    });
+    // A known-empty count should jump straight to page 0, not step 3 -> 2 -> 1.
+    const requestedPageIndexes = onQueryChange.mock.calls.map(
+      (call) => (call[0] as ITableQueryData).pageIndex
+    );
+    expect(requestedPageIndexes).not.toContain(2);
+    expect(requestedPageIndexes).not.toContain(1);
+  });
 });
