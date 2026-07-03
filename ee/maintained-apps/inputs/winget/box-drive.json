@@ -6,5 +6,8 @@
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/box-drive_install.ps1"
 }

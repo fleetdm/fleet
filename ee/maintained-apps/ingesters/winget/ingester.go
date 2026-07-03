@@ -299,9 +299,18 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installer.InstallerLocale = ""
 		}
 
+		// Scope disambiguates packages that ship distinct per-user and per-machine
+		// installers (e.g. PowerToys, GIMP): those declare Scope on each installer, so
+		// exact matching selects the right variant. When the winget manifest is silent
+		// about scope (derived scope == ""), there is nothing to disambiguate, so we
+		// trust the input's installer_scope as authoritative. This lets an app set
+		// installer_scope for correctness/detection even though winget doesn't declare
+		// it, without failing to find an installer.
+		scopeMatches := scope == input.InstallerScope || scope == ""
+
 		// Check if this installer matches our criteria
 		matches := installer.Architecture == input.InstallerArch &&
-			scope == input.InstallerScope &&
+			scopeMatches &&
 			installer.InstallerLocale == input.InstallerLocale &&
 			installerType == input.InstallerType
 

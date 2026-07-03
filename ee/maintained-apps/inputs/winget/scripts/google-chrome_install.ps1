@@ -1,7 +1,7 @@
 # Fleet Pattern A: converge this app on a single install scope
 # (https://github.com/fleetdm/fleet/issues/48248).
 #
-# Fleet manages this app at "user" scope. Windows also offers the opposite
+# Fleet manages this app at "machine" scope. Windows also offers the opposite
 # scope, so a host may already have a stale copy there. The patch policy is
 # scope-blind (osquery's "programs" table reads HKLM + every loaded user hive),
 # so a lingering opposite-scope copy keeps the policy red and leaves two copies
@@ -14,10 +14,10 @@
 # Removal is best-effort: it never aborts the install, and a copy that survives
 # keeps the (truthful) scope-blind policy red rather than false-green.
 
-$fmaTargetScope           = "user"
-$fmaDisplayNameLike       = "Kiro*"
+$fmaTargetScope           = "machine"
+$fmaDisplayNameLike       = "Google Chrome*"
 $fmaPublisherLike         = ""
-$fmaFallbackUninstallArgs = "/VERYSILENT /NORESTART"
+$fmaFallbackUninstallArgs = "--uninstall --force-uninstall"
 
 function Get-FmaUninstallExeAndArgs {
     param([string]$Command)
@@ -108,32 +108,17 @@ try {
 
 # ---- App install ----
 
-# Learn more about .exe install scripts:
-# http://fleetdm.com/learn-more-about/exe-install-scripts
-#
-# Kiro ships as an Inno Setup-based installer (user scope, VS Code fork).
-
-$exeFilePath = "${env:INSTALLER_PATH}"
+$logFile = "${env:TEMP}/fleet-install-software.log"
 
 try {
-    if (-not (Test-Path $exeFilePath)) {
-        Write-Host "Error: Installer file not found at: $exeFilePath"
-        Exit 1
-    }
 
-# Inno Setup silent install. /mergetasks=!runcode prevents launching after install.
-$processOptions = @{
-  FilePath = "$exeFilePath"
-  ArgumentList = "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /MERGETASKS=!runcode"
-  PassThru = $true
-  Wait = $true
-}
+$installProcess = Start-Process msiexec.exe `
+  -ArgumentList "/quiet /norestart /lv ${logFile} /i `"${env:INSTALLER_PATH}`"" `
+  -PassThru -Verb RunAs -Wait
 
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
+Get-Content $logFile -Tail 500
 
-Write-Host "Install exit code: $exitCode"
-Exit $exitCode
+Exit $installProcess.ExitCode
 
 } catch {
   Write-Host "Error: $_"

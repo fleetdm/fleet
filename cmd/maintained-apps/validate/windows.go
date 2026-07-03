@@ -106,6 +106,18 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
 
+			// "Microsoft Edge WebView2 Runtime" and "Microsoft Edge Update" are
+			// separate products picked up by the broad LIKE '%Microsoft Edge%'
+			// search, and Microsoft version-locks WebView2 releases to Edge
+			// releases. When the runner image's preinstalled WebView2 version
+			// coincides with the manifest version, the post-uninstall check would
+			// falsely report Edge as still installed.
+			if appName == "Microsoft Edge" &&
+				(strings.Contains(result.Name, "WebView2") || strings.Contains(result.Name, "Edge Update")) {
+				logger.InfoContext(ctx, fmt.Sprintf("Ignoring '%s': separate product matched by the broad name search", result.Name))
+				continue
+			}
+
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
 			if appName == "Sublime Text" && result.Version == "" {
