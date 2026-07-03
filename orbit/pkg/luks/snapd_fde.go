@@ -11,7 +11,9 @@ import (
 // (recovery keys, passphrases) on system volumes at runtime. snapd 2.74
 // (shipping in Ubuntu 26.04) added post-install recovery-key management here,
 // including support for management agents enrolling a dedicated, named recovery
-// key. Contract confirmed against canonical/snapd master
+// key. The endpoint, the actions below, and the request/response field names
+// are confirmed present in the released snapd tags 2.74 and 2.75 (current stable
+// line is 2.75.x/2.76), not just master
 // (daemon/api_system_volumes.go, overlord/fdestate/fdestate.go).
 const systemVolumesPath = "/v2/system-volumes"
 
