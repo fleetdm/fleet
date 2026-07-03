@@ -1927,9 +1927,6 @@ type updateMDMConfigProfileResponse struct {
 
 func (r updateMDMConfigProfileResponse) Error() error { return r.Err }
 
-// TODO(#48342): this is plumbing-only for now -- it echoes back the decoded
-// request instead of calling into the service/datastore layer, so the HTTP
-// wiring can be exercised before the update datastore methods exist.
 func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateMDMConfigProfileRequest)
 
@@ -1994,16 +1991,20 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 }
 
 // UpdateMDMConfigProfile updates an existing configuration profile's contents
-// and/or label targeting in place.
-//
-// TODO(#48342): stub only for now -- performs the authz check but does not
-// yet touch the datastore.
+// and/or label targeting in place, dispatching by profile UUID to the
+// platform-specific implementation.
 func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+	switch {
+	case isAppleProfileUUID(profileUUID):
+		return svc.updateMDMAppleConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	default:
+		// TODO(#48342): implement update for Apple DDM declarations, Windows,
+		// and Android profiles.
+		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		return &fleet.BadRequestError{Message: "updating this profile type is not yet supported"}
 	}
-
-	return nil
 }
 
 func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, error) {

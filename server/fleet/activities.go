@@ -572,6 +572,22 @@ func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
 	return "deleted_macos_profile"
 }
 
+// ActivityTypeEditedConfigurationProfile is generated when a single
+// configuration profile's contents and/or label targeting are edited in
+// place (as opposed to the per-platform Created/Deleted activities, which
+// apply to the GitOps/batch profile-set operations).
+type ActivityTypeEditedConfigurationProfile struct {
+	ProfileName       string  `json:"profile_name"`
+	ProfileIdentifier string  `json:"profile_identifier"`
+	TeamID            *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName          *string `json:"team_name" renameto:"fleet_name"`
+	Platform          string  `json:"platform"`
+}
+
+func (a ActivityTypeEditedConfigurationProfile) ActivityName() string {
+	return "edited_configuration_profile"
+}
+
 type ActivityTypeEditedMacosProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`

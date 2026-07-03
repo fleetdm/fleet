@@ -1429,6 +1429,15 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
+	// UpdateMDMAppleConfigProfile updates an existing configuration profile's
+	// contents (if p.Mobileconfig is non-empty) and/or label targeting in
+	// place, preserving its ProfileUUID. p.Identifier must match the existing
+	// profile's -- this is validated atomically as part of the update and the
+	// caller should have already validated it too. p.Name may differ from the
+	// existing profile's and will be updated along with the content, matching
+	// GitOps's identifier-keyed upsert convention.
+	UpdateMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
+
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
 	//

@@ -986,6 +986,8 @@ type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
 
+type UpdateMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
+
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
 type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
@@ -3583,6 +3585,9 @@ type DataStore struct {
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
+
+	UpdateMDMAppleConfigProfileFunc        UpdateMDMAppleConfigProfileFunc
+	UpdateMDMAppleConfigProfileFuncInvoked bool
 
 	BulkUpsertMDMAppleConfigProfilesFunc        BulkUpsertMDMAppleConfigProfilesFunc
 	BulkUpsertMDMAppleConfigProfilesFuncInvoked bool
@@ -8683,6 +8688,13 @@ func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMApp
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMAppleConfigProfileFunc(ctx, p, usesFleetVars)
+}
+
+func (s *DataStore) UpdateMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+	s.mu.Lock()
+	s.UpdateMDMAppleConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAppleConfigProfileFunc(ctx, p, usesFleetVars)
 }
 
 func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {

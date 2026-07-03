@@ -286,6 +286,94 @@ INSERT INTO
 	}, nil
 }
 
+// UpdateMDMAppleConfigProfile updates an existing configuration profile's
+// contents (if cp.Mobileconfig is non-empty) and/or label targeting in
+// place, preserving its ProfileUUID.
+func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var existing struct {
+			Identifier string `db:"identifier"`
+		}
+		err := sqlx.GetContext(ctx, tx, &existing,
+			`SELECT identifier FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
+			}
+			return ctxerr.Wrap(ctx, err, "get existing apple config profile")
+		}
+		if existing.Identifier != cp.Identifier {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "The new profile's PayloadIdentifier must match the existing profile's.",
+			})
+		}
+
+		if len(cp.Mobileconfig) > 0 {
+			// name is allowed to change along with the content, matching the
+			// same identifier-keyed upsert convention GitOps uses.
+			stmt := `
+UPDATE mdm_apple_configuration_profiles
+SET mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, uploaded_at = CURRENT_TIMESTAMP(), secrets_updated_at = ?
+WHERE profile_uuid = ? AND identifier = ?`
+			res, err := tx.ExecContext(ctx, stmt, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier)
+			if err != nil {
+				switch {
+				case IsDuplicate(err):
+					return ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
+				default:
+					return ctxerr.Wrap(ctx, err, "updating apple mdm config profile contents")
+				}
+			}
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
+			}
+		}
+
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsIncludeAny)+len(cp.LabelsExcludeAny))
+		for i := range cp.LabelsIncludeAll {
+			cp.LabelsIncludeAll[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsIncludeAll[i].Exclude = false
+			cp.LabelsIncludeAll[i].RequireAll = true
+			labels = append(labels, cp.LabelsIncludeAll[i])
+		}
+		for i := range cp.LabelsIncludeAny {
+			cp.LabelsIncludeAny[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsIncludeAny[i].Exclude = false
+			cp.LabelsIncludeAny[i].RequireAll = false
+			labels = append(labels, cp.LabelsIncludeAny[i])
+		}
+		for i := range cp.LabelsExcludeAny {
+			cp.LabelsExcludeAny[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsExcludeAny[i].Exclude = true
+			cp.LabelsExcludeAny[i].RequireAll = false
+			labels = append(labels, cp.LabelsExcludeAny[i])
+		}
+		var profWithoutLabels []string
+		if len(labels) == 0 {
+			profWithoutLabels = append(profWithoutLabels, cp.ProfileUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating darwin profile label associations")
+		}
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
+		}, "darwin", false); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating darwin profile variable associations")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := ds.GetMDMAppleConfigProfile(ctx, cp.ProfileUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get updated apple config profile")
+	}
+	return updated, nil
+}
+
 func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfile) error {
 	switch {
 	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_identifier"):
