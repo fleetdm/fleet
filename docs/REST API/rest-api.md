@@ -14940,7 +14940,7 @@ Response:
 
 - [List custom host vitals](#list-custom-host-vitals)
 - [Create custom host vital](#create-custom-host-vital)
-- [Update custom host vital](#create-custom-host-vital)
+- [Update custom host vital](#update-custom-host-vital)
 - [Delete custom host vital](#delete-custom-host-vital)
 - [Update host's custom host vital value](#update-hosts-custom-host-vital-value)
 
