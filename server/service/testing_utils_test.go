@@ -888,6 +888,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
+		{"POST", "/api/latest/fleet/hosts/1/name_template/resend", false, true},
 	}
 }
 

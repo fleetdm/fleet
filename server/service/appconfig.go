@@ -1137,6 +1137,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+		appConfig.MDM.HostNameTemplate = optjson.SetString("")
 	}
 
 	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
@@ -1487,6 +1488,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
+		}
+	}
+
+	// Only reconcile enforcement rows on Premium: EnterpriseOverrides is wired up
+	// only for Premium builds, so calling it here would panic on Free. The value
+	// can change on Free without a Premium re-save in two ways — the downgrade
+	// reset above, and clearing a previously-set template ("" skips the license
+	// check) — both of which just clear the stored value; the leftover rows are
+	// inert because the enforcement cron skips an empty template.
+	if lic.IsPremium() && oldAppConfig.MDM.HostNameTemplate.Value != appConfig.MDM.HostNameTemplate.Value {
+		if err := svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, appConfig.MDM.HostNameTemplate.Value); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
 		}
 	}
 
@@ -1876,6 +1889,16 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
+	}
+
+	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
+		if !lic.IsPremium() {
+			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
+		} else if validated, err := fleet.ValidateHostNameTemplate(mdm.HostNameTemplate.Value); err != nil {
+			invalid.Append("mdm.name_template", err.Error())
+		} else {
+			mdm.HostNameTemplate = optjson.SetString(validated)
+		}
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
