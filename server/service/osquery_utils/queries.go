@@ -867,7 +867,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		ca, common_name, subject2, issuer2,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, username, sid, store_location,
+		serial, sha1, username, sid,
 		path
 	FROM
 		certificates

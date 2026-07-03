@@ -7,6 +7,7 @@ import (
 	"crypto/sha1" // nolint:gosec // test-only unique sha1 generator
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,6 +36,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Windows scope-aware reconciliation", testUpdateHostCertificatesWindowsScopeReconciliation},
+		{"Re-ingest after soft delete attaches sources to live row", testUpdateHostCertificatesReingestAfterSoftDelete},
 		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
 		{"Origin downgrade on osquery rediscovery", testUpdateHostCertificatesOriginDowngrade},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
@@ -871,6 +874,101 @@ func testInsertingHostMDMManagedCertificatesFromIngestion(t *testing.T, ds *Data
 	assert.Equal(t, fleet.CAConfigAssetType(""), nonProxiedRow2.Type, "Type should still be NULL/empty after update")
 }
 
+// testUpdateHostCertificatesReingestAfterSoftDelete covers the soft-delete-then-re-report cycle
+func testUpdateHostCertificatesReingestAfterSoftDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(77)
+		hostUUID = "windows-reingest-host-uuid"
+	)
+
+	cert := mkTestCertRecord(t, hostID, "reingest.example.com", fleet.UserHostCertificate, "alice")
+	sha1Hex := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+	scopes := []fleet.HostCertificateScope{{Source: fleet.UserHostCertificate, Username: "alice"}}
+
+	ingest := func() {
+		reported := *cert // fresh copy each report; UpdateHostCertificates mutates the record
+		require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+			[]*fleet.HostCertificateRecord{&reported}, fleet.HostCertificateOriginOsquery, scopes))
+	}
+	softDeleteAll := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ?`, hostID)
+			return err
+		})
+	}
+
+	ingest()
+	// Soft-delete the row, then re-report
+	softDeleteAll()
+	ingest()
+
+	// Also clone the live row as a soft-deleted duplicate with a HIGHER id.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_certificates
+				(host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin, deleted_at)
+			SELECT host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin, NOW(6)
+			FROM host_certificates WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+		return err
+	})
+
+	var rowStates []struct {
+		ID      uint `db:"id"`
+		Deleted bool `db:"deleted"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rowStates,
+			`SELECT id, deleted_at IS NOT NULL AS deleted FROM host_certificates WHERE host_id = ? ORDER BY id`, hostID)
+	})
+	require.Len(t, rowStates, 3)
+	require.True(t, rowStates[0].Deleted, "expected the original row to be the soft-deleted one")
+	require.False(t, rowStates[1].Deleted, "expected the re-ingested row to be live")
+	require.True(t, rowStates[2].Deleted, "expected the cloned row to be soft-deleted")
+	liveID := rowStates[1].ID
+
+	// The sha1 -> id lookup used to attach sources must resolve to the live row only.
+	got, err := loadHostCertIDsForSHA1DB(ctx, ds.reader(ctx), hostID, []string{sha1Hex})
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint{sha1Hex: liveID}, got)
+
+	// End to end: the certificate lists with its user source intact.
+	listed, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, fleet.UserHostCertificate, listed[0].Source)
+	require.Equal(t, "alice", listed[0].Username)
+
+	// With every row soft-deleted, the lookup returns nothing.
+	softDeleteAll()
+	got, err = loadHostCertIDsForSHA1DB(ctx, ds.reader(ctx), hostID, []string{sha1Hex})
+	require.NoError(t, err)
+	require.Empty(t, got)
+}
+
+// mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours
+// from now, scoped to the given source and username.
+func mkTestCertRecord(t *testing.T, hostID uint, commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
+	tmpl := x509.Certificate{
+		Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+		Issuer:                pkix.Name{CommonName: "issuer.example.com"},
+		SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+	rec := generateTestHostCertificateRecord(t, hostID, &tmpl)
+	rec.Source = source
+	rec.Username = username
+	return rec
+}
+
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {
 	b, _, err := GenerateTestCertBytes(template)
 	require.NoError(t, err)
@@ -926,18 +1024,7 @@ func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Data
 	)
 
 	mkCert := func(commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
-		tmpl := x509.Certificate{
-			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
-			Issuer:                pkix.Name{CommonName: "issuer.example.com"},
-			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
-			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
-			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
-			BasicConstraintsValid: true,
-		}
-		rec := generateTestHostCertificateRecord(t, hostID, &tmpl)
-		rec.Source = source
-		rec.Username = username
-		return rec
+		return mkTestCertRecord(t, hostID, commonName, source, username)
 	}
 
 	listKeys := func() []string {

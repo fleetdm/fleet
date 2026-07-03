@@ -3084,50 +3084,44 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 
 	// Machine-wide LocalMachine store: empty sid and empty username.
 	machine := windowsCertRow(map[string]string{
-		"common_name":    "Fleet Root CA",
-		"subject2":       "CN=Fleet Root CA, O=Fleet Device Management Inc., OU=Engineering, C=US",
-		"issuer2":        "CN=Fleet Root CA, O=Fleet Device Management Inc., C=US",
-		"sha1":           machineSHA1,
-		"username":       "",
-		"sid":            "",
-		"store_location": "LocalMachine",
-		"path":           "LocalMachine\\Personal",
+		"common_name": "Fleet Root CA",
+		"subject2":    "CN=Fleet Root CA, O=Fleet Device Management Inc., OU=Engineering, C=US",
+		"issuer2":     "CN=Fleet Root CA, O=Fleet Device Management Inc., C=US",
+		"sha1":        machineSHA1,
+		"username":    "",
+		"sid":         "",
+		"path":        "LocalMachine\\Personal",
 	})
 
 	// LocalSystem account (S-1-5-18) store, enumerated three times across redundant hive views. These must collapse into
 	// a single System entry and be retained (a distinct cert from LocalMachine, often a device/enrollment cert).
 	sysAcctCurrentUser := windowsCertRow(map[string]string{
-		"common_name":    "Device Enrollment",
-		"subject2":       "CN=Device Enrollment, C=US",
-		"issuer2":        "CN=Fleet SCEP CA, C=US",
-		"sha1":           sysAcctSHA1,
-		"username":       "SYSTEM",
-		"sid":            "S-1-5-18",
-		"store_location": "CurrentUser",
-		"path":           "CurrentUser\\Personal",
+		"common_name": "Device Enrollment",
+		"subject2":    "CN=Device Enrollment, C=US",
+		"issuer2":     "CN=Fleet SCEP CA, C=US",
+		"sha1":        sysAcctSHA1,
+		"username":    "SYSTEM",
+		"sid":         "S-1-5-18",
+		"path":        "CurrentUser\\Personal",
 	})
 	sysAcctServices := maps.Clone(sysAcctCurrentUser)
-	sysAcctServices["store_location"] = "Services"
 	sysAcctServices["path"] = "Services\\S-1-5-18\\Personal"
 	sysAcctUsersHive := maps.Clone(sysAcctCurrentUser)
-	sysAcctUsersHive["store_location"] = "Users"
 	sysAcctUsersHive["path"] = "Users\\S-1-5-18\\Personal"
 
 	// Real interactive user (S-1-5-21-*), present in the Personal hive and the redundant _Classes sub-hive (same base
 	// SID). These collapse into one User/Admin entry. The issuer carries a quoted comma to exercise the parser.
 	userAdmin := windowsCertRow(map[string]string{
-		"common_name":    "admin@example.com",
-		"subject2":       "CN=admin@example.com, OU=fleet-abc, OU=People, O=Example",
-		"issuer2":        `CN=SCEP CA, O="Example, Inc.", C=US`,
-		"sha1":           userSHA1,
-		"username":       "Admin",
-		"sid":            userSID,
-		"store_location": "Users",
-		"path":           "Users\\" + userSID + "\\Personal",
+		"common_name": "admin@example.com",
+		"subject2":    "CN=admin@example.com, OU=fleet-abc, OU=People, O=Example",
+		"issuer2":     `CN=SCEP CA, O="Example, Inc.", C=US`,
+		"sha1":        userSHA1,
+		"username":    "Admin",
+		"sid":         userSID,
+		"path":        "Users\\" + userSID + "\\Personal",
 	})
 	userAdminClasses := maps.Clone(userAdmin)
 	userAdminClasses["sid"] = userSID + "_Classes"
-	userAdminClasses["store_location"] = "Users"
 	userAdminClasses["path"] = "Users\\" + userSID + "_Classes\\Personal"
 
 	// The same certificate (same SHA1) also installed in a second user's store
@@ -3138,14 +3132,13 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 
 	// An Entra ID (Azure AD) user, whose hive SID uses the S-1-12-1 prefix
 	entraUser := windowsCertRow(map[string]string{
-		"common_name":    "entra@example.com",
-		"subject2":       "CN=entra@example.com, O=Example",
-		"issuer2":        "CN=SCEP CA, C=US",
-		"sha1":           entraSHA1,
-		"username":       "AzureAD\\entrauser",
-		"sid":            entraSID,
-		"store_location": "Users",
-		"path":           "Users\\" + entraSID + "\\Personal",
+		"common_name": "entra@example.com",
+		"subject2":    "CN=entra@example.com, O=Example",
+		"issuer2":     "CN=SCEP CA, C=US",
+		"sha1":        entraSHA1,
+		"username":    "AzureAD\\entrauser",
+		"sid":         entraSID,
+		"path":        "Users\\" + entraSID + "\\Personal",
 	})
 
 	rows := []map[string]string{
@@ -3251,14 +3244,13 @@ func TestDirectIngestHostCertificatesWindowsMalformedDN(t *testing.T) {
 	// subject2 contains a non-empty fragment with no '=' (malformed osquery output).
 	// The certificate must still be ingested best-effort, not dropped.
 	row := windowsCertRow(map[string]string{
-		"common_name":    "malformed.example.com",
-		"subject2":       "CN=malformed.example.com, garbage-no-equals, C=US",
-		"issuer2":        "CN=Issuer CA, C=US",
-		"sha1":           "1234123412341234123412341234123412341234",
-		"username":       "",
-		"sid":            "",
-		"store_location": "LocalMachine",
-		"path":           "LocalMachine\\Personal",
+		"common_name": "malformed.example.com",
+		"subject2":    "CN=malformed.example.com, garbage-no-equals, C=US",
+		"issuer2":     "CN=Issuer CA, C=US",
+		"sha1":        "1234123412341234123412341234123412341234",
+		"username":    "",
+		"sid":         "",
+		"path":        "LocalMachine\\Personal",
 	})
 
 	var got []*fleet.HostCertificateRecord

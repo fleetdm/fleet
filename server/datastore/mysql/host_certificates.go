@@ -475,7 +475,7 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 	FROM
 		host_certificates hc
 	WHERE
-		hc.sha1_sum IN (?) AND hc.host_id = ?`
+		hc.sha1_sum IN (?) AND hc.host_id = ? AND hc.deleted_at IS NULL`
 
 	var certs []*fleet.HostCertificateRecord
 	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
