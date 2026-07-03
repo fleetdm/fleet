@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.6.0",
+      "version": "26.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.actualbudget.actual';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.actualbudget.actual' AND version_compare(bundle_short_version, '26.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.actualbudget.actual' AND version_compare(bundle_short_version, '26.7.0') < 0);"
       },
-      "installer_url": "https://github.com/actualbudget/actual/releases/download/v26.6.0/Actual-mac-arm64.dmg",
+      "installer_url": "https://github.com/actualbudget/actual/releases/download/v26.7.0/Actual-mac-arm64.dmg",
       "install_script_ref": "631bbb42",
       "uninstall_script_ref": "27bb5492",
-      "sha256": "32f6893b599e8408b21e9cfe4b0d2530f41951c31100a41d0585b815691c577f",
+      "sha256": "7e9b5be9d3d1a78de6a7a625717dd0e31ccfb2f79f9718f761726925dac44ece",
       "default_categories": [
         "Productivity"
       ]
