@@ -58,7 +58,7 @@ To view the password for a host's managed account, head to **Host details > Acti
 > On macOS 15.7, if the end user account type is set to **Standard** or **Skip (no account)**, FileVault cannot be enabled locally through System Settings by the managed local account. To encrypt the disk, [enforce disk encryption via Fleet](https://fleetdm.com/guides/enforce-disk-encryption) instead. This issue does not affect macOS 26.
 
 ### Windows
-> The managed account is hidden from the Windows sign-in screen. To log in as _fleetadmin, select Other user on the sign-in screen and enter the username and password manually.
+> The managed account is hidden from the Windows sign-in screen. To log in as _fleetadmin, select **Other user** on the sign-in screen and enter the username and password manually.
 
 ## Platform SSO
 
