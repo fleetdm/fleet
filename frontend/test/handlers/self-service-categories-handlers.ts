@@ -29,7 +29,7 @@ export const listSelfServiceCategoriesHandler = (
     { id: 1, name: "🌎 Browsers" },
     { id: 2, name: "👬 Communication" },
     { id: 3, name: "🧰 Developer tools" },
-    { id: 4, name: "💻 Productivity" },
+    { id: 4, name: "🖥️ Productivity" },
     { id: 5, name: "🔐 Security" },
   ]
 ) =>
@@ -52,7 +52,7 @@ export const listDeviceSelfServiceCategoriesHandler = (
     { id: 1, name: "🌎 Browsers" },
     { id: 2, name: "👬 Communication" },
     { id: 3, name: "🧰 Developer tools" },
-    { id: 4, name: "💻 Productivity" },
+    { id: 4, name: "🖥️ Productivity" },
     { id: 5, name: "🔐 Security" },
   ]
 ) =>

@@ -66,11 +66,13 @@ Use the `useTeamIdParam` hook for team-scoped pages:
 Use react-router, not `window.location` / `window.history`. Direct window mutation desyncs react-router's location state.
 - Read query params from `location.query`, not `URLSearchParams(window.location.search)`.
 - Mutate the URL with `router.replace`/`router.push` or `browserHistory.replace`/`.push`, not `window.history.replaceState`.
+- Auto-correcting a missing/invalid query param inside a `useEffect` MUST use `router.replace`, not `router.push`, so browser Back isn't trapped.
+- Internal `<CustomLink>` (and any `router.push` / `<Link>`) to a fleet-scoped route MUST preserve the current fleet via `getPathWithQueryParams(PATHS.X, { fleet_id: teamId })`. Linking to the bare path drops fleet context and lands the user on the wrong fleet. Applies to any path that reads `fleet_id` from the query string (most `/software`, `/hosts`, `/policies`, `/queries`, `/controls` routes). `getPathWithQueryParams` filters undefined/null, so pass `teamId` directly — `fleet_id=0` (No team) is a valid, intentional value and must be preserved.
 
 ## Notifications
-- Use `renderFlash(alertType, message)` from `NotificationContext`
-- Types: `"success"`, `"error"`, `"warning-filled"`
-- Use `renderMultiFlash()` for batch operations
+- Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from `components/ToastNotification`.
+- **When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
+- Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
 
 ## XSS Prevention
 - ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:
@@ -101,6 +103,17 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
 - Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
+
+## Forms
+Cap free-text inputs' `maxLength` to the backend column length (check `server/datastore/mysql/schema.sql`, don't guess) via `inputOptions={{ maxLength: NAME_MAX_LENGTH }}` on `InputField`, using a local constant.
+
+## Lists & rows
+User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.
+
+Anti-pattern:
+```tsx
+<span className={`${baseClass}__row-name`}>{item.name}</span>
+```
 
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`

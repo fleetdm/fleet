@@ -16,7 +16,6 @@ import (
 
 type LuksDump struct {
 	Keyslots map[string]Keyslot `json:"keyslots"` // keyslot -> salt
-	Tokens   map[string]Token   `json:"tokens"`
 }
 
 type Keyslot struct {

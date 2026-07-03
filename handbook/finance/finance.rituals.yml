@@ -166,15 +166,6 @@
   description: "Daily, clean up any duplicate accounts."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "Sampfluger88"
-- task: "Send customer-preston weekly export"
-  startedOn: "2026-03-13"
-  frequency: "Weekly"
-  description: "Every Friday, send an export/email to customer-preston."
-  moreInfoUrl:
-  dri: "sampfluger88"
-  autoIssue:
-    labels: [":help-gtm-ops"]
-    repo: "confidential"
 - task: "Prepare board deck"
   startedOn: "2023-09-25"
   frequency: "Quarterly"

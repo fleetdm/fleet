@@ -81,4 +81,5 @@ module.exports.policies = {
   'deliver-webinar-access-request': true,
   'view-download': true,
   'view-visibility-and-reporting': true,
+  'view-security-and-control': true,
 };

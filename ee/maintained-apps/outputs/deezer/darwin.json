@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.1.240",
+      "version": "7.1.260",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.deezer.deezer-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.deezer.deezer-desktop' AND version_compare(bundle_short_version, '7.1.240') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.deezer.deezer-desktop' AND version_compare(bundle_short_version, '7.1.260') < 0);"
       },
-      "installer_url": "https://www.deezer.com/desktop/download/artifact-darwin-x64-7.1.240",
+      "installer_url": "https://www.deezer.com/desktop/download/artifact-darwin-x64-7.1.260",
       "install_script_ref": "17993903",
       "uninstall_script_ref": "7a7ca836",
-      "sha256": "e2cafba2fde56f9bdb74ce98f008a47b99cc82bbbc0ff21e9b0382a66812da8b",
+      "sha256": "92932eac27d3874e2d7f0aacb31039d1fade14c80c1ef0570345fb5357b8a409",
       "default_categories": [
         "Productivity"
       ]

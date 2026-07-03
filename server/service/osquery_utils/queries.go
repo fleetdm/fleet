@@ -1025,9 +1025,25 @@ var softwareMacOS = DetailQuery{
 	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
 	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
 	//
+	// Regarding `SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path ...`:
 	// Homebrew package casks are filtered to exclude those that have an associated .app bundle
 	// as these are already included in the apps table.  Apps table software includes bundle_identifier
 	// which is used in vulnerability scanning.
+	// The .app check uses bounded, non-recursive globs matching the standard Homebrew cask layout:
+	// homebrew_packages.path is the Caskroom token dir (e.g. /opt/homebrew/Caskroom/<token>) and the
+	// staged app lives at <token>/<version>/<Name>.app (depth 2) or, less commonly, one level deeper
+	// via an `app "subdir/Name.app"` stanza (depth 3).
+	// Data as of July 2026: 99.7% of casks stage their .app at depth ≤3 per the Homebrew cask API.
+	// It intentionally does NOT use a recursive `%%` match. A recursive match descends into every
+	// .app bundle's Contents/ and the cask's .metadata/ tree (following symlinks such as the
+	// `latest -> <version>` link) and materializes the entire subtree in memory before the LIMIT 1
+	// applies. That regressed memory usage badly after osquery PR #8704
+	// (see https://github.com/osquery/osquery/issues/8964): a single cask like gcloud-cli walks
+	// ~98k entries. Recursion is also less correct here -- `LIKE '%.app%'` is a substring match, so a
+	// recursive walk matches unrelated deep paths like ".../google.auth.app_engine.rst" and wrongly
+	// excludes casks that ship no .app (e.g. gcloud-cli) from inventory. A fleet-wide scan confirmed
+	// no installed cask nests a real .app deeper than the bounded globs reach, so recursion buys
+	// nothing. The bounded globs stop at the .app directory entry and never enter it.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
@@ -1116,7 +1132,7 @@ SELECT
   path AS installed_path
 FROM homebrew_packages
 WHERE type = 'cask'
-AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%%%') AND file.path LIKE '%%.app%%' LIMIT 1);
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%/%%.app%%') OR file.path LIKE CONCAT(homebrew_packages.path, '/%%/%%/%%.app%%') LIMIT 1);
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
@@ -2691,10 +2707,16 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 		}
 	}
 
-	// isPersonalEnrollment is always false for macOS hosts as our current account driven user
-	// enrollment flow does not support macOS however we will need to detect it here if that ever
-	// changes.
-	isPersonalEnrollment := false
+	// Fleet bakes byod=1 into the enrollment profile's ServerURL for personal
+	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
+	// reports that ServerURL here, so we read the flag back the same way we read
+	// the enroll reference above. Without this, the detail-query ingest would
+	// overwrite the is_personal_enrollment set by the Apple Authenticate flow.
+	// Must be read before RawQuery is cleared below.
+	var isPersonalEnrollment bool
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		isPersonalEnrollment = serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1"
+	}
 
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
@@ -3018,6 +3040,28 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	return query, true
 }
 
+// parseMacOSProfileInstallDate parses the install_date reported by the
+// macos_profiles and macos_user_profiles tables. The value comes straight from
+// `/usr/bin/profiles -o stdout-xml`, which seemingly formats it using the host's
+// locale in certain cases which have been observed but unfortunately not reproduced.
+// Depending on region and macOS version the time portion can be 24-hour
+// (NSDate.description, the common case) or 12-hour with an AM/PM marker, and on
+// macOS 14+ (CLDR 42) the AM/PM marker is preceded by a narrow no-break space
+// (U+202F) instead of an ASCII space.
+func parseMacOSProfileInstallDate(installDate string) (time.Time, error) {
+	// Replace narrow and standard-no-break spaces with a common ' ' space
+	normalized := strings.NewReplacer("\u202f", " ", "\u00a0", " ").Replace(installDate)
+	for _, layout := range []string{
+		"2006-01-02 15:04:05 -0700",   // 24-hour
+		"2006-01-02 3:04:05 PM -0700", // 12-hour with AM/PM
+	} {
+		if t, err := time.Parse(layout, normalized); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported install_date format %q", installDate)
+}
+
 func directIngestMacOSProfiles(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -3036,9 +3080,9 @@ func directIngestMacOSProfiles(
 
 	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
-		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		installDate, err := parseMacOSProfileInstallDate(row["install_date"])
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "directIngestMacOSProfiles parse install_date")
 		}
 		if installDate.IsZero() {
 			// this should never happen, but if it does, we should log it

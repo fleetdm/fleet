@@ -2278,6 +2278,41 @@ func TestMutateSoftware(t *testing.T) {
 			},
 		},
 		{
+			// Regression for #46811: a Citrix-published "Citrix Workspace" program
+			// whose name carries no YYMM suffix must still be version-normalized,
+			// otherwise the raw file version (e.g. 25.7.1.6) leaks into the CPE.
+			name: "Citrix Workspace bare name on Windows (#46811)",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace",
+				Version: "25.7.1.6",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace",
+				Version: "2507.1.6",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+		},
+		{
+			// Sibling components from the same install ("(DV)", "(SSON)", "(USB)",
+			// "Inside") also lack the YYMM suffix and must be normalized.
+			name: "Citrix Workspace component on Windows (#46811)",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace(DV)",
+				Version: "26.3.0.171",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace(DV)",
+				Version: "2603.0.171",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+		},
+		{
 			name: "Citrix Workspace on Mac",
 			s: &fleet.Software{
 				Name:    "Citrix Workspace.app",
@@ -2619,6 +2654,17 @@ func TestCitrixWorkspaceLTSR(t *testing.T) {
 				Vendor:  "Citrix Systems, Inc.",
 			},
 			wantCPE: "cpe:2.3:a:citrix:workspace:2203.1.41:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			// #41790: cumulative updates (e.g. CU4 = 22.3.4000.4080) must be LTSR too.
+			name: "Citrix Workspace 2203 LTSR CU4 on Windows (#41790)",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2203",
+				Version: "22.3.4000.4080",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2203.4000.4080:*:*:*:ltsr:windows:*:*",
 		},
 		{
 			name: "Citrix Workspace 2402 LTSR on Windows",

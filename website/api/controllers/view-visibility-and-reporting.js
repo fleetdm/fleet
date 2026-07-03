@@ -43,6 +43,7 @@ module.exports = {
         'Matt Carr',
         'Andre Shields',
         'Erik Gomez',
+        'Ed Merrett',
       ];
       // Filter the testimonials by product category and the filtered list we built above.
       testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{

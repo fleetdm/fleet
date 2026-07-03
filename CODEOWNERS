@@ -70,7 +70,7 @@ go.mod @fleetdm/go
 /docs/solutions                                         @ddribeiro
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
+/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor # software ingestion is security & compliance
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
@@ -92,9 +92,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
 
 # Orchestration
-/docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
-/docs/Contributing/product-groups/orchestration         @sharon-fdm @sgress454
-/docs/Contributing/research/orchestration               @sharon-fdm @sgress454
+/docs/Contributing/architecture/orchestration           @sharon-fdm
+/docs/Contributing/product-groups/orchestration         @sharon-fdm
+/docs/Contributing/research/orchestration               @sharon-fdm
 
 # Software
 /docs/Contributing/architecture/software                @georgekarrv @cdcme
@@ -156,5 +156,12 @@ go.mod @fleetdm/go
 # 🚀 GitHub workflows
 ##############################################################################################
 /.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
+
+##############################################################################################
+# 🤖 Claude Code configuration (agents, skills, rules, settings).
+# (Reviewed by the product group tech leads.)
+##############################################################################################
+/.claude/ @JordanMontgomery @cdcme @lucasmrod @mostlikelee @getvictor 
+
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

@@ -1,0 +1,107 @@
+.policy-automations-activities-table {
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    margin: $pad-medium 0;
+  }
+
+  &__header--inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: $medium;
+    font-weight: $bold;
+  }
+
+  &__controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
+  &__count {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+    margin-left: auto;
+  }
+
+  // Keep the search input the same width as the status filter dropdown.
+  &__status-filter,
+  &__search {
+    width: 240px;
+  }
+
+  &__search {
+    .search-field__tooltip-container,
+    .input-icon-field {
+      width: 100%;
+    }
+  }
+
+  &__automation-cell {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  // Details is the last column: let it take the remaining table width and
+  // truncate (the `max-width: 0` trick makes an auto-layout cell flex to fill
+  // and clip instead of widening to fit its content).
+  table tbody td:last-child {
+    max-width: 0;
+    width: 100%;
+  }
+
+  // Render the details output preview as a left-aligned link spanning the full
+  // column, with an info icon revealed on row hover. Long error/output text
+  // truncates with an ellipsis.
+  &__details-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $pad-small;
+    width: 100%;
+    text-align: left;
+    font-weight: $regular;
+
+    // The whole row is clickable, so suppress the text-icon button's grey hover
+    // highlight over the Details cell.
+    &:hover,
+    &:focus,
+    &:active {
+      background-color: transparent;
+    }
+
+    &.button > .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+      width: 100%;
+    }
+  }
+
+  &__details-text {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    @include ellipse-text;
+  }
+
+  // Info icon sits at the right edge of the Details column, shown on row hover
+  // (opacity toggled by the shared `.row-hover-button` rule in TableContainer).
+  &__details-cell .row-hover-button {
+    flex-shrink: 0;
+  }
+}

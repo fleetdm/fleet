@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Ace } from "ace-builds";
 import {
   IAppStoreApp,
@@ -6,10 +6,9 @@ import {
   isSoftwarePackage,
 } from "interfaces/software";
 
-import { NotificationContext } from "context/notification";
-
 import softwareAPI from "services/entities/software";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Editor from "components/Editor";
@@ -50,8 +49,6 @@ const EditConfigurationModal = ({
   refetchSoftwareTitle,
   onExit,
 }: IEditConfigurationModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const isInHouseApp = isSoftwarePackage(softwareInstaller);
 
   const XML_EMPTY = "<dict>\n  \n</dict>";
@@ -135,8 +132,7 @@ const EditConfigurationModal = ({
         );
       }
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <strong>
             {getDisplayedSoftwareName(
@@ -151,7 +147,7 @@ const EditConfigurationModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, isApplePlatform));
+      notify.error(getErrorMessage(e, isApplePlatform), { response: e });
     }
     setIsUpdatingConfiguration(false);
   };

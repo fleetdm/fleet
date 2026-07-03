@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3' AND version_compare(bundle_short_version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3' AND version_compare(bundle_short_version, '2026.2') < 0);"
       },
-      "installer_url": "https://download.sketch.com/sketch-2026.1.2-228390.zip",
+      "installer_url": "https://download.sketch.com/sketch-2026.2-231037.zip",
       "install_script_ref": "af1163b0",
       "uninstall_script_ref": "bcf4e59f",
-      "sha256": "4a3cf7d19d634d0bacb98a24981a9acdf7a02ccfce67b2cd33149ae20aa66eaa",
+      "sha256": "7ab2e209d78f210034cd7f2a31200f79288630a33ac46da41e39e414f84495ba",
       "default_categories": [
         "Productivity"
       ]

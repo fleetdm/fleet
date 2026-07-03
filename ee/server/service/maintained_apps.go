@@ -237,7 +237,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	var authErr error
 	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
 	if teamID == nil {

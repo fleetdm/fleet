@@ -367,6 +367,23 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	return &policy, nil
 }
 
+// ResetPolicy clears a policy's pass/fail results: it wipes all policy_membership
+// rows and policy_stats rows for the policy and resets automation retry attempts.
+// This is the same cleanup performed when a policy's query is modified.
+func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := resetPolicyAutomationAttempts(ctx, tx, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy automation attempts")
+		}
+		// removeAllMemberships=true, removePolicyStats=true; platform is unused
+		// when removing all memberships, so "" is fine.
+		return cleanupPolicy(ctx, tx, tx, policyID, "", true, true, ds.logger)
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting policy")
+	}
+	return nil
+}
+
 // SavePolicy updates some fields of the given policy on the datastore.
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
@@ -667,7 +684,14 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 	return filtered
 }
 
-func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
+// RecordPolicyQueryExecutions upserts the incoming policy results into
+// policy_membership and returns the host's stale policy IDs: policies with a
+// stored policy_membership row but no incoming result. It does NOT delete
+// those rows; whether they can be deleted is the caller's decision, since only
+// the caller knows whether the incoming results are the host's complete set of
+// in-scope policies (e.g. hosts in setup experience are sent a filtered
+// subset).
+func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) ([]uint, error) {
 	// Identify policies that flipped failing -> passing for this host using current incoming results.
 	// We compute this before updating policy_membership so we compare against the previous state.
 	// When newlyPassingPolicyIDs is non-nil, the caller has already computed flipping policies
@@ -679,7 +703,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		var err error
 		_, newPassing, err = ds.FlippingPoliciesForHost(ctx, host.ID, results)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if len(newPassing) > 0 {
@@ -687,16 +711,16 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	}
 
 	// To avoid redundant UPSERTs (#44191), fetch the existing policy_membership
-	// rows for the incoming policies and narrow the UPSERT batch to only the
-	// rows whose stored value differs from incoming. The read is a small
-	// indexed lookup on (host_id, policy_id); the savings are on the writer
-	// side, which is the loadtest bottleneck. policy_membership.updated_at
-	// therefore tracks "last state change" rather than "last reported";
-	// hosts.policy_updated_at remains the per-host "last reported" signal
-	// and is updated below regardless.
-	needsWrite, err := ds.policiesNeedingMembershipWrite(ctx, host.ID, results)
+	// rows for the host and narrow the UPSERT batch to only the rows whose
+	// stored value differs from incoming. The read is a small indexed lookup on
+	// host_id; the savings are on the writer side, which is the loadtest
+	// bottleneck. policy_membership.updated_at therefore tracks "last state
+	// change" rather than "last reported"; hosts.policy_updated_at remains the
+	// per-host "last reported" signal and is updated below regardless. The same
+	// read yields the stale policy IDs returned to the caller.
+	needsWrite, stalePolicyIDs, err := ds.policiesNeedingMembershipWrite(ctx, host.ID, results)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	vals := []interface{}{}
@@ -772,14 +796,14 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// ds.UpdateHostIssuesFailingPoliciesForSingleHost should be executed even if len(results) == 0
 	// because this means the host is configured to run no policies and we would like
 	// to cleanup the counts (if any).
 	if err := ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
-		return err
+		return nil, err
 	}
 
 	if deferredSaveHost {
@@ -787,7 +811,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		defer close(errCh)
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		case ds.writeCh <- itemToWrite{
 			ctx:   ctx,
 			errCh: errCh,
@@ -797,10 +821,10 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 				what:      "policy_updated_at",
 			},
 		}:
-			return <-errCh
+			return stalePolicyIDs, <-errCh
 		}
 	}
-	return nil
+	return stalePolicyIDs, nil
 }
 
 // policiesNeedingMembershipWrite returns the set of policy IDs whose stored
@@ -810,35 +834,32 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 //   - Existing row matches incoming (both NULL or same bool): skip (no-op).
 //   - Existing row differs from incoming (incl. transitions to/from NULL): write.
 //
-// The read is an indexed lookup on (host_id, policy_id) and is cheap relative
-// to the writes it lets us avoid; this is the optimization #44191 is about.
-func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID uint, incoming map[uint]*bool) (map[uint]struct{}, error) {
-	needsWrite := make(map[uint]struct{}, len(incoming))
-	if len(incoming) == 0 {
-		return needsWrite, nil
-	}
-
-	ids := make([]uint, 0, len(incoming))
-	for id := range incoming {
-		ids = append(ids, id)
-	}
+// It also returns the host's stale policy IDs: policies with a stored
+// policy_membership row but no incoming result. When incoming is the complete
+// set of policy results for the host's reporting cycle, those policies are no
+// longer in scope for the host (e.g. it changed teams, or the policy's
+// platform or label scope changed) and their rows are candidates for deletion.
+//
+// The read is an indexed lookup on host_id and is cheap relative to the
+// writes it lets us avoid; this is the optimization #44191 is about.
+func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID uint, incoming map[uint]*bool) (needsWrite map[uint]struct{}, stalePolicyIDs []uint, err error) {
+	needsWrite = make(map[uint]struct{}, len(incoming))
 
 	type membershipRow struct {
 		PolicyID uint         `db:"policy_id"`
 		Passes   sql.NullBool `db:"passes"`
 	}
-	selectQuery := `SELECT policy_id, passes FROM policy_membership WHERE host_id = ? AND policy_id IN (?)`
-	selectQuery, args, err := sqlx.In(selectQuery, hostID, ids)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build select policy_membership query for delta")
-	}
 	var stored []membershipRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &stored, selectQuery, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select policy_membership for delta")
+	selectQuery := `SELECT policy_id, passes FROM policy_membership WHERE host_id = ?`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &stored, selectQuery, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select policy_membership for delta")
 	}
 	storedByID := make(map[uint]sql.NullBool, len(stored))
 	for _, r := range stored {
 		storedByID[r.PolicyID] = r.Passes
+		if _, ok := incoming[r.PolicyID]; !ok {
+			stalePolicyIDs = append(stalePolicyIDs, r.PolicyID)
+		}
 	}
 
 	for policyID, incomingValue := range incoming {
@@ -859,7 +880,7 @@ func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID 
 			needsWrite[policyID] = struct{}{}
 		}
 	}
-	return needsWrite, nil
+	return needsWrite, stalePolicyIDs, nil
 }
 
 func (ds *Datastore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {

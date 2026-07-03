@@ -662,6 +662,17 @@ type MDMHostData struct {
 	// with this Fleet instance. This boolean is not filled by all
 	// host-returning methods.
 	ConnectedToFleet *bool `json:"connected_to_fleet" csv:"-" db:"connected_to_fleet"`
+
+	// WipeAllowed, LockAllowed, and ClearPasscodeAllowed indicate whether the
+	// corresponding MDM commands are permitted for this host based on the
+	// AccessRights delivered in the host's enrollment profile. They are nil for
+	// non-Apple-MDM hosts and Apple hosts for which the enrollment permissions
+	// are not yet known (pre-existing manually-enrolled hosts whose stored rights
+	// are defaulted to MDMAccessRightAll on the first SCEP cycle). They are only
+	// populated by getHostDetails, not by list-hosts endpoints.
+	WipeAllowed          *bool `json:"wipe_allowed,omitempty" db:"-" csv:"-"`
+	LockAllowed          *bool `json:"lock_allowed,omitempty" db:"-" csv:"-"`
+	ClearPasscodeAllowed *bool `json:"clear_passcode_allowed,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -974,7 +985,8 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
+		h.Platform == "cachyos"
 }
 
 // IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
@@ -1101,9 +1113,8 @@ type HostSummaryPlatform struct {
 // Status calculates the online status of the host
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
-	// GenerateHostStatusStatistics and CountHostsInTargets
+	// GenerateHostStatusStatistics and CountHostsInTargets - it can't stay in sync for MDM join, since that attribute is not available.
 	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
-
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
 		onlineInterval = h.DistributedInterval
@@ -1181,6 +1192,7 @@ var HostLinuxOSs = []string{
 	"archarm",
 	"flatcar",
 	"coreos",
+	"cachyos",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1195,6 +1207,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"manjaro-arm": {},
 	"flatcar":     {},
 	"coreos":      {},
+	"cachyos":     {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
@@ -1332,6 +1345,8 @@ type HostMDM struct {
 	// OAuth Bearer token at TokenUpdate time. Apple does not reliably populate
 	// UserLongName on User Enrollment so we don't fall back to it.
 	ManagedAppleID *string `db:"managed_apple_id" json:"-" csv:"-"`
+	// ConnectedToFleet reports whether the host is currently connected to Fleet's MDM.
+	ConnectedToFleet bool `db:"connected_to_fleet" json:"-" csv:"-"`
 }
 
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
@@ -1405,7 +1420,7 @@ func MDMNameFromServerURL(serverURL string) string {
 
 // MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
 const (
-	MDMEnrollmentStatusPersonal  = "On (personal)"
+	MDMEnrollmentStatusPersonal  = "On (manual - personal)"
 	MDMEnrollmentStatusManual    = "On (manual)"
 	MDMEnrollmentStatusAutomatic = "On (automatic)"
 	MDMEnrollmentStatusPending   = "Pending"
@@ -1496,6 +1511,20 @@ type MacadminsData struct {
 type AggregatedMunkiVersion struct {
 	HostMunkiInfo
 	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+// HostMDMApplePermissions records the AccessRights integer that was last delivered
+// to an Apple host's MDM enrollment profile. Apple does not allow profile replacements
+// to widen access rights, so this value is the monotonic ceiling for SCEP/ACME renewal.
+//
+// IsPersonalEnrollment is sourced from host_mdm.is_personal_enrollment (joined into
+// the lookup). It is the authoritative signal for whether the device was enrolled
+// as BYOD, and SCEP/ACME renewal uses it to reconstruct the same ServerURL Apple
+// saw at initial enrollment (Apple rejects ServerURL changes on profile replacement).
+type HostMDMApplePermissions struct {
+	HostUUID             string `db:"host_uuid"`
+	AccessRights         int    `db:"access_rights"`
+	IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 }
 
 // MunkiIssue represents a single munki issue, as returned by the list hosts

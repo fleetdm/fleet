@@ -10,6 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/tj/assert"
 )
 
 // output from cryptsetup luksDump /dev/sda3 --debug-json command
@@ -212,9 +214,9 @@ var extractedJSON = `{
 }`
 
 func TestExtractJson(t *testing.T) {
-	extracted, err := extractJSON([]byte(output))
+	json, err := extractJSON([]byte(output))
 	assert.NoError(t, err)
-	assert.JSONEq(t, extractedJSON, string(extracted))
+	assert.Equal(t, extractedJSON, string(json))
 
 	_, err = extractJSON([]byte("no json"))
 	assert.Error(t, err)
