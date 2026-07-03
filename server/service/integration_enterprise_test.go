@@ -3180,7 +3180,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 
 	// Record policy results - all fail
-	err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 		noTeamPol1.ID: new(false), // Fails and is in webhook config
 		noTeamPol2.ID: new(false), // Fails and is in webhook config
 		noTeamPol3.ID: new(false), // Fails but NOT in webhook config
@@ -4270,8 +4270,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NotNil(t, gpResp.Policy)
 
 	// add a policy execution
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(ctx, host,
-		map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil)))
 
 	// add a policy to team
 	oldToken := s.token
@@ -5594,10 +5594,10 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// add a failing policy execution
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			ctx, host1,
 			map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil,
-		),
+		)),
 	)
 
 	// populate software for hosts
@@ -5861,10 +5861,10 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: new(true)}, time.Now(), false, nil)))
 
 	hh := getHostHealthResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
@@ -6577,7 +6577,7 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{})
 	require.NoError(s.T(), err)
 
-	err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
 		createPol1.Policy.ID: new(false),
 		createPol2.Policy.ID: new(false),
 		createPol3.Policy.ID: new(false), // This policy is not activated for automation in config.
@@ -7716,7 +7716,7 @@ func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() 
 		Critical:    false,
 	})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false, nil)))
 
 	// Any 'invalid' policies should be ignored.
 	desktopRes := fleetDesktopResponse{}
@@ -26331,7 +26331,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		require.NoError(t, err)
 
 		// Record a failing result for this policy on the host
-		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+		_, err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 		require.NoError(t, err)
 
 		// Bypass should fail with 400 Bad Request
@@ -26373,7 +26373,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		})
 		require.NoError(t, err)
 
-		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		_, err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 			caPolicy.ID:    new(true),  // passing
 			nonCAPolicy.ID: new(false), // failing
 		}, time.Now(), false, nil)
