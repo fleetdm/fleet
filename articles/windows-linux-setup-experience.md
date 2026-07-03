@@ -128,7 +128,7 @@ Wipe and re-enroll any existing Windows hosts that should receive the account. H
 To view the password for a host's managed account, go to Host details > Actions > Show managed account. The password is unique per host and stored securely in Fleet.
 
 ### Sign in as the managed account
-The managed account is hidden from the Windows sign-in screen. To log in as `_fleetadmin`, select Other user on the sign-in screen and enter the username and password manually. If the sign-in screen does not show Other user, type `.\\_fleetadmin` in the username field to authenticate against the local machine.
+The managed account is hidden from the Windows sign-in screen. To log in as `_fleetadmin`, select **Other user** on the sign-in screen and enter the username and password manually. If the sign-in screen does not show Other user, type `.\\_fleetadmin` in the username field to authenticate against the local machine.
 
 ## Recover a Windows host from the setup failure screen
 
