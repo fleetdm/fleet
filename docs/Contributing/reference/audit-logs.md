@@ -3050,6 +3050,30 @@ This activity contains the following fields:
 }
 ```
 
+## created_custom_host_vital
+
+Generated when a custom host vital is created.
+
+This activity contains the following fields: 
+- "custom_host_vital_id": ID of the custom host vital.
+- "custom_host_vital_name": Display name of the custom host vital.
+
+## edited_custom_host_vital
+
+Generated when a custom host vital is updated.
+
+This activity contains the following fields: 
+- "custom_host_vital_id": ID of the custom host vital.
+- "custom_host_vital_name": Display name of the custom host vital.
+
+## deleted_custom_host_vital
+
+Generated when a custom host vital is deleted.
+
+This activity contains the following fields: 
+- "custom_host_vital_id": ID of the custom host vital.
+- "custom_host_vital_name": Display name of the custom host vital.
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
