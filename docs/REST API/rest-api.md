@@ -15078,7 +15078,36 @@ Delete a custom host vital and clear its value on all hosts.
 
 ### Update host's custom host vital value
 
-> TODO
+Update the value of a custom host vital for a single host.
+
+`PUT /hosts/:host_id/custom_host_vitals/:id`
+
+#### Example
+
+`PUT /hosts/123/custom_host_vitals/123`
+
+##### Request body
+
+```json
+{
+  "value": "ABC-1234"
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 42,
+  "custom_host_vital_id": 123,
+  "name": "Asset tag",
+  "value": "ABC-1234",
+  "updated_at": "2026-07-01T15:23:57Z"
+}
+```
 
 
 ---
