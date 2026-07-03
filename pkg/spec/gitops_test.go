@@ -2208,12 +2208,13 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	t.Run("happy path keeps per-package fields and inherits fleet-level setup_experience", func(t *testing.T) {
 		gitops, err := setup(t,
 			"      setup_experience: true\n",
-			"- hash_sha256: "+hashA+"\n"+
-				"  self_service: true\n"+
-				"  labels_include_all: [macOS]\n"+
-				"- hash_sha256: "+hashB+"\n"+
-				"  categories: [\"Productivity\"]\n"+
-				"  labels_include_all: [macOS, IT team]\n",
+			fmt.Sprintf(`- hash_sha256: %s
+  self_service: true
+  labels_include_all: [macOS]
+- hash_sha256: %s
+  categories: ["Productivity"]
+  labels_include_all: [macOS, IT team]
+`, hashA, hashB),
 		)
 		require.NoError(t, err)
 		require.Len(t, gitops.Software.Packages, 2)
@@ -2237,22 +2238,30 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 		wantErr     string
 	}{
 		{
-			name:        "self_service in both fleet-level and package file",
-			fleetLevel:  "      self_service: true\n",
-			packageFile: "- hash_sha256: " + hashA + "\n  self_service: true\n- hash_sha256: " + hashB + "\n",
-			wantErr:     "self_service and categories can be specified either in the fleet-level file or in the package YAML file",
+			name:       "self_service in both fleet-level and package file",
+			fleetLevel: "      self_service: true\n",
+			packageFile: fmt.Sprintf(`- hash_sha256: %s
+  self_service: true
+- hash_sha256: %s
+`, hashA, hashB),
+			wantErr: "self_service and categories can be specified either in the fleet-level file or in the package YAML file",
 		},
 		{
-			name:        "setup_experience in a package file",
-			fleetLevel:  "",
-			packageFile: "- hash_sha256: " + hashA + "\n  setup_experience: true\n- hash_sha256: " + hashB + "\n",
-			wantErr:     "setup_experience can be specified only in the fleet-level file",
+			name:       "setup_experience in a package file",
+			fleetLevel: "",
+			packageFile: fmt.Sprintf(`- hash_sha256: %s
+  setup_experience: true
+- hash_sha256: %s
+`, hashA, hashB),
+			wantErr: "setup_experience can be specified only in the fleet-level file",
 		},
 		{
-			name:        "labels in the fleet-level file",
-			fleetLevel:  "      labels_include_all: [macOS]\n",
-			packageFile: "- hash_sha256: " + hashA + "\n- hash_sha256: " + hashB + "\n",
-			wantErr:     "Labels can be specified only in the package-level file when adding multiple packages",
+			name:       "labels in the fleet-level file",
+			fleetLevel: "      labels_include_all: [macOS]\n",
+			packageFile: fmt.Sprintf(`- hash_sha256: %s
+- hash_sha256: %s
+`, hashA, hashB),
+			wantErr: "Labels can be specified only in the package-level file when adding multiple packages",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2267,7 +2276,9 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	t.Run("single package may set setup_experience and inherit fleet-level labels", func(t *testing.T) {
 		gitops, err := setup(t,
 			"      labels_include_all: [macOS]\n",
-			"- hash_sha256: "+hashA+"\n  setup_experience: true\n",
+			fmt.Sprintf(`- hash_sha256: %s
+  setup_experience: true
+`, hashA),
 		)
 		require.NoError(t, err)
 		require.Len(t, gitops.Software.Packages, 1)
@@ -2279,7 +2290,10 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// A package file written as a single object is just a one-element list, so its
 	// per-package fields are preserved the same way.
 	t.Run("single object file keeps its per-package fields", func(t *testing.T) {
-		gitops, err := setup(t, "", "hash_sha256: "+hashA+"\nself_service: true\nlabels_include_all: [macOS]\n")
+		gitops, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
+self_service: true
+labels_include_all: [macOS]
+`, hashA))
 		require.NoError(t, err)
 		require.Len(t, gitops.Software.Packages, 1)
 		assert.True(t, gitops.Software.Packages[0].SelfService)

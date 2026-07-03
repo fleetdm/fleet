@@ -423,6 +423,7 @@ queries:
 software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      self_service: true
     - url: ${SOFTWARE_INSTALLER_URL}/ruby_variant.deb
 `, teamName), 0o644))
 
@@ -445,11 +446,13 @@ software:
 	}
 	require.NotZero(t, titleID, "the two packages should resolve to one title")
 
-	// first-added first
+	// first-added first, with the per-package self_service flag on ruby.deb only
 	pkgs, err := s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, pkgs, 2)
 	firstID, secondID := pkgs[0].InstallerID, pkgs[1].InstallerID
+	require.True(t, pkgs[0].SelfService)
+	require.False(t, pkgs[1].SelfService)
 
 	// generate the team's config back out (needs an admin to read config), with real
 	// secrets so it re-applies cleanly
@@ -471,7 +474,7 @@ software:
 	require.NoError(t, err)
 	require.Len(t, genTeamFiles, 1)
 
-	// re-applying the generated output is a no-op: the same two packages, same ids
+	// re-applying the generated output keeps the same two packages, ids, and per-package fields
 	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", genTeamFiles[0]})
 	require.NoError(t, err)
 
@@ -480,6 +483,32 @@ software:
 	require.Len(t, pkgs, 2)
 	require.Equal(t, firstID, pkgs[0].InstallerID)
 	require.Equal(t, secondID, pkgs[1].InstallerID)
+	require.True(t, pkgs[0].SelfService)
+	require.False(t, pkgs[1].SelfService)
+
+	// generating again from the re-applied state yields byte-identical files: the
+	// round-trip is stable, so re-applying the generated config produced no diff
+	genDir2 := t.TempDir()
+	_, err = fleetctltest.RunAppNoChecks([]string{"generate-gitops", "--config", adminConfig.Name(), "--fleet", teamName, "--dir", genDir2, "--insecure"})
+	require.NoError(t, err)
+
+	readTree := func(dir string) map[string]string {
+		files := map[string]string{}
+		require.NoError(t, filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+			require.NoError(t, err)
+			if info.IsDir() {
+				return nil
+			}
+			rel, err := filepath.Rel(dir, p)
+			require.NoError(t, err)
+			b, err := os.ReadFile(p) //nolint:gosec // reading generated files under t.TempDir()
+			require.NoError(t, err)
+			files[rel] = string(b)
+			return nil
+		}))
+		return files
+	}
+	require.Equal(t, readTree(genDir), readTree(genDir2))
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) createFleetctlConfig(t *testing.T, user fleet.User) *os.File {

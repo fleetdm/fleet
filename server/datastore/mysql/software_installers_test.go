@@ -1715,26 +1715,23 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.NoError(t, err)
 	require.Len(t, mixedAll, 3)
 
-	// each package landed on its own resolved title: Alpha has one, Bravo has two
-	countByTitle := map[uint]int{}
+	// each package resolved to a title by its storage id; Bravo's two packages share a
+	// title distinct from Alpha's
+	titleOf := map[string]uint{}
 	for _, si := range mixedAll {
 		require.NotNil(t, si.TitleID)
-		countByTitle[*si.TitleID]++
+		titleOf[si.HashSHA256] = *si.TitleID
 	}
-	require.Len(t, countByTitle, 2)
-	var bravoTitleID uint
-	var alphaCount int
-	for titleID, count := range countByTitle {
-		if count == 2 {
-			bravoTitleID = titleID
-		} else {
-			alphaCount = count
-		}
-	}
-	require.Equal(t, 1, alphaCount)
+	require.Equal(t, titleOf["bravo-1"], titleOf["bravo-2"])
+	require.NotEqual(t, titleOf["alpha-1"], titleOf["bravo-1"])
+
+	// Alpha holds one package
+	alphaPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &mixedTeam.ID, titleOf["alpha-1"])
+	require.NoError(t, err)
+	require.Len(t, alphaPkgs, 1)
 
 	// Bravo's packages keep file order (bravo-1 first-added) even though Alpha was listed between them.
-	bravoPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &mixedTeam.ID, bravoTitleID)
+	bravoPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &mixedTeam.ID, titleOf["bravo-1"])
 	require.NoError(t, err)
 	require.Len(t, bravoPkgs, 2)
 	require.Equal(t, "bravo-1", bravoPkgs[0].StorageID)
