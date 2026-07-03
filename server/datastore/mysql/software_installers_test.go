@@ -43,6 +43,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetSoftwarePackagesByTeamAndTitleID", testGetSoftwarePackagesByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
+		{"DeleteSoftwareInstallerRepointsPolicies", testDeleteSoftwareInstallerRepointsPolicies},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
@@ -6577,4 +6578,63 @@ VALUES (?, ?, ?)`, uaID, installerID, titleID)
 	require.NoError(t, err)
 	// The host must be counted exactly once (not dropped, not double-counted).
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{PendingInstall: 1}, *summary)
+}
+
+// testDeleteSoftwareInstallerRepointsPolicies verifies that deleting one package of several re-points
+// install-automation policies to the first-added surviving package, while deleting the last package a
+// policy references still returns the 409 telling the admin to disable the automation first.
+func testDeleteSoftwareInstallerRepointsPolicies(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Delete Repoint", "delete-repoint@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "delete-repoint-team"})
+	require.NoError(t, err)
+
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "RepointApp",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.repoint",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+	installerA := newPkg("repoint-a", "pkgA.pkg")
+	installerB := newPkg("repoint-b", "pkgB.pkg")
+	require.Less(t, installerA, installerB)
+
+	pol, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                "repoint policy",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: &installerA,
+	})
+	require.NoError(t, err)
+
+	// Deleting the referenced package while a sibling remains re-points the policy to the survivor.
+	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, installerA))
+	got, err := ds.Policy(ctx, pol.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.SoftwareInstallerID)
+	require.Equal(t, installerB, *got.SoftwareInstallerID)
+
+	// Deleting the last package the policy references is refused (disable automation first).
+	err = ds.DeleteSoftwareInstaller(ctx, installerB)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedInstallPolicy)
+
+	// The policy still points at the (undeleted) package.
+	got, err = ds.Policy(ctx, pol.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.SoftwareInstallerID)
+	require.Equal(t, installerB, *got.SoftwareInstallerID)
 }

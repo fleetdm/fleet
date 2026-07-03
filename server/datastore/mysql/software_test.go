@@ -106,6 +106,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
+		{"ListHostSoftwareMultiplePackagesPrecedence", testListHostSoftwareMultiplePackagesPrecedence},
 		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
@@ -13565,4 +13566,113 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	require.Equal(t, fleet.SoftwareInstallFailed, batchPendingResult.Status)
 	require.Equal(t, "batch-pending-app", batchPendingResult.SoftwareTitle)
 	require.Equal(t, "batch-pending.pkg", batchPendingResult.SoftwarePackage)
+}
+
+// testListHostSoftwareMultiplePackagesPrecedence verifies that when a title holds multiple
+// label-scoped packages, ListHostSoftware deterministically shows the first-added in-scope package
+// as software_package (matching the install-time precedence resolver) and does not emit duplicate
+// title rows.
+func testListHostSoftwareMultiplePackagesPrecedence(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice-multipkg@example.com", true)
+
+	hostBoth := test.NewHost(t, ds, "h-both", "", "h-both-key", "h-both-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostBoth, false)
+	hostSecondOnly := test.NewHost(t, ds, "h-second", "", "h-second-key", "h-second-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostSecondOnly, false)
+	hostNeither := test.NewHost(t, ds, "h-none", "", "h-none-key", "h-none-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostNeither, false)
+
+	time.Sleep(time.Second) // ensure labels_updated_at is before label creation
+
+	var titleID uint
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		id, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "ArchTargetedApp",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.archapp",
+			UserID:           user.ID,
+			Platform:         "darwin",
+			SelfService:      true,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return id
+	}
+
+	// Two packages under one title (e.g. Arm vs Intel builds): pkgA is first-added.
+	firstAddedID := newPkg("storage-a", "pkgA.pkg")
+	secondID := newPkg("storage-b", "pkgB.pkg")
+	require.Less(t, firstAddedID, secondID)
+
+	labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "labelA" + t.Name()})
+	require.NoError(t, err)
+	labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "labelB" + t.Name()})
+	require.NoError(t, err)
+
+	// hostBoth matches both packages, hostSecondOnly only pkgB, hostNeither none.
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostBoth.ID, []uint{labelA.ID, labelB.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostSecondOnly.ID, []uint{labelB.ID}))
+	for _, h := range []*fleet.Host{hostBoth, hostSecondOnly, hostNeither} {
+		h.LabelUpdatedAt = time.Now()
+		require.NoError(t, ds.UpdateHost(ctx, h))
+	}
+	time.Sleep(time.Second)
+
+	// Scope each package to its label (include-any).
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), firstAddedID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{labelA.Name: {LabelName: labelA.Name, LabelID: labelA.ID}},
+	}, softwareTypeInstaller))
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), secondID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{labelB.Name: {LabelName: labelB.Name, LabelID: labelB.ID}},
+	}, softwareTypeInstaller))
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+	}
+
+	// hostBoth matches pkgA and pkgB → first-added (pkgA) wins, exactly one row for the title.
+	sw, _, err := ds.ListHostSoftware(ctx, hostBoth, opts)
+	require.NoError(t, err)
+	rowsForTitle := 0
+	for _, s := range sw {
+		if s.ID == titleID {
+			rowsForTitle++
+			require.NotNil(t, s.SoftwarePackage)
+			require.Equal(t, "pkgA.pkg", s.SoftwarePackage.Name)
+		}
+	}
+	require.Equal(t, 1, rowsForTitle, "multi-package title must appear exactly once")
+
+	// hostSecondOnly matches only pkgB → the in-scope sibling is shown (title not hidden).
+	sw, _, err = ds.ListHostSoftware(ctx, hostSecondOnly, opts)
+	require.NoError(t, err)
+	rowsForTitle = 0
+	for _, s := range sw {
+		if s.ID == titleID {
+			rowsForTitle++
+			require.NotNil(t, s.SoftwarePackage)
+			require.Equal(t, "pkgB.pkg", s.SoftwarePackage.Name)
+		}
+	}
+	require.Equal(t, 1, rowsForTitle, "title with an in-scope sibling must not be hidden")
+
+	// hostNeither matches no package → title is not available for install.
+	sw, _, err = ds.ListHostSoftware(ctx, hostNeither, opts)
+	require.NoError(t, err)
+	for _, s := range sw {
+		require.NotEqual(t, titleID, s.ID, "title should not be available when the host is in scope for no package")
+	}
 }

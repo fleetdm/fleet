@@ -34109,3 +34109,191 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
 }
+
+// TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a
+// title holds multiple label-scoped packages: a host matching more than one package installs the
+// first-added one, while a host matching only a later package installs that one (correct scoping).
+func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesInstallPrecedence() {
+	t := s.T()
+	ctx := context.Background()
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+	user := s.users["admin1@example.com"]
+
+	labelA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "labelA_" + t.Name()})
+	require.NoError(t, err)
+	labelB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "labelB_" + t.Name()})
+	require.NoError(t, err)
+
+	// Two packages under one title (same bundle id, different content hash), each scoped to one label.
+	newPkg := func(storage, filename, version string, label *fleet.Label) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			UninstallScript:  "uninstall",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "MultiPkgApp",
+			Version:          version,
+			Source:           "deb_packages",
+			Extension:        "deb",
+			BundleIdentifier: "com.example.multipkgapp",
+			UserID:           user.ID,
+			TeamID:           &teamID,
+			Platform:         "linux",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName:     map[string]fleet.LabelIdent{label.Name: {LabelName: label.Name, LabelID: label.ID}},
+			},
+		})
+		require.NoError(t, err)
+		return id
+	}
+	installerA := newPkg("storage-a", "pkgA.deb", "1.0", labelA)
+	installerB := newPkg("storage-b", "pkgB.deb", "2.0", labelB)
+	require.Less(t, installerA, installerB)
+
+	titleID := getSoftwareTitleID(t, s.ds, "MultiPkgApp", "deb_packages")
+
+	newLinuxHost := func(suffix string, labelIDs []uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(t.Name() + suffix + uuid.New().String()),
+			NodeKey:         new(t.Name() + suffix + uuid.New().String()),
+			Hostname:        fmt.Sprintf("%s-%s.local", t.Name(), suffix),
+			Platform:        "ubuntu",
+		})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamID, []uint{h.ID})))
+		if len(labelIDs) > 0 {
+			require.NoError(t, s.ds.AddLabelsToHost(ctx, h.ID, labelIDs))
+		}
+		h.LabelUpdatedAt = time.Now()
+		require.NoError(t, s.ds.UpdateHost(ctx, h))
+		orbitKey := setOrbitEnrollment(t, h, s.ds)
+		h.OrbitNodeKey = &orbitKey
+		return h
+	}
+
+	// queuedInstallerID returns the software_installer_id queued for the host's pending install.
+	queuedInstallerID := func(hostID uint) uint {
+		var ids []uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `
+				SELECT siua.software_installer_id
+				FROM software_install_upcoming_activities siua
+				JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+				WHERE ua.host_id = ?`, hostID)
+		})
+		require.Len(t, ids, 1)
+		return ids[0]
+	}
+
+	// Host in BOTH labels matches pkgA and pkgB → first-added (pkgA) installs.
+	hostBoth := newLinuxHost("both", []uint{labelA.ID, labelB.ID})
+	var resp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostBoth.ID, titleID), nil, http.StatusAccepted, &resp)
+	require.Equal(t, installerA, queuedInstallerID(hostBoth.ID))
+
+	// Host in only labelB matches only pkgB → pkgB installs (never the first-added pkgA).
+	hostSecond := newLinuxHost("second", []uint{labelB.ID})
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostSecond.ID, titleID), nil, http.StatusAccepted, &resp)
+	require.Equal(t, installerB, queuedInstallerID(hostSecond.ID))
+
+	// Host in neither label is in scope for no package → install is rejected.
+	hostNeither := newLinuxHost("neither", nil)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostNeither.ID, titleID), nil, http.StatusBadRequest, &resp)
+}
+
+// TestPolicyAutomationSoftwareInstallerSelection verifies a team policy defaults its install-software
+// automation to the title's first-added package and honors an explicitly chosen software_installer_id.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSelection() {
+	t := s.T()
+	ctx := context.Background()
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+	user := s.users["admin1@example.com"]
+
+	newPkg := func(storage, filename, version string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			UninstallScript:  "uninstall",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "PolicyMultiPkgApp",
+			Version:          version,
+			Source:           "deb_packages",
+			Extension:        "deb",
+			BundleIdentifier: "com.example.policymultipkg",
+			UserID:           user.ID,
+			TeamID:           &teamID,
+			Platform:         "linux",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+	installerA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
+	installerB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
+	require.Less(t, installerA, installerB)
+	titleID := getSoftwareTitleID(t, s.ds, "PolicyMultiPkgApp", "deb_packages")
+
+	storedInstallerID := func(policyID uint) uint {
+		var ids []uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT software_installer_id FROM policies WHERE id = ?`, policyID)
+		})
+		require.Len(t, ids, 1)
+		return ids[0]
+	}
+
+	// No installer chosen → defaults to first-added.
+	var defResp fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
+		Name:            "default first-added",
+		Query:           "SELECT 1;",
+		SoftwareTitleID: &titleID,
+	}, http.StatusOK, &defResp)
+	require.Equal(t, installerA, storedInstallerID(defResp.Policy.ID))
+
+	// Explicit installer chosen → honored.
+	var chosenResp fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
+		Name:                "explicit choice",
+		Query:               "SELECT 2;",
+		SoftwareTitleID:     &titleID,
+		SoftwareInstallerID: &installerB,
+	}, http.StatusOK, &chosenResp)
+	require.Equal(t, installerB, storedInstallerID(chosenResp.Policy.ID))
+
+	// Modify the first policy to point at the chosen package.
+	var modResp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", teamID, defResp.Policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: installerB},
+		},
+	}, http.StatusOK, &modResp)
+	require.Equal(t, installerB, storedInstallerID(defResp.Policy.ID))
+
+	// An installer_id that doesn't belong to the title is rejected.
+	var badResp fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
+		Name:                "bad installer",
+		Query:               "SELECT 3;",
+		SoftwareTitleID:     &titleID,
+		SoftwareInstallerID: new(installerB + 100000),
+	}, http.StatusBadRequest, &badResp)
+}

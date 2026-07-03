@@ -1198,7 +1198,12 @@ SELECT
 FROM
 	software_installers si
 WHERE
-  si.title_id = ? AND si.global_or_team_id = ?
+  si.title_id = ? AND si.global_or_team_id = ? AND si.is_active = 1
+  -- A title can hold several packages; report the first-added (smallest id) deterministically.
+  AND si.id = (
+    SELECT MIN(si2.id) FROM software_installers si2
+    WHERE si2.title_id = si.title_id AND si2.global_or_team_id = si.global_or_team_id AND si2.is_active = 1
+  )
 
 UNION ALL
 
@@ -1534,6 +1539,30 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 				WHERE other.title_id = si.title_id AND other.global_or_team_id = si.global_or_team_id AND other.id != si.id
 			)`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete software title display name for installer being deleted")
+		}
+
+		// If install-automation policies reference this package and the title has other active
+		// packages, re-point those policies to the first-added surviving package (first-added-wins),
+		// so deleting one package of several keeps the automation working. When this is the last
+		// package there is no survivor: the delete below then hits the policies FK (RESTRICT) and
+		// returns the 409 that tells the admin to disable the automation first.
+		var survivorID *uint
+		if err := sqlx.GetContext(ctx, tx, &survivorID, `
+			SELECT MIN(other.id)
+			FROM software_installers other
+			JOIN software_installers deleted ON deleted.id = ?
+			WHERE other.title_id = deleted.title_id
+				AND other.global_or_team_id = deleted.global_or_team_id
+				AND other.id != deleted.id
+				AND other.is_active = 1`, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "find surviving package to re-point policies")
+		}
+		if survivorID != nil {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE policies SET software_installer_id = ? WHERE software_installer_id = ?`,
+				*survivorID, id); err != nil {
+				return ctxerr.Wrap(ctx, err, "re-point policies to surviving package before delete")
+			}
 		}
 
 		// allow delete only if not selected for setup experience (natively or cross-platform)

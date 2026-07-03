@@ -34,6 +34,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Critical:                     req.Critical,
 		CalendarEventsEnabled:        req.CalendarEventsEnabled,
 		SoftwareTitleID:              req.SoftwareTitleID,
+		SoftwareInstallerID:          req.SoftwareInstallerID,
 		ScriptID:                     req.ScriptID,
 		LabelsIncludeAny:             req.LabelsIncludeAny,
 		LabelsIncludeAll:             req.LabelsIncludeAll,
@@ -293,7 +294,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		policyType = fleet.PolicyTypePatch
 	}
 
-	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
+	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID, p.SoftwareInstallerID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
@@ -686,8 +687,19 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
 	}
+	// A chosen installer without a title has nothing to resolve against (the software block below
+	// only runs when the title is set), so reject it rather than silently ignore the choice.
+	if !p.SoftwareTitleID.Set && p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "software_installer_id can only be set together with software_title_id",
+		})
+	}
 	if p.SoftwareTitleID.Set {
-		softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value)
+		var chosenInstallerID *uint
+		if p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
+			chosenInstallerID = &p.SoftwareInstallerID.Value
+		}
+		softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value, chosenInstallerID)
 		if err != nil {
 			return nil, err
 		}
@@ -816,19 +828,41 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	return policy, nil
 }
 
-func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint) (installerID *uint, vppAppsTeamsID *uint, err error) {
-	if softwareTitleID == nil {
-		return nil, nil, nil
-	}
+func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint, chosenInstallerID *uint) (installerID *uint, vppAppsTeamsID *uint, err error) {
+	installerChosen := chosenInstallerID != nil && *chosenInstallerID != 0
 
-	// If *p.SoftwareTitleID with value 0 is used to unset the current installer from the policy.
-	if *softwareTitleID == 0 {
+	// SoftwareTitleID value 0 (or nil) unsets the current installer from the policy. A chosen
+	// installer without a title has nothing to resolve against, so reject it rather than silently drop it.
+	if softwareTitleID == nil || *softwareTitleID == 0 {
+		if installerChosen {
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "software_installer_id can only be set together with software_title_id",
+			})
+		}
 		return nil, nil, nil
 	}
 
 	if teamID == nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "Software title ID cannot be set on global policies",
+		})
+	}
+
+	// When the caller selects a specific package, honor it. A chosen installer is always a custom
+	// package (VPP apps have no per-package selection). Validate it against the title's active
+	// packages so it belongs to this title/team and isn't an inactive row.
+	if installerChosen {
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, *softwareTitleID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list packages for chosen policy installer")
+		}
+		for _, p := range pkgs {
+			if p.InstallerID == *chosenInstallerID {
+				return new(*chosenInstallerID), nil, nil
+			}
+		}
+		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Software installer with ID %d does not belong to software title ID %d on team ID %d", *chosenInstallerID, *softwareTitleID, *teamID),
 		})
 	}
 

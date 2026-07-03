@@ -175,6 +175,9 @@ type TeamPolicyRequest struct {
 	Critical                     bool     `json:"critical" premium:"true"`
 	CalendarEventsEnabled        bool     `json:"calendar_events_enabled"`
 	SoftwareTitleID              *uint    `json:"software_title_id"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted, the policy defaults to the title's first-added package.
+	SoftwareInstallerID          *uint    `json:"software_installer_id"`
 	ScriptID                     *uint    `json:"script_id"`
 	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`

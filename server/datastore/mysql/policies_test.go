@@ -75,6 +75,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
+		{"ApplyPolicySpecFirstAddedInstaller", testApplyPolicySpecFirstAddedInstaller},
 		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
@@ -8821,4 +8822,55 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'other-script-1'`)
 	})
 	require.Equal(t, 3, attemptNum, "other policy attempt_number must be untouched")
+}
+
+// testApplyPolicySpecFirstAddedInstaller verifies that GitOps policy application resolves a title with
+// multiple active packages to the first-added package (smallest installer_id) deterministically.
+func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Spec First Added", "spec-first-added@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-first-added-team"})
+	require.NoError(t, err)
+
+	var titleID uint
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "SpecMultiPkg",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.specmultipkg",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return id
+	}
+	installerA := newPkg("spec-a", "pkgA.pkg")
+	installerB := newPkg("spec-b", "pkgB.pkg")
+	require.Less(t, installerA, installerB)
+
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "spec multi-package policy",
+			Query:           "SELECT 1;",
+			Team:            team.Name,
+			SoftwareTitleID: &titleID,
+		},
+	})
+	require.NoError(t, err)
+
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.NotNil(t, policies[0].SoftwareInstallerID)
+	require.Equal(t, installerA, *policies[0].SoftwareInstallerID, "GitOps must resolve to the first-added package")
 }
