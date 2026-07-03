@@ -438,20 +438,22 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				Message: "installer_id is required when the title has multiple packages.",
 			}
 		case payload.InstallerID != 0 && payload.InstallerID != existingInstaller.InstallerID:
-			var target *fleet.SoftwareInstaller
+			var found bool
 			for _, p := range siblings {
 				if p.InstallerID == payload.InstallerID {
-					target = p
+					found = true
 					break
 				}
 			}
-			if target == nil {
+			if !found {
 				return nil, ctxerr.Wrapf(ctx, &notFoundError{},
 					"installer %d does not belong to this title and team", payload.InstallerID)
 			}
-			// Icon is title-level; carry it from the first-added read for the activity.
-			target.IconUrl = existingInstaller.IconUrl
-			existingInstaller = target
+			// hydrate the targeted package the same way as the first-added default
+			existingInstaller, err = svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, payload.InstallerID, true)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting targeted installer")
+			}
 		}
 	}
 
@@ -766,6 +768,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
 				}
 			}
+
+			// the pinned version is now the active installer; return it, not the one we pinned away from
+			payload.InstallerID = activeInstallerID
 		default:
 			if payloadForNewInstallerFile != nil {
 				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {

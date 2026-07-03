@@ -33685,7 +33685,13 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 			"team_id": {fmt.Sprint(team.ID)},
 			"version": {version},
 		})
-		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		resp := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		var patchResp getSoftwareInstallerResponse
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&patchResp))
+		resp.Body.Close()
+		// the response must reflect the newly-pinned active installer, not the one pinned away from
+		require.NotNil(t, patchResp.SoftwareInstaller)
+		require.Equal(t, getPkg().Version, patchResp.SoftwareInstaller.Version)
 	}
 	// requireLastPinActivity asserts the latest activity is an edited_software with want as pinned_version.
 	// Marshaling want renders a pin as "1.0"/"^2" and a cleared pin (nil) as null, so no branching is needed.
