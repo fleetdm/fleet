@@ -2040,7 +2040,7 @@ Modifies the Fleet's configuration with the supplied information.
     },
     "windows_automatic_enrollment": {
         "default_fleet": "Unassigned"
-     },
+    },
     "apple_server_url": "https://instance.fleet.com"
   },
   "agent_options": {
