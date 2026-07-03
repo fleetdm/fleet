@@ -58,12 +58,34 @@ func isInstalled(toolName string) bool {
 	return path != ""
 }
 
+// ensureNotifier sets lr.notifier to the first available desktop dialog tool
+// (zenity, then kdialog). If neither is installed the notifier stays nil and
+// callers must treat notifications as best-effort.
+func (lr *LuksRunner) ensureNotifier() {
+	if lr.notifier != nil {
+		return
+	}
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	}
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
 	if !oc.Notifications.RunDiskEncryptionEscrow {
 		return nil
 	}
+
+	// Pick a notifier up front so both escrow paths can surface user-facing
+	// warnings. The passphrase path treats "no dialog tool" as fatal (it needs
+	// to prompt for a passphrase); the snapd/recovery-key path treats it as
+	// best-effort (silent success is fine, the failure notification just
+	// degrades to a log line).
+	lr.ensureNotifier()
 
 	// snapd-managed TPM-backed FDE (e.g. Ubuntu 26) escrows a recovery key
 	// silently and needs neither cryptsetup nor a desktop dialog. Detect it
@@ -84,12 +106,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return errors.New("cryptsetup is not installed")
 	}
 
-	switch {
-	case isInstalled("zenity"):
-		lr.notifier = zenity.New()
-	case isInstalled("kdialog"):
-		lr.notifier = kdialog.New()
-	default:
+	if lr.notifier == nil {
 		return errors.New("No supported dialog tool found")
 	}
 
