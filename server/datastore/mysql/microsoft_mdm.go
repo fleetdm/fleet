@@ -735,9 +735,8 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 }
 
 // MDMWindowsInsertCommandForHostUUIDs is the fire-and-forget enqueue used by the profile-manager cron to deliver supplemental
-// <Delete> commands (e.g. LocURIs removed from an edited profile) to a bounded batch of hosts. Unlike the install/remove paths it
-// does not write host_mdm_windows_profiles rows: the command stands alone and is not tracked per host. Uses the indexed by-UUID
-// enrollment lookup (the fast path) rather than the per-row device-ID lookup.
+// <Delete> commands (e.g. LocURIs removed from an edited profile) to a bounded batch of hosts. The command stands alone and is
+// not tracked per host.
 func (ds *Datastore) MDMWindowsInsertCommandForHostUUIDs(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1728,12 +1727,9 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	return nil
 }
 
-// retainWindowsProfilePriorContentDB retains the CURRENT live content of the given Windows config profiles in
-// mdm_windows_configuration_profiles_prior_content, keyed by (profile_uuid, checksum), so the profile-manager cron can build <Delete>
-// commands from the exact version a host has after the live definition is gone (delete) or overwritten (edit). It MUST run inside the
-// batch transaction BEFORE the definition rows are deleted or updated, since it copies straight from the live table. checksum is the
-// live table's generated md5(syncml), which matches host_mdm_windows_profiles.checksum for hosts on that version. Re-retaining the same
-// version is a no-op (PK collision on identical content).
+// retainWindowsProfilePriorContentDB retains the CURRENT live content of the given Windows config profiles, keyed by
+// (profile_uuid, checksum), so the profile-manager cron can build <Delete> commands from the exact version a host has after the
+// live definition is gone (delete) or overwritten (edit).
 func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
 	if len(profileUUIDs) == 0 {
 		return nil
@@ -1753,10 +1749,7 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 	return nil
 }
 
-// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys. The cron uses it
-// to build <Delete> commands for an edited profile from the exact version a host still has installed: it diffs that prior version's
-// LocURIs against the new (live) version's LocURIs. A key with no retained row (already garbage-collected, or the edit removed nothing)
-// is simply absent from the result.
+// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
 func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
 	if len(keys) == 0 {
 		return nil, nil
@@ -1774,7 +1767,9 @@ func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys
 
 	// Read from the primary, not a replica. The reconcile pass consumes each modify-install once (the re-install advances the host's
 	// checksum, so the host won't be revisited as a modify), so a replica-lag miss here would permanently drop the supplemental
-	// <Delete>. The retained row is written in the same transaction as the profile edit, so the primary always has it.
+	// <Delete>. The profile edit and the reconcile pass are both async, so the reconcile pass may run before the edit is fully
+	// committed to a replica. If we want to eliminate this primary-read requirement, we need to add retry/tracking logic (persisting
+	// a pending-delete marker per host-version).
 	ctx = ctxdb.RequirePrimary(ctx, true)
 	var rows []fleet.MDMWindowsProfilePriorContent
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
@@ -2197,9 +2192,7 @@ func (ds *Datastore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, prof
 }
 
 // GetMDMWindowsProfilesContents returns the SyncML (and checksum) for the given profile UUIDs. Live profiles are looked up first; for
-// any UUID not found live it falls back to the most recently retained version in mdm_windows_configuration_profiles_prior_content. The
-// fallback is safe because a deleted UUID is only ever a remove target, never an install target; the cron deletes that version's
-// LocURIs not still enforced by another desired profile.
+// any UUID not found live it falls back to the most recently retained version in mdm_windows_configuration_profiles_prior_content.
 func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 	if len(uuids) == 0 {
 		return nil, nil
@@ -2231,9 +2224,7 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 		}
 	}
 
-	// Fall back to retained prior content for any UUID not found live (deleted profiles still being drained by the cron). A profile may
-	// have several retained versions (edits then delete); take the most recent (the version live at deletion), matching the old
-	// single-version behavior. Ordering ascending by created_at and overwriting keeps the latest per UUID.
+	// Fall back to retained prior content for any UUID not found live (deleted profiles still being drained by the cron).
 	var missing []string
 	for _, u := range uuids {
 		if _, ok := results[u]; !ok {
@@ -2654,11 +2645,9 @@ ON DUPLICATE KEY UPDATE
 
 	// For profiles being updated (same name, different content), retain the OUTGOING version's content before the upsert below
 	// overwrites it. A re-install only Replaces/Adds the new content; it never reverts a LocURI the edit dropped, so the device must
-	// receive a <Delete> for each removed LocURI. Building and fanning those <Delete> commands out to every host here would be
-	// O(changed-profiles x hosts) on the request path and times out for large teams (#48349). Instead the profile-manager cron, when it
-	// re-installs the modified profile, diffs this retained prior version against the new content and enqueues the <Delete> commands
-	// asynchronously in its bounded batches, with per-host LocURI protection. This reuses the same retention table and async path as
-	// profile deletion; the cron keys the lookup by the version a host actually has (host_mdm_windows_profiles.checksum).
+	// receive a <Delete> for each removed LocURI. The profile-manager cron, when it re-installs the modified profile, diffs this
+	// retained prior version against the new content and enqueues the <Delete> commands asynchronously in its bounded batches, with
+	// per-host LocURI protection. This reuses the same retention table and async path as profile deletion.
 	//
 	// This is an edge case (most edits change values, not remove LocURIs), and the reverts are best-effort, not surfaced in the UI/API.
 	var editedProfileUUIDs []string
@@ -2919,12 +2908,11 @@ LIMIT ?`
 	return nil
 }
 
-// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior profile content
-// (mdm_windows_configuration_profiles_prior_content) once no host_mdm_windows_profiles row still has that version installed. Reference-
-// counted on (profile_uuid, checksum) rather than age-based, so a version's content survives exactly as long as some host still has it
-// installed and could still need its <Delete> (e.g. a host that was offline when the profile was edited or deleted). Once every host has
-// moved past that version (re-installed to a newer one, drained its removal, or unenrolled), the row is dropped. The NOT EXISTS uses the
-// host_mdm_windows_profiles(profile_uuid) index, then filters checksum on the matched rows.
+// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior profile content once no host_mdm_windows_profiles row
+// still has that version installed. Reference-counted on (profile_uuid, checksum) rather than age-based, so a version's content
+// survives exactly as long as some host still has it installed and could still need its <Delete> (e.g. a host that was offline
+// when the profile was edited or deleted). Once every host has moved past that version (re-installed to a newer one, drained its
+// removal, or unenrolled), the row is dropped.
 func (ds *Datastore) CleanupWindowsMDMProfilePriorContent(ctx context.Context) error {
 	const stmt = `
 DELETE pc FROM mdm_windows_configuration_profiles_prior_content pc
