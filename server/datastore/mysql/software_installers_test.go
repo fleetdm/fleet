@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,6 +40,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersWithUpgradeCodes", testBatchSetSoftwareInstallersWithUpgradeCodes},
 		{"GetSoftwareInstallersPendingDeletion", testGetSoftwareInstallersPendingDeletion},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
+		{"GetSoftwarePackagesByTeamAndTitleID", testGetSoftwarePackagesByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
@@ -3777,16 +3777,25 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 
 	// Simulate the scenario from issue #42260: an FMA version update creates
 	// a second row with the same storage_id but different version and is_active = 0.
+	// FMA rows dedupe by version, so the same bytes can back more than one version.
 	// GetTeamsWithInstallerByHash must only return the active row.
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "installer1",
+		Slug:             "installer1/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.installer1.fma",
+	})
+	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO software_installers
 				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
-				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query)
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query,
+				 fleet_maintained_app_id)
 			SELECT team_id, global_or_team_id, storage_id, filename, extension, 'old_version', platform, title_id,
-				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query, ?
 			FROM software_installers WHERE id = ?
-		`, installer1NoTeam)
+		`, fma.ID, installer1NoTeam)
 		return err
 	})
 
@@ -4443,6 +4452,59 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.Contains(t, names, "ipa_foo")
 }
 
+func testGetSoftwarePackagesByTeamAndTitleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Pkg Lister", "pkglister@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-lbl", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	mk := func(storage string, filename string, labels *fleet.LabelIdentsWithScope) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "Multi App",
+			BundleIdentifier: "com.example.multi",
+			Extension:        "pkg",
+			Source:           "apps",
+			Platform:         "darwin",
+			Version:          "1.0",
+			UserID:           user.ID,
+			ValidatedLabels:  labels,
+			TeamID:           &team.ID,
+		}
+	}
+
+	// Two custom packages of the same version but different content on one title; only
+	// the first is scoped to a label.
+	withLabel := &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
+	}
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-1", "multi-1.pkg", withLabel))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-2", "multi-2.pkg", &fleet.LabelIdentsWithScope{}))
+	require.NoError(t, err)
+
+	pkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, pkgs, 2)
+	// returned first-added first, each with its own label scope
+	require.Equal(t, "multi-1.pkg", pkgs[0].Name)
+	require.Equal(t, "multi-1", pkgs[0].StorageID)
+	require.Len(t, pkgs[0].LabelsIncludeAny, 1)
+	require.Equal(t, lbl.ID, pkgs[0].LabelsIncludeAny[0].LabelID)
+	require.Equal(t, "multi-2.pkg", pkgs[1].Name)
+	require.Empty(t, pkgs[1].LabelsIncludeAny)
+
+	// a title with no packages returns none
+	none, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID+1000)
+	require.NoError(t, err)
+	require.Empty(t, none)
+}
+
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -4479,11 +4541,8 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 
 	// Duplicate on Team A with different name/title but same hash → reject
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "b.sh", "title-b"))
-	require.Error(t, err)
 	var iae *fleet.InvalidArgumentError
-	if !errors.As(err, &iae) {
-		t.Fatalf("expected InvalidArgumentError for same-team duplicate hash, got: %T: %v", err, err)
-	}
+	require.ErrorAs(t, err, &iae)
 
 	// Same hash on different team → allowed
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamB.ID, "c.sh", "title-c"))
@@ -4495,11 +4554,8 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 
 	// Global scope second time (duplicate hash) → reject
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(nil, "global2.sh", "title-g2"))
-	require.Error(t, err)
 	var iae2 *fleet.InvalidArgumentError
-	if !errors.As(err, &iae2) {
-		t.Fatalf("expected InvalidArgumentError for global duplicate hash, got: %T: %v", err, err)
-	}
+	require.ErrorAs(t, err, &iae2)
 
 	// Test that binary packages (.pkg) with duplicate hash ARE allowed
 	mkPkgPayload := func(teamID *uint, filename, title string) *fleet.UploadSoftwareInstallerPayload {
@@ -4526,9 +4582,9 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPkgPayload(&teamA.ID, "pkg2.pkg", "title-pkg2"))
 	require.NoError(t, err, "binary packages with same hash should be allowed on same team")
 
-	// Binary packages with same title on same team → reject
+	// Same title and hash on the same team → rejected by the within-title hash check
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "a.sh", "title-a"))
-	require.ErrorContainsf(t, err, `"title-a" already exists with fleet "Team A".`, "expected existsError for same-team duplicate title, got: %T: %v", err, err)
+	require.ErrorContains(t, err, "same SHA-256 hash")
 }
 
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
@@ -5475,9 +5531,10 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, initialDisplayNameID, afterDisplayNameID, "display_name row should be upserted in place, not deleted and re-inserted")
 
-	// Same-version case: custom installer and incoming FMA share a version
-	// string. ON DUPLICATE KEY UPDATE on (team, title, version) upserts in
-	// place; the row must be converted to FMA, not deleted.
+	// Same-version case: the custom installer and the incoming FMA share a
+	// version string. Converting a custom package to an FMA replaces the row and
+	// re-points its FKs (same as the different-version case above), leaving the
+	// FMA as the single active row for the title.
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_custom_to_fma_same_version"})
 	require.NoError(t, err)
 
@@ -5533,7 +5590,7 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	tmFilter2 := fleet.TeamFilter{User: test.UserAdmin, TeamID: new(team2.ID)}
 	titles2, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(team2.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter2)
 	require.NoError(t, err)
-	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA upsert")
+	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA conversion")
 
 	var installerRows []struct {
 		ID       uint  `db:"id"`
@@ -5547,8 +5604,8 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 		`, team2.ID, titles2[0].ID)
 	})
 	require.Len(t, installerRows, 1)
-	require.Equal(t, customInstallerID2, installerRows[0].ID, "row should be updated in place, not deleted+re-inserted")
-	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA via ON DUPLICATE KEY UPDATE")
+	require.NotEqual(t, customInstallerID2, installerRows[0].ID, "custom row should be replaced by the FMA row")
+	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA")
 	require.Equal(t, fma2.ID, *installerRows[0].FMAID)
 	require.True(t, installerRows[0].IsActive)
 }
@@ -5768,7 +5825,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 
-	const conflictMsg = "already has an installer available for"
+	const conflictMsg = "already has an Apple App Store (VPP) on"
 
 	// macOS installer conflicting with a VPP app on the same bundle id.
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -5826,7 +5883,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 
-	// macOS installer conflicting with the same installer at a newer version.
+	// macOS: a second version of the same title is allowed (multiple packages per title).
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		StorageID:        "mac-base-storage",
 		Filename:         "mac-app.pkg",
@@ -5855,9 +5912,9 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 		TeamID:           &team.ID,
 	})
-	require.ErrorContains(t, err, conflictMsg)
+	require.NoError(t, err)
 
-	// Windows installer conflicting with the same Title at a newer version.
+	// Windows: a second version of the same title is allowed.
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		StorageID:       "win-base-storage",
 		Filename:        "win-app.msi",
@@ -5884,9 +5941,9 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, conflictMsg)
+	require.NoError(t, err)
 
-	// Windows installer conflicting on the upgrade code with a different Title.
+	// Windows: a second package matching the same upgrade code is allowed.
 	const winUpgradeCode = "{ABCDEF12-3456-7890-ABCD-EF1234567890}"
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		StorageID:       "win-uc-base-storage",
@@ -5916,7 +5973,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, conflictMsg)
+	require.NoError(t, err)
 
 	// Windows: existing installer has an upgrade code, new upload has the same
 	// Title but no upgrade code.
@@ -5947,7 +6004,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, conflictMsg)
+	require.NoError(t, err)
 
 	// Reverse: existing installer has no upgrade code, new upload has the same
 	// Title with an upgrade code.
@@ -5978,9 +6035,9 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, conflictMsg)
+	require.NoError(t, err)
 
-	// Linux installer conflicting with the same Title at a newer version.
+	// Linux: a second version of the same title is allowed.
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		StorageID:       "linux-base-storage",
 		Filename:        "linux-app.deb",
@@ -6007,7 +6064,112 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, conflictMsg)
+	require.NoError(t, err)
+
+	// Linux .deb: a duplicate content hash on the title is rejected.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "linux-base-storage",
+		Filename:        "linux-app-dup.deb",
+		Title:           "Linux App",
+		Extension:       "deb",
+		Source:          "deb_packages",
+		Platform:        "linux",
+		Version:         "3.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, "same SHA-256 hash")
+
+	// Linux .rpm: a second build is allowed, a duplicate content hash is rejected.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "rpm-base-storage",
+		Filename:        "linux-app.rpm",
+		Title:           "Linux RPM App",
+		Extension:       "rpm",
+		Source:          "rpm_packages",
+		Platform:        "linux",
+		Version:         "1.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "rpm-base-storage",
+		Filename:        "linux-app-dup.rpm",
+		Title:           "Linux RPM App",
+		Extension:       "rpm",
+		Source:          "rpm_packages",
+		Platform:        "linux",
+		Version:         "2.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, "same SHA-256 hash")
+
+	// Same title and version but different content is allowed (e.g. Arm vs Intel builds).
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "arch-storage-arm",
+		Filename:         "arch-app-arm.pkg",
+		Title:            "Arch App",
+		BundleIdentifier: "com.example.arch",
+		Extension:        "pkg",
+		Source:           "apps",
+		Platform:         "darwin",
+		Version:          "1.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "arch-storage-intel",
+		Filename:         "arch-app-intel.pkg",
+		Title:            "Arch App",
+		BundleIdentifier: "com.example.arch",
+		Extension:        "pkg",
+		Source:           "apps",
+		Platform:         "darwin",
+		Version:          "1.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.NoError(t, err)
+
+	// A title holds at most fleet.MaxPackagesPerTitle packages, so the next one is rejected.
+	for i := range fleet.MaxPackagesPerTitle {
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			StorageID:       fmt.Sprintf("limit-storage-%d", i),
+			Filename:        fmt.Sprintf("limit-%d.msi", i),
+			Title:           "Limit App",
+			Extension:       "msi",
+			Source:          "programs",
+			Platform:        "windows",
+			Version:         fmt.Sprintf("1.%d", i),
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+	}
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "limit-storage-extra",
+		Filename:        "limit-extra.msi",
+		Title:           "Limit App",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "9.9",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, fmt.Sprintf("already has %d packages", fleet.MaxPackagesPerTitle))
 }
 
 func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {

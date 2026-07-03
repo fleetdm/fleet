@@ -45,6 +45,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
 		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
+		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -889,6 +890,55 @@ func titleByName(titles []fleet.SoftwareTitleListResult, name string) fleet.Soft
 		}
 	}
 	return fleet.SoftwareTitleListResult{}
+}
+
+func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Multi", "multi@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "multi-pkg-team"})
+	require.NoError(t, err)
+
+	mk := func(storage string, filename string) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Multi App",
+			Source:           "apps",
+			BundleIdentifier: "com.example.multi",
+			Platform:         "darwin",
+			Extension:        "pkg",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			Filename:         filename,
+			StorageID:        storage,
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team.ID,
+		}
+	}
+
+	// two active packages on one title (same version, different content)
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-a", "a.pkg"))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-b", "b.pkg"))
+	require.NoError(t, err)
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	// the team has only this title, so it must appear exactly once (not duplicated by the two
+	// active packages) on both the optimized path (no filters) and the filtered path
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "Multi App", titles[0].Name)
+
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, ListOptions: fleet.ListOptions{MatchQuery: "Multi App"}}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "Multi App", titles[0].Name)
+
+	// the installer count reflects both packages
+	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, 2, title.SoftwareInstallersCount)
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
