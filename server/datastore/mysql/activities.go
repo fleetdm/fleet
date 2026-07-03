@@ -1665,10 +1665,10 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
                 ON  hsi.host_id      = ahp.host_id
                 AND hsi.execution_id = ap.details->>'$.install_uuid'
                 AND hsi.policy_id    = ?`,
-		errorCond:   "hsi.status = 'failed_install'",
-		successCond: "hsi.status = 'installed'",
+		errorCond:   "ap.details->>'$.status' = 'failed_install'",
+		successCond: "ap.details->>'$.status' = 'installed'",
 		statusCols: statusOutputCols{
-			status: "IF(hsi.status = 'installed', 'success', 'error')",
+			status: "IF(ap.details->>'$.status' = 'installed', 'success', 'error')",
 			output: "hsi.install_script_output",
 		},
 	},

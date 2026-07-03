@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260617172853, Down_20260617172853)
+	MigrationClient.AddMigration(Up_20260702013057, Down_20260702013057)
 }
 
-func Up_20260617172853(tx *sql.Tx) error {
+func Up_20260702013057(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE software_title_team_pins (
   team_id INT UNSIGNED NOT NULL,
@@ -27,6 +27,6 @@ CREATE TABLE software_title_team_pins (
 	return nil
 }
 
-func Down_20260617172853(tx *sql.Tx) error {
+func Down_20260702013057(tx *sql.Tx) error {
 	return nil
 }
