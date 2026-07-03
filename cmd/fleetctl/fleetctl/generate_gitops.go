@@ -2020,6 +2020,18 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			return nil, err
 		}
 
+		// A title with more than one custom package is written to its own package YAML
+		// file, referenced by a single path entry in the fleet file.
+		if len(softwareTitle.Packages) > 1 {
+			_, inSetup := setupSoftwareBySoftwareTitle[softwareTitle.ID]
+			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup)
+			if err != nil {
+				return nil, err
+			}
+			packages = append(packages, entry)
+			continue
+		}
+
 		var slug string
 
 		if softwareTitle.SoftwarePackage != nil {
@@ -2308,6 +2320,87 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	return result, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool) (map[string]any, error) {
+	// Paths inside the package YAML file are resolved relative to that file, which
+	// lives in lib/<team>/software, so a sibling dir is reached with ../<dir>/<name>.
+	writeSideFile := func(dir string, name string, contents any) string {
+		cmd.FilesToWrite[fmt.Sprintf("lib/%s/%s/%s", teamFilename, dir, name)] = contents
+		return fmt.Sprintf("../%s/%s", dir, name)
+	}
+
+	items := make([]map[string]any, 0, len(title.Packages))
+	for i, pkg := range title.Packages {
+		prefix := fmt.Sprintf("%s-%s-%d", generateFilename(swName), pkg.Platform, i+1)
+		item := map[string]any{"hash_sha256": pkg.StorageID}
+		if pkg.URL != "" {
+			item["url"] = pkg.URL
+		}
+		if pkg.SelfService {
+			item["self_service"] = true
+		}
+		if len(pkg.Categories) > 0 {
+			item["categories"] = pkg.Categories
+		}
+		if pkg.InstallScript != "" {
+			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install", pkg.InstallScript)}
+		}
+		if pkg.PostInstallScript != "" {
+			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall", pkg.PostInstallScript)}
+		}
+		if pkg.UninstallScript != "" {
+			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall", pkg.UninstallScript)}
+		}
+		if pkg.PreInstallQuery != "" {
+			item["pre_install_query"] = map[string]any{"path": writeSideFile("queries", prefix+"-preinstallquery.yml", []map[string]any{{"query": pkg.PreInstallQuery}})}
+		}
+		if key, names := packageLabels(pkg); key != "" {
+			item[key] = names
+		}
+		items = append(items, item)
+	}
+
+	// The icon is per-title, so emit it once on the first package.
+	if downloadIcons && title.IconUrl != nil && strings.HasPrefix(*title.IconUrl, "/api") && len(items) > 0 {
+		icon, err := cmd.Client.GetSoftwareTitleIcon(title.ID, teamID)
+		if err != nil {
+			return nil, err
+		}
+		items[0]["icon"] = map[string]any{"path": writeSideFile("icons", generateFilename(swName)+"-icon.png", icon)}
+	}
+
+	// The fleet-level entry points at the package file relative to the fleet file.
+	packageFile := fmt.Sprintf("lib/%s/software/%s.package.yml", teamFilename, generateFilename(swName))
+	cmd.FilesToWrite[packageFile] = items
+	entry := map[string]any{"path": "../" + packageFile}
+	if inSetup {
+		entry["setup_experience"] = true
+	}
+	if title.DisplayName != "" {
+		entry["display_name"] = title.DisplayName
+	}
+	return entry, nil
+}
+
+func packageLabels(pkg fleet.SoftwareInstaller) (string, []string) {
+	var labels []fleet.SoftwareScopeLabel
+	var key string
+	switch {
+	case len(pkg.LabelsIncludeAny) > 0:
+		labels, key = pkg.LabelsIncludeAny, "labels_include_any"
+	case len(pkg.LabelsExcludeAny) > 0:
+		labels, key = pkg.LabelsExcludeAny, "labels_exclude_any"
+	case len(pkg.LabelsIncludeAll) > 0:
+		labels, key = pkg.LabelsIncludeAll, "labels_include_all"
+	default:
+		return "", nil
+	}
+	names := make([]string, len(labels))
+	for i, l := range labels {
+		names[i] = l.LabelName
+	}
+	return key, names
 }
 
 func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]any, error) {

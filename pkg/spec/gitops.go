@@ -304,13 +304,26 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 		}
 	}
 
-	packageLevel.Categories = spec.Categories
-	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
-	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
-	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
-	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
-	packageLevel.SelfService = spec.SelfService
-	packageLevel.Configuration = spec.Configuration
+	// Inherit team-level fields the package didn't set. Labels, self_service, and
+	// categories are per-package for multiple packages, or inherited from the
+	// fleet-level file for a single package.
+	if !packageLevel.SelfService {
+		packageLevel.SelfService = spec.SelfService
+	}
+	if len(packageLevel.Categories.Value) == 0 {
+		packageLevel.Categories = spec.Categories
+	}
+	if len(packageLevel.LabelsIncludeAny) == 0 && len(packageLevel.LabelsExcludeAny) == 0 && len(packageLevel.LabelsIncludeAll) == 0 {
+		packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
+		packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+		packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
+	}
+	if !packageLevel.InstallDuringSetup.Valid {
+		packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	}
+	if packageLevel.Configuration.Path == "" {
+		packageLevel.Configuration = spec.Configuration
+	}
 
 	// This will only override display name set at path: path/to/software.yml level
 	// if display_name is specified at the team level yml
@@ -319,6 +332,20 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	}
 
 	return packageLevel, nil
+}
+
+func validatePackageFieldPlacement(teamLevel SoftwarePackage, pkg *fleet.SoftwarePackageSpec, multiple bool) error {
+	if (teamLevel.SelfService && pkg.SelfService) ||
+		(len(teamLevel.Categories.Value) > 0 && len(pkg.Categories.Value) > 0) {
+		return fmt.Errorf(fleet.SoftwareSelfServiceCategoriesConflictMessage, pkg.URL)
+	}
+	if multiple && pkg.InstallDuringSetup.Valid {
+		return fmt.Errorf(fleet.SoftwareSetupExperienceFleetLevelOnlyMessage, pkg.URL)
+	}
+	if multiple && (len(teamLevel.LabelsIncludeAny) > 0 || len(teamLevel.LabelsExcludeAny) > 0 || len(teamLevel.LabelsIncludeAll) > 0) {
+		return fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, pkg.URL)
+	}
+	return nil
 }
 
 type Software struct {
@@ -2225,41 +2252,38 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 					continue
 				}
-				var singlePackageSpec SoftwarePackage
-				singlePackageSpec.ReferencedYamlPath = resolvedPath
-				if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[SoftwarePackage](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					if singlePackageSpec.IncludesFieldsDisallowedInPackageFile() {
-						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-						continue
-					}
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec.SoftwarePackageSpec)
-				} else if err = YamlUnmarshal(fileBytes, &softwarePackageSpecs); err == nil {
-					// Failing that, try to unmarshal as a list of SoftwarePackageSpecs
+				// A package YAML file is a list of packages. A file written as a single
+				// object is treated as a one-element list.
+				var singlePackageSpec fleet.SoftwarePackageSpec
+				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
+				if listErr == nil {
 					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					for i, spec := range softwarePackageSpecs {
-						if spec.IncludesFieldsDisallowedInPackageFile() {
-							multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-							continue
-						}
-
-						softwarePackageSpecs[i].ReferencedYamlPath = resolvedPath
-					}
+				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
+					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
+					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
 				} else {
-					// If we reached here, we couldn't unmarshal as either format.
-					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, err))
+					// couldn't unmarshal as a list or a single object
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
 					continue
 				}
-
-				for i, spec := range softwarePackageSpecs {
-					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
+				// Collect the packages that validate and hydrate, dropping any that fail.
+				multiple := len(softwarePackageSpecs) > 1
+				var valid []*fleet.SoftwarePackageSpec
+				for _, spec := range softwarePackageSpecs {
+					spec.ReferencedYamlPath = resolvedPath
+					if err := validatePackageFieldPlacement(teamLevelPackage, spec, multiple); err != nil {
+						multiError = multierror.Append(multiError, err)
+						continue
+					}
+					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(resolvedPath))
 					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec, ext)
 					if err != nil {
 						multiError = multierror.Append(multiError, err)
 						continue
 					}
-					softwarePackageSpecs[i] = &softwarePackageSpec
+					valid = append(valid, &softwarePackageSpec)
 				}
+				softwarePackageSpecs = valid
 
 			default:
 				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, or .ps1 files are supported", *teamLevelPackage.Path, ext))

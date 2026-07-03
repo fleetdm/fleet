@@ -42,6 +42,9 @@ var (
 	SoftwareAlreadyHasFleetMaintainedAppMessage  = "%s already has a Fleet-maintained app on the %s fleet."
 	SoftwareAlreadyHasPackageMessage             = "%s already has a software package on the %s fleet."
 	SoftwarePackageLimitMessage                  = "%s already has %d packages. Before adding, delete one you no longer use."
+	SoftwareSelfServiceCategoriesConflictMessage = "Couldn't add software (%q). self_service and categories can be specified either in the fleet-level file or in the package YAML file."
+	SoftwareSetupExperienceFleetLevelOnlyMessage = "Couldn't add software (%q). setup_experience can be specified only in the fleet-level file."
+	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 )
 

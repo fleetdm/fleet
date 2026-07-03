@@ -925,11 +925,6 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	return spec
 }
 
-func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
-	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
-		len(spec.Categories.Value) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
-}
-
 func resolveApplyRelativePath(baseDir string, path string) string {
 	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
 		return filepath.Join(baseDir, path)
@@ -1208,6 +1203,29 @@ const MaxSoftwareInstallAttempts = 3
 
 // MaxPackagesPerTitle caps how many custom packages a single software title can hold per team.
 const MaxPackagesPerTitle = 10
+
+func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName string) error {
+	var customCount, fmaCount int
+	seenHash := make(map[string]struct{}, len(payloads))
+	for _, p := range payloads {
+		if p.FleetMaintainedAppID != nil {
+			fmaCount++
+			continue
+		}
+		customCount++
+		if _, dup := seenHash[p.StorageID]; dup {
+			return ConflictError{Message: fmt.Sprintf(SoftwarePackageHashConflictMessage, p.Filename)}
+		}
+		seenHash[p.StorageID] = struct{}{}
+	}
+	if fmaCount > 0 && customCount > 0 {
+		return ConflictError{Message: fmt.Sprintf(SoftwareAlreadyHasFleetMaintainedAppMessage, payloads[0].Title, teamName)}
+	}
+	if customCount > MaxPackagesPerTitle {
+		return ConflictError{Message: fmt.Sprintf(SoftwarePackageLimitMessage, payloads[0].Title, MaxPackagesPerTitle)}
+	}
+	return nil
+}
 
 // HostSoftwareInstallOptions contains options that apply to a software or VPP
 // app install request.
