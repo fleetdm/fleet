@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/rs/zerolog/log"
 )
 
 // snapdSocketPath is the privileged snapd REST API socket. Privileged
@@ -118,11 +119,13 @@ func (c *snapdClient) waitChange(ctx context.Context, changeID string) (json.Raw
 	ticker := time.NewTicker(snapdChangePollInterval)
 	defer ticker.Stop()
 
+	log.Debug().Str("change", changeID).Msg("waiting for snapd change to complete")
 	for {
 		var change snapdChange
 		if err := c.requestSync(ctx, http.MethodGet, "/v2/changes/"+changeID, nil, &change); err != nil {
 			return nil, fmt.Errorf("polling snapd change %s: %w", changeID, err)
 		}
+		log.Debug().Str("change", changeID).Str("status", change.Status).Bool("ready", change.Ready).Msg("polled snapd change")
 		if change.Ready {
 			if change.Status != "Done" {
 				if change.Err != "" {
@@ -130,6 +133,7 @@ func (c *snapdClient) waitChange(ctx context.Context, changeID string) (json.Raw
 				}
 				return nil, fmt.Errorf("snapd change %s ended with status %s", changeID, change.Status)
 			}
+			log.Debug().Str("change", changeID).Msg("snapd change completed successfully")
 			return change.Data, nil
 		}
 
@@ -162,6 +166,10 @@ func (c *snapdClient) do(ctx context.Context, method, path string, body any) (*s
 		req.Header.Set("Content-Type", "application/json")
 	}
 
+	// NB: we intentionally do not log request or response bodies here — the
+	// generate-recovery-key result contains the plaintext recovery key.
+	log.Debug().Str("method", method).Str("path", path).Msg("snapd socket request")
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling snapd %s: %w", path, err)
@@ -181,11 +189,15 @@ func (c *snapdClient) do(ctx context.Context, method, path string, body any) (*s
 	if decoded.StatusCode >= 400 {
 		var snapErr snapdError
 		_ = json.Unmarshal(decoded.Result, &snapErr)
+		log.Debug().Str("path", path).Int("status_code", decoded.StatusCode).
+			Str("kind", snapErr.Kind).Str("message", snapErr.Message).Msg("snapd socket error response")
 		if snapErr.Message != "" {
 			return nil, fmt.Errorf("snapd %s returned %d: %s", path, decoded.StatusCode, snapErr.Message)
 		}
 		return nil, fmt.Errorf("snapd %s returned status %d", path, decoded.StatusCode)
 	}
 
+	log.Debug().Str("path", path).Str("type", decoded.Type).Int("status_code", decoded.StatusCode).
+		Str("status", decoded.Status).Str("change", decoded.Change).Msg("snapd socket response")
 	return &decoded, nil
 }

@@ -68,15 +68,17 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	// snapd-managed TPM-backed FDE (e.g. Ubuntu 26) escrows a recovery key
 	// silently and needs neither cryptsetup nor a desktop dialog. Detect it
 	// first and take that path when present.
+	log.Info().Msg("disk encryption escrow requested; determining escrow path")
 	snapd := newSnapdFDE()
 	isSnapd, err := snapd.Detect(ctx)
 	if err != nil {
-		log.Debug().Err(err).Msg("detecting snapd-managed FDE; falling back to passphrase escrow")
+		log.Debug().Err(err).Msg("detecting snapd-managed FDE failed; falling back to passphrase escrow")
 	}
 	if isSnapd {
-		log.Debug().Msg("escrowing snapd-managed recovery key")
+		log.Info().Msg("host uses snapd-managed TPM-backed FDE; escrowing recovery key via the snapd socket")
 		return lr.runRecoveryKeyEscrow(ctx, snapd)
 	}
+	log.Info().Msg("host is not snapd-managed FDE; using the passphrase escrow path")
 
 	if !isInstalled("cryptsetup") {
 		return errors.New("cryptsetup is not installed")
@@ -451,13 +453,23 @@ func (s *snapdFDE) Detect(ctx context.Context) (bool, error) {
 		log.Debug().Err(err).Msg("no LUKS root disk found while detecting snapd FDE")
 		return false, nil
 	}
+	log.Debug().Str("device", devicePath).Msg("inspecting LUKS root disk for snapd-managed FDE")
 
 	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return false, fmt.Errorf("inspecting LUKS metadata: %w", err)
 	}
 
-	return IsSnapdManaged(dump), nil
+	tokenTypes := make([]string, 0, len(dump.Tokens))
+	for _, tok := range dump.Tokens {
+		tokenTypes = append(tokenTypes, tok.Type)
+	}
+	managed := IsSnapdManaged(dump)
+	log.Debug().Str("device", devicePath).Strs("luks_tokens", tokenTypes).
+		Int("keyslots", len(dump.Keyslots)).Bool("snapd_managed", managed).
+		Msg("inspected LUKS2 metadata for snapd-managed FDE")
+
+	return managed, nil
 }
 
 func (s *snapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {

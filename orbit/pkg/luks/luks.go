@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 )
 
 type LuksDump struct {
@@ -145,8 +146,10 @@ func parseRecoveryKey(output string) (string, error) {
 func (lr *LuksRunner) runRecoveryKeyEscrow(ctx context.Context, snapd SnapdFDE) error {
 	response := LuksResponse{KeyType: fleet.LUKSKeyTypeRecoveryKey}
 
+	log.Info().Msg("creating and enrolling snapd-managed FDE recovery key for escrow")
 	recoveryKey, err := snapd.EnsureFleetRecoveryKey(ctx)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to create snapd-managed recovery key; reporting escrow error to Fleet")
 		response.Err = fmt.Sprintf("creating Fleet recovery key: %s", err)
 		if sendErr := lr.escrower.SendLinuxKeyEscrowResponse(response); sendErr != nil {
 			return fmt.Errorf("reporting recovery key escrow error: %w", sendErr)
@@ -155,15 +158,18 @@ func (lr *LuksRunner) runRecoveryKeyEscrow(ctx context.Context, snapd SnapdFDE) 
 	}
 
 	response.Passphrase = recoveryKey
+	log.Debug().Msg("sending escrowed recovery key to the Fleet server")
 	if err := lr.escrower.SendLinuxKeyEscrowResponse(response); err != nil {
 		// The server did not record the key. snapd exposes no way to delete a
 		// recovery-key slot, so we cannot roll the enrolled key back — but it is
 		// harmless (its secret was never stored anywhere) and the host stays
 		// pending escrow, so the next attempt regenerates and replaces it in
 		// place. Escrow therefore self-heals on retry.
+		log.Error().Err(err).Msg("failed to escrow recovery key to Fleet; the host stays pending and will retry on the next check-in")
 		return fmt.Errorf("escrowing recovery key: %w", err)
 	}
 
+	log.Info().Msg("snapd-managed FDE recovery key escrowed to Fleet")
 	return nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 // systemVolumesPath is the snapd REST API endpoint for managing FDE key slots
@@ -66,6 +68,7 @@ func newSnapdSocketFDE() *snapdSocketFDE {
 func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, error) {
 	// Step 1: generate a recovery key. snapd answers synchronously with the key
 	// value and a transient id used to enroll it.
+	log.Debug().Str("action", actionGenerateRecoveryKey).Msg("requesting snapd to generate a recovery key")
 	var gen generateRecoveryKeyResponse
 	if err := s.client.requestSync(ctx, http.MethodPost, systemVolumesPath,
 		generateRecoveryKeyRequest{Action: actionGenerateRecoveryKey}, &gen); err != nil {
@@ -74,6 +77,9 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 	if gen.RecoveryKey == "" || gen.KeyID == "" {
 		return "", errors.New("snapd returned an incomplete recovery key")
 	}
+	// Log the transient key id and the key length, never the key itself.
+	log.Debug().Str("key_id", gen.KeyID).Int("recovery_key_len", len(gen.RecoveryKey)).
+		Msg("snapd generated a recovery key")
 
 	// Step 2: enroll the generated key under the Fleet-owned name (a name-only
 	// keyslot targets both system containers). This is asynchronous because it
@@ -81,9 +87,13 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 	// add-recovery-key applies; on a retry the slot already exists, so fall back
 	// to replace-recovery-key to rotate the secret in place.
 	slots := []keyslotRef{{Name: FleetRecoveryKeyName}}
+	log.Debug().Str("action", actionAddRecoveryKey).Str("keyslot", FleetRecoveryKeyName).Str("key_id", gen.KeyID).
+		Msg("enrolling recovery key under Fleet keyslot")
 	if err := s.client.requestAsync(ctx, http.MethodPost, systemVolumesPath, recoveryKeyActionRequest{
 		Action: actionAddRecoveryKey, KeyID: gen.KeyID, Keyslots: slots,
 	}, nil); err != nil {
+		log.Debug().Err(err).Str("action", actionReplaceRecoveryKey).Str("keyslot", FleetRecoveryKeyName).
+			Msg("add-recovery-key failed (slot may already exist); retrying with replace-recovery-key")
 		if rerr := s.client.requestAsync(ctx, http.MethodPost, systemVolumesPath, recoveryKeyActionRequest{
 			Action: actionReplaceRecoveryKey, KeyID: gen.KeyID, Keyslots: slots,
 		}, nil); rerr != nil {
@@ -94,11 +104,13 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 	// Step 3: validate the freshly enrolled key before escrowing it, mirroring
 	// the passphrase flow's post-add validation. check-recovery-key is
 	// synchronous and returns success with a null result.
+	log.Debug().Str("action", actionCheckRecoveryKey).Msg("validating enrolled recovery key")
 	if err := s.client.requestSync(ctx, http.MethodPost, systemVolumesPath, recoveryKeyActionRequest{
 		Action: actionCheckRecoveryKey, RecoveryKey: gen.RecoveryKey,
 	}, nil); err != nil {
 		return "", fmt.Errorf("validating snapd recovery key: %w", err)
 	}
 
+	log.Info().Str("keyslot", FleetRecoveryKeyName).Msg("snapd-managed recovery key enrolled and validated")
 	return gen.RecoveryKey, nil
 }
