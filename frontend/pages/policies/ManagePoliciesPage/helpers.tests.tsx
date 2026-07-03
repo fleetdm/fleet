@@ -500,4 +500,16 @@ describe("getPageAfterDelete", () => {
       })
     ).toBe(2);
   });
+
+  it("stays on the current page when the total count is unknown", () => {
+    // Count query unresolved/errored -> undefined -> don't guess, stay put.
+    expect(
+      getPageAfterDelete({
+        currentPage: 2,
+        totalCount: undefined,
+        deletedCount: 1,
+        pageSize: PAGE_SIZE,
+      })
+    ).toBe(2);
+  });
 });

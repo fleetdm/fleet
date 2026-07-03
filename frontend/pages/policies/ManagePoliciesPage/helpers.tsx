@@ -127,7 +127,8 @@ export const getInstallSoftwareErrorMessage = (
  * Determines which page a server-side paginated list should show after deleting
  * `deletedCount` rows. If deleting empties the current page (e.g. the last
  * policy on the last page was removed), it steps back one page; otherwise it
- * stays on the current page.
+ * stays on the current page. When `totalCount` is undefined (the count query is
+ * unresolved or errored), it stays on the current page rather than guessing.
  */
 export const getPageAfterDelete = ({
   currentPage,
@@ -136,10 +137,13 @@ export const getPageAfterDelete = ({
   pageSize,
 }: {
   currentPage: number;
-  totalCount: number;
+  totalCount: number | undefined;
   deletedCount: number;
   pageSize: number;
 }): number => {
+  if (totalCount === undefined) {
+    return currentPage;
+  }
   const remainingCount = totalCount - deletedCount;
   if (currentPage > 0 && remainingCount <= currentPage * pageSize) {
     return currentPage - 1;

@@ -415,6 +415,14 @@ const ManagePolicyPage = ({
     }
   };
 
+  const refetchPoliciesCount = (teamId?: number) => {
+    if (teamId !== undefined) {
+      refetchTeamPoliciesCountMergeInherited();
+    } else {
+      refetchGlobalPoliciesCount();
+    }
+  };
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
@@ -573,12 +581,15 @@ const ManagePolicyPage = ({
       const currentCount = isAllTeamsSelected
         ? globalPoliciesCount
         : teamPoliciesCountMergeInherited;
-      const pageAfterDelete = getPageAfterDelete({
-        currentPage: page,
-        totalCount: currentCount ?? 0,
-        deletedCount: selectedPolicyIds.length,
-        pageSize: DEFAULT_PAGE_SIZE,
-      });
+      const pageAfterDelete =
+        currentCount !== undefined
+          ? getPageAfterDelete({
+              currentPage: page,
+              totalCount: currentCount,
+              deletedCount: selectedPolicyIds.length,
+              pageSize: DEFAULT_PAGE_SIZE,
+            })
+          : page;
       if (pageAfterDelete !== page) {
         router?.replace(
           getNextLocationPath({
@@ -586,9 +597,10 @@ const ManagePolicyPage = ({
             queryParams: { ...queryParams, page: pageAfterDelete },
           })
         );
+        refetchPoliciesCount(teamIdForApi);
+      } else {
+        refetchPolicies(teamIdForApi);
       }
-
-      refetchPolicies(teamIdForApi);
     } catch (e) {
       notify.error("Unable to delete policies. Please try again.", {
         response: e,
@@ -601,6 +613,7 @@ const ManagePolicyPage = ({
     isAllTeamsSelected,
     isPrimoMode,
     refetchPolicies,
+    refetchPoliciesCount,
     selectedPolicyIds,
     setResetSelectedRows,
     teamIdForApi,
