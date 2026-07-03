@@ -17314,6 +17314,43 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	require.Len(t, title.Packages, 2)
 	require.Equal(t, hashOf(contentC), title.Packages[1].StorageID)
 
+	// --- Per-package categories: a targeted PATCH echo must match GET, not the title-merged union ---
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: titleID, InstallerID: installerA, TeamID: &team.ID, Categories: []string{"Browsers"},
+	}, http.StatusOK, "")
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: titleID, InstallerID: installerB, TeamID: &team.ID, Categories: []string{"Productivity"},
+	}, http.StatusOK, "")
+	title = getTitle()
+	catsA := title.Packages[0].Categories
+	catsB := title.Packages[1].Categories
+	require.NotEmpty(t, catsA)
+	require.NotEmpty(t, catsB)
+	require.NotEqual(t, catsA, catsB, "packages carry distinct categories")
+
+	// A noop PATCH targeting the first-added installer must echo that installer's own
+	// categories, not the union across sibling packages.
+	var noopBody bytes.Buffer
+	noopW := multipart.NewWriter(&noopBody)
+	require.NoError(t, noopW.WriteField("team_id", fmt.Sprintf("%d", team.ID)))
+	require.NoError(t, noopW.WriteField("installer_id", fmt.Sprintf("%d", installerA)))
+	require.NoError(t, noopW.Close())
+	noopResp := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID),
+		noopBody.Bytes(), http.StatusOK, map[string]string{
+			"Content-Type":  noopW.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		})
+	noopRaw, err := io.ReadAll(noopResp.Body)
+	require.NoError(t, err)
+	noopResp.Body.Close()
+	var noopParsed getSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(noopRaw, &noopParsed))
+	require.NotNil(t, noopParsed.SoftwareInstaller)
+	require.Equal(t, installerA, noopParsed.SoftwareInstaller.InstallerID)
+	require.ElementsMatch(t, catsA, noopParsed.SoftwareInstaller.Categories,
+		"noop PATCH echo must return the targeted installer's own categories, not the title-merged set")
+
 	// A title-level display name is shared across sibling packages; deleting one must not wipe it.
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,

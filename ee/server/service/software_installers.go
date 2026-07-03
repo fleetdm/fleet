@@ -437,7 +437,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, &fleet.BadRequestError{
 				Message: "installer_id is required when the title has multiple packages.",
 			}
-		case payload.InstallerID != 0 && payload.InstallerID != existingInstaller.InstallerID:
+		case payload.InstallerID != 0:
 			var found bool
 			for _, p := range siblings {
 				if p.InstallerID == payload.InstallerID {
