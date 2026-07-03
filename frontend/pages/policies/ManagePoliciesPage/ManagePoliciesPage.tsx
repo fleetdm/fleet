@@ -581,20 +581,17 @@ const ManagePolicyPage = ({
       const currentCount = isAllTeamsSelected
         ? globalPoliciesCount
         : teamPoliciesCountMergeInherited;
-      const pageAfterDelete =
-        currentCount !== undefined
-          ? getPageAfterDelete({
-              currentPage: page,
-              totalCount: currentCount,
-              deletedCount: selectedPolicyIds.length,
-              pageSize: DEFAULT_PAGE_SIZE,
-            })
-          : page;
+      const pageAfterDelete = getPageAfterDelete({
+        currentPage: page,
+        totalCount: currentCount,
+        deletedCount: selectedPolicyIds.length,
+        pageSize: DEFAULT_PAGE_SIZE,
+      });
       if (pageAfterDelete !== page) {
         router?.replace(
           getNextLocationPath({
             pathPrefix: PATHS.MANAGE_POLICIES,
-            queryParams: { ...queryParams, page: pageAfterDelete },
+            queryParams: { ...queryParams, page: pageAfterDelete.toString() },
           })
         );
         refetchPoliciesCount(teamIdForApi);
