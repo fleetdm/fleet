@@ -1037,6 +1037,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// Flush the pack config cache because QueryReportsDisabled (which is
+	// part of the cache key) may have changed.
+	svc.InvalidatePackConfigCache()
+
 	// Best-effort: drop orphan blobs whose URL was just replaced with an
 	// external or empty value. Mirrors the explicit DELETE /logo endpoint's
 	// audit signal by emitting a deleted_org_logo activity per mode that

@@ -395,6 +395,133 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 	return config, nil
 }
 
+// packConfigCacheKey returns a cache key for the pack config cache
+// keyed by (teamID, queryReportsDisabled).
+func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
+	tid := "global"
+	if teamID != nil {
+		tid = fmt.Sprintf("%d", *teamID)
+	}
+	qrd := "0"
+	if queryReportsDisabled {
+		qrd = "1"
+	}
+	return "pack_config:" + tid + ":" + qrd
+}
+
+// getPackConfig returns the marshaled pack config JSON for the host.
+// It uses a cache for hosts without legacy packs, keyed by (teamID, queryReportsDisabled).
+func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.RawMessage, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetch app config")
+	}
+	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
+
+	// Check for legacy packs assigned to this specific host.
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list packs for host")
+	}
+
+	// Fast path: if no legacy packs, try the cached pack config.
+	// The scheduled queries pack config is identical for all hosts in the
+	// same team, so we cache the marshaled JSON keyed by (teamID, queryReportsDisabled).
+	useLegacyPacks := len(packs) > 0
+	if !useLegacyPacks {
+		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		if cachedJSON, found := svc.packConfigCache.Get(cacheKey); found {
+			return cachedJSON.(json.RawMessage), nil
+		}
+	}
+
+	// Cache miss or legacy packs present: build pack config from DB.
+	packConfig := fleet.Packs{}
+
+	for _, pack := range packs {
+		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
+		}
+
+		configQueries := fleet.Queries{}
+		for _, query := range queries {
+			queryContent := fleet.QueryContent{
+				Query:    query.Query,
+				Interval: query.Interval,
+				Platform: query.Platform,
+				Version:  query.Version,
+				Removed:  query.Removed,
+				Shard:    query.Shard,
+				Denylist: query.Denylist,
+			}
+
+			if query.Removed != nil {
+				queryContent.Removed = query.Removed
+			}
+
+			if query.Snapshot != nil && *query.Snapshot {
+				queryContent.Snapshot = query.Snapshot
+			}
+
+			configQueries[query.Name] = queryContent
+		}
+
+		packConfig[pack.Name] = fleet.PackContent{
+			Platform: pack.Platform,
+			Queries:  configQueries,
+		}
+	}
+
+	globalQueries, err := svc.getScheduledQueries(ctx, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get global scheduled queries")
+	}
+	if len(globalQueries) > 0 {
+		packConfig["Global"] = fleet.PackContent{
+			Queries: globalQueries,
+		}
+	}
+
+	if host.TeamID != nil {
+		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team scheduled queries")
+		}
+		if len(teamQueries) > 0 {
+			packName := fmt.Sprintf("team-%d", *host.TeamID)
+			packConfig[packName] = fleet.PackContent{
+				Queries: teamQueries,
+			}
+		}
+	}
+
+	if len(packConfig) == 0 {
+		return nil, nil
+	}
+
+	packJSON, err := json.Marshal(packConfig)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
+	}
+
+	raw := json.RawMessage(packJSON)
+
+	// Cache the result for future requests (only if no legacy packs).
+	if !useLegacyPacks {
+		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		svc.packConfigCache.SetDefault(cacheKey, raw)
+	}
+
+	return raw, nil
+}
+
+// InvalidatePackConfigCache clears the cached pack config JSON.
+// Call this when queries, packs, or query reports settings change.
+func (svc *Service) InvalidatePackConfigCache() {
+	svc.packConfigCache.Flush()
+}
+
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -424,81 +551,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
-	packConfig := fleet.Packs{}
-
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
+	packJSON, err := svc.getPackConfig(ctx, host)
 	if err != nil {
-		return nil, newOsqueryError("database error: " + err.Error())
+		return nil, newOsqueryError("pack config error: " + err.Error())
 	}
-	for _, pack := range packs {
-		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
-		if err != nil {
-			return nil, newOsqueryError("database error: " + err.Error())
-		}
-
-		// the serializable osquery config struct expects content in a
-		// particular format, so we do the conversion here
-		configQueries := fleet.Queries{}
-		for _, query := range queries {
-			queryContent := fleet.QueryContent{
-				Query:    query.Query,
-				Interval: query.Interval,
-				Platform: query.Platform,
-				Version:  query.Version,
-				Removed:  query.Removed,
-				Shard:    query.Shard,
-				Denylist: query.Denylist,
-			}
-
-			if query.Removed != nil {
-				queryContent.Removed = query.Removed
-			}
-
-			if query.Snapshot != nil && *query.Snapshot {
-				queryContent.Snapshot = query.Snapshot
-			}
-
-			configQueries[query.Name] = queryContent
-		}
-
-		// finally, we add the pack to the client config struct with all of
-		// the pack's queries
-		packConfig[pack.Name] = fleet.PackContent{
-			Platform: pack.Platform,
-			Queries:  configQueries,
-		}
-	}
-
-	globalQueries, err := svc.getScheduledQueries(ctx, nil)
-	if err != nil {
-		return nil, newOsqueryError("database error: " + err.Error())
-	}
-	if len(globalQueries) > 0 {
-		packConfig["Global"] = fleet.PackContent{
-			Queries: globalQueries,
-		}
-	}
-
-	if host.TeamID != nil {
-		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
-		if err != nil {
-			return nil, newOsqueryError("database error: " + err.Error())
-		}
-		if len(teamQueries) > 0 {
-			packName := fmt.Sprintf("team-%d", *host.TeamID)
-			packConfig[packName] = fleet.PackContent{
-				Queries: teamQueries,
-			}
-		}
-	}
-
-	if len(packConfig) > 0 {
-		packJSON, err := json.Marshal(packConfig)
-		if err != nil {
-			return nil, newOsqueryError("internal error: marshal pack JSON: " + err.Error())
-		}
-		config["packs"] = json.RawMessage(packJSON)
+	if packJSON != nil {
+		config["packs"] = packJSON
 	}
 
 	// Save interval values if they have been updated.
