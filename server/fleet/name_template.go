@@ -73,6 +73,17 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 	return tmpl, nil
 }
 
+// hostNameTemplatePlatformDisplayNames maps a host's osquery platform to the
+// display name shown when $FLEET_VAR_HOST_PLATFORM is resolved in a host name
+// template. Host name templates only apply to Apple devices, so only the Apple
+// platforms are mapped here; it mirrors the frontend's
+// APPLE_PLATFORM_DISPLAY_NAMES. Any other platform resolves to its raw value.
+var hostNameTemplatePlatformDisplayNames = map[string]string{
+	"darwin": "macOS",
+	"ios":    "iOS",
+	"ipados": "iPadOS",
+}
+
 // ResolveHostNameTemplate resolves a host name template against a host by
 // substituting the supported host-identity Fleet variables with the host's
 // values.
@@ -82,8 +93,8 @@ func ResolveHostNameTemplate(tmpl string, host *Host) string {
 	}
 
 	platform := host.Platform
-	if platform == "darwin" {
-		platform = "macos"
+	if display, ok := hostNameTemplatePlatformDisplayNames[platform]; ok {
+		platform = display
 	}
 
 	values := map[FleetVarName]string{

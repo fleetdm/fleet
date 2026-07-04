@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"encoding/json"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -55,8 +54,8 @@ func TestValidateHostNameTemplate(t *testing.T) {
 			wantErr: "Secret variables aren't supported in host name templates.",
 		},
 		{name: "tab control char", tmpl: "bad\tname", wantErr: "control characters"},
-		{name: "rtl override format char", tmpl: "bad‮name", wantErr: "control characters"},
-		{name: "zero-width joiner format char", tmpl: "bad‍name", wantErr: "control characters"},
+		{name: "rtl override format char", tmpl: "bad\u202ename", wantErr: "control characters"},
+		{name: "zero-width joiner format char", tmpl: "bad\u200dname", wantErr: "control characters"},
 		{name: "invalid utf-8", tmpl: "bad\xff\xfename", wantErr: "valid UTF-8"},
 		{name: "too long", tmpl: strings.Repeat("a", 256), wantErr: "255 characters"},
 		{name: "max length ok", tmpl: strings.Repeat("a", 255), wantNorm: strings.Repeat("a", 255)},
@@ -96,15 +95,29 @@ func TestResolveHostNameTemplate(t *testing.T) {
 		{name: "no vars", tmpl: "workstation", host: host, want: "workstation"},
 		{name: "serial", tmpl: "$FLEET_VAR_HOST_HARDWARE_SERIAL", host: host, want: "C02ABC123"},
 		{name: "uuid braced", tmpl: "${FLEET_VAR_HOST_UUID}", host: host, want: "1234-5678"},
-		{name: "platform darwin maps to macos", tmpl: "$FLEET_VAR_HOST_PLATFORM", host: host, want: "macos"},
+		{name: "platform darwin maps to macOS", tmpl: "$FLEET_VAR_HOST_PLATFORM", host: host, want: "macOS"},
+		{
+			name: "platform ios maps to iOS",
+			tmpl: "$FLEET_VAR_HOST_PLATFORM",
+			host: &Host{Platform: "ios"},
+			want: "iOS",
+		},
+		{
+			name: "platform ipados maps to iPadOS",
+			tmpl: "$FLEET_VAR_HOST_PLATFORM",
+			host: &Host{Platform: "ipados"},
+			want: "iPadOS",
+		},
 		{
 			name: "mixed and repeated",
 			tmpl: "$FLEET_VAR_HOST_PLATFORM-$FLEET_VAR_HOST_HARDWARE_SERIAL-${FLEET_VAR_HOST_HARDWARE_SERIAL}",
 			host: host,
-			want: "macos-C02ABC123-C02ABC123",
+			want: "macOS-C02ABC123-C02ABC123",
 		},
 		{
-			name: "non-darwin platform unchanged",
+			// Non-Apple platforms fall back to the raw value (the feature only
+			// applies to Apple devices, so this is defensive).
+			name: "non-apple platform falls back to raw value",
 			tmpl: "$FLEET_VAR_HOST_PLATFORM",
 			host: &Host{Platform: "windows"},
 			want: "windows",
@@ -201,38 +214,28 @@ func TestActivityTypeEditedHostNameTemplate(t *testing.T) {
 	t.Run("marshal with template", func(t *testing.T) {
 		tmpl := "$FLEET_VAR_HOST_HARDWARE_SERIAL"
 		b, err := json.Marshal(ActivityTypeEditedHostNameTemplate{
-			TeamID:       new(uint(1)),
-			TeamName:     new("Workstations"),
+			FleetID:      new(uint(1)),
+			FleetName:    new("Workstations"),
 			NameTemplate: &tmpl,
 		})
 		require.NoError(t, err)
 		require.JSONEq(t, `{
-			"team_id": 1,
-			"team_name": "Workstations",
+			"fleet_id": 1,
+			"fleet_name": "Workstations",
 			"name_template": "$FLEET_VAR_HOST_HARDWARE_SERIAL"
 		}`, string(b))
 	})
 
 	t.Run("marshal cleared template is null", func(t *testing.T) {
 		b, err := json.Marshal(ActivityTypeEditedHostNameTemplate{
-			TeamID:   new(uint(1)),
-			TeamName: new("Workstations"),
+			FleetID:   new(uint(1)),
+			FleetName: new("Workstations"),
 		})
 		require.NoError(t, err)
 		require.JSONEq(t, `{
-			"team_id": 1,
-			"team_name": "Workstations",
+			"fleet_id": 1,
+			"fleet_name": "Workstations",
 			"name_template": null
 		}`, string(b))
-	})
-
-	t.Run("team_id and team_name are renamed in HTTP responses", func(t *testing.T) {
-		// The rename to fleet_id/fleet_name happens at the HTTP layer via the
-		// renameto struct tags; assert the tags are wired here.
-		typ := reflect.TypeFor[ActivityTypeEditedHostNameTemplate]()
-		teamID, _ := typ.FieldByName("TeamID")
-		teamName, _ := typ.FieldByName("TeamName")
-		require.Equal(t, "fleet_id", teamID.Tag.Get("renameto"))
-		require.Equal(t, "fleet_name", teamName.Tag.Get("renameto"))
 	})
 }
