@@ -2692,8 +2692,6 @@ WHERE
 DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id NOT IN (?)
 `
 
-	// Match the package being upserted by its dedup_token, so this returns the row
-	// upsert will replace or no rows for a new package.
 	const checkExistingInstaller = `
 SELECT
 	id,
@@ -2706,9 +2704,26 @@ SELECT
 FROM
 	software_installers
 WHERE
-	global_or_team_id = ?	AND
+	global_or_team_id = ? AND
 	title_id = ? AND
 	dedup_token = ?
+`
+
+	const checkExistingActiveInstaller = `
+SELECT
+	id,
+	storage_id != ? is_package_modified,
+	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
+	COALESCE(post_install_script_content_id != ? OR
+		(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
+		(? IS NULL AND post_install_script_content_id IS NOT NULL)
+	, FALSE) is_metadata_modified
+FROM
+	software_installers
+WHERE
+	global_or_team_id = ? AND
+	title_id = ?
+ORDER BY is_active DESC, id DESC
 `
 
 	const insertNewOrEditedInstaller = `
@@ -3218,7 +3233,13 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				// WHERE clause
 				globalOrTeamID,
 				titleID,
-				dedupToken,
+			}
+
+			// FMA matches the active version; a custom package matches its dedup_token.
+			wasUpdatedStmt := checkExistingActiveInstaller
+			if installer.FleetMaintainedAppID == nil {
+				wasUpdatedStmt = checkExistingInstaller
+				wasUpdatedArgs = append(wasUpdatedArgs, dedupToken)
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
@@ -3228,7 +3249,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				IsMetadataModified bool `db:"is_metadata_modified"`
 			}
 			var existing []existingInstallerUpdateCheckResult
-			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
+			err = sqlx.SelectContext(ctx, tx, &existing, wasUpdatedStmt, wasUpdatedArgs...)
 			if err != nil {
 				if !errors.Is(err, sql.ErrNoRows) {
 					return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
