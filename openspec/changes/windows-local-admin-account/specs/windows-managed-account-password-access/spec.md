@@ -12,7 +12,7 @@
 - **THEN** the API returns an authorization error
 
 ### Requirement: Rotation unavailable for Windows
-`POST /api/v1/fleet/hosts/{id}/managed_account_password/rotate` SHALL reject Windows hosts with an error stating rotation is not available for Windows (rotation ships in #43489), and the rotation cron MUST never select Windows-shaped rows (NULL `command_uuid`, NULL `account_uuid`).
+`POST /api/v1/fleet/hosts/{id}/managed_account_password/rotate` SHALL reject Windows hosts with an error stating rotation is not available for Windows (rotation ships in #43489), and the rotation cron MUST never select Windows-shaped rows (NULL `command_uuid`, `account_uuid`, and `auto_rotate_at`).
 
 #### Scenario: Rotate rejected on Windows
 - **WHEN** an admin calls the rotate endpoint for a Windows host
@@ -20,14 +20,14 @@
 
 #### Scenario: Cron excludes Windows rows
 - **WHEN** the auto-rotation cron queries for candidates
-- **THEN** rows with NULL `account_uuid` and NULL `auto_rotate_at` are never returned
+- **THEN** rows with NULL `command_uuid`, `account_uuid`, and `auto_rotate_at` are never returned
 
 ### Requirement: Host details surface
-The host detail API response SHALL include `mdm.managed_local_account` (status, password availability) for Windows hosts when Windows MDM is enabled, and the Host details UI SHALL show the "Show managed account" action for Windows hosts with a managed account row, opening the existing modal without rotation controls.
+The host detail API response SHALL include `mdm.os_settings.managed_local_account` (status, password availability) for Windows hosts when Windows MDM is enabled, and the Host details UI SHALL show the "Show managed account" action for Windows hosts with a managed account row, opening the existing modal without rotation controls.
 
 #### Scenario: Host detail response populated
 - **WHEN** a Windows host with an escrowed row is fetched via the host detail API
-- **THEN** the response includes `mdm.managed_local_account` with `status: "verified"` and `password_available: true`
+- **THEN** the response includes `mdm.os_settings.managed_local_account` with `status: "verified"` and `password_available: true`
 
 #### Scenario: Action visible and rotation-free
 - **WHEN** an admin opens Host details > Actions for such a Windows host

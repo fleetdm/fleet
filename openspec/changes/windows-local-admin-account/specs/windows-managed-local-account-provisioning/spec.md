@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: OOBE-gated orbit notification
-The server SHALL set `notifications.create_windows_managed_local_account` in the orbit config response only when all of the following hold: the host's Windows MDM enrollment is awaiting configuration (Pending or Active, covering Autopilot ESP and Entra-join-during-OOBE), the host's team (or No team) has `windows_settings.managed_local_account_settings.enabled`, the requesting fleetd advertises the `windows_managed_local_account` capability, and the license is premium.
+The server SHALL set `notifications.create_windows_managed_local_account` in the orbit config response only when all of the following hold: the host's Windows MDM enrollment is awaiting configuration (Pending or Active, covering Autopilot ESP and Entra-join-during-OOBE), the host's team (or No team) has `mdm.windows_settings.managed_local_account_settings.enabled`, the requesting fleetd advertises the `windows_managed_local_account` capability, and the license is premium.
 
 #### Scenario: All gates hold
 - **WHEN** a capable fleetd on a Windows host in the ESP polls orbit config for a premium team with the setting enabled
-- **THEN** the response carries `create_windows_managed_local_account: true`
+- **THEN** the response carries `notifications.create_windows_managed_local_account: true`
 
 #### Scenario: Any gate fails
 - **WHEN** the host is outside OOBE, or the setting is off, or fleetd lacks the capability, or the license is Free

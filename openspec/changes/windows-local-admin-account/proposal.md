@@ -8,7 +8,7 @@ IT admins need a break-glass local admin account on Windows hosts for troublesho
 - New orbit notification (`create_windows_managed_local_account`) sent during Windows OOBE enrollment (Autopilot ESP or Entra-join-during-OOBE), gated on the setting, a new fleetd capability, and a premium license.
 - New orbit endpoint `POST /api/fleet/orbit/managed_local_account`: fleetd escrows a device-generated password, stored encrypted in the existing `host_managed_local_account_passwords` table (one migration: `command_uuid` becomes nullable).
 - fleetd (Windows only) creates the hidden `_fleetadmin` local admin account: netapi32 account creation, Administrators membership by SID, sign-in screen hiding via the `SpecialAccounts\UserList` registry value, crash-safe escrow-then-marker flow.
-- `GET /hosts/{id}/managed_account_password` opens to Windows hosts; password rotation stays macOS-only (Windows rotation is story #43489).
+- `GET /api/v1/fleet/hosts/{id}/managed_account_password` opens to Windows hosts; password rotation stays macOS-only (Windows rotation is story #43489).
 - Controls > Setup experience > Users page gains a macOS/Windows sub nav; Windows tab has only the Managed > "Create hidden admin" toggle. Host details "Show managed account" action and modal work for Windows hosts, without rotation UI.
 - `fleetctl generate-gitops` emits the new nested fields instead of the shared setup-experience TODO placeholder.
 

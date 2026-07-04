@@ -5,7 +5,7 @@ The system SHALL expose a `managed_local_account_settings` object with an `enabl
 
 #### Scenario: Enable for Windows via config PATCH
 - **WHEN** an admin on a premium license sends `PATCH /api/v1/fleet/config` with `mdm.windows_settings.managed_local_account_settings.enabled: true`
-- **THEN** the value persists, is returned by `GET /config`, and an `enabled_managed_local_account` activity is logged
+- **THEN** the value persists, is returned by `GET /api/v1/fleet/config`, and an `enabled_managed_local_account` activity is logged
 
 #### Scenario: Disable for Windows
 - **WHEN** an admin sets `mdm.windows_settings.managed_local_account_settings.enabled: false` for a team
@@ -16,7 +16,7 @@ The system SHALL treat `setup_experience.enable_managed_local_account` and `setu
 
 #### Scenario: Legacy write reflects on the new surface
 - **WHEN** a client sets `setup_experience.enable_managed_local_account: true` via `PATCH /setup_experience`
-- **THEN** `GET /config` returns `true` for both `setup_experience.enable_managed_local_account` and `apple_settings.managed_local_account_settings.enabled`
+- **THEN** `GET /api/v1/fleet/config` returns `true` for both `setup_experience.enable_managed_local_account` and `apple_settings.managed_local_account_settings.enabled`
 
 #### Scenario: Conflicting writes rejected
 - **WHEN** one payload sets the deprecated field and the new Apple field to different values
@@ -41,7 +41,7 @@ The system SHALL accept only `admin`, `standard`, or `none` for `apple_settings.
 The system SHALL reject changes to `managed_local_account_settings` (either platform) and `apple_settings.end_user_local_account_type` on non-premium licenses.
 
 #### Scenario: Free tier rejected
-- **WHEN** a Fleet Free deployment sends `PATCH /config` changing `windows_settings.managed_local_account_settings.enabled`
+- **WHEN** a Fleet Free deployment sends `PATCH /api/v1/fleet/config` changing `windows_settings.managed_local_account_settings.enabled`
 - **THEN** the API responds with the missing-license error and persists nothing
 
 ### Requirement: GitOps round trip
@@ -49,7 +49,7 @@ The GitOps pipeline SHALL accept the new nested keys and the deprecated `setup_e
 
 #### Scenario: Team-scoped gitops persists the Windows setting
 - **WHEN** `fleetctl gitops` applies a team YAML with `controls.windows_settings.managed_local_account_settings.enabled: true`
-- **THEN** the team config stores the value and `GET /teams/{id}` returns it
+- **THEN** the team config stores the value and `GET /api/v1/fleet/teams/{id}` returns it
 
 #### Scenario: Lossless generate and re-apply
 - **WHEN** the feature is enabled for both platforms and `fleetctl generate-gitops` runs, and the generated YAML is applied back with `fleetctl gitops`

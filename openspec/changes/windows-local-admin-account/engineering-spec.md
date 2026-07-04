@@ -39,7 +39,7 @@ sequenceDiagram
 
     note over Admin,DB: 1. Enable feature
     Admin->>UI: Controls > Setup experience > Users > Windows tab > Create hidden admin
-    UI->>API: PATCH /api/v1/fleet/config or /teams/{id} (mdm.windows_settings.managed_local_account_settings.enabled)
+    UI->>API: PATCH /api/v1/fleet/config or /api/v1/fleet/teams/{id} (mdm.windows_settings.managed_local_account_settings.enabled)
     API->>DB: SaveAppConfig / SaveTeam (JSON config blob)
     API->>DB: NewActivity (enabled_managed_local_account)
 
@@ -386,7 +386,7 @@ Upsert semantics: replace `encrypted_password`, set `status = 'verified'`, NULL 
 - **Host endpoints:**
   - [ ] `GET /hosts/{id}/managed_account_password` returns the password for a Windows host, logs the viewed activity, and leaves `auto_rotate_at` NULL in the row and absent from the response
   - [ ] `POST /hosts/{id}/managed_account_password/rotate` still fails for Windows hosts with the documented message
-  - [ ] Host detail response for a Windows host includes `mdm.managed_local_account` with `status` and `password_available`
+  - [ ] Host detail response for a Windows host includes `mdm.os_settings.managed_local_account` with `status` and `password_available`
   - [ ] Rotation cron datastore test: Windows-shaped rows never selected
 - **End-to-end integration test:** simulated Windows OOBE enrollment, orbit config notification observed, escrow POST, then `GET managed_account_password` returns the same password (`MYSQL_TEST=1 REDIS_TEST=1 go test ./server/service/...`)
 
@@ -416,7 +416,7 @@ Files: `frontend/pages/ManageControlsPage/SetupExperience/cards/Users/` (`Users.
 - `canShowManagedAccount` (`frontend/pages/hosts/details/HostDetailsPage/HostActionsDropdown/helpers.tsx:387-407`): replace the `hostPlatform !== "darwin"` check (line 400) with darwin-or-windows. For Windows, skip the `isAutomaticDeviceEnrollment` check (line 402, an Apple ADE concept) and rely on the existing `managedAccountStatus` fallback (lines 403-405): a non-null status means a row exists for this host.
 - Disabled-state tooltips (`helpers.tsx:786-818`): reuse pending/failed wording; for Windows the pending state means fleetd has not escrowed yet.
 - `ManagedAccountModal` (`.../modals/ManagedAccountModal/ManagedAccountModal.tsx`): pass `canRotatePassword={false}` for Windows hosts so the rotate button and the auto-rotate banner never render (rotation is #43489). Username line (line 96) already renders `_fleetadmin`.
-- Types are already platform-agnostic: `host.mdm.managed_local_account` (`frontend/interfaces/host.ts:132-137`) and `hostAPI.getManagedAccountPassword` (`frontend/services/entities/hosts.ts:685-688`) need no changes.
+- Types are already platform-agnostic: `host.mdm.os_settings.managed_local_account` (`frontend/interfaces/host.ts:132-137`) and `hostAPI.getManagedAccountPassword` (`frontend/services/entities/hosts.ts:685-688`) need no changes.
 
 ### Condition of Satisfaction
 
