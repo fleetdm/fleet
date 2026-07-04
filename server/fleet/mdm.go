@@ -1125,6 +1125,9 @@ const (
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
+// DeviceNameCommandUUIDPrefix is the prefix used for the MDM command that renames a device.
+const DeviceNameCommandUUIDPrefix = "DEVNAME-"
+
 func RefetchAppsCommandUUID() string {
 	return RefetchAppsCommandUUIDPrefix + uuid.NewString()
 }
