@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.34.1",
+      "version": "6.34.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.freedownloadmanager.fdm6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.freedownloadmanager.fdm6' AND version_compare(bundle_short_version, '6.34.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.freedownloadmanager.fdm6' AND version_compare(bundle_short_version, '6.34.2') < 0);"
       },
       "installer_url": "https://files2.freedownloadmanager.org/6/latest/fdm.dmg",
       "install_script_ref": "231b7da2",
