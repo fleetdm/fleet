@@ -27,7 +27,7 @@ On receiving the notification, fleetd on Windows SHALL ensure a local account na
 - **THEN** fleetd resets the password and continues the flow without error
 
 ### Requirement: Password escrow
-fleetd SHALL escrow the generated password to `POST /api/fleet/orbit/managed_local_account` over the node-key-authenticated orbit API. The server SHALL encrypt the password at rest in `host_managed_local_account_passwords` with `status` `verified` and a NULL `command_uuid`, log a `created_managed_local_account` activity, and reject requests from non-Windows hosts, feature-off teams, non-premium licenses, or with an empty password.
+fleetd SHALL escrow the generated password to `POST /api/fleet/orbit/managed_local_account` over the node-key-authenticated orbit API. The server SHALL encrypt the password at rest in `host_managed_local_account_passwords` with `status` `verified` and a NULL `command_uuid`, and log a `created_managed_local_account` activity. The server SHALL reject requests from non-Windows hosts (eligibility verified via the host's Windows MDM enrollment, since `host.Platform` can be empty during early OOBE) and requests with an empty password. The server MUST NOT reject an escrow because the team setting or license state changed after the notification was sent: the account already exists on the device, and rejecting would orphan it with an unrecoverable password. In that case the server SHALL store the password and log a warning.
 
 #### Scenario: Successful escrow
 - **WHEN** fleetd posts the password for an eligible Windows host
@@ -37,9 +37,17 @@ fleetd SHALL escrow the generated password to `POST /api/fleet/orbit/managed_loc
 - **WHEN** a host escrows again (retry or re-enrollment)
 - **THEN** the stored password is replaced and pending/rotation columns stay NULL
 
-#### Scenario: Ineligible escrow rejected
-- **WHEN** the posting host is not Windows, or its team has the feature off, or the license is Free
+#### Scenario: Non-Windows escrow rejected
+- **WHEN** the posting host has no Windows MDM enrollment
 - **THEN** the server rejects the request and stores nothing
+
+#### Scenario: Setting toggled off mid-flow does not orphan the account
+- **WHEN** a Windows host escrows after its team's setting was turned off between the notification and the escrow POST
+- **THEN** the server stores the password, logs a warning, and the account remains recoverable
+
+#### Scenario: Platform not yet ingested
+- **WHEN** a Windows host with an empty `host.Platform` (osquery has not reported yet) but a Windows MDM enrollment escrows during OOBE
+- **THEN** the server accepts and stores the password
 
 ### Requirement: Crash-safe completion marker
 fleetd SHALL persist a completion marker (containing no secret material) only after the server confirms the escrow, SHALL skip processing while the marker exists, and SHALL retry the full flow on the next config fetch when any step fails before the marker is written.

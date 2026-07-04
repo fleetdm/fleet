@@ -31,6 +31,8 @@ Fleet creates a hidden `_fleetadmin` break-glass admin on macOS during ADE enrol
 - [No premium check exists on the config PATCH path] The macOS gate lives in the CE stub of `PATCH /setup_experience` only → add an explicit `ErrMissingLicense` check in `validateMDM` for the new fields.
 - [Any local admin can reset `_fleetadmin`'s password, diverging from escrow] Accepted, same posture as macOS (same gap exists there per QA); rotation in 4.91 is the mitigation.
 - [Crash between account creation and escrow] The account briefly holds a password nobody knows → next config fetch during OOBE resets and re-escrows; converges within one poll cycle. Residual risk: a crash in the final seconds of OOBE leaves an account without escrow; visible as a missing row, recoverable by wipe or by #43489 rotation.
+- [Setting toggled off between notification and escrow would orphan a created account] → the escrow endpoint accepts and stores for Windows hosts even when the setting is off (warning logged); rejection is narrowed to non-Windows hosts and empty passwords.
+- [`host.Platform` can be empty during early OOBE] → escrow eligibility is verified via the host's Windows MDM enrollment, not `host.Platform` alone.
 - [Docs drift] The REST reference documents a `POST /api/v1/fleet/managed_local_account` endpoint that exists nowhere in code, and #48110 has a list-vs-object typo and wrong deprecated-field scope → docs follow-ups tracked in #48724.
 
 ## Migration Plan

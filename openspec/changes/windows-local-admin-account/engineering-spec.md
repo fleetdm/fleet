@@ -288,7 +288,7 @@ Adds the server half of the device flow: the orbit notification that tells fleet
 
 ```sql
 ALTER TABLE host_managed_local_account_passwords
-  MODIFY command_uuid varchar(127) COLLATE utf8mb4_unicode_ci NULL;
+  MODIFY command_uuid varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL;
 ```
 
 Run `make dump-test-schema` after. No other column changes: `auto_rotate_at`, `account_uuid`, and the pending columns are already nullable and stay NULL for Windows rows.
@@ -348,7 +348,8 @@ type OrbitPostManagedLocalAccountRequest struct {
 Service method `EscrowWindowsManagedLocalAccountPassword` (pattern: `EscrowLUKSData`, `server/service/orbit.go:1401-1430`, iface `server/fleet/service.go:478`):
 
 - `svc.authz.SkipAuthorization(ctx)` with the host-from-context pattern (`orbit.go:1403`)
-- reject if `host.Platform != "windows"`, if the team setting is off, or if the license is not premium
+- reject only non-Windows hosts and invalid passwords. Do NOT reject when the team setting is off or the license state changed mid-flow: by the time the escrow arrives, fleetd has already created a real local admin on the device, and rejecting the escrow orphans an account whose password is unrecoverable. Accept and store, logging a warning when the setting is off (the retrieval endpoint stays premium-gated, so nothing leaks on Free)
+- Windows check caveat: `host.Platform` can be empty during early OOBE, before osquery ingests system details. Verify eligibility from the host's Windows MDM enrollment (`mdm_windows_enrollments` row for the host UUID) rather than relying solely on `host.Platform`, and add an empty-platform host to the test matrix
 - reject an empty password, and cap length at 256 characters as input hygiene. This is a new validation: `SaveHostManagedLocalAccount` (`server/datastore/mysql/managed_local_account.go:15-36`) does no length checking, so there is nothing existing to match
 - if `ClientError` is set, log it and record nothing (mirror `ReportEscrowError` handling at `orbit.go:1411`)
 - encrypt and save via a new datastore method, then log `ActivityTypeCreatedManagedLocalAccount` exactly as the macOS ack handler does (`server/service/apple_mdm.go:4456-4488`)
@@ -381,7 +382,7 @@ Upsert semantics: replace `encrypted_password`, set `status = 'verified'`, NULL 
   - [ ] macOS hosts and Windows hosts outside OOBE never receive the notification; orbit config for a host with old fleetd (no capability header) never receives it
 - **Escrow endpoint:**
   - [ ] `POST /api/fleet/orbit/managed_local_account` stores an encrypted password readable back through `GetHostManagedLocalAccountPassword`; row has `status = 'verified'`, NULL `command_uuid`; `created_managed_local_account` activity logged once
-  - [ ] Second escrow for the same host replaces the password (re-enrollment case); non-Windows host, feature-off team, and Free license all rejected
+  - [ ] Second escrow for the same host replaces the password (re-enrollment case); non-Windows host rejected; escrow from a Windows host whose team setting was turned off after the notification is accepted and stored with a warning (no orphaned account); host with empty `host.Platform` but a Windows MDM enrollment is accepted
 - **Host endpoints:**
   - [ ] `GET /hosts/{id}/managed_account_password` returns the password for a Windows host, logs the viewed activity, and leaves `auto_rotate_at` NULL in the row and absent from the response
   - [ ] `POST /hosts/{id}/managed_account_password/rotate` still fails for Windows hosts with the documented message
