@@ -967,14 +967,25 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	}()
 
 	// (2) config thread:
+	// Fleet's agent-options validation does not allow config_refresh in served
+	// config options (it is a command_line_flags setting applied by fleetd via
+	// osquery restart, which this simulator does not model). The config loop
+	// therefore also honors the quiet signal (served distributed_interval >=
+	// 1h), so one agent-options change silences every osquery loop.
 	go func() {
-		configInterval := effectiveInterval(&a.servedConfigRefresh, a.ConfigInterval)
+		configEffective := func() time.Duration {
+			if quietFor := a.servedDistributedInterval.Load(); quietFor >= 3600 {
+				return time.Duration(quietFor) * time.Second
+			}
+			return effectiveInterval(&a.servedConfigRefresh, a.ConfigInterval)
+		}
+		configInterval := configEffective()
 		configTicker := time.NewTicker(configInterval)
 		defer configTicker.Stop()
 
 		for range configTicker.C {
 			_ = a.config()
-			if next := effectiveInterval(&a.servedConfigRefresh, a.ConfigInterval); next != configInterval {
+			if next := configEffective(); next != configInterval {
 				configInterval = next
 				configTicker.Reset(configInterval)
 			}
