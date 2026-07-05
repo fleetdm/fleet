@@ -72,6 +72,10 @@ type windowsProfileValidator struct {
 	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
 	locURIHasContent bool
 
+	// When true, custom BitLocker (disk encryption) LocURIs are allowed instead of being rejected. Controlled by the
+	// mdm.enable_disk_encryption / mdm.enable_custom_filevault server configuration.
+	allowCustomDiskEncryption bool
+
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
 }
@@ -98,7 +102,7 @@ var validTopLevelElements = map[string]struct{}{
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided(allowCustomDiskEncryption bool) error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -107,7 +111,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	validator := newWindowsProfileValidator(m.SyncML)
+	validator := newWindowsProfileValidator(m.SyncML, allowCustomDiskEncryption)
 	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
 	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
 	// acceptable.
@@ -115,15 +119,16 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	return validator.validate()
 }
 
-func newWindowsProfileValidator(syncML []byte) *windowsProfileValidator {
+func newWindowsProfileValidator(syncML []byte, allowCustomDiskEncryption bool) *windowsProfileValidator {
 	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
 	return &windowsProfileValidator{
-		scepValidator: newWindowsSCEPProfileValidator(),
-		decoder:       dec,
+		scepValidator:             newWindowsSCEPProfileValidator(),
+		decoder:                   dec,
+		allowCustomDiskEncryption: allowCustomDiskEncryption,
 	}
 }
 
@@ -240,7 +245,7 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
 	// specific message.
-	if err := validateFleetProvidedLocURI(locURI); err != nil {
+	if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
 		return err
 	}
 
@@ -299,11 +304,16 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetBitLockerTargetLocURI: nil,
 }
 
-func validateFleetProvidedLocURI(locURI string) error {
+func validateFleetProvidedLocURI(locURI string, allowCustomDiskEncryption bool) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
+				// When custom disk encryption profiles are allowed, BitLocker LocURIs are permitted, matching the
+				// behavior of custom FileVault profiles on macOS.
+				if allowCustomDiskEncryption {
+					continue
+				}
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
 			if len(errHints) == 2 {

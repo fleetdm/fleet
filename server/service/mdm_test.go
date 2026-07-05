@@ -1653,6 +1653,67 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	}
 }
 
+// TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled verifies that a custom BitLocker profile is accepted when
+// custom disk encryption is enabled via server configuration (mdm.enable_disk_encryption / mdm.enable_custom_filevault).
+func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
+	bitLockerProfile := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`)
+
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true},
+			}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = uuid.New().String()
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		return ds
+	}
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+
+	t.Run("rejected when disabled", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
+		require.ErrorContains(t, err, syncml.DiskEncryptionProfileRestrictionErrMsg)
+	})
+
+	t.Run("allowed when enable_disk_encryption is set", func(t *testing.T) {
+		ds := setupDS()
+		cfg := config.TestConfig()
+		cfg.MDM.EnableDiskEncryption = true
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("allowed when enable_custom_filevault is set", func(t *testing.T) {
+		ds := setupDS()
+		cfg := config.TestConfig()
+		cfg.MDM.EnableCustomFileVault = true
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+}
+
 func TestMDMBatchSetProfiles(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})

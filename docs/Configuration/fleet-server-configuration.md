@@ -3702,12 +3702,30 @@ Allows users to add custom Apple MDM profiles for FileVault management, includin
 
 > Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
 
+> `mdm.enable_disk_encryption` is a cross-platform alias for this option. It additionally allows custom Windows configuration profiles for BitLocker. Setting either option to `true` enables custom FileVault (macOS) and custom BitLocker (Windows) profiles.
+
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
 - Config file format:
   ```yaml
   mdm:
     enable_custom_filevault: false
+  ```
+
+### mdm.enable_disk_encryption
+
+*Available in Fleet Premium.*
+
+Cross-platform alias for `mdm.enable_custom_filevault`. Allows users to add custom Apple MDM profiles for FileVault management (see `mdm.enable_custom_filevault` for the list of supported payloads) as well as custom Windows configuration profiles for BitLocker management. Setting either option to `true` enables both.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_DISK_ENCRYPTION`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_disk_encryption: false
   ```
 
 ### mdm.allow_all_declarations

@@ -330,6 +330,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
 	}
 
+	if config.MDM.EnableDiskEncryption && !license.IsPremium() {
+		config.MDM.EnableDiskEncryption = false
+		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
 	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
