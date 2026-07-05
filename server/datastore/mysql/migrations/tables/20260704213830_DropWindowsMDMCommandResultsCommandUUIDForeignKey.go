@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 func init() {
@@ -36,7 +37,8 @@ func Up_20260704213830(tx *sql.Tx) error {
 	// Only 1 constraint will be dropped here:
 	// CONSTRAINT `windows_mdm_command_results_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
 	for _, constraint := range constraints {
-		if _, err := tx.Exec(fmt.Sprintf(`ALTER TABLE windows_mdm_command_results DROP FOREIGN KEY %s;`, constraint)); err != nil {
+		quotedConstraint := "`" + strings.ReplaceAll(constraint, "`", "``") + "`"
+		if _, err := tx.Exec(fmt.Sprintf("ALTER TABLE `%s` DROP FOREIGN KEY %s;", table, quotedConstraint)); err != nil {
 			return fmt.Errorf("dropping fk %s: %w", constraint, err)
 		}
 	}
