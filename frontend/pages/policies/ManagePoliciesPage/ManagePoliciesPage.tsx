@@ -278,6 +278,7 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
       staleTime: 5000,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -336,6 +337,7 @@ const ManagePolicyPage = ({
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -389,6 +391,7 @@ const ManagePolicyPage = ({
         setConfig(data);
       },
       staleTime: 5000,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -399,6 +402,7 @@ const ManagePolicyPage = ({
     // Enable for all teams including "No team" (teamIdForApi === 0)
     enabled: isRouteOk && teamIdForApi !== undefined,
     staleTime: 5000,
+    refetchOnWindowFocus: false,
   });
   const teamConfig = teamData?.team;
 
