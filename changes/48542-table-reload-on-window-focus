@@ -1,0 +1,1 @@
+- Fixed tables (including policies and users) intermittently reloading and clearing the current selection or resetting to the first page when the browser window regained focus.

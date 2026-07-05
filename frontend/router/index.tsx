@@ -122,7 +122,13 @@ interface IAppWrapperProps {
   location?: any;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // App.tsx needs the context for user and config. We also wrap the application
 // component in the required query client provider for react-query. This
