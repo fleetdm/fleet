@@ -330,8 +330,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
 	}
 
-	if config.MDM.EnableDiskEncryption && !license.IsPremium() {
-		config.MDM.EnableDiskEncryption = false
+	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
+		config.MDM.EnableCustomDiskEncryption = false
 		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
 	}
 

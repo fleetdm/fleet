@@ -1691,10 +1691,10 @@ func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 		require.ErrorContains(t, err, syncml.DiskEncryptionProfileRestrictionErrMsg)
 	})
 
-	t.Run("allowed when enable_disk_encryption is set", func(t *testing.T) {
+	t.Run("allowed when enable_custom_disk_encryption is set", func(t *testing.T) {
 		ds := setupDS()
 		cfg := config.TestConfig()
-		cfg.MDM.EnableDiskEncryption = true
+		cfg.MDM.EnableCustomDiskEncryption = true
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)

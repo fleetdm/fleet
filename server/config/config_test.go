@@ -1096,7 +1096,7 @@ func TestIsCustomDiskEncryptionEnabled(t *testing.T) {
 	}{
 		{"none set", MDMConfig{}, false},
 		{"enable_custom_filevault", MDMConfig{EnableCustomFileVault: true}, true},
-		{"enable_disk_encryption", MDMConfig{EnableDiskEncryption: true}, true},
+		{"enable_custom_disk_encryption", MDMConfig{EnableCustomDiskEncryption: true}, true},
 		{"deprecated enable_custom_os_updates_and_filevault", MDMConfig{EnableCustomOSUpdatesAndFileVault: true}, true},
 	}
 	for _, tt := range tests {

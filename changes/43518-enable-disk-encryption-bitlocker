@@ -1,1 +1,1 @@
-- Added `FLEET_MDM_ENABLE_DISK_ENCRYPTION` (`mdm.enable_disk_encryption`) as a cross-platform alias for `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`. When set, it allows both custom Apple MDM profiles for FileVault and custom Windows configuration profiles for BitLocker (Fleet Premium).
+- Added `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION` (`mdm.enable_custom_disk_encryption`) as a cross-platform alias for `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`. When set, it allows both custom Apple MDM profiles for FileVault and custom Windows configuration profiles for BitLocker (Fleet Premium).
