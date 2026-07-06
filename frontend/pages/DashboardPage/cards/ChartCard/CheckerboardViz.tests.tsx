@@ -756,7 +756,8 @@ describe("CheckerboardViz", () => {
       const currentCell = container.querySelector(
         "rect.checkerboard-viz__cell--current"
       );
-      expect(currentCell?.getAttribute("class")).toContain("--level-0");
+      expect(currentCell).not.toBeNull();
+      expect(currentCell).toHaveClass("checkerboard-viz__cell--level-0");
     });
 
     it("renders future timeframe cells at level-0", async () => {
