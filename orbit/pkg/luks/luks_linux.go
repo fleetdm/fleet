@@ -78,24 +78,30 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	// degrades to a log line).
 	lr.ensureNotifier()
 
+	// cryptsetup is a prerequisite for both the snapd detection path (which
+	// reads LUKS2 metadata via luksDump) and the passphrase escrow path (which
+	// adds a key slot), so check it up front before doing any detection.
+	if !isInstalled("cryptsetup") {
+		return errors.New("cryptsetup is not installed")
+	}
+
 	// snapd-managed TPM-backed FDE (e.g. Ubuntu 26) escrows a recovery key
-	// silently and needs neither cryptsetup nor a desktop dialog. Detect it
-	// first and take that path when present.
+	// silently and needs no desktop dialog. Detect it first and take that path
+	// when present. Errors during detection are fatal here: a metadata read
+	// failure could mean the host IS snapd-managed but we cannot confirm, and
+	// silently falling through to the passphrase escrow path would show a
+	// misleading prompt for a passphrase the user doesn't have.
 	log.Info().Msg("disk encryption escrow requested; determining escrow path")
 	snapd := newSnapdFDE()
 	isSnapd, err := snapd.Detect(ctx)
 	if err != nil {
-		log.Debug().Err(err).Msg("detecting snapd-managed FDE failed; falling back to passphrase escrow")
+		return fmt.Errorf("detecting snapd-managed FDE: %w", err)
 	}
 	if isSnapd {
 		log.Info().Msg("host uses snapd-managed TPM-backed FDE; escrowing recovery key via the snapd socket")
 		return lr.runRecoveryKeyEscrow(ctx, snapd)
 	}
 	log.Info().Msg("host is not snapd-managed FDE; using the passphrase escrow path")
-
-	if !isInstalled("cryptsetup") {
-		return errors.New("cryptsetup is not installed")
-	}
 
 	if lr.notifier == nil {
 		return errors.New("No supported dialog tool found")
