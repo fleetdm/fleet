@@ -655,9 +655,9 @@ func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
 }
 
 type ActivityTypeEditedHostNameTemplate struct {
-	FleetID      *uint   `json:"fleet_id"`
-	FleetName    *string `json:"fleet_name"`
-	NameTemplate *string `json:"name_template"` // nil when the template was cleared
+	FleetID          *uint   `json:"fleet_id"`
+	FleetName        *string `json:"fleet_name"`
+	HostNameTemplate *string `json:"name_template"` // nil when the template was cleared
 }
 
 func (a ActivityTypeEditedHostNameTemplate) ActivityName() string {

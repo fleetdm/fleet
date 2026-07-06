@@ -13,9 +13,9 @@ import (
 
 const maxHostNameTemplateLength = 255
 
-// fleetVarsSupportedInNameTemplates is the allow-list of Fleet variables that
+// fleetVarsSupportedInHostNameTemplates is the allow-list of Fleet variables that
 // may be used in a host name template.
-var fleetVarsSupportedInNameTemplates = []FleetVarName{
+var fleetVarsSupportedInHostNameTemplates = []FleetVarName{
 	FleetVarHostHardwareSerial,
 	FleetVarHostUUID,
 	FleetVarHostPlatform,
@@ -23,12 +23,12 @@ var fleetVarsSupportedInNameTemplates = []FleetVarName{
 
 // nameTemplateVarRegexp matches every supported name-template variable in both
 // its $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms, in a single pattern. It is
-// derived from fleetVarsSupportedInNameTemplates so it stays in sync with the
+// derived from fleetVarsSupportedInHostNameTemplates so it stays in sync with the
 // allow-list. The unbraced form uses a trailing word boundary so that an
 // unsupported longer name (e.g. HOST_UUID_EXTRA) is not partially matched.
 var nameTemplateVarRegexp = func() *regexp.Regexp {
-	alts := make([]string, len(fleetVarsSupportedInNameTemplates))
-	for i, v := range fleetVarsSupportedInNameTemplates {
+	alts := make([]string, len(fleetVarsSupportedInHostNameTemplates))
+	for i, v := range fleetVarsSupportedInHostNameTemplates {
 		alts[i] = regexp.QuoteMeta(string(v))
 	}
 	alt := strings.Join(alts, "|")
@@ -64,7 +64,7 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 
 	// Every Fleet variable used must be in the allow-list.
 	for _, v := range variables.Find(tmpl) {
-		if !slices.Contains(fleetVarsSupportedInNameTemplates, FleetVarName(v)) {
+		if !slices.Contains(fleetVarsSupportedInHostNameTemplates, FleetVarName(v)) {
 			return "", NewInvalidArgumentError("name_template",
 				"Fleet variable $FLEET_VAR_"+v+" is not supported in host name templates.")
 		}

@@ -96,8 +96,8 @@ type TeamPayloadMDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
-	MacOSSetup   *MacOSSetup    `json:"macos_setup"`
-	NameTemplate optjson.String `json:"name_template"`
+	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
+	HostNameTemplate optjson.String `json:"name_template"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -337,9 +337,9 @@ type TeamMDM struct {
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
 
-	// NameTemplate is the template used to compute a host's display name from
+	// HostNameTemplate is the template used to compute a host's display name from
 	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
-	NameTemplate string `json:"name_template"`
+	HostNameTemplate string `json:"name_template"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -425,8 +425,8 @@ type TeamSpecMDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
-	AndroidSettings AndroidSettings `json:"android_settings"`
-	NameTemplate    optjson.String  `json:"name_template"`
+	AndroidSettings  AndroidSettings `json:"android_settings"`
+	HostNameTemplate optjson.String  `json:"name_template"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
