@@ -6359,9 +6359,8 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
 	// PayloadScope is a Fleet extension, not part of Apple's DDM schema. It's
-	// normally stripped at upload, but a declaration provided entirely as a
-	// $FLEET_SECRET_ token only resolves to JSON here, so strip it again after
-	// expansion to guarantee it never reaches the device.
+	// normally stripped at delivery time since it is not a part of the Apple
+	// schema and unused by the device.
 	delete(tempd, "PayloadScope")
 	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
 

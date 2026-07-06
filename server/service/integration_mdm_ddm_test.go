@@ -1301,6 +1301,58 @@ func (s *integrationMDMTestSuite) TestAppleUserScopedDDMEndToEnd() {
 	assertHostDeclarations(mdmHost.UUID, nil)
 }
 
+// TestAppleDDMResyncPokesWithoutDeltas is a regression test: a host that
+// requested a resync (the resync flag on host_mdm_apple_declarations, set by the
+// remove+install-same-token cleanup) must get a DeclarativeManagement command on
+// the next reconcile even when there are no declaration deltas that tick.
+// Previously the reconciler early-returned on empty deltas, stranding the resync
+// flag set forever.
+func (s *integrationMDMTestSuite) TestAppleDDMResyncPokesWithoutDeltas() {
+	t := s.T()
+	ctx := context.Background()
+
+	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// One declaration, reconciled so it's installed and no longer changing.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("com.fleet.resync")},
+	}}, http.StatusNoContent)
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// Drain the channel so it is idle with no pending deltas.
+	for {
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		_, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// Flag the host declaration for resync, as cleanUpDuplicateRemoveInstall does.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_declarations SET resync = 1 WHERE host_uuid = ?`, mdmHost.UUID)
+		return err
+	})
+
+	// A reconcile with no declaration deltas must still poke the host because of
+	// the resync flag.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "resync-only host must be poked even when there are no declaration deltas")
+	require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+
+	// The resync flag was cleared.
+	var resync bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &resync, `SELECT resync FROM host_mdm_apple_declarations WHERE host_uuid = ?`, mdmHost.UUID)
+	})
+	require.False(t, resync)
+}
+
 func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)

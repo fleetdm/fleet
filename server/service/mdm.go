@@ -2594,7 +2594,7 @@ func getAppleProfiles(
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
 			// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
 			// parsed value drives the scope column; the key stays in the stored JSON
-			// and is stripped only at delivery time so it isn't sent to the device.
+			// and is stripped at delivery time so it isn't sent to the device.
 			mdmDecl.Scope = rawDecl.ScopeOrDefault()
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {

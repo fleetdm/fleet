@@ -108,9 +108,11 @@ func ReconcileAppleDeclarationsBatched(
 		"changed_user_hosts", len(changedUserHostUUIDs),
 		"host_decl_rows_to_write", len(declRowsToWrite))
 
-	if len(declRowsToWrite) == 0 {
-		return nil
-	}
+	// NOTE: we intentionally do NOT early-return when there are no declaration
+	// deltas. Hosts that requested a resync (MDMAppleHostDeclarationsGetAndClearResync
+	// below) must still be poked even when nothing changed this tick — that's the
+	// whole point of the resync flag, and leaving it unhandled would strand the
+	// flag set forever. All the steps below no-op cheaply on empty inputs.
 
 	// Memoized resolver: the user-channel enrollment ID for a host, or "" if the
 	// host has no user channel yet. Shared between the delta and resync passes so

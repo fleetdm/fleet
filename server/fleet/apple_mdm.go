@@ -905,12 +905,10 @@ type MDMAppleRawDeclaration struct {
 	// Type is the "Type" field on the raw declaration JSON.
 	Type       string `json:"Type"`
 	Identifier string `json:"Identifier"`
-	// PayloadScope is a Fleet extension (not part of Apple's DDM schema) that
-	// lets an admin choose the device ("System") or user ("User") channel for a
-	// declaration. It is parsed at upload (defaulting to "System") to set the
-	// scope column; the key is left in raw_json and stripped only when the
-	// declaration is served to a device so the delivered JSON stays valid Apple
-	// DDM (see handleConfigurationDeclaration).
+	// PayloadScope is a Fleet extension (not part of Apple's DDM schema) . It is
+	// parsed at upload (defaulting to "System") to set the scope column; the key is
+	// left in raw_json and stripped only when the declaration is served to a device
+	// so the delivered JSON stays valid Apple DDM (see handleConfigurationDeclaration).
 	PayloadScope PayloadScope `json:"PayloadScope"`
 }
 
