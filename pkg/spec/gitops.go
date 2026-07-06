@@ -335,15 +335,16 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 }
 
 func validatePackageFieldPlacement(teamLevel SoftwarePackage, pkg *fleet.SoftwarePackageSpec, multiple bool) error {
+	id := pkg.URL
+	if id == "" {
+		id = pkg.SHA256
+	}
 	if (teamLevel.SelfService && pkg.SelfService) ||
 		(len(teamLevel.Categories.Value) > 0 && len(pkg.Categories.Value) > 0) {
-		return fmt.Errorf(fleet.SoftwareSelfServiceCategoriesConflictMessage, pkg.URL)
+		return fmt.Errorf(fleet.SoftwareSelfServiceCategoriesConflictMessage, id)
 	}
 	if multiple && pkg.InstallDuringSetup.Valid {
-		return fmt.Errorf(fleet.SoftwareSetupExperienceFleetLevelOnlyMessage, pkg.URL)
-	}
-	if multiple && (len(teamLevel.LabelsIncludeAny) > 0 || len(teamLevel.LabelsExcludeAny) > 0 || len(teamLevel.LabelsIncludeAll) > 0) {
-		return fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, pkg.URL)
+		return fmt.Errorf(fleet.SoftwareSetupExperienceFleetLevelOnlyMessage, id)
 	}
 	return nil
 }
@@ -2270,6 +2271,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 				// Collect the packages that validate and hydrate, dropping any that fail.
 				multiple := len(softwarePackageSpecs) > 1
+				if multiple && (len(teamLevelPackage.LabelsIncludeAny) > 0 || len(teamLevelPackage.LabelsExcludeAny) > 0 || len(teamLevelPackage.LabelsIncludeAll) > 0) {
+					multiError = multierror.Append(multiError, fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, *teamLevelPackage.Path))
+				}
 				var valid []*fleet.SoftwarePackageSpec
 				for _, spec := range softwarePackageSpecs {
 					spec.ReferencedYamlPath = resolvedPath
