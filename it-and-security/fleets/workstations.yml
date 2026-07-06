@@ -316,40 +316,54 @@ software:
   fleet_maintained_apps:
     # macOS apps
     - slug: 1password/darwin # 1Password for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-1password-running.yml
       self_service: true
       setup_experience: true
       categories:
         - Security
     - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-aws-vpn-client-running.yml
       self_service: true
       labels_include_any:
         - "IdP group: SAML-aws-vpn"
       categories:
         - Utilities
     - slug: google-chrome/darwin # Google Chrome for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-google-chrome-running.yml
       self_service: true
       setup_experience: true
       categories:
         - Browsers
     - slug: firefox/darwin # Mozilla Firefox for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-firefox-running.yml
       self_service: true
       labels_include_any:
         - Macs with Firefox installed
       categories:
         - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-brave-browser-running.yml
       self_service: true
       labels_include_any:
         - Macs with Brave Browser installed
       categories:
         - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-docker-desktop-running.yml
       self_service: true
       labels_include_any:
         - Macs with Docker Desktop installed
       categories:
         - Developer tools
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-visual-studio-code-running.yml
       self_service: true
       labels_include_any:
         - Macs with Visual Studio Code installed
@@ -358,9 +372,13 @@ software:
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-slack-running.yml
       categories:
         - Communication
     - slug: zoom/darwin # Zoom for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-zoom-running.yml
       self_service: true
       setup_experience: true
       categories:
@@ -383,53 +401,71 @@ software:
       categories:
         - Utilities
     - slug: claude/darwin # Claude for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-claude-running.yml
       self_service: true
       setup_experience: true
       categories:
         - Productivity
     - slug: github/darwin # GitHub Desktop for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-github-desktop-running.yml
       self_service: true
       labels_include_any:
         - Macs with GitHub Desktop installed
       categories:
         - Developer tools
     - slug: utm/darwin # UTM for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-utm-running.yml
       self_service: true
       labels_include_any:
         - Macs with UTM installed
       categories:
         - Productivity
     - slug: postman/darwin # Postman for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-postman-running.yml
       self_service: true
       labels_include_any:
         - Macs with Postman installed
       categories:
         - Developer tools
     - slug: grammarly-desktop/darwin # Grammarly Desktop for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-grammarly-desktop-running.yml
       self_service: true
       labels_include_any:
         - Macs with Grammarly Desktop installed
       categories:
         - Productivity
     - slug: iterm2/darwin # iTerm2 for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-iterm2-running.yml
       self_service: true
       labels_include_any:
         - Macs with iTerm2 installed
       categories:
         - Developer tools
     - slug: sublime-text/darwin # Sublime Text for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-sublime-text-running.yml
       self_service: true
       labels_include_any:
         - Macs with Sublime Text installed
       categories:
         - Developer tools
     - slug: parallels/darwin # Parallels Desktop for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-parallels-running.yml
       self_service: true
       labels_include_any:
         - Macs with Parallels Desktop installed
       categories:
         - Productivity
     - slug: loom/darwin # Loom for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-loom-running.yml
       self_service: true
       labels_include_any:
         - Macs with Loom installed
@@ -441,60 +477,80 @@ software:
       categories:
         - Utilities
     - slug: spotify/darwin # Spotify for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-spotify-running.yml
       self_service: true
       labels_include_any:
         - Macs with Spotify installed
       categories:
         - Productivity
     - slug: rectangle/darwin # Rectangle for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-rectangle-running.yml
       self_service: true
       labels_include_any:
         - Macs with Rectangle installed
       categories:
         - Productivity
     - slug: logi-options+/darwin # Logi Options+ for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-logi-options-running.yml
       self_service: true
       labels_include_any:
         - Macs with Logi Options+ installed
       categories:
         - Productivity
     - slug: figma/darwin # Figma for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-figma-running.yml
       self_service: true
       labels_include_any:
         - Macs with Figma installed
       categories:
         - Productivity
     - slug: whatsapp/darwin # WhatsApp for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-whatsapp-running.yml
       self_service: true
       labels_include_any:
         - Macs with WhatsApp installed
       categories:
         - Communication
     - slug: android-studio/darwin # Android Studio for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-android-studio-running.yml
       self_service: true
       labels_include_any:
         - Macs with Android Studio installed
       categories:
         - Developer tools
     - slug: zed/darwin # Zed for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-zed-running.yml
       self_service: true
       labels_include_any:
         - Macs with Zed installed
       categories:
         - Developer tools
     - slug: obsidian/darwin # Obsidian for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-obsidian-running.yml
       self_service: true
       labels_include_any:
         - Macs with Obsidian installed
       categories:
         - Productivity
     - slug: google-drive/darwin # Google Drive for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-google-drive-running.yml
       self_service: true
       labels_include_any:
         - Macs with Google Drive installed
       categories:
         - Productivity
     - slug: cursor/darwin # Cursor for macOS
+      pre_install_query:
+        path: ../lib/macos/misc/pre-install-queries/is-cursor-running.yml
       self_service: true
       labels_include_any:
         - Macs with Cursor installed
@@ -514,11 +570,15 @@ software:
         - Productivity
     # Windows apps
     - slug: 1password/windows # 1Password for Windows
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-1password-running.yml
       self_service: true
       setup_experience: true
       categories:
         - Security
     - slug: slack/windows # Slack for Windows
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-slack-running.yml
       self_service: true
       setup_experience: true
       categories:
@@ -526,6 +586,8 @@ software:
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: claude/windows # Claude for Windows
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-claude-running.yml
       self_service: true
       setup_experience: true
       labels_include_any:
@@ -533,12 +595,16 @@ software:
       categories:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-firefox-running.yml
       self_service: true
       categories:
         - Browsers
       labels_include_any:
         - "x86 Windows hosts with Firefox installed"
     - slug: google-chrome/windows # Google Chrome for Windows
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-google-chrome-running.yml
       self_service: true
       setup_experience: true
       categories:
@@ -546,6 +612,8 @@ software:
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: zoom/windows # Zoom for Windows (x86)
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-zoom-running.yml
       self_service: true
       setup_experience: true
       categories:
@@ -553,6 +621,8 @@ software:
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
+      pre_install_query:
+        path: ../lib/windows/misc/pre-install-queries/is-visual-studio-code-running.yml
       self_service: true
       labels_include_any:
         - "x86 Windows hosts with Visual Studio Code installed"
