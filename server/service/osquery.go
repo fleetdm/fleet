@@ -428,10 +428,12 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	// The scheduled queries pack config is identical for all hosts in the
 	// same team, so we cache the marshaled JSON keyed by (teamID, queryReportsDisabled).
 	useLegacyPacks := len(packs) > 0
-	if !useLegacyPacks {
+	if !useLegacyPacks && svc.packConfigCache != nil {
 		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
 		if cachedJSON, found := svc.packConfigCache.Get(cacheKey); found {
-			return cachedJSON.(json.RawMessage), nil
+			if raw, ok := cachedJSON.(json.RawMessage); ok {
+				return raw, nil
+			}
 		}
 	}
 
@@ -508,7 +510,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	raw := json.RawMessage(packJSON)
 
 	// Cache the result for future requests (only if no legacy packs).
-	if !useLegacyPacks {
+	if !useLegacyPacks && svc.packConfigCache != nil {
 		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
 		svc.packConfigCache.SetDefault(cacheKey, raw)
 	}
@@ -519,7 +521,9 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 // InvalidatePackConfigCache clears the cached pack config JSON.
 // Call this when queries, packs, or query reports settings change.
 func (svc *Service) InvalidatePackConfigCache() {
-	svc.packConfigCache.Flush()
+	if svc.packConfigCache != nil {
+		svc.packConfigCache.Flush()
+	}
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
