@@ -1,7 +1,7 @@
 # Labels
 
 
-In Fleet, you can use labels to scope [software](https://fleetdm.com/guides/deploy-software-packages), [policies](https://fleetdm.com/securing/what-are-fleet-policies), [queries](https://fleetdm.com/guides/queries), and [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for specific hosts, and filter the hosts view.
+In Fleet, you can use labels to scope [software](https://fleetdm.com/guides/deploy-software-packages), [policies](https://fleetdm.com/securing/what-are-fleet-policies), [reports](https://fleetdm.com/guides/queries), and [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for specific hosts, and filter the hosts view.
 
 Labels can be one of the following types:
 - **Dynamic**: A query-based label applied to any host that returns a result for the label's query.
@@ -10,15 +10,11 @@ Labels can be one of the following types:
 - **Host vitals**: A Fleet-generated label applied to hosts that match a specific host vital (currently IdP group and department on macOS, iOS, iPadOS, and Android).
 > If you want to change the target of a host vitals label, you must delete the existing label and create a new one.
 
-To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
-
-You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
-
-## Target configuration profiles with labels
+## Targeting with labels
 
 _Available in Fleet Premium._
 
-You can use labels to control which hosts receive a [configuration profile](https://fleetdm.com/guides/custom-os-settings). Fleet supports three targeting options:
+Fleet supports three targeting options:
 
 - **Include all**: Only hosts that have **all** specified labels receive the profile (`labels_include_all`).
 - **Include any**: Hosts that have **any** of the specified labels receive the profile (`labels_include_any`).
@@ -26,7 +22,7 @@ You can use labels to control which hosts receive a [configuration profile](http
 
 ### Combining include and exclude
 
-You can combine `labels_exclude_any` with either `labels_include_all` or `labels_include_any` on the same profile. This lets you include a broad set of hosts and then carve out exceptions without writing a complex label query.
+You can combine `labels_exclude_any` with either `labels_include_all` or `labels_include_any` on the same configuration profile. This lets you include a broad set of hosts and then carve out exceptions without writing a complex label query.
 
 > `labels_include_all` and `labels_include_any` cannot be combined with each other on the same profile.
 
@@ -58,10 +54,24 @@ controls:
           - Contractors
 ```
 
+> Combining include and exclude labels is only supported for configuration profiles as of Fleet version 4.88.0.
+
+## Label scope: global vs. fleet
+
+A label's scope is set based on where it's created, not by its name:
+
+- **Global:** Available across all fleets. Created by a global user in the UI, or defined in `default.yml`.
+- **Fleet:** (Fleet Premium) Scoped to a single fleet and visible only alongside global labels for that fleet. Defined in that fleet's `fleets/fleet-name.yml`. Defining a label here scopes it to the fleet; it does **not** become global.
+
+> **Tip:** Label names share one namespace, so creating a label whose name already exists (global or fleet) will fail. If multiple teams manage labels independently, prefix them to avoid collisions—either **by owner/fleet** (e.g. `[Workstations] Kiosk`, `ws-kiosk`) or by **centralizing all labels** in one place (e.g. a `labels/` directory referenced from `default.yml`) as the single source of truth, so collisions surface in a single PR.
+
 If no label targeting is specified, the profile is delivered to all hosts on the specified platform.
 
-You can also set label targets through the Fleet UI when adding or editing a configuration profile under **Controls > OS settings > Configuration profiles**, or via the [REST API](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+## Managing labels
 
+To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
+
+You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
 
 <meta name="articleTitle" value="Labels in Fleet">
 <meta name="authorFullName" value="Noah Talerman">
