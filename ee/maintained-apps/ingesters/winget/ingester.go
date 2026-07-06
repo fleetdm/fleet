@@ -49,8 +49,11 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 		githubClient: githubClient,
 		ghClientOpts: opts,
 		logger:       logger,
-		httpClient:   fleethttp.NewClient(),
-		rawBaseURL:   "https://raw.githubusercontent.com",
+		// Use the token-authenticated client (when NETWORK_TEST_GITHUB_TOKEN is set) for
+		// raw.githubusercontent.com too: unauthenticated raw requests are rate-limited
+		// per IP, which shared GitHub Actions runner IPs exhaust constantly.
+		httpClient: githubHTTPClient,
+		rawBaseURL: "https://raw.githubusercontent.com",
 	}
 
 	for _, f := range files {
@@ -115,7 +118,15 @@ type wingetIngester struct {
 	// rawBaseURL is the base URL for fetching raw manifest files (normally
 	// https://raw.githubusercontent.com); overridable for tests.
 	rawBaseURL string
+	// consecutiveRawFailures counts back-to-back retry-exhausted raw fetch failures;
+	// once it reaches rawFailureThreshold, subsequent manifest fetches skip raw and go
+	// straight to the contents API instead of burning a full backoff cycle per file.
+	consecutiveRawFailures int
 }
+
+// rawFailureThreshold is the number of consecutive raw fetch failures after which the
+// ingester stops trying raw.githubusercontent.com for the rest of the run.
+const rawFailureThreshold = 3
 
 // errManifestNotFound indicates a manifest file does not exist at the requested path.
 var errManifestNotFound = errors.New("winget manifest file not found")
@@ -229,6 +240,55 @@ func (i *wingetIngester) getRawManifestFile(ctx context.Context, filePath string
 	return body, nil
 }
 
+// getAPIManifestFile fetches a manifest file via the GitHub contents API, retrying
+// transient failures. Returns errManifestNotFound if the file does not exist.
+func (i *wingetIngester) getAPIManifestFile(ctx context.Context, filePath string) ([]byte, error) {
+	var body []byte
+	err := retry.Do(func() error {
+		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			filePath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
+				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+				return errManifestNotFound
+			}
+			return err
+		}
+		contents, err := fileContents.GetContent()
+		if err != nil {
+			return err
+		}
+		body = []byte(contents)
+		return nil
+	}, fetchRetryOpts()...)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// getManifestFile fetches a manifest file, preferring raw.githubusercontent.com and
+// falling back to the contents API when raw is being throttled. The two endpoints are
+// rate-limited independently (raw per IP, the API per token + gitmon's per-repo
+// scheduling), so one being throttled doesn't imply the other is.
+func (i *wingetIngester) getManifestFile(ctx context.Context, filePath string) ([]byte, error) {
+	if i.consecutiveRawFailures < rawFailureThreshold {
+		contents, err := i.getRawManifestFile(ctx, filePath)
+		if err == nil || errors.Is(err, errManifestNotFound) {
+			i.consecutiveRawFailures = 0
+			return contents, err
+		}
+		i.consecutiveRawFailures++
+		i.logger.WarnContext(ctx, "raw manifest fetch failed, falling back to contents API",
+			"path", filePath, "consecutive_failures", i.consecutiveRawFailures, "err", err)
+	}
+	return i.getAPIManifestFile(ctx, filePath)
+}
+
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
 // package version folders (semver-style). The upstream repo may add other top-level
 // folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
@@ -299,7 +359,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
 		)
 
-		installerContents, err := i.getRawManifestFile(ctx, installerManifestPath)
+		installerContents, err := i.getManifestFile(ctx, installerManifestPath)
 		if err != nil {
 			// Only a missing manifest means "wrong directory depth, try the next
 			// candidate". Transient fetch errors must fail the run instead: silently
@@ -316,7 +376,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 
 		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-		localeContents, err := i.getRawManifestFile(ctx, localeManifestPath)
+		localeContents, err := i.getManifestFile(ctx, localeManifestPath)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
 		}

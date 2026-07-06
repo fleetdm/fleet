@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -674,5 +675,67 @@ func TestGetRepoDirContentsRetries(t *testing.T) {
 		_, err := i.getRepoDirContents(t.Context(), "manifests/f/Foo")
 		require.Error(t, err)
 		require.Equal(t, 1, attempts)
+	})
+}
+
+func TestGetManifestFileFallback(t *testing.T) {
+	origInterval := fetchRetryInterval
+	fetchRetryInterval = time.Millisecond
+	t.Cleanup(func() { fetchRetryInterval = origInterval })
+
+	// Server that always 429s raw-style paths but serves the contents API path.
+	newIngester := func(rawAttempts, apiAttempts *int) *wingetIngester {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/repos/") {
+				*apiAttempts++
+				str := "PackageVersion: 1.0"
+				content := &github.RepositoryContent{
+					Name:    new("Foo"),
+					Content: &str,
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(content))
+				return
+			}
+			*rawAttempts++
+			w.WriteHeader(http.StatusTooManyRequests)
+		}))
+		t.Cleanup(srv.Close)
+
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
+		require.NoError(t, err)
+		gc.BaseURL = u
+
+		return &wingetIngester{
+			logger:       slog.New(slog.DiscardHandler),
+			githubClient: gc,
+			httpClient:   srv.Client(),
+			rawBaseURL:   srv.URL,
+		}
+	}
+
+	t.Run("falls back to contents API when raw is throttled", func(t *testing.T) {
+		var rawAttempts, apiAttempts int
+		i := newIngester(&rawAttempts, &apiAttempts)
+
+		contents, err := i.getManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
+		require.NoError(t, err)
+		require.Equal(t, "PackageVersion: 1.0", string(contents))
+		require.Equal(t, 4, rawAttempts) // exhausted raw retries first
+		require.Equal(t, 1, apiAttempts)
+	})
+
+	t.Run("skips raw entirely after consecutive failures", func(t *testing.T) {
+		var rawAttempts, apiAttempts int
+		i := newIngester(&rawAttempts, &apiAttempts)
+
+		for range rawFailureThreshold + 2 {
+			_, err := i.getManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
+			require.NoError(t, err)
+		}
+		// raw tried only for the first rawFailureThreshold fetches (4 retry attempts each),
+		// then the circuit opens and everything goes straight to the API
+		require.Equal(t, rawFailureThreshold*4, rawAttempts)
+		require.Equal(t, rawFailureThreshold+2, apiAttempts)
 	})
 }
