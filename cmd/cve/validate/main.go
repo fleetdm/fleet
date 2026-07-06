@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -63,6 +65,11 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 		panic(fmt.Errorf("cvss v3 spot-check failed for CVE-2025-3196; score was %f instead of 5.5", vulns["CVE-2025-3196"].CVSSv3BaseScore()))
 	}
 
+	// Confirm every versionEndExcluding override was applied to the generated feed. This is driven by
+	// nvdsync.VersionEndExcludingOverrides, so a new override is validated automatically - it only
+	// needs to be added to that table, not here.
+	checkVersionEndExcludingOverrides(vulnPath)
+
 	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"))
 	if err != nil {
 		panic(err)
@@ -105,6 +112,48 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	// make sure we're rewriting docker_desktop to docker
 	if vulns["CVE-2023-0626"].Config()[0].Product != "desktop" {
 		panic(errors.New("docker_desktop spot-check failed for CVE-2023-0626"))
+	}
+}
+
+// checkVersionEndExcludingOverrides confirms every override in nvdsync.VersionEndExcludingOverrides
+// was applied to the generated feed: for each one the target CVE must exist and have a CPE match
+// (containing the override's CPESubstr) whose versionEndExcluding equals the override's To value.
+// It panics on the first mismatch, failing the daily release pipeline before a bad feed ships.
+func checkVersionEndExcludingOverrides(vulnPath string) {
+	// Load each year's feed at most once.
+	dicts := make(map[int]cvefeed.Dictionary)
+	for _, override := range nvdsync.VersionEndExcludingOverrides {
+		year, err := strconv.Atoi(override.CVE[4:8])
+		if err != nil {
+			panic(fmt.Errorf("versionEndExcluding override: parsing year from %q: %w", override.CVE, err))
+		}
+
+		dict, ok := dicts[year]
+		if !ok {
+			dict, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, fmt.Sprintf("nvdcve-1.1-%d.json.gz", year)))
+			if err != nil {
+				panic(err)
+			}
+			dicts[year] = dict
+		}
+
+		vulnEntry, ok := dict[override.CVE].(*feednvd.Vuln)
+		if !ok {
+			panic(fmt.Errorf("versionEndExcluding override spot-check failed: %s not found in feed", override.CVE))
+		}
+
+		var found bool
+		for _, node := range vulnEntry.Schema().Configurations.Nodes {
+			for _, match := range node.CPEMatch {
+				if strings.Contains(match.Cpe23Uri, override.CPESubstr) && match.VersionEndExcluding == override.To {
+					found = true
+				}
+			}
+		}
+		if !found {
+			panic(fmt.Errorf("versionEndExcluding override spot-check failed for %s: expected %q on a CPE containing %q",
+				override.CVE, override.To, override.CPESubstr))
+		}
 	}
 }
 

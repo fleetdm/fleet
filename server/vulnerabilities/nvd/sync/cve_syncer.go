@@ -538,22 +538,75 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 		}
 	}
 
-	// This corrects the resolved-in version to what Citrix actually reports it is
-	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2024-6286" {
+	// Correct or supply versionEndExcluding (the first fixed version) for records where NVD omitted
+	// it or published the wrong value, so Fleet can report an accurate resolved_in_version. Add new
+	// cases to versionEndExcludingOverrides rather than writing another one-off block here.
+	applyVersionEndExcludingOverrides(item)
+
+	return item
+}
+
+// VersionEndExcludingOverride corrects or supplies the versionEndExcluding (the first fixed version)
+// of an NVD CPE match. NVD sometimes omits it entirely (publishing only versionEndIncluding) or
+// publishes the wrong value, either of which prevents Fleet from reporting an accurate
+// resolved_in_version. Each override targets the CPE matches of a single CVE whose cpe23Uri contains
+// CPESubstr, replacing the current versionEndExcluding with To only when it currently equals From
+// (use the empty string for From to match a missing/absent value). Entries should be removed once
+// NVD publishes correct data.
+type VersionEndExcludingOverride struct {
+	CVE       string
+	CPESubstr string
+	From      string // versionEndExcluding to match; "" matches a missing/absent value
+	To        string // versionEndExcluding to set
+}
+
+// VersionEndExcludingOverrides is the single source of truth for versionEndExcluding corrections.
+// Adding an entry here both applies the fix at generation time (see applyVersionEndExcludingOverrides)
+// and drives the post-generation spot-check in cmd/cve/validate - no other file needs to change.
+var VersionEndExcludingOverrides = []VersionEndExcludingOverride{
+	{
+		// NVD only publishes versionEndIncluding for Ollama, so the resolved version can't be
+		// derived from the feed. Ollama fixed it in 0.12.4.
+		// See https://github.com/fleetdm/fleet/issues/44800.
+		CVE:       "CVE-2025-63389",
+		CPESubstr: ":ollama:ollama:",
+		From:      "",
+		To:        "0.12.4",
+	},
+	{
+		// NVD reports the wrong resolved version for Citrix LTSR; it's actually 2402.
+		CVE:       "CVE-2024-6286",
+		CPESubstr: ":ltsr:",
+		From:      "2203.1",
+		To:        "2402",
+	},
+}
+
+// applyVersionEndExcludingOverrides applies any versionEndExcludingOverrides that target the given
+// CVE, correcting or supplying versionEndExcluding on matching CPE entries in place.
+func applyVersionEndExcludingOverrides(item nvdapi.CVEItem) {
+	if item.CVE.ID == nil {
+		return
+	}
+	for _, override := range VersionEndExcludingOverrides {
+		if override.CVE != *item.CVE.ID {
+			continue
+		}
 		for configID := range item.CVE.Configurations {
 			for nodeID := range item.CVE.Configurations[configID].Nodes {
 				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
 					match := &item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID]
-					if strings.Contains(match.Criteria, ":ltsr:") &&
-						match.VersionEndExcluding != nil && *match.VersionEndExcluding == "2203.1" {
-						match.VersionEndExcluding = ptr.String("2402")
+					if !strings.Contains(match.Criteria, override.CPESubstr) {
+						continue
 					}
+					if ptr.ValOrZero(match.VersionEndExcluding) != override.From {
+						continue
+					}
+					match.VersionEndExcluding = new(override.To)
 				}
 			}
 		}
 	}
-
-	return item
 }
 
 func (s *CVE) DoVulnCheck(ctx context.Context) error {

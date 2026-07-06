@@ -295,3 +295,78 @@ func copyFile(src, dst string) error {
 	// Ensure that the copied contents are flushed to stable storage
 	return destFile.Sync()
 }
+
+func TestApplyVersionEndExcludingOverrides(t *testing.T) {
+	// makeItem builds a minimal NVD API record with a single CPE match, so the override table can be
+	// exercised without a full feed. Pass nil versionEndExcluding to mimic NVD omitting it.
+	makeItem := func(cve, criteria string, versionEndExcluding *string) nvdapi.CVEItem {
+		return nvdapi.CVEItem{
+			CVE: nvdapi.CVE{
+				ID: new(cve),
+				Configurations: []nvdapi.Config{
+					{
+						Nodes: []nvdapi.Node{
+							{
+								CPEMatch: []nvdapi.CVECPEMatch{
+									{
+										Vulnerable:          true,
+										Criteria:            criteria,
+										VersionEndIncluding: new("0.12.3"),
+										VersionEndExcluding: versionEndExcluding,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	endExcluding := func(it nvdapi.CVEItem) *string {
+		return it.CVE.Configurations[0].Nodes[0].CPEMatch[0].VersionEndExcluding
+	}
+
+	t.Run("adds versionEndExcluding when NVD omits it (Ollama)", func(t *testing.T) {
+		it := makeItem("CVE-2025-63389", "cpe:2.3:a:ollama:ollama:*:*:*:*:*:*:*:*", nil)
+		applyVersionEndExcludingOverrides(it)
+		require.NotNil(t, endExcluding(it))
+		require.Equal(t, "0.12.4", *endExcluding(it))
+	})
+
+	t.Run("corrects a wrong versionEndExcluding (Citrix LTSR)", func(t *testing.T) {
+		it := makeItem("CVE-2024-6286", "cpe:2.3:a:citrix:x:ltsr:*:*:*:*:*:*:*", new("2203.1"))
+		applyVersionEndExcludingOverrides(it)
+		require.NotNil(t, endExcluding(it))
+		require.Equal(t, "2402", *endExcluding(it))
+	})
+
+	t.Run("does not touch a match whose current value doesn't equal From", func(t *testing.T) {
+		it := makeItem("CVE-2024-6286", "cpe:2.3:a:citrix:x:ltsr:*:*:*:*:*:*:*", new("9.9.9"))
+		applyVersionEndExcludingOverrides(it)
+		require.Equal(t, "9.9.9", *endExcluding(it))
+	})
+
+	t.Run("does not overwrite an already-present value when From is empty", func(t *testing.T) {
+		it := makeItem("CVE-2025-63389", "cpe:2.3:a:ollama:ollama:*:*:*:*:*:*:*:*", new("0.99.0"))
+		applyVersionEndExcludingOverrides(it)
+		require.Equal(t, "0.99.0", *endExcluding(it))
+	})
+
+	t.Run("leaves non-matching CPEs untouched", func(t *testing.T) {
+		it := makeItem("CVE-2025-63389", "cpe:2.3:a:other:other:*:*:*:*:*:*:*:*", nil)
+		applyVersionEndExcludingOverrides(it)
+		require.Nil(t, endExcluding(it))
+	})
+
+	t.Run("leaves unlisted CVEs untouched", func(t *testing.T) {
+		it := makeItem("CVE-0000-00000", "cpe:2.3:a:ollama:ollama:*:*:*:*:*:*:*:*", nil)
+		applyVersionEndExcludingOverrides(it)
+		require.Nil(t, endExcluding(it))
+	})
+
+	t.Run("nil CVE ID is a no-op", func(t *testing.T) {
+		it := makeItem("CVE-2025-63389", "cpe:2.3:a:ollama:ollama:*:*:*:*:*:*:*:*", nil)
+		it.CVE.ID = nil
+		require.NotPanics(t, func() { applyVersionEndExcludingOverrides(it) })
+	})
+}
