@@ -1785,6 +1785,67 @@ type Datastore interface {
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Apple host name enforcement
+
+	// BulkUpsertHostDeviceNameEnforcement creates (or resets to queued) host-name
+	// enforcement rows for every host in the given team that is eligible for the
+	// host-name template (Apple platform, enrolled in Fleet's MDM, not a personal
+	// BYOD enrollment). Existing rows are reset to a NULL status so the cron
+	// re-enqueues the command. Called when a team's template is set or changed.
+	BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID uint) error
+
+	// DeleteHostDeviceNameEnforcementForTeam removes all host-name enforcement
+	// rows for hosts in the given team. Called when a team's template is cleared;
+	// no rename command is sent.
+	DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID uint) error
+
+	// ListHostsPendingDeviceNameCommand returns up to limit hosts whose
+	// enforcement row is queued (status IS NULL), joined with the host details the
+	// cron needs to resolve the template and enqueue a Settings/DeviceName command.
+	ListHostsPendingDeviceNameCommand(ctx context.Context, limit int) ([]HostDeviceNamePending, error)
+
+	// SetHostDeviceNameCommandSent marks a host's enforcement row as pending,
+	// recording the enqueued command UUID and the resolved name that was sent.
+	SetHostDeviceNameCommandSent(ctx context.Context, hostUUID, commandUUID, expectedName string) error
+
+	// UpdateHostDeviceNameStatusFromCommand updates the enforcement row matching
+	// the given command UUID to the given status and detail, returning the host
+	// UUID and expected name so the caller can rename the host in Fleet on
+	// acknowledgment.
+	//
+	// A host holds only its most recently sent command UUID (one row per host),
+	// so a result for a superseded command (e.g. the template was re-saved or the
+	// admin clicked Resend before an earlier command acked) will not match and a
+	// not-found error is returned. Callers MUST treat that not-found as "stale
+	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
+	// processes commands FIFO and ends on the latest name, which the matching
+	// (newest) command's result records.
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, status MDMDeliveryStatus, detail string) (hostUUID string, expectedName string, err error)
+
+	// VerifyHostDeviceName reconciles the enforcement row for a host against the
+	// name reported by the device. reportedName is the host's current name as
+	// observed at a name-ingestion site: the DeviceName in the iOS/iPadOS refetch
+	// result, or computer_name from macOS osquery system_info. It only acts on
+	// rows in the verifying or verified state: a match moves the row to verified;
+	// a mismatch moves it to failed (drift). Rows in any other state, or hosts
+	// with no row, are left untouched.
+	VerifyHostDeviceName(ctx context.Context, hostUUID, reportedName string) error
+
+	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the
+	// given host, or a not-found error if the host has no row.
+	GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*HostDeviceNameEnforcement, error)
+
+	// ResendHostDeviceName resets a host's enforcement row to a NULL status so the
+	// cron re-enqueues the Settings/DeviceName command on its next run.
+	ResendHostDeviceName(ctx context.Context, hostUUID string) error
+
+	// ReconcileHostDeviceNamesForHosts upserts or deletes enforcement rows for the
+	// given hosts based on each host's current team template: eligible hosts whose
+	// team has a non-empty template get a queued row; all others have their row
+	// removed. Called after host transfer or enrollment.
+	ReconcileHostDeviceNamesForHosts(ctx context.Context, hostIDs []uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Managed local account
 
 	// SaveHostManagedLocalAccount encrypts and stores the managed local account password
