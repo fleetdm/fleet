@@ -2,23 +2,23 @@
 
 *Blocking betas used to be all-or-nothing. With declarative device management, you decide which devices see which beta programs. Here's how to get the enrollment tokens that make it work.*
 
-'Tis the season for Apple beta programs. As Apple pushes out the next wave of software across its device ecosystem, admins can get ahead of the sprawl of OSes that might land on a fleet, intentionally or not.
-
-Before declarative device management (DDM), your options were blunt: deploy a configuration profile that stopped users from installing beta releases, and that was about it. There are plenty of legitimate reasons to block betas, but a blanket block also limited flexibility — your team couldn't test the next release, and your app developers couldn't test your own software against it. DDM replaces that on/off switch with real policy. Here's how it works, and how to clear the one real hurdle: the enrollment token.
-
 ## Key takeaways
 
-- **Beta control is no longer all-or-nothing.** With the DDM software update settings declaration, you can control which beta programs devices are offered, prevent enrollment entirely, or even force specific devices to enroll — per device, not per fleet-wide switch.
+- **Beta control is no longer all-or-nothing.** The DDM software update settings declaration lets you decide, per device, whether beta programs are offered, blocked, or required — no more single fleet-wide switch.
 
 - **The declaration is the easy part.** The payload is a few lines of JSON. The part that trips people up is the beta program token it references.
 
-- **Tokens come from Apple Business, and fetching them by hand is tedious.** The manual flow involves generating a key pair, uploading a certificate, downloading an encrypted `.p7m`, decrypting it, and signing an OAuth request.
+- **Tokens come from Apple Business, and fetching them by hand is tedious.** The manual flow winds through key pairs, certificate uploads, an encrypted `.p7m`, and a signed OAuth request before you ever see a token.
 
 - **A free script automates the whole token dance.** Microsoft and HCS Technology Group published a script that handles the authentication flow end to end and prints a token for every beta program your organization has accepted terms for.
 
 - **Fleet delivers the declaration like any other OS setting.** Upload the JSON in the Fleet UI or manage it in Git, and scope it with labels so your test devices get offered betas while everyone else stays blocked.
 
 <a purpose="cta-button" href="https://fleetdm.com/try-fleet">Try Fleet</a>
+
+'Tis the season for Apple beta programs. As Apple pushes out the next wave of software across its device ecosystem, admins can get ahead of the sprawl of OSes that might land on a fleet, intentionally or not.
+
+Before declarative device management (DDM), your options were blunt: deploy a configuration profile that stopped users from installing beta releases, and that was about it. There are plenty of legitimate reasons to block betas, but a blanket block also limited flexibility — your team couldn't test the next release, and your app developers couldn't test your own software against it. DDM replaces that on/off switch with real policy. Here's how it works, and how to clear the one real hurdle: the enrollment token.
 
 ## From blanket blocks to real policy
 
