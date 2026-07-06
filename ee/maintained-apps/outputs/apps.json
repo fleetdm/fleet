@@ -8423,6 +8423,13 @@
       "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
     },
     {
+      "name": "WinDirStat",
+      "slug": "windirstat/windows",
+      "platform": "windows",
+      "unique_identifier": "WinDirStat",
+      "description": "WinDirStat is a disk usage statistics viewer and cleanup tool for Windows."
+    },
+    {
       "name": "WindowKeys",
       "slug": "windowkeys/darwin",
       "platform": "darwin",
