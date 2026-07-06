@@ -36,7 +36,7 @@ With the declarative framework, the `com.apple.configuration.softwareupdate.sett
       "OfferPrograms": [
         {
           "Description": "macOS Sequoia AppleSeed Beta",
-          "Token": "p13rMoT3TBr8oA3LNudcyP5mw2aZCKnP5QZQt2q9muMoXUp1xRJqL5YsQ3ns6J9m"
+          "Token": "RPorzFdBlYzes42YomzF7AkJq8BAPBLWUszyUScftPJzC0Zy2vdMUxCfreVrAsam"
         }
       ]
     }
@@ -92,13 +92,13 @@ Assuming the token lands in your Downloads folder, the running script picks it u
 ┌─────────────────────────────────────┬─────────┬──────────────────────────────────────────────────────────────────┐
 │ Title                               │ OS      │ Token                                                            │
 ├─────────────────────────────────────┼─────────┼──────────────────────────────────────────────────────────────────┤
-│ iOS 26 AppleSeed Beta               │ iOS     │ 2QscZ7BcubDdhLElKnxt5inDtRD2Kgv2FFALfMKCo41TQc2Cn0fcEuQ3S4JaWekq │
-│ iOS 27 AppleSeed Beta               │ iOS     │ IjfF7PbvdCENrNuqsEruCEXS1yObvtFMPp7qFWL5Bi06wIJqNzvL7OflVtyABYks │
-│ macOS 27 Golden Gate AppleSeed Beta │ OSX     │ nmPYyLLGlKLyHfyTFE1MZr7lNyC02ZELG2IeD1mS1gbXQDTB0AS6KbOPRsb3E6FA │
-│ macOS Sequoia AppleSeed Beta        │ OSX     │ 8helajLfgbkmgzBuN8SQd6RrNTt1QyAkoli3wwN3XYBv4MNuWgNTUWwXPA0l7hOV │
-│ macOS Tahoe 26 AppleSeed Beta       │ OSX     │ V9Yaq7794Prjrk407XqyLWUD66t0UBkne94KpBdVenQdJyHQA269eGI8t7dhUhy9 │
-│ watchOS 26 AppleSeed Beta           │ watchOS │ 6bOgNrCcLQhGaz6ufLGEh9koXGE0U7AetIq87uQjjL4gs8XMMfEG6qKjjHl039PQ │
-│ watchOS 27 AppleSeed Beta           │ watchOS │ 3cV9hhd7qrvad0D9ZgsNi6Jy2tVbdRWsa6e6eC8OKVxV19usPS8eJEav47u3QH3e │
+│ iOS 26 AppleSeed Beta               │ iOS     │ 8rLMZ3zBthBUrWql1AUKxmegTSLHHn4bmk8nq66dVahwid5ViGSHgY2yh4eqYmAH │
+│ iOS 27 AppleSeed Beta               │ iOS     │ mNxQ4ZnT4MFAEh7FAuSDR4LlOoocQXMCTbSMp9UvCJRAlS1aTPu7ugZNBrnHiOuB │
+│ macOS 27 Golden Gate AppleSeed Beta │ OSX     │ fv3EnlTvYDdaaQvORIDQ6fiYovbDqeEwetuEPy3DWn3MZjMtvqLhaHXt3wbu8zPc │
+│ macOS Sequoia AppleSeed Beta        │ OSX     │ 8ldAUH5JCP15M9GoTwZWPFsIPpjHM20NH78zHu8QUFEqYxxjxTvp9foH6tPN9mm9 │
+│ macOS Tahoe 26 AppleSeed Beta       │ OSX     │ YaMpsLkQrjyCqjOtzW6B694HStHHGUC2KxUpab5INXrb8qA4hxENcet1htFLlpGd │
+│ watchOS 26 AppleSeed Beta           │ watchOS │ 9aQYc2NF3lnlhUHEA8OG6PFiMo34OKXNBAK6M6iRmc931cDtH5g9YPAW6NEoCdPs │
+│ watchOS 27 AppleSeed Beta           │ watchOS │ H0mCCV5aD2qwyA6fa7kyz5hL5ktm3Tb8lmUpGCUh86mtwMNdLrMF2NPiwP2if3LA │
 └─────────────────────────────────────┴─────────┴──────────────────────────────────────────────────────────────────┘
 ```
 
