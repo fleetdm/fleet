@@ -3654,6 +3654,13 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
 }
 
+// windowsProfileNeedsPerHostProcessing reports whether a Windows profile must be
+// processed per-host at delivery time — i.e. it references any FLEET_VAR_ variable
+// or any $FLEET_HOST_VITAL_<id> custom host vital.
+func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
+	return variables.ContainsBytes(syncML) || len(fleet.ContainsCustomHostVitalIDs(string(syncML))) > 0
+}
+
 // ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
 //
 // It walks every enrolled Windows host via a host_uuid cursor (persisted in Redis through the mysqlredis wrapper), loading a
@@ -3971,7 +3978,7 @@ func executeWindowsProfileReconcileBatch(
 			continue
 		}
 		p, ok := profileContents[profUUID]
-		if !ok || variables.ContainsBytes(p.SyncML) {
+		if !ok || windowsProfileNeedsPerHostProcessing(p.SyncML) {
 			continue // variable profiles get per-host commands, can't pre-build
 		}
 		command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
@@ -4016,7 +4023,7 @@ func executeWindowsProfileReconcileBatch(
 			continue
 		}
 
-		if !variables.ContainsBytes(p.SyncML) {
+		if !windowsProfileNeedsPerHostProcessing(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
 			payloads, ok := batchProfileCmdsMap[target.cmdUUID]
 			if !ok {

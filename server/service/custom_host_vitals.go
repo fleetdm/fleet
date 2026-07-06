@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -145,6 +147,11 @@ func (svc *Service) DeleteCustomHostVital(ctx context.Context, id uint) error {
 
 	name, err := svc.ds.DeleteCustomHostVital(ctx, id)
 	if err != nil {
+		if usedErr, ok := errors.AsType[*fleet.CustomHostVitalUsedError](err); ok {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: fmt.Sprintf("Couldn't delete. %s", usedErr.Error()),
+			}, "delete custom host vital")
+		}
 		return ctxerr.Wrap(ctx, err, "delete custom host vital")
 	}
 

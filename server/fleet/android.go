@@ -122,6 +122,14 @@ func parseAndroidProfileValidationError(err error) error {
 }
 
 func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any) error {
+	// $FLEET_HOST_VITAL_<id> is expanded per-host only for Apple and Windows at
+	// delivery; Android has no expansion path, so reject it here rather than
+	// silently shipping the literal token. Checked before the variables.Find
+	// early-return below because vitals use a different prefix that Find ignores.
+	if ids := ContainsCustomHostVitalIDs(string(rawJSON)); len(ids) > 0 {
+		return errors.New("Couldn't edit profile. Custom host vitals aren't supported in Android configuration profiles.")
+	}
+
 	found := variables.Find(string(rawJSON))
 	if len(found) == 0 {
 		return nil

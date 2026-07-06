@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,6 +25,7 @@ func TestCustomHostVitals(t *testing.T) {
 		{"SetAndGetHostCustomHostVitals", testSetAndGetHostCustomHostVitals},
 		{"GetCustomHostVitals", testGetCustomHostVitals},
 		{"DeleteCustomHostVital", testDeleteCustomHostVital},
+		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -228,4 +232,166 @@ func testDeleteCustomHostVital(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	foobarTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Foobar"})
+	require.NoError(t, err)
+
+	id := createCustomHostVital(t, ds, "FUNCTION")
+	id2 := createCustomHostVital(t, ds, "OTHER")
+
+	// $FLEET_HOST_VITAL_<id> token that references FUNCTION.
+	token := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, id)
+	// ${FLEET_HOST_VITAL_<id>} braced form.
+	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, id)
+
+	t.Run("apple configuration profiles", func(t *testing.T) {
+		appleProfile, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Name:         "Name0",
+			Identifier:   "Identifier0",
+			Mobileconfig: []byte(token),
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, "apple_profile", useErr.Entity.Type)
+		require.Equal(t, "Name0", useErr.Entity.Name)
+		require.Equal(t, "No team", useErr.Entity.FleetName)
+
+		// Deleting an unreferenced vital is allowed.
+		_, err = ds.DeleteCustomHostVital(ctx, id2)
+		require.NoError(t, err)
+		// Recreate for later subtests.
+		id2 = createCustomHostVital(t, ds, "OTHER")
+
+		require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID))
+	})
+
+	t.Run("apple declarations", func(t *testing.T) {
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Identifier: "decl-1",
+			Name:       "decl-1",
+			RawJSON:    json.RawMessage(fmt.Sprintf(`{"Identifier": "%s"}`, bracedToken)),
+			TeamID:     &foobarTeam.ID,
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, "apple_declaration", useErr.Entity.Type)
+		require.Equal(t, "decl-1", useErr.Entity.Name)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID))
+	})
+
+	t.Run("windows profiles", func(t *testing.T) {
+		winProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+			Name:   "zoo",
+			SyncML: []byte(fmt.Sprintf("<Replace>%s</Replace>", token)),
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, "windows_profile", useErr.Entity.Type)
+		require.Equal(t, "zoo", useErr.Entity.Name)
+		require.Equal(t, "No team", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, winProfile.ProfileUUID))
+	})
+
+	t.Run("scripts", func(t *testing.T) {
+		script, err := ds.NewScript(ctx, &fleet.Script{
+			Name:           "collect.sh",
+			ScriptContents: fmt.Sprintf("echo %s", token),
+			TeamID:         &foobarTeam.ID,
+		})
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, "script", useErr.Entity.Type)
+		require.Equal(t, "collect.sh", useErr.Entity.Name)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteScript(ctx, script.ID))
+	})
+
+	t.Run("software installers", func(t *testing.T) {
+		user := test.NewUser(t, ds, "Installer Author", "chv-del-installer@example.com", true)
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   fmt.Sprintf("install %s", token),
+			UninstallScript: "uninstall",
+			InstallerFile:   tfr,
+			StorageID:       "chv-del-storage",
+			Filename:        "chv-del.pkg",
+			Title:           "chv-del-title",
+			Version:         "1.0",
+			Source:          "apps",
+			TeamID:          &foobarTeam.ID,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, "software_installer", useErr.Entity.Type)
+		require.Equal(t, "chv-del-title", useErr.Entity.Name)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteSoftwareInstaller(ctx, installerID))
+	})
+
+	t.Run("setup experience scripts", func(t *testing.T) {
+		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+			Name:           "setup.sh",
+			ScriptContents: fmt.Sprintf("echo %s", token),
+			TeamID:         &foobarTeam.ID,
+		}))
+
+		_, err := ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, "setup_experience_script", useErr.Entity.Type)
+		require.Equal(t, "setup.sh", useErr.Entity.Name)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteSetupExperienceScript(ctx, &foobarTeam.ID))
+	})
+
+	// With all references removed, delete now succeeds.
+	name, err := ds.DeleteCustomHostVital(ctx, id)
+	require.NoError(t, err)
+	require.Equal(t, "FUNCTION", name)
 }
