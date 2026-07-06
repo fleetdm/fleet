@@ -3771,12 +3771,14 @@ type resolvedInstaller struct {
 }
 
 // resolveFirstAddedInstallersForHost resolves, for each of the given titles, the package to display
-// and install for this host: the first-added (smallest installer_id) active package the host is in
-// label scope for. When the host is in scope for no package of a title, it falls back to the
-// first-added active package so the display stays deterministic. inScope holds the titles for which
-// the host is in scope for at least one package (those the title is actually available to install
-// on). This is the read-side counterpart of the service-layer install precedence resolver, so the
-// list, the install, and policy defaults all point at the same package.
+// for this host: the first-added (smallest installer_id) active package the host is in label scope
+// for. When the host is in scope for no package of a title, it falls back to the first-added active
+// package so the inventory row still shows a deterministic package — this happens for a title the
+// host already has installed but whose labels changed so the host no longer matches any package
+// (matching the pre-multi-package behavior of showing the active installer regardless of scope).
+// The fallback is display-only: availability and install decisions use inScope (below) and never the
+// fallback, so a host is never offered or sent a package it isn't scoped for. inScope holds the
+// titles the host is in scope for at least one package of.
 func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, host *fleet.Host, titleIDs []uint) (resolved map[uint]resolvedInstaller, inScope map[uint]struct{}, err error) {
 	resolved = make(map[uint]resolvedInstaller, len(titleIDs))
 	inScope = make(map[uint]struct{}, len(titleIDs))
@@ -3913,11 +3915,11 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		"title_ids":             titleIDs,
 	})
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "resolveFirstAddedInstallersForHost building named query args")
+		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for scoped installers")
 	}
 	stmt, args, err = sqlx.In(stmt, args...)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "resolveFirstAddedInstallersForHost building in query args")
+		return nil, nil, ctxerr.Wrap(ctx, err, "build IN query for scoped installers")
 	}
 	stmt = ds.reader(ctx).Rebind(stmt)
 
@@ -3930,7 +3932,7 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		InScope     bool   `db:"in_scope"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "resolveFirstAddedInstallersForHost executing query")
+		return nil, nil, ctxerr.Wrap(ctx, err, "select scoped installers for host")
 	}
 
 	hostPlatform := host.FleetPlatform()
