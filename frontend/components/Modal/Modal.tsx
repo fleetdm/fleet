@@ -118,9 +118,9 @@ const Modal = ({
   useEffect(() => {
     document.body.classList.add("modal-open");
     return () => {
-      // This modal's own background node is still in the DOM at cleanup
-      // time, so only unlock scroll once it's the last one remaining.
-      if (document.querySelectorAll(`.${baseClass}__background`).length <= 1) {
+      // By cleanup time this modal's own background node is already
+      // detached, so only unlock scroll once none remain.
+      if (document.querySelectorAll(`.${baseClass}__background`).length === 0) {
         document.body.classList.remove("modal-open");
       }
     };

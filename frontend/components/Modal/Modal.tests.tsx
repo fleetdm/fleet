@@ -189,4 +189,39 @@ describe("Modal", () => {
     act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
   });
+
+  it("locks page scroll while mounted and unlocks after unmounting", () => {
+    const { unmount } = render(
+      <Modal title="Test" onExit={noop}>
+        <div>content</div>
+      </Modal>
+    );
+
+    expect(document.body.classList.contains("modal-open")).toBe(true);
+
+    unmount();
+
+    expect(document.body.classList.contains("modal-open")).toBe(false);
+  });
+
+  it("keeps page scroll locked until the last of two stacked modals unmounts", () => {
+    const first = render(
+      <Modal title="First" onExit={noop}>
+        <div>first</div>
+      </Modal>
+    );
+    const second = render(
+      <Modal title="Second" onExit={noop}>
+        <div>second</div>
+      </Modal>
+    );
+
+    expect(document.body.classList.contains("modal-open")).toBe(true);
+
+    second.unmount();
+    expect(document.body.classList.contains("modal-open")).toBe(true);
+
+    first.unmount();
+    expect(document.body.classList.contains("modal-open")).toBe(false);
+  });
 });
