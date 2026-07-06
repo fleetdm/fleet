@@ -13,6 +13,12 @@ import (
 
 const maxHostNameTemplateLength = 255
 
+// MaxResolvedHostNameBytes is Apple's byte limit for a device name (the resolved
+// host name). A resolved name longer than this can't be applied, so the cron
+// fails those rows; ValidateHostNameTemplate also rejects a template whose fixed
+// text alone already exceeds it.
+const MaxResolvedHostNameBytes = 63
+
 // fleetVarsSupportedInHostNameTemplates is the allow-list of Fleet variables that
 // may be used in a host name template.
 var fleetVarsSupportedInHostNameTemplates = []FleetVarName{
@@ -68,6 +74,17 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 			return "", NewInvalidArgumentError("name_template",
 				"Fleet variable $FLEET_VAR_"+v+" is not supported in host name templates.")
 		}
+	}
+
+	// The resolved name must fit Apple's device name limit. Stripping the
+	// variables yields the shortest a resolved name can be (a variable may
+	// resolve to an empty value), so if the fixed text alone exceeds the limit no
+	// host can ever get a valid name — reject it now rather than silently failing
+	// every host at resolve time. Per-host overflow from variable expansion is
+	// still caught by the cron when it resolves against a host's actual values.
+	if literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, ""); len(literal) > MaxResolvedHostNameBytes {
+		return "", NewInvalidArgumentError("name_template",
+			fmt.Sprintf("Host name template's fixed text can't be longer than %d bytes (the device name limit).", MaxResolvedHostNameBytes))
 	}
 
 	return tmpl, nil

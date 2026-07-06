@@ -1804,14 +1804,25 @@ type Datastore interface {
 	// cron needs to resolve the template and enqueue a Settings/DeviceName command.
 	ListHostsPendingDeviceNameCommand(ctx context.Context, limit int) ([]HostDeviceNamePending, error)
 
-	// SetHostDeviceNameCommandSent marks a host's enforcement row as pending,
-	// recording the enqueued command UUID and the resolved name that was sent.
-	SetHostDeviceNameCommandSent(ctx context.Context, hostUUID, commandUUID, expectedName string) error
+	// SetHostDeviceNameStatus records the outcome of processing a host's queued
+	// enforcement row, keyed by host UUID. It sets the row's status, expected
+	// device name, and detail, and sets command_uuid to commandUUID (nil clears
+	// it). The cron uses it two ways:
+	//   - a command was sent: status=pending, commandUUID=<the enqueued command>,
+	//     expectedName=<resolved name>, detail="";
+	//   - no command was sent (resolve outcome): status=verified when the host
+	//     already matches the resolved name, or failed when it can't be applied
+	//     (e.g. exceeds Apple's 63-byte limit), commandUUID=nil so a stale prior
+	//     command result can't overwrite the outcome.
+	SetHostDeviceNameStatus(ctx context.Context, hostUUID string, status MDMDeliveryStatus, commandUUID *string, expectedName, detail string) error
 
 	// UpdateHostDeviceNameStatusFromCommand updates the enforcement row matching
-	// the given command UUID to the given status and detail, returning the host
-	// UUID and expected name so the caller can rename the host in Fleet on
-	// acknowledgment.
+	// the given command UUID based on the command result: acknowledged=true (the
+	// device applied the rename) moves the row to verifying and also renames the
+	// host in Fleet in the same transaction — setting the host's computer name and
+	// hostname to the row's expected name and updating its display name — so the
+	// row transition and the Fleet-side rename are atomic; acknowledged=false (the
+	// device returned an error) moves the row to failed and records detail.
 	//
 	// A host holds only its most recently sent command UUID (one row per host),
 	// so a result for a superseded command (e.g. the template was re-saved or the
@@ -1820,16 +1831,23 @@ type Datastore interface {
 	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
 	// processes commands FIFO and ends on the latest name, which the matching
 	// (newest) command's result records.
-	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, status MDMDeliveryStatus, detail string) (hostUUID string, expectedName string, err error)
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
 
-	// VerifyHostDeviceName reconciles the enforcement row for a host against the
-	// name reported by the device. reportedName is the host's current name as
-	// observed at a name-ingestion site: the DeviceName in the iOS/iPadOS refetch
-	// result, or computer_name from macOS osquery system_info. It only acts on
-	// rows in the verifying or verified state: a match moves the row to verified;
-	// a mismatch moves it to failed (drift). Rows in any other state, or hosts
-	// with no row, are left untouched.
-	VerifyHostDeviceName(ctx context.Context, hostUUID, reportedName string) error
+	// UpdateHostDeviceNameStatusFromReport reconciles the enforcement row for a
+	// host against the name reported by the device (mutating). reportedName is the
+	// host's current name as observed at a name-ingestion site: the DeviceName in
+	// the iOS/iPadOS refetch result, or computer_name from macOS osquery
+	// system_info. It only acts on rows in the verifying or verified state: a
+	// match moves the row to verified; a mismatch moves it to failed (drift). Rows
+	// in any other state, or hosts with no row, are left untouched.
+	//
+	// A mismatch on a row that entered verifying only recently is ignored (the
+	// row stays verifying): a report generated before the device applied the
+	// rename can arrive after the acknowledgment and still carry the old name,
+	// and treating it as drift would strand the host at failed until an explicit
+	// resend. The stale window is the agent's collect-to-submit latency, so a
+	// small fixed grace covers it.
+	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error
 
 	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the
 	// given host, or a not-found error if the host has no row.

@@ -25307,3 +25307,300 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case4RenewCmd, &verifying, "", s.fleetSvc.NewActivity))
 	require.Zero(t, countRenewalActivitiesForCmd(case4RenewCmd))
 }
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint, personal bool) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", personal))
+	}
+
+	// A macOS host that walks the whole pipeline: command, ack, osquery verify, drift.
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(macHost.ID, false)
+
+	// A macOS host whose name already matches the resolved template: verified
+	// directly, no command.
+	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(matchingHost.ID, false)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		return err
+	})
+
+	// An iOS host that acks the rename and later verifies through the
+	// DeviceInformation refetch path.
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(iosHost.ID, false)
+
+	// An iOS host whose device rejects the command (e.g. unsupervised).
+	iosFailHost, iosFailDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(iosFailHost.ID, false)
+
+	// A BYOD (personal enrollment) host: never enforced.
+	byodHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(byodHost.ID, true)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{macHost.ID, matchingHost.ID, iosHost.ID, iosFailHost.ID, byodHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	requireNoRow := func(hostUUID string) {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+
+	// --- endpoint validation ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: "WS-1"}, http.StatusUnprocessableEntity)
+	res := s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_SECRET_TOKEN"}, http.StatusUnprocessableEntity)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-\x07"}, http.StatusUnprocessableEntity)
+	// fixed text alone longer than the 63-byte device-name limit is rejected up front
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: strings.Repeat("N", 64)}, http.StatusUnprocessableEntity)
+	// nothing was created or logged by the failed attempts
+	requireNoRow(macHost.UUID)
+
+	// --- set the template ---
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	activityID := s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, team.ID, team.Name, tmpl), 0)
+
+	// eligible hosts are queued; the BYOD host has no row
+	requireRowStatus(macHost.UUID, nil)
+	requireRowStatus(matchingHost.UUID, nil)
+	requireRowStatus(iosHost.UUID, nil)
+	requireRowStatus(iosFailHost.UUID, nil)
+	requireNoRow(byodHost.UUID)
+
+	// re-saving the identical template emits no duplicate activity
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template", "", activityID)
+
+	// --- cron: resolve + enqueue ---
+	runDeviceNameCron()
+
+	// the already-matching host goes straight to verified, and its device got no command
+	matchingRow := requireRowStatus(matchingHost.UUID, &fleet.MDMDeliveryVerified)
+	require.NotNil(t, matchingRow.ExpectedDeviceName)
+	require.Equal(t, "WS-"+matchingHost.HardwareSerial, *matchingRow.ExpectedDeviceName)
+	cmd, err := matchingDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// the other eligible hosts are pending on a DEVNAME- command with the resolved name
+	macRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, macRow.CommandUUID)
+	require.True(t, strings.HasPrefix(*macRow.CommandUUID, fleet.DeviceNameCommandUUIDPrefix))
+	require.NotNil(t, macRow.ExpectedDeviceName)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, *macRow.ExpectedDeviceName)
+
+	// --- mac: device receives the Settings command and acknowledges ---
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *macRow.CommandUUID, cmd.CommandUUID)
+	var settingsCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &settingsCmd))
+	require.Len(t, settingsCmd.Command.Settings, 1)
+	require.Equal(t, "DeviceName", settingsCmd.Command.Settings[0].Item)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, settingsCmd.Command.Settings[0].DeviceName)
+
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// the ack renamed the host in Fleet and moved the row to verifying
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	renamedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.ComputerName)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.Hostname)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.DisplayName())
+
+	// --- mac: osquery reports the matching name -> verified ---
+	submitSystemInfo := func(computerName string) {
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: *macHost.NodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_system_info": {
+					{
+						"computer_name":      computerName,
+						"hostname":           computerName,
+						"uuid":               macHost.UUID,
+						"hardware_serial":    macHost.HardwareSerial,
+						"hardware_model":     "MacBookPro16,1",
+						"physical_memory":    "16000000000",
+						"cpu_physical_cores": "8",
+						"cpu_logical_cores":  "8",
+					},
+				},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_system_info": 0,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	// a report that was generated before the device applied the rename (still
+	// carrying the old name) arriving right after the ack is not drift: the row
+	// stays verifying until a fresh report decides it
+	submitSystemInfo("stale-pre-rename-name")
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- mac: the end user renames the device -> drift -> failed ---
+	submitSystemInfo("Renamed by user")
+	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, driftedRow.Detail, "renamed on the device")
+
+	// --- iOS: ack then verify through the DeviceInformation refetch path ---
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+		case "CertificateList":
+			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+		case "DeviceInformation":
+			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
+		default:
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+		}
+		require.NoError(t, err)
+	}
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
+		{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
+	})
+	require.NoError(t, err)
+	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+
+	// a failed command is not re-sent by subsequent cron runs
+	runDeviceNameCron()
+	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// --- a template resolving past 63 bytes fails without sending a command ---
+	// The fixed text (50 bytes) passes save-time validation, but expanding the
+	// UUID (36 chars) pushes the resolved name over the 63-byte limit — that
+	// per-host overflow is only detectable at resolve time, by the cron.
+	longTemplate := strings.Repeat("N", 50) + "$FLEET_VAR_HOST_UUID"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: longTemplate}, http.StatusNoContent)
+	requireRowStatus(macHost.UUID, nil) // rows re-queued by the new template
+	runDeviceNameCron()
+	longRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Equal(t, "Resolved name exceeds 63 bytes.", longRow.Detail)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// re-save the resolvable template to queue rows again
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	originalPushMock := s.pushProvider.PushFunc
+	// Restore via defer so a failed assertion below can't leak the failing push
+	// mock into later tests. Nothing after this in the test pushes (the second
+	// cron run has no pending rows; Idle/Acknowledge are device-driven), so
+	// keeping the mock active until the test ends is harmless.
+	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res := make(map[string]*push.Response, len(pushes))
+		for _, p := range pushes {
+			res[p.Token.String()] = &push.Response{Id: uuid.New().String(), Err: errors.New("APNs is down")}
+		}
+		return res, nil
+	}
+	runDeviceNameCron()
+
+	// the command was persisted despite the failed push, so the row is pending
+	// on it and a later cron run does not enqueue a duplicate
+	apnsRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, apnsRow.CommandUUID)
+	runDeviceNameCron()
+	afterRetry := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, afterRetry.CommandUUID)
+	require.Equal(t, *apnsRow.CommandUUID, *afterRetry.CommandUUID)
+
+	// the device still receives that single command on its next check-in
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *apnsRow.CommandUUID, cmd.CommandUUID)
+	cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- clearing deletes all rows and never renames ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": null}`, team.ID, team.Name), 0)
+	for _, h := range []*fleet.Host{macHost, matchingHost, iosHost, iosFailHost} {
+		requireNoRow(h.UUID)
+	}
+	// the host keeps the last name it was given; clearing renames nothing
+	unchangedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, unchangedMac.ComputerName)
+}

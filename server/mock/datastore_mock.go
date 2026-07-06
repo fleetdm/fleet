@@ -1158,11 +1158,11 @@ type DeleteHostDeviceNameEnforcementForTeamFunc func(ctx context.Context, teamID
 
 type ListHostsPendingDeviceNameCommandFunc func(ctx context.Context, limit int) ([]fleet.HostDeviceNamePending, error)
 
-type SetHostDeviceNameCommandSentFunc func(ctx context.Context, hostUUID string, commandUUID string, expectedName string) error
+type SetHostDeviceNameStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error
 
-type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, status fleet.MDMDeliveryStatus, detail string) (hostUUID string, expectedName string, err error)
+type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
 
-type VerifyHostDeviceNameFunc func(ctx context.Context, hostUUID string, reportedName string) error
+type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) error
 
 type GetHostDeviceNameEnforcementFunc func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error)
 
@@ -3860,14 +3860,14 @@ type DataStore struct {
 	ListHostsPendingDeviceNameCommandFunc        ListHostsPendingDeviceNameCommandFunc
 	ListHostsPendingDeviceNameCommandFuncInvoked bool
 
-	SetHostDeviceNameCommandSentFunc        SetHostDeviceNameCommandSentFunc
-	SetHostDeviceNameCommandSentFuncInvoked bool
+	SetHostDeviceNameStatusFunc        SetHostDeviceNameStatusFunc
+	SetHostDeviceNameStatusFuncInvoked bool
 
 	UpdateHostDeviceNameStatusFromCommandFunc        UpdateHostDeviceNameStatusFromCommandFunc
 	UpdateHostDeviceNameStatusFromCommandFuncInvoked bool
 
-	VerifyHostDeviceNameFunc        VerifyHostDeviceNameFunc
-	VerifyHostDeviceNameFuncInvoked bool
+	UpdateHostDeviceNameStatusFromReportFunc        UpdateHostDeviceNameStatusFromReportFunc
+	UpdateHostDeviceNameStatusFromReportFuncInvoked bool
 
 	GetHostDeviceNameEnforcementFunc        GetHostDeviceNameEnforcementFunc
 	GetHostDeviceNameEnforcementFuncInvoked bool
@@ -9332,25 +9332,25 @@ func (s *DataStore) ListHostsPendingDeviceNameCommand(ctx context.Context, limit
 	return s.ListHostsPendingDeviceNameCommandFunc(ctx, limit)
 }
 
-func (s *DataStore) SetHostDeviceNameCommandSent(ctx context.Context, hostUUID string, commandUUID string, expectedName string) error {
+func (s *DataStore) SetHostDeviceNameStatus(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error {
 	s.mu.Lock()
-	s.SetHostDeviceNameCommandSentFuncInvoked = true
+	s.SetHostDeviceNameStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostDeviceNameCommandSentFunc(ctx, hostUUID, commandUUID, expectedName)
+	return s.SetHostDeviceNameStatusFunc(ctx, hostUUID, status, commandUUID, expectedName, detail)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, status fleet.MDMDeliveryStatus, detail string) (hostUUID string, expectedName string, err error) {
+func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromCommandFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, status, detail)
+	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail)
 }
 
-func (s *DataStore) VerifyHostDeviceName(ctx context.Context, hostUUID string, reportedName string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) error {
 	s.mu.Lock()
-	s.VerifyHostDeviceNameFuncInvoked = true
+	s.UpdateHostDeviceNameStatusFromReportFuncInvoked = true
 	s.mu.Unlock()
-	return s.VerifyHostDeviceNameFunc(ctx, hostUUID, reportedName)
+	return s.UpdateHostDeviceNameStatusFromReportFunc(ctx, hostUUID, reportedName)
 }
 
 func (s *DataStore) GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {

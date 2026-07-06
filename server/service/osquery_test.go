@@ -1729,6 +1729,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
 			EnableHostUsers:         true,
@@ -1931,6 +1934,9 @@ func TestDetailQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
 			EnableHostUsers:         true,
