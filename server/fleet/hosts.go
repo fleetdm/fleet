@@ -985,7 +985,8 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
+		h.Platform == "cachyos"
 }
 
 // IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
@@ -1191,6 +1192,7 @@ var HostLinuxOSs = []string{
 	"archarm",
 	"flatcar",
 	"coreos",
+	"cachyos",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1205,6 +1207,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"manjaro-arm": {},
 	"flatcar":     {},
 	"coreos":      {},
+	"cachyos":     {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages

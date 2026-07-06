@@ -149,6 +149,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
 		{"IDPHostDeviceMapping", testIDPHostDeviceMapping},
+		{"ListHostsDeviceMappingOrder", testHostsListDeviceMappingOrder},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
@@ -4434,8 +4435,8 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: new(true)}, time.Now(), false, nil))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: new(false)}, time.Now(), false, nil)))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
@@ -5438,18 +5439,18 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil)))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
 	checkHostIssuesWithOpts(t, ds, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
@@ -5516,8 +5517,8 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil)))
 
 	prevRead := getReads(t, ds)
 	h1WithExtras, err := ds.Host(context.Background(), h1.ID)
@@ -7867,6 +7868,50 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.Equal(t, mappings[0].Source, fleet.DeviceMappingCustomReplacement)
 }
 
+func testHostsListDeviceMappingOrder(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("dm-order-host"),
+		NodeKey:         new("dm-order-host"),
+		Platform:        "linux",
+		Hostname:        "dm-order-host",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Insert the google_chrome_profiles rows first so they get lower ids: with
+	// ORDER BY (email, source), "b@example.com"/custom_installer sorts before
+	// "b@example.com"/google_chrome_profiles even though it was inserted last,
+	// so an accidental id-ordered read cannot pass this test.
+	require.NoError(t, ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "z@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: host.ID, Email: "b@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles))
+	_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, host.ID, "b@example.com", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	gotHosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DeviceMapping: true}, 1)
+	require.NotNil(t, gotHosts[0].DeviceMapping)
+
+	var dm []*fleet.HostDeviceMapping
+	require.NoError(t, json.Unmarshal(*gotHosts[0].DeviceMapping, &dm))
+
+	// ListHosts must return device_mapping ordered by (email, source), matching
+	// ListHostDeviceMapping, so all endpoints agree regardless of insertion order.
+	require.Len(t, dm, 3)
+	assert.Equal(t, "b@example.com", dm[0].Email)
+	assert.Equal(t, fleet.DeviceMappingCustomReplacement, dm[0].Source)
+	assert.Equal(t, "b@example.com", dm[1].Email)
+	assert.Equal(t, fleet.DeviceMappingGoogleChromeProfiles, dm[1].Source)
+	assert.Equal(t, "z@example.com", dm[2].Email)
+	assert.Equal(t, fleet.DeviceMappingGoogleChromeProfiles, dm[2].Source)
+}
+
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err := ds.GetHostMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
@@ -9369,7 +9414,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO query_results (host_id, query_id, last_fetched, data) VALUES (?, ?, ?, ?)`, host.ID, policy.ID, time.Now(), `{"foo": "bar"}`)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil)))
 	// Update host_mdm.
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "", "", false)
 	require.NoError(t, err)
@@ -10129,7 +10174,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 
 		for _, tc := range testCases {
 			if len(tc.policyEx) != 0 {
-				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil))
+				require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil)))
 			}
 			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
 			require.NoError(t, err)
@@ -10171,7 +10216,7 @@ func testHostsRecordNoPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
 	policyUpdatedAt := initialTime.Add(1 * time.Hour)
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false, nil)))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
 	require.Len(t, hosts, 2)
@@ -10358,9 +10403,9 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 			results[policies[j].ID] = ptr.Bool(true) // pass
 		}
 		require.NoError(
-			t, ds.RecordPolicyQueryExecutions(
+			t, errOnly(ds.RecordPolicyQueryExecutions(
 				context.Background(), createdHosts[i], results, time.Now(), false, nil,
-			),
+			)),
 		)
 	}
 	hostIDs := make([]uint, len(createdHosts))
@@ -12360,8 +12405,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil)))
 
 	// set up vulnerable software
 	software := []fleet.Software{
@@ -12883,9 +12928,9 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		}
 		require.NoError(
 			// RecordPolicyQueryExecutions should call UpdateHostIssuesFailingPolicies, so we don't have to
-			t, ds.RecordPolicyQueryExecutions(
+			t, errOnly(ds.RecordPolicyQueryExecutions(
 				context.Background(), hosts[i], results, time.Now(), false, nil,
-			),
+			)),
 		)
 	}
 
