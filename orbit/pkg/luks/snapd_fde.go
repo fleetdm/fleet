@@ -84,20 +84,29 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 	// Step 2: enroll the generated key under the Fleet-owned name (a name-only
 	// keyslot targets both system containers). This is asynchronous because it
 	// mutates the LUKS volume. On first run the slot does not exist so
-	// add-recovery-key applies; on a retry the slot already exists, so fall back
-	// to replace-recovery-key to rotate the secret in place.
+	// add-recovery-key applies; on a retry the slot already exists, so we fall
+	// back to replace-recovery-key to rotate the secret in place. The fallback
+	// is gated on the error looking like a "resource already exists" conflict
+	// so unrelated failures (auth, transport, malformed request) surface as
+	// errors instead of silently rotating an existing key we couldn't add for
+	// a different reason.
 	slots := []keyslotRef{{Name: FleetRecoveryKeyName}}
 	log.Debug().Str("action", actionAddRecoveryKey).Str("keyslot", FleetRecoveryKeyName).Str("key_id", gen.KeyID).
 		Msg("enrolling recovery key under Fleet keyslot")
-	if err := s.client.requestAsync(ctx, http.MethodPost, systemVolumesPath, recoveryKeyActionRequest{
+	addErr := s.client.requestAsync(ctx, http.MethodPost, systemVolumesPath, recoveryKeyActionRequest{
 		Action: actionAddRecoveryKey, KeyID: gen.KeyID, Keyslots: slots,
-	}, nil); err != nil {
-		log.Debug().Err(err).Str("action", actionReplaceRecoveryKey).Str("keyslot", FleetRecoveryKeyName).
-			Msg("add-recovery-key failed (slot may already exist); retrying with replace-recovery-key")
+	}, nil)
+	if addErr != nil {
+		var apiErr *snapdAPIError
+		if !errors.As(addErr, &apiErr) || !apiErr.isConflict() {
+			return "", fmt.Errorf("enrolling snapd recovery key: %w", addErr)
+		}
+		log.Debug().Err(addErr).Str("action", actionReplaceRecoveryKey).Str("keyslot", FleetRecoveryKeyName).
+			Msg("add-recovery-key reports the slot already exists; retrying with replace-recovery-key")
 		if rerr := s.client.requestAsync(ctx, http.MethodPost, systemVolumesPath, recoveryKeyActionRequest{
 			Action: actionReplaceRecoveryKey, KeyID: gen.KeyID, Keyslots: slots,
 		}, nil); rerr != nil {
-			return "", fmt.Errorf("enrolling snapd recovery key (add: %v; replace: %w)", err, rerr)
+			return "", fmt.Errorf("enrolling snapd recovery key (add: %v; replace: %w)", addErr, rerr)
 		}
 	}
 

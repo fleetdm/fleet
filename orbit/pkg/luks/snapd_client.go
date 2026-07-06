@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -21,6 +22,14 @@ const snapdSocketPath = "/run/snapd.socket"
 
 // snapdChangePollInterval is how often we poll a snapd change for completion.
 const snapdChangePollInterval = 250 * time.Millisecond
+
+// snapdChangeMaxWait bounds the total time waitChange will poll a change. If a
+// snapd change never reaches "Ready" (stuck task, deadlock in snapd, etc.),
+// the caller's context could otherwise let us poll forever. Two minutes is
+// well above any realistic recovery-key enrollment on healthy snapd, but
+// still tight enough that a hung snapd surfaces as a failure before the config
+// tick tries again.
+const snapdChangeMaxWait = 2 * time.Minute
 
 // snapdClient is a thin client for the snapd REST API spoken over its unix
 // domain socket. It handles the standard snapd response envelope and the
@@ -66,6 +75,47 @@ type snapdResponse struct {
 type snapdError struct {
 	Message string `json:"message"`
 	Kind    string `json:"kind"`
+}
+
+// snapdAPIError is the typed error returned by snapdClient.do when snapd
+// answers a request with a non-2xx envelope. It preserves the HTTP status
+// code, snapd's "kind", and the message so callers can distinguish specific
+// failure modes (e.g. a "resource already exists" conflict on
+// add-recovery-key) from generic auth or transport failures without parsing
+// error strings.
+type snapdAPIError struct {
+	StatusCode int
+	Kind       string
+	Message    string
+	Path       string
+}
+
+func (e *snapdAPIError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("snapd %s returned %d: %s", e.Path, e.StatusCode, e.Message)
+	}
+	return fmt.Sprintf("snapd %s returned status %d", e.Path, e.StatusCode)
+}
+
+// isConflict reports whether the error looks like a snapd "resource already
+// exists" response, which is the only case in which the add-recovery-key
+// caller should fall back to replace-recovery-key.
+func (e *snapdAPIError) isConflict() bool {
+	if e == nil {
+		return false
+	}
+	if e.StatusCode == http.StatusConflict {
+		return true
+	}
+	// snapd emits kinds like "resource-already-exists" for these cases; a
+	// substring match on either the kind or the message keeps us resilient to
+	// small wording drift across snapd versions while still not matching
+	// unrelated auth or transport errors.
+	kind := strings.ToLower(e.Kind)
+	msg := strings.ToLower(e.Message)
+	return strings.Contains(kind, "already-exists") ||
+		strings.Contains(kind, "conflict") ||
+		strings.Contains(msg, "already exists")
 }
 
 // snapdChange is the relevant subset of a snapd change (GET /v2/changes/{id}).
@@ -118,12 +168,16 @@ func (c *snapdClient) requestAsync(ctx context.Context, method, path string, bod
 }
 
 // waitChange polls a snapd change until it is ready, returning its data on
-// success or an error if the change failed or the context is cancelled.
+// success or an error if the change failed, the caller's context is cancelled,
+// or snapdChangeMaxWait elapses without the change reaching Ready.
 func (c *snapdClient) waitChange(ctx context.Context, changeID string) (json.RawMessage, error) {
+	ctx, cancel := context.WithTimeout(ctx, snapdChangeMaxWait)
+	defer cancel()
+
 	ticker := time.NewTicker(snapdChangePollInterval)
 	defer ticker.Stop()
 
-	log.Debug().Str("change", changeID).Msg("waiting for snapd change to complete")
+	log.Debug().Str("change", changeID).Dur("max_wait", snapdChangeMaxWait).Msg("waiting for snapd change to complete")
 	for {
 		var change snapdChange
 		if err := c.requestSync(ctx, http.MethodGet, "/v2/changes/"+changeID, nil, &change); err != nil {
@@ -195,10 +249,12 @@ func (c *snapdClient) do(ctx context.Context, method, path string, body any) (*s
 		_ = json.Unmarshal(decoded.Result, &snapErr)
 		log.Debug().Str("path", path).Int("status_code", decoded.StatusCode).
 			Str("kind", snapErr.Kind).Str("message", snapErr.Message).Msg("snapd socket error response")
-		if snapErr.Message != "" {
-			return nil, fmt.Errorf("snapd %s returned %d: %s", path, decoded.StatusCode, snapErr.Message)
+		return nil, &snapdAPIError{
+			StatusCode: decoded.StatusCode,
+			Kind:       snapErr.Kind,
+			Message:    snapErr.Message,
+			Path:       path,
 		}
-		return nil, fmt.Errorf("snapd %s returned status %d", path, decoded.StatusCode)
 	}
 
 	log.Debug().Str("path", path).Str("type", decoded.Type).Int("status_code", decoded.StatusCode).
