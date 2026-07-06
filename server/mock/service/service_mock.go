@@ -722,8 +722,6 @@ type ProcessMDMMicrosoftDiscoveryFunc func(ctx context.Context, req *fleet.SoapR
 
 type GetMDMMicrosoftDiscoveryResponseFunc func(ctx context.Context, upnEmail string) (*fleet.DiscoverResponse, error)
 
-type GetMDMMicrosoftSTSAuthResponseFunc func(ctx context.Context, appru string, loginHint string) (string, error)
-
 type GetMDMWindowsPolicyResponseFunc func(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (*fleet.GetPoliciesResponse, error)
 
 type GetMDMWindowsEnrollResponseFunc func(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, authToken *fleet.HeaderBinarySecurityToken) (*fleet.RequestSecurityTokenResponseCollection, error)
@@ -1997,9 +1995,6 @@ type Service struct {
 
 	GetMDMMicrosoftDiscoveryResponseFunc        GetMDMMicrosoftDiscoveryResponseFunc
 	GetMDMMicrosoftDiscoveryResponseFuncInvoked bool
-
-	GetMDMMicrosoftSTSAuthResponseFunc        GetMDMMicrosoftSTSAuthResponseFunc
-	GetMDMMicrosoftSTSAuthResponseFuncInvoked bool
 
 	GetMDMWindowsPolicyResponseFunc        GetMDMWindowsPolicyResponseFunc
 	GetMDMWindowsPolicyResponseFuncInvoked bool
@@ -4789,13 +4784,6 @@ func (s *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail
 	s.GetMDMMicrosoftDiscoveryResponseFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMMicrosoftDiscoveryResponseFunc(ctx, upnEmail)
-}
-
-func (s *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
-	s.mu.Lock()
-	s.GetMDMMicrosoftSTSAuthResponseFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMMicrosoftSTSAuthResponseFunc(ctx, appru, loginHint)
 }
 
 func (s *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (*fleet.GetPoliciesResponse, error) {
