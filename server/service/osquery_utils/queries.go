@@ -1963,8 +1963,13 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
 	name := rows[0]["name"]
-	if strings.HasPrefix(name, "Arch Linux") {
+	switch {
+	case strings.HasPrefix(name, "Arch Linux"):
 		name = strings.TrimSuffix(name, " ARM")
+	case name == "CachyOS Linux":
+		// CachyOS is an Arch-based rolling-release distribution; aggregate it
+		// onto the "Arch Linux" operating system row in the OS inventory.
+		name = "Arch Linux"
 	}
 	version := rows[0]["version"]
 	major := rows[0]["major"]
@@ -1997,6 +2002,8 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
 		osVersion = version
+	case strings.EqualFold(build, "rolling"):
+		osVersion = build
 	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
 	default:

@@ -494,7 +494,7 @@ const Vitals = ({
       const version = vitalsData.os_version;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
         <>
-          {version.slice(0, -8)}
+          {version.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (

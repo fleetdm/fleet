@@ -925,6 +925,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(
