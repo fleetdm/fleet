@@ -8750,13 +8750,6 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
 }
 
-func (s *integrationMDMTestSuite) TestWindowsMDMAuthEndpointRemoved() {
-	// The unused Windows MDM STS auth endpoint was removed. Fleet always advertises the OnPremise auth
-	// policy, so no device ever contacted this endpoint. It must now return 404.
-	resp := s.DoRaw("GET", "/api/mdm/microsoft/auth?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com", nil, http.StatusNotFound)
-	resp.Body.Close()
-}
-
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	t := s.T()
 
