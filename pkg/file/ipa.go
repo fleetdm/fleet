@@ -12,7 +12,8 @@ import (
 	"howett.net/plist"
 )
 
-func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+// ExtractZIPMetadata extracts the metadata from a zip file for an Apple app
+func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	h := sha256.New()
 	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
 	if err := tfr.Rewind(); err != nil {
@@ -25,20 +26,16 @@ func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	}
 
 	var plistData struct {
-		BundleID string `plist:"CFBundleIdentifier"`
-		Name     string `plist:"CFBundleName"`
-		Version  string `plist:"CFBundleShortVersionString"`
+		BundleID         string `plist:"CFBundleIdentifier"`
+		Name             string `plist:"CFBundleName"`
+		Version          string `plist:"CFBundleShortVersionString"`
+		RequiresIPhoneOS bool   `plist:"LSRequiresIPhoneOS"`
 	}
-	var hasPayload bool
+	var hasInfoPlist, isIPA bool
 
 	for _, f := range r.File {
-		if f.Name == "Payload/" {
-			// check if this is actually an .ipa file by looking for a "Payload/" directory
-			// https://en.wikipedia.org/wiki/.ipa#Structure_of_a_.ipa_file
-			hasPayload = true
-			continue
-		}
-
+		// Matches any Info.plist and the last wins, so a nested framework or
+		// extension plist can override the app's own plist.
 		if strings.Contains(f.Name, "Info.plist") {
 			// Get data from plist file
 			archiveFile, err := f.Open()
@@ -55,10 +52,18 @@ func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			hasInfoPlist = true
+			// LSRequiresIPhoneOS is set on iOS/iPadOS apps and never on macOS
+			// apps, so it is probably an .ipa
+			if plistData.RequiresIPhoneOS {
+				isIPA = true
+			}
 		}
 	}
 
-	if !hasPayload {
+	if !hasInfoPlist || !isIPA {
+		// non Apple file formats based on zip are not supported (msix)
 		return nil, ErrInvalidType
 	}
 	if plistData.BundleID == "" {
