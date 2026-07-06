@@ -200,7 +200,7 @@ describe("ChartCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("excludes mobile platforms by default and shows the Filtered badge", async () => {
+  it("includes mobile platforms by default and does not show the Filtered badge", async () => {
     let requestedPlatforms: string | null = null;
     mockServer.use(
       http.get(baseUrl("/charts/:metric"), ({ params, request }) => {
@@ -213,15 +213,14 @@ describe("ChartCard", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<ChartCard />);
 
-    // The default platform filter is the four non-mobile platforms, which both
-    // excludes iOS/iPadOS/Android and surfaces the "Filtered" badge on load.
+    // No platform filter is active by default, so all platforms (including
+    // iOS/iPadOS/Android) are included and the "Filtered" badge is absent.
     await waitFor(() => {
-      expect(screen.getByText("Filtered")).toBeInTheDocument();
+      const rects = document.querySelectorAll("rect");
+      expect(rects.length).toBeGreaterThan(0);
     });
-    await waitFor(() => {
-      expect(requestedPlatforms).toBe("darwin,windows,linux,chrome");
-    });
-    expect(requestedPlatforms).not.toMatch(/ios|ipados|android/);
+    expect(requestedPlatforms).toBeNull();
+    expect(screen.queryByText("Filtered")).not.toBeInTheDocument();
   });
 });
 
