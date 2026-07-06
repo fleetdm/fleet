@@ -2299,6 +2299,34 @@ labels_include_all: [macOS]
 		assert.True(t, gitops.Software.Packages[0].SelfService)
 		assert.Equal(t, []string{"macOS"}, gitops.Software.Packages[0].LabelsIncludeAll)
 	})
+
+	// A hash-only package (no URL) is identified by its hash, not an empty string.
+	t.Run("conflict error identifies a hash-only package by its hash", func(t *testing.T) {
+		_, err := setup(t,
+			"      self_service: true\n",
+			fmt.Sprintf(`- hash_sha256: %s
+  self_service: true
+- hash_sha256: %s
+`, hashA, hashB),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), hashA)
+		assert.NotContains(t, err.Error(), `("")`)
+	})
+
+	// The fleet-level labels rule is file-scope, so it reports once regardless of how
+	// many packages the file lists.
+	t.Run("labels error is reported once for multiple packages", func(t *testing.T) {
+		_, err := setup(t,
+			"      labels_include_all: [macOS]\n",
+			fmt.Sprintf(`- hash_sha256: %s
+- hash_sha256: %s
+- hash_sha256: %s
+`, hashA, hashB, hashA[:63]+"c"),
+		)
+		require.Error(t, err)
+		assert.Equal(t, 1, strings.Count(err.Error(), "Labels can be specified only"))
+	})
 }
 
 func TestSoftwarePackagesPathWithInline(t *testing.T) {
