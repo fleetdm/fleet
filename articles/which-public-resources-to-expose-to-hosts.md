@@ -8,7 +8,7 @@ This guide lists those resources. Add them as exceptions in your VPN, proxy, or 
 
 - Your Fleet server: Fleet's agent (fleetd) checks in with your Fleet server to run queries and policies, install software, and receive MDM commands. See [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) for the exact paths to allow.
 - `download.fleetdm.com`: Hosts the public fleetd base installers (`.pkg`, `.msi`, `.deb`, and `.rpm`) used to enroll new hosts.
-- `updates.fleetdm.com`: Fleet's [The Update Framework (TUF)](https://theupdateframework.io/) server. Fleetd checks uses this for auto-updates.
+- `updates.fleetdm.com`: Fleet's [The Update Framework (TUF)](https://theupdateframework.io/) server. Fleetd uses this for auto-updates.
   - If you'd rather not expose this host, run [your own TUF update server](https://fleetdm.com/guides/fleetd-updates) with a Fleet Premium license.
 
 ## Apple
