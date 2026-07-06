@@ -740,6 +740,43 @@ describe("CheckerboardViz", () => {
       });
     });
 
+    it("renders the current timeframe cell at level-0 even when it carries a value", async () => {
+      // The current slot has a non-zero value in the generated data, but it's
+      // still being collected ("No data"), so its fill must match — level-0,
+      // not a graded color. Regression test for #47977.
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCell = container.querySelector(
+        "rect.checkerboard-viz__cell--current"
+      );
+      expect(currentCell?.getAttribute("class")).toContain("--level-0");
+    });
+
+    it("renders future timeframe cells at level-0", async () => {
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The last rendered cell is the final slot of the latest day (Mar 3),
+      // entirely in the future — its fill should match its "No data" tooltip.
+      const rects = container.querySelectorAll("rect");
+      const futureCell = rects[rects.length - 1];
+      expect(futureCell.getAttribute("aria-label")).toContain("No data");
+      expect(futureCell.getAttribute("class")).toContain("--level-0");
+    });
+
     it("still reports the value for past timeframes", async () => {
       const data = generateData(3); // every slot has percentage 50
       const { container } = renderWithSetup(
