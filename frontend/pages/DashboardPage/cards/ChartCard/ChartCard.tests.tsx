@@ -7,7 +7,10 @@ import { createCustomRenderer, baseUrl } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 
-import ChartCard, { buildInitialChartFilters } from "./ChartCard";
+import ChartCard, {
+  buildInitialChartFilters,
+  hostFilterLines,
+} from "./ChartCard";
 
 // Mock ResizeObserver for CheckerboardViz
 const MOCK_WIDTH = 600;
@@ -265,5 +268,44 @@ describe("buildInitialChartFilters", () => {
       exclude_vulnerabilities: ["CVE-2025-50897"],
     });
     expect(filters.excludeCVEs).toEqual(["CVE-2025-50897"]);
+  });
+});
+
+describe("hostFilterLines", () => {
+  const filtersWithPlatforms = (platforms: string[]) => ({
+    ...buildInitialChartFilters(undefined),
+    platforms,
+  });
+
+  it("preserves branded platform casing (macOS, iOS, iPadOS)", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms(["darwin", "ios", "ipados"])
+    );
+    expect(line).toBe("macOS, iOS, and iPadOS");
+    // Guards the reported bug: no word-capitalized variants.
+    expect(line).not.toMatch(/MacOS|Ios|Ipados/);
+  });
+
+  it("renders a single platform without mangling its casing", () => {
+    expect(hostFilterLines(filtersWithPlatforms(["darwin"]))).toEqual([
+      "macOS",
+    ]);
+  });
+
+  it("maps every filterable platform to its correct display name", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms([
+        "darwin",
+        "windows",
+        "linux",
+        "chrome",
+        "ios",
+        "ipados",
+        "android",
+      ])
+    );
+    expect(line).toBe(
+      "macOS, Windows, Linux, ChromeOS, iOS, iPadOS, and Android"
+    );
   });
 });
