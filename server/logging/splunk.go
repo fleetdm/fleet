@@ -124,7 +124,7 @@ func (w *splunkLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 }
 
 func (w *splunkLogWriter) send(ctx context.Context, payload []byte) error {
-	return w.sendWithRetry(ctx, payload, 0)
+	return w.sendWithRetry(ctx, bytes.Clone(payload), 0)
 }
 
 // splunkRetryDelay calculates the backoff duration for a given retry attempt.
