@@ -3801,6 +3801,8 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 func TestUpdateMDMHostNameTemplate(t *testing.T) {
 	svc, baseCtx, ds, svcOpts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
+	// currentTemplate is what the team already carries when loaded; individual
+	// subtests adjust it to exercise the idempotency and clear paths.
 	currentTemplate := ""
 	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team", Config: fleet.TeamConfig{

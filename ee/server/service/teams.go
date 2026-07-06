@@ -208,6 +208,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		macOSEnableEndUserAuthUpdated   bool
 		macOSManagedLocalAccountUpdated bool
 		conditionalAccessUpdated        bool
+		nameTemplateUpdated             bool
 	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -321,6 +322,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 		if payload.MDM.RequireBitLockerPIN.Valid {
 			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		}
+
+		if payload.MDM.HostNameTemplate.Set {
+			nameTemplate := payload.MDM.HostNameTemplate.Value
+			if nameTemplate != "" {
+				validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err)
+				}
+				nameTemplate = validated
+			}
+			nameTemplateUpdated = team.Config.MDM.HostNameTemplate != nameTemplate
+			team.Config.MDM.HostNameTemplate = nameTemplate
 		}
 
 		if payload.MDM.MacOSSetup != nil {
@@ -610,6 +624,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
+	if nameTemplateUpdated {
+		if err := svc.applyHostNameTemplateChange(ctx, team.ID, team.Name, team.Config.MDM.HostNameTemplate); err != nil {
+			return nil, err
 		}
 	}
 	if macOSEnableEndUserAuthUpdated {
@@ -1504,6 +1523,15 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	nameTemplate := spec.MDM.HostNameTemplate.Value
+	if nameTemplate != "" {
+		validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		nameTemplate = validated
+	}
+
 	invalid := &fleet.InvalidArgumentError{}
 	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
@@ -1585,6 +1613,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSetup:                 macOSSetup,
 				WindowsSettings:            spec.MDM.WindowsSettings,
 				AndroidSettings:            spec.MDM.AndroidSettings,
+				HostNameTemplate:           nameTemplate,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1643,6 +1672,12 @@ func (svc *Service) createTeamFromSpec(
 			fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &tm.ID, TeamName: &tm.Name},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
+
+	if nameTemplate != "" {
+		if err := svc.applyHostNameTemplateChange(ctx, tm.ID, tm.Name, nameTemplate); err != nil {
+			return nil, err
 		}
 	}
 	return tm, nil
@@ -1770,6 +1805,20 @@ func (svc *Service) editTeamFromSpec(
 				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
 		}
 		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
+	}
+
+	var didUpdateHostNameTemplate bool
+	if spec.MDM.HostNameTemplate.Set {
+		nameTemplate := spec.MDM.HostNameTemplate.Value
+		if nameTemplate != "" {
+			validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			nameTemplate = validated
+		}
+		didUpdateHostNameTemplate = team.Config.MDM.HostNameTemplate != nameTemplate
+		team.Config.MDM.HostNameTemplate = nameTemplate
 	}
 
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
@@ -2034,6 +2083,12 @@ func (svc *Service) editTeamFromSpec(
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
+
+	if didUpdateHostNameTemplate {
+		if err := svc.applyHostNameTemplateChange(ctx, team.ID, team.Name, team.Config.MDM.HostNameTemplate); err != nil {
+			return err
 		}
 	}
 
