@@ -52,7 +52,7 @@ const meta: Meta<typeof LibraryItemAccordion> = {
     failedPath: statusPath("failed"),
     hashSha256:
       "af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7",
-    downloadUrl: "https://example.com/installer.pkg",
+    canDownload: true,
   },
   decorators: [
     (Story) => (
@@ -118,7 +118,7 @@ export const Inactive: Story = {
 /** Active row, user lacks edit permission. The label-count badge demotes to a
  * static span (no button + no click handler), the expanded-panel labels list
  * renders as plain text rather than a CustomLink, and the trash button is
- * hidden entirely. The download button stays (gated only by `downloadUrl`). */
+ * hidden entirely. The download button stays (gated only by `canDownload`). */
 export const ActiveCannotEditSoftware: Story = {
   args: {
     canEditSoftware: false,
