@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.5.1",
+      "version": "1.5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.sbarex.QLMarkdown';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.sbarex.QLMarkdown' AND version_compare(bundle_short_version, '1.5.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.sbarex.QLMarkdown' AND version_compare(bundle_short_version, '1.5.2') < 0);"
       },
-      "installer_url": "https://github.com/sbarex/QLMarkdown/releases/download/1.5.1/QLMarkdown.zip",
+      "installer_url": "https://github.com/sbarex/QLMarkdown/releases/download/1.5.2/QLMarkdown.zip",
       "install_script_ref": "038ce2fa",
       "uninstall_script_ref": "66216336",
-      "sha256": "d0d3b1313827f86dae43c6ffe653410b7ff12e4225dfb7f75d7dd96a52b666bf",
+      "sha256": "b111681c95355d931e72f4f8dff63565e329e8b4d5bcd95f127c4cba2b9e3ea0",
       "default_categories": [
         "Productivity"
       ]

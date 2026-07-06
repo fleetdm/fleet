@@ -2975,6 +2975,51 @@ On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identi
      carves_force_s3_path_style: false
   ```
 
+### s3_carves_cleanup_disabled
+
+When `true`, the S3 carve store skips the periodic reconciliation that marks carves whose S3
+object no longer exists as expired. Set this if you rely solely on the bucket lifecycle policy
+to remove carve objects and do not need the `expired` flag reconciled. This applies only to the
+S3 carve store; it has no effect when carves are stored in MySQL.
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_DISABLED`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_disabled: true
+  ```
+
+### s3_carves_cleanup_max_per_run
+
+The maximum number of carves the S3 cleanup reconciles per run, which also bounds
+the number of S3 `HeadObject` requests a single run makes. A larger carve backlog
+is drained across subsequent runs. Raise this to drain a large backlog faster, at
+the cost of more work per run; lower it to reduce each run's impact on the shared
+cleanup schedule.
+
+- Default value: 1000
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_MAX_PER_RUN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_max_per_run: 1000
+  ```
+
+### s3_carves_cleanup_concurrency
+
+The number of concurrent S3 `HeadObject` probes the carve cleanup performs. Kept
+modest by default to stay well under S3's per-prefix request rate; lower it if you
+observe throttling, or raise it to speed up a backlog's probe phase.
+
+- Default value: 32
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_CONCURRENCY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_concurrency: 32
+  ```
+
 ### s3_carves_region
 
 > Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.

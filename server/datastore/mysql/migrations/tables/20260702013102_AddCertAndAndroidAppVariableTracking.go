@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260624152755, Down_20260624152755)
+	MigrationClient.AddMigration(Up_20260702013102, Down_20260702013102)
 }
 
-func Up_20260624152755(tx *sql.Tx) error {
+func Up_20260702013102(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE mdm_configuration_profile_variables
 			ADD COLUMN certificate_template_id int unsigned DEFAULT NULL,
@@ -37,6 +37,6 @@ func Up_20260624152755(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260624152755(tx *sql.Tx) error {
+func Down_20260702013102(tx *sql.Tx) error {
 	return nil
 }
