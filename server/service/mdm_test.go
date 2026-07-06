@@ -1824,10 +1824,11 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
-	// non-Apple profile UUIDs (Windows, Android, Apple declarations) are not
-	// yet implemented -- see TestUpdateMDMAppleConfigProfile for the Apple
-	// branch, which is implemented.
-	err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+	// Android and Apple declaration profile UUIDs are not yet implemented --
+	// see TestUpdateMDMAppleConfigProfile for the Apple branch and
+	// TestUpdateMDMWindowsConfigProfile for the Windows branch, both of which
+	// are implemented.
+	err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
 }

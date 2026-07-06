@@ -1677,6 +1677,10 @@ func isAndroidProfileUUID(profileUUID string) bool {
 	return strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix)
 }
 
+func isWindowsProfileUUID(profileUUID string) bool {
+	return strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // POST /mdm/profiles (Create Apple or Windows MDM Config Profile)
 ////////////////////////////////////////////////////////////////////////////////
@@ -1997,9 +2001,11 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 	switch {
 	case isAppleProfileUUID(profileUUID):
 		return svc.updateMDMAppleConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	case isWindowsProfileUUID(profileUUID):
+		return svc.updateMDMWindowsConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	default:
-		// TODO(#48342): implement update for Apple DDM declarations, Windows,
-		// and Android profiles.
+		// TODO(#48342): implement update for Apple DDM declarations and
+		// Android profiles.
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}

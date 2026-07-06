@@ -2480,6 +2480,13 @@ type Datastore interface {
 	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
+	// UpdateMDMWindowsConfigProfile updates an existing configuration profile's
+	// contents (if p.SyncML is non-empty) and/or label targeting in place,
+	// preserving its ProfileUUID. p.Name must match the existing profile's --
+	// unlike Apple profiles, Windows profiles have no separate identifier, so
+	// name is the only identity a profile has and cannot change on this path.
+	UpdateMDMWindowsConfigProfile(ctx context.Context, p MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
+
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
 	// The profile gets replaced if it already exists for the same team and name
 	// combination.
