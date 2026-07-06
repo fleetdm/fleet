@@ -1025,6 +1025,30 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserEmailIDP)
 	})
 
+	t.Run("secrets_updated_at from expanding embedded secrets is threaded through to the datastore call", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("com.fleetdm.test", "Test Profile", 0)
+		mcBytes := mcBytesForTest("Test Profile", "com.fleetdm.test", "UUID")
+
+		secretsUpdatedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+			return document, &secretsUpdatedAt, nil
+		}
+		ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMAppleConfigProfile
+		ds.UpdateMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		require.NotNil(t, updated.SecretsUpdatedAt)
+		assert.True(t, secretsUpdatedAt.Equal(*updated.SecretsUpdatedAt))
+	})
+
 	t.Run("profile content and labels update atomically in one call", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingProfile("com.fleetdm.test", "Test Profile", 0)
