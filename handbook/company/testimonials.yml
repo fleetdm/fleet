@@ -300,6 +300,13 @@
   quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7473001724425732097?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7472995294640222210%2Curn%3Ali%3Aactivity%3A7473001724425732097%29
   quoteAuthorJobTitle: Director, Security & TechOps @ Harmonic Security
   productCategories: [Observability, Software management]
+- quote: “The ability to get heard [with our previous MDM] was just impossible.
+  quoteImageFilename: social-proof-logo-stripe-67x32@2x.png
+  quoteAuthorName: Wes Whetstone
+  quoteAuthorProfileImageFilename: testimonial-author-wes-whetstone-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/the-ability-to-get-heard-with-our-previous-share-7469030641167171584-5xsD/
+  quoteAuthorJobTitle: Staff CPE at Stripe
+  productCategories: [Observability, Device management, Software management]
 # -
 #   quote: Thank you for enabling SCIM for the admin interface! You have solved de-provisioning for us because if an admin leaves their identity gets turned off automatically by Okta. We also can quickly check user roles in Okta without needing to login to FleetDM or monitoring user_role.yaml with GitOps.
 #   quoteAuthorName: Nick Borgers
