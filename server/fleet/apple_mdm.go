@@ -863,6 +863,11 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
 
+	// Scope is the channel the declaration is delivered on, parsed from the
+	// declaration's top-level PayloadScope. "System" (the default) targets the
+	// device channel; "User" targets the user channel (macOS only).
+	Scope PayloadScope `db:"scope" json:"scope"`
+
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
@@ -900,6 +905,33 @@ type MDMAppleRawDeclaration struct {
 	// Type is the "Type" field on the raw declaration JSON.
 	Type       string `json:"Type"`
 	Identifier string `json:"Identifier"`
+	// PayloadScope is a Fleet extension (not part of Apple's DDM schema) that
+	// lets an admin choose the device ("System") or user ("User") channel for a
+	// declaration. It is parsed at upload (defaulting to "System") to set the
+	// scope column; the key is left in raw_json and stripped only when the
+	// declaration is served to a device so the delivered JSON stays valid Apple
+	// DDM (see handleConfigurationDeclaration).
+	PayloadScope PayloadScope `json:"PayloadScope"`
+}
+
+// ScopeOrDefault returns the declaration's PayloadScope, defaulting to
+// PayloadScopeSystem (device channel) when unset for backwards compatibility.
+func (r *MDMAppleRawDeclaration) ScopeOrDefault() PayloadScope {
+	if r.PayloadScope == "" {
+		return PayloadScopeSystem
+	}
+	return r.PayloadScope
+}
+
+// ValidateScope ensures a user-provided top-level PayloadScope is one of the
+// supported values. An empty scope is allowed (defaults to System).
+func (r *MDMAppleRawDeclaration) ValidateScope() error {
+	switch r.PayloadScope {
+	case "", PayloadScopeSystem, PayloadScopeUser:
+		return nil
+	default:
+		return NewInvalidArgumentError("PayloadScope", fmt.Sprintf("Invalid PayloadScope %q. Supported values are \"System\" and \"User\".", r.PayloadScope))
+	}
 }
 
 // ForbiddenDeclTypes is a set of declaration types that are not allowed to be
@@ -983,6 +1015,12 @@ type MDMAppleHostDeclaration struct {
 	// VariablesUpdatedAt tracks when the Fleet variable values for this host
 	// were last computed. Non-null only for declarations that use Fleet variables.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+
+	// Scope is the channel this declaration is delivered on for the host,
+	// mirrored from the declaration's scope so the DDM serving queries can
+	// filter per channel. "System" (default) is the device channel, "User" the
+	// user channel.
+	Scope PayloadScope `db:"scope" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
@@ -997,6 +1035,7 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Token == other.Token &&
+		p.Scope == other.Scope &&
 		secretsEqual &&
 		varsEqual
 }

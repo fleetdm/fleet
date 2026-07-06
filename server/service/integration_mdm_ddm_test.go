@@ -179,6 +179,32 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, lbl2.Name, resp.Profiles[0].LabelsIncludeAll[1].LabelName)
 	require.Len(t, resp.Profiles[1].LabelsIncludeAll, 1)
 	require.Equal(t, lbl1.Name, resp.Profiles[1].LabelsIncludeAll[0].LabelName)
+
+	// PayloadScope handling via the batch/GitOps path: the top-level PayloadScope
+	// drives the scope column. The key is intentionally kept in the stored
+	// raw_json (it's stripped only at delivery), so the declaration round-trips.
+	// A declaration with no PayloadScope defaults to the device channel.
+	userScoped := []byte(`{"Type":"com.apple.configuration.foo","Identifier":"com.fleet.userscoped","PayloadScope":"User","Payload":{"Enabled":true}}`)
+	deviceScoped := []byte(`{"Type":"com.apple.configuration.bar","Identifier":"com.fleet.devicescoped","Payload":{"Enabled":true}}`)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "UserScoped", Contents: userScoped},
+		{Name: "DeviceScoped", Contents: deviceScoped},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	require.Len(t, resp.Profiles, 2)
+	uuidByName := make(map[string]string, len(resp.Profiles))
+	for _, p := range resp.Profiles {
+		uuidByName[p.Name] = p.ProfileUUID
+	}
+
+	userDeclDB, err := s.ds.GetMDMAppleDeclaration(context.Background(), uuidByName["UserScoped"])
+	require.NoError(t, err)
+	require.Equal(t, fleet.PayloadScopeUser, userDeclDB.Scope)
+
+	deviceDeclDB, err := s.ds.GetMDMAppleDeclaration(context.Background(), uuidByName["DeviceScoped"])
+	require.NoError(t, err)
+	require.Equal(t, fleet.PayloadScopeSystem, deviceDeclDB.Scope)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {

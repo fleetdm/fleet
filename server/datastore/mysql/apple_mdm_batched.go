@@ -661,7 +661,8 @@ func (ds *Datastore) bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(
 			COALESCE(detail, '') AS detail,
 			token,
 			secrets_updated_at,
-			variables_updated_at
+			variables_updated_at,
+			scope
 		FROM host_mdm_apple_declarations
 		WHERE host_uuid IN (?)
 	`
@@ -688,6 +689,37 @@ func (ds *Datastore) bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(
 	}
 
 	return out, nil
+}
+
+// BulkDeleteMDMAppleHostDeclarations removes the given host declaration rows by
+// (host_uuid, declaration_uuid). It is used to clean up user-scoped
+// declarations that can't be delivered because the host has no user channel
+// (mirroring how the profile reconciler cleans up undeliverable user-scoped
+// profiles), so they don't linger as permanent "pending" rows.
+func (ds *Datastore) BulkDeleteMDMAppleHostDeclarations(ctx context.Context, rows []*fleet.MDMAppleHostDeclaration) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	const batchSize = 1000
+	for i := 0; i < len(rows); i += batchSize {
+		end := min(i+batchSize, len(rows))
+		batch := rows[i:end]
+
+		var sb strings.Builder
+		args := make([]any, 0, len(batch)*2)
+		for _, r := range batch {
+			sb.WriteString("(?,?),")
+			args = append(args, r.HostUUID, r.DeclarationUUID)
+		}
+		stmt := fmt.Sprintf(
+			`DELETE FROM host_mdm_apple_declarations WHERE (host_uuid, declaration_uuid) IN (%s)`,
+			strings.TrimSuffix(sb.String(), ","),
+		)
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk delete host mdm apple declarations")
+		}
+	}
+	return nil
 }
 
 // GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
@@ -793,7 +825,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 	const baseStmt = `
 		INSERT INTO host_mdm_apple_declarations
 		  (host_uuid, declaration_uuid, declaration_identifier, declaration_name,
-		   status, operation_type, token, secrets_updated_at, variables_updated_at)
+		   status, operation_type, token, secrets_updated_at, variables_updated_at, scope)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  status = VALUES(status),
@@ -802,7 +834,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		  declaration_identifier = VALUES(declaration_identifier),
 		  declaration_name = VALUES(declaration_name),
 		  secrets_updated_at = VALUES(secrets_updated_at),
-		  variables_updated_at = VALUES(variables_updated_at)
+		  variables_updated_at = VALUES(variables_updated_at),
+		  scope = VALUES(scope)
 	`
 
 	const batchSize = 1000
@@ -811,13 +844,18 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		batch := rows[i:end]
 
 		valueParts := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*9)
+		args := make([]any, 0, len(batch)*10)
 		batchByKey := make(map[string]*fleet.MDMAppleHostDeclaration, len(batch))
 		for _, r := range batch {
-			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
+			// Scope defaults to System
+			scope := r.Scope
+			if scope == "" {
+				scope = fleet.PayloadScopeSystem
+			}
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
-				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt,
+				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, scope,
 			)
 			batchByKey[fmt.Sprintf("%s\n%s", r.HostUUID, r.DeclarationUUID)] = r
 		}
