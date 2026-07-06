@@ -9,7 +9,7 @@ import chartsAPI, {
   IChartQueryKey,
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import stringUtils from "utilities/strings/stringUtils";
+import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -118,27 +118,25 @@ const hasActiveSoftwareFilters = (filters: IChartFilterState): boolean =>
   isEpssActive(filters.epssMin, filters.epssMax) ||
   filters.excludeCVEs.length > 0;
 
-// Human-readable "a, b, and c".
+// Human-readable "a, b, and c". Items must already be correctly cased —
+// don't force-capitalize here or branded names like "macOS"/"iOS" break.
 const formatList = (items: string[]): string => {
-  items = items.map(stringUtils.capitalize);
   if (items.length <= 1) return items.join("");
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 };
 
-// Maps platform filter values to their display names for the tooltip.
-const PLATFORM_LABELS: Record<string, string> = {
-  darwin: "macOS",
-  windows: "Windows",
-  linux: "Linux",
-  chrome: "ChromeOS",
-};
-
-const hostFilterLines = (filters: IChartFilterState): string[] => {
+export const hostFilterLines = (filters: IChartFilterState): string[] => {
   const lines: string[] = [];
   if (filters.platforms.length > 0) {
     lines.push(
-      formatList(filters.platforms.map((p) => PLATFORM_LABELS[p] ?? p))
+      formatList(
+        filters.platforms.map(
+          (p) =>
+            PLATFORM_DISPLAY_NAMES[p as keyof typeof PLATFORM_DISPLAY_NAMES] ??
+            p
+        )
+      )
     );
   }
   if (filters.labelIDs.length > 0) lines.push("Labels");
