@@ -1404,6 +1404,60 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 	}, nil
 }
 
+// resolveFirstAddedInScopeInstaller returns the first-added (smallest installer_id) package of the
+// title that host is in label scope for — and, when requireSelfService is set, that is self-service
+// enabled. This is the install-time precedence rule now that a title can hold multiple packages:
+// admins scope labels to avoid overlap, but when a host still matches more than one package Fleet
+// installs the first-added one. anyPackages reports whether the title has any active packages at all,
+// so callers can distinguish "no package for this title" (fall through to VPP/in-house) from
+// "packages exist but none is a match for this host" (reject).
+func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host *fleet.Host, titleID uint, requireSelfService bool) (installer *fleet.SoftwareInstaller, anyPackages bool, err error) {
+	pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, host.TeamID, titleID)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "listing packages for install precedence")
+	}
+	anyPackages = len(pkgs) > 0
+
+	// pkgs are ordered installer_id ASC (first-added first). Prefer the first-added package the host
+	// can actually install (in scope and platform-compatible). Keep the first-added in-scope package
+	// of any platform as a fallback so a cross-platform title with no compatible package still hits
+	// the downstream platform error (matching single-package behavior).
+	var fallback *fleet.SoftwareInstaller
+	for _, pkg := range pkgs {
+		if requireSelfService && !pkg.SelfService {
+			continue
+		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, pkg.InstallerID, host.ID)
+		if err != nil {
+			return nil, anyPackages, ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+		}
+		if !scoped {
+			continue
+		}
+		if fallback == nil {
+			fallback = pkg
+		}
+		if installerCompatibleWithHost(pkg, host) {
+			return pkg, anyPackages, nil
+		}
+	}
+
+	return fallback, anyPackages, nil
+}
+
+// installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
+// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh runs on any unix-like host).
+func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet.Host) bool {
+	ext, requiredPlatform := installerRequiredPlatform(installer)
+	if requiredPlatform == "" {
+		return false
+	}
+	if host.FleetPlatform() == requiredPlatform {
+		return true
+	}
+	return ext == ".sh" && fleet.IsUnixLike(host.Platform)
+}
+
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit
 	// node key
@@ -1472,28 +1526,22 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	if !mobileAppleDevice {
-		installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+		// Resolve the first-added package the host is in label scope for (first-added-wins when the
+		// host matches more than one package of the title).
+		installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
 		if err != nil {
-			if !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "finding software installer for title")
-			}
-			installer = nil
+			return err
 		}
 
-		// if we found an installer, use that
+		// The title has packages but the host isn't in scope for any of them.
+		if installer == nil && anyPackages {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+			}
+		}
+
+		// if we resolved an installer, use that
 		if installer != nil {
-			// check the label scoping for this installer and host
-			scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, hostID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
-			}
-
-			if !scoped {
-				return &fleet.BadRequestError{
-					Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
-				}
-			}
-
 			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
@@ -3585,16 +3633,22 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	// self-service. The downstream VPP install flow handles user-scoped
 	// licensing via clientUserIds. End-to-end success still depends on the
 	// main install-gate removal landing (#31138 subtask 01).
-	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	// Resolve the first-added self-service package the host is in label scope for (first-added-wins
+	// when the host matches more than one self-service package of the title).
+	installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, true)
 	if err != nil {
-		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "finding software installer for title")
-		}
-		installer = nil
+		return err
 	}
 
-	if installer != nil {
-		if !installer.SelfService {
+	if installer == nil && anyPackages {
+		// The title has packages but none is available to this host through self-service. Distinguish
+		// "in scope but not self-service enabled" from "not a label member" to preserve the existing
+		// error messages.
+		inScopeInstaller, _, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
+		if err != nil {
+			return err
+		}
+		if inScopeInstaller != nil {
 			return &fleet.BadRequestError{
 				Message: "Software title is not available through self-service",
 				InternalErr: ctxerr.NewWithData(
@@ -3603,18 +3657,12 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 				),
 			}
 		}
-
-		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
 		}
+	}
 
-		if !scoped {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
-			}
-		}
-
+	if installer != nil {
 		ext, requiredPlatform := installerRequiredPlatform(installer)
 		if requiredPlatform == "" {
 			// this should never happen

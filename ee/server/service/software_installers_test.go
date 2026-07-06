@@ -261,6 +261,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 			TeamID:   ptr.Uint(1),
 		}, nil
 	}
+	mockSoftwarePackagesFromMetadata(ds)
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
 	}
@@ -726,6 +727,19 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	return svc
 }
 
+// mockSoftwarePackagesFromMetadata wires GetSoftwarePackagesByTeamAndTitleID (used by the install
+// precedence resolver) to return the single installer that GetSoftwareInstallerMetadataByTeamAndTitleID
+// yields, so install-path unit tests keep their installer defined in one place.
+func mockSoftwarePackagesFromMetadata(ds *mock.Store) {
+	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+		si, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
+		if err != nil {
+			return nil, err
+		}
+		return []*fleet.SoftwareInstaller{si}, nil
+	}
+}
+
 func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmock.Service) {
 	t.Helper()
 	authorizer, err := authz.NewAuthorizer()
@@ -986,6 +1000,7 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 			SelfService: false,
 		}, nil
 	}
+	mockSoftwarePackagesFromMetadata(ds)
 
 	// Label scoping check passes
 	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
@@ -1049,6 +1064,7 @@ func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
 			SelfService: false,
 		}, nil
 	}
+	mockSoftwarePackagesFromMetadata(ds)
 
 	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
 		return true, nil
@@ -1145,6 +1161,7 @@ func TestSelfServiceInstallZipInstallerUsesStoredPlatform(t *testing.T) {
 			SelfService: true,
 		}, nil
 	}
+	mockSoftwarePackagesFromMetadata(ds)
 
 	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
 		return true, nil
@@ -1203,6 +1220,7 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 			SelfService: false,
 		}, nil
 	}
+	mockSoftwarePackagesFromMetadata(ds)
 
 	// Label scoping check passes
 	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
@@ -1241,6 +1259,11 @@ func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testi
 	// got past the old gate without entangling this test in the install flow.
 	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint, _ bool) (*fleet.SoftwareInstaller, error) {
 		return nil, &notFoundError{}
+	}
+	// The title has no packages, so the precedence resolver returns none and the flow falls through
+	// to the VPP/in-house lookups (both not found) — the same "not available" path as before.
+	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) ([]*fleet.SoftwareInstaller, error) {
+		return nil, nil
 	}
 	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
 		return nil, &notFoundError{}
@@ -1584,6 +1607,14 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 				return nil, fail.installTitle
 			}
 			return &fleet.SoftwareInstaller{InstallerID: 1, SelfService: true, Name: "foo.pkg"}, nil
+		}
+		// The per-title self-service install now resolves the package via the precedence resolver,
+		// so the per-title failure injection lives on this read.
+		ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+			if fail.installTitle != nil {
+				return nil, fail.installTitle
+			}
+			return []*fleet.SoftwareInstaller{{InstallerID: 1, SelfService: true, Name: "foo.pkg"}}, nil
 		}
 		ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID uint, hostID uint) (bool, error) {
 			return true, nil

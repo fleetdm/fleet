@@ -105,6 +105,9 @@ type NewTeamPolicyPayload struct {
 	CalendarEventsEnabled bool
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	SoftwareTitleID *uint
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When nil, the policy defaults to the title's first-added package.
+	SoftwareInstallerID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
@@ -300,6 +303,11 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted (or 0), the policy defaults to the title's first-added package.
+	//
+	// Only applies to team policies.
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
