@@ -529,7 +529,7 @@ Can only be configured for "All fleets" (`default.yml`).
 
 The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
 
-- `default_fleet` specifies which fleet all Windows hosts go in (default: `"Unassigned"`)
+- `default_fleet` specifies the name of the fleet all Windows hosts go in.
 
 ## software
 
