@@ -3292,11 +3292,11 @@
       "description": "Google Earth Pro is a virtual globe."
     },
     {
-      "name": "Gemini",
+      "name": "Google Gemini",
       "slug": "google-gemini/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.GeminiMacOS",
-      "description": "Gemini is a native desktop AI assistant from Google."
+      "description": "Google Gemini is a native desktop AI assistant from Google."
     },
     {
       "name": "GoToMeeting",
