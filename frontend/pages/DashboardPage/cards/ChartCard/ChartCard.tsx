@@ -126,17 +126,16 @@ const formatList = (items: string[]): string => {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 };
 
+// A string-indexable view of the display-name map. Platform filter values are
+// arbitrary strings, so an unknown one indexes to undefined and we fall back to
+// the raw value below.
+const PLATFORM_LABELS: Record<string, string> = PLATFORM_DISPLAY_NAMES;
+
 export const hostFilterLines = (filters: IChartFilterState): string[] => {
   const lines: string[] = [];
   if (filters.platforms.length > 0) {
     lines.push(
-      formatList(
-        filters.platforms.map(
-          (p) =>
-            PLATFORM_DISPLAY_NAMES[p as keyof typeof PLATFORM_DISPLAY_NAMES] ??
-            p
-        )
-      )
+      formatList(filters.platforms.map((p) => PLATFORM_LABELS[p] ?? p))
     );
   }
   if (filters.labelIDs.length > 0) lines.push("Labels");
