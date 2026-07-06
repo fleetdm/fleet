@@ -2248,7 +2248,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -2680,7 +2680,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomFileVaultEnabled()); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomDiskEncryptionEnabled()); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2733,6 +2733,7 @@ func getWindowsProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	mdmConfig config.MDMConfig,
 ) (map[int]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMWindowsConfigProfile, len(profiles))
 
@@ -2776,7 +2777,7 @@ func getWindowsProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomDiskEncryptionEnabled()); err != nil {
 			msg := err.Error()
 			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
