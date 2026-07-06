@@ -289,10 +289,10 @@ type LuksRunner struct {
 	// because Run() may be invoked from the config-receiver loop and we want
 	// to be safe against future concurrent tick semantics. All fields reset
 	// on a successful escrow.
-	mu                     sync.Mutex
-	recoveryKeyFailures    int
-	recoveryKeyNotified    bool // one-shot for the escrow-failed notification
-	serverTooOldNotified   bool // one-shot for the capability-missing notification
+	mu                   sync.Mutex
+	recoveryKeyFailures  int
+	recoveryKeyNotified  bool // one-shot for the escrow-failed notification
+	serverTooOldNotified bool // one-shot for the capability-missing notification
 }
 
 type LuksResponse struct {

@@ -36,7 +36,11 @@ type snapdClient struct {
 
 func newSnapdClient() *snapdClient {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(60 * time.Second))
-	client.Transport = &http.Transport{
+	// Override fleethttp's transport with one that dials the snapd unix socket.
+	// The socket is local, so we intentionally skip the otelhttp/HTTP telemetry
+	// layer that fleethttp installs by default; this mirrors the pattern used
+	// by fleethttp's own tests when a bespoke transport is required.
+	client.Transport = &http.Transport{ //nolint:gocritic // unix socket transport override
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", snapdSocketPath)
