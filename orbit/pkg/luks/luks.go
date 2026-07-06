@@ -245,6 +245,7 @@ func (lr *LuksRunner) notifyServerTooOldOnce() {
 // state on the host's page in the Fleet UI.
 func (lr *LuksRunner) showInfo(title, text string) {
 	if lr.notifier == nil {
+		log.Debug().Str("title", title).Msg("no dialog notifier available; skipping user-facing recovery-key notification")
 		return
 	}
 	if err := lr.notifier.ShowInfo(dialog.InfoOptions{
