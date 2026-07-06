@@ -32,7 +32,7 @@
     display: flex;
     flex-direction: column;
     gap: 32px;
-    max-width: 50%;
+    max-width: 800px;
   }
   [purpose='page-hero-headings'] {
     h4 {
@@ -47,8 +47,6 @@
     }
     h1 {
       color: #192147;
-
-
       font-size: 48px;
       font-style: normal;
       font-weight: 800;
@@ -57,6 +55,7 @@
     }
   }
   [purpose='page-hero-text'] {
+    max-width: 662px;
     p {
       color: #515774;
 
@@ -66,18 +65,85 @@
       line-height: 150%;
     }
   }
-  [purpose='page-hero-image'] {
-    img {
-      max-width: 470.676px;
-      max-height: 470.676px;
-      height: 100%;
-      width: 100%;
-      flex-shrink: 1;
-      display: flex;
-    }
-    width: 50%;
+
+
+  [purpose='photo-carousel'] {
+    position: relative;
     display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
+  [purpose='carousel-viewport'] {
+    overflow: hidden;
+    border-radius: 16px;
+  }
+  [purpose='carousel-track'] {
+    --gap: 8px;
+    --slide-w: ~'calc((100% - 3 * var(--gap)) / 2.5)';
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--gap);
+    will-change: transform;
+    transition: transform 0.4s ease;
+    &.no-animate {
+      transition: none;
+    }
+    img {
+      flex: 0 0 auto;
+      width: var(--slide-w);
+      height: auto;
+    }
+  }
+  [purpose='controls-container'] {
+    // position: absolute;
+    bottom: 0px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 32px;
+    z-index: 15;
+    img {
+      height: 16px;
+    }
+    a {
+      cursor: pointer;
+      padding: 6px;
+    }
+    [purpose='carousel-next'] {
+      transform: rotate(180deg);
+    }
+  }
+  [purpose='carousel-indicators'] {
+    position: relative;
+    bottom: unset;
+    margin-bottom: 0px;
+    margin-left: 16px;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    padding-left: 0px;
+    list-style: none;
+    li {
+      border-radius: 1.5px;
+      width: 20px;
+      height: 3px;
+      margin: 0px 3px;
+      cursor: pointer;
+      background-color: @core-fleet-black-10;
+      &.active {
+        width: 20px;
+        background-color: @core-fleet-black-50;
+      }
+    }
+  }
+
+
+
+
+
+
+
 
   [purpose='landing-page-section'] {// For landing page sections.
     display: flex;
@@ -131,23 +197,24 @@
     align-items: flex-start;
     flex-direction: row;
     align-content: flex-start;
-    gap: 64px 32px;
+    gap: 64px;
     align-self: stretch;
-    flex-wrap: wrap;
+    min-width: 0px;
+    // flex-wrap: wrap;
     [purpose='feature'] {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 16px;
+      gap: 24px;
       align-self: stretch;
-      min-width: 288px;
-      max-width: 336px;
+      // min-width: 288px;
+      max-width: 33%;
       flex: 1 0 0;
       [purpose='feature-headline'] {
         color: #192147;
 
 
-        font-size: 16px;
+        font-size: 24px;
         font-style: normal;
         font-weight: 700;
         line-height: 120%;
@@ -233,17 +300,27 @@
 
         font-size: 20px;
         font-style: normal;
-        font-weight: 700;
+        font-weight: 400;
         line-height: 120%;
       }
-      ul {
-        padding-inline-start: 22px;
-        li {
-          margin-bottom: 12px;
-          a {
+    }
+  }
+  ul {
+    padding-inline-start: 22px;
+    margin-bottom: 0px;
+    li {
+      color: var(--Fleet-Black-75, #515774);
+      font-family: Inter;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 24px; /* 150% */
+      margin-bottom: 16px;
+      &:last-of-type {
+        margin-bottom: 0px;
+      }
+      a {
 
-          }
-        }
       }
     }
   }
@@ -468,10 +545,39 @@
       flex-wrap: nowrap;
     }
 
-
+    [purpose='photo-carousel'] {
+      padding-top: 32px;
+    }
     [purpose='landing-page-section'], [purpose='landing-page-large-section'] {// For sections with more padding (64px) between elements.
       padding-top: 48px;
       padding-bottom: 48px;
+    }
+    [purpose='three-column-list'] {
+      display: flex;
+      align-items: flex-start;
+      flex-direction: column;
+      align-content: flex-start;
+      gap: 48px;
+      align-self: stretch;
+      flex-wrap: wrap;
+      [purpose='feature'] {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        align-self: stretch;
+        max-width: 100%;
+        min-width: unset;
+        flex: 1 0 0;
+        [purpose='feature-text'] {
+          color: #515774;
+
+          font-size: 16px;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 150%;
+        }
+      }
     }
 
 
@@ -495,6 +601,12 @@
 
   @media (max-width: 768px) {
 
+    [purpose='carousel-track'] {
+      --gap: 4px;// Space between photos.
+    }
+    [purpose='photo-carousel'] {
+      padding-top: 16px;
+    }
     [purpose='event-cards'] {
       flex-direction: column;
 
@@ -538,42 +650,6 @@
       display: flex;
     }
 
-    [purpose='three-column-list'] {
-      display: flex;
-      align-items: flex-start;
-      flex-direction: column;
-      align-content: flex-start;
-      gap: 64px 32px;
-      align-self: stretch;
-      flex-wrap: wrap;
-      [purpose='feature'] {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-        align-self: stretch;
-        max-width: 100%;
-        min-width: unset;
-        flex: 1 0 0;
-        [purpose='feature-headline'] {
-          color: #192147;
-
-
-          font-size: 16px;
-          font-style: normal;
-          font-weight: 700;
-          line-height: 120%;
-        }
-        [purpose='feature-text'] {
-          color: #515774;
-
-          font-size: 16px;
-          font-style: normal;
-          font-weight: 400;
-          line-height: 150%;
-        }
-      }
-    }
 
     [purpose='details-cards'] {
       display: flex;
@@ -624,7 +700,6 @@
   }
 
   @media (max-width: 575px) {
-
 
     [purpose='page-hero-headings'] {
       h4 {

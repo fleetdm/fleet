@@ -22,7 +22,7 @@ module.exports = {
 
 
     let futureGitopsEvents = await sails.helpers.http.get.with({
-      url: `https://www.eventbriteapi.com/v3/organizations/${sails.config.custom.eventbriteOrgId}/events/?name_filter=gitops&show_series_parent=true&page_size=200&time_filter=current_future&status=live`,
+      url: `https://www.eventbriteapi.com/v3/organizations/${sails.config.custom.eventbriteOrgId}/events/?show_series_parent=true&page_size=200&time_filter=current_future&status=live`,
       headers: {
         authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
       },
@@ -36,6 +36,13 @@ module.exports = {
     let eventsToGetDetailsFor = futureGitopsEvents.events;
 
     await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
+      // Determine if this event is a GitOps workshop or an Apple administrator workshop.
+      let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' : undefined;
+      // If it is not one of those types of events, skip it.
+      if(!eventType) {
+        return;
+      }
+
       // Convert the ISO timestamps that represent the start and end time of the event into a formatted string.
       // Create new Date objects from the start and end times.
       let eventStartsOn = new Date(event.start.utc);
@@ -59,7 +66,6 @@ module.exports = {
       // Get the value of the timeZoneName object in the partsOfTimezone array/
       let shortenedTimeZone = _.find(partsOfTimezone, {type: 'timeZoneName'});
       let abbreviatedTimeZoneString = shortenedTimeZone.value;
-
 
       let startTime =  new Intl.DateTimeFormat('en-US', {
         timeZone: eventTimeZone,
@@ -85,6 +91,7 @@ module.exports = {
         eventbriteLink: event.url,
         eventTime: eventTimeDetailsString,
         startsAt: eventStartsAt,
+        type: eventType,
       };
 
       // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
