@@ -86,7 +86,12 @@ export interface ILibraryItemAccordionProps {
   failedPath: string;
 
   hashSha256?: string | null;
-  downloadUrl?: string;
+  /** Show the download button. True for any package backed by a stored
+   * installer file (custom packages, tarballs, FMAs); false for script-only
+   * packages (no file to download) and App Store / Play Store apps. The
+   * download itself is driven by `onDownloadClick`, which mints a one-shot
+   * token server-side — this flag only gates the button's visibility. */
+  canDownload?: boolean;
 
   /** Click handler for whichever badge is rendered per `badgeState`. The
    * consumer can branch on `badgeState` inside the callback if it needs to
@@ -126,7 +131,7 @@ const LibraryItemAccordion = ({
   pendingPath,
   failedPath,
   hashSha256,
-  downloadUrl,
+  canDownload,
   onBadgeClick,
   onLabelCountClick,
   onLabelsClick,
@@ -596,7 +601,7 @@ const LibraryItemAccordion = ({
           </div>
 
           <div className={`${baseClass}__actions-column`}>
-            {downloadUrl && (
+            {canDownload && (
               <Button
                 variant="icon"
                 onClick={onDownloadClick}
