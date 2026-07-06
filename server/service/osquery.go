@@ -418,7 +418,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	}
 	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
 
-	// Check for legacy packs assigned to this specific host.
+	// Check for legacy packs assigned to this specific host. Legacy packs are per-host, thus not cached.
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list packs for host")
