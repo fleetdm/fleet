@@ -958,3 +958,7 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 	require.NoError(t, err)
 	return activities
 }
+
+// errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
+// for assertions that only care about the error.
+func errOnly(_ []uint, err error) error { return err }

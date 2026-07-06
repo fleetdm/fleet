@@ -711,7 +711,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Simulate a linux with a proper version
+	// Arch Linux based distribution with a major, minor and patch should still be ingested with "rolling".
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -730,7 +730,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
-	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -1749,6 +1749,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "1.2.3",
 				Arch:          "x86_64",
 				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
+		{
+			// CachyOS is an Arch-based rolling-release distribution. It reports a
+			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
+			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "CachyOS Linux",
+					"version":        "20260628.0.549485",
+					"major":          "20260628",
+					"minor":          "0",
+					"patch":          "549485",
+					"build":          "rolling",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-2-cachyos",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
 	} {

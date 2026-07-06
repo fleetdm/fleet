@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.10.3",
+      "version": "1.10.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimestream.Mimestream';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimestream.Mimestream' AND version_compare(bundle_short_version, '1.10.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimestream.Mimestream' AND version_compare(bundle_short_version, '1.10.4') < 0);"
       },
-      "installer_url": "https://download.mimestream.com/Mimestream_1.10.3.dmg",
+      "installer_url": "https://download.mimestream.com/Mimestream_1.10.4.dmg",
       "install_script_ref": "ab7e9784",
       "uninstall_script_ref": "19608987",
-      "sha256": "8c2f72279f01985fa609016a6bf924487e19c05d0da7aeaaef58859eeacc63ab",
+      "sha256": "4c741d311148a4f3aaf94a797c6e3d34fc446473a675acc69d3546eb5c0296f3",
       "default_categories": [
         "Communication"
       ]

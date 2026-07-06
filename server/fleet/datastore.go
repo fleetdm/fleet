@@ -1222,7 +1222,13 @@ type Datastore interface {
 	// If newlyPassingPolicyIDs is non-nil, it contains the IDs of policies that flipped from failing to passing
 	// and is used directly instead of calling FlippingPoliciesForHost internally. This allows callers that have
 	// already computed flipping policies to avoid a redundant database query.
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
+	//
+	// It returns the host's stale policy IDs: policies with a stored policy_membership row but
+	// no incoming result. It does NOT delete those rows; whether they can be deleted is the
+	// caller's decision, since only the caller knows whether `results` is the host's complete
+	// set of in-scope policy results (e.g. hosts in setup experience are sent a filtered
+	// subset of policy queries).
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
