@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -470,6 +471,8 @@ func TestIngestValidations(t *testing.T) {
 			i := wingetIngester{
 				logger:       slog.New(slog.DiscardHandler),
 				githubClient: gc,
+				httpClient:   srv.Client(),
+				rawBaseURL:   srv.URL,
 			}
 
 			out, err := i.ingestOne(ctx, c.inputApp)
@@ -506,7 +509,7 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			}}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+		case "/microsoft/winget-pkgs/master/manifests/f/Foo/1.0/Foo.installer.yaml":
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
 				InstallerType:  cfg.installerType,
@@ -526,34 +529,150 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			}
 
 			bytes, err := yaml.Marshal(manifest)
-			require.NoError(t, err)
+			assert.NoError(t, err)
+			_, err = w.Write(bytes)
+			assert.NoError(t, err)
 
-			str := string(bytes)
-			content := &github.RepositoryContent{
-				Name:    ptr.String("Foo"),
-				Content: &str,
-			}
-			require.NoError(t, json.NewEncoder(w).Encode(content))
-
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+		case "/microsoft/winget-pkgs/master/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
 			lManifest := localeManifest{
 				PackageName: "foo",
 				Publisher:   "Bar, Inc.",
 			}
 
 			bytes, err := yaml.Marshal(lManifest)
-			require.NoError(t, err)
-
-			str := string(bytes)
-			content := &github.RepositoryContent{
-				Name:    ptr.String("Foo"),
-				Content: &str,
-			}
-			require.NoError(t, json.NewEncoder(w).Encode(content))
+			assert.NoError(t, err)
+			_, err = w.Write(bytes)
+			assert.NoError(t, err)
 
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
 	}))
+}
+
+func TestGetRawManifestFileRetries(t *testing.T) {
+	origInterval := fetchRetryInterval
+	fetchRetryInterval = time.Millisecond
+	t.Cleanup(func() { fetchRetryInterval = origInterval })
+
+	t.Run("retries transient 429s until success", func(t *testing.T) {
+		var attempts int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attempts++
+			if attempts < 3 {
+				w.WriteHeader(http.StatusTooManyRequests)
+				return
+			}
+			_, err := w.Write([]byte("PackageVersion: 1.0"))
+			assert.NoError(t, err)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := wingetIngester{
+			logger:     slog.New(slog.DiscardHandler),
+			httpClient: srv.Client(),
+			rawBaseURL: srv.URL,
+		}
+
+		contents, err := i.getRawManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
+		require.NoError(t, err)
+		require.Equal(t, "PackageVersion: 1.0", string(contents))
+		require.Equal(t, 3, attempts)
+	})
+
+	t.Run("gives up after max attempts", func(t *testing.T) {
+		var attempts int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attempts++
+			w.WriteHeader(http.StatusTooManyRequests)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := wingetIngester{
+			logger:     slog.New(slog.DiscardHandler),
+			httpClient: srv.Client(),
+			rawBaseURL: srv.URL,
+		}
+
+		_, err := i.getRawManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
+		require.ErrorContains(t, err, "unexpected status 429")
+		require.Equal(t, 4, attempts)
+	})
+
+	t.Run("404 returns errManifestNotFound without retrying", func(t *testing.T) {
+		var attempts int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attempts++
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := wingetIngester{
+			logger:     slog.New(slog.DiscardHandler),
+			httpClient: srv.Client(),
+			rawBaseURL: srv.URL,
+		}
+
+		_, err := i.getRawManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
+		require.ErrorIs(t, err, errManifestNotFound)
+		require.Equal(t, 1, attempts)
+	})
+}
+
+func TestGetRepoDirContentsRetries(t *testing.T) {
+	origInterval := fetchRetryInterval
+	fetchRetryInterval = time.Millisecond
+	t.Cleanup(func() { fetchRetryInterval = origInterval })
+
+	newIngester := func(handler http.HandlerFunc) wingetIngester {
+		srv := httptest.NewServer(handler)
+		t.Cleanup(srv.Close)
+
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
+		require.NoError(t, err)
+		gc.BaseURL = u
+
+		return wingetIngester{
+			logger:       slog.New(slog.DiscardHandler),
+			githubClient: gc,
+		}
+	}
+
+	t.Run("retries transient 429s until success", func(t *testing.T) {
+		var attempts int
+		i := newIngester(func(w http.ResponseWriter, r *http.Request) {
+			attempts++
+			if attempts < 3 {
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
+				return
+			}
+			content := []github.RepositoryContent{{
+				Name: new("1.0"),
+				Type: new("dir"),
+			}}
+			assert.NoError(t, json.NewEncoder(w).Encode(content))
+		})
+
+		contents, err := i.getRepoDirContents(t.Context(), "manifests/f/Foo")
+		require.NoError(t, err)
+		require.Len(t, contents, 1)
+		require.Equal(t, "1.0", contents[0].GetName())
+		require.Equal(t, 3, attempts)
+	})
+
+	t.Run("404 fails without retrying", func(t *testing.T) {
+		var attempts int
+		i := newIngester(func(w http.ResponseWriter, r *http.Request) {
+			attempts++
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message": "Not Found"}`))
+		})
+
+		_, err := i.getRepoDirContents(t.Context(), "manifests/f/Foo")
+		require.Error(t, err)
+		require.Equal(t, 1, attempts)
+	})
 }

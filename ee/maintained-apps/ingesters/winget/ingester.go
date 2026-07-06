@@ -4,19 +4,25 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/google/go-github/v37/github"
@@ -43,6 +49,8 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 		githubClient: githubClient,
 		ghClientOpts: opts,
 		logger:       logger,
+		httpClient:   fleethttp.NewClient(),
+		rawBaseURL:   "https://raw.githubusercontent.com",
 	}
 
 	for _, f := range files {
@@ -102,6 +110,123 @@ type wingetIngester struct {
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
 	logger       *slog.Logger
+	// httpClient is used for fetching manifest files from rawBaseURL.
+	httpClient *http.Client
+	// rawBaseURL is the base URL for fetching raw manifest files (normally
+	// https://raw.githubusercontent.com); overridable for tests.
+	rawBaseURL string
+}
+
+// errManifestNotFound indicates a manifest file does not exist at the requested path.
+var errManifestNotFound = errors.New("winget manifest file not found")
+
+// transientHTTPError is an HTTP response status that is worth retrying (e.g. 429 or 5xx).
+type transientHTTPError struct {
+	status int
+	url    string
+	body   string
+}
+
+func (e *transientHTTPError) Error() string {
+	return fmt.Sprintf("GET %s: unexpected status %d: %s", e.url, e.status, e.body)
+}
+
+// fetchRetryInterval is the initial wait between fetch retries; a variable so tests can
+// shrink it.
+var fetchRetryInterval = 30 * time.Second
+
+// fetchRetryOpts returns retry options for GitHub fetches. The winget-pkgs repo is one of
+// the busiest on GitHub and its API responses intermittently fail with "429 gitmon refuses
+// to schedule us" when GitHub's file servers are congested, so retry transient failures
+// with exponential backoff (waits of 1x, 2x, and 4x the initial interval) instead of
+// failing the whole ingestion run on the first 429.
+func fetchRetryOpts() []retry.Option {
+	return []retry.Option{
+		retry.WithInterval(fetchRetryInterval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(4),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			// context cancellation is not transient: bail out instead of sleeping
+			// through backoff waits (http.Client wraps ctx errors in *url.Error)
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return retry.ErrorOutcomeDoNotRetry
+			}
+			if _, ok := errors.AsType[*transientHTTPError](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			if _, ok := errors.AsType[*github.RateLimitError](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			if _, ok := errors.AsType[*github.AbuseRateLimitError](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok && ghErr.Response != nil &&
+				(ghErr.Response.StatusCode == http.StatusTooManyRequests || ghErr.Response.StatusCode >= 500) {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			// network-level errors (no HTTP response received) are also transient
+			if _, ok := errors.AsType[*url.Error](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	}
+}
+
+// getRepoDirContents lists a directory of the winget-pkgs repo via the GitHub contents
+// API, retrying transient failures.
+func (i *wingetIngester) getRepoDirContents(ctx context.Context, dirPath string) ([]*github.RepositoryContent, error) {
+	var contents []*github.RepositoryContent
+	err := retry.Do(func() error {
+		_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			dirPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			return err
+		}
+		contents = repoContents
+		return nil
+	}, fetchRetryOpts()...)
+	return contents, err
+}
+
+// getRawManifestFile fetches a manifest file from raw.githubusercontent.com instead of the
+// GitHub contents API: raw is CDN-backed and not subject to the gitmon scheduling limits
+// that throttle API access to hot repos like microsoft/winget-pkgs. Returns
+// errManifestNotFound if the file does not exist.
+func (i *wingetIngester) getRawManifestFile(ctx context.Context, filePath string) ([]byte, error) {
+	fileURL := fmt.Sprintf("%s/microsoft/winget-pkgs/master/%s", i.rawBaseURL, filePath)
+	var body []byte
+	err := retry.Do(func() error {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := i.httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		switch resp.StatusCode {
+		case http.StatusOK:
+			body, err = io.ReadAll(resp.Body)
+			return err
+		case http.StatusNotFound:
+			return errManifestNotFound
+		default:
+			// keep a snippet of the body so the reason (e.g. gitmon's message)
+			// survives into logs
+			snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+			return &transientHTTPError{status: resp.StatusCode, url: fileURL, body: strings.TrimSpace(string(snippet))}
+		}
+	}, fetchRetryOpts()...)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }
 
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
@@ -140,14 +265,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
 	)
 
-	_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
-		"microsoft",
-		"winget-pkgs",
-		dirPath,
-		i.ghClientOpts,
-	)
+	repoContents, err := i.getRepoDirContents(ctx, dirPath)
 	if err != nil {
-		return nil, fmt.Errorf("get data from winget repo: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "get data from winget repo")
 	}
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
@@ -179,43 +299,29 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
 		)
 
-		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			installerManifestPath,
-			i.ghClientOpts,
-		)
+		installerContents, err := i.getRawManifestFile(ctx, installerManifestPath)
 		if err != nil {
-			i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
-			continue
+			// Only a missing manifest means "wrong directory depth, try the next
+			// candidate". Transient fetch errors must fail the run instead: silently
+			// skipping to an older version dir would ingest a downgrade.
+			if errors.Is(err, errManifestNotFound) {
+				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName)
+				continue
+			}
+			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
 		}
 
-		contents, err := fileContents.GetContent()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
-		}
-
-		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
+		if err := yaml.Unmarshal(installerContents, &m); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
 		}
 
 		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			localeManifestPath,
-			i.ghClientOpts,
-		)
+		localeContents, err := i.getRawManifestFile(ctx, localeManifestPath)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
 		}
 
-		contents, err = fileContents.GetContent()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
-		}
-
-		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
+		if err := yaml.Unmarshal(localeContents, &l); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
 		}
 
