@@ -259,8 +259,10 @@ sequenceDiagram
         fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed
         fleetd->>snapd: Detect snapd-managed FDE (LUKS2 tokens)
-        fleetd->>snapd: Create Fleet-owned recovery key (fleet-escrow slot)
-        snapd->>fleetd: Return recovery key
+        fleetd->>snapd: generate-recovery-key
+        snapd->>fleetd: Return recovery key + transient key id
+        fleetd->>snapd: add-recovery-key (enroll under fleet-escrow slot)
+        fleetd->>snapd: check-recovery-key (validate before escrow)
         fleetd->>fleet: Encrypt and send recovery key<br>(key_type: recovery_key, no salt/key slot)
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
 ```
