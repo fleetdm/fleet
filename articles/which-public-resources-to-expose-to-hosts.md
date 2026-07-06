@@ -18,7 +18,7 @@ If you manage macOS, iOS, or iPadOS hosts, those hosts need direct access to App
 Apple maintains the [definitive, current list](https://support.apple.com/en-us/101555). At minimum, allow:
 
 - `*.push.apple.com`: Apple Push Notification service (APNs). Fleet uses this to deliver MDM commands to hosts.
-- `deviceenrollment.apple.com`, `mdmenrollment.apple.com`, and `iprofiles.apple.com`: Deliver enrollment profiles during Automated Device Enrollment.
+- `deviceenrollment.apple.com`, `mdmenrollment.apple.com`, `iprofiles.apple.com`, and `albert.apple.com`: Deliver enrollment profiles during Automated Device Enrollment.
 - `gdmf.apple.com` and `identity.apple.com`: Device management catalog lookups and APNs certificate requests.
 - `vpp.itunes.apple.com`: Assigning and revoking Apps and Books licenses.
 - The hosts listed under "Device setup" and "Software updates" in [Apple's list](https://support.apple.com/en-us/101555), if you use Fleet to enforce OS updates.
