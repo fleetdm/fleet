@@ -51,6 +51,12 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
+	// SimulateSCEPRenewal, when true, makes the device omit the new-enrollment Subject OU from its SCEP
+	// CSR even if the fetched profile carries one. Real SCEP renewals re-key from a pushed renewal
+	// profile (which never carries the marker), so tests set this to exercise renewal (rather than
+	// fresh-enrollment) checkin behavior while still replaying the full re-enroll flow.
+	SimulateSCEPRenewal bool
+
 	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
 	// is done
 	UserUUID string
@@ -199,10 +205,11 @@ type AppleEnrollInfo struct {
 	// config.mdm.apple_require_hardware_attestation is true.
 	ACMEURL string
 
-	// SCEPSubjectOUs holds the Organizational Unit values from the enrollment profile's SCEP/ACME
-	// Subject. Fleet marks new-enrollment (non-renewal) profiles with a distinguishing OU; the
-	// simulated device includes these in its CSR so the issued identity cert carries them, mirroring a
-	// real device. This lets tests exercise the fresh-enrollment-vs-SCEP-renewal checkin logic.
+	// SCEPSubjectOUs holds the Organizational Unit values parsed from the enrollment profile's SCEP or
+	// ACME payload Subject (SCEP covers account-driven enrollments too, which use a SCEP payload). Fleet
+	// marks new-enrollment (non-renewal) profiles with a distinguishing OU; the device includes these in
+	// its CSR (doSCEP for SCEP, ACMEEnroll for ACME) so the issued identity cert carries them, mirroring
+	// a real device. This lets tests exercise the fresh-enrollment-vs-SCEP-renewal checkin logic.
 	SCEPSubjectOUs []string
 
 	// RawProfile contains the raw bytes of the enrollment profile. This is useful for tests that
@@ -763,6 +770,15 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 	return nil
 }
 
+// enrollmentSubjectOUs returns the Subject OUs to place in the device's CSR (SCEP or ACME). It honors
+// SimulateSCEPRenewal by omitting them, since a renewal profile carries no new-enrollment marker OU.
+func (c *TestAppleMDMClient) enrollmentSubjectOUs() []string {
+	if c.SimulateSCEPRenewal {
+		return nil
+	}
+	return c.EnrollInfo.SCEPSubjectOUs
+}
+
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	var logger *slog.Logger
 	if c.debug {
@@ -776,7 +792,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 		Subject: pkix.Name{
 			CommonName:         cn,
 			Organization:       []string{"fleet-organization"},
-			OrganizationalUnit: c.EnrollInfo.SCEPSubjectOUs,
+			OrganizationalUnit: c.enrollmentSubjectOUs(),
 		},
 		Challenge: challenge,
 	}, logger)
@@ -858,7 +874,7 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
 	}
 
-	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber)
+	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber, c.enrollmentSubjectOUs()...)
 	if err != nil {
 		return fmt.Errorf("generate CSR DER: %w", err)
 	}
@@ -1472,6 +1488,7 @@ func parseACMEEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[s
 
 	// TODO: Directory URL or just base URL with identifier
 	enrollInfo.ACMEURL = directoryURL
+	enrollInfo.SCEPSubjectOUs = extractSubjectOUs(payloadContent["Subject"])
 	return &enrollInfo, nil
 }
 

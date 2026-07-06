@@ -1126,7 +1126,15 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// devices renew their SCEP cert by re-enrolling.
+	// Devices renew their SCEP cert by re-enrolling. A genuine renewal re-keys from a pushed renewal
+	// profile, which (unlike a freshly-fetched enrollment profile) carries no new-enrollment Subject OU;
+	// SimulateSCEPRenewal replays the full re-enroll flow but omits that marker so the checkin is treated
+	// as a renewal rather than a fresh enrollment.
+	for _, d := range []*mdmtest.TestAppleMDMClient{
+		manualEnrolledDevice, automaticEnrolledDevice, automaticEnrolledDeviceWithRef, migratedDevice, iPhoneMdmDevice,
+	} {
+		d.SimulateSCEPRenewal = true
+	}
 	require.NoError(t, manualEnrolledDevice.Reenroll())
 	require.NoError(t, automaticEnrolledDevice.Reenroll())
 	require.NoError(t, automaticEnrolledDeviceWithRef.Reenroll())
@@ -1714,5 +1722,82 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		// The renewal is short-circuited: refs cleared, but NO new mdm_enrolled activity.
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after a renewal checkin")
 		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "a genuine renewal must not emit a new mdm_enrolled activity")
+	})
+
+	t.Run("ACME hardware-attested: renewal short-circuits, fresh re-enroll is treated as fresh", func(t *testing.T) {
+		// ACME enrollment requires an Apple Silicon Mac (macOS 14+), a DEP assignment, and
+		// apple_require_hardware_attestation enabled. The marker OU rides the ACME cert the same way it
+		// rides a SCEP cert (Fleet's ACME signer is the same depot signer).
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
+			return err
+		})
+		t.Cleanup(func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
+				return err
+			})
+		})
+
+		s.enableABM(t.Name())
+		devices := []godep.Device{{SerialNumber: uuid.New().String(), Model: "MacBookPro17,1", OS: "osx", OpType: "added"}}
+		s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encoder := json.NewEncoder(w)
+			// Use assert (not require) inside the handler: it runs on a separate goroutine, where
+			// require's FailNow is unsafe.
+			switch r.URL.Path {
+			case "/session":
+				assert.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "xyz"}))
+			case "/profile":
+				assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()}))
+			case "/server/devices":
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices}))
+			case "/devices/sync":
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"}))
+			case "/profile/devices":
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err)
+				var prof profileAssignmentReq
+				assert.NoError(t, json.Unmarshal(b, &prof))
+				resp := godep.ProfileResponse{ProfileUUID: prof.ProfileUUID, Devices: make(map[string]string, len(prof.Devices))}
+				for _, d := range prof.Devices {
+					resp.Devices[d] = string(fleet.DEPAssignProfileResponseSuccess)
+				}
+				assert.NoError(t, encoder.Encode(resp))
+			default:
+				_, _ = w.Write([]byte(`{}`))
+			}
+		}))
+		s.runDEPSchedule()
+
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		dev := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, mdmtest.WithACMECerts(s.acmeCertCA, s.acmeCertKey))
+		dev.SerialNumber = devices[0].SerialNumber
+		dev.Model = devices[0].Model
+		dev.OSVersion = "14.0"
+		require.NoError(t, dev.Enroll())
+
+		// Sanity: the device enrolled via ACME and its fresh profile carried the marker OU.
+		require.NotEmpty(t, dev.EnrollInfo.ACMEURL, "device should have enrolled via ACME")
+		require.Contains(t, dev.EnrollInfo.SCEPSubjectOUs, apple_mdm.FleetEnrollmentSubjectOU)
+
+		host, err := s.ds.HostByIdentifier(ctx, dev.SerialNumber)
+		require.NoError(t, err)
+		firstEnrollID := lastEnrolledActivityID()
+
+		// Genuine ACME renewal (re-keyed cert without the marker OU) short-circuits: no new mdm_enrolled.
+		forcePendingRenewal(host.UUID)
+		dev.SimulateSCEPRenewal = true
+		require.NoError(t, dev.Reenroll())
+		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after an ACME renewal checkin")
+		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "an ACME renewal must not emit a new mdm_enrolled activity")
+
+		// Fresh ACME re-enroll while a renewal is pending is treated as fresh: refs cleared + new mdm_enrolled.
+		forcePendingRenewal(host.UUID)
+		dev.SimulateSCEPRenewal = false
+		require.NoError(t, dev.Reenroll())
+		require.False(t, renewalPending(host.UUID), "renew refs should be cleared for a fresh ACME re-enrollment")
+		require.Greater(t, lastEnrolledActivityID(), firstEnrollID, "a fresh ACME re-enrollment must emit a new mdm_enrolled activity")
 	})
 }
