@@ -171,7 +171,7 @@ func (c *snapdClient) requestAsync(ctx context.Context, method, path string, bod
 // success or an error if the change failed, the caller's context is cancelled,
 // or snapdChangeMaxWait elapses without the change reaching Ready.
 func (c *snapdClient) waitChange(ctx context.Context, changeID string) (json.RawMessage, error) {
-	ctx, cancel := context.WithTimeout(ctx, snapdChangeMaxWait)
+	waitCtx, cancel := context.WithTimeout(ctx, snapdChangeMaxWait)
 	defer cancel()
 
 	ticker := time.NewTicker(snapdChangePollInterval)
@@ -180,7 +180,7 @@ func (c *snapdClient) waitChange(ctx context.Context, changeID string) (json.Raw
 	log.Debug().Str("change", changeID).Dur("max_wait", snapdChangeMaxWait).Msg("waiting for snapd change to complete")
 	for {
 		var change snapdChange
-		if err := c.requestSync(ctx, http.MethodGet, "/v2/changes/"+changeID, nil, &change); err != nil {
+		if err := c.requestSync(waitCtx, http.MethodGet, "/v2/changes/"+changeID, nil, &change); err != nil {
 			return nil, fmt.Errorf("polling snapd change %s: %w", changeID, err)
 		}
 		log.Debug().Str("change", changeID).Str("status", change.Status).Bool("ready", change.Ready).Msg("polled snapd change")
@@ -196,7 +196,12 @@ func (c *snapdClient) waitChange(ctx context.Context, changeID string) (json.Raw
 		}
 
 		select {
-		case <-ctx.Done():
+		case <-waitCtx.Done():
+			// Distinguish our poll deadline from a caller-initiated
+			// cancellation so operators can tell which one fired.
+			if ctx.Err() == nil {
+				return nil, fmt.Errorf("timed out after %s waiting for snapd change %s", snapdChangeMaxWait, changeID)
+			}
 			return nil, ctx.Err()
 		case <-ticker.C:
 		}
