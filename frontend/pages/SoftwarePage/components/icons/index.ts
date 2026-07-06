@@ -980,6 +980,7 @@ import WhatsApp from "./WhatsApp";
 import Whisky from "./Whisky";
 import Whispering from "./Whispering";
 import Wifiman from "./Wifiman";
+import Windirstat from "./Windirstat";
 import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
@@ -2030,6 +2031,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
