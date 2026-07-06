@@ -275,16 +275,27 @@ func (i *wingetIngester) getAPIManifestFile(ctx context.Context, filePath string
 // falling back to the contents API when raw is being throttled. The two endpoints are
 // rate-limited independently (raw per IP, the API per token + gitmon's per-repo
 // scheduling), so one being throttled doesn't imply the other is.
+//
+// A raw 404 is also confirmed via the contents API: raw is CDN-backed and can serve a
+// stale or spurious 404, and callers treat a missing installer manifest as "try the next
+// (older) version directory" — trusting a bad 404 would silently walk the ingester
+// backwards to an older version.
 func (i *wingetIngester) getManifestFile(ctx context.Context, filePath string) ([]byte, error) {
 	if i.consecutiveRawFailures < rawFailureThreshold {
 		contents, err := i.getRawManifestFile(ctx, filePath)
-		if err == nil || errors.Is(err, errManifestNotFound) {
+		switch {
+		case err == nil:
 			i.consecutiveRawFailures = 0
-			return contents, err
+			return contents, nil
+		case errors.Is(err, errManifestNotFound):
+			// raw responded (not throttled), but only the contents API is
+			// authoritative for non-existence
+			i.consecutiveRawFailures = 0
+		default:
+			i.consecutiveRawFailures++
+			i.logger.WarnContext(ctx, "raw manifest fetch failed, falling back to contents API",
+				"path", filePath, "consecutive_failures", i.consecutiveRawFailures, "err", err)
 		}
-		i.consecutiveRawFailures++
-		i.logger.WarnContext(ctx, "raw manifest fetch failed, falling back to contents API",
-			"path", filePath, "consecutive_failures", i.consecutiveRawFailures, "err", err)
 	}
 	return i.getAPIManifestFile(ctx, filePath)
 }

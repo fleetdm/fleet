@@ -739,3 +739,59 @@ func TestGetManifestFileFallback(t *testing.T) {
 		require.Equal(t, rawFailureThreshold+2, apiAttempts)
 	})
 }
+
+func TestGetManifestFileConfirms404WithAPI(t *testing.T) {
+	origInterval := fetchRetryInterval
+	fetchRetryInterval = time.Millisecond
+	t.Cleanup(func() { fetchRetryInterval = origInterval })
+
+	newIngester := func(apiHandler http.HandlerFunc) (*wingetIngester, *int) {
+		var rawAttempts int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/repos/") {
+				apiHandler(w, r)
+				return
+			}
+			rawAttempts++
+			w.WriteHeader(http.StatusNotFound) // raw CDN serves a (possibly stale) 404
+		}))
+		t.Cleanup(srv.Close)
+
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
+		require.NoError(t, err)
+		gc.BaseURL = u
+
+		return &wingetIngester{
+			logger:       slog.New(slog.DiscardHandler),
+			githubClient: gc,
+			httpClient:   srv.Client(),
+			rawBaseURL:   srv.URL,
+		}, &rawAttempts
+	}
+
+	t.Run("spurious raw 404 is overridden by the API", func(t *testing.T) {
+		i, rawAttempts := newIngester(func(w http.ResponseWriter, r *http.Request) {
+			str := "PackageVersion: 2.0"
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			assert.NoError(t, json.NewEncoder(w).Encode(content))
+		})
+
+		contents, err := i.getManifestFile(t.Context(), "manifests/f/Foo/2.0/Foo.installer.yaml")
+		require.NoError(t, err)
+		require.Equal(t, "PackageVersion: 2.0", string(contents))
+		require.Equal(t, 1, *rawAttempts) // 404 is not retried against raw
+		// a raw 404 is not a raw availability failure; the circuit stays closed
+		require.Equal(t, 0, i.consecutiveRawFailures)
+	})
+
+	t.Run("404 from both raw and API is genuine", func(t *testing.T) {
+		i, _ := newIngester(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message": "Not Found"}`))
+		})
+
+		_, err := i.getManifestFile(t.Context(), "manifests/f/Foo/2.0/Foo.installer.yaml")
+		require.ErrorIs(t, err, errManifestNotFound)
+	})
+}
