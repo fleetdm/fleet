@@ -152,59 +152,59 @@ func TestResolveHostNameTemplate(t *testing.T) {
 	}
 }
 
-func TestTeamNameTemplateRoundTrip(t *testing.T) {
+func TestTeamHostNameTemplateRoundTrip(t *testing.T) {
 	t.Run("TeamMDM", func(t *testing.T) {
-		in := TeamMDM{NameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+		in := TeamMDM{HostNameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
 		b, err := json.Marshal(in)
 		require.NoError(t, err)
 		require.Contains(t, string(b), `"name_template":"$FLEET_VAR_HOST_HARDWARE_SERIAL"`)
 
 		var out TeamMDM
 		require.NoError(t, json.Unmarshal(b, &out))
-		require.Equal(t, in.NameTemplate, out.NameTemplate)
+		require.Equal(t, in.HostNameTemplate, out.HostNameTemplate)
 	})
 
 	t.Run("TeamSpecMDM", func(t *testing.T) {
-		in := TeamSpecMDM{NameTemplate: optjson.SetString("$FLEET_VAR_HOST_UUID")}
+		in := TeamSpecMDM{HostNameTemplate: optjson.SetString("$FLEET_VAR_HOST_UUID")}
 		b, err := json.Marshal(in)
 		require.NoError(t, err)
 		require.Contains(t, string(b), `"name_template":"$FLEET_VAR_HOST_UUID"`)
 
 		var out TeamSpecMDM
 		require.NoError(t, json.Unmarshal(b, &out))
-		require.True(t, out.NameTemplate.Set)
-		require.True(t, out.NameTemplate.Valid)
-		require.Equal(t, "$FLEET_VAR_HOST_UUID", out.NameTemplate.Value)
+		require.True(t, out.HostNameTemplate.Set)
+		require.True(t, out.HostNameTemplate.Valid)
+		require.Equal(t, "$FLEET_VAR_HOST_UUID", out.HostNameTemplate.Value)
 	})
 
 	t.Run("TeamSpecMDM absent", func(t *testing.T) {
 		var out TeamSpecMDM
 		require.NoError(t, json.Unmarshal([]byte(`{}`), &out))
-		require.False(t, out.NameTemplate.Set)
+		require.False(t, out.HostNameTemplate.Set)
 	})
 
 	t.Run("TeamPayloadMDM", func(t *testing.T) {
-		in := TeamPayloadMDM{NameTemplate: optjson.SetString("$FLEET_VAR_HOST_PLATFORM")}
+		in := TeamPayloadMDM{HostNameTemplate: optjson.SetString("$FLEET_VAR_HOST_PLATFORM")}
 		b, err := json.Marshal(in)
 		require.NoError(t, err)
 		require.Contains(t, string(b), `"name_template":"$FLEET_VAR_HOST_PLATFORM"`)
 
 		var out TeamPayloadMDM
 		require.NoError(t, json.Unmarshal(b, &out))
-		require.True(t, out.NameTemplate.Set)
-		require.Equal(t, "$FLEET_VAR_HOST_PLATFORM", out.NameTemplate.Value)
+		require.True(t, out.HostNameTemplate.Set)
+		require.Equal(t, "$FLEET_VAR_HOST_PLATFORM", out.HostNameTemplate.Value)
 	})
 
 	t.Run("TeamConfig storage round-trip", func(t *testing.T) {
 		// name_template rides in the teams.config JSON blob (no dedicated
 		// column), so verify it survives the actual SQL Value()/Scan() boundary.
-		in := TeamConfig{MDM: TeamMDM{NameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}
+		in := TeamConfig{MDM: TeamMDM{HostNameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}
 		val, err := in.Value()
 		require.NoError(t, err)
 
 		var out TeamConfig
 		require.NoError(t, out.Scan(val))
-		require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", out.MDM.NameTemplate)
+		require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", out.MDM.HostNameTemplate)
 	})
 }
 
@@ -214,9 +214,9 @@ func TestActivityTypeEditedHostNameTemplate(t *testing.T) {
 	t.Run("marshal with template", func(t *testing.T) {
 		tmpl := "$FLEET_VAR_HOST_HARDWARE_SERIAL"
 		b, err := json.Marshal(ActivityTypeEditedHostNameTemplate{
-			FleetID:      new(uint(1)),
-			FleetName:    new("Workstations"),
-			NameTemplate: &tmpl,
+			FleetID:          new(uint(1)),
+			FleetName:        new("Workstations"),
+			HostNameTemplate: &tmpl,
 		})
 		require.NoError(t, err)
 		require.JSONEq(t, `{

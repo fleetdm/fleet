@@ -2274,6 +2274,46 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 	return nil
 }
 
+func (svc *Service) updateTeamMDMHostNameTemplate(ctx context.Context, tm *fleet.Team, nameTemplate string) error {
+	if tm.Config.MDM.HostNameTemplate == nameTemplate {
+		return nil
+	}
+
+	tm.Config.MDM.HostNameTemplate = nameTemplate
+	if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+		return err
+	}
+
+	return svc.applyHostNameTemplateChange(ctx, tm.ID, tm.Name, nameTemplate)
+}
+
+func (svc *Service) applyHostNameTemplateChange(ctx context.Context, fleetID uint, fleetName, nameTemplate string) error {
+	if nameTemplate == "" {
+		if err := svc.ds.DeleteHostDeviceNameEnforcementForTeam(ctx, fleetID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host name enforcement for team")
+		}
+	} else if err := svc.ds.BulkUpsertHostDeviceNameEnforcement(ctx, fleetID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue host name enforcement for team")
+	}
+
+	var tmpl *string
+	if nameTemplate != "" {
+		tmpl = &nameTemplate
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedHostNameTemplate{
+			FleetID:          &fleetID,
+			FleetName:        &fleetName,
+			HostNameTemplate: tmpl,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for team host name template")
+	}
+	return nil
+}
+
 func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSetupPayload) error {
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
