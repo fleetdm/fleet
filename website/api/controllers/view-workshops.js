@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View gitops workshop',
+  friendlyName: 'View workshops',
 
 
-  description: 'Display "Gitops workshop" page.',
+  description: 'Display "Workshops" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/gitops-workshop'
+      viewTemplatePath: 'pages/workshops'
     }
 
   },
