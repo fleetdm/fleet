@@ -9,9 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strings"
 	"testing"
-	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -472,8 +470,6 @@ func TestIngestValidations(t *testing.T) {
 			i := wingetIngester{
 				logger:       slog.New(slog.DiscardHandler),
 				githubClient: gc,
-				httpClient:   srv.Client(),
-				rawBaseURL:   srv.URL,
 			}
 
 			out, err := i.ingestOne(ctx, c.inputApp)
@@ -510,7 +506,7 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			}}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
-		case "/microsoft/winget-pkgs/master/manifests/f/Foo/1.0/Foo.installer.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
 				InstallerType:  cfg.installerType,
@@ -530,20 +526,30 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			}
 
 			bytes, err := yaml.Marshal(manifest)
-			assert.NoError(t, err)
-			_, err = w.Write(bytes)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
-		case "/microsoft/winget-pkgs/master/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			str := string(bytes)
+			content := &github.RepositoryContent{
+				Name:    ptr.String("Foo"),
+				Content: &str,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
 			lManifest := localeManifest{
 				PackageName: "foo",
 				Publisher:   "Bar, Inc.",
 			}
 
 			bytes, err := yaml.Marshal(lManifest)
-			assert.NoError(t, err)
-			_, err = w.Write(bytes)
-			assert.NoError(t, err)
+			require.NoError(t, err)
+
+			str := string(bytes)
+			content := &github.RepositoryContent{
+				Name:    ptr.String("Foo"),
+				Content: &str,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
 
 		default:
 			w.WriteHeader(http.StatusBadRequest)
@@ -552,246 +558,96 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 	}))
 }
 
-func TestGetRawManifestFileRetries(t *testing.T) {
-	origInterval := fetchRetryInterval
-	fetchRetryInterval = time.Millisecond
-	t.Cleanup(func() { fetchRetryInterval = origInterval })
-
-	t.Run("retries transient 429s until success", func(t *testing.T) {
-		var attempts int
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			attempts++
-			if attempts < 3 {
-				w.WriteHeader(http.StatusTooManyRequests)
+// newTwoVersionServer serves a package with version dirs 2.0 and 1.0. The status of the
+// 2.0 installer manifest response is configurable to exercise the 404-vs-429 distinction
+// in the version-dir walk.
+func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
 				return
 			}
-			_, err := w.Write([]byte("PackageVersion: 1.0"))
-			assert.NoError(t, err)
-		}))
-		t.Cleanup(srv.Close)
-
-		i := wingetIngester{
-			logger:     slog.New(slog.DiscardHandler),
-			httpClient: srv.Client(),
-			rawBaseURL: srv.URL,
-		}
-
-		contents, err := i.getRawManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
-		require.NoError(t, err)
-		require.Equal(t, "PackageVersion: 1.0", string(contents))
-		require.Equal(t, 3, attempts)
-	})
-
-	t.Run("gives up after max attempts", func(t *testing.T) {
-		var attempts int
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			attempts++
-			w.WriteHeader(http.StatusTooManyRequests)
-		}))
-		t.Cleanup(srv.Close)
-
-		i := wingetIngester{
-			logger:     slog.New(slog.DiscardHandler),
-			httpClient: srv.Client(),
-			rawBaseURL: srv.URL,
-		}
-
-		_, err := i.getRawManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
-		require.ErrorContains(t, err, "unexpected status 429")
-		require.Equal(t, 4, attempts)
-	})
-
-	t.Run("404 returns errManifestNotFound without retrying", func(t *testing.T) {
-		var attempts int
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			attempts++
-			w.WriteHeader(http.StatusNotFound)
-		}))
-		t.Cleanup(srv.Close)
-
-		i := wingetIngester{
-			logger:     slog.New(slog.DiscardHandler),
-			httpClient: srv.Client(),
-			rawBaseURL: srv.URL,
-		}
-
-		_, err := i.getRawManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
-		require.ErrorIs(t, err, errManifestNotFound)
-		require.Equal(t, 1, attempts)
-	})
-}
-
-func TestGetRepoDirContentsRetries(t *testing.T) {
-	origInterval := fetchRetryInterval
-	fetchRetryInterval = time.Millisecond
-	t.Cleanup(func() { fetchRetryInterval = origInterval })
-
-	newIngester := func(handler http.HandlerFunc) wingetIngester {
-		srv := httptest.NewServer(handler)
-		t.Cleanup(srv.Close)
-
-		gc := github.NewClient(srv.Client())
-		u, err := url.Parse(srv.URL + "/")
-		require.NoError(t, err)
-		gc.BaseURL = u
-
-		return wingetIngester{
-			logger:       slog.New(slog.DiscardHandler),
-			githubClient: gc,
-		}
-	}
-
-	t.Run("retries transient 429s until success", func(t *testing.T) {
-		var attempts int
-		i := newIngester(func(w http.ResponseWriter, r *http.Request) {
-			attempts++
-			if attempts < 3 {
-				w.WriteHeader(http.StatusTooManyRequests)
-				_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
-				return
-			}
-			content := []github.RepositoryContent{{
-				Name: new("1.0"),
-				Type: new("dir"),
-			}}
-			assert.NoError(t, json.NewEncoder(w).Encode(content))
-		})
-
-		contents, err := i.getRepoDirContents(t.Context(), "manifests/f/Foo")
-		require.NoError(t, err)
-		require.Len(t, contents, 1)
-		require.Equal(t, "1.0", contents[0].GetName())
-		require.Equal(t, 3, attempts)
-	})
-
-	t.Run("404 fails without retrying", func(t *testing.T) {
-		var attempts int
-		i := newIngester(func(w http.ResponseWriter, r *http.Request) {
-			attempts++
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"message": "Not Found"}`))
-		})
-
-		_, err := i.getRepoDirContents(t.Context(), "manifests/f/Foo")
-		require.Error(t, err)
-		require.Equal(t, 1, attempts)
-	})
-}
-
-func TestGetManifestFileFallback(t *testing.T) {
-	origInterval := fetchRetryInterval
-	fetchRetryInterval = time.Millisecond
-	t.Cleanup(func() { fetchRetryInterval = origInterval })
-
-	// Server that always 429s raw-style paths but serves the contents API path.
-	newIngester := func(rawAttempts, apiAttempts *int) *wingetIngester {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/repos/") {
-				*apiAttempts++
-				str := "PackageVersion: 1.0"
-				content := &github.RepositoryContent{
-					Name:    new("Foo"),
-					Content: &str,
-				}
-				assert.NoError(t, json.NewEncoder(w).Encode(content))
-				return
-			}
-			*rawAttempts++
-			w.WriteHeader(http.StatusTooManyRequests)
-		}))
-		t.Cleanup(srv.Close)
-
-		gc := github.NewClient(srv.Client())
-		u, err := url.Parse(srv.URL + "/")
-		require.NoError(t, err)
-		gc.BaseURL = u
-
-		return &wingetIngester{
-			logger:       slog.New(slog.DiscardHandler),
-			githubClient: gc,
-			httpClient:   srv.Client(),
-			rawBaseURL:   srv.URL,
-		}
-	}
-
-	t.Run("falls back to contents API when raw is throttled", func(t *testing.T) {
-		var rawAttempts, apiAttempts int
-		i := newIngester(&rawAttempts, &apiAttempts)
-
-		contents, err := i.getManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
-		require.NoError(t, err)
-		require.Equal(t, "PackageVersion: 1.0", string(contents))
-		require.Equal(t, 4, rawAttempts) // exhausted raw retries first
-		require.Equal(t, 1, apiAttempts)
-	})
-
-	t.Run("skips raw entirely after consecutive failures", func(t *testing.T) {
-		var rawAttempts, apiAttempts int
-		i := newIngester(&rawAttempts, &apiAttempts)
-
-		for range rawFailureThreshold + 2 {
-			_, err := i.getManifestFile(t.Context(), "manifests/f/Foo/1.0/Foo.installer.yaml")
-			require.NoError(t, err)
-		}
-		// raw tried only for the first rawFailureThreshold fetches (4 retry attempts each),
-		// then the circuit opens and everything goes straight to the API
-		require.Equal(t, rawFailureThreshold*4, rawAttempts)
-		require.Equal(t, rawFailureThreshold+2, apiAttempts)
-	})
-}
-
-func TestGetManifestFileConfirms404WithAPI(t *testing.T) {
-	origInterval := fetchRetryInterval
-	fetchRetryInterval = time.Millisecond
-	t.Cleanup(func() { fetchRetryInterval = origInterval })
-
-	newIngester := func(apiHandler http.HandlerFunc) (*wingetIngester, *int) {
-		var rawAttempts int
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/repos/") {
-				apiHandler(w, r)
-				return
-			}
-			rawAttempts++
-			w.WriteHeader(http.StatusNotFound) // raw CDN serves a (possibly stale) 404
-		}))
-		t.Cleanup(srv.Close)
-
-		gc := github.NewClient(srv.Client())
-		u, err := url.Parse(srv.URL + "/")
-		require.NoError(t, err)
-		gc.BaseURL = u
-
-		return &wingetIngester{
-			logger:       slog.New(slog.DiscardHandler),
-			githubClient: gc,
-			httpClient:   srv.Client(),
-			rawBaseURL:   srv.URL,
-		}, &rawAttempts
-	}
-
-	t.Run("spurious raw 404 is overridden by the API", func(t *testing.T) {
-		i, rawAttempts := newIngester(func(w http.ResponseWriter, r *http.Request) {
-			str := "PackageVersion: 2.0"
+			str := string(bytes)
 			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
-			assert.NoError(t, json.NewEncoder(w).Encode(content))
-		})
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+		manifest := installerManifest{
+			ProductCode:    "{ABCDEF}",
+			InstallerType:  "msi",
+			Scope:          "machine",
+			PackageVersion: "1.0",
+			Installers: []installer{
+				{Architecture: "x64", InstallerType: "msi", ProductCode: "{ABCDEF}", Scope: "machine"},
+			},
+		}
 
-		contents, err := i.getManifestFile(t.Context(), "manifests/f/Foo/2.0/Foo.installer.yaml")
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{
+				{Name: new("2.0"), Type: new("dir")},
+				{Name: new("1.0"), Type: new("dir")},
+			}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/2.0/Foo.installer.yaml":
+			w.WriteHeader(latestInstallerStatus)
+			_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(manifest)
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
+func TestIngestOneVersionWalk(t *testing.T) {
+	ctx := context.Background()
+	input := inputApp{
+		Name:              "Foo",
+		UniqueIdentifier:  "Foo",
+		PackageIdentifier: "Foo",
+		Slug:              "foo/windows",
+		InstallerArch:     "x64",
+		InstallerType:     "msi",
+		InstallerScope:    "machine",
+	}
+
+	newIngester := func(srv *httptest.Server) *wingetIngester {
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
 		require.NoError(t, err)
-		require.Equal(t, "PackageVersion: 2.0", string(contents))
-		require.Equal(t, 1, *rawAttempts) // 404 is not retried against raw
-		// a raw 404 is not a raw availability failure; the circuit stays closed
-		require.Equal(t, 0, i.consecutiveRawFailures)
+		gc.BaseURL = u
+		return &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+	}
+
+	t.Run("404 on the latest version dir falls through to the next", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusNotFound)
+		t.Cleanup(srv.Close)
+
+		out, err := newIngester(srv).ingestOne(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
 	})
 
-	t.Run("404 from both raw and API is genuine", func(t *testing.T) {
-		i, _ := newIngester(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"message": "Not Found"}`))
-		})
+	t.Run("429 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusTooManyRequests)
+		t.Cleanup(srv.Close)
 
-		_, err := i.getManifestFile(t.Context(), "manifests/f/Foo/2.0/Foo.installer.yaml")
-		require.ErrorIs(t, err, errManifestNotFound)
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "429")
+		require.True(t, isRateLimited(err), "the caller must recognize this error and skip the app")
 	})
 }

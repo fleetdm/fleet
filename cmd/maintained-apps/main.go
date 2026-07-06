@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 )
 
 func main() {
@@ -102,21 +101,6 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		return ctxerr.Wrap(ctx, err, "checking if output json file exists")
 	}
 
-	// Never move an app's tracked version backwards: upstream data hiccups (stale CDN
-	// reads, removed version dirs, throttling-induced fallbacks) must not produce
-	// downgrade PRs. Skipping the write keeps the newer published version.
-	if outFileExists && !app.Frozen {
-		if err := checkNoVersionRegression(ctx, outFilePath, app); err != nil {
-			fmt.Fprintf(
-				os.Stderr,
-				"maintained-apps: fatal error processing %s: %v\n",
-				app.Slug,
-				err,
-			)
-			return err
-		}
-	}
-
 	// Overwrite the file unless frozen, since right now we're only caring about 1 version (latest). If we
 	// care about previous data, it will be in our Git history.
 	if !app.Frozen || !outFileExists {
@@ -125,33 +109,6 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		}
 	}
 
-	return nil
-}
-
-// checkNoVersionRegression compares the ingested app version against the version already
-// published in the app's output manifest and errors if it would move backwards.
-func checkNoVersionRegression(ctx context.Context, outFilePath string, app *maintained_apps.FMAManifestApp) error {
-	existingBytes, err := os.ReadFile(outFilePath)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading existing output manifest")
-	}
-	var existing maintained_apps.FMAManifestFile
-	if err := json.Unmarshal(existingBytes, &existing); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshaling existing output manifest")
-	}
-	if len(existing.Versions) == 0 || existing.Versions[0] == nil {
-		return nil
-	}
-	existingVersion := existing.Versions[0].Version
-	if existingVersion == "" || app.Version == "" {
-		return nil
-	}
-	if feednvd.SmartVerCmp(app.Version, existingVersion) < 0 {
-		return ctxerr.New(ctx, fmt.Sprintf(
-			"version regression for %s: output manifest has %s but ingested %s; refusing to move backwards (if the downgrade is intentional, delete %s and re-run)",
-			app.Slug, existingVersion, app.Version, outFilePath,
-		))
-	}
 	return nil
 }
 
