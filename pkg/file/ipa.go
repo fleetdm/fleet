@@ -29,7 +29,16 @@ func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		Name     string `plist:"CFBundleName"`
 		Version  string `plist:"CFBundleShortVersionString"`
 	}
+	var hasPayload bool
+
 	for _, f := range r.File {
+		if f.Name == "Payload/" {
+			// check if this is actually an .ipa file by looking for a "Payload/" directory
+			// https://en.wikipedia.org/wiki/.ipa#Structure_of_a_.ipa_file
+			hasPayload = true
+			continue
+		}
+
 		if strings.Contains(f.Name, "Info.plist") {
 			// Get data from plist file
 			archiveFile, err := f.Open()
@@ -49,6 +58,9 @@ func ExtractIPAMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		}
 	}
 
+	if !hasPayload {
+		return nil, ErrInvalidType
+	}
 	if plistData.BundleID == "" {
 		return nil, errors.New("couldn't find bundle identifier for in-house app")
 	}

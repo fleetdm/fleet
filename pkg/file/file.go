@@ -98,7 +98,8 @@ func typeFromBytes(br *bufio.Reader) (string, error) {
 	case hasPrefix(br, []byte{0x1f, 0x8b}):
 		return "tar.gz", nil
 	case hasPrefix(br, []byte{0x50, 0x4B, 0x03, 0x04}):
-		// TODO(JVE): we need to validate against the filename as well
+		// These magic bytes are the same for any file based on zip (ipa, msix, etc.) so additional
+		// data needs to be checked. For ipa we check for a "Payload/" directory.
 		return "ipa", nil
 	case hasPrefix(br, []byte("MZ")):
 		if blob, _ := br.Peek(0x3e); len(blob) == 0x3e {
