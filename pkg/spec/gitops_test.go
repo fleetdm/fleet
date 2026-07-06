@@ -2231,6 +2231,23 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 		assert.True(t, second.InstallDuringSetup.Valid && second.InstallDuringSetup.Value)
 	})
 
+	// self_service and categories set once at the fleet level apply to every package
+	// that omits them.
+	t.Run("fleet-level self_service and categories inherit to all packages", func(t *testing.T) {
+		gitops, err := setup(t,
+			"      self_service: true\n      categories: [\"Productivity\"]\n",
+			fmt.Sprintf(`- hash_sha256: %s
+- hash_sha256: %s
+`, hashA, hashB),
+		)
+		require.NoError(t, err)
+		require.Len(t, gitops.Software.Packages, 2)
+		for _, pkg := range gitops.Software.Packages {
+			assert.True(t, pkg.SelfService)
+			assert.Equal(t, []string{"Productivity"}, pkg.Categories.Value)
+		}
+	})
+
 	for _, tc := range []struct {
 		name        string
 		fleetLevel  string
@@ -2262,6 +2279,31 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 - hash_sha256: %s
 `, hashA, hashB),
 			wantErr: "Labels can be specified only in the package-level file when adding multiple packages",
+		},
+		{
+			name:       "categories in both fleet-level and package file",
+			fleetLevel: "      categories: [\"Productivity\"]\n",
+			packageFile: fmt.Sprintf(`- hash_sha256: %s
+  categories: ["Dev tools"]
+- hash_sha256: %s
+`, hashA, hashB),
+			wantErr: "self_service and categories can be specified either in the fleet-level file or in the package YAML file",
+		},
+		{
+			name:       "self_service in both, single package",
+			fleetLevel: "      self_service: true\n",
+			packageFile: fmt.Sprintf(`- hash_sha256: %s
+  self_service: true
+`, hashA),
+			wantErr: "self_service and categories can be specified either in the fleet-level file or in the package YAML file",
+		},
+		{
+			name:       "labels in both fleet-level and package file, single package",
+			fleetLevel: "      labels_include_all: [macOS]\n",
+			packageFile: fmt.Sprintf(`- hash_sha256: %s
+  labels_include_all: [Windows]
+`, hashA),
+			wantErr: "Labels can be specified either in the fleet-level file or in the package YAML file",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2311,6 +2353,20 @@ labels_include_all: [macOS]
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), hashA)
+		assert.NotContains(t, err.Error(), `("")`)
+	})
+
+	// When a package has neither url nor hash, it is identified by the package file path
+	// rather than an empty string (url/hash are required but validated later).
+	t.Run("conflict error falls back to the file path when url and hash are absent", func(t *testing.T) {
+		_, err := setup(t,
+			"      self_service: true\n",
+			fmt.Sprintf(`- self_service: true
+- hash_sha256: %s
+`, hashA),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "pkgs.yml")
 		assert.NotContains(t, err.Error(), `("")`)
 	})
 

@@ -2038,12 +2038,13 @@ func (c *MockClientMultiPackage) GetSoftwareTitleByID(id uint, teamID *uint) (*f
 			DisplayName: "Santa Security",
 			Packages: []fleet.SoftwareInstaller{
 				{
-					StorageID:        santaHashA,
-					URL:              "https://example.com/santa-2026.2.pkg",
-					Platform:         "darwin",
-					InstallScript:    "install A",
-					SelfService:      true,
-					LabelsIncludeAll: []fleet.SoftwareScopeLabel{{LabelName: "macOS"}},
+					StorageID:         santaHashA,
+					URL:               "https://example.com/santa-2026.2.pkg",
+					Platform:          "darwin",
+					InstallScript:     "install A",
+					PostInstallScript: "post A",
+					SelfService:       true,
+					LabelsIncludeAll:  []fleet.SoftwareScopeLabel{{LabelName: "macOS"}},
 				},
 				{
 					StorageID:        santaHashB,
@@ -2112,6 +2113,11 @@ func TestGenerateSoftwareMultiplePackages(t *testing.T) {
 	require.Equal(t, "install A", cmd.FilesToWrite[installA])
 	require.Equal(t, "install B", cmd.FilesToWrite[installB])
 	require.NotEqual(t, installA, installB)
+
+	// post_install_script is written per package as its own side file
+	postA := filepath.Join(pkgDir, list[0]["post_install_script"].(map[string]any)["path"].(string))
+	require.Equal(t, "post A", cmd.FilesToWrite[postA])
+	require.NotContains(t, list[1], "post_install_script")
 }
 
 func TestGeneratePolicies(t *testing.T) {
