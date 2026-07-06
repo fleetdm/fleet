@@ -1,0 +1,1 @@
+- query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'slack.exe');
