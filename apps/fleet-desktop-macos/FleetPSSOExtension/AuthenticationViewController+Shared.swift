@@ -84,14 +84,19 @@ extension AuthenticationViewController {
             jwksEndpointURL: pssoEndpointURL(base, "jwks"),
             audience: host)
         cfg.nonceEndpointURL = pssoEndpointURL(base, "nonce")
-        // Fleet dispatches key_request/key_exchange (the unlock-key flow) at the
+        // Fleet dispatches key_request/key_/exchange (the unlock-key flow) at the
         // token endpoint. The framework needs keyEndpointURL set explicitly to
         // engage that plumbing — leaving it unset relies on an undocumented
         // default.
         cfg.keyEndpointURL = pssoEndpointURL(base, "token")
+        // SSO token refresh and the key_request/key_exchange flow both use the
+        // jwt-bearer grant against this endpoint. Without refreshEndpointURL the
+        // framework can't refresh the session, so a credential change falls back
+        // to interactive re-auth instead of a seamless re-key.
+        cfg.refreshEndpointURL = pssoEndpointURL(base, "token")
         self.registrationEndpointURL = pssoEndpointURL(base, "registration")
         if let encryptionKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) {
-            cfg.loginRequestEncryptionPublicKey = encryptionKey
+            //cfg.loginRequestEncryptionPublicKey = encryptionKey
         }
         try mgr.saveLoginConfiguration(cfg)
     }

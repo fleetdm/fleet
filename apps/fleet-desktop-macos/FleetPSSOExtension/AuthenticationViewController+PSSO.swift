@@ -86,6 +86,8 @@ extension AuthenticationViewController:
     }
 
     func supportedGrantTypes() -> ASAuthorizationProviderExtensionSupportedGrantTypes {
-        .password
+        // .password authenticates the login; .jwtBearer is what the key_request /
+        // key_exchange and token-refresh flows use, so both must be advertised.
+        [.password, .jwtBearer]
     }
 }
