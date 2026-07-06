@@ -1,6 +1,8 @@
 .fleet-404 {
   &__illustration {
     width: 100%;
+    // The illustration's design width — keeps the artwork from scaling up past
+    // its intended size (and going blurry) on wide viewports.
     max-width: 774px;
     height: auto;
   }
