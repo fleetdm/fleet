@@ -1079,6 +1079,59 @@ func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// UserIdle sends an Idle message on the user channel. The user channel is keyed
+// off UDID + UserID, so UserID is what makes the server resolve this to the user-channel
+// enrollment rather than the device channel.
+func (c *TestAppleMDMClient) UserIdle() (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel idle")
+	}
+	payload := map[string]any{
+		"Status": "Idle",
+		"UDID":   c.UUID,
+		"UserID": c.UserUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// UserAcknowledge sends an Acknowledge message on the user channel.
+func (c *TestAppleMDMClient) UserAcknowledge(cmdUUID string) (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel acknowledge")
+	}
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        c.UUID,
+		"UserID":      c.UserUUID,
+		"CommandUUID": cmdUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// UserDeclarativeManagement sends a DeclarativeManagement checkin request on the
+// user channel. UserID makes the server serve the user-scoped declarations
+// (tokens, declaration-items, declaration content and status are all scoped to
+// the user channel).
+func (c *TestAppleMDMClient) UserDeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for user channel declarative management")
+	}
+	payload := map[string]any{
+		"MessageType": "DeclarativeManagement",
+		"UDID":        c.UUID,
+		"UserID":      c.UserUUID,
+		"Endpoint":    endpoint,
+	}
+	if len(data) != 0 {
+		rawData, err := json.Marshal(data[0])
+		if err != nil {
+			return nil, fmt.Errorf("marshaling status report: %w", err)
+		}
+		payload["Data"] = rawData
+	}
+	return c.request("application/x-apple-aspen-mdm-checkin", payload)
+}
+
 func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName, timeZone string) (*mdm.Command, error) {
 	return c.AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, "", "")
 }
