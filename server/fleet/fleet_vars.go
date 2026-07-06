@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	ServerVarPrefix = "FLEET_VAR_"
+	ServerVarPrefix       = "FLEET_VAR_"
 	CustomHostVitalPrefix = "FLEET_HOST_VITAL_"
 )
 
