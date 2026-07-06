@@ -304,9 +304,9 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 		}
 	}
 
-	// Inherit team-level fields the package didn't set. Labels, self_service, and
-	// categories are per-package for multiple packages, or inherited from the
-	// fleet-level file for a single package.
+	// Inherit fleet-level fields onto any package that didn't set them, so a value
+	// set once at the fleet level applies to every package of the title. Which level
+	// a field may live at for a yaml file with multiple packages is validated separately.
 	if !packageLevel.SelfService {
 		packageLevel.SelfService = spec.SelfService
 	}
@@ -339,12 +339,23 @@ func validatePackageFieldPlacement(teamLevel SoftwarePackage, pkg *fleet.Softwar
 	if id == "" {
 		id = pkg.SHA256
 	}
+	if id == "" {
+		id = pkg.ReferencedYamlPath
+	}
+
 	if (teamLevel.SelfService && pkg.SelfService) ||
 		(len(teamLevel.Categories.Value) > 0 && len(pkg.Categories.Value) > 0) {
 		return fmt.Errorf(fleet.SoftwareSelfServiceCategoriesConflictMessage, id)
 	}
 	if multiple && pkg.InstallDuringSetup.Valid {
 		return fmt.Errorf(fleet.SoftwareSetupExperienceFleetLevelOnlyMessage, id)
+	}
+	// A single package may set labels at either level but not both. If multiple
+	// packages are defined, labels are not allowed at the fleet level.
+	teamLevelLabels := len(teamLevel.LabelsIncludeAny) > 0 || len(teamLevel.LabelsExcludeAny) > 0 || len(teamLevel.LabelsIncludeAll) > 0
+	pkgLabels := len(pkg.LabelsIncludeAny) > 0 || len(pkg.LabelsExcludeAny) > 0 || len(pkg.LabelsIncludeAll) > 0
+	if !multiple && teamLevelLabels && pkgLabels {
+		return fmt.Errorf(fleet.SoftwareLabelsConflictMessage, id)
 	}
 	return nil
 }
@@ -2271,6 +2282,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 				// Collect the packages that validate and hydrate, dropping any that fail.
 				multiple := len(softwarePackageSpecs) > 1
+				// This label rule is at the fleet level, so check it once here rather than per package.
 				if multiple && (len(teamLevelPackage.LabelsIncludeAny) > 0 || len(teamLevelPackage.LabelsExcludeAny) > 0 || len(teamLevelPackage.LabelsIncludeAll) > 0) {
 					multiError = multierror.Append(multiError, fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, *teamLevelPackage.Path))
 				}
