@@ -92,10 +92,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			// GitHub throttles access to the very hot winget-pkgs repo (e.g. "429
-			// gitmon refuses to schedule us" or 504s during file-server congestion).
-			// Skip the app instead of failing the run: its published manifest stays at
-			// the current version and it gets picked up again on the next scheduled run.
+			// skip throttled apps; they'll be retried on the next scheduled run
 			if isTransientGitHubError(err) {
 				skippedApps++
 				logger.WarnContext(ctx, "skipping app: GitHub rate-limited its ingestion; it will be retried on the next scheduled run",
@@ -115,9 +112,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	return manifestApps, nil
 }
 
-// isTransientGitHubError reports whether err is GitHub load-shedding: a primary or
-// secondary rate limit, a 429 (e.g. "gitmon refuses to schedule us" when the winget-pkgs
-// file servers are congested), or a 5xx (e.g. 504s from the same congestion).
+// isTransientGitHubError reports whether err is GitHub load-shedding (rate limits, 429s, 5xx).
 func isTransientGitHubError(err error) bool {
 	if _, ok := errors.AsType[*github.RateLimitError](err); ok {
 		return true
@@ -219,9 +214,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			i.ghClientOpts,
 		)
 		if err != nil {
-			// Only a genuine 404 means "wrong directory depth, try the next
-			// candidate". Anything else (e.g. a 429) must fail the app instead:
-			// falling through to an older version dir would ingest a downgrade.
+			// only a genuine 404 may fall through to an older version dir
 			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
 				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
 				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)

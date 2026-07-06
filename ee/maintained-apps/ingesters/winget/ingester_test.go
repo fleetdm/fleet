@@ -558,9 +558,8 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 	}))
 }
 
-// newTwoVersionServer serves a package with version dirs 2.0 and 1.0. The status of the
-// 2.0 installer manifest response is configurable to exercise the 404-vs-429 distinction
-// in the version-dir walk.
+// newTwoVersionServer serves a package with version dirs 2.0 and 1.0; the 2.0 installer
+// manifest responds with the given status.
 func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeYAMLContent := func(v any) {
