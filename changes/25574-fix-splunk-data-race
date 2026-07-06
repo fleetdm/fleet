@@ -1,0 +1,1 @@
+- Fixed a data race in the Splunk log destination when batching events.
