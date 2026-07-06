@@ -35,8 +35,8 @@ func Up_20260702175822(tx *sql.Tx) error {
 			updated_at DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
 			PRIMARY KEY (id),
 			CONSTRAINT idx_host_custom_host_vitals_host_vital UNIQUE (host_id, custom_host_vital_id),
-			CONSTRAINT fk_host_custom_host_vitals_host_id
-				FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE,
+			-- No FK on host_id (see handbook/engineering/scaling-fleet.md): rows are
+			-- cleaned up on host deletion via the hostRefs list instead.
 			CONSTRAINT fk_host_custom_host_vitals_custom_host_vital_id
 				FOREIGN KEY (custom_host_vital_id) REFERENCES custom_host_vitals (id) ON DELETE CASCADE
 		) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`,

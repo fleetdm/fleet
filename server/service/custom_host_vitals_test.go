@@ -98,8 +98,9 @@ func TestSetHostCustomHostVitalValueAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	hostTeamID := uint(1)
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: id}, nil
+		return &fleet.Host{ID: id, TeamID: &hostTeamID}, nil
 	}
 	ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
 		return []fleet.CustomHostVital{{ID: 1, Name: "Asset tag"}}, nil
@@ -108,8 +109,10 @@ func TestSetHostCustomHostVitalValueAuth(t *testing.T) {
 		return nil
 	}
 
-	// Per-host value is a host-scoped write: global writers and team maintainers/admins
-	// (of the host's team) can set it; observers cannot.
+	// Per-host value is a host-scoped write (authz type host_custom_vital): global
+	// admin/maintainer and admins/maintainers of the host's team can set it;
+	// observers, gitops (blocked at the host-list gate), and users of another team
+	// cannot.
 	testCases := []struct {
 		name       string
 		user       *fleet.User
@@ -117,8 +120,12 @@ func TestSetHostCustomHostVitalValueAuth(t *testing.T) {
 	}{
 		{"global admin", &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}, false},
 		{"global maintainer", &fleet.User{ID: 2, GlobalRole: new(fleet.RoleMaintainer)}, false},
-		{"global observer", &fleet.User{ID: 3, GlobalRole: new(fleet.RoleObserver)}, true},
-		{"team observer", &fleet.User{ID: 4, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true},
+		{"global gitops", &fleet.User{ID: 3, GlobalRole: new(fleet.RoleGitOps)}, true},
+		{"global observer", &fleet.User{ID: 4, GlobalRole: new(fleet.RoleObserver)}, true},
+		{"team admin (host team)", &fleet.User{ID: 5, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, false},
+		{"team maintainer (host team)", &fleet.User{ID: 6, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}, false},
+		{"team observer (host team)", &fleet.User{ID: 7, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true},
+		{"team maintainer (other team)", &fleet.User{ID: 8, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}}, true},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {

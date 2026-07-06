@@ -183,7 +183,7 @@ func (svc *Service) SetHostCustomHostVitalValue(ctx context.Context, hostID uint
 		return ctxerr.Wrap(ctx, err, "find host for setting custom host vital value")
 	}
 
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.HostCustomHostVitalValue{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 

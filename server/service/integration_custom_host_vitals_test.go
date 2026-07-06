@@ -82,6 +82,14 @@ func (s *integrationTestSuite) TestCustomHostVitalsCRUD() {
 	assert.Equal(t, "Asset ID", hostResp.Host.CustomHostVitals[0].Name)
 	assert.Equal(t, "engineering", hostResp.Host.CustomHostVitals[0].Value)
 
+	// Clearing the value (Save empty) is accepted and persists as an empty string.
+	s.Do("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/custom_host_vitals/%d", host.ID, vitalID), fleet.SetHostCustomHostVitalValueRequest{Value: ""}, http.StatusOK)
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Len(t, hostResp.Host.CustomHostVitals, 1)
+	assert.Equal(t, vitalID, hostResp.Host.CustomHostVitals[0].CustomHostVitalID)
+	assert.Empty(t, hostResp.Host.CustomHostVitals[0].Value)
+
 	// Delete the definition; the per-host value cascades away.
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/custom_host_vitals/%d", vitalID), nil, http.StatusOK)
 	s.lastActivityMatches(

@@ -9,7 +9,7 @@ import (
 func TestUp_20260702175822(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Seed a host so we can attach a per-host value and exercise the FK/cascade.
+	// Seed a host so we can attach a per-host value.
 	res, err := db.Exec(`
 		INSERT INTO hosts (osquery_host_id, node_key, hostname, uuid)
 		VALUES (?, ?, ?, ?)`,

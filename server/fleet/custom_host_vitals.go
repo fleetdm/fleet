@@ -28,6 +28,15 @@ type HostCustomHostVital struct {
 	Value             string `json:"value" db:"value"`
 }
 
+// HostCustomHostVitalValue is the authz subject for setting a host's custom host vital value.
+type HostCustomHostVitalValue struct {
+	TeamID *uint `json:"team_id" renameto:"fleet_id"`
+}
+
+func (HostCustomHostVitalValue) AuthzType() string {
+	return "host_custom_vital"
+}
+
 func ValidateCustomHostVitalName(name string) error {
 	if len(name) == 0 {
 		return NewInvalidArgumentError("name", "custom host vital name cannot be empty")

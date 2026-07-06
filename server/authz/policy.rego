@@ -1293,11 +1293,31 @@ allow {
   action == read
 }
 
-# Any team user can read custom host vital definitions.
+# Any team user can read custom host vital definitions for hosts in its team.
 allow {
   object.type == "custom_host_vital"
   team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
+}
+
+##
+# Host custom host vital values (per-host)
+##
+
+# Global admins and maintainers can set a host's custom host vital value (not
+# gitops — setting a host value is not a fleetctl gitops operation).
+allow {
+  object.type == "host_custom_vital"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins and maintainers can set the value for hosts in their team.
+allow {
+  object.type == "host_custom_vital"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
 }
 
 ##

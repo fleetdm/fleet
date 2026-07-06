@@ -685,8 +685,7 @@ CREATE TABLE `host_custom_host_vitals` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_custom_host_vitals_host_vital` (`host_id`,`custom_host_vital_id`),
   KEY `fk_host_custom_host_vitals_custom_host_vital_id` (`custom_host_vital_id`),
-  CONSTRAINT `fk_host_custom_host_vitals_custom_host_vital_id` FOREIGN KEY (`custom_host_vital_id`) REFERENCES `custom_host_vitals` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_host_custom_host_vitals_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_host_custom_host_vitals_custom_host_vital_id` FOREIGN KEY (`custom_host_vital_id`) REFERENCES `custom_host_vitals` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
