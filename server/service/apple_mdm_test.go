@@ -975,7 +975,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 	t.Run("profile content update, different display name is allowed", func(t *testing.T) {
 		// Matches the GitOps convention: a profile is identified by its
 		// PayloadIdentifier alone, its display name may change freely.
-		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingProfile("com.fleetdm.test", "Old Name", 0)
 		mcBytes := mcBytesForTest("New Name", "com.fleetdm.test", "UUID")
 
@@ -987,10 +987,22 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			updated = p
 			return &p, nil
 		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "New Name", updated.Name)
+
+		// the activity must reflect the NEW name, not the pre-update one --
+		// otherwise a rename would be logged under the profile's old name
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		require.True(t, ok)
+		assert.Equal(t, "New Name", act.ProfileName)
 	})
 
 	t.Run("profile content and labels update atomically in one call", func(t *testing.T) {

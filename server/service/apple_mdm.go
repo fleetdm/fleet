@@ -1538,8 +1538,8 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
-			ProfileName:       existing.Name,
-			ProfileIdentifier: existing.Identifier,
+			ProfileName:       cp.Name,
+			ProfileIdentifier: cp.Identifier,
 			Platform:          "darwin",
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm apple config profile")
