@@ -648,6 +648,16 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		_, err := newIngester(srv).ingestOne(ctx, input)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "429")
-		require.True(t, isRateLimited(err), "the caller must recognize this error and skip the app")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+
+	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusGatewayTimeout)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "504")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
 }

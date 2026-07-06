@@ -93,10 +93,10 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
 			// GitHub throttles access to the very hot winget-pkgs repo (e.g. "429
-			// gitmon refuses to schedule us" during file-server congestion). Skip the
-			// app instead of failing the run: its published manifest stays at the
-			// current version and it gets picked up again on the next scheduled run.
-			if isRateLimited(err) {
+			// gitmon refuses to schedule us" or 504s during file-server congestion).
+			// Skip the app instead of failing the run: its published manifest stays at
+			// the current version and it gets picked up again on the next scheduled run.
+			if isTransientGitHubError(err) {
 				skippedApps++
 				logger.WarnContext(ctx, "skipping app: GitHub rate-limited its ingestion; it will be retried on the next scheduled run",
 					"name", input.Name, "err", err)
@@ -115,10 +115,10 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	return manifestApps, nil
 }
 
-// isRateLimited reports whether err is GitHub telling us to back off: a primary or
-// secondary rate limit, or a 429 (e.g. "gitmon refuses to schedule us" when the
-// winget-pkgs file servers are congested).
-func isRateLimited(err error) bool {
+// isTransientGitHubError reports whether err is GitHub load-shedding: a primary or
+// secondary rate limit, a 429 (e.g. "gitmon refuses to schedule us" when the winget-pkgs
+// file servers are congested), or a 5xx (e.g. 504s from the same congestion).
+func isTransientGitHubError(err error) bool {
 	if _, ok := errors.AsType[*github.RateLimitError](err); ok {
 		return true
 	}
@@ -126,7 +126,7 @@ func isRateLimited(err error) bool {
 		return true
 	}
 	if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok && ghErr.Response != nil {
-		return ghErr.Response.StatusCode == http.StatusTooManyRequests
+		return ghErr.Response.StatusCode == http.StatusTooManyRequests || ghErr.Response.StatusCode >= 500
 	}
 	return false
 }
