@@ -264,6 +264,10 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	if r.URL.Query().Get("fully_managed") == "true" {
 		requestURL += "&fully_managed=true"
 	}
+	// Same with the byod modifier parameter for Apple enrollments
+	if r.URL.Query().Get("byod") == "true" {
+		requestURL += "&byod=true"
+	}
 	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), fleet.SSOInitiatorOTAEnroll, requestURL, "")
 	if err != nil {
 		return err
