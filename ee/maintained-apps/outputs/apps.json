@@ -597,6 +597,13 @@
       "description": "Anytype is a local-first and end-to-end encrypted notes app."
     },
     {
+      "name": "AOMEI Backupper Standard",
+      "slug": "aomei-backupper-standard/windows",
+      "platform": "windows",
+      "unique_identifier": "AOMEI Backupper Standard",
+      "description": "AOMEI Backupper Standard is a free backup and recovery software for Windows PCs and servers."
+    },
+    {
       "name": "Apidog",
       "slug": "apidog/darwin",
       "platform": "darwin",
@@ -630,6 +637,13 @@
       "platform": "darwin",
       "unique_identifier": "io.appium.inspector",
       "description": "Appium Inspector GUI is a GUI inspector for mobile apps."
+    },
+    {
+      "name": "iTunes",
+      "slug": "apple-itunes/windows",
+      "platform": "windows",
+      "unique_identifier": "iTunes",
+      "description": "iTunes is Apple's media player and library application for managing music, movies, and iOS devices."
     },
     {
       "name": "Applite",
@@ -805,6 +819,13 @@
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azure Data Studio",
+      "slug": "azure-data-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Azure Data Studio",
+      "description": "Azure Data Studio is a cross-platform database tool for data professionals using SQL Server and Azure databases."
     },
     {
       "name": "Background Music",
@@ -2116,6 +2137,13 @@
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
+      "name": "Dell Display and Peripheral Manager",
+      "slug": "dell-display-and-peripheral-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Dell Display and Peripheral Manager",
+      "description": "Dell Display and Peripheral Manager provides control over Dell monitors, keyboards, and mice from a unified interface."
+    },
+    {
       "name": "Descript",
       "slug": "descript/darwin",
       "platform": "darwin",
@@ -2499,6 +2527,20 @@
       "platform": "darwin",
       "unique_identifier": "epp.package.committers",
       "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
+    },
+    {
+      "name": "Eclipse Temurin JDK 11",
+      "slug": "eclipse-temurin-jdk-11/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot 11",
+      "description": "Eclipse Temurin JDK 11 is a production-ready OpenJDK distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 8",
+      "slug": "eclipse-temurin-jre-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot 8",
+      "description": "Eclipse Temurin JRE 8 is a production-ready OpenJDK Java Runtime Environment from the Eclipse Adoptium project."
     },
     {
       "name": "Egnyte",
@@ -3124,6 +3166,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git Extensions",
+      "slug": "git-extensions/windows",
+      "platform": "windows",
+      "unique_identifier": "Git Extensions",
+      "description": "Git Extensions is a graphical user interface for Git that integrates with Windows Explorer and Visual Studio."
+    },
+    {
       "name": "Git",
       "slug": "git/windows",
       "platform": "windows",
@@ -3192,6 +3241,13 @@
       "platform": "darwin",
       "unique_identifier": "com.GeorgSeifert.Glyphs3",
       "description": "Glyphs is a font editor."
+    },
+    {
+      "name": "GNU Privacy Guard",
+      "slug": "gnupg/windows",
+      "platform": "windows",
+      "unique_identifier": "GNU Privacy Guard",
+      "description": "GNU Privacy Guard (GnuPG) is a free implementation of the OpenPGP standard for encrypting and signing data."
     },
     {
       "name": "Go2Shell",
@@ -3292,6 +3348,13 @@
       "description": "Google Earth Pro is a virtual globe."
     },
     {
+      "name": "Google Earth Pro",
+      "slug": "google-earth-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Earth Pro",
+      "description": "Google Earth Pro is a desktop application for exploring satellite imagery, maps, terrain, and 3D buildings."
+    },
+    {
       "name": "Gemini",
       "slug": "google-gemini/darwin",
       "platform": "darwin",
@@ -3318,6 +3381,13 @@
       "platform": "darwin",
       "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
+    },
+    {
+      "name": "Gpg4win",
+      "slug": "gpg4win/windows",
+      "platform": "windows",
+      "unique_identifier": "Gpg4win",
+      "description": "Gpg4win is a Windows installer package for GnuPG, Kleopatra, and related tools for email and file encryption."
     },
     {
       "name": "gPodder",
@@ -4223,11 +4293,25 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logitech Unifying Software",
+      "slug": "logitech-unifying-software/windows",
+      "platform": "windows",
+      "unique_identifier": "Logitech Unifying Software",
+      "description": "Logitech Unifying Software lets you pair and manage multiple Logitech devices with a single USB receiver."
+    },
+    {
       "name": "Logi Tune",
       "slug": "logitune/darwin",
       "platform": "darwin",
       "unique_identifier": "com.logitech.logitune",
       "description": "Logi Tune is software for managing Logitech webcams, headsets, and docks for video meetings."
+    },
+    {
+      "name": "Logi Tune",
+      "slug": "logitune/windows",
+      "platform": "windows",
+      "unique_identifier": "Logi Tune",
+      "description": "Logi Tune is Logitech's app for customizing and controlling Logitech video collaboration peripherals."
     },
     {
       "name": "Logseq",
@@ -4871,7 +4955,7 @@
       "slug": "moom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.manytricks.Moom",
-      "description": "Moom is a utility to move and zoom windows—on one display."
+      "description": "Moom is a utility to move and zoom windows\u2014on one display."
     },
     {
       "name": "Moonlight",
@@ -6589,6 +6673,13 @@
       "description": "RsyncUI is a GUI for rsync."
     },
     {
+      "name": "Rtools",
+      "slug": "rtools/windows",
+      "platform": "windows",
+      "unique_identifier": "Rtools",
+      "description": "Rtools is a collection of build tools required to compile R packages from source on Windows."
+    },
+    {
       "name": "RubyMine",
       "slug": "rubymine/darwin",
       "platform": "darwin",
@@ -7023,6 +7114,13 @@
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
     },
     {
+      "name": "SonicWall NetExtender",
+      "slug": "sonicwall-netextender/windows",
+      "platform": "windows",
+      "unique_identifier": "SonicWall NetExtender",
+      "description": "SonicWall NetExtender is an SSL VPN client that provides secure remote access to SonicWall-protected networks."
+    },
+    {
       "name": "SonoBus",
       "slug": "sonobus/darwin",
       "platform": "darwin",
@@ -7139,7 +7237,7 @@
       "slug": "splice/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splice.Splice",
-      "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
+      "description": "Splice is a tool to browse and preview sounds from Splice\u2019s entire catalog."
     },
     {
       "name": "Spokenly",
@@ -7168,6 +7266,13 @@
       "platform": "darwin",
       "unique_identifier": "org.spyder-ide.Spyder-6",
       "description": "Spyder is a scientific Python IDE."
+    },
+    {
+      "name": "Spyder",
+      "slug": "spyder/windows",
+      "platform": "windows",
+      "unique_identifier": "Spyder",
+      "description": "Spyder is a scientific Python development environment with advanced editing, interactive testing, and debugging."
     },
     {
       "name": "SQL Server Management Studio",
@@ -7716,6 +7821,13 @@
       "description": "TIDAL is a music streaming service with high fidelity sound and hi-def video quality."
     },
     {
+      "name": "TightVNC",
+      "slug": "tightvnc/windows",
+      "platform": "windows",
+      "unique_identifier": "TightVNC",
+      "description": "TightVNC is a remote desktop software solution for viewing and controlling remote computers over a network."
+    },
+    {
       "name": "Sempliva Tiles",
       "slug": "tiles/darwin",
       "platform": "darwin",
@@ -7854,6 +7966,13 @@
       "platform": "darwin",
       "unique_identifier": "com.panic.Transmit",
       "description": "Transmit is a file transfer application."
+    },
+    {
+      "name": "TreeSize Free",
+      "slug": "treesize-free/windows",
+      "platform": "windows",
+      "unique_identifier": "TreeSize Free",
+      "description": "TreeSize Free is a disk space manager that shows folder sizes and helps identify what is consuming disk space."
     },
     {
       "name": "TRex",
@@ -8423,6 +8542,13 @@
       "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
     },
     {
+      "name": "WinDirStat",
+      "slug": "windirstat/windows",
+      "platform": "windows",
+      "unique_identifier": "WinDirStat",
+      "description": "WinDirStat is a disk usage statistics viewer that displays a colorful treemap of file and folder sizes."
+    },
+    {
       "name": "WindowKeys",
       "slug": "windowkeys/darwin",
       "platform": "darwin",
@@ -8661,6 +8787,13 @@
       "description": "YACReader is a comic reader."
     },
     {
+      "name": "Yarn",
+      "slug": "yarn/windows",
+      "platform": "windows",
+      "unique_identifier": "Yarn",
+      "description": "Yarn is a fast, reliable, and secure JavaScript package manager compatible with the npm registry."
+    },
+    {
       "name": "Yattee",
       "slug": "yattee/darwin",
       "platform": "darwin",
@@ -8771,6 +8904,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linebreak.CloudAppMacOSX",
       "description": "Zight is a visual communication platform."
+    },
+    {
+      "name": "Zoom Outlook Plugin",
+      "slug": "zoom-outlook-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Outlook Plugin",
+      "description": "Zoom Outlook Plugin adds Zoom meeting scheduling and join buttons directly into Microsoft Outlook."
     },
     {
       "name": "Zoom Rooms",

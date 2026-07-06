@@ -1,0 +1,13 @@
+{
+  "name": "GNU Privacy Guard",
+  "slug": "gnupg/windows",
+  "package_identifier": "GnuPG.GnuPG",
+  "unique_identifier": "GNU Privacy Guard",
+  "program_publisher": "The GnuPG Project",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/gnupg_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/gnupg_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "default_categories": ["Developer tools"]
+}

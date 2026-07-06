@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.5.6768",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Rtools' AND publisher = 'The R Foundation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Rtools' AND publisher = 'The R Foundation' AND version_compare(version, '4.5.6768') < 0);"
+      },
+      "installer_url": "https://cloud.r-project.org/bin/windows/Rtools/rtools45/files/rtools45-6768-6492.exe",
+      "install_script_ref": "fec8495e",
+      "uninstall_script_ref": "a289eb1d",
+      "sha256": "614c7378150a012e70b16edcfe5236dcead47f491f1f54203ea8d451c7743a75",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "a289eb1d": "$softwareName = \"Rtools\"\n$softwareNameLike = \"*$softwareName*\"\n$uninstallArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -like $softwareNameLike) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n            Write-Host \"Uninstall command: $uninstallCommand\"; Write-Host \"Uninstall args: $uninstallArgs\"\n            $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }\n            if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode; Write-Host \"Uninstall exit code: $exitCode\"; break\n        }\n    }\n    if (-not $foundUninstaller) { Write-Host \"Uninstaller for '$softwareName' not found.\"; Exit 1 }\n} catch { Write-Host \"Error: $_\"; Exit 1 }\n\nExit $exitCode\n",
+    "fec8495e": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Rtools uses Inno Setup\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
