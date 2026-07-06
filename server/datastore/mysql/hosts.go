@@ -1165,9 +1165,12 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
 		// for the rows actually returned by the outer query, each as an indexed lookup on
 		// idx_host_emails_host_id_email.
+		// GROUP_CONCAT without ORDER BY has no guaranteed order; sort to match
+		// listHostDeviceMappingDB so all endpoints return device_mapping in the
+		// same order.
 		sql += fmt.Sprintf(`,
     COALESCE((
-        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s)), ']')
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s) ORDER BY he.email, he.source), ']')
         FROM host_emails he
         WHERE he.host_id = h.id
     ), 'null') as device_mapping

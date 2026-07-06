@@ -711,7 +711,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Simulate a linux with a proper version
+	// Arch Linux based distribution with a major, minor and patch should still be ingested with "rolling".
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -730,7 +730,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
-	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -1096,6 +1096,71 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 			ds.SetOrUpdateMDMDataFuncInvoked = false
 		})
 	})
+}
+
+// TestDirectIngestMDMMacPersonalEnrollment guards that the macOS detail-query
+// ingest reads the BYOD signal back from the profile's ServerURL (byod=1) rather
+// than hardcoding false, which would otherwise clobber the is_personal_enrollment
+// set by the Apple Authenticate flow on every check-in.
+func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	var host fleet.Host
+
+	generateRows := func(serverURL, payloadIdentifier string) []map[string]string {
+		return []map[string]string{
+			{
+				"enrolled":           "true",
+				"installed_from_dep": "false",
+				"server_url":         serverURL,
+				"payload_identifier": payloadIdentifier,
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name         string
+		mdmData      []map[string]string
+		wantPersonal bool
+	}{
+		{
+			name:         "Fleet byod=1",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet no byod",
+			mdmData:      generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "Fleet byod=1 alongside other params",
+			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet byod=0",
+			mdmData:      generateRows("https://test.example.com?byod=0", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "non-Fleet byod=1 ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", "com.unknown.mdm"),
+			wantPersonal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+				require.Equal(t, tc.wantPersonal, isPersonalEnrollment)
+				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
+				return nil
+			}
+
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.mdmData)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	}
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -1684,6 +1749,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "1.2.3",
 				Arch:          "x86_64",
 				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
+		{
+			// CachyOS is an Arch-based rolling-release distribution. It reports a
+			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
+			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "CachyOS Linux",
+					"version":        "20260628.0.549485",
+					"major":          "20260628",
+					"minor":          "0",
+					"patch":          "549485",
+					"build":          "rolling",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-2-cachyos",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
 	} {

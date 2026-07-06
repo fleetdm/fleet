@@ -52,6 +52,8 @@ type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fle
 
 type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
 
+type ExpireCarvesFunc func(ctx context.Context, ids []int64) error
+
 type CarveFunc func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error)
 
 type CarveBySessionIdFunc func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error)
@@ -846,7 +848,7 @@ type ExtendHostOrbitDebugUntilFunc func(ctx context.Context, hostID uint, until 
 
 type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
-type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error)
 
 type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
@@ -2180,6 +2182,9 @@ type DataStore struct {
 
 	UpdateCarveFunc        UpdateCarveFunc
 	UpdateCarveFuncInvoked bool
+
+	ExpireCarvesFunc        ExpireCarvesFunc
+	ExpireCarvesFuncInvoked bool
 
 	CarveFunc        CarveFunc
 	CarveFuncInvoked bool
@@ -5411,6 +5416,13 @@ func (s *DataStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetada
 	return s.UpdateCarveFunc(ctx, metadata)
 }
 
+func (s *DataStore) ExpireCarves(ctx context.Context, ids []int64) error {
+	s.mu.Lock()
+	s.ExpireCarvesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpireCarvesFunc(ctx, ids)
+}
+
 func (s *DataStore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 	s.mu.Lock()
 	s.CarveFuncInvoked = true
@@ -8190,7 +8202,7 @@ func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, in
 	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error) {
 	s.mu.Lock()
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
 	s.mu.Unlock()

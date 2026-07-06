@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.2.0",
+      "version": "3.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tradingview.tradingviewapp.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tradingview.tradingviewapp.desktop' AND version_compare(bundle_short_version, '3.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tradingview.tradingviewapp.desktop' AND version_compare(bundle_short_version, '3.3.0') < 0);"
       },
-      "installer_url": "https://tvd-packages.tradingview.com/stable/3.2.0/darwin/TradingView.dmg",
+      "installer_url": "https://tvd-packages.tradingview.com/stable/3.3.0/darwin/TradingView.dmg",
       "install_script_ref": "85b28e80",
       "uninstall_script_ref": "c17d0530",
-      "sha256": "972b3a52bc2d50451a29e2a21ed5dced8db674c8b2dd8eae41e280732cb7ff47",
+      "sha256": "e3b0cf508cc7fbe5b7853b6b766184f3443b28b7f4c60069acd77934fd1a02bb",
       "default_categories": [
         "Productivity"
       ]
