@@ -522,7 +522,7 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 		lr.notifier = notifier
 
 		// One below the threshold — no notification yet.
-		for i := 0; i < recoveryKeyFailureNotifyThreshold-1; i++ {
+		for range recoveryKeyFailureNotifyThreshold - 1 {
 			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
 		}
 		assert.Empty(t, notifier.infoCalls, "must stay silent below the threshold")
@@ -547,7 +547,7 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 		lr.notifier = notifier
 
 		// Fail past the threshold to fire the notification.
-		for i := 0; i < recoveryKeyFailureNotifyThreshold; i++ {
+		for range recoveryKeyFailureNotifyThreshold {
 			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
 		}
 		require.Len(t, notifier.infoCalls, 1)
@@ -558,7 +558,7 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 
 		// A fresh streak eventually re-notifies.
 		escrower.err = errors.New("network down")
-		for i := 0; i < recoveryKeyFailureNotifyThreshold; i++ {
+		for range recoveryKeyFailureNotifyThreshold {
 			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
 		}
 		assert.Len(t, notifier.infoCalls, 2, "new streak should trigger a new notification")
