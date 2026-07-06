@@ -483,7 +483,7 @@ const EditQueryForm = ({
           placeholder="Add description"
           value={lastEditedQueryDescription}
           type="textarea"
-          helpText="What information does your report reveal? (Optional)"
+          helpText="What information does your report reveal? (optional)"
           onChange={(value: string) => setLastEditedQueryDescription(value)}
           disabled={gitOpsModeEnabled}
         />
