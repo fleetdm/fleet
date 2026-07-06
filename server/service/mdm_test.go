@@ -1653,12 +1653,13 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	}
 }
 
-// TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled verifies that a custom BitLocker profile is accepted when
-// custom disk encryption is enabled via server configuration (mdm.enable_disk_encryption / mdm.enable_custom_filevault).
+// TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled verifies that a custom BitLocker profile is rejected by
+// default but accepted when custom disk encryption is enabled via server configuration
+// (mdm.enable_custom_disk_encryption or its alias mdm.enable_custom_filevault).
 func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 	bitLockerProfile := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`)
 
-	setupDS := func() *mock.Store {
+	newDS := func() *mock.Store {
 		ds := new(mock.Store)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -1679,39 +1680,37 @@ func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 		return ds
 	}
 
-	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	cases := []struct {
+		name                       string
+		enableCustomDiskEncryption bool
+		enableCustomFileVault      bool
+		wantErr                    string // empty means the BitLocker profile is expected to be accepted
+	}{
+		{name: "rejected when neither setting is set", wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg},
+		{name: "allowed when enable_custom_disk_encryption is set", enableCustomDiskEncryption: true},
+		{name: "allowed when enable_custom_filevault is set", enableCustomFileVault: true},
+	}
 
-	opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := newDS()
+			cfg := config.TestConfig()
+			cfg.MDM.EnableCustomDiskEncryption = c.enableCustomDiskEncryption
+			cfg.MDM.EnableCustomFileVault = c.enableCustomFileVault
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+			ctx = test.UserContext(ctx, test.UserAdmin)
 
-	t.Run("rejected when disabled", func(t *testing.T) {
-		ds := setupDS()
-		svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, opts)
-		ctx = test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
-		require.ErrorContains(t, err, syncml.DiskEncryptionProfileRestrictionErrMsg)
-	})
-
-	t.Run("allowed when enable_custom_disk_encryption is set", func(t *testing.T) {
-		ds := setupDS()
-		cfg := config.TestConfig()
-		cfg.MDM.EnableCustomDiskEncryption = true
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
-		ctx = test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
-		require.NoError(t, err)
-		require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
-	})
-
-	t.Run("allowed when enable_custom_filevault is set", func(t *testing.T) {
-		ds := setupDS()
-		cfg := config.TestConfig()
-		cfg.MDM.EnableCustomFileVault = true
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
-		ctx = test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
-		require.NoError(t, err)
-		require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
-	})
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				require.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+			} else {
+				require.NoError(t, err)
+				require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+			}
+		})
+	}
 }
 
 func TestMDMBatchSetProfiles(t *testing.T) {
