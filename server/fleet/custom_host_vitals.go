@@ -6,6 +6,8 @@ import (
 	"unicode/utf8"
 )
 
+const CustomHostVitalPrefix = "FLEET_HOST_VITAL_"
+
 const customHostVitalNameMaxNameLen = 255
 
 type CustomHostVital struct {
