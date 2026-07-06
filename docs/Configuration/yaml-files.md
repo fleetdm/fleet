@@ -413,6 +413,10 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
+  apple_account_provisioning: # Available in Fleet Premium
+    oauth_idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
+    oauth_idp_client_id: Ooa12345abcdeFGHI678
+    oauth_idp_client_secret: a1b2c3d4e5
 ```
 
 ### macos_updates
@@ -472,6 +476,14 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
+### apple_account_provisioning
+
+The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`) and only supports macOS hosts today
+
+  - `oauth_idp_token_url` is the token URL for your Oauth ROPG(Resource Owner Password Grant) IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
+  - `oauth_idp_client_id` is the client ID of your Oauth ROPG application within your IdP. In Okta this can be found under your application's Client Credentials
+  - `oauth_idp_client_secret` is the client secret of your Oauth ROPG application within your IdP
+
 ### setup_experience
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
@@ -482,7 +494,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail.
+- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
@@ -595,7 +607,7 @@ software:
 - `categories` is a list of self-service category names. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once.
   - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
-- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
 
@@ -717,14 +729,13 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
-
-  A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
-- `vulnerability_exposure_historical_reporting` (Fleet Premium) sets the **default** filters applied to the **Vulnerability exposure** dashboard chart when the page loads. These are display defaults only — they do not change which data Fleet collects. A user can adjust the filters in the UI, but those changes are not saved; GitOps is the only way to persist them. Each key is optional; an omitted key uses the chart's built-in default.
-  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system and kernel), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player). Omit the key to include all categories; if the key is present it must list at least one category (an empty list is rejected).
-  - `cvss_min` / `cvss_max` filter by CVSS v3 base score (`0`–`10`). (Accepted and stored now; takes effect in a future release that adds the severity control.)
-  - `epss_min` / `epss_max` filter by probability of exploit (EPSS) score, expressed as `0`–`100`.
-  - `has_known_exploit`, when `true`, shows only vulnerabilities with a known exploit (CISA KEV).
-  - `exclude_vulnerabilities` is a list of CVE identifiers to exclude.
+- `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
+  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+  - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
+  - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
+  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+ 
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -750,8 +761,6 @@ org_settings:
       has_known_exploit: true
       epss_min: 0
       epss_max: 100
-      cvss_min: 9
-      cvss_max: 10
       exclude_vulnerabilities:
         - CVE-2025-50897
         - CVE-2025-76306

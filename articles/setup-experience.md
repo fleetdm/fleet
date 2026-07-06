@@ -177,6 +177,8 @@ You can install software during first time macOS, iOS, iPadOS, Android, and [Win
 
 Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB).
 
+On Windows and Linux hosts, Fleet checks policies before installing setup experience software. If the host already passes the software's associated policies, the install is skipped. Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#policies-are-checked-before-install). On macOS, iOS, iPadOS, and Android, software is always installed.
+
 Add setup experience software:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
