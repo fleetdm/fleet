@@ -86,11 +86,10 @@ export interface ILibraryItemAccordionProps {
   failedPath: string;
 
   hashSha256?: string | null;
-  /** Show the download button. True for any package backed by a stored
-   * installer file (custom packages, tarballs, FMAs); false for script-only
-   * packages (no file to download) and App Store / Play Store apps. The
-   * download itself is driven by `onDownloadClick`, which mints a one-shot
-   * token server-side — this flag only gates the button's visibility. */
+  /** Show the download button for this row. This should be true only when
+   * `onDownloadClick` is wired to download the installer represented by this
+   * row (typically the active installer). False for script-only packages (no
+   * file to download) and App Store / Play Store apps. */
   canDownload?: boolean;
 
   /** Click handler for whichever badge is rendered per `badgeState`. The
