@@ -224,14 +224,16 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 
-	// We paginate and count by distinct app token (the slug prefix, e.g. "figma"
-	// in "figma/darwin"), which identifies an app across its platform entries.
-	// The UI combines an app's macOS and Windows entries into one row, so an app
-	// must not be split across a page boundary and the count must equal the rows
-	// shown. Keying on the token rather than the name keeps two distinct apps that
-	// share a name (e.g. gemini/darwin and google-gemini/darwin) separate. The
-	// team join tells us whether each app is already added, for the "available
-	// only" filter.
+	// We paginate by distinct app token (the slug prefix, e.g. "figma" in
+	// "figma/darwin"), which identifies an app across its platform entries: the UI
+	// combines an app's macOS and Windows entries into one row, so an app must not
+	// be split across a page boundary. Keying on the token rather than the name
+	// keeps two distinct apps that share a name (e.g. gemini/darwin and
+	// google-gemini/darwin) as separate rows. The count, by contrast, is the
+	// number of installable platform entries: each is separately installable (its
+	// own Add button), so an app shipped on both platforms counts twice. The team
+	// join tells us whether each app is already added, for the "available only"
+	// filter.
 	fromClause := `FROM fleet_maintained_apps fma`
 	var fromArgs []any
 	if teamID != nil {
@@ -255,10 +257,11 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		where += ` AND team_titles.id IS NULL`
 	}
 
-	// Count by distinct token; DISTINCT also collapses the team join's fan-out.
+	// Count the installable platform entries (each Add button); DISTINCT id also
+	// collapses the team join's fan-out.
 	countArgs := append(append([]any{}, fromArgs...), whereArgs...)
 	var filteredCount int
-	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT SUBSTRING_INDEX(fma.slug, '/', 1)) `+fromClause+where, countArgs...); err != nil {
+	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT fma.id) `+fromClause+where, countArgs...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 
