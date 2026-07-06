@@ -953,8 +953,7 @@ type MDMConfig struct {
 	// Deprecated: Use EnableCustomFileVault instead, as Custom OS updates is now allowed by default, and has no effect.
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
-	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault. It allows custom Apple MDM profiles
-	// for FileVault as well as custom Windows configuration profiles for BitLocker.
+	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
 
@@ -962,8 +961,7 @@ type MDMConfig struct {
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
-// IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed: custom Apple
-// MDM profiles for FileVault and custom Windows configuration profiles for BitLocker. Any of the equivalent
+// IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
 // (and deprecated) options enables the behavior.
 func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption

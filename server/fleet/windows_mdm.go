@@ -72,8 +72,7 @@ type windowsProfileValidator struct {
 	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
 	locURIHasContent bool
 
-	// When true, custom BitLocker (disk encryption) LocURIs are allowed instead of being rejected. Controlled by the
-	// mdm.enable_disk_encryption / mdm.enable_custom_filevault server configuration.
+	// When true, custom BitLocker (disk encryption) LocURIs are allowed instead of being rejected.
 	allowCustomDiskEncryption bool
 
 	// The decoder which is used for reading the XML tokens.
@@ -309,8 +308,6 @@ func validateFleetProvidedLocURI(locURI string, allowCustomDiskEncryption bool) 
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
-				// When custom disk encryption profiles are allowed, BitLocker LocURIs are permitted, matching the
-				// behavior of custom FileVault profiles on macOS.
 				if allowCustomDiskEncryption {
 					continue
 				}

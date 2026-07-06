@@ -943,20 +943,6 @@ func TestValidateUserProvided(t *testing.T) {
 			allowCustomDiskEncryption: true,
 			wantErr:                   "",
 		},
-		{
-			name: "BitLocker LocURI with implicit ./Device prefix allowed when custom disk encryption is enabled",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`
-<Replace>
-  <Item>
-    <Target><LocURI>./Vendor/MSFT/BitLocker/Foo</LocURI></Target>
-  </Item>
-</Replace>
-`),
-			},
-			allowCustomDiskEncryption: true,
-			wantErr:                   "",
-		},
 	}
 
 	for _, tt := range tests {

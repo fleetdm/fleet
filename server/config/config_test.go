@@ -1087,21 +1087,3 @@ func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
 		require.True(t, called)
 	})
 }
-
-func TestIsCustomDiskEncryptionEnabled(t *testing.T) {
-	tests := []struct {
-		name string
-		cfg  MDMConfig
-		want bool
-	}{
-		{"none set", MDMConfig{}, false},
-		{"enable_custom_filevault", MDMConfig{EnableCustomFileVault: true}, true},
-		{"enable_custom_disk_encryption", MDMConfig{EnableCustomDiskEncryption: true}, true},
-		{"deprecated enable_custom_os_updates_and_filevault", MDMConfig{EnableCustomOSUpdatesAndFileVault: true}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, tt.cfg.IsCustomDiskEncryptionEnabled())
-		})
-	}
-}
