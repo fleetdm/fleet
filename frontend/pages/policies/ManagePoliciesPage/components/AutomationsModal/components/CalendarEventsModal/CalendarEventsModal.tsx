@@ -146,20 +146,20 @@ const CalendarEventsModal = forwardRef<
           </div>
           {!configured && (
             <InfoBanner className={baseClass}>
-              To use calendar automations, connect Fleet to Google Workspace in{" "}
               {isGlobalAdmin ? (
                 // Only global admins can access the Calendar settings page.
                 <CustomLink
                   url={paths.ADMIN_INTEGRATIONS_CALENDARS}
-                  text="Settings &gt; Integrations &gt; Calendars"
-                  multiline
+                  text="Connect Fleet to Google Workspace"
+                  emphasized
                 />
               ) : (
                 <>
-                  <b>Settings</b> &gt; <b>Integrations</b> &gt; <b>Calendars</b>
+                  Connect Fleet to Google Workspace via <b>Settings</b> &gt;{" "}
+                  <b>Integrations</b> &gt; <b>Calendars</b>
                 </>
-              )}
-              .
+              )}{" "}
+              to use calendar automations.
             </InfoBanner>
           )}
           {configured && (

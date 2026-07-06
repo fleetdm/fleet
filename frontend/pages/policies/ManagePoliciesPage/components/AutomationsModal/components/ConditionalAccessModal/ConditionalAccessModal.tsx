@@ -59,22 +59,20 @@ const ConditionalAccessModal = forwardRef<
         </p>
         {!configured && (
           <InfoBanner>
-            To use conditional access automations, connect Fleet to{" "}
-            {providerText} in{" "}
             {isGlobalAdmin ? (
               // Only global admins can access the Conditional Access settings page.
               <CustomLink
                 url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
-                text="Settings &gt; Integrations &gt; Conditional access"
-                multiline
+                text={`Connect Fleet to ${providerText}`}
+                emphasized
               />
             ) : (
               <>
-                <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-                <b>Conditional access</b>
+                Connect Fleet to {providerText} via <b>Settings</b> &gt;{" "}
+                <b>Integrations</b> &gt; <b>Conditional access</b>
               </>
-            )}
-            .
+            )}{" "}
+            to use conditional access automations.
           </InfoBanner>
         )}
         {configured && (
