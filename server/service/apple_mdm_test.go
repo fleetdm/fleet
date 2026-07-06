@@ -1005,6 +1005,26 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		assert.Equal(t, "New Name", act.ProfileName)
 	})
 
+	t.Run("Fleet variables used in the upload are threaded through to the datastore call", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+		existing := newExistingProfile(identifierWithVar, "Test Profile", 0)
+		mcBytes := mcBytesForTest("Test Profile", identifierWithVar, "UUID")
+
+		ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
+			return existing, nil
+		}
+		var capturedVars []fleet.FleetVarName
+		ds.UpdateMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+			capturedVars = usesFleetVars
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mcBytes, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserEmailIDP)
+	})
+
 	t.Run("profile content and labels update atomically in one call", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingProfile("com.fleetdm.test", "Test Profile", 0)
