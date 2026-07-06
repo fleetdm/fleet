@@ -2039,7 +2039,7 @@ Modifies the Fleet's configuration with the supplied information.
       "apple_setup_assistant": "path/to/config.json"
     },
     "windows_automatic_enrollment": {
-      "default_fleet": "Unassigned"
+      "default_fleet": "123"
     },
     "apple_server_url": "https://instance.fleet.com"
   },
@@ -2725,7 +2725,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| default_fleet                     | string  | The name of the fleet that Windows automatically enrolled hosts will be placed in.
+| default_fleet                     | string  | The id of the fleet that Windows automatically enrolled hosts will be placed in.
 
 <br/>
 
