@@ -38,9 +38,9 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 ## Managed local account
 
-Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each host during setup. IT admins can use this account as a break-glass login for troubleshooting.
+Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each eligible host during setup. IT admins can use this account as a break-glass login for troubleshooting.
 
-This feature is available for macOS hosts that automatically enroll via Apple Business Manager (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
+This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
 
 To enable managed local accounts:
 
