@@ -1467,6 +1467,11 @@ func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, s
 	switch {
 	case recoveryKey && passphrase == "":
 		return "", "", nil, badRequest("recovery key must be provided to escrow LUKS data")
+	case recoveryKey && (salt != "" || keySlot != nil):
+		// snapd owns the LUKS key slots on TPM-backed FDE hosts; salt and key
+		// slot are meaningless on this path. Reject stray values instead of
+		// silently discarding them so a client bug is loud, not hidden.
+		return "", "", nil, badRequest("salt and key_slot must not be provided when escrowing a recovery key")
 	case !recoveryKey && (passphrase == "" || salt == "" || keySlot == nil):
 		return "", "", nil, badRequest("passphrase, salt, and key_slot must be provided to escrow LUKS data")
 	}

@@ -328,6 +328,20 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// Stray salt / key slot on the recovery-key path are rejected, not
+		// silently discarded — those fields are meaningless when snapd owns the
+		// LUKS key slots, and accepting them would hide client bugs.
+		ds.SaveLUKSDataFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		ds.SaveLUKSDataFuncInvoked = false
+		strayKeySlot := uint(0)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
