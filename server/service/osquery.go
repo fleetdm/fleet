@@ -522,7 +522,7 @@ func (svc *Service) InvalidatePackConfigCache() {
 	svc.packConfigCache.Flush()
 }
 
-func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
+func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -536,7 +536,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, newOsqueryError("internal error: fetch base config: " + err.Error())
 	}
 
-	config := make(map[string]interface{})
+	config := make(map[string]any)
 	if baseConfig != nil {
 		err = json.Unmarshal(baseConfig, &config)
 		if err != nil {
