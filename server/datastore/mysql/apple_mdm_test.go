@@ -60,6 +60,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
+		{"TestUpdateMDMAppleConfigProfile", testUpdateMDMAppleConfigProfile},
 		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
@@ -321,6 +322,172 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.Len(t, prof.LabelsIncludeAll, 1)
 	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
 	require.True(t, prof.LabelsIncludeAll[0].Broken)
+}
+
+func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// profile content update in place preserves the ProfileUUID and updates the checksum
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
+	newMobileconfig := mobileconfig.Mobileconfig([]byte("UpdatedTestMobileconfigBytes"))
+	updated, err := ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  initialCP.ProfileUUID,
+		Identifier:   initialCP.Identifier,
+		Name:         initialCP.Name,
+		TeamID:       initialCP.TeamID,
+		Mobileconfig: newMobileconfig,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, initialCP.ProfileUUID, updated.ProfileUUID)
+	require.Equal(t, newMobileconfig, updated.Mobileconfig)
+	// proves the real UNHEX(MD5(mobileconfig)) SQL actually recomputed the
+	// checksum, rather than leaving the old one in place
+	require.NotEqual(t, initialCP.Checksum, updated.Checksum)
+
+	// confirms values actually stored in the DB match what was returned from the update call
+	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, newMobileconfig, storedCP.Mobileconfig)
+	require.Equal(t, updated.Checksum, storedCP.Checksum)
+
+	// the display name may change along with the profile content, matching the
+	// same identifier-keyed upsert convention GitOps uses
+	renamed, err := ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  initialCP.ProfileUUID,
+		Identifier:   initialCP.Identifier,
+		Name:         "A Brand New Name",
+		TeamID:       initialCP.TeamID,
+		Mobileconfig: newMobileconfig,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "A Brand New Name", renamed.Name)
+	// checksum is derived from the mobileconfig bytes alone -- unchanged content
+	// means unchanged checksum, even though the name (and thus this UPDATE's
+	// SET name = ? clause) did change
+	require.Equal(t, updated.Checksum, renamed.Checksum)
+
+	// mismatched identifier is rejected
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  initialCP.ProfileUUID,
+		Identifier:   "com.fleetdm.a-different-identifier",
+		Name:         "A Brand New Name",
+		TeamID:       initialCP.TeamID,
+		Mobileconfig: newMobileconfig,
+	}, nil)
+	require.ErrorContains(t, err, "PayloadIdentifier must match")
+
+	// updating a nonexistent profile returns a not-found error
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: "a" + uuid.NewString(),
+		Identifier:  "com.fleetdm.does-not-exist",
+		Name:        "Does Not Exist",
+		TeamID:      initialCP.TeamID,
+	}, nil)
+	require.True(t, fleet.IsNotFound(err))
+
+	// renaming to a name that collides with a DIFFERENT existing profile in the
+	// same team is a real duplicate-key conflict, not just a validation rule
+	otherCP, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "SomeOtherDummyName",
+		Identifier:   "com.fleetdm.some-other-identifier",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("SomeOtherDummyMobileconfigBytes")),
+	}, nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  initialCP.ProfileUUID,
+		Identifier:   initialCP.Identifier,
+		Name:         otherCP.Name,
+		TeamID:       initialCP.TeamID,
+		Mobileconfig: newMobileconfig,
+	}, nil)
+	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadDisplayName", Identifier: otherCP.Name, TeamID: initialCP.TeamID}
+	require.ErrorContains(t, err, expectedErr.Error())
+
+	// labels replace the previous set entirely rather than merging with it
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "update-label-1", Query: "select 1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "update-label-2", Query: "select 1"})
+	require.NoError(t, err)
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	checksumBeforeLabelChanges := storedCP.Checksum
+	// a labels-only update must NOT touch the checksum -- the profile-manager
+	// cron diffs on checksum to decide whether a host needs redelivery, so an
+	// unrelated checksum bump here would cause needless MDM commands. Name is
+	// also deliberately omitted below -- it's only read inside the
+	// content-update branch (len(cp.Mobileconfig) > 0), so it has no effect on
+	// these labels-only calls.
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: initialCP.ProfileUUID,
+		Identifier:  initialCP.Identifier,
+		TeamID:      initialCP.TeamID,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label1.Name, LabelID: label1.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, storedCP.LabelsIncludeAll, 1)
+	require.Equal(t, label1.Name, storedCP.LabelsIncludeAll[0].LabelName)
+	require.Equal(t, checksumBeforeLabelChanges, storedCP.Checksum)
+
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: initialCP.ProfileUUID,
+		Identifier:  initialCP.Identifier,
+		TeamID:      initialCP.TeamID,
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, storedCP.LabelsIncludeAll)
+	require.Equal(t, checksumBeforeLabelChanges, storedCP.Checksum)
+	require.Len(t, storedCP.LabelsIncludeAny, 1)
+	require.Equal(t, label2.Name, storedCP.LabelsIncludeAny[0].LabelName)
+
+	// labels_exclude_any can be combined with an include mode in the same call
+	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "update-label-3", Query: "select 1"})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: initialCP.ProfileUUID,
+		Identifier:  initialCP.Identifier,
+		TeamID:      initialCP.TeamID,
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: label2.Name, LabelID: label2.ID},
+		},
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: label3.Name, LabelID: label3.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, checksumBeforeLabelChanges, storedCP.Checksum)
+	require.Len(t, storedCP.LabelsIncludeAny, 1)
+	require.Equal(t, label2.Name, storedCP.LabelsIncludeAny[0].LabelName)
+	require.Len(t, storedCP.LabelsExcludeAny, 1)
+	require.Equal(t, label3.Name, storedCP.LabelsExcludeAny[0].LabelName)
+
+	// clearing labels entirely removes all associations
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: initialCP.ProfileUUID,
+		Identifier:  initialCP.Identifier,
+		TeamID:      initialCP.TeamID,
+	}, nil)
+	require.NoError(t, err)
+
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, storedCP.LabelsIncludeAny)
+	require.Empty(t, storedCP.LabelsExcludeAny)
+	require.Equal(t, checksumBeforeLabelChanges, storedCP.Checksum)
 }
 
 func testVerifyAppleConfigProfileScopesDoNotConflict(t *testing.T, ds *Datastore) {
