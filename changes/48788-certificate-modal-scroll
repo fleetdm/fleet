@@ -1,0 +1,1 @@
+- Fixed the certificate details modal so the entire modal scrolls together instead of only its content area, matching the scroll behavior of other Fleet modals.
