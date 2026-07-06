@@ -13,8 +13,9 @@ import (
 )
 
 // maintainedAppsAllowedOrderKeys allowlists order keys for listing
-// Fleet-maintained apps. The list is a combined-by-name view, so name is the
-// only meaningful key; it's validation-only, since ORDER BY is hard-coded below.
+// Fleet-maintained apps. The list is a combined-by-app view (see
+// ListAvailableFleetMaintainedApps), so name is the only meaningful key; it's
+// validation-only, since ORDER BY is hard-coded below.
 var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"name": "fma.name",
 }
@@ -223,12 +224,14 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 
-	// We paginate by distinct app NAME, because the UI combines an app's macOS
-	// and Windows entries into a single row and an app must not be split across a
-	// page boundary. The count, by contrast, is the total number of apps (each
-	// platform entry is its own installable app). The team join lets us tell
-	// whether each app has already been added, which the "available only" filter
-	// needs.
+	// We paginate and count by distinct app token (the slug prefix, e.g. "figma"
+	// in "figma/darwin"), which identifies an app across its platform entries.
+	// The UI combines an app's macOS and Windows entries into one row, so an app
+	// must not be split across a page boundary and the count must equal the rows
+	// shown. Keying on the token rather than the name keeps two distinct apps that
+	// share a name (e.g. gemini/darwin and google-gemini/darwin) separate. The
+	// team join tells us whether each app is already added, for the "available
+	// only" filter.
 	fromClause := `FROM fleet_maintained_apps fma`
 	var fromArgs []any
 	if teamID != nil {
@@ -252,14 +255,10 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		where += ` AND team_titles.id IS NULL`
 	}
 
-	// Total count of matching apps. We count distinct rows (by primary key), not
-	// distinct names: an app's macOS and Windows entries are separate installable
-	// apps and are each counted, even though the UI combines them into one row.
-	// DISTINCT fma.id also collapses any duplicate rows from the team join's
-	// fan-out.
+	// Count by distinct token; DISTINCT also collapses the team join's fan-out.
 	countArgs := append(append([]any{}, fromArgs...), whereArgs...)
 	var filteredCount int
-	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT fma.id) `+fromClause+where, countArgs...); err != nil {
+	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT SUBSTRING_INDEX(fma.slug, '/', 1)) `+fromClause+where, countArgs...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 
@@ -290,24 +289,26 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		direction = "DESC"
 	}
 
-	// Select the page of app names, fetching one extra to detect a next page.
+	// Select the page of app tokens, fetching one extra to detect a next page.
+	// Group by the token and order by the app's name (the token maps to a single
+	// name), with the token as a deterministic tiebreaker for same-named apps.
 	perPage := opt.GetPerPage()
-	pageNamesStmt := fmt.Sprintf(
-		`SELECT DISTINCT fma.name %s%s ORDER BY fma.name %s LIMIT %d OFFSET %d`,
-		fromClause, where, direction, perPage+1, perPage*opt.Page,
+	pageTokensStmt := fmt.Sprintf(
+		`SELECT SUBSTRING_INDEX(fma.slug, '/', 1) AS app_token %s%s GROUP BY app_token ORDER BY MIN(fma.name) %s, app_token %s LIMIT %d OFFSET %d`,
+		fromClause, where, direction, direction, perPage+1, perPage*opt.Page,
 	)
-	pageNamesArgs := append(append([]any{}, fromArgs...), whereArgs...)
-	var pageNames []string
-	if err := sqlx.SelectContext(ctx, dbReader, &pageNames, pageNamesStmt, pageNamesArgs...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained app page names")
+	pageTokensArgs := append(append([]any{}, fromArgs...), whereArgs...)
+	var pageTokens []string
+	if err := sqlx.SelectContext(ctx, dbReader, &pageTokens, pageTokensStmt, pageTokensArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained app page tokens")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
-	if uint(len(pageNames)) > perPage {                                                                    //nolint:gosec // dismiss G115
+	if uint(len(pageTokens)) > perPage {                                                                   //nolint:gosec // dismiss G115
 		meta.HasNextResults = true
-		pageNames = pageNames[:perPage]
+		pageTokens = pageTokens[:perPage]
 	}
-	if len(pageNames) == 0 {
+	if len(pageTokens) == 0 {
 		// Page is past the last result.
 		return []fleet.MaintainedApp{}, meta, nil
 	}
@@ -317,13 +318,13 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	selectStmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var rowsArgs []any
 	if teamID != nil {
-		selectStmt += teamFMATitlesJoin + ` WHERE fma.name IN (?)`
-		rowsArgs = []any{teamID, teamID, pageNames}
+		selectStmt += teamFMATitlesJoin + ` WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
+		rowsArgs = []any{teamID, teamID, pageTokens}
 	} else {
-		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE fma.name IN (?)`
-		rowsArgs = []any{pageNames}
+		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
+		rowsArgs = []any{pageTokens}
 	}
-	selectStmt += fmt.Sprintf(` ORDER BY fma.name %s, fma.platform ASC`, direction)
+	selectStmt += fmt.Sprintf(` ORDER BY fma.name %s, fma.slug ASC`, direction)
 
 	selectStmt, rowsArgs, err := sqlx.In(selectStmt, rowsArgs...)
 	if err != nil {
