@@ -10,8 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/tj/assert"
 )
 
 // output from cryptsetup luksDump /dev/sda3 --debug-json command
