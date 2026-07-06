@@ -10,11 +10,19 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func rawMessagePtr(s string) *json.RawMessage {
+	raw := json.RawMessage(s)
+	return &raw
+}
+
+func uintPtr(v uint) *uint {
+	return &v
+}
 
 // setupPackConfigCacheTest creates a mock datastore and service configured for
 // pack config cache testing. The returned callCounter tracks the number of
@@ -33,7 +41,7 @@ func setupPackConfigCacheTest(t *testing.T) (
 	// Base agent options (minimal).
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"pack_delimiter":"/"}}}`)),
+			AgentOptions: rawMessagePtr(`{"config":{"options":{"pack_delimiter":"/"}}}`),
 		}, nil
 	}
 
@@ -104,7 +112,7 @@ func TestPackConfigCacheHit(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, conf1, "packs")
 	callsBefore := callCounter.Load()
-	require.Greater(t, callsBefore, int64(0), "expected at least one DB call on cache miss")
+	require.Positive(t, callsBefore, "expected at least one DB call on cache miss")
 
 	// Second call -- cache hit, should NOT call ListScheduledQueriesForAgents again.
 	conf2, err := svc.GetClientConfig(ctx)
@@ -299,8 +307,8 @@ func TestPackConfigCacheTeamIsolation(t *testing.T) {
 	svc, _, callCounter := setupPackConfigCacheTest(t)
 
 	globalHost := &fleet.Host{ID: 1}
-	team1Host := &fleet.Host{ID: 2, TeamID: ptr.Uint(1)}
-	team2Host := &fleet.Host{ID: 3, TeamID: ptr.Uint(2)}
+	team1Host := &fleet.Host{ID: 2, TeamID: uintPtr(1)}
+	team2Host := &fleet.Host{ID: 3, TeamID: uintPtr(2)}
 
 	ctxGlobal := hostctx.NewContext(t.Context(), globalHost)
 	ctxTeam1 := hostctx.NewContext(t.Context(), team1Host)
@@ -400,7 +408,7 @@ func TestPackConfigCachePerformance(t *testing.T) {
 	callsAfterWarm := callCounter.Load()
 
 	start := time.Now()
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		_, err := svc.GetClientConfig(ctx)
 		require.NoError(t, err)
 	}
@@ -415,7 +423,7 @@ func TestPackConfigCachePerformance(t *testing.T) {
 	callsBefore := callCounter.Load()
 
 	start = time.Now()
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		svc.InvalidatePackConfigCache()
 		_, err := svc.GetClientConfig(ctx)
 		require.NoError(t, err)
