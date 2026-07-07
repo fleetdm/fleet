@@ -21,8 +21,10 @@ The pieces to fix this already exist and are only unwired:
 
 Apple is the reference model: profiles go `verifying` on ACK and reach `verified` only when osquery confirms the payload
 is installed (`server/mdm/apple/profile_verifier.go`). Apple verification is event-driven (runs on host-detail ingest,
-never a wall-clock cron), uses a 1-hour grace period from the profile's send time, retries a fixed number of times, then
-fails. Apple does not classify errors and emits no activity for a verification failure.
+never a wall-clock cron), uses a 1-hour grace period measured from the profile's `EarliestInstallDate` (its earliest
+`updated_at`) against the host's last detail-report time (`hostDetailUpdatedAt`), per
+`ExpectedMDMProfile.IsWithinGracePeriod`; retries a fixed number of times, then fails. Apple does not classify errors and
+emits no activity for a verification failure.
 
 ## Goals / Non-Goals
 
