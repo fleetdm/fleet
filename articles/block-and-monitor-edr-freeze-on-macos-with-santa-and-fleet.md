@@ -2,10 +2,6 @@
 
 *EDR Freeze suspends a security tool instead of killing it, so the process looks healthy while it quietly stops working. Santa 2026.3 can block it on macOS, and Fleet lets you ship the fix and watch for the attack across every host.*
 
-EDR Freeze started life on Windows — pause a security product so it stops alerting or responding, without crashing or uninstalling it. The same idea works on macOS: anything built on Apple's Endpoint Security framework can be frozen with the `pid_suspend` system call, and a suspended agent still looks healthy in every monitoring tool while an attacker slips actions past its checks or floods its event queue.
-
-The good news is that the fix is well understood, and you can ship and monitor it through Fleet today. Santa, the open-source binary authorization agent for macOS, added the `AntiSuspendSigningIDs` configuration key in version 2026.3, and Fleet gives you the delivery pipeline and the visibility to go with it. Here's how the attack works and how to close it.
-
 ## Key takeaways
 
 - **EDR Freeze is for staying hidden, not breaking in.** An attacker who already has root uses `pid_suspend` to freeze a security agent at the Mach task level. `ps` and Activity Monitor still show a healthy process, but it can't authorize, alert, or record anything.
@@ -16,6 +12,10 @@ The good news is that the fix is well understood, and you can ship and monitor i
 - **Independent signals cover what a frozen agent can't report.** Sequence-number gaps, server-side telemetry silence, deadline-kill log messages, and canary events all fire even when the agent is asleep.
 
 <a purpose="cta-button" href="https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server">Deploy Santa with Fleet</a>
+
+EDR Freeze started life on Windows — pause a security product so it stops alerting or responding, without crashing or uninstalling it. The same idea works on macOS: anything built on Apple's Endpoint Security framework can be frozen with the `pid_suspend` system call, and a suspended agent still looks healthy in every monitoring tool while an attacker slips actions past its checks or floods its event queue.
+
+The good news is that the fix is well understood, and you can ship and monitor it through Fleet today. Santa, the open-source binary authorization agent for macOS, added the `AntiSuspendSigningIDs` configuration key in version 2026.3, and Fleet gives you the delivery pipeline and the visibility to go with it. Here's how the attack works and how to close it.
 
 ## How EDR Freeze works on macOS
 

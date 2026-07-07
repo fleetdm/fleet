@@ -360,7 +360,7 @@ import Gather from "./Gather";
 import Gdevelop from "./Gdevelop";
 import Geany from "./Geany";
 import Geekbench from "./Geekbench";
-import Gemini from "./Gemini";
+import Gemini2 from "./Gemini2";
 import GenesysCloud from "./GenesysCloud";
 import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
@@ -382,6 +382,7 @@ import Goodsync from "./Goodsync";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoogleDrive from "./GoogleDrive";
 import GoogleEarthPro from "./GoogleEarthPro";
+import GoogleGemini from "./GoogleGemini";
 import GoToMeeting from "./GoToMeeting";
 import GpgKeychain from "./GpgKeychain";
 import Gpodder from "./Gpodder";
@@ -980,6 +981,7 @@ import WhatsApp from "./WhatsApp";
 import Whisky from "./Whisky";
 import Whispering from "./Whispering";
 import Wifiman from "./Wifiman";
+import Windirstat from "./Windirstat";
 import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
@@ -1398,7 +1400,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gdevelop: Gdevelop,
   geany: Geany,
   geekbench: Geekbench,
-  gemini: Gemini,
+  gemini: GoogleGemini,
+  "gemini 2": Gemini2,
   "genesys cloud": GenesysCloud,
   gephi: Gephi,
   ghostty: Ghostty,
@@ -1423,6 +1426,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   "google drive": GoogleDrive,
   "google earth pro": GoogleEarthPro,
+  "google gemini": GoogleGemini,
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
@@ -2030,6 +2034,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,

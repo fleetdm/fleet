@@ -24,6 +24,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"ListAvailableAppsByNameAndFilters", testListAvailableAppsByNameAndFilters},
+		{"ListAvailableAppsSharedName", testListAvailableAppsSharedName},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
@@ -456,7 +457,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
 
-	// Ordering: the combined-by-name view is only meaningfully sortable by name,
+	// Ordering: the combined-by-app view is only meaningfully sortable by name,
 	// so "name" is the one allowed order key. expectedApps is declared in
 	// ascending name order, so we derive the expected name sequences from it.
 	appNames := func(apps []fleet.MaintainedApp) []string {
@@ -681,11 +682,11 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.Nil(t, apps[1].TitleID)
 }
 
-// testListAvailableAppsByNameAndFilters verifies that the list paginates by
-// distinct app NAME (an app's macOS and Windows entries are combined into one
-// logical app in the UI) while the total count is by distinct app row (each
-// platform entry counted separately), and that the platform and available-only
-// filters work server-side.
+// testListAvailableAppsByNameAndFilters verifies that the list paginates and
+// counts by distinct app TOKEN (the slug prefix), so an app's macOS and Windows
+// entries are combined into one logical app for both pagination and the count
+// (matching the single combined row the UI renders), and that the platform and
+// available-only filters work server-side.
 func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -721,20 +722,21 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 		return fleet.MaintainedAppListOptions{ListOptions: o}
 	}
 
-	// Unfiltered: 6 apps (the count, one per platform entry) across 4 names, 6
-	// rows returned.
+	// Unfiltered: 4 apps (the count, one per app token: alpha, beta, gamma,
+	// delta) across 4 names, 6 rows returned (the raw per-platform entries the UI
+	// combines into 4 rows).
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{}))
 	require.NoError(t, err)
-	require.EqualValues(t, 6, meta.TotalResults)
+	require.EqualValues(t, 4, meta.TotalResults)
 	require.Len(t, apps, 6)
 	require.False(t, meta.HasNextResults)
 
-	// Pagination is by app name: a page of 2 names that includes a dual-platform
+	// Pagination is by app token: a page of 2 apps that includes a dual-platform
 	// app returns ALL of that app's rows, so an app is never split across a page
 	// boundary. Page 0 => Alpha (darwin+windows) + Beta (darwin) = 3 rows.
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{PerPage: 2}))
 	require.NoError(t, err)
-	require.EqualValues(t, 6, meta.TotalResults)
+	require.EqualValues(t, 4, meta.TotalResults)
 	require.True(t, meta.HasNextResults)
 	require.False(t, meta.HasPreviousResults)
 	require.Equal(t, []string{"Alpha", "Alpha", "Beta"}, appNames(apps))
@@ -774,11 +776,10 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 
 	// Available-only hides Beta (its only platform is added) but keeps the other
 	// three apps, which still have at least one not-yet-added platform. The count
-	// is the 5 not-yet-added platform entries (Alpha macOS+Windows, Gamma
-	// Windows, Delta macOS+Windows).
+	// is the 3 remaining app tokens (Alpha, Gamma, Delta).
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{AvailableOnly: true, ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
-	require.EqualValues(t, 5, meta.TotalResults)
+	require.EqualValues(t, 3, meta.TotalResults)
 	require.NotContains(t, appNames(apps), "Beta")
 
 	// Without the filter, Beta is still listed (as added).
@@ -792,6 +793,61 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.EqualValues(t, 2, meta.TotalResults)
 	require.ElementsMatch(t, []string{"Alpha", "Alpha", "Delta", "Delta"}, appNames(apps))
+}
+
+// testListAvailableAppsSharedName verifies that two distinct apps sharing a
+// display name (e.g. "Gemini": gemini/darwin and google-gemini/darwin) are
+// counted and listed as two separate apps. Keying on the slug token keeps them
+// distinct, so the count matches the row count and neither app is hidden.
+func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Shared Name"})
+	require.NoError(t, err)
+
+	mkApp := func(name, slug, platform, ident string) {
+		_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name: name, Slug: slug, Platform: platform, UniqueIdentifier: ident,
+		})
+		require.NoError(t, err)
+	}
+	// Two different macOS apps that share the display name "Gemini".
+	mkApp("Gemini", "gemini/darwin", "darwin", "com.macpaw.site.Gemini2")
+	mkApp("Gemini", "google-gemini/darwin", "darwin", "com.google.GeminiMacOS")
+
+	assertTwoGeminis := func(opt fleet.MaintainedAppListOptions) {
+		apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, opt)
+		require.NoError(t, err)
+		// Both apps counted (not collapsed by shared name) ...
+		require.EqualValues(t, 2, meta.TotalResults)
+		// ... and both rows returned, with distinct slugs.
+		require.Len(t, apps, 2)
+		slugs := []string{apps[0].Slug, apps[1].Slug}
+		require.ElementsMatch(t, []string{"gemini/darwin", "google-gemini/darwin"}, slugs)
+		require.Equal(t, "Gemini", apps[0].Name)
+		require.Equal(t, "Gemini", apps[1].Name)
+	}
+
+	// Count must equal rows unfiltered and with the macOS platform filter.
+	assertTwoGeminis(fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	assertTwoGeminis(fleet.MaintainedAppListOptions{Platform: "darwin", ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+
+	// Paginating one app at a time yields each Gemini on its own page, never
+	// splitting or dropping one.
+	page0, meta0, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, meta0.TotalResults)
+	require.Len(t, page0, 1)
+	require.True(t, meta0.HasNextResults)
+
+	page1, meta1, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, meta1.TotalResults)
+	require.Len(t, page1, 1)
+	require.False(t, meta1.HasNextResults)
+	require.True(t, meta1.HasPreviousResults)
+	// The two pages cover the two distinct apps.
+	require.NotEqual(t, page0[0].Slug, page1[0].Slug)
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {

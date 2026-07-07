@@ -40,7 +40,7 @@ const baseProps: ILibraryItemAccordionProps = {
   failedPath: statusPath("failed"),
   hashSha256:
     "af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7",
-  downloadUrl: "https://example.com/installer.pkg",
+  canDownload: true,
 };
 
 const makeLabels = (count: number): ILabelSoftwareTitle[] =>
@@ -362,8 +362,8 @@ describe("LibraryItemAccordion", () => {
       expect(onDownloadClick).toHaveBeenCalledTimes(1);
     });
 
-    it("is omitted when downloadUrl is not provided", async () => {
-      const { user } = renderAccordion({ downloadUrl: undefined });
+    it("is omitted when canDownload is false", async () => {
+      const { user } = renderAccordion({ canDownload: false });
 
       await user.click(screen.getByRole("button", { expanded: false }));
       expect(
@@ -381,7 +381,7 @@ describe("LibraryItemAccordion", () => {
       expect(
         screen.queryByRole("button", { name: "Delete this version" })
       ).not.toBeInTheDocument();
-      // Download stays — gated only by `downloadUrl`, not edit permission.
+      // Download stays — gated only by `canDownload`, not edit permission.
       expect(
         screen.getByRole("button", { name: "Download installer" })
       ).toBeVisible();

@@ -1,0 +1,1 @@
+- Fixed an incorrect error message where an `msix` file was parsed as an `ipa` file.

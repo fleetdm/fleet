@@ -185,9 +185,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 5000 hosts](https://calculator.aws/#/estimate?id=cc26267f829536383e9b1b449ca0c56f0e844084)
 
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 6 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| --------------- | -------------- | --- | -------------------------- |
+| 6 Fargate tasks | 1024 CPU Units | 4GB | 10                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -196,9 +196,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 10000 hosts](https://calculator.aws/#/estimate?id=5ea231525450b1cd4fa847f4564351d2c17d2ee2)
 
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 8 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| --------------- | -------------- | --- | -------------------------- |
+| 8 Fargate tasks | 1024 CPU Units | 4GB | 10                         |
 
 | Dependencies | Version                 | Instance type    | Nodes |
 | ------------ |-------------------------| ---------------- | ----- |
@@ -207,9 +207,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4700e7a36ef34b84ae9ad4f444690f1df2ca3753)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 10 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 10 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -218,9 +218,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 50000 hosts](https://calculator.aws/#/estimate?id=3887d782a8f6cfeb9e0463686b5629aeb4cd678e)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 15 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 15 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -229,9 +229,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 80000 hosts](https://calculator.aws/#/estimate?id=7d0dee9241aff55fc733a9eead816baea14aee21)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 20 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 20 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -240,9 +240,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 100000 hosts](https://calculator.aws/#/estimate?id=cd17a0dda5e1ee5f919ac0a2a0ea8a6e1557e307)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 25 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 25 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -251,9 +251,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=a53e31063df9e5941b0c4b019b03ca2bd226fd48)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 40 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 40 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
@@ -262,9 +262,9 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=1f54ccc80e27a78f192b0e9db02ab957eff0c26c)
 
-| Fleet instances  | CPU Units      | RAM |
-| ---------------- | -------------- | --- |
-| 70 Fargate tasks | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 70 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type    | Nodes |
 | ------------ |-------------------------| ---------------- | ----- |
