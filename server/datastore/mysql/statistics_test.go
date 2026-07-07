@@ -856,25 +856,27 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 
 	// Each host exercises one branch of the query; only enrolled, non-server, Fleet-MDM darwin/windows hosts are counted.
 	cases := []struct {
-		name     string
-		platform string
-		isServer bool
-		enrolled bool
-		mdmName  string // "" means no MDM data at all
+		name             string
+		platform         string
+		isServer         bool
+		enrolled         bool
+		installedFromDep bool
+		mdmName          string // "" means no MDM data at all
 	}{
-		{"macOS Fleet MDM", "darwin", false, true, fleet.WellKnownMDMFleet},               // counted (macOS)
-		{"windows Fleet MDM", "windows", false, true, fleet.WellKnownMDMFleet},            // counted (Windows)
-		{"macOS third-party MDM", "darwin", false, true, fleet.WellKnownMDMIntune},        // excluded: not Fleet
-		{"macOS unenrolled/ABM pending", "darwin", false, false, fleet.WellKnownMDMFleet}, // excluded: not enrolled
-		{"windows server host", "windows", true, true, fleet.WellKnownMDMFleet},           // excluded: is_server
-		{"iOS Fleet MDM", "ios", false, true, fleet.WellKnownMDMFleet},                    // excluded: not macOS/Windows
-		{"macOS no MDM", "darwin", false, false, ""},                                      // excluded: no MDM data
+		{"macOS Fleet MDM", "darwin", false, true, false, fleet.WellKnownMDMFleet},        // counted (macOS)
+		{"windows Fleet MDM", "windows", false, true, false, fleet.WellKnownMDMFleet},     // counted (Windows)
+		{"macOS third-party MDM", "darwin", false, true, false, fleet.WellKnownMDMIntune}, // excluded: not Fleet
+		// ABM pending: DEP-assigned (installed_from_dep=1) but not yet enrolled (enrolled=0).
+		{"macOS ABM pending", "darwin", false, false, true, fleet.WellKnownMDMFleet},   // excluded: not enrolled
+		{"windows server host", "windows", true, true, false, fleet.WellKnownMDMFleet}, // excluded: is_server
+		{"iOS Fleet MDM", "ios", false, true, false, fleet.WellKnownMDMFleet},          // excluded: not macOS/Windows
+		{"macOS no MDM", "darwin", false, false, false, ""},                            // excluded: no MDM data
 	}
 	for i, c := range cases {
 		key := fmt.Sprintf("mdm-stats-%d", i)
 		h := test.NewHost(t, ds, key, "", key, key, time.Now(), test.WithPlatform(c.platform))
 		if c.mdmName != "" {
-			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", false, c.mdmName, "", false), c.name)
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", false), c.name)
 		}
 	}
 
