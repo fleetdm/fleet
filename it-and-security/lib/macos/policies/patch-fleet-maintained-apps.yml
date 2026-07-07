@@ -11,7 +11,8 @@
   resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
   type: patch
   fleet_maintained_app_slug: 1password/darwin
-  install_software: false
+  install_software: true
+  install_only_when_closed: true
   calendar_events_enabled: true
   labels_include_any:
     - Macs with 1Password installed
