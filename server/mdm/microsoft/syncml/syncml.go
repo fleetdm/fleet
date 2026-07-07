@@ -174,11 +174,11 @@ const (
 const (
 	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
 	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
-	// FleetRemoteWipeTargetLocURI is the RemoteWipe CSP subtree. Like the other reserved constants it is anchored with a
-	// leading "/" for segment-boundary safety; it also keeps a trailing "/" so it matches an actual wipe operation node
-	// (e.g. .../RemoteWipe/doWipe) rather than a bare or unrelated node. Combine with fleet.LocURITargetsReservedNode so the
-	// match is independent of the scope prefix Windows treats as equivalent.
-	FleetRemoteWipeTargetLocURI = "/Vendor/MSFT/RemoteWipe/"
+	// FleetRemoteWipeTargetLocURI is the RemoteWipe CSP subtree (wipe-only: every node under it performs a device wipe).
+	// Like the other reserved constants it is anchored with a leading "/" for segment-boundary safety. Combine with
+	// fleet.LocURITargetsReservedNode so the match covers the node and any descendant, at segment boundaries, independent of
+	// the scope prefix Windows treats as equivalent.
+	FleetRemoteWipeTargetLocURI = "/Vendor/MSFT/RemoteWipe"
 
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )

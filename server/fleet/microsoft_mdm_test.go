@@ -865,7 +865,7 @@ func TestLocURITargetsReservedNode(t *testing.T) {
 		{name: "implicit device RemoteWipe", locURI: "./Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
 		{name: "scope-less RemoteWipe (regression #48752)", locURI: "Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
 		{name: "scope-less Device RemoteWipe", locURI: "Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
-		{name: "RemoteWipe with no operation node does not match", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
+		{name: "bare RemoteWipe node matches (wipe-only subtree)", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
 		// Segment-boundary regressions: a longer sibling segment that merely shares the reserved-node prefix must not match.
 		{name: "BitLockerCustom sibling is not reserved", locURI: "Vendor/MSFT/BitLockerCustom/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
 		{name: "UpdateExtra sibling is not reserved", locURI: "Vendor/MSFT/Policy/Config/UpdateExtra/Foo", reserved: syncml.FleetOSUpdateTargetLocURI, want: false},

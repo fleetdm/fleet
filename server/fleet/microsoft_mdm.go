@@ -1162,9 +1162,7 @@ func (cmd SyncMLCmd) IsPremium() bool {
 	// NOTE: if this implementation changes, make sure to also update the error
 	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
 	//
-	// LocURITargetsReservedNode canonicalizes the target so the premium gate matches every LocURI form Windows accepts,
-	// including the scope-less "Vendor/MSFT/RemoteWipe/..." variant. Without it, a wipe submitted via run-command with an
-	// implicit-device or scope-less LocURI would evade the license check while the device still executes the wipe.
+	// LocURITargetsReservedNode canonicalizes the target so the premium gate matches every LocURI form Windows accepts.
 	return LocURITargetsReservedNode(cmd.GetTargetURI(), syncml.FleetRemoteWipeTargetLocURI)
 }
 
@@ -1967,28 +1965,15 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 	return uris
 }
 
-// LocURITargetsReservedNode reports whether a single LocURI targets the given Fleet-reserved node. The reserved constants
-// (e.g. syncml.FleetBitLockerTargetLocURI, syncml.FleetOSUpdateTargetLocURI) are anchored with a leading "/" for
-// segment-boundary safety, so the canonicalized LocURI is re-anchored with a leading "/" before matching. This makes the
-// check independent of the scope prefix Windows treats as equivalent, closing the scope-less bypass where
-// "Vendor/MSFT/BitLocker/..." slipped past a check that only matched "/Vendor/MSFT/BitLocker". See CanonicalLocURI.
-//
-// The match is segment-boundary-aware on both ends so a longer sibling segment is not treated as reserved: "BitLockerCustom"
-// does not match "/Vendor/MSFT/BitLocker", and "Policy/Config/UpdateExtra" does not match "/Vendor/MSFT/Policy/Config/Update".
+// LocURITargetsReservedNode reports whether locURI targets the given Fleet-reserved node, or any descendant of it, matching
+// at path-segment boundaries.
 func LocURITargetsReservedNode(locURI, reservedLocURI string) bool {
-	anchored := "/" + CanonicalLocURI(locURI)
-	if strings.HasSuffix(reservedLocURI, "/") {
-		// The reserved subtree is already right-anchored on a segment boundary (matches descendants only, e.g. the RemoteWipe
-		// wipe operations under "/Vendor/MSFT/RemoteWipe/"). A plain substring match is correct here.
-		return strings.Contains(anchored, reservedLocURI)
-	}
-	// Reserved node with no trailing "/": match the node itself or any descendant, but not a longer sibling segment.
-	// Appending "/" to both the value and the reserved node enforces the trailing segment boundary.
-	return strings.Contains(anchored+"/", reservedLocURI+"/")
+	node := strings.Trim(reservedLocURI, "/")
+	// Frame both the canonicalized LocURI and the node with "/" so the substring match is boundary-safe on both ends.
+	return strings.Contains("/"+CanonicalLocURI(locURI)+"/", "/"+node+"/")
 }
 
-// ProfileTargetsReservedLocURI reports whether any Add/Replace Target LocURI in the profile targets the given Fleet-reserved
-// node (e.g. syncml.FleetOSUpdateTargetLocURI or syncml.FleetBitLockerTargetLocURI, both stored with a leading "/").
+// ProfileTargetsReservedLocURI reports whether any Target LocURI in the profile targets the given Fleet-reserved node.
 func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bool {
 	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
 	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
@@ -1996,9 +1981,7 @@ func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bo
 	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
 		return false
 	}
-	// Confirm a real Add/Replace Target LocURI targets the node, with segment-boundary-correct matching so a longer sibling
-	// segment that merely shares the reject-filter substring is not counted. This also catches the scope-less form
-	// ("Vendor/MSFT/...") that Windows accepts but that a leading-"/" substring check would miss.
+	// Confirm a real Add/Replace Target LocURI targets the node
 	for _, uri := range ExtractLocURIsFromProfileBytes(profileBytes) {
 		if LocURITargetsReservedNode(uri, reservedLocURI) {
 			return true

@@ -1086,9 +1086,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			args = append(args, enrolledDevice.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
 
-			// if the command is a Wipe, keep track of it so we can update
-			// host_mdm_actions accordingly. LocURITargetsReservedNode canonicalizes the target so a wipe issued via a
-			// scope-less or implicit-device LocURI is still recognized (matching the enqueue-side premium gate).
+			// if the command is a Wipe, keep track of it so we can update host_mdm_actions accordingly.
 			if fleet.LocURITargetsReservedNode(cmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI) {
 				wipeCmdUUID = cmd.CommandUUID
 				wipeCmdStatus = statusCode

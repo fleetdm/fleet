@@ -1377,9 +1377,7 @@ func profileFileContains(path, needle string) (bool, error) {
 }
 
 // windowsProfileFileTargetsReservedLocURI reports whether the Windows profile file at path targets the given Fleet-reserved
-// LocURI node. Unlike profileFileContains, it accounts for the scope-less LocURI forms Windows accepts (e.g.
-// "Vendor/MSFT/Policy/Config/Update/..." without the "./Device/" prefix), matching the server-side check so a dry-run fails
-// the same way a real apply would. See fleet.ProfileTargetsReservedLocURI.
+// LocURI node.
 func windowsProfileFileTargetsReservedLocURI(path, reservedLocURI string) (bool, error) {
 	if path == "" {
 		return false, nil
