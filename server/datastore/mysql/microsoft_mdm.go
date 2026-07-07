@@ -1157,6 +1157,38 @@ ON DUPLICATE KEY UPDATE
 	return result, nil
 }
 
+// renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
+// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep). These are the proxied
+// SCEP profiles whose issued certificate Fleet can later observe on the host and match back to the profile. Server-issued
+// CAs (DigiCert) and non-proxied flows (NULL type) are excluded, so their profiles keep their existing status behavior.
+func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, profileUUIDs []string) (map[string]struct{}, error) {
+	if len(profileUUIDs) == 0 {
+		return nil, nil
+	}
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT profile_uuid
+		FROM host_mdm_managed_certificates
+		WHERE host_uuid = ? AND profile_uuid IN (?) AND type IN (?)`,
+		hostUUID, profileUUIDs, caTypeStrs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building managed cert profile query")
+	}
+	var uuids []string
+	if err := sqlx.SelectContext(ctx, tx, &uuids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting renewal-ID managed cert profile uuids")
+	}
+	result := make(map[string]struct{}, len(uuids))
+	for _, u := range uuids {
+		result[u] = struct{}{}
+	}
+	return result, nil
+}
+
 // updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential
 // profile payloads and updates the corresponding `status` and `detail` columns
 // in `host_mdm_windows_profiles`
@@ -1217,12 +1249,41 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		return ctxerr.Wrap(ctx, err, "running query to get matching profiles")
 	}
 
+	// Proxied SCEP profiles must not report "verified" off the device's SyncML ACK alone: a 2xx ACK only means the
+	// SCEP <Exec> was accepted by the CSP, not that a certificate was issued (the exchange runs asynchronously after).
+	// Downgrade those installs to "verifying" and let UpdateHostCertificates flip them to "verified" once the matching
+	// certificate is observed on the host. Detect them by an existing renewal-ID-backed managed-certificate row (custom
+	// SCEP proxy, NDES, or Smallstep).
+	var verifiedInstallProfileUUIDs []string
+	for _, hp := range matchingHostProfiles {
+		payload := uuidsToPayloads[hp.CommandUUID]
+		if payload == nil {
+			continue
+		}
+		if hp.OperationType == fleet.MDMOperationTypeInstall && payload.Status != nil && *payload.Status == fleet.MDMDeliveryVerified {
+			verifiedInstallProfileUUIDs = append(verifiedInstallProfileUUIDs, hp.ProfileUUID)
+		}
+	}
+	scepProxyProfileUUIDs, err := renewalIDManagedCertProfileUUIDsDB(ctx, tx, hostUUID, verifiedInstallProfileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for proxied SCEP managed certificate profiles")
+	}
+
 	// Partition matching entries into upsert and delete buckets.
 	var sb strings.Builder
 	args = args[:0]
 	var deleteCommandUUIDs []string
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
+		if payload == nil {
+			continue
+		}
+		if hp.OperationType == fleet.MDMOperationTypeInstall && payload.Status != nil && *payload.Status == fleet.MDMDeliveryVerified {
+			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok {
+				verifying := fleet.MDMDeliveryVerifying
+				payload.Status = &verifying
+			}
+		}
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
 			// Don't retry remove operations; removal is best-effort. Only retry install operations up to the max retry count.
 			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxWindowsProfileRetries {
@@ -1273,6 +1334,24 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 	}
 
+	return nil
+}
+
+func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
+	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it), and leave
+	// the retry counter untouched: this is not the SyncML auto-retry path, and the device's own SCEP CSP retry handles
+	// transient upstream blips.
+	const stmt = `
+		UPDATE host_mdm_windows_profiles
+		SET status = ?, detail = ?
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
+			AND (status IS NULL OR status <> ?)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+	}
 	return nil
 }
 

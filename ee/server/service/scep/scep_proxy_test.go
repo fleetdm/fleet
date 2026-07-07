@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -1163,4 +1164,32 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.True(t, ds.ConsumeChallengeFuncInvoked)
 		ds.ConsumeChallengeFuncInvoked = false
 	})
+}
+
+type fakeTimeoutError struct{}
+
+func (fakeTimeoutError) Error() string   { return "i/o timeout" }
+func (fakeTimeoutError) Timeout() bool   { return true }
+func (fakeTimeoutError) Temporary() bool { return true }
+
+func TestClassifySCEPProxyError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"nil", nil, "unknown error"},
+		{"deadline exceeded", context.DeadlineExceeded, "timeout"},
+		{"wrapped deadline", fmt.Errorf("doing PKIOperation: %w", context.DeadlineExceeded), "timeout"},
+		{"net timeout", fakeTimeoutError{}, "timeout"},
+		{"http 500", errors.New("http request failed with status 500 Internal Server Error, msg: boom"), "HTTP 500"},
+		{"http 403", errors.New("http request failed with status 403 Forbidden, msg: denied"), "HTTP 403"},
+		{"connection refused", errors.New("dial tcp 10.0.0.1:80: connect: connection refused"), "connection refused"},
+		{"dns", errors.New("dial tcp: lookup ca.invalid: no such host"), "DNS resolution error"},
+		{"generic", errors.New("something unexpected happened"), "upstream error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, classifySCEPProxyError(tc.err))
+		})
+	}
 }

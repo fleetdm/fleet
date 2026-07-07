@@ -1,0 +1,1 @@
+- Windows configuration profiles that use a Fleet-proxied SCEP certificate (custom SCEP proxy, NDES, or Smallstep) now report "Verified" only after Fleet observes the issued certificate on the host, and report "Failed" with the upstream error when the SCEP proxy request fails, instead of reporting "Verified" as soon as the host acknowledged the profile.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -229,6 +230,7 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 	}
 	res, err := client.GetCACaps(ctx)
 	if err != nil {
+		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "GetCACaps", err)
 		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", scepURL)
 	}
 	return res, nil
@@ -248,6 +250,7 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
+		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "GetCACert", err)
 		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", scepURL)
 	}
 	return res, num, nil
@@ -268,10 +271,73 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 	res, err := client.PKIOperation(ctx, data)
 	if err != nil {
+		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "PKIOperation", err)
 		return res, ctxerr.Wrapf(ctx, err,
 			"Could not do PKIOperation on SCEP server %s", scepURL)
 	}
 	return res, nil
+}
+
+// recordWindowsSCEPProxyFailure marks a Windows SCEP profile as "failed" when the proxy observes an upstream
+// certificate-authority error, so the failure surfaces instead of the profile lingering in "verifying". Scoped to
+// Windows profiles (Apple/Android manage their own status transitions). Best-effort: a failure to record is logged but
+// does not alter the error returned to the device. If the device's own SCEP retry later succeeds, the observed
+// certificate flips the profile back to "verified" (see verifyWindowsSCEPProfilesFromObservedCertsDB).
+func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
+	hostUUID, profileUUID, ok := parseHostAndProfileFromSCEPIdentifier(identifier)
+	if !ok || !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		return
+	}
+	detail := fmt.Sprintf("SCEP %s failed: %s", operation, classifySCEPProxyError(upstreamErr))
+	if err := svc.ds.SetMDMWindowsHostProfileFailed(ctx, hostUUID, profileUUID, detail); err != nil {
+		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
+			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)
+	}
+}
+
+// parseHostAndProfileFromSCEPIdentifier extracts the host and profile UUIDs from the SCEP proxy identifier
+// ("hostUUID,profileUUID,caName,challenge"). It intentionally does no validation beyond the two leading fields; full
+// validation lives in validateIdentifier.
+func parseHostAndProfileFromSCEPIdentifier(identifier string) (hostUUID, profileUUID string, ok bool) {
+	parsed, err := url.PathUnescape(identifier)
+	if err != nil {
+		return "", "", false
+	}
+	parts := strings.Split(parsed, ",")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+var scepProxyHTTPStatusRegex = regexp.MustCompile(`status (\d{3})`)
+
+// classifySCEPProxyError renders a short, stable, human-readable reason for a Windows profile's failure detail. It
+// never returns secrets or the proxy URL (the raw upstream error carries neither the challenge nor the URL): the SCEP
+// client reports non-2xx responses as "http request failed with status <code> ...".
+func classifySCEPProxyError(err error) string {
+	if err == nil {
+		return "unknown error"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	msg := err.Error()
+	if m := scepProxyHTTPStatusRegex.FindStringSubmatch(msg); m != nil {
+		return "HTTP " + m[1]
+	}
+	switch {
+	case strings.Contains(msg, "connection refused"):
+		return "connection refused"
+	case strings.Contains(msg, "no such host"):
+		return "DNS resolution error"
+	default:
+		return "upstream error"
+	}
 }
 
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,

@@ -409,8 +409,52 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		if err := insertHostMDMManagedCertDB(ctx, tx, hostMDMManagedCertsToInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host mdm managed cert rows")
 		}
+
+		// A proxied Windows SCEP profile sits in "verifying" until the certificate it requested is observed on the host.
+		// The managed-cert updates above set not_valid_after/serial when a reported cert matched the profile's
+		// renewal-ID marker, so a matched-and-valid managed-cert row is the signal that the certificate landed. Flip
+		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error). Runs off the
+		// managed-cert state, not just this run's matches, so a profile whose cert was matched on an earlier report also
+		// converges.
+		if err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "verify windows scep profiles from observed certs")
+		}
 		return nil
 	})
+}
+
+// verifyWindowsSCEPProfilesFromObservedCertsDB flips a host's proxied Windows SCEP install profiles from "verifying" or
+// "failed" to "verified" when their managed-certificate row carries a currently-valid observed certificate (matched by
+// renewal-ID marker in UpdateHostCertificates). It clears the detail and preserves the retry counter, matching Fleet's
+// convention that the "verified" transition never resets retries. Scoped to renewal-ID CA types so non-proxied and
+// server-issued (DigiCert) profiles are untouched, and never overwrites an already-"verified" row.
+func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	stmt, args, err := sqlx.In(`
+		UPDATE host_mdm_windows_profiles hwmp
+		JOIN host_mdm_managed_certificates hmmc
+			ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
+		SET hwmp.status = ?, hwmp.detail = ''
+		WHERE hwmp.host_uuid = ?
+			AND hwmp.operation_type = ?
+			AND hwmp.status IN (?, ?)
+			AND hmmc.type IN (?)
+			AND hmmc.not_valid_after IS NOT NULL
+			AND hmmc.not_valid_after > NOW()
+			AND (hmmc.not_valid_before IS NULL OR hmmc.not_valid_before <= NOW())`,
+		fleet.MDMDeliveryVerified, hostUUID, fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed, caTypeStrs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building windows scep verify query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
+	}
+	return nil
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints
