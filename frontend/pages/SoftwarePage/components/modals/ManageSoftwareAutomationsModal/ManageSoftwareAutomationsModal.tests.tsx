@@ -20,6 +20,17 @@ const softwareConfig = createMockConfig({
       enable_vulnerabilities_webhook: true,
       destination_url: "",
     },
+    failing_policies_webhook: {
+      enable_failing_policies_webhook: false,
+      destination_url: "",
+      policy_ids: [],
+      host_batch_size: 0,
+    },
+    host_status_webhook: null,
+    activities_webhook: {
+      enable_activities_webhook: false,
+      destination_url: "",
+    },
   },
   integrations: { jira: [], zendesk: [] },
 });
@@ -42,7 +53,11 @@ const renderModal = ({ gitOpsModeEnabled = false } = {}) => {
     context: {
       app: {
         config: createMockConfig({
-          gitops: { gitops_mode_enabled: gitOpsModeEnabled },
+          gitops: {
+            gitops_mode_enabled: gitOpsModeEnabled,
+            repository_url: "",
+            exceptions: { labels: false, software: false, secrets: true },
+          },
         }),
         isFreeTier: false,
       },
