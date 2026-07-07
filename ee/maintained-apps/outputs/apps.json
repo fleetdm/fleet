@@ -65,13 +65,6 @@
       "description": "4K Video Downloader is a free video downloader."
     },
     {
-      "name": "4K Video Downloader",
-      "slug": "4k-video-downloader/windows",
-      "platform": "windows",
-      "unique_identifier": "4K Video Downloader",
-      "description": "4K Video Downloader is a free video downloader."
-    },
-    {
       "name": "4K Video to MP3",
       "slug": "4k-video-to-mp3/darwin",
       "platform": "darwin",
