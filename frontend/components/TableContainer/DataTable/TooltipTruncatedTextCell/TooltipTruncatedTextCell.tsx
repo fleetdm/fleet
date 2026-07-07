@@ -56,7 +56,9 @@ const TooltipTruncatedTextCell = ({
       const offsetWidth = ref.current.offsetWidth;
       setTooltipDisabled(scrollWidth <= offsetWidth);
     }
-  }, [ref]);
+    // `ref` itself never changes identity, so re-measure whenever a prop
+    // that can affect the rendered text's width changes, not just on mount.
+  }, [value, prefix, suffix, justifySuffixEnd]);
   // End
 
   const tooltipId = uniqueId();
