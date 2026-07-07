@@ -1816,10 +1816,10 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // was atomic. Removal is best-effort: individual deletions may fail (e.g., the
 // CSP node doesn't support deletion).
 //
-// locURIsInUseByOtherProfiles is an optional set of LocURIs that are still
-// targeted by other active profiles in the same team. These LocURIs will be
-// skipped when generating <Delete> commands, so that deleting one profile
-// does not undo settings enforced by a different profile.
+// locURIsInUseByOtherProfiles is an optional set of LocURIs that are still targeted by other active profiles in the same team.
+// These LocURIs will be skipped when generating <Delete> commands, so that deleting one profile does not undo settings enforced
+// by a different profile. Both sides are compared in CanonicalLocURI form, so the set may hold any spelling and still protects a
+// node the deleted profile spells differently.
 func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]struct{}) (*MDMWindowsCommand, error) {
 	// Substitute $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID with the profile UUID.
 	// This is the only Fleet variable that appears in LocURIs (enforced by
@@ -1838,15 +1838,17 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 		return nil, nil
 	}
 
-	// Filter out LocURIs that are still targeted by other active profiles.
+	// Filter out LocURIs that are still targeted by other active profiles, comparing canonical forms.
 	inUse := make(map[string]struct{})
-	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
-		inUse = locURIsInUseByOtherProfiles[0]
+	if len(locURIsInUseByOtherProfiles) > 0 {
+		for uri := range locURIsInUseByOtherProfiles[0] {
+			inUse[CanonicalLocURI(uri)] = struct{}{}
+		}
 	}
 
 	var safeURIs []string
 	for _, uri := range allURIs {
-		if _, ok := inUse[uri]; !ok {
+		if _, ok := inUse[CanonicalLocURI(uri)]; !ok {
 			safeURIs = append(safeURIs, uri)
 		}
 	}
@@ -1909,6 +1911,17 @@ func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error)
 	return root.Commands, nil
 }
 
+// CanonicalLocURI returns the comparison form of an OMA-DM LocURI: surrounding whitespace trimmed, the optional "./" prefix
+// dropped, and an explicit leading "Device/" scope segment dropped. Windows treats "./Device/Vendor/X", "./Vendor/X",
+// "Device/Vendor/X" and "Vendor/X" as the same device-scoped node (see validateLocURIFormat's empirically-verified notes; user
+// scope must be explicit, so "./User/..." stays distinct).
+func CanonicalLocURI(locURI string) string {
+	s := strings.TrimSpace(locURI)
+	s = strings.TrimPrefix(s, "./")
+	s = strings.TrimPrefix(s, "Device/")
+	return s
+}
+
 // ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the
 // profile's Replace and Add commands. Exec commands are excluded (they
 // trigger one-time actions, not persistent settings). For Atomic profiles,
@@ -1925,21 +1938,24 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 		return nil
 	}
 
+	// The returned URIs are compared across profile versions and across profiles (edit-diffing, shared-LocURI protection) and become
+	// <Delete> targets. Trim surrounding whitespace so a formatting-only change to a LocURI's spelling is not treated as a different
+	// node, which would generate a <Delete> for a node the new version still enforces.
 	var uris []string
 	for _, cmd := range cmds {
 		if cmd.XMLName.Local == CmdAtomic {
 			for _, nested := range cmd.ReplaceCommands {
-				if uri := nested.GetTargetURI(); uri != "" {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
 					uris = append(uris, uri)
 				}
 			}
 			for _, nested := range cmd.AddCommands {
-				if uri := nested.GetTargetURI(); uri != "" {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
 					uris = append(uris, uri)
 				}
 			}
 		} else if cmd.XMLName.Local == CmdReplace || cmd.XMLName.Local == CmdAdd {
-			if uri := cmd.GetTargetURI(); uri != "" {
+			if uri := strings.TrimSpace(cmd.GetTargetURI()); uri != "" {
 				uris = append(uris, uri)
 			}
 		}

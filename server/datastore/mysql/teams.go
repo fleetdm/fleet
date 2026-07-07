@@ -167,11 +167,11 @@ var teamLabelsRefs = []string{
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
-	// Enqueue <Delete> commands for Windows profiles. This must run
-	// first because the main transaction deletes the config profile rows
-	// (which contain the SyncML bytes needed to generate <Delete> commands).
-	if err := ds.enqueueWindowsDeleteCommandsForTeam(ctx, tid); err != nil {
-		return ctxerr.Wrapf(ctx, err, "enqueuing windows delete commands for team %d", tid)
+	// Prepare the fleet's Windows profiles for deletion (retain their content so the profile-manager cron can build <Delete> commands
+	// later). This must run first because the main transaction deletes the config profile rows (which contain the SyncML bytes needed
+	// to generate <Delete> commands).
+	if err := ds.prepareWindowsProfilesForTeamDeletion(ctx, tid); err != nil {
+		return ctxerr.Wrapf(ctx, err, "preparing windows profiles for deletion for fleet %d", tid)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -230,10 +230,10 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
-// enqueueWindowsDeleteCommandsForTeam retains the content of the team's Windows config profiles (so the profile-manager cron can
+// prepareWindowsProfilesForTeamDeletion retains the content of the team's Windows config profiles (so the profile-manager cron can
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
-func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, tid uint) error {
+func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var profileUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &profileUUIDs,
@@ -245,7 +245,7 @@ func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, ti
 		}
 
 		// Copy from the live table before the DeleteTeam cascade removes the definitions; the definitions still exist here.
-		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, profileUUIDs); err != nil {
+		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
 
