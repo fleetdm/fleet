@@ -18,7 +18,7 @@ type CustomHostVital struct {
 }
 
 func (h CustomHostVital) AuthzType() string {
-	return "custom_host_vital"
+	return "custom_vital"
 }
 
 // HostCustomHostVital is a single host's value for a custom host vital.

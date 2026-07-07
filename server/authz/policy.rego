@@ -1281,21 +1281,21 @@ allow {
 
 # Global admins, maintainers, and gitops can write custom host vital definitions.
 allow {
-  object.type == "custom_host_vital"
+  object.type == "custom_vital"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
 # Any global user can read custom host vital definitions.
 allow {
-  object.type == "custom_host_vital"
+  object.type == "custom_vital"
   subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
 }
 
 # Any team user can read custom host vital definitions for hosts in its team.
 allow {
-  object.type == "custom_host_vital"
+  object.type == "custom_vital"
   team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
 }
