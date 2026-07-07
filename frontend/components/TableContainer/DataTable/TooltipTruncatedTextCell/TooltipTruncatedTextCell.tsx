@@ -19,6 +19,14 @@ interface ITooltipTruncatedTextCellProps {
   prefix?: React.ReactNode;
   /** Content does not get truncated */
   suffix?: React.ReactNode;
+  /** When `true`, the truncated text grows to fill the available width so
+   * `suffix` always sits flush against the right edge of the cell, instead
+   * of hugging the end of the (variable-length) text. */
+  justifySuffixEnd?: boolean;
+  /** When `true`, the tooltip is also shown whenever `suffix` is present,
+   * even if the text itself isn't visually truncated. Useful when `suffix`
+   * (a "+N" count) itself implies there's more info in the tooltip. */
+  showTooltipWithSuffix?: boolean;
 }
 
 const baseClass = "tooltip-truncated-cell";
@@ -30,9 +38,12 @@ const TooltipTruncatedTextCell = ({
   className,
   prefix,
   suffix,
+  justifySuffixEnd = false,
+  showTooltipWithSuffix = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
+    "justify-suffix-end": justifySuffixEnd,
   });
 
   // Tooltip visibility logic: Enable only when text is truncated
@@ -54,6 +65,7 @@ const TooltipTruncatedTextCell = ({
       ? DEFAULT_EMPTY_CELL_VALUE
       : value;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
+  const showBecauseOfSuffix = showTooltipWithSuffix && Boolean(suffix);
 
   return (
     <div className={classNames}>
@@ -62,7 +74,9 @@ const TooltipTruncatedTextCell = ({
         className="data-table__tooltip-truncated-text-container"
         data-tip
         data-for={tooltipId}
-        data-tip-disable={isDefaultValue || tooltipDisabled}
+        data-tip-disable={
+          isDefaultValue || (tooltipDisabled && !showBecauseOfSuffix)
+        }
       >
         <span
           ref={ref}
