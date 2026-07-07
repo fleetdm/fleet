@@ -785,9 +785,9 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingProgramTitlesByUpgradeCode, stmt, argsProgramUpgradeCode...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing program titles by upgrade_code")
 		}
-		// upgrade_code is unique in software_titles, so this maps unambiguously. It runs after the
-		// name mapping above and overwrites it, so an upgrade_code match wins on a tie (matching
-		// the post-insert recovery precedence).
+		// (unique_identifier, source, extension_for) is unique (idx_unique_sw_titles), so this maps unambiguously.
+		// It runs after the name mapping above and overwrites it, so an upgrade_code/unique_identifier match wins
+		// on a tie (matching the post-insert recovery precedence).
 		for _, titleSummary := range existingProgramTitlesByUpgradeCode {
 			if titleSummary.UpgradeCode == nil || *titleSummary.UpgradeCode == "" {
 				continue
