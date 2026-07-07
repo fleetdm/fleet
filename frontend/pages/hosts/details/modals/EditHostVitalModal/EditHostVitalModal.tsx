@@ -64,10 +64,10 @@ const EditHostVitalModal = ({
           onChange={setValue}
         />
         <div className="modal-cta-wrap">
-          <Button type="submit" isLoading={isSaving}>
+          <Button type="submit" isLoading={isSaving} disabled={isSaving}>
             Save
           </Button>
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="inverse" onClick={onCancel} disabled={isSaving}>
             Cancel
           </Button>
         </div>
