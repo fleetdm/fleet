@@ -36,6 +36,7 @@ import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityIte
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
+import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -92,6 +93,14 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
   [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
   [ActivityType.RanCustomMdmCommand]: RanCustomMdmCommandActivityItem,
+  [ActivityType.RanAutomationWebhook]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationTicket]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationCalendarEvent]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationConditionalAccess]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationWebhook]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationTicket]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

@@ -22,6 +22,7 @@ func TestMDMDDMApple(t *testing.T) {
 	}{
 		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
 		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
+		{"ChannelScopeIsolation", testDDMChannelScopeIsolation},
 	}
 
 	for _, c := range cases {
@@ -131,7 +132,7 @@ func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 	*updates[1].Status = fleet.MDMDeliveryVerified
 
 	// Call the method under test
-	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, updates)
+	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, fleet.PayloadScopeSystem, updates)
 	require.NoError(t, err)
 
 	// Assert the end state.
@@ -156,6 +157,122 @@ func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "decl-install", remaining[0].DeclarationUUID)
 	assert.Equal(t, "install", remaining[0].OperationType)
 	assert.Equal(t, "verified", remaining[0].Status)
+}
+
+// testDDMChannelScopeIsolation verifies the four DDM serving queries keep the
+// device (System) and user (User) channels independent: each channel sees only
+// its own declarations, tokens are computed per channel, and a status report on
+// one channel doesn't touch the other channel's rows.
+func testDDMChannelScopeIsolation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-ddm-scope",
+		UUID:            "test-host-uuid-ddm-scope",
+		HardwareSerial:  "ABC123-DDM-SCOPE",
+		PrimaryIP:       "192.168.1.60",
+		PrimaryMac:      "00:00:00:00:00:60",
+		OsqueryHostID:   new("test-host-uuid-ddm-scope"),
+		NodeKey:         new("test-host-uuid-ddm-scope"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	setupMDMDeviceAndEnrollment(t, ds, ctx, host.UUID, host.HardwareSerial)
+
+	devDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Name:       "DeviceDecl",
+		Identifier: "com.example.device",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.device"}`),
+		Scope:      fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	userDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Name:       "UserDecl",
+		Identifier: "com.example.user",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.user"}`),
+		Scope:      fleet.PayloadScopeUser,
+	}, nil)
+	require.NoError(t, err)
+
+	readBinaryToken := func(declUUID string) []byte {
+		var tok []byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &tok, "SELECT token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declUUID)
+		})
+		return tok
+	}
+	devToken := readBinaryToken(devDecl.DeclarationUUID)
+	userToken := readBinaryToken(userDecl.DeclarationUUID)
+
+	pending := fleet.MDMDeliveryPending
+	require.NoError(t, ds.BulkUpsertMDMAppleHostDeclarations(ctx, []*fleet.MDMAppleHostDeclaration{
+		{
+			HostUUID: host.UUID, DeclarationUUID: devDecl.DeclarationUUID, Name: devDecl.Name,
+			Identifier: devDecl.Identifier, Status: &pending, OperationType: fleet.MDMOperationTypeInstall,
+			Token: string(devToken), Scope: fleet.PayloadScopeSystem,
+		},
+		{
+			HostUUID: host.UUID, DeclarationUUID: userDecl.DeclarationUUID, Name: userDecl.Name,
+			Identifier: userDecl.Identifier, Status: &pending, OperationType: fleet.MDMOperationTypeInstall,
+			Token: string(userToken), Scope: fleet.PayloadScopeUser,
+		},
+	}))
+
+	// Tokens are computed per channel and differ.
+	sysTok, err := ds.MDMAppleDDMDeclarationsToken(ctx, host.UUID, fleet.PayloadScopeSystem)
+	require.NoError(t, err)
+	usrTok, err := ds.MDMAppleDDMDeclarationsToken(ctx, host.UUID, fleet.PayloadScopeUser)
+	require.NoError(t, err)
+	require.NotEmpty(t, sysTok.DeclarationsToken)
+	require.NotEmpty(t, usrTok.DeclarationsToken)
+	require.NotEqual(t, sysTok.DeclarationsToken, usrTok.DeclarationsToken)
+
+	// Declaration items are scoped to their channel.
+	sysItems, err := ds.MDMAppleDDMDeclarationItems(ctx, host.UUID, fleet.PayloadScopeSystem)
+	require.NoError(t, err)
+	require.Len(t, sysItems, 1)
+	require.Equal(t, "com.example.device", sysItems[0].Identifier)
+
+	usrItems, err := ds.MDMAppleDDMDeclarationItems(ctx, host.UUID, fleet.PayloadScopeUser)
+	require.NoError(t, err)
+	require.Len(t, usrItems, 1)
+	require.Equal(t, "com.example.user", usrItems[0].Identifier)
+
+	// The declaration response respects scope: the user declaration is not served
+	// on the device channel and vice versa.
+	_, err = ds.MDMAppleDDMDeclarationsResponse(ctx, "com.example.user", host.UUID, fleet.PayloadScopeSystem)
+	require.True(t, fleet.IsNotFound(err))
+	gotUser, err := ds.MDMAppleDDMDeclarationsResponse(ctx, "com.example.user", host.UUID, fleet.PayloadScopeUser)
+	require.NoError(t, err)
+	require.Equal(t, userDecl.DeclarationUUID, gotUser.DeclarationUUID)
+
+	_, err = ds.MDMAppleDDMDeclarationsResponse(ctx, "com.example.device", host.UUID, fleet.PayloadScopeUser)
+	require.True(t, fleet.IsNotFound(err))
+
+	// A status report on the user channel only transitions user-scoped rows.
+	verified := fleet.MDMDeliveryVerified
+	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, fleet.PayloadScopeUser, []*fleet.MDMAppleHostDeclaration{
+		{Token: fmt.Sprintf("%X", userToken), Status: &verified, OperationType: fleet.MDMOperationTypeInstall},
+	})
+	require.NoError(t, err)
+
+	type statusRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		Status          string `db:"status"`
+	}
+	var rows []statusRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows, `
+			SELECT declaration_uuid, COALESCE(status,'') AS status
+			FROM host_mdm_apple_declarations WHERE host_uuid = ? ORDER BY declaration_uuid`, host.UUID)
+	})
+	statusByUUID := make(map[string]string, len(rows))
+	for _, r := range rows {
+		statusByUUID[r.DeclarationUUID] = r.Status
+	}
+	require.Equal(t, "verified", statusByUUID[userDecl.DeclarationUUID], "user-scoped row should be verified by the user-channel report")
+	require.Equal(t, "pending", statusByUUID[devDecl.DeclarationUUID], "device-scoped row must be untouched by a user-channel report")
 }
 
 func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore) {
