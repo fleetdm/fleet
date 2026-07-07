@@ -100,19 +100,6 @@ func (ds *deviceStore) allDeviceNames() []string {
 	return names
 }
 
-func (ds *deviceStore) hasDevicesForEnterprise(enterpriseID string) bool {
-	if enterpriseID == "" {
-		return false
-	}
-	ds.mu.RLock()
-	defer ds.mu.RUnlock()
-	for _, d := range ds.byESID {
-		if d.EnterpriseID == enterpriseID {
-			return true
-		}
-	}
-	return false
-}
 
 // policyVersionCounter is a global atomic counter for policy versions.
 var policyVersionCounter atomic.Int64

@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
+	cryptorand "crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	cryptorand "crypto/rand"
 	"math/big"
 	"math/rand/v2"
 	"net/http"
@@ -217,7 +217,7 @@ func (a *androidAgent) runLoop() {
 	defer statusTicker.Stop()
 
 	// Track which certificate templates we've already verified so we don't re-verify
-	verifiedCerts := make(map[uint]bool)
+	verifiedCerts := make(map[uint]struct{})
 
 	for range statusTicker.C {
 		// Poll proxy for current state (policy version, pending commands)
@@ -248,7 +248,7 @@ func (a *androidAgent) runLoop() {
 
 		// Process certificate templates from the proxy state
 		for _, certID := range state.PendingCertificates {
-			if verifiedCerts[certID] {
+			if _, ok := verifiedCerts[certID]; ok {
 				continue
 			}
 
@@ -272,7 +272,7 @@ func (a *androidAgent) runLoop() {
 				continue
 			}
 
-			verifiedCerts[certID] = true
+			verifiedCerts[certID] = struct{}{}
 			a.stats.IncrementAndroidCertVerifications()
 		}
 	}
