@@ -1239,6 +1239,20 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
 	})
 
+	t.Run("still records when the request context deadline is exceeded", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
+			return nil
+		}
+		// A deadline-exceeded request ctx (common right after an upstream timeout) must NOT skip the write: the failure
+		// is real and the write detaches from the request deadline. Only true cancellation is skipped.
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+		defer cancel()
+		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation",
+			errors.New("http request failed with status 500 Internal Server Error"))
+		assert.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+	})
+
 	t.Run("skips non-Windows profiles", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {

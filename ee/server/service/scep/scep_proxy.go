@@ -41,6 +41,9 @@ const (
 	MessageSCEPProxyNotConfigured  = "SCEP proxy is not configured"
 	NDESChallengeInvalidAfter      = 57 * time.Minute
 	SmallstepChallengeInvalidAfter = 4 * time.Minute
+	// windowsSCEPFailureWriteTimeout bounds the detached write that records a Windows SCEP profile failure, so it can
+	// still persist when the originating request context is already at its deadline.
+	windowsSCEPFailureWriteTimeout = 5 * time.Second
 )
 
 // decodeHTMLResponse decodes HTTP response body to a string, handling various encodings.
@@ -230,7 +233,10 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 	}
 	res, err := client.GetCACaps(ctx)
 	if err != nil {
-		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "GetCACaps", err)
+		// Deliberately NOT recorded as a profile failure: GetCACaps fetches CA-wide capabilities, so an error here
+		// (CA momentarily unreachable) is not specific to any one profile and would mass-fail every in-flight
+		// enrollment on a transient blip. The verification backstop marks such profiles failed once their cert is
+		// confirmed missing. Only PKIOperation errors are per-profile and recorded.
 		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", scepURL)
 	}
 	return res, nil
@@ -250,7 +256,8 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
-		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "GetCACert", err)
+		// Not recorded as a profile failure for the same reason as GetCACaps: fetching the CA certificate is
+		// CA-wide, not per-profile. See the comment there and recordWindowsSCEPProxyFailure.
 		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", scepURL)
 	}
 	return res, num, nil
@@ -278,12 +285,16 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	return res, nil
 }
 
-// recordWindowsSCEPProxyFailure marks a Windows SCEP profile as "failed" when the proxy observes an upstream
-// certificate-authority error. Scoped to Windows profiles (Apple/Android manage their own status transitions).
+// recordWindowsSCEPProxyFailure marks a Windows SCEP profile "failed" when the proxy observes a per-profile upstream
+// error. It is called ONLY from PKIOperation (the certificate-signing step): errors from GetCACaps/GetCACert are
+// CA-wide rather than profile-specific, so recording them would mass-fail every in-flight enrollment on a transient CA
+// blip - those are left to the verification backstop instead. Scoped to Windows profiles (Apple/Android manage their
+// own status transitions). Best-effort: a failure to record is logged but does not change the error returned to the
+// device. If the device's own retry later succeeds, the observed certificate flips the profile back to "verified".
 func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
 	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
-	// not an upstream CA failure and must not mark the profile failed. The same canceled ctx would also fail the write.
-	// Genuine upstream timeouts arrive as context.DeadlineExceeded / net timeouts and are still surfaced.
+	// not an upstream CA failure and must not mark the profile failed. Genuine upstream timeouts arrive as
+	// context.DeadlineExceeded / net timeouts and are still surfaced.
 	if errors.Is(upstreamErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 		return
 	}
@@ -292,7 +303,12 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 		return
 	}
 	detail := fmt.Sprintf("SCEP %s failed: %s", operation, classifySCEPProxyError(upstreamErr))
-	if err := svc.ds.SetMDMWindowsHostProfileFailed(ctx, hostUUID, profileUUID, detail); err != nil {
+	// Detach the write from the request's deadline/cancellation: an upstream timeout often leaves the request context
+	// already at its deadline, and we must still persist the failure we observed. WithoutCancel preserves request
+	// values (tracing, etc.) while dropping the deadline; the write gets its own short timeout.
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), windowsSCEPFailureWriteTimeout)
+	defer cancel()
+	if err := svc.ds.SetMDMWindowsHostProfileFailed(writeCtx, hostUUID, profileUUID, detail); err != nil {
 		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
 			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)
 		ctxerr.Handle(ctx, err)
