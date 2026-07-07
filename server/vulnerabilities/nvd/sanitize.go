@@ -92,13 +92,6 @@ func sanitizeSoftwareName(s *fleet.Software) string {
 	r := strings.ToLower(s.Name)
 	r = strings.TrimSuffix(r, ".app")
 
-	// Strip "python3-" prefix from python_packages names for CPE matching.
-	// On Ubuntu/Debian, pythonPackageFilter prepends "python3-" to match OVAL definitions,
-	// but the CPE database uses the bare package name (e.g. "geopandas" not "python3-geopandas").
-	if s.Source == "python_packages" {
-		r = strings.TrimPrefix(r, "python3-")
-	}
-
 	// Remove vendor, for 'apps' the vendor name is usually after the top level domain part.
 	r = strings.ReplaceAll(r, strings.ToLower(s.Vendor), "")
 	bundleParts := strings.Split(s.BundleIdentifier, ".")
@@ -164,6 +157,26 @@ func productVariations(s *fleet.Software) []string {
 		parts := strings.SplitN(s.Name, ".", 2)
 		if len(parts) == 2 && parts[1] != "" {
 			r = append(r, parts[1])
+		}
+	}
+
+	// On Ubuntu/Debian/RHEL, pythonPackageFilter prepends "python3-" to python_packages names
+	// to match OVAL definitions. The CPE database uses bare package names (e.g. "geopandas"
+	// not "python3-geopandas"), so we add the stripped name as an additional variation.
+	// We keep the original name too in case a PyPI package genuinely starts with "python3-"
+	// (e.g. python3-openid, python3-saml).
+	if s.Source == "python_packages" {
+		stripped := strings.TrimPrefix(sn, "python3-")
+		if stripped != sn {
+			for _, v := range []string{
+				strings.ReplaceAll(stripped, " ", ""),
+				strings.ReplaceAll(stripped, " ", "_"),
+			} {
+				if !rSet[v] {
+					rSet[v] = true
+					r = append(r, v)
+				}
+			}
 		}
 	}
 

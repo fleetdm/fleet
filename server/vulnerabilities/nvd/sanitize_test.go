@@ -164,11 +164,16 @@ func TestVariations(t *testing.T) {
 		},
 		{
 			software:          fleet.Software{Name: "python3-geopandas", Version: "1.0.1", Source: "python_packages"},
-			productVariations: []string{"geopandas"},
+			productVariations: []string{"python3-geopandas", "geopandas"},
 		},
 		{
 			software:          fleet.Software{Name: "python3-django", Version: "3.2.12", Source: "python_packages"},
-			productVariations: []string{"django"},
+			productVariations: []string{"python3-django", "django"},
+		},
+		{
+			// python_packages without the prefix should not get extra variations
+			software:          fleet.Software{Name: "requests", Version: "2.28.0", Source: "python_packages"},
+			productVariations: []string{"requests"},
 		},
 	}
 
@@ -387,53 +392,6 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 	})
 
-	t.Run("strips python3- prefix from python_packages", func(t *testing.T) {
-		testCases := []struct {
-			software fleet.Software
-			expected string
-		}{
-			{
-				software: fleet.Software{
-					Name:    "python3-geopandas",
-					Version: "1.0.1",
-					Source:  "python_packages",
-				},
-				expected: "geopandas",
-			},
-			{
-				software: fleet.Software{
-					Name:    "python3-django",
-					Version: "3.2.12",
-					Source:  "python_packages",
-				},
-				expected: "django",
-			},
-			{
-				// python_packages without the prefix should not be affected
-				software: fleet.Software{
-					Name:    "requests",
-					Version: "2.28.0",
-					Source:  "python_packages",
-				},
-				expected: "requests",
-			},
-			{
-				// deb_packages with python3- prefix should NOT be stripped
-				software: fleet.Software{
-					Name:    "python3-geopandas",
-					Version: "1.0.1",
-					Source:  "deb_packages",
-				},
-				expected: "python3-geopandas",
-			},
-		}
-
-		for _, tc := range testCases {
-			tc := tc
-			actual := sanitizeSoftwareName(&tc.software)
-			require.Equal(t, tc.expected, actual)
-		}
-	})
 }
 
 func TestParseUpdateFromVersion(t *testing.T) {
