@@ -345,3 +345,74 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	require.Equal(t, 1, strings.Count(err.Error(), adamID),
 		"missing-asset error must dedup by AdamID, got: %s", err.Error())
 }
+
+// TestGetVPPTokensScoping verifies that GetVPPTokens returns every token to
+// global readers but scopes the list to a team-scoped user's readable teams
+// (plus "All teams" tokens), without leaking tokens from teams the user can't
+// read. See #46057.
+func TestGetVPPTokensScoping(t *testing.T) {
+	ds := new(mock.Store)
+	// Tokens: team 1, team 2, "All teams" (non-nil empty Teams), and an
+	// unassigned token (nil Teams).
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{
+			{ID: 1, OrgName: "team1", Teams: []fleet.TeamTuple{{ID: 1, Name: "Workstations"}}},
+			{ID: 2, OrgName: "team2", Teams: []fleet.TeamTuple{{ID: 2, Name: "Servers"}}},
+			{ID: 3, OrgName: "allteams", Teams: []fleet.TeamTuple{}},
+			{ID: 4, OrgName: "unassigned", Teams: nil},
+		}, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	globalMaintainer := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+	teamMaintainer1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+	}}
+	// Observer on the first team, maintainer on the second: must still be
+	// authorized (via team 2) and scoped to team 2, never team 1.
+	observerThenMaintainer := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+		{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+	}}
+	teamObserver1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+	}}
+
+	tests := []struct {
+		name    string
+		user    *fleet.User
+		wantErr bool
+		wantIDs []uint
+	}{
+		{"global admin sees all", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, []uint{1, 2, 3, 4}},
+		{"global maintainer sees all", globalMaintainer, false, []uint{1, 2, 3, 4}},
+		{"team maintainer scoped to team + all-teams", teamMaintainer1, false, []uint{1, 3}},
+		{"observer-then-maintainer scoped to second team", observerThenMaintainer, false, []uint{2, 3}},
+		{"team observer forbidden", teamObserver1, true, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			got, err := svc.GetVPPTokens(ctx)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+				return
+			}
+			require.NoError(t, err)
+			gotIDs := make([]uint, 0, len(got))
+			for _, tok := range got {
+				gotIDs = append(gotIDs, tok.ID)
+			}
+			require.ElementsMatch(t, tt.wantIDs, gotIDs)
+		})
+	}
+}
