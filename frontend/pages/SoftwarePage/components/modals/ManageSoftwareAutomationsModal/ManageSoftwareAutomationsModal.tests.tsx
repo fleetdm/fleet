@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { createGetConfigHandler } from "test/handlers/config-handlers";
@@ -35,11 +35,18 @@ const defaultProps = {
   softwareConfig,
 };
 
-const renderModal = () => {
+const renderModal = ({ gitOpsModeEnabled = false } = {}) => {
   mockServer.use(createGetConfigHandler());
   const render = createCustomRenderer({
     withBackendMock: true,
-    context: { app: { config: createMockConfig(), isFreeTier: false } },
+    context: {
+      app: {
+        config: createMockConfig({
+          gitops: { gitops_mode_enabled: gitOpsModeEnabled },
+        }),
+        isFreeTier: false,
+      },
+    },
   });
   return render(<ManageSoftwareAutomationsModal {...defaultProps} />);
 };
@@ -102,5 +109,18 @@ describe("ManageSoftwareAutomationsModal - Destination URL validation", () => {
     await user.tab();
 
     expect(await screen.findByText(REQUIRED_URL_ERROR)).toBeInTheDocument();
+  });
+
+  it("does not validate on blur when GitOps mode disables the field", () => {
+    renderModal({ gitOpsModeEnabled: true });
+
+    const urlInput = screen.getByPlaceholderText(URL_PLACEHOLDER);
+    expect(urlInput).toBeDisabled();
+
+    // The field is read-only in GitOps mode, so a blur must not surface an error.
+    fireEvent.blur(urlInput);
+
+    expect(screen.queryByText(REQUIRED_URL_ERROR)).not.toBeInTheDocument();
+    expect(screen.queryByText(INVALID_URL_ERROR)).not.toBeInTheDocument();
   });
 });

@@ -228,9 +228,10 @@ const ManageAutomationsModal = ({
   };
 
   const onURLBlur = () => {
-    // Only validate while the webhook workflow is active; the field is disabled
-    // otherwise, so avoid surfacing an error on a control the user can't edit.
-    if (!softwareAutomationsEnabled) {
+    // Skip validation whenever the field is disabled (automations off or GitOps
+    // mode) so we don't surface an error on a control the user can't edit. This
+    // must mirror the InputField's `disabled` condition below.
+    if (!softwareAutomationsEnabled || gitOpsModeEnabled) {
       return;
     }
     const { errors: webhookErrors } = validateWebhookURL(destinationUrl);
