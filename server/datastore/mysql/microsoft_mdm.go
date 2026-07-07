@@ -1922,10 +1922,17 @@ const windowsProfilesStatusRollupBatchSize = 1000
 // by GetMDMWindowsProfilesSummary current so the summary is an O(hosts) read instead of recomputing an
 // O(hosts x profiles-per-host) aggregation on every request.
 //
-// It is a delete-then-insert-select per batch, which is correct for every mutation shape: a status
-// change re-derives the bucket, and removing a host's last profile row leaves no rollup row (the
-// insert-select selects nothing), which the summary treats as ”. Because it is keyed per host,
-// concurrent host check-ins never contend on a shared counter row.
+// Per batch it is an upsert (INSERT ... SELECT ... GROUP BY host_uuid ON DUPLICATE KEY UPDATE) followed
+// by an orphan-delete for hosts that no longer have any profile rows:
+//   - The upsert re-derives each host's bucket in place, so a host that still has profiles never
+//     transiently loses its rollup row (a summary read never sees it missing and undercounts it), and
+//     rows whose bucket did not change are not rewritten. This is what makes the one non-transactional
+//     caller (BulkUpsertMDMWindowsHostProfiles, which only inserts/updates profile rows and so can never
+//     orphan a rollup row) safe without wrapping it in a transaction.
+//   - The orphan-delete removes the now-stale rollup row for a host whose last profile row was just
+//     deleted (the upsert's GROUP BY produces no row for it), which the summary treats as ”.
+//
+// Because it is keyed per host, concurrent host check-ins never contend on a shared counter row.
 func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContext, hostUUIDs []string) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1949,31 +1956,43 @@ func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContex
 	}
 
 	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
-	insertStmt := fmt.Sprintf(`
+	upsertStmt := fmt.Sprintf(`
 INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
 SELECT hmwp.host_uuid, %s
 FROM host_mdm_windows_profiles hmwp
 WHERE hmwp.host_uuid IN (?)
-GROUP BY hmwp.host_uuid`, caseExpr)
+GROUP BY hmwp.host_uuid
+ON DUPLICATE KEY UPDATE status = VALUES(status)`, caseExpr)
+
+	// Orphan-delete: drop rollup rows for hosts in the batch that no longer have any profile rows. The
+	// subquery reads a different table (host_mdm_windows_profiles), so deleting from the rollup while
+	// correlating on it is allowed.
+	const orphanDeleteStmt = `
+DELETE FROM host_mdm_windows_profiles_status
+WHERE host_uuid IN (?)
+	AND NOT EXISTS (
+		SELECT 1 FROM host_mdm_windows_profiles hmwp
+		WHERE hmwp.host_uuid = host_mdm_windows_profiles_status.host_uuid
+	)`
 
 	return common_mysql.BatchProcessSimple(uniqueHostUUIDs, windowsProfilesStatusRollupBatchSize, func(batch []string) error {
-		delStmt, delArgs, err := sqlx.In(`DELETE FROM host_mdm_windows_profiles_status WHERE host_uuid IN (?)`, batch)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete for windows profiles status rollup")
-		}
-		if _, err := ext.ExecContext(ctx, delStmt, delArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting windows profiles status rollup rows")
-		}
-
 		args := make([]any, 0, len(caseArgs)+1)
 		args = append(args, caseArgs...)
 		args = append(args, batch)
-		stmt, inArgs, err := sqlx.In(insertStmt, args...)
+		stmt, inArgs, err := sqlx.In(upsertStmt, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building insert for windows profiles status rollup")
+			return ctxerr.Wrap(ctx, err, "building upsert for windows profiles status rollup")
 		}
 		if _, err := ext.ExecContext(ctx, stmt, inArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting windows profiles status rollup rows")
+			return ctxerr.Wrap(ctx, err, "upserting windows profiles status rollup rows")
+		}
+
+		delStmt, delArgs, err := sqlx.In(orphanDeleteStmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building orphan-delete for windows profiles status rollup")
+		}
+		if _, err := ext.ExecContext(ctx, delStmt, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting orphan windows profiles status rollup rows")
 		}
 		return nil
 	})
@@ -2305,9 +2324,11 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 		}
 	}
 
-	// Keep the per-host profile status rollup current for the affected hosts (issue #48340). This path
-	// writes on the writer outside a transaction, so maintain the rollup on the same connection once all
-	// profile rows are written; the helper dedupes the host UUIDs and batches its work.
+	// Keep the per-host profile status rollup current for the affected hosts (issue #48340), once all
+	// profile rows are written; the helper dedupes the host UUIDs and batches its work. This path runs
+	// outside a transaction, which is safe here: the rollup helper upserts each host's row in place, and
+	// this path only inserts/updates profile rows (never deletes them), so it can never orphan a rollup
+	// row and a host is never transiently missing from the rollup for a concurrent summary read.
 	hostUUIDs := make([]string, 0, len(payload))
 	for _, p := range payload {
 		hostUUIDs = append(hostUUIDs, p.HostUUID)
