@@ -100,7 +100,6 @@ func (ds *deviceStore) allDeviceNames() []string {
 	return names
 }
 
-
 // policyVersionCounter is a global atomic counter for policy versions.
 var policyVersionCounter atomic.Int64
 
