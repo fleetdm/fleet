@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,6 +23,11 @@ func TestHostDeviceNames(t *testing.T) {
 		{"Verify", testHostDeviceNamesVerify},
 		{"Resend", testHostDeviceNamesResend},
 		{"Reconcile", testHostDeviceNamesReconcile},
+		{"TransferViaAddHostsToTeam", testHostDeviceNamesTransferViaAddHostsToTeam},
+		{"TransferBatched", testHostDeviceNamesTransferBatched},
+		{"SummaryAndFilter", testHostDeviceNamesSummaryAndFilter},
+		{"SummaryFilterLabel", testHostDeviceNamesSummaryFilterLabel},
+		{"TeamDeletionCleanup", testHostDeviceNamesTeamDeletionCleanup},
 		{"HostDeletionCleanup", testHostDeviceNamesHostDeletionCleanup},
 		{"FullLifecycle", testHostDeviceNamesFullLifecycle},
 	}
@@ -300,6 +306,249 @@ func testHostDeviceNamesReconcile(t *testing.T, ds *Datastore) {
 
 	// An empty host list is a no-op.
 	require.NoError(t, ds.ReconcileHostDeviceNamesForHosts(ctx, nil))
+}
+
+// setDeviceNameTemplate writes name_template into a team's config JSON directly,
+// so the eligibility/reconcile SQL sees a non-empty template without depending on
+// the TeamMDM struct field.
+func setDeviceNameTemplate(t *testing.T, ds *Datastore, teamID uint, tmpl string) {
+	_, err := ds.writer(t.Context()).ExecContext(t.Context(),
+		`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`, tmpl, teamID)
+	require.NoError(t, err)
+}
+
+// testHostDeviceNamesTransferViaAddHostsToTeam exercises the transfer
+// reconciliation wired into the AddHostsToTeam datastore transaction, which
+// covers every service entry point that moves hosts between teams.
+func testHostDeviceNamesTransferViaAddHostsToTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	withTemplate, err := ds.NewTeam(ctx, &fleet.Team{Name: "transfer-with-template"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, withTemplate.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	noTemplate, err := ds.NewTeam(ctx, &fleet.Team{Name: "transfer-no-template"})
+	require.NoError(t, err)
+
+	// A host starts in the template team with a queued row.
+	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", withTemplate.ID, false)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, withTemplate.ID))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
+
+	// Give the host a name so we can assert the transfer never renames it.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "keep-this-name", host.ID)
+	require.NoError(t, err)
+
+	// template -> template-less: the row is deleted (enforcement stops) and the
+	// host's name is left untouched.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&noTemplate.ID, []uint{host.ID})))
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.True(t, fleet.IsNotFound(err), "transfer to a template-less team should delete the enforcement row")
+	var name string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &name, `SELECT computer_name FROM hosts WHERE id = ?`, host.ID))
+	require.Equal(t, "keep-this-name", name, "transfer must not rename the host")
+
+	// template-less -> template: reconcile re-creates the queued row (UI reverts
+	// to Enforcing/Pending).
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&withTemplate.ID, []uint{host.ID})))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "transfer into a template team should create a queued row")
+
+	// template -> template (a different team that also has a template): the row is
+	// reset to NULL so the destination team's template is enforced afresh. Mark it
+	// verified first to prove the transfer resets an already-settled row.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, fleet.MDMDeliveryVerified, host.UUID)
+	require.NoError(t, err)
+	otherTemplate, err := ds.NewTeam(ctx, &fleet.Team{Name: "transfer-other-template"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, otherTemplate.ID, "Lab-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&otherTemplate.ID, []uint{host.ID})))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "transfer between template teams should reset the row to queued")
+
+	// template -> No team: the row is deleted (No team never enforces).
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.True(t, fleet.IsNotFound(err), "transfer to No team should delete the enforcement row")
+}
+
+// testHostDeviceNamesTransferBatched moves several hosts at once with a batch
+// size smaller than the host count, so the reconcile runs across multiple batches
+// within AddHostsToTeam.
+func testHostDeviceNamesTransferBatched(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	noTemplate, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-no-template"})
+	require.NoError(t, err)
+	withTemplate, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-with-template"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, withTemplate.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	// Three eligible hosts start in the template-less team (no rows) plus one BYOD
+	// host that must never get a row.
+	var hostIDs []uint
+	eligible := make([]*fleet.Host, 0, 3)
+	for i := range 3 {
+		h := enrollAppleHostForDeviceName(t, ds, "batch"+string(rune('a'+i)), "darwin", noTemplate.ID, false)
+		eligible = append(eligible, h)
+		hostIDs = append(hostIDs, h.ID)
+	}
+	byod := enrollAppleHostForDeviceName(t, ds, "batch-byod", "ios", noTemplate.ID, true)
+	hostIDs = append(hostIDs, byod.ID)
+
+	// Move all four into the template team with a batch size of 1 so the reconcile
+	// runs once per batch.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&withTemplate.ID, hostIDs).WithBatchSize(1)))
+	for _, h := range eligible {
+		require.Nil(t, getDeviceNameRow(t, ds, h.UUID).Status, "eligible host %s should be queued after batched transfer", h.Hostname)
+	}
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, byod.UUID)
+	require.True(t, fleet.IsNotFound(err), "BYOD host must not get a row")
+
+	// Move them all back to the template-less team, again batched: all rows deleted.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&noTemplate.ID, hostIDs).WithBatchSize(2)))
+	for _, h := range eligible {
+		_, err = ds.GetHostDeviceNameEnforcement(ctx, h.UUID)
+		require.True(t, fleet.IsNotFound(err), "row for %s should be deleted after batched transfer out", h.Hostname)
+	}
+}
+
+// testHostDeviceNamesSummaryAndFilter asserts that host-name enforcement rows are
+// folded into the OS-settings aggregate counts and the os_settings host-list
+// filter, and that ineligible hosts (no row) count in no bucket.
+func testHostDeviceNamesSummaryAndFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "summary-team"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, team.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	failedHost := enrollAppleHostForDeviceName(t, ds, "failed", "darwin", team.ID, false)
+	verifiedHost := enrollAppleHostForDeviceName(t, ds, "verified", "ios", team.ID, false)
+	verifyingHost := enrollAppleHostForDeviceName(t, ds, "verifying", "ios", team.ID, false)
+	queuedHost := enrollAppleHostForDeviceName(t, ds, "queued", "ipados", team.ID, false)
+	comboHost := enrollAppleHostForDeviceName(t, ds, "combo", "darwin", team.ID, false)
+	byodHost := enrollAppleHostForDeviceName(t, ds, "byod", "ios", team.ID, true)
+
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	// The BYOD host is ineligible, so it never got a row.
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, byodHost.UUID)
+	require.True(t, fleet.IsNotFound(err))
+
+	setStatus := func(hostUUID string, status fleet.MDMDeliveryStatus) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, status, hostUUID)
+		require.NoError(t, err)
+	}
+	setStatus(failedHost.UUID, fleet.MDMDeliveryFailed)
+	setStatus(verifiedHost.UUID, fleet.MDMDeliveryVerified)
+	setStatus(verifyingHost.UUID, fleet.MDMDeliveryVerifying)
+	setStatus(comboHost.UUID, fleet.MDMDeliveryFailed)
+	// queuedHost keeps its NULL status from the bulk upsert, which renders as pending.
+
+	// comboHost has a failed rename (set above) AND a verified (install) config
+	// profile: the shared status CASE must combine the profile and device-name
+	// buckets and let the failed rename win (failed > verified precedence).
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_mdm_apple_profiles
+			(host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name, profile_identifier, checksum)
+		VALUES (?, ?, '', ?, ?, '', 'p1', 'com.example.p1', ?)`,
+		comboHost.UUID, "a"+comboHost.UUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall, []byte("csum"))
+	require.NoError(t, err)
+
+	// Aggregate summary folds the rename statuses in (a NULL/queued row counts as
+	// pending); the BYOD host is in no bucket, and comboHost lands in failed.
+	summary, err := ds.GetMDMAppleProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(2), summary.Failed, "failedHost + comboHost (failed rename wins over its verified profile)")
+	require.Equal(t, uint(1), summary.Verified)
+	require.Equal(t, uint(1), summary.Verifying)
+	require.Equal(t, uint(1), summary.Pending)
+
+	// Each aggregate card's host-list filter returns the matching hosts, including
+	// the queued (NULL-status) host under pending and comboHost under failed.
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+	assertFilter := func(status fleet.OSSettingsStatus, want ...*fleet.Host) {
+		hosts, err := ds.ListHosts(ctx, userFilter, fleet.HostListOptions{TeamFilter: &team.ID, OSSettingsFilter: status})
+		require.NoError(t, err)
+		gotIDs := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		wantIDs := make([]uint, 0, len(want))
+		for _, h := range want {
+			wantIDs = append(wantIDs, h.ID)
+		}
+		require.ElementsMatch(t, wantIDs, gotIDs)
+	}
+	assertFilter(fleet.OSSettingsFailed, failedHost, comboHost)
+	assertFilter(fleet.OSSettingsVerified, verifiedHost)
+	assertFilter(fleet.OSSettingsVerifying, verifyingHost)
+	assertFilter(fleet.OSSettingsPending, queuedHost)
+}
+
+// testHostDeviceNamesSummaryFilterLabel covers the os_settings host-list filter
+// on the label-hosts path (ListHostsInLabel), which folds in the same
+// device-name status join as the main list path.
+func testHostDeviceNamesSummaryFilterLabel(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "label-team"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, team.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	failedHost := enrollAppleHostForDeviceName(t, ds, "label-failed", "darwin", team.ID, false)
+	verifiedHost := enrollAppleHostForDeviceName(t, ds, "label-verified", "ios", team.ID, false)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, fleet.MDMDeliveryFailed, failedHost.UUID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, fleet.MDMDeliveryVerified, verifiedHost.UUID)
+	require.NoError(t, err)
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "label-dn", Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range []*fleet.Host{failedHost, verifiedHost} {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHostsInLabel(ctx, userFilter, label.ID, fleet.HostListOptions{TeamFilter: &team.ID, OSSettingsFilter: fleet.OSSettingsFailed})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, failedHost.ID, hosts[0].ID)
+}
+
+// testHostDeviceNamesTeamDeletionCleanup asserts that deleting a team removes the
+// host-name enforcement rows for its hosts. Team deletion moves the hosts to "No
+// team" via ON DELETE SET NULL (not AddHostsToTeam), so the enforcement rows must
+// be cleaned up explicitly in DeleteTeam.
+func testHostDeviceNamesTeamDeletionCleanup(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "delete-me"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, team.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	host := enrollAppleHostForDeviceName(t, ds, "del", "darwin", team.ID, false)
+
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "keep-me"})
+	require.NoError(t, err)
+	setDeviceNameTemplate(t, ds, otherTeam.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	otherHost := enrollAppleHostForDeviceName(t, ds, "keep", "darwin", otherTeam.ID, false)
+
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, otherTeam.ID))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
+	require.Nil(t, getDeviceNameRow(t, ds, otherHost.UUID).Status)
+
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+
+	// The deleted team's host keeps its record but moves to No team; its
+	// enforcement row is gone.
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.True(t, fleet.IsNotFound(err), "enforcement row must be deleted with the team")
+	movedHost, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, movedHost.TeamID, "host should have moved to No team, not been deleted")
+
+	// The other team's row is untouched.
+	require.Nil(t, getDeviceNameRow(t, ds, otherHost.UUID).Status, "other team's row must survive")
 }
 
 func testHostDeviceNamesHostDeletionCleanup(t *testing.T, ds *Datastore) {

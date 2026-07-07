@@ -1292,6 +1292,11 @@ type Service interface {
 	// ResendHostMDMProfile resends the MDM profile to the host.
 	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
 
+	// ResendHostNameTemplate resets a host's host-name template enforcement so
+	// the cron re-sends the Settings/DeviceName command on its next run. Only
+	// hosts in a "failed" or "verified" state can be resent.
+	ResendHostNameTemplate(ctx context.Context, hostID uint) error
+
 	// ResendDeviceHostMDMProfile resends the MDM profile to the device host that requested it.
 	ResendDeviceHostMDMProfile(ctx context.Context, host *Host, profileUUID string) error
 

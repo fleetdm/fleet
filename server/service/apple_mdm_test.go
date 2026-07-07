@@ -197,6 +197,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil
 	}
@@ -1313,6 +1314,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
 		return nil, nil
 	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
@@ -1443,6 +1447,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	var mdmEnabled atomic.Bool
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.
 		// It first is called to check that the device is enrolled as a pre-condition to enqueueing the
@@ -1751,6 +1756,8 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 		return nil, nil, nil
 	}
 
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		enrollmentType := mdm.EnrollType(mdm.Device).String()
 		if hostUUID == "test-host-no-team-2" {
@@ -1812,6 +1819,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
@@ -2011,6 +2020,7 @@ func TestMDMTokenUpdateResetOnReenrollment(t *testing.T) {
 		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 		}
@@ -2142,6 +2152,7 @@ func TestMDMTokenUpdateResetOnReenrollment(t *testing.T) {
 					SCEPRenewalInProgress: c.scepRenewalInProgress,
 				}, nil
 			}
+			ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 			ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 				if c.nanoEnrollNil {
 					return nil, nil
@@ -2244,6 +2255,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		}, nil
 	}
 
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 	}
@@ -2301,6 +2314,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		}, nil
 	}
 
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 2}, nil
 	}
@@ -2333,6 +2348,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 			Platform:           "ios",
 		}, nil
 	}
+
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
@@ -2394,6 +2411,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			Platform: "ios",
 		}, nil
 	}
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{
 			Enabled:          true,
@@ -2520,6 +2538,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		ds.SetHostManagedAppleIDFunc = func(context.Context, uint, string) error {
 			return nil
 		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 		}
@@ -2597,6 +2616,7 @@ func TestMDMTokenUpdateUserEnrollmentSetupExperience(t *testing.T) {
 
 	doTokenUpdate := func(t *testing.T, enrollType string, tokenUpdateTally int) {
 		t.Helper()
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{
 				Enabled:          true,
@@ -7719,6 +7739,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			require.Equal(t, wantTeamID, teamID)
 			return true, nil
 		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 		}

@@ -778,6 +778,8 @@ type GetMDMDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
 
+type ResendHostNameTemplateFunc func(ctx context.Context, hostID uint) error
+
 type ResendDeviceHostMDMProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
 
 type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) error
@@ -2083,6 +2085,9 @@ type Service struct {
 
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
+
+	ResendHostNameTemplateFunc        ResendHostNameTemplateFunc
+	ResendHostNameTemplateFuncInvoked bool
 
 	ResendDeviceHostMDMProfileFunc        ResendDeviceHostMDMProfileFunc
 	ResendDeviceHostMDMProfileFuncInvoked bool
@@ -4990,6 +4995,13 @@ func (s *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profile
 	s.ResendHostMDMProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostMDMProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) ResendHostNameTemplate(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ResendHostNameTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostNameTemplateFunc(ctx, hostID)
 }
 
 func (s *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {

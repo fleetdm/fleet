@@ -216,6 +216,20 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
+		// Delete host-name template enforcement rows for this team's hosts before
+		// the team is removed, while the hosts still carry this team_id. Deleting
+		// the team reassigns them to "No team" via ON DELETE SET NULL (hosts are not
+		// deleted), which never routes through AddHostsToTeam, so the transfer
+		// reconcile can't clean these up. "No team" is never enforced, so the rows
+		// must go — matching how a transfer to a template-less team deletes them.
+		if _, err = tx.ExecContext(ctx, `
+			DELETE hmadn
+			FROM host_mdm_apple_device_names hmadn
+			JOIN hosts h ON h.uuid = hmadn.host_uuid
+			WHERE h.team_id = ?`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting host device name enforcement for team %d", tid)
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)

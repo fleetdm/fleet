@@ -2960,8 +2960,10 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 }
 
 // sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
-// based on the status of its profiles, declarations, filevault status, and recovery lock status. It should be used in
-// conjunction with sqlJoinMDMAppleProfilesStatus, sqlJoinMDMAppleDeclarationsStatus, and sqlJoinRecoveryLockStatus. It assumes the
+// based on the status of its profiles, declarations, filevault status, recovery lock status, and host-name
+// template status. It should be used in conjunction with sqlJoinMDMAppleProfilesStatus,
+// sqlJoinMDMAppleDeclarationsStatus, sqlJoinRecoveryLockStatus, and sqlJoinDeviceNameStatus (all four joins are
+// required — omitting any one leaves a referenced column, e.g. dn_failed, undefined). It assumes the
 // hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
 func sqlCaseMDMAppleStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
@@ -2976,11 +2978,13 @@ func sqlCaseMDMAppleStatus() string {
 	CASE WHEN (prof_failed
 		OR decl_failed
 		OR fv_failed
-		OR rl_failed) THEN
+		OR rl_failed
+		OR dn_failed) THEN
 		` + failed + `
 	WHEN (prof_pending
 		OR decl_pending
 		OR rl_pending
+		OR dn_pending
 		-- special case for filevault, it's pending if the profile is
 		-- pending OR the profile is verified or verifying but we still
 		-- don't have an encryption key.
@@ -2992,6 +2996,7 @@ func sqlCaseMDMAppleStatus() string {
 	WHEN (prof_verifying
 		OR decl_verifying
 		OR rl_verifying
+		OR dn_verifying
 		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
 		OR(fv_verifying
 			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
@@ -3002,6 +3007,7 @@ func sqlCaseMDMAppleStatus() string {
 	WHEN (prof_verified
 		OR decl_verified
 		OR rl_verified
+		OR dn_verified
 		OR(fv_verified
 			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
 		` + verified + `
@@ -3076,6 +3082,35 @@ func sqlJoinRecoveryLockStatus() string {
 `
 }
 
+// sqlJoinDeviceNameStatus returns a SQL snippet that can be used to join the
+// host_mdm_apple_device_names table (host-name template enforcement) to the
+// hosts table. For each host it derives a boolean value for each status
+// category; the value will be 1 if the host has a device-name row in the given
+// status. Ineligible hosts have no row, so they contribute to no bucket. A NULL
+// status is treated as pending (queued for the cron), same as recovery lock. The
+// snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinDeviceNameStatus() string {
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+	)
+	return `
+	LEFT JOIN (
+		-- host-name template status per host (host_uuid is the primary key)
+		-- NULL status is treated as pending (queued for the cron)
+		SELECT
+			host_uuid,
+			IF(status IS NULL OR status = ` + pending + `, 1, 0) AS dn_pending,
+			IF(status = ` + failed + `, 1, 0) AS dn_failed,
+			IF(status = ` + verifying + `, 1, 0) AS dn_verifying,
+			IF(status = ` + verified + `, 1, 0) AS dn_verified
+		FROM
+			host_mdm_apple_device_names) hmadn ON h.uuid = hmadn.host_uuid
+`
+}
+
 // sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that can be used to join a table derived from
 // host_mdm_apple_declarations (grouped by host_uuid and status) and the hosts table. For each host_uuid,
 // it derives a boolean value for each status category. The value will be 1 if the host has any
@@ -3119,6 +3154,7 @@ FROM
 	%s
 	%s
 	%s
+	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
 	platform IN('darwin', 'ios', 'ipados') AND %s
@@ -3130,7 +3166,7 @@ GROUP BY
 		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), teamFilter)
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), sqlJoinDeviceNameStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`

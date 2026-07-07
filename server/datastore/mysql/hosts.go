@@ -1429,12 +1429,14 @@ func (ds *Datastore) applyHostFilters(
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
 	mdmRecoveryLockStatusJoin := ""
+	mdmDeviceNameStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
+		mdmDeviceNameStatusJoin = sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1487,6 +1489,7 @@ func (ds *Datastore) applyHostFilters(
     %s
 	%s
 	%s
+	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
@@ -1502,6 +1505,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
 		mdmRecoveryLockStatusJoin,
+		mdmDeviceNameStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 		hostMDMSeenJoin,
@@ -3638,6 +3642,14 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 
 				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, teamID); err != nil {
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+				}
+
+				// Reconcile host-name template enforcement against the destination
+				// team: eligible hosts moving into a template team get queued rows,
+				// and hosts moving to a template-less team or "No team" have their rows deleted .
+				// This runs after the team_id update above so the eligibility query sees the new team.
+				if err := reconcileHostDeviceNamesForHostsDB(ctx, tx, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam reconcile host device names")
 				}
 
 				return nil
