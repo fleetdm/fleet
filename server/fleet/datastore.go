@@ -454,9 +454,9 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-Windows-profile content once no host_mdm_windows_profiles
-	// row still references the profile (reference-counted).
-	CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error
+	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
+	// deleted and edited profiles) once no host still has the prior version installed.
+	CleanupWindowsMDMProfilePriorContent(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
 	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
 	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
@@ -2202,6 +2202,9 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandForHostUUIDs is a fire-and-forget enqueue of a single command to multiple hosts identified by UUID.
+	MDMWindowsInsertCommandForHostUUIDs(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
+
 	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
 	// (identified by host UUID or MDM device ID). All commands succeed or none do, in one transaction. Used by
 	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
@@ -2341,6 +2344,9 @@ type Datastore interface {
 	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
 	// host UUID.
 	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
+
+	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
+	GetWindowsMDMProfilePriorContents(ctx context.Context, keys []MDMWindowsProfileVersionKey) ([]MDMWindowsProfilePriorContent, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.

@@ -682,11 +682,11 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.Nil(t, apps[1].TitleID)
 }
 
-// testListAvailableAppsByNameAndFilters verifies that the list paginates and
-// counts by distinct app TOKEN (the slug prefix), so an app's macOS and Windows
-// entries are combined into one logical app for both pagination and the count
-// (matching the single combined row the UI renders), and that the platform and
-// available-only filters work server-side.
+// testListAvailableAppsByNameAndFilters verifies that the list paginates by
+// distinct app TOKEN (the slug prefix), so an app's macOS and Windows entries
+// are combined into one row and never split across a page boundary, while the
+// count is the number of installable platform entries (each Add button counts
+// once), and that the platform and available-only filters work server-side.
 func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -722,12 +722,12 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 		return fleet.MaintainedAppListOptions{ListOptions: o}
 	}
 
-	// Unfiltered: 4 apps (the count, one per app token: alpha, beta, gamma,
-	// delta) across 4 names, 6 rows returned (the raw per-platform entries the UI
-	// combines into 4 rows).
+	// Unfiltered: 6 installable platform entries (the count: alpha+delta each ship
+	// on two platforms) across 4 app tokens, 6 rows returned (the raw per-platform
+	// entries the UI combines into 4 rows).
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{}))
 	require.NoError(t, err)
-	require.EqualValues(t, 4, meta.TotalResults)
+	require.EqualValues(t, 6, meta.TotalResults)
 	require.Len(t, apps, 6)
 	require.False(t, meta.HasNextResults)
 
@@ -736,7 +736,7 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 	// boundary. Page 0 => Alpha (darwin+windows) + Beta (darwin) = 3 rows.
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{PerPage: 2}))
 	require.NoError(t, err)
-	require.EqualValues(t, 4, meta.TotalResults)
+	require.EqualValues(t, 6, meta.TotalResults)
 	require.True(t, meta.HasNextResults)
 	require.False(t, meta.HasPreviousResults)
 	require.Equal(t, []string{"Alpha", "Alpha", "Beta"}, appNames(apps))
@@ -776,10 +776,11 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 
 	// Available-only hides Beta (its only platform is added) but keeps the other
 	// three apps, which still have at least one not-yet-added platform. The count
-	// is the 3 remaining app tokens (Alpha, Gamma, Delta).
+	// is the 5 not-yet-added platform entries (Alpha macOS+Windows, Gamma Windows,
+	// Delta macOS+Windows).
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{AvailableOnly: true, ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
-	require.EqualValues(t, 3, meta.TotalResults)
+	require.EqualValues(t, 5, meta.TotalResults)
 	require.NotContains(t, appNames(apps), "Beta")
 
 	// Without the filter, Beta is still listed (as added).
