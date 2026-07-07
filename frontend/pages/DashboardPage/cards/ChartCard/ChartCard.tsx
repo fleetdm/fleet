@@ -238,8 +238,8 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          Locked iOS and iPadOS hosts count as online as long as they have power
-          and an internet connection.
+          iOS and iPadOS hosts count as online as long as they have power and an
+          internet connection.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
