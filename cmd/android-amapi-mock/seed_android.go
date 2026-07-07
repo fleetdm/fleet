@@ -26,7 +26,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "usage: %s <private_key> <enterprise_id> <pubsub_token>\n", os.Args[0])
 		os.Exit(1)
 	}
-	key := os.Args[1][:32]
+	key := os.Args[1]
+	if len(key) < 32 {
+		fmt.Fprintf(os.Stderr, "private key must be at least 32 bytes, got %d\n", len(key))
+		os.Exit(1)
+	}
+	key = key[:32]
 	enterpriseID := os.Args[2]
 	pubsubToken := os.Args[3]
 

@@ -1,11 +1,54 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"strings"
+	"time"
 )
+
+func simulateLatencyAndErrors(latencyMean time.Duration, errorRate float64, next http.HandlerFunc) http.HandlerFunc {
+	if latencyMean == 0 && errorRate == 0 {
+		return next
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Add random latency (50%-150% of mean)
+		if latencyMean > 0 {
+			jitter := time.Duration(float64(latencyMean) * (0.5 + rand.Float64())) // #nosec G404 -- load testing
+			time.Sleep(jitter)
+		}
+
+		// Occasionally return errors
+		if errorRate > 0 && rand.Float64() < errorRate { // #nosec G404 -- load testing
+			w.Header().Set("Content-Type", "application/json")
+			if rand.Float64() < 0.5 { // #nosec G404 -- load testing
+				w.WriteHeader(http.StatusTooManyRequests)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"error": map[string]any{
+						"code":    429,
+						"message": "simulated rate limit",
+						"status":  "RESOURCE_EXHAUSTED",
+					},
+				})
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"error": map[string]any{
+						"code":    500,
+						"message": "simulated server error",
+						"status":  "INTERNAL",
+					},
+				})
+			}
+			return
+		}
+
+		next(w, r)
+	}
+}
 
 // forwardForRealDevice returns middleware that checks if a device-specific request
 // targets a registered fake device. If not, it forwards to Google via the authenticated client.
@@ -31,7 +74,15 @@ func forwardForRealDevice(store *deviceStore, google *googleForwarder) func(http
 				case "POST":
 					google.ForwardIssueCommand(w, r)
 				default:
-					http.Error(w, fmt.Sprintf("unsupported method %s for device forwarding", r.Method), http.StatusMethodNotAllowed)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"error": map[string]any{
+							"code":    405,
+							"message": "unsupported method " + r.Method + " for device forwarding",
+							"status":  "METHOD_NOT_ALLOWED",
+						},
+					})
 				}
 				return
 			}
@@ -66,11 +117,3 @@ func forwardOrMock(google *googleForwarder, fallback http.HandlerFunc) http.Hand
 		}
 	}
 }
-
-// discardResponseWriter is an http.ResponseWriter that discards the response.
-// Used for fire-and-forget forwarding where we don't need the response.
-type discardResponseWriter struct{}
-
-func (discardResponseWriter) Header() http.Header         { return http.Header{} }
-func (discardResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
-func (discardResponseWriter) WriteHeader(int)             {}

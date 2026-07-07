@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -54,13 +53,15 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 			}
 		}
 		state := struct {
-			PolicyVersion   int64    `json:"policy_version"`
-			PolicyName      string   `json:"policy_name"`
-			PendingCommands []string `json:"pending_commands"`
+			PolicyVersion       int64    `json:"policy_version"`
+			PolicyName          string   `json:"policy_name"`
+			PendingCommands     []string `json:"pending_commands"`
+			PendingCertificates []uint   `json:"pending_certificates"`
 		}{
-			PolicyVersion:   policyVersion,
-			PolicyName:      d.PolicyName,
-			PendingCommands: d.PendingCommands,
+			PolicyVersion:       policyVersion,
+			PolicyName:          d.PolicyName,
+			PendingCommands:     d.PendingCommands,
+			PendingCertificates: d.PendingCertificates,
 		}
 		d.PendingCommands = nil
 		d.mu.Unlock()
@@ -180,6 +181,7 @@ func handleIssueCommand(store *deviceStore) http.HandlerFunc {
 func handleDevicesList(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fakeNames := store.allDeviceNames()
+		sort.Strings(fakeNames)
 
 		var realDevices []map[string]string
 		if google != nil {
@@ -243,34 +245,19 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := policyName(r)
-		enterpriseID := r.PathValue("eid")
+		hostUUID := r.PathValue("pid")
 
-		if !store.hasDevicesForEnterprise(enterpriseID) && google != nil {
+		// Check if this policy is for a fake device (hostUUID == enterpriseSpecificID).
+		// If it's not a fake device and we have Google credentials, forward to real AMAPI.
+		isFakeDevice := store.getByESID(hostUUID) != nil
+		if !isFakeDevice && google != nil {
 			log.Printf("Forwarding policy patch to Google AMAPI: %q", name) // #nosec G706 -- load testing tool
 			google.ForwardPoliciesPatch(w, r)
 			return
 		}
 
-		var bodyBytes []byte
-		if r.Body != nil {
-			var err error
-			bodyBytes, err = io.ReadAll(r.Body)
-			if err != nil {
-				http.Error(w, "failed to read request body: "+err.Error(), http.StatusBadRequest)
-				return
-			}
-		}
-
 		version := policyVersionCounter.Add(1)
 		store.setPolicyVersion(name, version)
-
-		if google != nil && hasSeenRealDevice.Load() {
-			fwdReq := r.Clone(context.Background())
-			fwdReq.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-			go func() {
-				google.ForwardPoliciesPatch(&discardResponseWriter{}, fwdReq)
-			}()
-		}
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -284,6 +271,16 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := policyName(r)
+		pid := r.PathValue("pid")
+
+		// Try to extract cert template IDs from the request body
+		var bodyBytes []byte
+		if r.Body != nil {
+			bodyBytes, _ = io.ReadAll(r.Body)
+		}
+		if len(bodyBytes) > 0 {
+			extractAndStoreCertTemplateIDs(store, pid, bodyBytes)
+		}
 
 		version := policyVersionCounter.Add(1)
 		store.setPolicyVersion(name, version)
@@ -352,7 +349,58 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 	}
 }
 
-func handleCatchAll(google *googleForwarder) http.HandlerFunc {
+func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []byte) {
+	var req struct {
+		Applications []struct {
+			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+		} `json:"applications"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return
+	}
+
+	for _, app := range req.Applications {
+		if app.ManagedConfiguration == nil {
+			continue
+		}
+		var config struct {
+			CertificateTemplateIDs []struct {
+				ID        uint   `json:"id"`
+				Status    string `json:"status"`
+				Operation string `json:"operation"`
+			} `json:"certificate_templates"`
+		}
+		if err := json.Unmarshal(app.ManagedConfiguration, &config); err != nil {
+			continue
+		}
+		if len(config.CertificateTemplateIDs) == 0 {
+			continue
+		}
+
+		// Find the device by matching hostUUID — the policy name is enterprises/{eid}/policies/{hostUUID}
+		// and hostUUID == enterpriseSpecificID for android devices
+		var certIDs []uint
+		for _, ct := range config.CertificateTemplateIDs {
+			if ct.Operation == "install" {
+				certIDs = append(certIDs, ct.ID)
+			}
+		}
+		if len(certIDs) == 0 {
+			return
+		}
+
+		store.mu.RLock()
+		for _, d := range store.byESID {
+			d.mu.Lock()
+			d.PendingCertificates = certIDs
+			d.mu.Unlock()
+		}
+		store.mu.RUnlock()
+		return
+	}
+}
+
+func handleCatchAll(_ *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ERROR: unhandled AMAPI endpoint: %q %q — add a handler or forwarding for this route", r.Method, r.URL.Path) // #nosec G706 -- load testing tool
 		w.Header().Set("Content-Type", "application/json")

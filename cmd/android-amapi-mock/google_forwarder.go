@@ -125,7 +125,11 @@ func (g *googleForwarder) ForwardPoliciesPatch(w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	result, err := g.svc.Enterprises.Policies.Patch(name, &policy).Context(r.Context()).Do()
+	call := g.svc.Enterprises.Policies.Patch(name, &policy).Context(r.Context())
+	if mask := r.URL.Query().Get("updateMask"); mask != "" {
+		call = call.UpdateMask(mask)
+	}
+	result, err := call.Do()
 	if err != nil {
 		writeGoogleError(w, err)
 		return

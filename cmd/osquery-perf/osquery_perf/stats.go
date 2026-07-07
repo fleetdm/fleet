@@ -47,6 +47,7 @@ type Stats struct {
 	androidEnrollments         int
 	androidStatusReports       int
 	androidCommandAcks         int
+	androidCertVerifications   int
 	androidErrors              int
 
 	l sync.Mutex
@@ -291,6 +292,12 @@ func (s *Stats) IncrementAndroidCommandAcks() {
 	s.androidCommandAcks++
 }
 
+func (s *Stats) IncrementAndroidCertVerifications() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.androidCertVerifications++
+}
+
 func (s *Stats) IncrementAndroidErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -307,7 +314,7 @@ func (s *Stats) Log() {
 	}
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm tokens errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android errors: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm tokens errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android cert verifications: %d, android errors: %d",
 		time.Since(s.StartTime).Round(time.Second),
 		errorRate,
 		s.osqueryEnrollments,
@@ -348,6 +355,7 @@ func (s *Stats) Log() {
 		s.androidEnrollments,
 		s.androidStatusReports,
 		s.androidCommandAcks,
+		s.androidCertVerifications,
 		s.androidErrors,
 	)
 }

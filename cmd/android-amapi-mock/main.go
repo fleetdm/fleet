@@ -11,7 +11,7 @@
 // Usage:
 //
 //	android-amapi-mock --listen :9999
-//	android-amapi-mock --listen :9999 --google-credentials /path/to/service-account.json
+//	android-amapi-mock --listen :9999 --google-credentials "$(cat service-account.json)"
 package main
 
 import (
@@ -34,6 +34,7 @@ type fakeDevice struct {
 	PolicyVersion        int64    `json:"policy_version"`
 	PolicyName           string   `json:"policy_name"`
 	PendingCommands      []string `json:"pending_commands"`
+	PendingCertificates  []uint   `json:"pending_certificates"`
 }
 
 // deviceStore is the in-memory registry of fake devices and policy versions.
@@ -122,6 +123,8 @@ var hasSeenRealDevice atomic.Bool
 func main() {
 	listen := flag.String("listen", ":9999", "Address to listen on")
 	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\" or set GOOGLE_CREDENTIALS env var")
+	latencyMean := flag.Duration("latency", 200*time.Millisecond, "Mean latency added to AMAPI responses (simulates Google API latency)")
+	errorRate := flag.Float64("error-rate", 0.01, "Fraction of AMAPI requests that return 429/5xx errors [0, 1]")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
@@ -156,23 +159,28 @@ func main() {
 	mux.HandleFunc("POST /mock/devices/register", handleRegister(store))
 	mux.HandleFunc("GET /mock/devices/{esid}/state", handleGetState(store))
 
+	// sim wraps AMAPI handlers with simulated latency and occasional errors
+	sim := func(h http.HandlerFunc) http.HandlerFunc {
+		return simulateLatencyAndErrors(*latencyMean, *errorRate, h)
+	}
+
 	// ---- AMAPI: Devices ----
 	fwd := forwardForRealDevice(store, google)
-	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}", fwd(handleDevicesGet(store)))
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/devices/{did}", fwd(handleDevicesPatch(store)))
-	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", fwd(handleDevicesDelete(store)))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", fwd(handleIssueCommand(store)))
-	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", handleDevicesList(store, google))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesGet(store))))
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesPatch(store))))
+	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesDelete(store))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleIssueCommand(store))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", sim(handleDevicesList(store, google)))
 
 	// ---- AMAPI: Policies ----
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", handlePoliciesPatch(store, google))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", handlePolicyAction(store))
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", sim(handlePoliciesPatch(store, google)))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", sim(handlePolicyAction(store)))
 
 	// ---- AMAPI: Other ----
-	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", forwardOrMock(google, handleEnrollmentTokenCreate()))
-	mux.HandleFunc("GET /v1/enterprises/{eid}/applications/{pkg}", forwardOrMock(google, handleApplicationsGet()))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/webApps", forwardOrMock(google, handleWebAppsCreate()))
-	mux.HandleFunc("GET /v1/enterprises", forwardOrMock(google, handleEnterprisesList(store)))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", sim(forwardOrMock(google, handleEnrollmentTokenCreate())))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/applications/{pkg}", sim(forwardOrMock(google, handleApplicationsGet())))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/webApps", sim(forwardOrMock(google, handleWebAppsCreate())))
+	mux.HandleFunc("GET /v1/enterprises", sim(forwardOrMock(google, handleEnterprisesList(store))))
 
 	// Catch-all for unmatched /v1/ requests
 	mux.HandleFunc("/v1/", handleCatchAll(google))

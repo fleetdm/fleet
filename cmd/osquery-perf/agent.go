@@ -3896,7 +3896,7 @@ func main() {
 		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
 		androidProxyAddress      = flag.String("android_proxy_address", "", "Address of the mock AMAPI proxy (e.g., http://localhost:9999)")
 		androidEnterpriseID      = flag.String("android_enterprise_id", "", "Android enterprise ID (e.g., LC03k6enk8)")
-		androidStatusInterval    = flag.Duration("android_status_interval", 1*time.Minute, "Interval between Android STATUS_REPORT messages")
+		androidStatusInterval    = flag.Duration("android_status_interval", 5*time.Minute, "Interval between Android STATUS_REPORT messages (real devices report ~every 24h; lower values stress test Fleet harder)")
 		androidAppCount          = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
 		androidNonComplianceProb = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
 	)
@@ -3945,6 +3945,9 @@ func main() {
 	}
 	if *uniqueSoftwareUninstallCount > *uniqueSoftwareCount {
 		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
+	}
+	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
+		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
 	}
 
 	tmplsm := make(map[*template.Template]int)

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	cryptorand "crypto/rand"
+	"math/big"
 	"math/rand/v2"
 	"net/http"
 	neturl "net/url"
@@ -210,9 +212,12 @@ func (a *androidAgent) runLoop() {
 	}
 	a.stats.IncrementAndroidEnrollments()
 
-	// Step 3: Periodic status reports + command ack loop
+	// Step 3: Periodic status reports + command ack + certificate verification loop
 	statusTicker := time.NewTicker(a.statusReportInterval)
 	defer statusTicker.Stop()
+
+	// Track which certificate templates we've already verified so we don't re-verify
+	verifiedCerts := make(map[uint]bool)
 
 	for range statusTicker.C {
 		// Poll proxy for current state (policy version, pending commands)
@@ -240,14 +245,55 @@ func (a *androidAgent) runLoop() {
 			}
 			a.stats.IncrementAndroidCommandAcks()
 		}
+
+		// Process certificate templates from the proxy state
+		for _, certID := range state.PendingCertificates {
+			if verifiedCerts[certID] {
+				continue
+			}
+
+			// GET the certificate template from Fleet
+			cert, err := a.getCertificateTemplate(certID)
+			if err != nil {
+				log.Printf("Android agent %d: get certificate %d failed: %v", a.agentIndex, certID, err)
+				a.stats.IncrementAndroidErrors()
+				continue
+			}
+
+			// Only verify certificates that are in "delivered" status
+			if cert.Status != "delivered" {
+				continue
+			}
+
+			// PUT the certificate status as verified (simulates SCEP enrollment completion)
+			if err := a.updateCertificateStatus(certID, "verified", "install"); err != nil {
+				log.Printf("Android agent %d: update certificate %d status failed: %v", a.agentIndex, certID, err)
+				a.stats.IncrementAndroidErrors()
+				continue
+			}
+
+			verifiedCerts[certID] = true
+			a.stats.IncrementAndroidCertVerifications()
+		}
 	}
 }
 
 // proxyDeviceState is the response from the mock proxy's coordination API.
 type proxyDeviceState struct {
-	PolicyVersion   int64    `json:"policy_version"`
-	PolicyName      string   `json:"policy_name"`
-	PendingCommands []string `json:"pending_commands"`
+	PolicyVersion       int64    `json:"policy_version"`
+	PolicyName          string   `json:"policy_name"`
+	PendingCommands     []string `json:"pending_commands"`
+	PendingCertificates []uint   `json:"pending_certificates"`
+}
+
+// certTemplateResponse is the response from GET /api/fleetd/certificates/{id}
+type certTemplateResponse struct {
+	Certificate *certTemplateInfo `json:"certificate"`
+}
+
+type certTemplateInfo struct {
+	ID     uint   `json:"id"`
+	Status string `json:"status"`
 }
 
 // registerWithProxy registers this fake device with the mock AMAPI proxy.
@@ -331,8 +377,9 @@ func (a *androidAgent) sendStatusReport(state *proxyDeviceState) error {
 	now := time.Now().UTC()
 
 	device := androidmanagement.Device{
-		Name:      a.deviceName,
-		Ownership: "COMPANY_OWNED",
+		Name:         a.deviceName,
+		Ownership:    "COMPANY_OWNED",
+		AppliedState: "ACTIVE",
 		HardwareInfo: &androidmanagement.HardwareInfo{
 			EnterpriseSpecificId: a.enterpriseSpecificID,
 			SerialNumber:         a.serialNumber,
@@ -379,6 +426,86 @@ func (a *androidAgent) sendCommandAck(operationName string) error {
 		Done: true,
 	}
 	return a.sendPubSubMessage(android.PubSubCommand, op)
+}
+
+// getCertificateTemplate fetches a certificate template from Fleet.
+func (a *androidAgent) getCertificateTemplate(certID uint) (*certTemplateInfo, error) {
+	url := fmt.Sprintf("%s/api/v1/fleet/fleetd/certificates/%d", a.serverAddress, certID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Node key "+a.enterpriseSpecificID)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get certificate: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("get certificate returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var certResp certTemplateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&certResp); err != nil {
+		return nil, fmt.Errorf("decode certificate: %w", err)
+	}
+	return certResp.Certificate, nil
+}
+
+// updateCertificateStatus reports a certificate template's status to Fleet.
+func (a *androidAgent) updateCertificateStatus(certID uint, status, operationType string) error {
+	now := time.Now().UTC()
+	notBefore := now.Add(-1 * time.Hour)
+	notAfter := now.Add(365 * 24 * time.Hour)
+
+	// Generate a random serial number
+	serialBytes := make([]byte, 16)
+	if _, err := cryptorand.Read(serialBytes); err != nil {
+		return fmt.Errorf("generate serial: %w", err)
+	}
+	serial := new(big.Int).SetBytes(serialBytes).Text(16)
+
+	body := struct {
+		Status         string     `json:"status"`
+		OperationType  string     `json:"operation_type"`
+		NotValidBefore *time.Time `json:"not_valid_before"`
+		NotValidAfter  *time.Time `json:"not_valid_after"`
+		Serial         *string    `json:"serial"`
+	}{
+		Status:         status,
+		OperationType:  operationType,
+		NotValidBefore: &notBefore,
+		NotValidAfter:  &notAfter,
+		Serial:         &serial,
+	}
+
+	data, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal status: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/fleet/fleetd/certificates/%d/status", a.serverAddress, certID)
+	req, err := http.NewRequest("PUT", url, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Node key "+a.enterpriseSpecificID)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("update certificate status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("update certificate status returned %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
 }
 
 // sendPubSubMessage constructs and sends a PubSub push message to Fleet's endpoint.
