@@ -189,41 +189,28 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	t.Run("ACK downgrades proxied SCEP profile to verifying", func(t *testing.T) {
-		h := mkHost(t, "ack-scep")
-		p, cmd := "w-scep-proxy", "cmd-scep-proxy"
-		upsertWinProfile(t, h, p, cmd, fleet.MDMDeliveryPending, 0)
-		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-
-		ackVerified(t, h, cmd)
-
-		status, _, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryVerifying, status)
-	})
-
-	t.Run("ACK keeps non-certificate profile verified", func(t *testing.T) {
-		h := mkHost(t, "ack-plain")
-		p, cmd := "w-plain", "cmd-plain"
-		upsertWinProfile(t, h, p, cmd, fleet.MDMDeliveryPending, 0)
-		// no managed-cert row
-
-		ackVerified(t, h, cmd)
-
-		status, _, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryVerified, status)
-	})
-
-	t.Run("ACK keeps DigiCert profile verified", func(t *testing.T) {
-		h := mkHost(t, "ack-digicert")
-		p, cmd := "w-digicert", "cmd-digicert"
-		upsertWinProfile(t, h, p, cmd, fleet.MDMDeliveryPending, 0)
-		upsertHMMC(t, h, p, fleet.CAConfigDigiCert, nil, nil)
-
-		ackVerified(t, h, cmd)
-
-		status, _, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryVerified, status)
-	})
+	// ACK status mapping: a proxied SCEP profile moves to "verifying" on the device's 2xx ACK
+	for i, tc := range []struct {
+		name   string
+		caType fleet.CAConfigAssetType // "" means no managed-certificate row
+		want   fleet.MDMDeliveryStatus
+	}{
+		{"proxied SCEP moves to verifying", fleet.CAConfigCustomSCEPProxy, fleet.MDMDeliveryVerifying},
+		{"non-certificate profile stays verified", "", fleet.MDMDeliveryVerified},
+		{"DigiCert profile stays verified", fleet.CAConfigDigiCert, fleet.MDMDeliveryVerified},
+	} {
+		t.Run("ACK: "+tc.name, func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("ack-%d", i))
+			p, cmd := "w-ack", "cmd-ack"
+			upsertWinProfile(t, h, p, cmd, fleet.MDMDeliveryPending, 0)
+			if tc.caType != "" {
+				upsertHMMC(t, h, p, tc.caType, nil, nil)
+			}
+			ackVerified(t, h, cmd)
+			status, _, _ := getProfile(t, h, p)
+			require.Equal(t, tc.want, status)
+		})
+	}
 
 	t.Run("cert observation flips verifying to verified", func(t *testing.T) {
 		h := mkHost(t, "flip")
@@ -315,67 +302,43 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, 0, count)
 	})
 
-	t.Run("backstop fails a device-scoped profile after grace when the cert is absent", func(t *testing.T) {
-		h := mkHost(t, "backstop-device")
-		p := "w-backstop-device"
-		upsertWinProfile(t, h, p, "cmd-bs-device", fleet.MDMDeliveryVerifying, 2)
-		insertConfigProfile(t, p, "bs-device", false)
-		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-		backdateProfile(t, h, p, 2*time.Hour)
+	// Verification backstop: once the grace period elapses and a report proves the certificate's store was readable
+	// but the cert is absent, the profile fails. Device-scoped relies on the always-readable system store; user-scoped
+	// needs a user cert in the report (single-user assumption).
+	for i, tc := range []struct {
+		name       string
+		userScoped bool
+		backdate   time.Duration // 0 = still within the grace window
+		certSource fleet.HostCertificateSource
+		username   string
+		retries    int
+		wantStatus fleet.MDMDeliveryStatus
+		wantDetail string
+	}{
+		{"device-scoped fails past grace when cert absent", false, 2 * time.Hour, fleet.SystemHostCertificate, "", 2, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+		{"device-scoped stays verifying within grace", false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
+		{"user-scoped stays verifying when no user cert observed", true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
+		{"user-scoped fails past grace once a user cert is observed", true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+	} {
+		t.Run("backstop: "+tc.name, func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("backstop-%d", i))
+			p := fmt.Sprintf("w-backstop-%d", i)
+			upsertWinProfile(t, h, p, "cmd-backstop", fleet.MDMDeliveryVerifying, tc.retries)
+			insertConfigProfile(t, p, fmt.Sprintf("backstop-%d", i), tc.userScoped)
+			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+			if tc.backdate > 0 {
+				backdateProfile(t, h, p, tc.backdate)
+			}
+			// The ingested cert never carries this profile's renewal-ID marker; only its source (system vs user)
+			// varies, which decides whether the user store is proven readable.
+			ingest(t, h, plainCert(t, h, "some-cert", tc.certSource, tc.username))
 
-		// A system cert comes back, proving the LocalMachine store was read, but not this profile's cert.
-		ingest(t, h, plainCert(t, h, "some-device-cert", fleet.SystemHostCertificate, ""))
-
-		status, detail, retries := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryFailed, status)
-		require.Equal(t, windowsSCEPCertNotFoundDetail, detail)
-		require.Equal(t, 2, retries) // backstop must not touch retries
-	})
-
-	t.Run("backstop leaves a device-scoped profile verifying within the grace window", func(t *testing.T) {
-		h := mkHost(t, "backstop-grace")
-		p := "w-backstop-grace"
-		upsertWinProfile(t, h, p, "cmd-bs-grace", fleet.MDMDeliveryVerifying, 0)
-		insertConfigProfile(t, p, "bs-grace", false)
-		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-		// no backdate: still within the grace window
-
-		ingest(t, h, plainCert(t, h, "some-device-cert", fleet.SystemHostCertificate, ""))
-
-		status, _, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryVerifying, status)
-	})
-
-	t.Run("backstop leaves a user-scoped profile verifying when no user cert is observed", func(t *testing.T) {
-		h := mkHost(t, "backstop-user-noobs")
-		p := "w-backstop-user-noobs"
-		upsertWinProfile(t, h, p, "cmd-bs-user-noobs", fleet.MDMDeliveryVerifying, 0)
-		insertConfigProfile(t, p, "bs-user-noobs", true)
-		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-		backdateProfile(t, h, p, 2*time.Hour)
-
-		// Only a system cert this run: no proof the target user's store was readable.
-		ingest(t, h, plainCert(t, h, "some-device-cert", fleet.SystemHostCertificate, ""))
-
-		status, _, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryVerifying, status)
-	})
-
-	t.Run("backstop fails a user-scoped profile after grace once a user cert is observed", func(t *testing.T) {
-		h := mkHost(t, "backstop-user-obs")
-		p := "w-backstop-user-obs"
-		upsertWinProfile(t, h, p, "cmd-bs-user-obs", fleet.MDMDeliveryVerifying, 0)
-		insertConfigProfile(t, p, "bs-user-obs", true)
-		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-		backdateProfile(t, h, p, 2*time.Hour)
-
-		// A user cert comes back (single-user assumption: that user's store was readable) but not this profile's cert.
-		ingest(t, h, plainCert(t, h, "some-user-cert", fleet.UserHostCertificate, "alice"))
-
-		status, detail, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryFailed, status)
-		require.Equal(t, windowsSCEPCertNotFoundDetail, detail)
-	})
+			status, detail, retries := getProfile(t, h, p)
+			require.Equal(t, tc.wantStatus, status)
+			require.Equal(t, tc.wantDetail, detail)
+			require.Equal(t, tc.retries, retries)
+		})
+	}
 
 	t.Run("observed cert wins over the backstop even past grace", func(t *testing.T) {
 		h := mkHost(t, "backstop-flipwins")
