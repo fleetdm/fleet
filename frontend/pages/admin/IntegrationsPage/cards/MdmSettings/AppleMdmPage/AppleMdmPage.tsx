@@ -131,7 +131,7 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
             onRenew={onRenewCert}
           />
         )}
-        {showTurnOffMdmModal && (
+        {showTurnOffMdmModal && config && (
           <TurnOffAppleMdmModal
             serverUrl={getMdmServerUrl(config.server_settings)}
             onCancel={toggleTurnOffMdmModal}
