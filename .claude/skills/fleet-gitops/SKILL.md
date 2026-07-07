@@ -47,4 +47,4 @@ When generating or modifying DDM declarations:
 ## References
 
 - Fleet GitOps documentation: https://fleetdm.com/docs/configuration/yaml-files
-- Fleet API documentation: https://fleetdm.com/docs/rest-api/rest-api
+- Fleet API documentation: https://fleetdm.com/docs/api/rest-api

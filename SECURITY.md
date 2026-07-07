@@ -14,7 +14,7 @@ Fleet endeavors to acknowledge and fix any reported vulnerabilities ASAP. Acknow
 
 In scope:
 - Fleet product source code: [github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)
-- Fleet REST API documentation: [fleetdm.com/docs/rest-api/rest-api](https://fleetdm.com/docs/rest-api/rest-api)
+- Fleet REST API documentation: [fleetdm.com/docs/api/rest-api](https://fleetdm.com/docs/api/rest-api)
 
 Out of scope:
 - Marketing pages, blogs, and landing pages on fleetdm.com

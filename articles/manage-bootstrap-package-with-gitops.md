@@ -24,7 +24,7 @@ First, upload your bootstrap package to each fleet that needs it.
 You can use either:
 
 - The Fleet UI to upload the package manually
-- The [Create bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) API endpoint to upload programmatically
+- The [Create bootstrap package](https://fleetdm.com/docs/api/rest-api#create-bootstrap-package) API endpoint to upload programmatically
 
 Repeat this step for every fleet that needs the package.
 
@@ -34,7 +34,7 @@ Repeat this step for every fleet that needs the package.
 
 After uploading, retrieve the unique token for each fleet's bootstrap package.
 
-Use the [Get bootstrap package metadata](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-metadata) API endpoint. The response includes the token you'll need for the next step.
+Use the [Get bootstrap package metadata](https://fleetdm.com/docs/api/rest-api#get-bootstrap-package-metadata) API endpoint. The response includes the token you'll need for the next step.
 
 
 ## Configure your GitOps fleet file

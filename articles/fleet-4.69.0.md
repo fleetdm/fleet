@@ -32,7 +32,7 @@ When a vulnerability has no primary CVSS score in the [National Vulnerability Da
 
 ### Self-service software: uninstall
 
-End users can now [uninstall self-service software](https://fleetdm.com/guides/software-self-service#uninstall-self-service-software) via the My device UI. Software uninstalls initiated this way are tracked in Fleet's [audit log](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md#uninstalled_software).
+End users can now [uninstall self-service software](https://fleetdm.com/guides/software-self-service#uninstall-self-service-software) via the My device UI. Software uninstalls initiated this way are tracked in Fleet's [audit log](https://github.com/fleetdm/fleet/blob/main/docs/api/global-audit-logs.md#uninstalled_software).
 
 ### Add custom packages in GitOps mode
 

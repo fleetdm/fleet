@@ -14,7 +14,7 @@ Learn more about automatically installing software [the Automatically install so
 
 * `fleetd` deployed with the `--enable-scripts` flag. If you're using MDM features, scripts are enabled by default.
 
-* If you're self-hosting Fleet, you need an S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the packages. Increase any load balancer timeouts to at least 5 minutes for the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Modify package](https://fleetdm.com/docs/rest-api/rest-api#modify-package) API endpoints.
+* If you're self-hosting Fleet, you need an S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the packages. Increase any load balancer timeouts to at least 5 minutes for the [Add package](https://fleetdm.com/docs/api/rest-api#add-package) and [Modify package](https://fleetdm.com/docs/api/rest-api#modify-package) API endpoints.
 
 ## Add a custom package
 
@@ -135,7 +135,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 ## Manage packages with Fleet's REST API
 
-Fleet also provides a REST API for managing software programmatically. The API allows you to add, update, retrieve, list, and delete software. Detailed documentation on Fleet's [REST API is available](https://fleetdm.com/docs/rest-api/rest-api#software), including endpoints for installing and uninstalling packages.
+Fleet also provides a REST API for managing software programmatically. The API allows you to add, update, retrieve, list, and delete software. Detailed documentation on Fleet's [REST API is available](https://fleetdm.com/docs/api/rest-api#software), including endpoints for installing and uninstalling packages.
 
 ## Manage packages with GitOps
 

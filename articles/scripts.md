@@ -56,7 +56,7 @@ Scripts run from the Fleet UI will run the next time your host checks in with Fl
 
 When executing a script on more than one host, you can view the status of the batch of hosts by clicking on the related item in the global activity feed.
 
-Fleet API: See our [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#run-script)
+Fleet API: See our [REST API documentation](https://fleetdm.com/docs/api/rest-api#run-script)
 
 fleetctl CLI:
 
@@ -93,7 +93,7 @@ To cancel a current or future batch script run:
 2. In the modal window that appears, hover over the **Pending** hosts row.
 3. Click on the **Cancel** button that appears in that row.
 
-Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
+Fleet API: See the [REST API documentation](https://fleetdm.com/docs/api/rest-api#batch-run-script)
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

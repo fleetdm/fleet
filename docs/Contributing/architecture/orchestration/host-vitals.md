@@ -56,7 +56,7 @@ UI -> Server -> DB
 
 ## Host vitals collected
 
-See the [host details API](https://fleetdm.com/docs/rest-api/rest-api#get-host) documentation for details on collected vitals.
+See the [host details API](https://fleetdm.com/docs/api/rest-api#get-host) documentation for details on collected vitals.
 
 ## Performance considerations
 
@@ -68,7 +68,7 @@ Host Vitals collection can impact device and server performance, especially for 
 
 ## Related resources
 
-- [Host details API documentation](https://fleetdm.com/docs/rest-api/rest-api#get-host)
+- [Host details API documentation](https://fleetdm.com/docs/api/rest-api#get-host)
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group
 - [Orchestration Development Guides](../../guides/orchestration/) - Guides for Orchestration development
 - [Understanding Host Vitals](../../product-groups/orchestration/understanding-host-vitals.md) - Detailed documentation on host vitals

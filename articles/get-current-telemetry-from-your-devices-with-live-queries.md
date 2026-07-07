@@ -19,7 +19,7 @@ Live queries can be run from the web UI, the REST API, or the command-line inter
 
 For detailed instructions on creating and running queries in the web UI, refer to this [guide](https://fleetdm.com/guides/queries).
 
-Using the REST API, users can run a live report [using a saved reports's id](https://fleetdm.com/docs/rest-api/rest-api#run-live-query) or with [custom SQL on a specific host](https://fleetdm.com/docs/rest-api/rest-api#live-query-one-host-ad-hoc).
+Using the REST API, users can run a live report [using a saved reports's id](https://fleetdm.com/docs/api/rest-api#run-live-query) or with [custom SQL on a specific host](https://fleetdm.com/docs/api/rest-api#live-query-one-host-ad-hoc).
 
 > Note: Users with the observer role do not have permission to run live reports.
 
@@ -79,7 +79,7 @@ We encourage you to explore the possibilities and share your thoughts or questio
 Documentation: 
 
 * [Run live report with the UI](https://fleetdm.com/guides/queries)
-* [Run live report with REST API](https://fleetdm.com/docs/rest-api/rest-api#run-live-query)
+* [Run live report with REST API](https://fleetdm.com/docs/api/rest-api#run-live-query)
 * [Run live report with WebSockets](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#run-live-query)
 
 

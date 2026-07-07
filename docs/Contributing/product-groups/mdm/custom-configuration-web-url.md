@@ -23,12 +23,12 @@ How to require end users to authenticate with a custom web application:
 </dict>
 ```
 
-You can use Fleet's API to [get the manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile).
+You can use Fleet's API to [get the manual enrollment profile](https://fleetdm.com/docs/api/rest-api#get-manual-enrollment-profile).
 
 6. Update the custom web application to wait until the fleetd agent is installed on the new Mac and then do the following steps.
 
-7. Make a request to the [`GET /hosts` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) w/ the end user's email as a query param to get the Mac's hardware UUID. Example API request: `GET /hosts?query=user@example.com`.
+7. Make a request to the [`GET /hosts` API endpoint](https://fleetdm.com/docs/api/rest-api#list-hosts) w/ the end user's email as a query param to get the Mac's hardware UUID. Example API request: `GET /hosts?query=user@example.com`.
 
-8. Make a request to [Fleet's MDM command API](https://fleetdm.com/docs/rest-api/rest-api#run-custom-mdm-command) to pre-fill the end user's local macOS account via the [`AccountConfiguration` MDM command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command).
+8. Make a request to [Fleet's MDM command API](https://fleetdm.com/docs/api/rest-api#run-custom-mdm-command) to pre-fill the end user's local macOS account via the [`AccountConfiguration` MDM command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command).
 
 9. Make a request to Fleet's MDM command API to send the `Release Device from Await Configuration` MDM command to allow the device through to the next step in the set up.

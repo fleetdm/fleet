@@ -115,7 +115,7 @@ Or, something like `jq` for API output:
 "$fleet_url/api/v1/fleet/hosts" | jq '.hosts[] | select(.computer_name | contains("someSearchStringHere"))'
 ```
 
-> You will need a [Fleet API token](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) in your `fleetctl` configuration or for any interaction with the Fleet API to work.
+> You will need a [Fleet API token](https://fleetdm.com/docs/api/rest-api#retrieve-your-api-token) in your `fleetctl` configuration or for any interaction with the Fleet API to work.
 
 ### Step 3: Execute the MDM command
 
