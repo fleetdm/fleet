@@ -3158,6 +3158,13 @@ type Datastore interface {
 	// to the specified profile uuid.
 	GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*MDMAndroidConfigProfile, error)
 
+	// UpdateMDMAndroidConfigProfile updates an existing configuration profile's
+	// contents (if cp.RawJSON is non-empty) and/or label targeting in place,
+	// preserving its ProfileUUID. cp.Name must match the existing profile's --
+	// like Windows profiles, Android profiles have no separate identifier, so
+	// name is the only identity a profile has and cannot change on this path.
+	UpdateMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+
 	// DeleteMDMAndroidConfigProfile deletes the Android MDM profile corresponding to
 	// the specified profile uuid.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error

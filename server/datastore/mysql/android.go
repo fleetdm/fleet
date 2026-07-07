@@ -725,6 +725,81 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 	return &profile, nil
 }
 
+// UpdateMDMAndroidConfigProfile updates an existing configuration profile's
+// contents (if cp.RawJSON is non-empty) and/or label targeting in place,
+// preserving its ProfileUUID. cp.Name must match the existing profile's --
+// like Windows profiles, Android profiles have no separate identifier, so
+// name is the only identity a profile has and this method never changes it.
+func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var existing struct {
+			Name string `db:"name"`
+		}
+		err := sqlx.GetContext(ctx, tx, &existing,
+			`SELECT name FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
+			}
+			return ctxerr.Wrap(ctx, err, "get existing android config profile")
+		}
+		if existing.Name != cp.Name {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "The new profile's name must match the existing profile's name.",
+			})
+		}
+
+		if len(cp.RawJSON) > 0 {
+			stmt := `UPDATE mdm_android_configuration_profiles SET raw_json = ?, uploaded_at = CURRENT_TIMESTAMP() WHERE profile_uuid = ? AND name = ?`
+			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.ProfileUUID, cp.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
+			}
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
+			}
+		}
+
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsIncludeAny)+len(cp.LabelsExcludeAny))
+		for i := range cp.LabelsIncludeAll {
+			cp.LabelsIncludeAll[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsIncludeAll[i].RequireAll = true
+			cp.LabelsIncludeAll[i].Exclude = false
+			labels = append(labels, cp.LabelsIncludeAll[i])
+		}
+		for i := range cp.LabelsIncludeAny {
+			cp.LabelsIncludeAny[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsIncludeAny[i].RequireAll = false
+			cp.LabelsIncludeAny[i].Exclude = false
+			labels = append(labels, cp.LabelsIncludeAny[i])
+		}
+		for i := range cp.LabelsExcludeAny {
+			cp.LabelsExcludeAny[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsExcludeAny[i].RequireAll = false
+			cp.LabelsExcludeAny[i].Exclude = true
+			labels = append(labels, cp.LabelsExcludeAny[i])
+		}
+		var profsWithoutLabel []string
+		if len(labels) == 0 {
+			profsWithoutLabel = append(profsWithoutLabel, cp.ProfileUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "android"); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating android profile label associations")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := ds.GetMDMAndroidConfigProfile(ctx, cp.ProfileUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get updated android config profile")
+	}
+	return updated, nil
+}
+
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`

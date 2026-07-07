@@ -1902,6 +1902,8 @@ type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroi
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
 
+type UpdateMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
+
 type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
@@ -4961,6 +4963,9 @@ type DataStore struct {
 
 	GetMDMAndroidConfigProfileFunc        GetMDMAndroidConfigProfileFunc
 	GetMDMAndroidConfigProfileFuncInvoked bool
+
+	UpdateMDMAndroidConfigProfileFunc        UpdateMDMAndroidConfigProfileFunc
+	UpdateMDMAndroidConfigProfileFuncInvoked bool
 
 	DeleteMDMAndroidConfigProfileFunc        DeleteMDMAndroidConfigProfileFunc
 	DeleteMDMAndroidConfigProfileFuncInvoked bool
@@ -11899,6 +11904,13 @@ func (s *DataStore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID 
 	s.GetMDMAndroidConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAndroidConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.UpdateMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAndroidConfigProfileFunc(ctx, cp)
 }
 
 func (s *DataStore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {

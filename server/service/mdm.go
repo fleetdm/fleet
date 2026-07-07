@@ -2003,9 +2003,10 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 		return svc.updateMDMAppleConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	case isWindowsProfileUUID(profileUUID):
 		return svc.updateMDMWindowsConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	case isAndroidProfileUUID(profileUUID):
+		return svc.updateMDMAndroidConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	default:
-		// TODO(#48342): implement update for Apple DDM declarations and
-		// Android profiles.
+		// TODO(#48342): implement update for Apple DDM declarations.
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
@@ -2018,59 +2019,12 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// check that Android MDM is enabled - the middleware of the endpoint checks
-	// only that any MDM is enabled, maybe it's just macOS
-	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")
-	}
-
-	lic, _ := license.FromContext(ctx)
-	var teamName string
-	if teamID > 0 {
-		if lic == nil || !lic.IsPremium() {
-			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
-		}
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
-	}
-
-	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
-		if lic == nil || !lic.IsPremium() {
-			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
-		}
-	}
-
-	cp := fleet.MDMAndroidConfigProfile{
-		TeamID:  &teamID,
-		Name:    profileName,
-		RawJSON: data,
-	}
-	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
-		return nil, ctxerr.Wrap(ctx, err, "validate profile")
-	}
-
-	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
-	}
-	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
+	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+		return nil, err
 	}
-	switch labelsMembershipMode {
-	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = includeLabels
-	default:
-		// default include all
-		cp.LabelsIncludeAll = includeLabels
-	}
-	cp.LabelsExcludeAny = excludeLabels
 
-	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
+	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, *cp)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -2102,6 +2056,183 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	}
 
 	return newCP, nil
+}
+
+// parseAndValidateAndroidConfigProfile runs the validation shared by creating
+// and updating an Android configuration profile: verifies Android MDM is
+// configured, validates license/team requirements, validates the RawJSON
+// content, and validates label scoping. It returns the constructed profile
+// (with labels set) and the team's name (empty string for no team).
+func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, string, error) {
+	// check that Android MDM is enabled - the middleware of the endpoint checks
+	// only that any MDM is enabled, maybe it's just macOS
+	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, "", ctxerr.Wrap(ctx, err, "check android MDM enabled")
+	}
+
+	lic, _ := license.FromContext(ctx)
+	var teamName string
+	if teamID > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, "", ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+		}
+	}
+
+	cp := fleet.MDMAndroidConfigProfile{
+		TeamID:  &teamID,
+		Name:    profileName,
+		RawJSON: data,
+	}
+	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
+		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
+		return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
+	}
+
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	switch labelsMembershipMode {
+	case fleet.LabelsIncludeAny:
+		cp.LabelsIncludeAny = includeLabels
+	default:
+		// default include all
+		cp.LabelsIncludeAll = includeLabels
+	}
+	cp.LabelsExcludeAny = excludeLabels
+
+	return &cp, teamName, nil
+}
+
+// updateMDMAndroidConfigProfile implements the Android branch of
+// UpdateMDMConfigProfile: it loads the existing profile, re-validates a new
+// upload (when provided) the same way NewMDMAndroidConfigProfile does, then
+// updates it and logs the edit activity.
+//
+// BulkSetPendingMDMHostProfiles below -- despite the name, scoped here to
+// just this one profile's UUID -- isn't required for correctness: the
+// profile's checksum is a MySQL generated column, so the cron reconciler
+// would pick up this edit on its own. It's called here (matching create) so
+// the change is reflected immediately instead of waiting for the next tick.
+//
+// A profile's name cannot change on this path: Android profiles have no
+// separate identifier, so name (with team_id) is their only identity --
+// changing it would be indistinguishable from creating an unrelated profile.
+func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+	// first we perform a basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	existing, err := svc.ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	var teamName string
+	teamID := *existing.TeamID
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	// now we can do a specific authz check based on team id of profile before we update it
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: existing.TeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// prevent editing profiles that are managed by Fleet
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[existing.Name]; ok {
+		return &fleet.BadRequestError{
+			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
+			InternalErr: fmt.Errorf("editing profile %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+		}
+	}
+
+	var cp *fleet.MDMAndroidConfigProfile
+	if len(profile) > 0 {
+		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		if err != nil {
+			return err
+		}
+	} else {
+		// no new content -- only labels are being changed.
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking license")
+		}
+		if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+			if lic == nil || !lic.IsPremium() {
+				return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+			}
+		}
+		if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+		}
+		includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validating labels")
+		}
+		cp = &fleet.MDMAndroidConfigProfile{
+			Name:   existing.Name,
+			TeamID: existing.TeamID,
+		}
+		switch labelsMembershipMode {
+		case fleet.LabelsIncludeAll:
+			cp.LabelsIncludeAll = includeLabels
+		case fleet.LabelsIncludeAny:
+			cp.LabelsIncludeAny = includeLabels
+		}
+		cp.LabelsExcludeAny = excludeLabels
+	}
+	cp.ProfileUUID = profileUUID
+
+	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{profileUUID}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark profile pending")
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: cp.Name,
+			Platform:    "android",
+		}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm android config profile")
+	}
+
+	return nil
 }
 
 func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
