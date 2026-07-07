@@ -6853,8 +6853,8 @@ Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` 
 
 You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
 
-- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** and **file name** as the existing profile.
-- **v1 .mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** and **PayloadDisplayName** as the existing profile.
+- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** as the existing profile.
+- **v1 .mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** as the existing profile.
 
 If the new profile does not match the required identifiers, the request will be rejected.
 
