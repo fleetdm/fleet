@@ -803,7 +803,6 @@ module.exports.routes = {
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
   'GET /docs/rest-api': '/docs/api/rest-api',
-  'GET /docs/api/global-audit-logs': '/docs/api/global-audit-logs',
   'GET /docs/contributing/reference/audit-logs': '/docs/api/global-audit-logs',
   'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
   'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
