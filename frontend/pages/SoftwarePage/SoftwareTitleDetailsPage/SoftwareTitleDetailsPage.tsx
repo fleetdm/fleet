@@ -258,7 +258,6 @@ const SoftwareTitleDetailsPage = ({
               }
               isIosOrIpadosApp={isIosOrIpadosApp}
               isActive
-              badgeState="latest"
               labels={labels}
               labelKind={kind}
               canEditSoftware={canEditSoftware}
