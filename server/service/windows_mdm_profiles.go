@@ -155,7 +155,7 @@ func (svc *Service) handleWindowsProfileSoftwareUpdate(
 	syncML []byte,
 	teamID uint,
 ) error {
-	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+	if !fleet.ProfileTargetsReservedLocURI(syncML, syncml.FleetOSUpdateTargetLocURI) {
 		return nil
 	}
 

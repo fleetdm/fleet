@@ -304,9 +304,10 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 }
 
 func validateFleetProvidedLocURI(locURI string, allowCustomDiskEncryption bool) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
-		if strings.Contains(sanitizedLocURI, fleetLocURI) {
+		// LocURITargetsReservedNode canonicalizes the LocURI so the reserved-node check matches every form Windows accepts,
+		// including the scope-less "Vendor/MSFT/..." variant that lacks the leading "/" the reserved LocURI constants rely on.
+		if LocURITargetsReservedNode(locURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				if allowCustomDiskEncryption {
 					continue

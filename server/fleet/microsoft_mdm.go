@@ -1161,7 +1161,11 @@ const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe co
 func (cmd SyncMLCmd) IsPremium() bool {
 	// NOTE: if this implementation changes, make sure to also update the error
 	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
-	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+	//
+	// LocURITargetsReservedNode canonicalizes the target so the premium gate matches every LocURI form Windows accepts,
+	// including the scope-less "Vendor/MSFT/RemoteWipe/..." variant. Without it, a wipe submitted via run-command with an
+	// implicit-device or scope-less LocURI would evade the license check while the device still executes the wipe.
+	return LocURITargetsReservedNode(cmd.GetTargetURI(), syncml.FleetRemoteWipeTargetLocURI)
 }
 
 // DataType returns the SyncMLDataType corresponding to the command's format.
@@ -1961,4 +1965,31 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 		}
 	}
 	return uris
+}
+
+// LocURITargetsReservedNode reports whether a single LocURI targets the given Fleet-reserved node. The reserved constants
+// (e.g. syncml.FleetBitLockerTargetLocURI, syncml.FleetOSUpdateTargetLocURI) are anchored with a leading "/" for
+// segment-boundary safety, so the canonicalized LocURI is re-anchored with a leading "/" before matching. This makes the
+// check independent of the scope prefix Windows treats as equivalent, closing the scope-less bypass where
+// "Vendor/MSFT/BitLocker/..." slipped past a check that only matched "/Vendor/MSFT/BitLocker". See CanonicalLocURI.
+func LocURITargetsReservedNode(locURI, reservedLocURI string) bool {
+	return strings.Contains("/"+CanonicalLocURI(locURI), reservedLocURI)
+}
+
+// ProfileTargetsReservedLocURI reports whether any Add/Replace Target LocURI in the profile targets the given Fleet-reserved
+// node (e.g. syncml.FleetOSUpdateTargetLocURI or syncml.FleetBitLockerTargetLocURI, both stored with a leading "/"). It is a
+// strict superset of a raw bytes.Contains check: the fast path preserves the previous behavior for scope-prefixed forms, and
+// the per-LocURI canonicalization additionally catches the scope-less form ("Vendor/MSFT/...") that Windows accepts but that
+// lacks the leading "/" the raw check depends on. See LocURITargetsReservedNode.
+func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bool {
+	// Fast path preserving prior behavior: scope-prefixed forms and any raw occurrence of the reserved node.
+	if bytes.Contains(profileBytes, []byte(reservedLocURI)) {
+		return true
+	}
+	for _, uri := range ExtractLocURIsFromProfileBytes(profileBytes) {
+		if LocURITargetsReservedNode(uri, reservedLocURI) {
+			return true
+		}
+	}
+	return false
 }

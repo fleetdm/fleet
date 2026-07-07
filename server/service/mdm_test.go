@@ -1187,6 +1187,35 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 					</Target>
 				</Item>
 			</Exec>`, "", "./Device/Vendor/MSFT/RemoteWipe/doWipe"},
+		// Regression for #48752: a wipe submitted with a scope-less or implicit-device LocURI (which Windows still
+		// executes) must not bypass the premium license gate.
+		{"scope-less wipe, non premium license", false, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>Vendor/MSFT/RemoteWipe/doWipe</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "Requires Fleet Premium license", ""},
+		{"implicit-device wipe, non premium license", false, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./Vendor/MSFT/RemoteWipe/doWipe</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "Requires Fleet Premium license", ""},
+		{"scope-less wipe, premium license", true, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>Vendor/MSFT/RemoteWipe/doWipe</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "", "Vendor/MSFT/RemoteWipe/doWipe"},
 		{"non-premium command", false, `
 			<Exec>
 				<CmdID>1</CmdID>
@@ -1217,9 +1246,11 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			ctx = test.UserContext(ctx, test.UserAdmin)
+			// Use a per-subtest context so a premium license added by one case does not leak into later cases via the
+			// shared outer ctx (which would mask a missing premium gate).
+			cmdCtx := test.UserContext(ctx, test.UserAdmin)
 			if c.premium {
-				ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+				cmdCtx = license.NewContext(cmdCtx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 			}
 
 			var svcImpl *Service
@@ -1229,7 +1260,7 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 			case *Service:
 				svcImpl = v
 			}
-			res, err := svcImpl.enqueueMicrosoftMDMCommand(ctx, []byte(c.xmlCmd), []string{"uuid"})
+			res, err := svcImpl.enqueueMicrosoftMDMCommand(cmdCtx, []byte(c.xmlCmd), []string{"uuid"})
 
 			if c.wantErr != "" {
 				require.Error(t, err)
