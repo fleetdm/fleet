@@ -142,8 +142,8 @@ Within a single specialization, prefer one sub-issue that delivers an end-to-end
 **Mandatory sub-issue for every story — `Documentation and engineering QA`.**
 
 Every spec ends with a single combined sub-issue covering:
-- REST API docs (`docs/REST API/rest-api.md`)
-- Audit log reference (`docs/Contributing/reference/audit-logs.md`) for any new activity types
+- REST API docs (`docs/API/rest-api.md`)
+- Audit log reference (`docs/api/global-audit-logs.md`) for any new activity types
 - Usage statistics guide (`articles/fleet-usage-statistics.md`) for any new toggles
 - Feature guide updates (e.g., `articles/`, `https://fleetdm.com/guides/...`)
 - End-to-end engineering QA on a real device, performed once all implementation PRs (1..N-1) have merged

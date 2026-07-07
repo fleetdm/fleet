@@ -18,11 +18,11 @@ Fleet 4.77.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Deploy enterprise iOS/iPadOS packages
 
-You can now deploy enterprise (`.ipa`) packages to iPhones and iPads using Fleet’s [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#software) and [API](https://fleetdm.com/docs/rest-api/rest-api#add-package). Perfect for distributing pre-release internal apps to testers or employees.
+You can now deploy enterprise (`.ipa`) packages to iPhones and iPads using Fleet’s [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#software) and [API](https://fleetdm.com/docs/api/rest-api#add-package). Perfect for distributing pre-release internal apps to testers or employees.
 
 ### Edit IdP username
 
-You can now update a host’s identity provider (IdP) username directly from the Fleet UI (**Host details** page) or [API](https://fleetdm.com/docs/rest-api/rest-api#update-human-device-mapping). This makes it easier to maintain [human-to-host mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), especially if you don't require end user authentication during new host setup.
+You can now update a host’s identity provider (IdP) username directly from the Fleet UI (**Host details** page) or [API](https://fleetdm.com/docs/api/rest-api#update-human-device-mapping). This makes it easier to maintain [human-to-host mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), especially if you don't require end user authentication during new host setup.
 
 ### Enforce authentication during enrollment
 

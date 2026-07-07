@@ -19,7 +19,7 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `label_membership_type` specifies label type which determines how hosts are added to the label. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
-- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
+- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
 
@@ -96,7 +96,7 @@ Policies support `path:` (single file) and `paths:` (glob pattern) references. S
 
 ### Options
 
-For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Create team policy](https://fleetdm.com/docs/rest-api/rest-api#create-team-policy) API endpoints.
+For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/api/rest-api#create-policy) and [Create team policy](https://fleetdm.com/docs/api/rest-api#create-team-policy) API endpoints.
 
 #### Patch policy
 
@@ -226,7 +226,7 @@ Reports support `path:` (single file) and `paths:` (glob pattern) references. Se
 
 ### Options
 
-For possible options, see the parameters for the [Create report API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-report).
+For possible options, see the parameters for the [Create report API endpoint](https://fleetdm.com/docs/api/rest-api#create-report).
 
 ### Example
 
@@ -717,7 +717,7 @@ If the fields below are omitted, they default to values specified in [the app's 
 
 ## org_settings and settings
 
-Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
+Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/api/rest-api).
 
 ### features
 
@@ -938,7 +938,7 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/api/rest-api) (YAML files coming soon).
 
 This section also lets you connect Google Workspace to sync identity provider (IdP) host vitals directly from your directory.
 
@@ -1343,7 +1343,7 @@ If you're self hosting Fleet, the `smtp_settings` section lets you configure an 
 
 If you're using Fleet's managed-cloud offering, an SMTP server is already setup for you.
 
-For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
+For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/api/rest-api#smtp-settings).
 
 Can only be configured for "All fleets" (`org_settings`).
 

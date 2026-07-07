@@ -21,7 +21,7 @@ When comparing the two solutions, several key differences emerge. VMware Workspa
 
 In contrast, Fleet's open-source nature and community-driven approach provide a level of transparency and control not typically found in proprietary solutions. This aspect particularly appeals to organizations wary of vendor lock-in and those valuing the agility and innovation spurred by community contributions.
 
-Centralized management capabilities are crucial for larger organizations; both solutions offer robust tools. However, Fleet's open-source model may provide more flexibility and customization options with a [robust API](https://fleetdm.com/docs/rest-api/rest-api), allowing organizations to tailor the solution to their specific needs without facing unexpected cost hikes or unilateral changes to the service.
+Centralized management capabilities are crucial for larger organizations; both solutions offer robust tools. However, Fleet's open-source model may provide more flexibility and customization options with a [robust API](https://fleetdm.com/docs/api/rest-api), allowing organizations to tailor the solution to their specific needs without facing unexpected cost hikes or unilateral changes to the service.
 
 
 ### The value of open source in device management

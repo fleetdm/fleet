@@ -125,7 +125,7 @@ If updates are available, end users can update one or all available self-service
 
 ## API
 
-Fleet provides a REST API for managing software, including self-service software packages. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
+Fleet provides a REST API for managing software, including self-service software packages. Learn more about Fleet's [REST API](https://fleetdm.com/docs/api/rest-api#software).
 
 ## GitOps
 

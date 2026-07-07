@@ -50,14 +50,14 @@ Fleet stores up to 1,000 results per report. If the count stays below this limit
 
 If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, check **Discard data**, and select **Save**. Then uncheck **Discard data** and select **Save** again.
 
-> You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
+> You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/api/rest-api#server-settings).
 
 Persisting results within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable stored results either globally or per-report.
 
 * Globally via the UI: **Settings** > **Advanced options** > **Disable stored results**
-* Globally via the API: set [`server_settings.discard_reports_data`](https://fleetdm.com/docs/rest-api/rest-api#server-settings)
+* Globally via the API: set [`server_settings.discard_reports_data`](https://fleetdm.com/docs/api/rest-api#server-settings)
 * Per-report via the UI: **Edit report** > **Show advanced options** > **Discard data**
-* Per-report via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-report) or [updating](https://fleetdm.com/docs/rest-api/rest-api#update-report) the report
+* Per-report via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/api/rest-api#create-report) or [updating](https://fleetdm.com/docs/api/rest-api#update-report) the report
 
 ## Run a report
 
@@ -101,7 +101,7 @@ How to configure automations in bulk:
 
 ### Further reading
 
-- [REST API documentation for reports](https://fleetdm.com/docs/rest-api/rest-api#reports)
+- [REST API documentation for reports](https://fleetdm.com/docs/api/rest-api#reports)
 - [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)
 - [Using fleetctl to run a live report and how live queries work](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries#basic-article)
 - [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

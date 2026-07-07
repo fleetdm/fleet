@@ -14,7 +14,7 @@ For example, a policy with this query will fail on hosts that have an outdated v
 SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
-> The bundle ID for a macOS app can be found in the `bundle_identifier` field when [viewing the associated software title via the API](https://fleetdm.com/docs/rest-api/rest-api#get-software).
+> The bundle ID for a macOS app can be found in the `bundle_identifier` field when [viewing the associated software title via the API](https://fleetdm.com/docs/api/rest-api#get-software).
 
 3. In the **Policies** tab, select the **Manage automations** button on the top-right, then select **Install software** from the context menu that pops up.
 
@@ -101,7 +101,7 @@ SELECT 1 WHERE EXISTS (
 
 ## Via the API
 
-Fleet provides a REST API for managing policies, including software install automations. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
+Fleet provides a REST API for managing policies, including software install automations. Learn more about Fleet's [REST API](https://fleetdm.com/docs/api/rest-api#add-team-policy).
 
 ## Via GitOps
 

@@ -44,7 +44,7 @@ For the UI, open the host details page and under **Activity** toggle the switch 
 
 Hover over the command you'd like to view, and select the **"i"** button.
 
-For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) endpoint to find the `command_uuid` for the command. Use this UUID with the [Get MDM command results](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) endpoint. The result of this looks like a random string of characters, but this is because it's base64 encoded. A quick way to decode this is on a Mac is to copy the long string, then decode it in the Terminal:
+For the API, use the [List MDM commands](https://fleetdm.com/docs/api/rest-api#list-mdm-commands) endpoint to find the `command_uuid` for the command. Use this UUID with the [Get MDM command results](https://fleetdm.com/docs/api/rest-api#get-mdm-command-results) endpoint. The result of this looks like a random string of characters, but this is because it's base64 encoded. A quick way to decode this is on a Mac is to copy the long string, then decode it in the Terminal:
 
 ```bash
 pbpaste | base64 -d

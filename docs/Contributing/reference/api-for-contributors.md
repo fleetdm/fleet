@@ -35,7 +35,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 
 #### Response
 
-See [the Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in) for the current
+See [the Log in endpoint](https://fleetdm.com/docs/api/rest-api#log-in) for the current
 successful response format.
 
 ## Packs
@@ -3783,7 +3783,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 Queues an install for every self-service software title available to the device that isn't already installed.
 
-If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories) on the device's fleet are queued.
+If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/api/rest-api#self-service-categories) on the device's fleet are queued.
 
 `POST /api/v1/fleet/device/{token}/software/install_all`
 
@@ -4960,7 +4960,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.labels_include_any  | array    | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                                   |
 | software.packages.labels_exclude_any  | array    | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                            |
 
-`hash_sha256` can be provided alongside or as a replacement for `url`. If provided alongside `url`, adding software only succeeds if the software downloaded matches the specified hash. If provided without a URL, software with that hash must exist (either on that fleet or globally, depending on what level of access the API client is authorized at) prior to the GitOps run, whether from a previous GitOps run or an upload at the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) endpoint, at which point Fleet will ensure the software package exists on the selected fleet with the specified configuration without needing to retrieve it again.
+`hash_sha256` can be provided alongside or as a replacement for `url`. If provided alongside `url`, adding software only succeeds if the software downloaded matches the specified hash. If provided without a URL, software with that hash must exist (either on that fleet or globally, depending on what level of access the API client is authorized at) prior to the GitOps run, whether from a previous GitOps run or an upload at the [Add package](https://fleetdm.com/docs/api/rest-api#add-package) endpoint, at which point Fleet will ensure the software package exists on the selected fleet with the specified configuration without needing to retrieve it again.
 
 #### Example
 
