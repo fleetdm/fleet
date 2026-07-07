@@ -1122,6 +1122,89 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 	})
 }
 
+func TestMDMAppleExecuteReconcileBatchDedupesEnrollmentIDs(t *testing.T) {
+	// Backstop: even if ComputeReconcileDeltas hands ExecuteReconcileBatch two
+	// payloads for the same profile+host UUID (as duplicate host rows sharing a
+	// UUID produce), the enrollment ID must reach the enqueue exactly once — a
+	// repeated ID collides on the nano_enrollment_queue (id, command_uuid) PK.
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	ds := new(mock.Store)
+	kv := new(mock.AdvancedKVStore)
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	const hostUUID = "DUP-UUID"
+	profUUID := "a" + uuid.NewString()
+	toInstall := []*fleet.MDMAppleProfilePayload{
+		{ProfileUUID: profUUID, ProfileIdentifier: "com.dup.profile", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+		{ProfileUUID: profUUID, ProfileIdentifier: "com.dup.profile", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+	}
+
+	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return map[string]*string{}, nil
+	}
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
+		return map[string]mobileconfig.Mobileconfig{profUUID: []byte("dup-content")}, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
+	var mu sync.Mutex
+	var enqueuedIDs [][]string
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		mu.Lock()
+		enqueuedIDs = append(enqueuedIDs, append([]string(nil), id...))
+		mu.Unlock()
+		return nil, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push, len(tokens))
+		for _, tok := range tokens {
+			res[tok] = &mdm.Push{Token: []byte(tok)}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		certPEM, err := os.ReadFile("../../service/testdata/server.pem")
+		require.NoError(t, err)
+		keyPEM, err := os.ReadFile("../../service/testdata/server.key")
+		require.NoError(t, err)
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: certPEM},
+			fleet.MDMAssetCAKey:  {Value: keyPEM},
+		}, nil
+	}
+
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+
+	succeeded, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, nil)
+	require.NoError(t, err)
+	require.Len(t, succeeded, 1)
+
+	require.Len(t, enqueuedIDs, 1)
+	require.Equal(t, []string{hostUUID}, enqueuedIDs[0])
+}
+
 func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 	ctx := t.Context()
 	mdmStorage := &mdmmock.MDMAppleStore{}

@@ -603,6 +603,28 @@ func ExecuteReconcileBatch(
 		return nil, ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
+	// Defense in depth: the batch host query dedupes hosts by UUID at the
+	// source, but any caller could still hand us a target whose EnrollmentIDs
+	// contain the same ID twice (e.g. duplicate host rows sharing a UUID).
+	// That would make the per-command INSERT into nano_enrollment_queue collide
+	// on its (id, command_uuid) primary key and fail the whole enqueue, so
+	// collapse duplicates before we build commands.
+	var duplicateEnrollmentIDs int
+	for _, target := range installTargets {
+		var removed int
+		target.EnrollmentIDs, removed = dedupeEnrollmentIDs(target.EnrollmentIDs)
+		duplicateEnrollmentIDs += removed
+	}
+	for _, target := range removeTargets {
+		var removed int
+		target.EnrollmentIDs, removed = dedupeEnrollmentIDs(target.EnrollmentIDs)
+		duplicateEnrollmentIDs += removed
+	}
+	if duplicateEnrollmentIDs > 0 {
+		logger.WarnContext(ctx, "batched reconcile: removed duplicate enrollment IDs from command targets; likely duplicate host rows sharing a UUID",
+			"removed", duplicateEnrollmentIDs)
+	}
+
 	logger.DebugContext(ctx, "batched reconcile: before bulk upsert",
 		"host_profiles", len(hostProfiles),
 		"install_targets", len(installTargets),
@@ -670,6 +692,28 @@ func ExecuteReconcileBatch(
 	}
 
 	return enqueueResult.SucceededCmdUUIDs, nil
+}
+
+// dedupeEnrollmentIDs removes duplicate enrollment IDs, preserving first-seen
+// order, and reports how many it dropped. Duplicates would collide on the
+// nano_enrollment_queue (id, command_uuid) primary key when the command is
+// enqueued.
+func dedupeEnrollmentIDs(ids []string) ([]string, int) {
+	if len(ids) < 2 {
+		return ids, 0
+	}
+	seen := make(map[string]struct{}, len(ids))
+	out := ids[:0]
+	var removed int
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			removed++
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out, removed
 }
 
 // ReconcileProfilesForEnrollingHost is the per-host reconciler invoked
