@@ -36,7 +36,7 @@ module.exports = {
     let futureWorkshops = [];
 
     // If the platform record was updated in the past two hours, use the event details stored in the website's database.
-    if(eventDetails.length > 1 && !eventDetailsWereUpdatedLessThanTwoHoursAgo) {
+    if(eventDetails.length > 0 && !eventDetailsWereUpdatedLessThanTwoHoursAgo) {
       futureWorkshops = eventDetails;
     } else {// Otherwise, fetch fresh data from the EventBrite API
       let futureGitopsEvents = await sails.helpers.http.get.with({
