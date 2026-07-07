@@ -23,7 +23,6 @@ module.exports = {
       type: 'json',
       description: 'An array containing the most recent event details formatted to be used on the workshops page',
       required: true,
-      defaultsTo: [],
       example: [
         {
           eventTime: 'Jul 13 from 1pm to 5pm PDT',
@@ -40,7 +39,6 @@ module.exports = {
     workshopDetailsLastUpdatedAt: {
       type: 'number',
       required: true,
-      defaultsTo: 1,
       description: 'A JS timestamp representing when the event details were last updated.',
     },
 
