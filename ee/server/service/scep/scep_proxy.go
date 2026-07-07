@@ -284,6 +284,12 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 // does not alter the error returned to the device. If the device's own SCEP retry later succeeds, the observed
 // certificate flips the profile back to "verified" (see verifyWindowsSCEPProfilesFromObservedCertsDB).
 func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
+	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
+	// not an upstream CA failure and must not mark the profile failed. The same canceled ctx would also fail the write.
+	// Genuine upstream timeouts arrive as context.DeadlineExceeded / net timeouts and are still surfaced.
+	if errors.Is(upstreamErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+		return
+	}
 	hostUUID, profileUUID, ok := parseHostAndProfileFromSCEPIdentifier(identifier)
 	if !ok || !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
 		return

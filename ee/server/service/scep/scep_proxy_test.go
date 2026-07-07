@@ -1193,3 +1193,60 @@ func TestClassifySCEPProxyError(t *testing.T) {
 		})
 	}
 }
+
+func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	newSvc := func(ds *mock.DataStore) *scepProxyService {
+		return &scepProxyService{ds: ds, debugLogger: logger}
+	}
+	const winID = "host-uuid,w-profile-uuid,ca,challenge"
+
+	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		var gotDetail string
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "w-profile-uuid", profileUUID)
+			gotDetail = detail
+			return nil
+		}
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation",
+			errors.New("http request failed with status 500 Internal Server Error, msg: boom"))
+		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
+	})
+
+	t.Run("skips a canceled upstream error", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
+			t.Fatal("must not record a failure for a canceled context")
+			return nil
+		}
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", context.Canceled)
+		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+	})
+
+	t.Run("skips when the request context is canceled", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
+			t.Fatal("must not record a failure when the request ctx is canceled")
+			return nil
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation",
+			errors.New("http request failed with status 500 Internal Server Error"))
+		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+	})
+
+	t.Run("skips non-Windows profiles", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
+			t.Fatal("must not record a failure for a non-Windows profile")
+			return nil
+		}
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), "host-uuid,a-apple-profile,ca,challenge", "PKIOperation",
+			errors.New("http request failed with status 500 Internal Server Error"))
+		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+	})
+}
