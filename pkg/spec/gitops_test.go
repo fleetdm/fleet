@@ -4863,3 +4863,153 @@ func TestGitOpsFMACategoriesPresence(t *testing.T) {
 		assert.Equal(t, []string{"somevalue"}, cats.Value)
 	})
 }
+
+func TestDuplicatePatchPolicySlug(t *testing.T) {
+	t.Parallel()
+
+	// Every slug referenced by a patch policy must be declared under software.fleet_maintained_apps.
+	fmaSoftware := `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+    - slug: 1password/darwin
+    - slug: firefox/darwin
+`
+
+	tests := []struct {
+		name     string
+		policies string
+		// wantErrs empty means the config must apply cleanly.
+		wantErrs []string
+	}{
+		{
+			// Before this check the second patch policy silently overwrote the first.
+			name: "two patch policies with the same slug",
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome up to date again
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantErrs: []string{`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`},
+		},
+		{
+			// Each duplicated slug gets its own error, driven by the slug in the config.
+			name: "two slugs each duplicated report one error per slug",
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome up to date again
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: 1Password up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: 1password/darwin
+  - name: 1Password up to date again
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: 1password/darwin
+`,
+			wantErrs: []string{
+				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`,
+				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "1password/darwin".`,
+			},
+		},
+		{
+			// A slug used by three patch policies is still reported a single time.
+			name: "slug used three times is reported once",
+			policies: `
+policies:
+  - name: Chrome A
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome B
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome C
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantErrs: []string{`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`},
+		},
+		{
+			// Duplicate names and duplicate patch slug surface together.
+			name: "duplicate names and duplicate patch slug both reported",
+			policies: `
+policies:
+  - name: Same name
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Same name
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantErrs: []string{
+				"duplicate policy names",
+				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`,
+			},
+		},
+		{
+			// A dynamic install_software policy and a patch policy may share a slug.
+			name: "dynamic install_software and patch with the same slug is allowed",
+			policies: `
+policies:
+  - name: Chrome installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome';
+    install_software:
+      fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+		},
+		{
+			name: "two patch policies with different slugs is allowed",
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Firefox up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: firefox/darwin
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig([]string{"policies"}) + fmaSoftware + tc.policies
+			path, basePath := createTempFile(t, "", config)
+			_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			if len(tc.wantErrs) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, want := range tc.wantErrs {
+				assert.ErrorContains(t, err, want)
+			}
+		})
+	}
+}
