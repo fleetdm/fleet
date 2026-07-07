@@ -934,6 +934,10 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
 			}
+			// Clear the per-host profile status rollup as well (issue #48340).
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles_status`); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles_status")
+			}
 		default:
 			return ctxerr.Errorf(ctx, "unsupported platform %s for MDM profile cleanup", platform)
 		}
