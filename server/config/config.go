@@ -704,7 +704,6 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL              string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
-	CVEResolvedVersionsURL      string        `json:"cve_resolved_versions_url" yaml:"cve_resolved_versions_url"`
 	CISAKnownExploitsURL        string        `json:"cisa_known_exploits_url" yaml:"cisa_known_exploits_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
@@ -1667,8 +1666,6 @@ func (man Manager) addConfigs() {
 		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
-	man.addConfigString("vulnerabilities.cve_resolved_versions_url", "",
-		"URL from which to get the CVE resolved-versions overrides. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cisa_known_exploits_url", "",
 		"URL from which to get the latest CISA (Known exploited vulnerabilities) database. If empty, it will be downloaded from https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
@@ -2032,7 +2029,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:              man.getConfigString("vulnerabilities.cpe_database_url"),
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
-			CVEResolvedVersionsURL:      man.getConfigString("vulnerabilities.cve_resolved_versions_url"),
 			CISAKnownExploitsURL:        man.getConfigString("vulnerabilities.cisa_known_exploits_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),

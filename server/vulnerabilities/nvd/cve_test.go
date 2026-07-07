@@ -1036,18 +1036,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 // This test is using real data from the 2022 NVD feed
 func TestGetMatchingVersionEndExcluding(t *testing.T) {
 	ctx := context.Background()
-	// The version-end-including fixture holds a real CVE-2025-63389 record whose only version
-	// constraint is versionEndIncluding (no versionEndExcluding), so the feed yields no resolved
-	// version and the resolved-versions override is exercised. See #44800.
-	testDict := loadDict(t,
-		"../testdata/nvdcve-1.1-2022.json.gz",
-		"../testdata/nvdcve-1.1-version-end-including.json",
-	)
-
-	// Load the real resolved-versions feed seed shipped in the repo, so the override cases below
-	// exercise the same data Fleet uses in production.
-	resolvedVersions, err := loadCVEResolvedVersions("cve_resolved_versions.json")
-	require.NoError(t, err)
+	testDict := loadDict(t, "../testdata/nvdcve-1.1-2022.json.gz")
 
 	tests := []struct {
 		name    string
@@ -1134,58 +1123,11 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			want:    "6.72.10.07",
 			wantErr: false,
 		},
-		{
-			// The feed record for this CVE (see nvdcve-1.1-version-end-including.json) only provides
-			// versionEndIncluding, so the feed yields no resolved version and it comes from the
-			// resolved-versions feed instead. See #44800.
-			name: "versionEndIncluding-only CVE uses resolved version override",
-			cve:  "CVE-2025-63389",
-			meta: &wfn.Attributes{
-				Vendor:  "ollama",
-				Product: "ollama",
-				Version: "0.12.3",
-			},
-			want:    "0.12.4",
-			wantErr: false,
-		},
-		{
-			name: "resolved version override applies to older vulnerable versions",
-			cve:  "CVE-2025-63389",
-			meta: &wfn.Attributes{
-				Vendor:  "ollama",
-				Product: "ollama",
-				Version: "0.12.0",
-			},
-			want:    "0.12.4",
-			wantErr: false,
-		},
-		{
-			name: "resolved version override does not apply at or above the fix version",
-			cve:  "CVE-2025-63389",
-			meta: &wfn.Attributes{
-				Vendor:  "ollama",
-				Product: "ollama",
-				Version: "0.12.4",
-			},
-			want:    "",
-			wantErr: false,
-		},
-		{
-			name: "resolved version override does not apply to other products",
-			cve:  "CVE-2025-63389",
-			meta: &wfn.Attributes{
-				Vendor:  "notollama",
-				Product: "notollama",
-				Version: "0.12.0",
-			},
-			want:    "",
-			wantErr: false,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict, resolvedVersions, nil)
+			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getMatchingVersionEndExcluding() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1257,9 +1199,9 @@ func TestGetMacOSCPEs(t *testing.T) {
 	}
 }
 
-// loadDict loads a cvefeed.Dictionary from one or more JSON NVD feed files, merging their entries.
-func loadDict(t *testing.T, paths ...string) cvefeed.Dictionary {
-	dict, err := cvefeed.LoadJSONDictionary(paths...)
+// loadDict loads a cvefeed.Dictionary from a JSON NVD feed file.
+func loadDict(t *testing.T, path string) cvefeed.Dictionary {
+	dict, err := cvefeed.LoadJSONDictionary(path)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -272,16 +272,6 @@ func TranslateCPEToCVE(
 		return nil, err
 	}
 
-	// Load the resolved-versions feed, which supplies fix versions for CVEs whose NVD record only
-	// carries versionEndIncluding. It is optional: if it's absent or fails to load, we proceed
-	// without it (resolved_in_version simply stays empty for those CVEs, as before).
-	// See https://github.com/fleetdm/fleet/issues/44800.
-	resolvedVersions, err := loadCVEResolvedVersions(filepath.Join(vulnPath, cveResolvedVersionsFilename))
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to load cve resolved versions", "err", err)
-		resolvedVersions = CVEResolvedVersions{}
-	}
-
 	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
 	// NVD feed file.
 	softwareVulns := make(map[string]fleet.SoftwareVulnerability)
@@ -294,7 +284,6 @@ func TranslateCPEToCVE(
 			interfaceParsed,
 			file,
 			knownNVDBugRules,
-			resolvedVersions,
 		)
 		if err != nil {
 			return nil, err
@@ -430,7 +419,6 @@ func checkCVEs(
 	cpeItems []itemWithNVDMeta,
 	jsonFile string,
 	knownNVDBugRules CPEMatchingRules,
-	resolvedVersions CVEResolvedVersions,
 ) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
@@ -529,7 +517,7 @@ func checkCVEs(
 								}
 							}
 
-							resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), cpeItem, dict, resolvedVersions, logger)
+							resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), cpeItem, dict, logger)
 							if err != nil {
 								logger.DebugContext(ctx, "version end excluding error", "err", err)
 							}
@@ -700,29 +688,10 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 	return cpeItems
 }
 
-// getMatchingVersionEndExcluding returns the version of the software it needs to upgrade to in
-// order to address the CVE. It is derived from the NVD feed's versionEndExcluding when available;
-// otherwise, as a fallback, it consults the resolved-versions feed for CVEs whose NVD record only
-// provides versionEndIncluding. Authoritative NVD data always takes precedence over the fallback.
-// The caller must already have confirmed that the host is affected by the CVE.
-func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, resolvedVersions CVEResolvedVersions, logger *slog.Logger) (string, error) {
-	resolved, err := versionEndExcludingFromFeed(ctx, cve, hostSoftwareMeta, dict, logger)
-	if err != nil {
-		return "", err
-	}
-	if resolved != "" {
-		return resolved, nil
-	}
-
-	// The NVD feed yielded no resolved version (e.g. the record only has versionEndIncluding).
-	// Fall back to a known upstream fix version from the resolved-versions feed, if one is
-	// configured for this CVE. See https://github.com/fleetdm/fleet/issues/44800.
-	return resolvedVersions.FindResolvedVersion(cve, hostSoftwareMeta), nil
-}
-
-// versionEndExcludingFromFeed returns the versionEndExcluding string for the given CVE and host
-// software meta data, if it exists in the NVD feed.
-func versionEndExcludingFromFeed(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, logger *slog.Logger) (string, error) {
+// Returns the versionEndExcluding string for the given CVE and host software meta
+// data, if it exists in the NVD feed.  This effectively gives us the version of the
+// software it needs to upgrade to in order to address the CVE.
+func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, logger *slog.Logger) (string, error) {
 	vuln, ok := dict[cve].(*feednvd.Vuln)
 	if !ok {
 		return "", nil

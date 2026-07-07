@@ -24,13 +24,12 @@ import (
 )
 
 type SyncOptions struct {
-	VulnPath               string
-	CPEDBURL               string
-	CPETranslationsURL     string
-	CVEFeedPrefixURL       string
-	CVEResolvedVersionsURL string
-	CISAKnownExploitsURL   string
-	Debug                  bool
+	VulnPath             string
+	CPEDBURL             string
+	CPETranslationsURL   string
+	CVEFeedPrefixURL     string
+	CISAKnownExploitsURL string
+	Debug                bool
 }
 
 // Sync downloads all the vulnerability data sources.
@@ -45,14 +44,6 @@ func Sync(ctx context.Context, opts SyncOptions, logger *slog.Logger) error {
 	logger.DebugContext(ctx, "downloading CPE translations", "url", opts.CPETranslationsURL)
 	if err := DownloadCPETranslationsFromGithub(opts.VulnPath, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
-	}
-
-	// The CVE resolved-versions feed is optional and may not be published yet, so a failure to
-	// download it must not abort the rest of the sync - log it and continue. Fleet will simply
-	// report empty resolved_in_version for the affected CVEs (as it did before this feed existed).
-	logger.DebugContext(ctx, "downloading CVE resolved versions", "url", opts.CVEResolvedVersionsURL)
-	if err := DownloadCVEResolvedVersionsFromGithub(opts.VulnPath, opts.CVEResolvedVersionsURL); err != nil {
-		logger.WarnContext(ctx, "failed to sync CVE resolved versions feed", "err", err)
 	}
 
 	logger.DebugContext(ctx, "syncing CVEs")

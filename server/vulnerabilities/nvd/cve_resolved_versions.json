@@ -1,8 +1,0 @@
-[
-  {
-    "cve": "CVE-2025-63389",
-    "vendor": "ollama",
-    "product": "ollama",
-    "resolved_in_version": "0.12.4"
-  }
-]
