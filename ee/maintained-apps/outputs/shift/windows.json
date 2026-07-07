@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.6.4.1231",
+      "version": "9.6.7.1268",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.' AND version_compare(version, '9.6.4.1231') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.' AND version_compare(version, '9.6.7.1268') < 0);"
       },
-      "installer_url": "https://updates.tryshift.com/v9.6.4/stable/shift-v9.6.4.1231-stable-x64.exe",
+      "installer_url": "https://updates.tryshift.com/v9.6.7/stable/shift-v9.6.7.1268-stable-x64.exe",
       "install_script_ref": "fbf50bbc",
       "uninstall_script_ref": "c5cc1d5a",
-      "sha256": "cd6320b8d0c0ae2cb2f8587eeed2e12abcf5820c3faa4ee0e1f99dd06a265c25",
+      "sha256": "5a4b5f629c3a9fc06d573edbbd74d6a52fa655642a8b24a58997ac4cf8b48b3b",
       "default_categories": [
         "Productivity"
       ]

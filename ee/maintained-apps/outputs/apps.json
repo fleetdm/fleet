@@ -30,6 +30,13 @@
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "3DF Zephyr Free",
+      "slug": "3df-zephyr-free/windows",
+      "platform": "windows",
+      "unique_identifier": "3DF Zephyr Free",
+      "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -42,6 +49,13 @@
       "platform": "darwin",
       "unique_identifier": "com.openmedia.4kstogram",
       "description": "4K Stogram is a tool to download Instagram photos, accounts, hashtags and locations."
+    },
+    {
+      "name": "4K Video Downloader+",
+      "slug": "4k-video-downloader-plus/windows",
+      "platform": "windows",
+      "unique_identifier": "4K Video Downloader+",
+      "description": "4K Video Downloader+ is an app for downloading videos and playlists from popular sites in high quality."
     },
     {
       "name": "4K Video Downloader",
@@ -3068,11 +3082,11 @@
       "description": "Geekbench is a tool to measure the computer system's performance."
     },
     {
-      "name": "Gemini",
+      "name": "Gemini 2",
       "slug": "gemini/darwin",
       "platform": "darwin",
       "unique_identifier": "com.macpaw.site.Gemini2",
-      "description": "Gemini is a disk space cleaner that finds and deletes duplicated and similar files."
+      "description": "Gemini 2 is a disk space cleaner that finds and deletes duplicated and similar files."
     },
     {
       "name": "Genesys Cloud",
@@ -3292,11 +3306,11 @@
       "description": "Google Earth Pro is a virtual globe."
     },
     {
-      "name": "Gemini",
+      "name": "Google Gemini",
       "slug": "google-gemini/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.GeminiMacOS",
-      "description": "Gemini is a native desktop AI assistant from Google."
+      "description": "Google Gemini is a native desktop AI assistant from Google."
     },
     {
       "name": "GoToMeeting",
@@ -8421,6 +8435,13 @@
       "platform": "darwin",
       "unique_identifier": "ui.wifiman-desktop",
       "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
+    },
+    {
+      "name": "WinDirStat",
+      "slug": "windirstat/windows",
+      "platform": "windows",
+      "unique_identifier": "WinDirStat",
+      "description": "WinDirStat is a disk usage statistics viewer and cleanup tool for Windows."
     },
     {
       "name": "WindowKeys",

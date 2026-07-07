@@ -1,3 +1,18 @@
+## Fleet 4.88.0 (Jul 01, 2026)
+
+### Bug fixes
+
+- Added support for personal (BYOD) Apple MDM enrollment, tracking per-host enrollment permissions so that personal devices cannot be remotely wiped or locked, and preserving those permissions across SCEP/ACME certificate renewal.
+- Fixed an issue where fleetd could intermittently fail to install during Windows MDM enrollment, which could cause the Windows Autopilot Enrollment Status Page to hang.
+
+## Fleet 4.87.1 (Jun 26, 2026)
+
+### Bug fixes
+
+- Fixed a bug where an Apple SCEP certificate profile backed by NDES could be marked "failed" and consume one of the host's limited profile retry attempts when its challenge password expired, instead of being automatically resent with a fresh challenge.
+- Fixed GitOps runs failing with a `software_categories` duplicate-entry error when a software category's name differed only by characters MySQL's collation treats as equal (such as the Unicode variation selector in default categories like "🖥️ Productivity").
+- Fixed the **My device > Software** tab appending a `macos_applications` query parameter to the URL when paginating, even though that page has no /Applications filter.
+
 ## Fleet 4.87.0 (Jun 19, 2026)
 
 ### IT Admins

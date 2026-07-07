@@ -71,7 +71,7 @@ module.exports.policies = {
   'deliver-application-submission': true,
   'landing-pages/*': true,
   'deliver-gitops-workshop-request': true,
-  'view-gitops-workshop': true,
+  'view-workshops': true,
   'view-deployment': true,
   'view-linux-management': true,
   'view-infrastructure-as-code': true,

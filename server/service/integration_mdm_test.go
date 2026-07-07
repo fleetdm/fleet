@@ -8750,117 +8750,6 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
 }
 
-func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
-	t := s.T()
-
-	// Target Endpoint url with query params
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
-	require.NotEmpty(t, resBytes)
-
-	// Checking response content
-	resContent := string(resBytes)
-	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	// we expect the URL to be escaped
-	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
-	require.Contains(t, resContent, "performPost()")
-
-	// Getting token content
-	encodedToken := s.getRawTokenValue(resContent)
-	require.NotEmpty(t, encodedToken)
-}
-
-func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
-	t := s.T()
-
-	// Target Endpoint url with no login_hit query param
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	resContent := string(resBytes)
-	require.NoError(t, err)
-	require.NotEmpty(t, resBytes)
-	require.Contains(t, resContent, "forbidden")
-}
-
-func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
-	t := s.T()
-
-	// Test cases with invalid appru values that should bail due to exiting before auth check
-	invalidAppruCases := []struct {
-		name  string
-		appru string
-	}{
-		{
-			name:  "javascript injection",
-			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
-		},
-		{
-			name:  "javascript protocol",
-			appru: "javascript:alert(1)",
-		},
-		{
-			name:  "data URI",
-			appru: "data:text/html,<script>alert(1)</script>",
-		},
-		{
-			name:  "empty scheme",
-			appru: "://example.com",
-		},
-		{
-			name:  "plain text",
-			appru: "not-a-url",
-		},
-	}
-
-	for _, tc := range invalidAppruCases {
-		t.Run(tc.name, func(t *testing.T) {
-			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
-			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
-
-			resBytes, err := io.ReadAll(resp.Body)
-			resContent := string(resBytes)
-			require.NoError(t, err)
-			require.NotEmpty(t, resBytes)
-			require.Contains(t, resContent, "forbidden")
-
-			resp.Body.Close()
-		})
-	}
-
-	// Also verify valid URLs still work
-	validAppruCases := []struct {
-		name  string
-		appru string
-	}{
-		{
-			name:  "ms-app scheme",
-			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
-		},
-		{
-			name:  "https scheme",
-			appru: "https%3A%2F%2Fexample.com%2Fcallback",
-		},
-		{
-			name:  "http scheme",
-			appru: "http%3A%2F%2Flocalhost%2Fcallback",
-		},
-	}
-
-	for _, tc := range validAppruCases {
-		t.Run(tc.name, func(t *testing.T) {
-			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
-			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-			resp.Body.Close()
-		})
-	}
-}
-
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	t := s.T()
 
@@ -11097,24 +10986,6 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 	case <-time.After(5 * time.Minute):
 		s.T().Fatalf("Cleanup schedule jobs timed out after 5 minutes")
 	}
-}
-
-func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
-	// Create a regex object with the defined pattern
-	pattern := `inputToken.value\s*=\s*'([^']*)'`
-	regex := regexp.MustCompile(pattern)
-
-	// Find the submatch using the regex pattern
-	submatches := regex.FindStringSubmatch(content)
-
-	if len(submatches) >= 2 {
-		// Extract the content from the submatch
-		encodedToken := submatches[1]
-
-		return encodedToken
-	}
-
-	return ""
 }
 
 func (s *integrationMDMTestSuite) isXMLTagPresent(xmlTag string, payload string) bool {
@@ -19366,11 +19237,15 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	attach(continuousPolicy.ID, continuousTitleID)
 	attach(transitionPolicy.ID, transitionTitleID)
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			mdmHost,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
 
@@ -19430,17 +19305,9 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 		s.runWorker()
 	}
 
-	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
-		t.Helper()
-		submitPolicyResult(policyID, false)
-		require.EventuallyWithT(t, func(t *assert.CollectT) {
-			assert.Equal(t, wantCount, countFn(), msg)
-		}, 5*time.Second, 100*time.Millisecond)
-		completeVPPInstall()
-	}
-
 	continuousCount := func() int { return countInstallsFor(continuousPolicy.ID) }
 	transitionCount := func() int { return countInstallsFor(transitionPolicy.ID) }
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
 
 	// Age a policy's verified VPP install so it sits outside the policy update interval.
 	// The continuous cooldown is keyed on verification_at.
@@ -19454,24 +19321,39 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 		})
 	}
 
-	// First failing result: pass→fail transition queues an install on both.
-	step(continuousPolicy.ID, 1, continuousCount, "first install for continuous policy")
-	step(transitionPolicy.ID, 1, transitionCount, "first install for transition policy")
+	// First fail for the continuous policy (transition still passing): the
+	// pass→fail transition queues an install. The first failures are staggered
+	// across writes because only one upcoming activity is activated at a time
+	// per host: a second install queued in the same write would only become
+	// visible after the first completes.
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(true)})
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, continuousCount(), "first install for continuous policy")
+	}, 5*time.Second, 100*time.Millisecond)
+	completeVPPInstall()
 
-	// Second failing result (fail→fail) within the interval: the continuous policy is
-	// throttled. A successful VPP install requests a host refetch that re-runs policies
-	// immediately, so without throttling this would be a tight loop. It must NOT re-queue.
-	submitPolicyResult(continuousPolicy.ID, false)
+	// Transition policy now fails for the first time (pass→fail): queues its
+	// install. The continuous policy keeps failing (fail→fail) within the
+	// interval: it is throttled. A successful VPP install requests a host
+	// refetch that re-runs policies immediately, so without throttling this
+	// would be a tight loop. It must NOT re-queue.
+	submitPolicyResults(bothFail)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, transitionCount(), "first install for transition policy")
+	}, 5*time.Second, 100*time.Millisecond)
 	require.Never(t, func() bool {
 		return continuousCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+	completeVPPInstall()
 
-	// After the interval elapses, the continuous policy re-fires.
+	// After the interval elapses, the continuous policy re-fires; the default
+	// (transition-only) policy still does not.
 	ageVPPInstall(continuousPolicy.ID)
-	step(continuousPolicy.ID, 2, continuousCount, "continuous policy must re-fire after the cooldown elapses")
-
-	// The default (transition-only) policy never re-fires on fail→fail.
-	submitPolicyResult(transitionPolicy.ID, false)
+	submitPolicyResults(bothFail)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 2, continuousCount(), "continuous policy must re-fire after the cooldown elapses")
+	}, 5*time.Second, 100*time.Millisecond)
+	completeVPPInstall()
 	require.Never(t, func() bool {
 		return transitionCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
@@ -19479,8 +19361,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	// Final: passing results never trigger an install, regardless of mode.
 	continuousBefore := continuousCount()
 	transitionBefore := transitionCount()
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)})
 	require.Never(t, func() bool {
 		return continuousCount() != continuousBefore
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")

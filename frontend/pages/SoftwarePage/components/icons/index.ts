@@ -346,6 +346,7 @@ import Forklift from "./Forklift";
 import FourKSlideshowMaker from "./FourKSlideshowMaker";
 import FourKStogram from "./FourKStogram";
 import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoDownloaderPlus from "./FourKVideoDownloaderPlus";
 import FourKVideoToMp3 from "./FourKVideoToMp3";
 import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 import Framer from "./Framer";
@@ -360,7 +361,7 @@ import Gather from "./Gather";
 import Gdevelop from "./Gdevelop";
 import Geany from "./Geany";
 import Geekbench from "./Geekbench";
-import Gemini from "./Gemini";
+import Gemini2 from "./Gemini2";
 import GenesysCloud from "./GenesysCloud";
 import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
@@ -382,6 +383,7 @@ import Goodsync from "./Goodsync";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoogleDrive from "./GoogleDrive";
 import GoogleEarthPro from "./GoogleEarthPro";
+import GoogleGemini from "./GoogleGemini";
 import GoToMeeting from "./GoToMeeting";
 import GpgKeychain from "./GpgKeychain";
 import Gpodder from "./Gpodder";
@@ -900,6 +902,7 @@ import TextExpander from "./TextExpander";
 import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
 import Thorium from "./Thorium";
+import ThreeDfZephyrFree from "./3DfZephyrFree";
 import Threema from "./Threema";
 import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
@@ -980,6 +983,7 @@ import WhatsApp from "./WhatsApp";
 import Whisky from "./Whisky";
 import Whispering from "./Whispering";
 import Wifiman from "./Wifiman";
+import Windirstat from "./Windirstat";
 import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
@@ -1035,9 +1039,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "3df zephyr free": ThreeDfZephyrFree,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
   "4k video downloader": FourKVideoDownloader,
+  "4k video downloader+": FourKVideoDownloaderPlus,
   "4k video to mp3": FourKVideoToMp3,
   "4k youtube to mp3": FourKYoutubeToMp3,
   "7 zip": SevenZip,
@@ -1398,7 +1404,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gdevelop: Gdevelop,
   geany: Geany,
   geekbench: Geekbench,
-  gemini: Gemini,
+  gemini: GoogleGemini,
+  "gemini 2": Gemini2,
   "genesys cloud": GenesysCloud,
   gephi: Gephi,
   ghostty: Ghostty,
@@ -1423,6 +1430,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   "google drive": GoogleDrive,
   "google earth pro": GoogleEarthPro,
+  "google gemini": GoogleGemini,
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
@@ -2030,6 +2038,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,

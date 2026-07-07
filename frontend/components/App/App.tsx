@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
+import { InjectedRouter } from "react-router";
 import { AxiosError, AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 import { ErrorBoundary } from "react-error-boundary";
@@ -31,12 +32,14 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
+import ErrorPageLayout from "layouts/ErrorPageLayout";
 
 import Spinner from "components/Spinner";
 import ToastNotification from "components/ToastNotification";
 
 interface IAppProps {
   children: JSX.Element;
+  router: InjectedRouter;
   location?: {
     pathname: string;
     search: string;
@@ -70,7 +73,7 @@ export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
 
 const baseClass = "app";
 
-const App = ({ children, location }: IAppProps): JSX.Element => {
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
@@ -275,15 +278,19 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     console.error(error);
 
     const overlayError = error as AxiosResponse;
+
+    let errorPage = <Fleet500 />;
     if (overlayError.status === 403 || overlayError.status === 402) {
-      return <Fleet403 />;
+      errorPage = <Fleet403 />;
+    } else if (overlayError.status === 404) {
+      errorPage = <Fleet404 />;
     }
 
-    if (overlayError.status === 404) {
-      return <Fleet404 />;
-    }
-
-    return <Fleet500 />;
+    return (
+      <ErrorPageLayout router={router} location={location}>
+        {errorPage}
+      </ErrorPageLayout>
+    );
   };
 
   return isLoading ? (

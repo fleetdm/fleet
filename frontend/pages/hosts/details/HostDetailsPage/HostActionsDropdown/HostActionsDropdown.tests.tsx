@@ -574,7 +574,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
 
-    it("renders as disabled when the host is offline", async () => {
+    it("renders as enabled when the host is offline", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -600,7 +600,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Turn off MDM").parentElement).toHaveClass(
+      expect(screen.getByText("Turn off MDM").parentElement).not.toHaveClass(
         "actions-dropdown-select__option--is-disabled"
       );
     });
@@ -2091,6 +2091,68 @@ describe("Host Actions Dropdown", () => {
       const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("renders the action for a global observer (the API authorizes any host-reader)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalObserver: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("renders the action for a team observer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isTeamObserver: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"

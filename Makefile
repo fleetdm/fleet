@@ -48,6 +48,17 @@ else
 	NOW	= $(shell powershell Get-Date -format "yyy-MM-dd")
 endif
 
+# Cap lint concurrency at half the logical CPUs (rounded up) so the incremental
+# linters (modernize, nilaway) don't saturate the machine. Override with LINT_CONCURRENCY=N.
+ifndef LINT_CONCURRENCY
+	ifeq ($(OS), Windows_NT)
+		LINT_NPROC := $(NUMBER_OF_PROCESSORS)
+	else
+		LINT_NPROC := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 2)
+	endif
+	LINT_CONCURRENCY := $(shell echo $$(( ($(LINT_NPROC) + 1) / 2 )))
+endif
+
 ifndef CIRCLE_PR_NUMBER
 	DOCKER_IMAGE_TAG = ${REVSHORT}
 else
@@ -244,7 +255,7 @@ check-no-testing-in-prod:
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
 lint-go-incremental: custom-gcl
-	./custom-gcl run --allow-serial-runners -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+	GOMAXPROCS=$(LINT_CONCURRENCY) ./custom-gcl run --allow-serial-runners --concurrency=$(LINT_CONCURRENCY) -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
 
 custom-gcl:
 	golangci-lint custom
@@ -1049,7 +1060,8 @@ UPDATE_GO_MODS := \
 	./tools/github-manage/go.mod \
 	./tools/qacheck/go.mod \
 	./third_party/goval-dictionary/go.mod \
-	./tools/fleet-mcp/go.mod
+	./tools/fleet-mcp/go.mod \
+	./tools/dibble/go.mod
 update-go:
 	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \

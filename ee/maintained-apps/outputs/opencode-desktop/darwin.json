@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.17.11",
+      "version": "1.17.14",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop' AND version_compare(bundle_short_version, '1.17.11') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop' AND version_compare(bundle_short_version, '1.17.14') < 0);"
       },
-      "installer_url": "https://github.com/anomalyco/opencode/releases/download/v1.17.11/opencode-desktop-mac-arm64.dmg",
+      "installer_url": "https://github.com/anomalyco/opencode/releases/download/v1.17.14/opencode-desktop-mac-arm64.dmg",
       "install_script_ref": "727dc41e",
       "uninstall_script_ref": "ad62b190",
-      "sha256": "1a4ac035af9e3f31216569b6722998147f2f237189afafb33399f6b6c0aadab5",
+      "sha256": "deb8267728b08404beadc6b8225566b8ff618e2b134b19a46529ac42c95df95c",
       "default_categories": [
         "Productivity"
       ]

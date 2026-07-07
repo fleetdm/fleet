@@ -1101,9 +1101,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is unauthenticated and is used by Microsoft devices to discover the MDM server endpoints
 	neWindowsMDM.WithRequestBodySizeLimit(fleet.MaxMicrosoftMDMSize).POST(microsoft_mdm.MDE2DiscoveryPath, mdmMicrosoftDiscoveryEndpoint, SoapRequestContainer{})
 
-	// This endpoint is unauthenticated and is used by Microsoft devices to retrieve the opaque STS auth token
-	neWindowsMDM.WithRequestBodySizeLimit(fleet.MaxMicrosoftMDMSize).GET(microsoft_mdm.MDE2AuthPath, mdmMicrosoftAuthEndpoint, SoapRequestContainer{})
-
 	// This endpoint is authenticated using the BinarySecurityToken header field
 	neWindowsMDM.WithRequestBodySizeLimit(fleet.MaxMicrosoftMDMSize).POST(microsoft_mdm.MDE2PolicyPath, mdmMicrosoftPolicyEndpoint, SoapRequestContainer{})
 

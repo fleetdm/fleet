@@ -500,12 +500,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		// GetOrbitConfig derives the Fleet-MDM connection state from GetHostMDM
+		// (ConnectedToFleet).
+		var connectedToFleetMDM bool
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, newNotFoundError()
-		}
-		var isHostConnectedToFleet bool
-		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
-			return isHostConnectedToFleet, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: connectedToFleetMDM}, nil
 		}
 
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
@@ -525,12 +524,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 
 		checkHostVariations := func(h *fleet.Host) {
-			// host is not connected to fleet
-			isHostConnectedToFleet = false
+			// host is osquery-enrolled but not connected to Fleet MDM
+			connectedToFleetMDM = false
 			checkEmptyNudgeConfig(h)
 
-			// host has MDM turned on but is not enrolled
-			isHostConnectedToFleet = true
+			// host is connected to Fleet MDM but not osquery-enrolled
+			connectedToFleetMDM = true
 			h.OsqueryHostID = nil
 			checkEmptyNudgeConfig(h)
 		}
@@ -1025,7 +1024,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	opts.RunReplication("software_installers", "software_titles")
 
 	// Mark policy as failing for the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 	opts.RunReplication("policy_membership")
 
