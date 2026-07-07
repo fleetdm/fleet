@@ -554,10 +554,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /gitops-workshop': {
-    action: 'view-gitops-workshop',
+  'GET /workshops': {
+    action: 'view-workshops',
     locals: {
-      pageTitleForMeta: 'GitOps workshops',
+      pageTitleForMeta: 'Workshops',
       pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
     }
   },
@@ -1018,27 +1018,7 @@ module.exports.routes = {
   'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
   'GET /guides/macos-setup-experience': '/guides/setup-experience',
   'GET /guides/install-vpp-apps-on-macos-using-fleet': '/guides/install-app-store-apps',
-  'GET /announcements/scaling-agritech-with-lake-to-plate-visibility': '/case-study/agritech-producer',
-  'GET /announcements/enterprise-AI-security-company': '/case-study/ai-security-company',
-  'GET /announcements/banking-as-a-service-platform': '/case-study/banking-platform',
-  'GET /announcements/cannabis-technology-company': '/case-study/cannabis-technology-company',
-  'GET /announcements/communications-services-sector-scaling-cross-platform-device-management-with-fleet': '/case-study/communications-platform',
-  'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
-  'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
 
-  'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
-  'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
-  'GET /announcements/all-in-one-it-platform-provider': '/case-study/it-platform-provider',
-  'GET /announcements/scaling-IT-as-a-service-with-GitOps-first-management': '/case-study/it-service-provider',
-  'GET /announcements/independent-journalism-nonprofit': '/case-study/journalism-nonprofit',
-  'GET /announcements/robotics-company': '/case-study/robotics-company',
-  'GET /announcements/modular-workspace-software-company': '/case-study/workspace-software-company',
-  'GET /announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux': '/case-study/worldwide-security-and-authentication-platform',
-  'GET /announcements/fintech-company-migrates-to-fleet': '/case-study/financial-services-company',
-  'GET /announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security': '/case-study/electric-vehicle-manufacturer',
-  'GET /announcements/cloud-based-data-leader-choosed-fleet-for-orchestration': '/case-study/cloud-data-platform',
-  'GET /announcements/large-gaming-company-enhances-server-observability-with-fleet': '/case-study/online-gaming-platform',
-  'GET /case-study/financial-data-company-scales-endpoint-visibility-with-fleet': '/case-study/financial-data-company',
   'GET /articles/fleet-management-software': '/compare/jamf-vs-intune-vs-fleet',
   'GET /articles/mdm-providers-compared': '/compare/workspace-one-vs-fleet',
   'GET /articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison': '/compare/jamf-vs-ninjaone-vs-fleet',
@@ -1175,13 +1155,14 @@ module.exports.routes = {
       return res.redirect(301, '/reports/' + req.param('slug'));
     }
   },
-  'GET /meetups': '/gitops-workshop',
+  'GET /meetups': '/workshops',
   'GET /replace-jamf': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/replace-jamf' + originalQueryString); },
   'GET /on-premise': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/on-premise' + originalQueryString); },
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
   'GET /orchestration': '/visibility-and-reporting',
+  'GET /gitops-workshop': '/workshops',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝

@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"html/template"
 	"io"
 	"log/slog"
 	"net"
@@ -202,23 +201,6 @@ func (req MDMWebContainer) HijackRender(ctx context.Context, w http.ResponseWrit
 	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(resData); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
-}
-
-type MDMAuthContainer struct {
-	Data *string
-	Err  error
-}
-
-func (r MDMAuthContainer) Error() error { return r.Err }
-
-// HijackRender writes the response header and the RAW XML output
-func (r MDMAuthContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(*r.Data)))
-	w.WriteHeader(http.StatusOK)
-	if n, err := w.Write([]byte(*r.Data)); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
 }
@@ -413,14 +395,6 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 				Lang:    syncml.SoapFaultLocale,
 			},
 		},
-	}
-}
-
-// getSTSAuthContent Returns STS auth content
-func getSTSAuthContent(data string) mdm_types.Errorer {
-	return MDMAuthContainer{
-		Data: &data,
-		Err:  nil,
 	}
 }
 
@@ -782,47 +756,6 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 		Data: response,
 		Err:  nil,
 	}, nil
-}
-
-// isValidAppru validates that appru is a valid URL with an allowed scheme.
-// It returns true if appru is a valid URL with http, https, or ms-app scheme.
-func isValidAppru(appru string) bool {
-	parsed, err := url.Parse(appru)
-	if err != nil {
-		return false
-	}
-
-	return slices.Contains([]string{"http", "https", "ms-app"}, parsed.Scheme)
-}
-
-// mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
-func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
-	params := request.(*SoapRequestContainer).Params
-
-	// Sanity check on the expected query params
-	if !params.Has(syncml.STSAuthAppRu) || !params.Has(syncml.STSLoginHint) {
-		return getSTSAuthContent(""), errors.New("expected STS params are not present")
-	}
-
-	appru := params.Get(syncml.STSAuthAppRu)
-	loginHint := params.Get(syncml.STSLoginHint)
-
-	if (len(appru) == 0) || (len(loginHint) == 0) {
-		return getSTSAuthContent(""), errors.New("expected STS params are empty")
-	}
-
-	// Validate that appru is a valid URL
-	if !isValidAppru(appru) {
-		return getSTSAuthContent(""), fmt.Errorf("non-URL appru parameter attempted: %q", appru)
-	}
-
-	// Getting the STS endpoint HTML content
-	stsAuthContent, err := svc.GetMDMMicrosoftSTSAuthResponse(ctx, appru, loginHint)
-	if err != nil {
-		return getSTSAuthContent(""), errors.New("error generating STS content")
-	}
-
-	return getSTSAuthContent(stsAuthContent), nil
 }
 
 // rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
@@ -1194,60 +1127,6 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 	}
 
 	return &discoveryMsg, nil
-}
-
-// GetMDMMicrosoftSTSAuthResponse returns a valid Security Token Service (STS) page content
-func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
-	// skipauth: This endpoint does not use authentication
-	svc.authz.SkipAuthorization(ctx)
-
-	// Dummy data will be returned as part of the token as user-driven enrollment is not supported yet
-	// In the future, the following calls would have to be made to support user-driven enrollment
-	// encodedBST will carry the token to return
-	// authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
-	// encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
-	encodedBST := "user_driven_enrollment_not_implemented"
-
-	// STS Auth Endpoint returns HTML content that gets render in a webview container
-	// The webview container expect a POST request to the appru URL with the wresult parameter set to the auth token
-	// The security token in wresult is later passed back in <wsse:BinarySecurityToken>
-	// This string is opaque to the enrollment client; the client does not interpret the string.
-	// The returned HTML content contains a JS script that will perform a POST request to the appru URL automatically
-	// This will set the wresult parameter to the value of auth token
-	tmpl, err := template.New("").Parse(`
-				<script>
-				function performPost() {
-				  // Dinamically create a form element to submit the request
-				  var form = document.createElement('form');
-				  form.method = 'POST';
-				  form.action = "{{.ActionURL}}"
-
-				  var inputToken = document.createElement('input');
-				  inputToken.type = 'hidden';
-				  inputToken.name = 'wresult';
-				  inputToken.value = '{{.Token}}';
-				  form.appendChild(inputToken);
-
-				  // Submit the form
-				  document.body.appendChild(form);
-				  form.submit();
-				}
-
-				// Call performPost() when the script is executed
-				performPost();
-				</script>
-				`)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "STS content template")
-	}
-
-	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"ActionURL": appru, "Token": encodedBST})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
-	}
-
-	return htmlBuf.String(), nil
 }
 
 // GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message

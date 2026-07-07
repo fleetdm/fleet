@@ -2,18 +2,18 @@
 
 *AI isn't erasing IT work so much as redrawing who's positioned to do it. The dividing line runs straight through IT teams, and the data shows where.*
 
-When General Motors laid off more than 500 IT workers in May and immediately posted 80 open roles for AI-native developers and data engineers, TechCrunch called it a "skills swap." That framing is a little too neat, but it points at something real, and it's not just happening at GM. The question worth asking isn't whether AI is disrupting IT employment. It is. The question is how, and whether the answer is what you think it is.
-
 ## Key takeaways
 
 - **Experience, not job function, decides who benefits.** The workers AI displaces and the workers it amplifies often share the same title. What separates them is the accumulated judgment that turns AI into a collaborator instead of a substitute.
 - **The jobs didn't disappear, the required skills moved.** Roles demanding AI skills now carry a large wage premium, and it's climbing fast. The openings exist; the qualifications are changing faster than most people can keep pace with.
-- **AI rewards structured, code-first config.** AI tooling closes the loop in seconds against a legible GitOps repo and stalls against a GUI. It doesn't make ClickOps faster; it makes code-first workflows dramatically faster.
+- **AI rewards structured, code-first config.** AI tooling closes the loop in seconds against a legible GitOps repo and stalls against a GUI. ClickOps gets no speedup; code-first workflows get a multiplier.
 - **The productivity divide between teams is already measurable.** Client platform engineers on code-first workflows are pulling ahead of those still clicking through consoles, and the gap is widening now, not later.
 - **The disruption is real and lands unevenly.** Transition costs fall on individuals while the productivity gains accrue to organizations, and developers' own trust in AI accuracy is falling, not rising.
 - **Judgment is the skill that holds its value.** Knowing which policies matter, understanding your org's risk tolerance, and catching output that's technically correct but operationally wrong stay human problems.
 
 <a purpose="cta-button" href="https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops">See why code-first config wins</a>
+
+When General Motors laid off more than 500 IT workers in May and immediately posted 80 open roles for AI-native developers and data engineers, TechCrunch called it a "skills swap." That framing is a little too neat, but it points at something real, and it's not just happening at GM. The question worth asking isn't whether AI is disrupting IT employment. It is. The question is how, and whether the answer is what you think it is.
 
 ## The pattern in the data
 

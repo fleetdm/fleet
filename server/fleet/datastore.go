@@ -478,10 +478,12 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
-	// soft-deletes existing rows whose origin matches, so osquery and MDM
-	// ingestion don't clobber each other's view.
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only soft-deletes existing rows whose origin
+	// matches, so osquery and MDM ingestion don't clobber each other's view. observedScopes further limits
+	// reconciliation to the (source, username) scopes the agent could authoritatively enumerate this run; a nil slice
+	// means every scope was observed (macOS keychains and the MDM path), while a non-nil slice (Windows) preserves
+	// certificates for scopes it could not see, e.g. a logged-off user.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin, observedScopes []HostCertificateScope) error
 
 	// SoftDeleteMDMHostCertificatesForUnenrolledHosts soft-deletes MDM-origin
 	// cert rows for hosts reporting host_mdm.enrolled=0 — the cron complement to
@@ -1220,7 +1222,13 @@ type Datastore interface {
 	// If newlyPassingPolicyIDs is non-nil, it contains the IDs of policies that flipped from failing to passing
 	// and is used directly instead of calling FlippingPoliciesForHost internally. This allows callers that have
 	// already computed flipping policies to avoid a redundant database query.
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
+	//
+	// It returns the host's stale policy IDs: policies with a stored policy_membership row but
+	// no incoming result. It does NOT delete those rows; whether they can be deleted is the
+	// caller's decision, since only the caller knows whether `results` is the host's complete
+	// set of in-scope policy results (e.g. hosts in setup experience are sent a filtered
+	// subset of policy queries).
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
