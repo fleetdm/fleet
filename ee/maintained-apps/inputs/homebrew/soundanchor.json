@@ -1,0 +1,10 @@
+{
+  "name": "SoundAnchor",
+  "unique_identifier": "me.kopiro.soundanchor",
+  "token": "soundanchor",
+  "installer_format": "dmg",
+  "slug": "soundanchor/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

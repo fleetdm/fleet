@@ -48,8 +48,8 @@ func TestAuthenticatedDeviceFallbackAuth(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-			if identifier == "ios-device-uuid" {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+			if uuid == "ios-device-uuid" {
 				return &fleet.Host{
 					ID:       1,
 					UUID:     "ios-device-uuid",
@@ -70,8 +70,8 @@ func TestAuthenticatedDeviceFallbackAuth(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-			if identifier == "ipados-device-uuid" {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+			if uuid == "ipados-device-uuid" {
 				return &fleet.Host{
 					ID:       2,
 					UUID:     "ipados-device-uuid",
@@ -92,7 +92,7 @@ func TestAuthenticatedDeviceFallbackAuth(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
 			return nil, newNotFoundError()
 		}
 
@@ -120,7 +120,7 @@ func TestAuthenticateIDeviceByURL(t *testing.T) {
 	}
 
 	t.Run("success - valid UUID for iOS device", func(t *testing.T) {
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     "valid-uuid",
@@ -136,7 +136,7 @@ func TestAuthenticateIDeviceByURL(t *testing.T) {
 	})
 
 	t.Run("success - valid UUID for iPadOS device", func(t *testing.T) {
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     "valid-uuid",
@@ -162,7 +162,7 @@ func TestAuthenticateIDeviceByURL(t *testing.T) {
 	})
 
 	t.Run("error - host not found", func(t *testing.T) {
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
 			return nil, newNotFoundError()
 		}
 
@@ -176,7 +176,7 @@ func TestAuthenticateIDeviceByURL(t *testing.T) {
 	})
 
 	t.Run("error - host platform is not iOS or iPadOS (macOS)", func(t *testing.T) {
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     "valid-uuid",

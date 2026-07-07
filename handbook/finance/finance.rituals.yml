@@ -166,15 +166,6 @@
   description: "Daily, clean up any duplicate accounts."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "Sampfluger88"
-- task: "Send customer-preston weekly export"
-  startedOn: "2026-03-13"
-  frequency: "Weekly"
-  description: "Every Friday, send an export/email to customer-preston."
-  moreInfoUrl:
-  dri: "sampfluger88"
-  autoIssue:
-    labels: [":help-gtm-ops"]
-    repo: "confidential"
 - task: "Prepare board deck"
   startedOn: "2023-09-25"
   frequency: "Quarterly"
@@ -185,6 +176,15 @@
   frequency: "Quarterly"
   description: "Sam Pfluger and Tina Ong meet to update the Salesforce placards and thermometer guidelines using numbers from the operating model, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins."
   moreInfoUrl: "https://fleetdm.com/handbook/finance#update-salesforce-placards"
+  dri: "sampfluger88"
+  autoIssue:
+    labels: [":help-gtm-ops"]
+    repo: "confidential"
+- task: "Check Talk to us Calendly links"
+  startedOn: "2026-06-12"
+  frequency: "Weekly"
+  description: "Sam Pfluger checks all Talk to us Calendly links to ensure demos can be booked."
+  moreInfoUrl:
   dri: "sampfluger88"
   autoIssue:
     labels: [":help-gtm-ops"]

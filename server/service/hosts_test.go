@@ -666,12 +666,12 @@ func TestHostDetailsOSSettings(t *testing.T) {
 				// service should call this function to check whether disk encryption is enabled for a Linux host
 				require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
 
-				// `hostDetail.MDM.OSSettings` and `hostDetail.MDM.OSSettings.DiskEncryption` will actually not
-				// be `nil` here due to the way those fields are initialized by `svc.ds.Host`, so we can't
-				// expect them to be `nil` in these tests. However, since the relevant struct tags are set to
-				// `omitempty`, the resulting API response WILL omit these fields/subfields when empty,
-				// which is confirmed at the integration layer.
-				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				// Linux hosts only get OS settings via the disk-encryption (LUKS) path. When disk
+				// encryption isn't enabled, OSSettings is nil — even though some other platform's MDM is
+				// EnabledAndConfigured (which initializes an empty struct earlier in getHostDetails). A
+				// non-nil pointer to an empty struct is NOT omitted by `omitempty`, so the service clears
+				// it so the API reports no OS settings instead of an empty `os_settings: {}` object.
+				require.Nil(t, hostDetail.MDM.OSSettings)
 
 			case "darwin":
 				require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
@@ -1970,49 +1970,75 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
+	ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
 
-	t.Run("transfer to team creates pending cert templates", func(t *testing.T) {
-		var calledWithUUID string
-		var calledWithTeamID uint
+	t.Run("transfer to team creates pending cert templates and syncs android_devices team_id", func(t *testing.T) {
+		var certUUID string
+		var certTeamID uint
+		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return map[string]uint{"android-uuid-1": 1}, nil
 		}
 		ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
-			calledWithUUID = hostUUID
-			calledWithTeamID = teamID
+			certUUID = hostUUID
+			certTeamID = teamID
 			return 1, nil
+		}
+		var syncedUUIDs []string
+		var syncedTeamID *uint
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+			syncedUUIDs = hostUUIDs
+			syncedTeamID = teamID
+			return nil
 		}
 
 		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
-		assert.Equal(t, "android-uuid-1", calledWithUUID)
-		assert.Equal(t, uint(5), calledWithTeamID)
+		assert.Equal(t, "android-uuid-1", certUUID)
+		assert.Equal(t, uint(5), certTeamID)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
+		assert.Equal(t, []string{"android-uuid-1"}, syncedUUIDs)
+		require.NotNil(t, syncedTeamID)
+		assert.Equal(t, uint(5), *syncedTeamID)
 	})
 
-	t.Run("transfer to no team uses teamID 0", func(t *testing.T) {
+	t.Run("transfer to no team uses teamID 0 and syncs nil team_id", func(t *testing.T) {
 		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
-		var calledWithTeamID uint
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
+		var certTeamID uint
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return map[string]uint{"android-uuid-1": 1}, nil
 		}
 		ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
-			calledWithTeamID = teamID
+			certTeamID = teamID
 			return 1, nil
+		}
+		var syncedTeamID *uint
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+			syncedTeamID = teamID
+			return nil
 		}
 
 		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), nil, []uint{1}, false))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
-		assert.Equal(t, uint(0), calledWithTeamID)
+		assert.Equal(t, uint(0), certTeamID)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
+		assert.Nil(t, syncedTeamID)
 	})
 
-	t.Run("no android hosts skips cert templates", func(t *testing.T) {
+	t.Run("no android hosts skips cert templates and team sync", func(t *testing.T) {
 		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return nil, nil
 		}
 
 		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
 		assert.False(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
+		assert.False(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 	})
 }
 
@@ -2045,41 +2071,65 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
+	ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
 
-	t.Run("transfer to team creates pending cert templates", func(t *testing.T) {
-		var calledWithUUID string
-		var calledWithTeamID uint
+	t.Run("transfer to team creates pending cert templates and syncs android_devices team_id", func(t *testing.T) {
+		var certUUID string
+		var certTeamID uint
+		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return map[string]uint{"android-uuid-1": 1}, nil
 		}
 		ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
-			calledWithUUID = hostUUID
-			calledWithTeamID = teamID
+			certUUID = hostUUID
+			certTeamID = teamID
 			return 1, nil
+		}
+		var syncedUUIDs []string
+		var syncedTeamID *uint
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+			syncedUUIDs = hostUUIDs
+			syncedTeamID = teamID
+			return nil
 		}
 
 		emptyFilter := &map[string]any{}
 		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), new(uint(5)), emptyFilter))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
-		assert.Equal(t, "android-uuid-1", calledWithUUID)
-		assert.Equal(t, uint(5), calledWithTeamID)
+		assert.Equal(t, "android-uuid-1", certUUID)
+		assert.Equal(t, uint(5), certTeamID)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
+		assert.Equal(t, []string{"android-uuid-1"}, syncedUUIDs)
+		require.NotNil(t, syncedTeamID)
+		assert.Equal(t, uint(5), *syncedTeamID)
 	})
 
-	t.Run("transfer to no team uses teamID 0", func(t *testing.T) {
+	t.Run("transfer to no team uses teamID 0 and syncs nil team_id", func(t *testing.T) {
 		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
-		var calledWithTeamID uint
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
+		var certTeamID uint
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return map[string]uint{"android-uuid-1": 1}, nil
 		}
 		ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
-			calledWithTeamID = teamID
+			certTeamID = teamID
 			return 1, nil
+		}
+		var syncedTeamID *uint
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+			syncedTeamID = teamID
+			return nil
 		}
 
 		emptyFilter := &map[string]any{}
 		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
-		assert.Equal(t, uint(0), calledWithTeamID)
+		assert.Equal(t, uint(0), certTeamID)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
+		assert.Nil(t, syncedTeamID)
 	})
 }
 
@@ -2676,6 +2726,16 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[3].NameOnly)
 	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[4].NameOnly)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
+
+	// platform filtering
+	opts = fleet.ListOptions{MatchQuery: "darwin"}
+	vers, count, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, new("darwin"), nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[1].NameOnly)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// pagination
@@ -3669,11 +3729,11 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 		pending      fleet.PendingDeviceAction
 		wantSuppress bool
 	}{
-		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
-		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
-		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
 		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
-		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 	}
 	for _, tt := range cases {
@@ -3703,7 +3763,7 @@ func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 
 	const hostID = 1
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (manual - personal)")}}, nil
 	}
 	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 

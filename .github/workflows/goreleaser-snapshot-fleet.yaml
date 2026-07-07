@@ -49,6 +49,11 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+          persist-credentials: false
+          # Full history + tags so the Go toolchain embeds a real build-info
+          # version (e.g. v4.87.1-0.<timestamp>-<commit>) instead of the v4.0.0 module base
+          # that a shallow clone produces. Matches the release workflow.
+          fetch-depth: 0
 
       - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "7.22.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH' AND version_compare(version, '7.22.0') < 0);"
+      },
+      "installer_url": "https://www.rarlab.com/rar/winrar-x64-722.exe",
+      "install_script_ref": "5879db33",
+      "uninstall_script_ref": "48a0291b",
+      "sha256": "d669f4e15e9b8fde6e6dcc47697fc5a38b77e1fd5c608cf6423e4eba8df62498",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "48a0291b": "# Attempts to locate WinRAR's uninstaller from the registry and run it silently.\n# WinRAR's UninstallString points at \"<install dir>\\uninstall.exe\", which accepts /S.\n\n$displayNameLike = \"WinRAR*\"\n$publisher = \"win.rar GmbH\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"WinRAR\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/S\"\n\n# Parse the UninstallString defensively for the three common shapes.\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {            # quoted path\n    $uninstallCommand = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {  # unquoted, may contain spaces\n    $uninstallCommand = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {           # bare token\n    $uninstallCommand = $matches[1]\n    $existingArgs = $matches[2].Trim()\n}\n\nif ($existingArgs -and $existingArgs -ne '') {\n    $uninstallArgs = \"$existingArgs $uninstallArgs\"\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "5879db33": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# WinRAR ships as a self-extracting installer. \"-s1\" performs a silent\n# install with no windows; it installs per-machine into Program Files.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"-s1\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

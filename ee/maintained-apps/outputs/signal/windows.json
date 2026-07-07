@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.13.0",
+      "version": "8.16.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Signal' AND publisher = 'Signal Messenger, LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Signal' AND publisher = 'Signal Messenger, LLC' AND version_compare(version, '8.13.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Signal' AND publisher = 'Signal Messenger, LLC' AND version_compare(version, '8.16.0') < 0);"
       },
-      "installer_url": "https://updates.signal.org/desktop/signal-desktop-win-8.13.0.exe",
+      "installer_url": "https://updates.signal.org/desktop/signal-desktop-win-8.16.0.exe",
       "install_script_ref": "06366bfb",
       "uninstall_script_ref": "8c3c10d6",
-      "sha256": "fe4f49f43caca580154ec29e8d391337de88359c4c83816715c2bfdd332cd032",
+      "sha256": "750812f794c5de74e5b544e797f3a6a84ae8eeca23ae34c8cfc4696c97b5e60e",
       "default_categories": [
         "Communication"
       ]

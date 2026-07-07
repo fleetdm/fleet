@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.5.5.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing' AND publisher = 'DigiDNA' AND version_compare(version, '3.5.5.0') < 0);"
+      },
+      "installer_url": "https://downloads.imazing.com/windows/iMazing/iMazing3forWindows.exe",
+      "install_script_ref": "145b29b1",
+      "uninstall_script_ref": "a8fdf759",
+      "sha256": "f0d4b2869f0beff57b0879713d041f09e2c26651f21719c612ce58220d535986",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "145b29b1": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# iMazing ships an Inno Setup installer. Silent flags per vendor docs.\n# /dontstart prevents launching iMazing after a silent install.\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /DONTSTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "a8fdf759": "# Locates iMazing's Inno Setup uninstaller from the registry and runs it silently.\n\n# Match the registry DisplayName (osquery programs.name).\n$softwareNameLike = \"iMazing\"\n\n# Inno Setup silent uninstall flags. /NORESTART suppresses the shell-extension reboot.\n$silentArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem -Path $paths -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareNameLike) {\n        $foundUninstaller = $true\n\n        # Prefer QuietUninstallString when present.\n        $uninstallString = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Parse the uninstall string defensively into executable + args.\n        $exePath = \"\"\n        $existingArgs = \"\"\n        if ($uninstallString -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exePath = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } elseif ($uninstallString -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $exePath = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } elseif ($uninstallString -match '^\\s*(\\S+)\\s*(.*)$') {\n            $exePath = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } else {\n            Throw \"Could not parse uninstall string: $uninstallString\"\n        }\n\n        # Build argument list ensuring the Inno silent uninstall flags are present.\n        $argumentList = @()\n        if ($existingArgs -ne '') {\n            $argumentList += $existingArgs -split '\\s+'\n        }\n        foreach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS')) {\n            if ($argumentList -notcontains $flag) {\n                $argumentList += $flag\n            }\n        }\n\n        Write-Host \"Uninstall executable: $exePath\"\n        Write-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\n        $processOptions = @{\n            FilePath = $exePath\n            ArgumentList = $argumentList\n            PassThru = $true\n            Wait = $true\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

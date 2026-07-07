@@ -1,0 +1,10 @@
+{
+  "name": "OmniDiskSweeper",
+  "unique_identifier": "com.omnigroup.OmniDiskSweeper",
+  "token": "omnidisksweeper",
+  "installer_format": "dmg",
+  "slug": "omnidisksweeper/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

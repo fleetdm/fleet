@@ -8,7 +8,18 @@ For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is 
 
 For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
 
-## Enforce
+## Fleet-managed OS updates vs. custom profiles
+
+Fleet provides two approaches to enforce OS updates:
+
+1. **Fleet-managed settings** — Use the Fleet UI, API, or GitOps YAML to set a minimum version and deadline. Fleet generates and deploys the appropriate enforcement profile automatically.
+2. **Custom profiles** — Upload your own [Apple DDM declaration](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) or [Windows Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) profile for full control over enforcement parameters (e.g., custom enforcement time).
+
+These two approaches are **mutually exclusive** per platform. If Fleet-managed OS update settings are configured, you cannot upload a custom OS update profile (and vice versa). You must remove one before configuring the other.
+
+> Custom OS update profiles are a Fleet Premium feature.
+
+## Enforce (Fleet-managed)
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
 
@@ -58,6 +69,74 @@ controls:
 
 > `deadline` (a date) is used with a specific version number. `deadline_days` (an integer) is used with automatic option (`latest`). These cannot be mixed.
 
+### Custom OS update profiles
+
+Instead of using Fleet-managed settings, you can upload a custom profile for more granular control over OS update enforcement. This is useful when you want to customize parameters that Fleet doesn't expose, such as the enforcement time (Fleet defaults to noon local time for Apple).
+
+#### Apple (macOS, iOS, iPadOS)
+
+Upload a custom DDM declaration of type `com.apple.configuration.softwareupdate.enforcement.specific`. For example, to enforce macOS 15.4.1 with a deadline of 7 PM local time:
+
+```json
+{
+  "Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+  "Identifier": "com.example.my-os-update-enforcement",
+  "Payload": {
+    "TargetOSVersion": "15.4.1",
+    "TargetLocalDateTime": "2025-07-01T19:00:00"
+  }
+}
+```
+
+See Apple's [SoftwareUpdateEnforcementSpecific](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) documentation for all available payload keys.
+
+#### Windows
+
+Upload a custom Windows XML profile targeting the [Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) (`./Device/Vendor/MSFT/Policy/Config/Update`). For example, to set custom deadline and grace period values:
+
+```xml
+<Atomic>
+  <Replace>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForFeatureUpdates</LocURI>
+      </Target>
+      <Meta>
+        <Type xmlns="syncml:metinf">text/plain</Type>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>5</Data>
+    </Item>
+  </Replace>
+  <Replace>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForQualityUpdates</LocURI>
+      </Target>
+      <Meta>
+        <Type xmlns="syncml:metinf">text/plain</Type>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>3</Data>
+    </Item>
+  </Replace>
+  <Replace>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriod</LocURI>
+      </Target>
+      <Meta>
+        <Type xmlns="syncml:metinf">text/plain</Type>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>2</Data>
+    </Item>
+  </Replace>
+</Atomic>
+```
+
+See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
+
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
 On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
@@ -79,6 +158,8 @@ For macOS hosts, in Fleet, head to **Controls > OS updates** and check the **Upd
 If **Update new hosts to latest** is checked, hosts below the minimum version are updated to the latest version during Setup Assistant. If a minimum version isn’t set, all hosts get updated.
 
 For iOS/iPadOS hosts, set a minimum version and deadline. New iOS/iPadOS hosts will always update to the latest version (not the minimum version specified). On already enrolled hosts, updates are only enforced if the host is [below the minimum version](#apple-macos-ios-and-ipados-end-user-experience).
+
+> Rarely, even without OS updates configured, macOS, iOS and iPadOS hosts enrolling via ADE may automatically update during enrollment. This happens when Apple determines the OS version the host is running has a critical bug that may impair MDM enrollment or management. This behavior cannot be controlled by Fleet.
 
 <!--
 

@@ -1,0 +1,10 @@
+{
+  "name": "Lunacy",
+  "unique_identifier": "com.icons8.Lunacy",
+  "token": "lunacy",
+  "installer_format": "dmg",
+  "slug": "lunacy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

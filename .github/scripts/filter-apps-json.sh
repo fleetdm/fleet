@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to filter apps.json to only include specified app slugs
-# Usage: filter-apps-json.sh <slugs_json_array> <output_file>
+# Usage: filter-apps-json.sh <slugs_json_array | slugs_json_file> <output_file>
 
 set -euo pipefail
 
@@ -16,8 +16,19 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # Parse arguments
-SLUGS_JSON="$1"
+SLUGS_INPUT="$1"
 OUTPUT_FILE="$2"
+
+# Accept the slugs as either a literal JSON array string or a path to a file containing
+# the JSON array. The file form avoids cross-shell quoting problems: Windows PowerShell
+# mangles embedded quotes when forwarding a JSON string as a native-command argument to
+# bash, corrupting the value before jq sees it. Callers passing a literal JSON string
+# (e.g. on macOS) are unaffected since that value is not a path to an existing file.
+if [ -n "$SLUGS_INPUT" ] && [ -f "$SLUGS_INPUT" ]; then
+    SLUGS_JSON="$(cat "$SLUGS_INPUT")"
+else
+    SLUGS_JSON="$SLUGS_INPUT"
+fi
 
 if [ -z "$SLUGS_JSON" ] || [ "$SLUGS_JSON" == "[]" ] || [ "$SLUGS_JSON" == "null" ]; then
     echo "No slugs provided, creating empty apps.json"

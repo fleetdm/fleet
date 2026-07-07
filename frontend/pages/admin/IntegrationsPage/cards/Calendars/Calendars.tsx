@@ -2,7 +2,6 @@ import React, { useState, useContext, useCallback, useEffect } from "react";
 import { useQueryClient } from "react-query";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import paths from "router/paths";
@@ -15,6 +14,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatu
 import PageDescription from "components/PageDescription";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify } from "components/ToastNotification";
 import { getPathWithQueryParams } from "utilities/url";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
@@ -79,7 +79,6 @@ const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
 const baseClass = "calendars-integration";
 
 const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { currentTeam, isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -204,13 +203,12 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
 
     try {
       await configAPI.update({ integrations: destination });
-      renderFlash(
-        "success",
-        "Successfully saved calendar integration settings."
-      );
+      notify.success("Successfully saved calendar integration settings.");
       await queryClient.invalidateQueries(["config"]);
     } catch (e) {
-      renderFlash("error", "Could not save calendar integration settings.");
+      notify.error("Could not save calendar integration settings.", {
+        response: e,
+      });
     } finally {
       setIsUpdatingSettings(false);
     }
@@ -313,7 +311,6 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
                         parseTarget
                         type="textarea"
                         placeholder={API_KEY_JSON_PLACEHOLDER}
-                        ignore1password
                         inputClassName={`${baseClass}__api-key-json`}
                         error={formErrors.apiKeyJson}
                         disabled={gomEnabled}

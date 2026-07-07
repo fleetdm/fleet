@@ -44,8 +44,8 @@ func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
 	}{
 		{"global admin", test.UserAdmin, false},
 		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
 		{"global gitops", test.UserGitOps, false},
 		{"team admin", test.UserTeamAdminTeam1, true},
 		{"team maintainer", test.UserTeamMaintainerTeam1, true},
@@ -131,8 +131,8 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 	}{
 		{"global admin", test.UserAdmin, false},
 		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
 		{"global gitops", test.UserGitOps, false},
 		{"team admin", test.UserTeamAdminTeam1, true},
 		{"team maintainer", test.UserTeamMaintainerTeam1, true},
@@ -258,8 +258,11 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Contains(t, profileStr, "com.fleetdm.conditional-access-preference")
 		require.Contains(t, profileStr, "com.fleetdm.chrome.certs")
 
-		// Verify certificate CN is present in the profile
-		require.Contains(t, profileStr, "Fleet conditional access for Okta")
+		// Top-level PayloadIdentifier and certificate CN must match the
+		// shared constants so the InstallProfile-ack cleanup hook can
+		// reliably gate on them.
+		require.Contains(t, profileStr, fleet.ConditionalAccessOktaProfileIdentifier)
+		require.Contains(t, profileStr, fleet.ConditionalAccessOktaCertificateCN)
 
 		// Verify the renewal-ID marker is in the SCEP payload's Subject OU
 		// so auto-renewal activates by default. Substituted to

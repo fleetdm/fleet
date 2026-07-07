@@ -69,11 +69,11 @@ interface IDataColumn {
 
 const AUTOMATION_ICON_RENDERERS: Record<
   IAutomationData["type"],
-  (args: { name: string; iconUrl?: string }) => JSX.Element
+  (args: { name: string; iconName?: string; iconUrl?: string }) => JSX.Element
 > = {
-  software: ({ name, iconUrl }) => (
+  software: ({ name, iconName, iconUrl }) => (
     <span className="automations__software-icon">
-      <SoftwareIcon name={name} url={iconUrl} size="small" />
+      <SoftwareIcon name={iconName ?? name} url={iconUrl} size="small" />
     </span>
   ),
   script: ({ name }) => (
@@ -136,54 +136,43 @@ const AutomationsCell = ({
   onOpenManageAutomationsModal,
 }: IAutomationsCellProps): JSX.Element => {
   const automations = getAutomationsForPolicy(policy, otherAutomationType);
+  // Without an edit callback the user's role can't open the automations modal,
+  // so the cell is read-only: no pencil icon, no pointer cursor, not focusable.
+  const canEdit = !!onOpenManageAutomationsModal;
 
   const handleEdit = () => onOpenManageAutomationsModal?.(policy);
 
-  if (automations.length === 0) {
-    // Read-only users (no edit callback) keep the plain, non-interactive "---".
-    if (!onOpenManageAutomationsModal) {
-      return (
-        <span className="automations__cell-content automations__cell-content--none">
-          {DEFAULT_EMPTY_CELL_VALUE}
-        </span>
-      );
-    }
-    return (
-      <EditableAutomationsCell
-        ariaLabel="Add automation"
-        onEdit={handleEdit}
-        className="automations__cell-content--none"
-      >
-        <span className="automations__name">{DEFAULT_EMPTY_CELL_VALUE}</span>
-      </EditableAutomationsCell>
-    );
-  }
-
-  const renderAutomationIcon = ({ type, name, iconUrl }: IAutomationData) => {
-    return AUTOMATION_ICON_RENDERERS[type]({
-      name,
-      iconUrl: iconUrl ?? undefined,
+  const renderAutomationIcon = (automation: IAutomationData) => {
+    return AUTOMATION_ICON_RENDERERS[automation.type]({
+      name: automation.name,
+      iconName:
+        automation.type === "software" ? automation.iconName : undefined,
+      iconUrl: automation.iconUrl ?? undefined,
     });
   };
 
-  if (automations.length === 1) {
-    const automation = automations[0];
-    return (
-      <EditableAutomationsCell
-        ariaLabel={`Edit automation: ${automation.name}`}
-        onEdit={handleEdit}
-      >
-        <TooltipTruncatedTextCell
-          prefix={renderAutomationIcon(automation)}
-          value={automation.name}
-          className="automations__name"
-        />
-      </EditableAutomationsCell>
-    );
-  }
+  const isEmpty = automations.length === 0;
 
-  return (
-    <EditableAutomationsCell ariaLabel="Edit automations" onEdit={handleEdit}>
+  let ariaLabel: string;
+  let content: React.ReactNode;
+  if (isEmpty) {
+    ariaLabel = "Add automation";
+    content = (
+      <span className="automations__name">{DEFAULT_EMPTY_CELL_VALUE}</span>
+    );
+  } else if (automations.length === 1) {
+    const automation = automations[0];
+    ariaLabel = `Edit automation: ${automation.name}`;
+    content = (
+      <TooltipTruncatedTextCell
+        prefix={renderAutomationIcon(automation)}
+        value={automation.name}
+        className="automations__name"
+      />
+    );
+  } else {
+    ariaLabel = "Edit automations";
+    content = (
       <TooltipWrapper
         className="automations__count"
         position="top"
@@ -191,9 +180,34 @@ const AutomationsCell = ({
         fixedPositionStrategy
         tipOffset={8}
         tipContent={automations.map(({ name }) => name).join(", ")}
+        showArrow
       >
         {automations.length} automations
       </TooltipWrapper>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <span
+        className={classnames(
+          "automations__cell-content",
+          "automations__cell-content--readonly",
+          { "automations__cell-content--none": isEmpty }
+        )}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <EditableAutomationsCell
+      ariaLabel={ariaLabel}
+      onEdit={handleEdit}
+      className={classnames({ "automations__cell-content--none": isEmpty })}
+    >
+      {content}
     </EditableAutomationsCell>
   );
 };

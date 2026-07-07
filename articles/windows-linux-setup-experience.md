@@ -20,7 +20,7 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
    <iframe src="https://www.youtube.com/embed/UZAqw4pg9xE?si=rMhbfImonY4Avb06" frameborder="0" allowfullscreen></iframe>
 </div>
 
-## End user authentication
+## Require IdP authentication
 
 ### End user experience
 
@@ -28,11 +28,11 @@ Fleet automatically opens the default web browser and directs the end user to lo
 
 If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
 
-Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 
-When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, end user authentication won’t be enforced when it re-enrolls.
+When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
 
-> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
+> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, IdP authentication won't be enforced.
 
 ## Install software
 
@@ -46,12 +46,14 @@ The browser can be closed, and the installation will continue in the background.
 
 For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian hosts. `.rpm` packages are only installed on Fedora, CentOS, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
 
-If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 
 To replace the Fleet logo with your organization's logo:
 
 1. Go to **Settings** > **Organization settings** > **Organization info**
+
 2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
+
 3. Press **Save**
 
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
@@ -65,9 +67,13 @@ For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure F
 To enable for a team:
 
 1. Select the team you're configuring (or **No team**) from the team dropdown.
+
 2. Go to **Controls** > **Setup experience** > **Install software**.
+
 3. Click the **Windows** tab.
+
 4. Switch on **Cancel setup if software fails**.
+
 5. Press **Save**.
 
 The setting only applies to Autopilot and Entra-join-during-OOBE enrollments. On those paths, when a setup-experience software install fails, Fleet does the following:
@@ -89,11 +95,40 @@ On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a mi
 Add setup experience software setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **3. Install software**.
+
 2. Click on the tab corresponding to the operating system (e.g. Linux).
+
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
+
 4. Press **Save** to save your selection.
 
 Fleet also provides a API endpoints for managing setup experience software programmatically. Learn more in Fleet's [API reference](https://fleetdm.com/docs/rest-api/rest-api#update-software-setup-experience).
+
+## Managed local account
+Fleet can create a hidden admin account (_fleetadmin) with a unique password on each Windows host during setup. IT admins can use this account as a break-glass login for troubleshooting.
+
+This feature is available for Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
+
+> For macOS managed local accounts, see the [macOS MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup).
+
+### Enable managed local accounts
+1. Select the team you're configuring (or No team) from the team dropdown.
+
+2. Go to **Controls > Setup experience > Users** and click the **Windows** tab.
+
+4. Select **Managed > Create hidden admin**.
+
+5. Press **Save**.
+
+Alternatively, you can enable this using Fleet's REST API or a GitOps workflow.
+
+Wipe and re-enroll any existing Windows hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
+
+### View the managed account password
+To view the password for a host's managed account, go to Host details > Actions > Show managed account. The password is unique per host and stored securely in Fleet.
+
+### Sign in as the managed account
+The managed account is hidden from the Windows sign-in screen. To log in as `_fleetadmin`, select **Other user** on the sign-in screen and enter the username and password manually. If the sign-in screen does not show Other user, type `.\\_fleetadmin` in the username field to authenticate against the local machine.
 
 ## Recover a Windows host from the setup failure screen
 
@@ -134,8 +169,11 @@ Restart-Computer -Force
 To run it:
 
 1. Change `StrongPassword123!` to a password your organization controls.
+
 2. Go to **Controls** > **Scripts** and upload the script, or open the host's detail page and select **Actions** > **Run script** to paste it inline.
+
 3. Run the script against the locked-out host.
+
 4. The host's orbit agent picks up the script within a few seconds and runs it as SYSTEM. The host reboots automatically as the last step.
 
 After the reboot, the device leaves the failure screen on its own and arrives at a Windows sign-in screen.
