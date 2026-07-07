@@ -44,7 +44,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | **Action**                                                                                                                                 | Observer | Observer+* | Technician* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | :------: | :--------: | :--------: | :--------: | :---: | :-----: |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅         | ✅    |         |
-| Cancel [hosts' upcoming activity](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                  |          |            |            | ✅         | ✅    |         |
+| Cancel [hosts' upcoming activity](https://fleetdm.com/docs/api/rest-api#get-hosts-upcoming-activity)                                  |          |            |            | ✅         | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                                             |          |            |            |            | ✅    | ✅      |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
@@ -106,8 +106,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                            |          |            | ✅         | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            |            | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅         | ✅    |         |
-| Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                                 |          |            |            | ✅         | ✅    | ✅      |
-| View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                             |          |            | ✅         | ✅         | ✅    | ✅      |
+| Edit [OS settings](https://fleetdm.com/docs/api/rest-api#os-settings)                                                                 |          |            |            | ✅         | ✅    | ✅      |
+| View all [OS settings](https://fleetdm.com/docs/api/rest-api#os-settings)                                                             |          |            | ✅         | ✅         | ✅    | ✅      |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
 | Add and edit identity provider for IdP authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                                                |          |            |            |            | ✅    | ✅      |
@@ -122,7 +122,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Turn off MDM for specific hosts                                                                                                            |          |            |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |            |            | ✅    |         |
 | Add Microsoft Entra tenant                                                                                                                 |          |            |            |            | ✅    |         |
-| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
+| View [custom variables](https://fleetdm.com/docs/api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Create, edit, and delete custom variables                                                                                                  |          |            |            | ✅         | ✅    | ✅      |
 
 \* Applies only to Fleet Premium
@@ -148,8 +148,8 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| View hosts' [past](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-past-activity) and [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| Cancel hosts' [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity                        |               |                |                 | ✅              | ✅         |             |
+| View hosts' [past](https://fleetdm.com/docs/api/rest-api#get-hosts-past-activity) and [upcoming](https://fleetdm.com/docs/api/rest-api#get-hosts-upcoming-activity) activity | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Cancel hosts' [upcoming](https://fleetdm.com/docs/api/rest-api#get-hosts-upcoming-activity) activity                        |               |                |                 | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅              | ✅         | ✅          |
 | Create and edit self-authored labels                                                                                             |               |                | ✅              | ✅              | ✅         | ✅          |
 | Add and delete hosts                                                                                                             |               |                |                 | ✅              | ✅         |             |
@@ -190,7 +190,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                  |               |                | ✅              | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                |                 | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| Edit a fleet's [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                  |               |                |                 | ✅              | ✅         | ✅          |
+| Edit a fleet's [OS settings](https://fleetdm.com/docs/api/rest-api#os-settings)                                                  |               |                |                 | ✅              | ✅         | ✅          |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                           |               |                |                 | ✅              | ✅         | ✅          |
 | Run scripts on hosts                                                                                                             |               |                | ✅              | ✅              | ✅         |             |
 | Schedule scripts on hosts                                                                                                        |               |                |                 | ✅              | ✅         |             |
@@ -200,7 +200,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Lock, unlock, and wipe hosts                                                                                                     |               |                |                 | ✅              | ✅         |             |
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
 | View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
-| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
+| View [custom variables](https://fleetdm.com/docs/api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

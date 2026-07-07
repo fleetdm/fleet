@@ -41,7 +41,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 3. For the **Unique identifier field for users**, enter `userName`.
 4. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
 5. For the **Authentication Mode**, select **HTTP Header**.
-6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with admin permissions and access to all [`/scim/*` API endpoints](https://fleetdm.com/docs/rest-api/rest-api#scim).
+6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with admin permissions and access to all [`/scim/*` API endpoints](https://fleetdm.com/docs/api/rest-api#scim).
 7. Copy the API token for that user and paste it in Okta's **Authorization** field.
 
 

@@ -113,5 +113,5 @@ All Fleet documentation lives in this repo. Check these sources before searching
 ## Other references
 
 - Linter config: `.golangci.yml`
-- Activity types: `docs/Contributing/reference/audit-logs.md`
+- Activity types: `docs/api/global-audit-logs.md`
 - Claude Code setup: `.claude/README.md`

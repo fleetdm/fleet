@@ -33,7 +33,7 @@ If the script fails, you can reset a script automation and trigger the script to
 
 ## Via the API
 
-Script policy automation can be managed by setting the `script_id` field on the Fleet REST API's [Add team policy](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy) or [Edit team policy](https://fleetdm.com/docs/rest-api/rest-api#edit-team-policy) endpoints.
+Script policy automation can be managed by setting the `script_id` field on the Fleet REST API's [Add team policy](https://fleetdm.com/docs/api/rest-api#add-team-policy) or [Edit team policy](https://fleetdm.com/docs/api/rest-api#edit-team-policy) endpoints.
 
 ## Via GitOps
 
