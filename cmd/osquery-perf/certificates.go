@@ -167,6 +167,8 @@ func (a *agent) newPerHostCertSpecs() []simulatedCert {
 	}
 	// Model a device certificate present in both the machine store and a user's store (same SHA1, two scopes),
 	// exercising the server's cross-scope handling (one host_certificates row, two host_certificate_sources rows).
+	// churnPerHostCertSpecs may later rotate one of the pair and break the cross-scope match; not worth guarding against
+	// for a load-test simulator (the path is exercised on initial ingestion and this is a low-volume, per-host scenario).
 	if count > 0 && len(users) > 0 {
 		dup := specs[0]
 		dup.user = !specs[0].user
