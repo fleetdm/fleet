@@ -348,10 +348,11 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 	declsWithBrokenLabel := map[string]struct{}{}
 
 	t.Run("desired but not present -> install diff", func(t *testing.T) {
-		changed, rows := ComputeDeclarationDeltas(
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, declsByTeam, declsWithBrokenLabel,
 		)
-		require.ElementsMatch(t, []string{"uuid-A"}, changed)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Empty(t, changedUser)
 		require.Len(t, rows, 1)
 		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
 		require.Equal(t, "aDeclGlobal", rows[0].DeclarationUUID)
@@ -367,10 +368,11 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 				Status:          new(fleet.MDMDeliveryPending),
 			}},
 		}
-		changed, rows := ComputeDeclarationDeltas(
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam, declsWithBrokenLabel,
 		)
-		require.Empty(t, changed)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
 		require.Empty(t, rows)
 	})
 
@@ -384,12 +386,105 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 				Status:          new(fleet.MDMDeliveryVerified),
 			}},
 		}
-		changed, rows := ComputeDeclarationDeltas(
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam, declsWithBrokenLabel,
 		)
-		require.ElementsMatch(t, []string{"uuid-A"}, changed)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Empty(t, changedUser)
 		require.Len(t, rows, 1)
 		require.Equal(t, "tok1", rows[0].Token)
+	})
+}
+
+func TestComputeDeclarationDeltasScope(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	deviceDecl := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aDeviceDecl", DeclarationIdentifier: "com.example.device", DeclarationName: "Device",
+		TeamID: 0, Token: []byte("tokD"), Scope: fleet.PayloadScopeSystem, IncludeMode: fleet.AppleProfileIncludeNone,
+	}
+	userDecl := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aUserDecl", DeclarationIdentifier: "com.example.user", DeclarationName: "User",
+		TeamID: 0, Token: []byte("tokU"), Scope: fleet.PayloadScopeUser, IncludeMode: fleet.AppleProfileIncludeNone,
+	}
+	declsWithBrokenLabel := map[string]struct{}{}
+
+	scopeByUUID := func(rows []*fleet.MDMAppleHostDeclaration) map[string]fleet.PayloadScope {
+		m := make(map[string]fleet.PayloadScope, len(rows))
+		for _, r := range rows {
+			m[r.DeclarationUUID] = r.Scope
+		}
+		return m
+	}
+
+	t.Run("user-scoped install pokes only the user channel", func(t *testing.T) {
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {userDecl}}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, nil, declsByTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		require.Equal(t, fleet.PayloadScopeUser, scopeByUUID(rows)["aUserDecl"])
+	})
+
+	t.Run("device- and user-scoped changes poke both channels", func(t *testing.T) {
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {deviceDecl, userDecl}}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, nil, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		byUUID := scopeByUUID(rows)
+		require.Equal(t, fleet.PayloadScopeSystem, byUUID["aDeviceDecl"])
+		require.Equal(t, fleet.PayloadScopeUser, byUUID["aUserDecl"])
+	})
+
+	t.Run("scope flip pokes both the old and new channel", func(t *testing.T) {
+		// The declaration is currently installed as System on the host but is now
+		// desired as User: the new (user) channel installs it and the old (device)
+		// channel must drop it, so both channels are poked.
+		flipped := &fleet.AppleDeclarationForReconcile{
+			DeclarationUUID: "aFlip", DeclarationIdentifier: "com.example.flip", DeclarationName: "Flip",
+			TeamID: 0, Token: []byte("tokF"), Scope: fleet.PayloadScopeUser, IncludeMode: fleet.AppleProfileIncludeNone,
+		}
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {flipped}}
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID: "uuid-A", DeclarationUUID: "aFlip", Token: "tokF",
+				OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified),
+				Scope: fleet.PayloadScopeSystem,
+			}},
+		}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.PayloadScopeUser, rows[0].Scope)
+		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+	})
+
+	t.Run("user-scoped removal pokes the user channel", func(t *testing.T) {
+		// No longer desired; currently installed on the user channel.
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {}}
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID: "uuid-A", DeclarationUUID: "aUserDecl", Token: "tokU",
+				OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified),
+				Scope: fleet.PayloadScopeUser,
+			}},
+		}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, rows[0].OperationType)
+		require.Equal(t, fleet.PayloadScopeUser, rows[0].Scope)
 	})
 }
 

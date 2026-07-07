@@ -156,18 +156,45 @@ func IsBrokenDeclaration(declUUID string, declsWithBrokenLabel map[string]struct
 	return broken
 }
 
+// scopeOrDefaultDDM normalizes an empty scope to System (device channel) so
+// pre-scope rows and callers that leave scope unset behave as device-scoped.
+func scopeOrDefaultDDM(s fleet.PayloadScope) fleet.PayloadScope {
+	if s == "" {
+		return fleet.PayloadScopeSystem
+	}
+	return s
+}
+
 // ComputeDeclarationDeltas is the DDM equivalent of ComputeReconcileDeltas.
 // Uses the SAME shared dispatcher (EntityAppliesToHost) so profile and
 // declaration label semantics cannot drift.
+//
+// Returns the host declaration rows to write plus the hosts whose declaration
+// set changed, partitioned by channel. A DDM DeclarativeManagement command only
+// needs to reach the channel(s) that actually changed, so device-scoped and
+// user-scoped changes are tracked separately: a host that only changed on one
+// channel is poked on that channel alone. A scope flip (a declaration whose
+// PayloadScope changed) counts as a change on BOTH channels — the new channel
+// installs it and the old channel drops it because its scoped declaration set
+// no longer includes it.
 func ComputeDeclarationDeltas(
 	hosts []*fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
 	declsByTeam map[uint][]*fleet.AppleDeclarationForReconcile,
 	declsWithBrokenLabel map[string]struct{},
-) (changedHostUUIDs []string, declRowsToWrite []*fleet.MDMAppleHostDeclaration) {
+) (changedDeviceHostUUIDs, changedUserHostUUIDs []string, declRowsToWrite []*fleet.MDMAppleHostDeclaration) {
 	pendingStatus := fleet.MDMDeliveryPending
-	changedSet := make(map[string]struct{})
+	deviceChanged := make(map[string]struct{})
+	userChanged := make(map[string]struct{})
+
+	markChanged := func(hostUUID string, scope fleet.PayloadScope) {
+		if scopeOrDefaultDDM(scope) == fleet.PayloadScopeUser {
+			userChanged[hostUUID] = struct{}{}
+		} else {
+			deviceChanged[hostUUID] = struct{}{}
+		}
+	}
 
 	for _, host := range hosts {
 		teamDecls := declsByTeam[host.EffectiveTeamID()]
@@ -190,9 +217,14 @@ func ComputeDeclarationDeltas(
 
 		for declUUID, d := range desired {
 			c, present := currentByDecl[declUUID]
+			desiredScope := scopeOrDefaultDDM(d.Scope)
 			needsInstall := false
 			switch {
 			case !present:
+				needsInstall = true
+			case scopeOrDefaultDDM(c.Scope) != desiredScope:
+				// scope flip: re-deliver on the new channel; handled below by also
+				// marking the previous channel changed so it drops the declaration.
 				needsInstall = true
 			case !bytes.Equal([]byte(c.Token), d.Token):
 				needsInstall = true
@@ -216,6 +248,7 @@ func ComputeDeclarationDeltas(
 				OperationType:    fleet.MDMOperationTypeInstall,
 				Token:            string(d.Token),
 				SecretsUpdatedAt: d.SecretsUpdatedAt,
+				Scope:            desiredScope,
 			}
 
 			if d.HasFleetVariables {
@@ -223,7 +256,12 @@ func ComputeDeclarationDeltas(
 				row.VariablesUpdatedAt = &now
 			}
 			declRowsToWrite = append(declRowsToWrite, row)
-			changedSet[host.UUID] = struct{}{}
+			markChanged(host.UUID, desiredScope)
+			if present {
+				if prev := scopeOrDefaultDDM(c.Scope); prev != desiredScope {
+					markChanged(host.UUID, prev)
+				}
+			}
 		}
 
 		for declUUID, c := range currentByDecl {
@@ -237,6 +275,7 @@ func ComputeDeclarationDeltas(
 				continue
 			}
 
+			removeScope := scopeOrDefaultDDM(c.Scope)
 			declRowsToWrite = append(declRowsToWrite, &fleet.MDMAppleHostDeclaration{
 				HostUUID:         host.UUID,
 				DeclarationUUID:  c.DeclarationUUID,
@@ -246,16 +285,21 @@ func ComputeDeclarationDeltas(
 				OperationType:    fleet.MDMOperationTypeRemove,
 				Token:            c.Token,
 				SecretsUpdatedAt: c.SecretsUpdatedAt,
+				Scope:            removeScope,
 			})
-			changedSet[host.UUID] = struct{}{}
+			markChanged(host.UUID, removeScope)
 		}
 	}
 
-	changedHostUUIDs = make([]string, 0, len(changedSet))
-	for u := range changedSet {
-		changedHostUUIDs = append(changedHostUUIDs, u)
+	changedDeviceHostUUIDs = make([]string, 0, len(deviceChanged))
+	for u := range deviceChanged {
+		changedDeviceHostUUIDs = append(changedDeviceHostUUIDs, u)
 	}
-	return changedHostUUIDs, declRowsToWrite
+	changedUserHostUUIDs = make([]string, 0, len(userChanged))
+	for u := range userChanged {
+		changedUserHostUUIDs = append(changedUserHostUUIDs, u)
+	}
+	return changedDeviceHostUUIDs, changedUserHostUUIDs, declRowsToWrite
 }
 
 // ExecuteReconcileBatch runs the post-listing reconcile pipeline against

@@ -1993,31 +1993,42 @@ type Datastore interface {
 	InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType string, rawJSON json.RawMessage) error
 
 	// MDMAppleDDMDeclarationsToken returns the token used to synchronize declarations for the
-	// specified host UUID.
-	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*MDMAppleDDMDeclarationsToken, error)
-	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
-	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
+	// specified host UUID on the given channel (scope). Each channel computes its
+	// token over only its own declarations.
+	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string, scope PayloadScope) (*MDMAppleDDMDeclarationsToken, error)
+	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID
+	// on the given channel (scope).
+	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
-	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
+	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
 
-	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
-	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
-	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
+	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
+	// partitioned by channel (device vs user) so the reconciler only pokes the
+	// channel that needs to re-sync. This is used to cover special cases where
+	// we're not 100% certain of the declarations on the device.
+	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (deviceHostUUIDs []string, userHostUUIDs []string, err error)
 	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
 	// of declarations, and updates the tracked host declaration status for
 	// matching declarations.
 	//
 	// It also takes care of cleaning up all host declarations that are
 	// pending removal.
-	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
+	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, scope PayloadScope, updates []*MDMAppleHostDeclaration) error
+	// BulkDeleteMDMAppleHostDeclarations removes the given host declaration rows
+	// by (host_uuid, declaration_uuid). Used to clean up user-scoped declarations
+	// that can't be delivered because the host has no user channel, so they don't
+	// linger as permanent "pending" rows.
+	BulkDeleteMDMAppleHostDeclarations(ctx context.Context, rows []*MDMAppleHostDeclaration) error
 	// SetHostMDMAppleDeclarationStatus updates the status and detail of a
 	// single declaration for a host. If variablesUpdatedAt is non-nil, it also
 	// sets the variables_updated_at timestamp.
 	SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error
 	// MDMAppleSetPendingDeclarationsAs updates all ("pending", "install")
-	// declarations for a host to be ("verifying", status), where status is
-	// the provided value.
-	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
+	// declarations for a host on the given channel (scope) to be
+	// ("verifying", status), where status is the provided value. The scope
+	// filter ensures a DeclarativeManagement ack on one channel doesn't
+	// transition the other channel's pending declarations.
+	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, scope PayloadScope, status *MDMDeliveryStatus, detail string) error
 	MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
 	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
