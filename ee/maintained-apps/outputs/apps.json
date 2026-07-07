@@ -184,13 +184,6 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
-      "name": "Adobe AIR",
-      "slug": "adobe-air/windows",
-      "platform": "windows",
-      "unique_identifier": "Adobe AIR",
-      "description": "Adobe AIR is a runtime for cross-platform desktop applications, maintained by HARMAN."
-    },
-    {
       "name": "Adobe Creative Cloud",
       "slug": "adobe-creative-cloud/darwin",
       "platform": "darwin",

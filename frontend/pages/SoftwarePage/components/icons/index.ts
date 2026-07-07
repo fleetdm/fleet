@@ -15,7 +15,6 @@ import Activitywatch from "./Activitywatch";
 import Actual from "./Actual";
 import Adguard from "./Adguard";
 import Adlock from "./Adlock";
-import AdobeAir from "./AdobeAir";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
 import AdvancedRenamer from "./AdvancedRenamer";
@@ -1066,7 +1065,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   adlock: Adlock,
   "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
-  "adobe air": AdobeAir,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
