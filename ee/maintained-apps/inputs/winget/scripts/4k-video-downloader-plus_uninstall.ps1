@@ -1,28 +1,28 @@
-# Uninstalls the 4K Video Downloader+ WiX "burn" bundle.
+# Uninstalls 4K Video Downloader+.
 #
-# The app registers a bundle ARP entry (DisplayName "4K Video Downloader+",
-# publisher "InterPromo GMBH") whose UninstallString points at the cached
-# bootstrapper .exe. Burn bundles uninstall by running that .exe with
-# /uninstall /quiet /norestart -- never via msiexec. We look the entry up by
-# its exact DisplayName; the "+" keeps this from matching the separate MSI-based
+# The app is a WiX "burn" bundle that chains an MSI, and the ARP entry with
+# DisplayName "4K Video Downloader+" may be either the bundle (an .exe
+# UninstallString, needs /uninstall /quiet /norestart) or the chained MSI
+# (an MsiExec.exe /X{ProductCode} UninstallString, needs /qn /norestart --
+# NOT /uninstall, which is invalid for msiexec). Handle both shapes. The "+"
+# in the exact-match name keeps this from touching the separate MSI-based
 # "4K Video Downloader" product.
 
 $softwareName = "4K Video Downloader+"
 
-function Invoke-Uninstaller {
-    param([string]$exe, [string]$exeArgs)
-    if ($exeArgs -notmatch '/uninstall') { $exeArgs = "/uninstall $exeArgs" }
-    if ($exeArgs -notmatch '/quiet')     { $exeArgs = "$exeArgs /quiet" }
-    if ($exeArgs -notmatch '/norestart') { $exeArgs = "$exeArgs /norestart" }
-    $exeArgs = $exeArgs.Trim()
-    Write-Host "Uninstall command: $exe"
-    Write-Host "Uninstall args: $exeArgs"
-    $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait
-    return $process.ExitCode
-}
-
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+
+function Split-UninstallString {
+    param([string]$raw)
+    # Parse into executable + args, handling quoted/unquoted/bare shapes.
+    if ($raw -match '^\s*"([^"]+)"\s*(.*)$') {
+        return @($matches[1], $matches[2].Trim())
+    } elseif ($raw -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        return @($matches[1], $matches[2].Trim())
+    }
+    return @($raw, "")
+}
 
 $exitCode = $null
 
@@ -33,24 +33,35 @@ try {
     -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath }
 
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -eq $softwareName) {
-        $raw = $key.QuietUninstallString
-        if (-not $raw) { $raw = $key.UninstallString }
-        if (-not $raw) { continue }
+[array]$entries = $uninstallKeys | Where-Object { $_.DisplayName -eq $softwareName }
 
-        # Parse into executable + args, handling quoted/unquoted/bare shapes.
-        if ($raw -match '^\s*"([^"]+)"\s*(.*)$') {
-            $exe = $matches[1]; $exeArgs = $matches[2].Trim()
-        } elseif ($raw -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-            $exe = $matches[1]; $exeArgs = $matches[2].Trim()
-        } else {
-            $exe = $raw; $exeArgs = ""
-        }
+# Prefer the burn bundle entry (non-msiexec .exe uninstaller): it removes the
+# whole chain, including the MSI. Fall back to the chained MSI entry.
+$bundle = $entries | Where-Object {
+    $raw = if ($_.QuietUninstallString) { $_.QuietUninstallString } else { $_.UninstallString }
+    $raw -and $raw -notmatch '(?i)msiexec'
+} | Select-Object -First 1
+$entry = if ($bundle) { $bundle } else { $entries | Select-Object -First 1 }
 
-        $exitCode = Invoke-Uninstaller -exe $exe -exeArgs $exeArgs
-        break
+if ($entry) {
+    $raw = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
+    $exe, $exeArgs = Split-UninstallString -raw $raw
+
+    if ($exe -match '(?i)msiexec') {
+        if ($exeArgs -notmatch '(?i)/(x|uninstall)') { $exeArgs = "/X $exeArgs" }
+        if ($exeArgs -notmatch '(?i)/(qn|quiet)') { $exeArgs = "$exeArgs /qn" }
+        if ($exeArgs -notmatch '(?i)/norestart') { $exeArgs = "$exeArgs /norestart" }
+    } else {
+        if ($exeArgs -notmatch '/uninstall') { $exeArgs = "/uninstall $exeArgs" }
+        if ($exeArgs -notmatch '/quiet')     { $exeArgs = "$exeArgs /quiet" }
+        if ($exeArgs -notmatch '/norestart') { $exeArgs = "$exeArgs /norestart" }
     }
+    $exeArgs = $exeArgs.Trim()
+
+    Write-Host "Uninstall command: $exe"
+    Write-Host "Uninstall args: $exeArgs"
+    $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait
+    $exitCode = $process.ExitCode
 }
 
 } catch {

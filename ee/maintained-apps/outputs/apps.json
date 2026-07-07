@@ -37,13 +37,6 @@
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
-      "name": "3DxWare 10",
-      "slug": "3dxware-10/windows",
-      "platform": "windows",
-      "unique_identifier": "3Dconnexion 3DxWare 10",
-      "description": "3DxWare 10 is 3Dconnexion's driver and configuration software for SpaceMouse and CadMouse devices."
-    },
-    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",

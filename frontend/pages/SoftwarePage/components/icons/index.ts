@@ -903,7 +903,6 @@ import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
 import Thorium from "./Thorium";
 import ThreeDfZephyrFree from "./3DfZephyrFree";
-import ThreeDxware10 from "./3Dxware10";
 import Threema from "./Threema";
 import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
@@ -1041,7 +1040,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "1password": OnePassword,
   "3d slicer": Slicer,
   "3df zephyr free": ThreeDfZephyrFree,
-  "3dxware 10": ThreeDxware10,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
   "4k video downloader": FourKVideoDownloader,
