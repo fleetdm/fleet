@@ -1539,7 +1539,19 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 }
 
 func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+	// Authorize like reading App Store apps (fleet.VPPApp struct) so
+	// maintainers and technicians can use the Add software > App Store picker,
+	// which reads the token list. This endpoint has no team parameter, so for
+	// team-scoped users we authorize against their first team (same approach as
+	// CreateAndroidWebApp).
+	var teamID *uint
+	if user := authz.UserFromContext(ctx); user != nil {
+		if len(user.Teams) > 0 {
+			teamID = &user.Teams[0].ID
+		}
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
