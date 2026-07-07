@@ -489,6 +489,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// We'll override this for teams other than no-team.
 		mdmConfig := fleet.TeamMDM{
 			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
+			FileVault:                  cmd.AppConfig.MDM.FileVault,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
 			RequireBitLockerPIN:        cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
@@ -530,10 +531,10 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 			cmd.FilesToWrite[fileName].(map[string]any)["settings"] = teamSettings
 
+			mdmConfig = team.Config.MDM
 			// Only add agent_options for regular teams (not "No Team")
 			if team.ID != 0 {
 				cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
-				mdmConfig = team.Config.MDM
 			}
 		}
 
@@ -1410,6 +1411,11 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
 			result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
+			// FileVault is a macOS-only override; only emit it when prompt_enablement_at
+			// is explicitly set so omitted/default (login) stays out of the generated YAML.
+			if teamMdm.FileVault != nil && teamMdm.FileVault.PromptEnablementAt.Valid && teamMdm.FileVault.PromptEnablementAt.Value != "" {
+				result[jsonFieldName(mdmT, "FileVault")] = teamMdm.FileVault
+			}
 		}
 
 		if teamId == nil || *teamId == 0 {

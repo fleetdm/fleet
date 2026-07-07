@@ -50,6 +50,11 @@ export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
   enable_disk_encryption: boolean;
+  /** macOS-only FileVault override layered on `enable_disk_encryption`. Tolerated
+  on reads; not rendered in the UI. */
+  filevault?: {
+    prompt_enablement_at?: string;
+  };
   enable_recovery_lock_password: boolean;
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and

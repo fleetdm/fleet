@@ -349,6 +349,8 @@ The `controls` section allows you to configure scripts and device management (MD
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for "All fleets" (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
+- `filevault` configures macOS-only FileVault overrides layered on `enable_disk_encryption` (macOS only; Windows BitLocker and Linux LUKS are unaffected). Available in Fleet Premium.
+  - `prompt_enablement_at` controls when macOS prompts for FileVault enablement: `login` (default) keeps Fleet's force-at-login and Setup Assistant enforcement; `logout` drops those force keys so an external login-time enabler (e.g. an authorization plugin that enables FileVault and escrows the key) owns turning FileVault on. Fleet still escrows the recovery key and keeps disk encryption from being disabled. `enable_disk_encryption` must be set to `true` for this to have any effect; when it's `false` no profile is pushed regardless of this value.
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
@@ -371,6 +373,8 @@ controls:
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
+  filevault: # Available in Fleet Premium (macOS only)
+    prompt_enablement_at: logout # "login" (default) or "logout"
   apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
   android_enabled_and_configured: true

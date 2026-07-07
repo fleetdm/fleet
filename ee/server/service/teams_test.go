@@ -711,7 +711,7 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 		return nil
 	}
 	ctx := test.UserContext(context.Background(),
-		&fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)})
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -734,6 +734,9 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 			// a regression that drops the gate would call into them on a
 			// Windows-only deployment and panic on the nil mock function.
 			if tc.appleEnabled {
+				ds.TeamMDMConfigFunc = func(_ context.Context, _ uint) (*fleet.TeamMDM, error) {
+					return &fleet.TeamMDM{}, nil
+				}
 				ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName,
 					_ sqlx.QueryerContext,
 				) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -745,6 +748,9 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 					_ []fleet.FleetVarName,
 				) (*fleet.MDMAppleConfigProfile, error) {
 					return &p, nil
+				}
+				ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
+					return nil
 				}
 			}
 
@@ -774,6 +780,124 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 			require.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
 			require.Equal(t, tc.appleEnabled, ds.NewMDMAppleConfigProfileFuncInvoked,
 				"FileVault profile creation must match Apple MDM configuration")
+		})
+	}
+}
+
+// TestModifyTeamFileVaultPromptEnablementAt covers the macOS-only
+// filevault.prompt_enablement_at override on the team PATCH endpoint: a
+// prompt-only change re-pushes the FileVault profile when disk encryption is on
+// and Apple MDM is configured, without emitting an on/off activity; and it does
+// nothing when disk encryption is off.
+func TestModifyTeamFileVaultPromptEnablementAt(t *testing.T) {
+	testCases := []struct {
+		name             string
+		diskEncryptionOn bool
+		appleEnabled     bool
+		newPrompt        string
+		wantRepush       bool
+		wantErr          string
+	}{
+		{
+			name:             "prompt flip with disk encryption on re-pushes profile",
+			diskEncryptionOn: true,
+			appleEnabled:     true,
+			newPrompt:        "logout",
+			wantRepush:       true,
+		},
+		{
+			name:             "prompt set with disk encryption off does nothing",
+			diskEncryptionOn: false,
+			appleEnabled:     true,
+			newPrompt:        "logout",
+			wantRepush:       false,
+		},
+		{
+			name:             "invalid prompt value is rejected",
+			diskEncryptionOn: true,
+			appleEnabled:     true,
+			newPrompt:        "bogus",
+			wantErr:          "mdm.filevault.prompt_enablement_at",
+		},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSvc := &svcmock.Service{}
+			var diskEncryptionActivities int
+			mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+				switch act.(type) {
+				case fleet.ActivityTypeEnabledMacosDiskEncryption, fleet.ActivityTypeDisabledMacosDiskEncryption:
+					diskEncryptionActivities++
+				}
+				return nil
+			}
+
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: tc.appleEnabled}}, nil
+			}
+			ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: tid, Name: "team-1", Config: fleet.TeamConfig{MDM: fleet.TeamMDM{
+					EnableDiskEncryption: tc.diskEncryptionOn,
+					// existing prompt defaults to login (unset)
+				}}}, nil
+			}
+			var savedTeam *fleet.Team
+			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				savedTeam = team
+				return team, nil
+			}
+			ds.TeamMDMConfigFunc = func(_ context.Context, _ uint) (*fleet.TeamMDM, error) {
+				return &fleet.TeamMDM{EnableDiskEncryption: tc.diskEncryptionOn}, nil
+			}
+			ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName,
+				_ sqlx.QueryerContext,
+			) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+					fleet.MDMAssetCACert: {Value: []byte(testCert)},
+				}, nil
+			}
+			ds.NewMDMAppleConfigProfileFunc = func(_ context.Context, p fleet.MDMAppleConfigProfile,
+				_ []fleet.FleetVarName,
+			) (*fleet.MDMAppleConfigProfile, error) {
+				return &p, nil
+			}
+			ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
+				return nil
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+				authz:   authorizer,
+			}
+
+			payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+				FileVault: &fleet.MDMFileVaultSettings{PromptEnablementAt: optjson.SetString(tc.newPrompt)},
+			}}
+			_, err := svc.ModifyTeam(ctx, 1, payload)
+
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantRepush, ds.NewMDMAppleConfigProfileFuncInvoked,
+				"profile re-push must match expectation")
+			// A prompt-only change must never emit an enabled/disabled activity.
+			require.Zero(t, diskEncryptionActivities,
+				"prompt-only change must not emit a disk encryption on/off activity")
+			// Verify the requested prompt value was persisted on the team.
+			require.NotNil(t, savedTeam)
+			require.Equal(t, tc.newPrompt, savedTeam.Config.MDM.FileVault.PromptEnablementAt.Value)
 		})
 	}
 }

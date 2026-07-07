@@ -224,6 +224,13 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, id uint) (*fleet.TeamMDM, error) {
+			if tm, ok := teamStore[id]; ok {
+				mdm := tm.Config.MDM
+				return &mdm, nil
+			}
+			return &fleet.TeamMDM{}, nil
+		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}

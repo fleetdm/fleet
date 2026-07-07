@@ -1627,3 +1627,85 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	})
 	require.NotZero(t, finalProfileID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
 }
+
+// TestFileVaultPromptEnablementAt verifies the macOS-only
+// filevault.prompt_enablement_at override: logout drops the two FileVault2 force
+// keys (while keeping escrow, cert root and dontAllowFDEDisable), login/unset is
+// byte-identical to the current profile, and a prompt-only flip re-pushes the
+// profile in place.
+func (s *integrationMDMTestSuite) TestFileVaultPromptEnablementAt() {
+	t := s.T()
+
+	s.appleCoreCertsSetup()
+
+	const (
+		forceLoginKey = "DeferForceAtUserLoginMaxBypassAttempts"
+		forceSetupKey = "ForceEnableInSetupAssistant"
+	)
+
+	readFVProfile := func() string {
+		prof := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+		return string(prof.Mobileconfig)
+	}
+
+	// This suite shares state across tests, and an earlier test may have already
+	// enabled disk encryption (leaving the FileVault profile in place). Reset to a
+	// known-clean slate so the enable below pushes a fresh profile rather than
+	// hitting a "profile already exists" conflict.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": false }
+	}`), http.StatusOK)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`DELETE FROM mdm_apple_configuration_profiles WHERE identifier = ? AND team_id = 0`,
+			mobileconfig.FleetFileVaultPayloadIdentifier)
+		return err
+	})
+	// Leave disk encryption off for subsequent tests in the shared suite.
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "enable_disk_encryption": false }
+		}`), http.StatusOK)
+	})
+
+	// Enable disk encryption with the default (login): byte-stable, force keys present.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	loginProfile := readFVProfile()
+	require.Contains(t, loginProfile, forceLoginKey)
+	require.Contains(t, loginProfile, forceSetupKey)
+	require.Contains(t, loginProfile, "dontAllowFDEDisable")
+	require.Contains(t, loginProfile, "FileVault Recovery Key Escrow")
+	require.Contains(t, loginProfile, "Certificate Root")
+
+	// Flip prompt_enablement_at to logout with disk encryption still on:
+	// the profile is re-pushed in place (identifier unchanged) with the force keys
+	// dropped but everything else intact.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "filevault": { "prompt_enablement_at": "logout" } }
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	logoutProfile := readFVProfile()
+	require.NotContains(t, logoutProfile, forceLoginKey)
+	require.NotContains(t, logoutProfile, forceSetupKey)
+	require.Contains(t, logoutProfile, "<key>Defer</key>")
+	require.Contains(t, logoutProfile, "<string>On</string>")
+	require.Contains(t, logoutProfile, "dontAllowFDEDisable")
+	require.Contains(t, logoutProfile, "FileVault Recovery Key Escrow")
+	require.Contains(t, logoutProfile, "Certificate Root")
+	// logout == login minus exactly the two force keys.
+	forceBlock := "\n\t\t\t<key>" + forceLoginKey + "</key>\n\t\t\t<integer>0</integer>\n\t\t\t<key>" + forceSetupKey + "</key>\n\t\t\t<true/>"
+	require.Equal(t, strings.Replace(loginProfile, forceBlock, "", 1), logoutProfile)
+
+	// Flip back to login: force keys return and the profile is byte-identical to
+	// the original login profile (no churn for existing installs).
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "filevault": { "prompt_enablement_at": "login" } }
+	}`), http.StatusOK, &acResp)
+	require.Equal(t, loginProfile, readFVProfile())
+}

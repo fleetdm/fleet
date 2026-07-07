@@ -1338,22 +1338,33 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
+	shorthandChanged := appConfig.MDM.EnableDiskEncryption.Valid &&
+		oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value
+	promptChanged := oldAppConfig.MDM.FileVaultPromptEnablementAt() != appConfig.MDM.FileVaultPromptEnablementAt()
+	if shorthandChanged || (promptChanged && appConfig.MDM.EnableDiskEncryption.Value) {
 		if oldAppConfig.MDM.EnabledAndConfigured {
-			var act fleet.ActivityDetails
 			if appConfig.MDM.EnableDiskEncryption.Value {
-				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
 				}
 			} else {
-				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+			// Only emit the enabled/disabled activity when the shorthand actually
+			// changed; a prompt-only change re-pushes the profile in place without
+			// an on/off activity.
+			if shorthandChanged {
+				var act fleet.ActivityDetails
+				if appConfig.MDM.EnableDiskEncryption.Value {
+					act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+				} else {
+					act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+				}
+				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+				}
 			}
 		}
 	}
@@ -1714,6 +1725,14 @@ func (svc *Service) validateMDM(
 ) error {
 	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
 		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	}
+	if mdm.FileVault != nil && !lic.IsPremium() && mdm.FileVault.PromptEnablementAt.Valid && mdm.FileVault.PromptEnablementAt.Value != "" &&
+		(oldMdm.FileVault == nil || oldMdm.FileVault.PromptEnablementAt.Value != mdm.FileVault.PromptEnablementAt.Value) {
+		// Only reject when the PATCH actually modifies the value (like adjacent SSO/setup checks).
+		invalid.Append("filevault.prompt_enablement_at", ErrMissingLicense.Error())
+	}
+	if mdm.FileVault != nil && mdm.FileVault.PromptEnablementAt.Valid && !fleet.ValidFileVaultPromptEnablementAt(mdm.FileVault.PromptEnablementAt.Value) {
+		invalid.Append("filevault.prompt_enablement_at", `must be "login" or "logout"`)
 	}
 	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())

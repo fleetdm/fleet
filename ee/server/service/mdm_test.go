@@ -44,6 +44,17 @@ func setup(t *testing.T) (*mock.Store, *Service) {
 		}, nil
 	}
 
+	// FileVault enable resolves prompt_enablement_at; default to login (today's behavior).
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &fleet.TeamMDM{}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(_ context.Context, _ *uint, _ string) error {
+		return nil
+	}
+
 	svc := &Service{
 		ds: ds,
 	}

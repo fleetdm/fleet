@@ -3056,6 +3056,42 @@ reports:
 	})
 }
 
+func TestGitOpsControlsFileVaultPromptEnablementAt(t *testing.T) {
+	t.Parallel()
+
+	writeAndParse := func(t *testing.T, controls string) *GitOps {
+		t.Helper()
+		dir := t.TempDir()
+		config := getGlobalConfig([]string{"controls"}) + controls
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		return result
+	}
+
+	t.Run("explicit logout round-trips", func(t *testing.T) {
+		t.Parallel()
+		result := writeAndParse(t, `controls:
+  enable_disk_encryption: true
+  filevault:
+    prompt_enablement_at: logout
+`)
+		fv, ok := result.Controls.FileVault.(map[string]any)
+		require.True(t, ok, "filevault block not parsed")
+		assert.Equal(t, "logout", fv["prompt_enablement_at"])
+		assert.True(t, result.Controls.Set())
+	})
+
+	t.Run("omitted block leaves filevault unset (defaults to login)", func(t *testing.T) {
+		t.Parallel()
+		result := writeAndParse(t, `controls:
+  enable_disk_encryption: true
+`)
+		assert.Nil(t, result.Controls.FileVault, "filevault should be unset when the block is omitted")
+	})
+}
+
 func TestGitOpsGlobScripts(t *testing.T) {
 	t.Parallel()
 

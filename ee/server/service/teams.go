@@ -204,6 +204,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		iPadOSMinVersionUpdated         bool
 		windowsUpdatesUpdated           bool
 		macOSDiskEncryptionUpdated      bool
+		macOSFileVaultPromptUpdated     bool
 		recoveryLockPasswordUpdated     bool
 		macOSEnableEndUserAuthUpdated   bool
 		macOSManagedLocalAccountUpdated bool
@@ -308,6 +309,21 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			// On Windows-only deployments the flag still controls BitLocker enforcement via the Windows MDM path.
 			macOSDiskEncryptionUpdated = diskEncryptionUpdated && appCfg.MDM.EnabledAndConfigured
 			team.Config.MDM.EnableDiskEncryption = payload.MDM.EnableDiskEncryption.Value
+		}
+
+		if payload.MDM.FileVault != nil && payload.MDM.FileVault.PromptEnablementAt.Valid {
+			if !fleet.ValidFileVaultPromptEnablementAt(payload.MDM.FileVault.PromptEnablementAt.Value) {
+				return nil, fleet.NewInvalidArgumentError("mdm.filevault.prompt_enablement_at",
+					`must be "login" or "logout"`)
+			}
+			promptUpdated := team.Config.MDM.FileVaultPromptEnablementAt() != payload.MDM.FileVault.PromptEnablementAt.Value
+			if team.Config.MDM.FileVault == nil {
+				team.Config.MDM.FileVault = &fleet.MDMFileVaultSettings{}
+			}
+			team.Config.MDM.FileVault.PromptEnablementAt = payload.MDM.FileVault.PromptEnablementAt
+			// A prompt-only change re-pushes the macOS FileVault profile when disk
+			// encryption is on and Apple MDM is configured. It does not toggle on/off.
+			macOSFileVaultPromptUpdated = promptUpdated && team.Config.MDM.EnableDiskEncryption && appCfg.MDM.EnabledAndConfigured
 		}
 
 		if payload.MDM.EnableRecoveryLockPassword.Valid {
@@ -584,21 +600,28 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
 		}
 	}
-	if macOSDiskEncryptionUpdated {
-		var act fleet.ActivityDetails
+	if macOSDiskEncryptionUpdated || macOSFileVaultPromptUpdated {
 		if team.Config.MDM.EnableDiskEncryption {
-			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
 			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 			}
 		} else {
-			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
 			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		// Only emit the enabled/disabled activity when the shorthand actually
+		// changed; a prompt-only change re-pushes the profile without an on/off activity.
+		if macOSDiskEncryptionUpdated {
+			var act fleet.ActivityDetails
+			if team.Config.MDM.EnableDiskEncryption {
+				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			} else {
+				act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+			}
 		}
 	}
 	if recoveryLockPasswordUpdated {
@@ -1511,6 +1534,9 @@ func (svc *Service) createTeamFromSpec(
 	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
 	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
+	if spec.MDM.FileVault != nil && spec.MDM.FileVault.PromptEnablementAt.Valid && !fleet.ValidFileVaultPromptEnablementAt(spec.MDM.FileVault.PromptEnablementAt.Value) {
+		invalid.Append("mdm.filevault.prompt_enablement_at", `must be "login" or "logout"`)
+	}
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -1577,6 +1603,7 @@ func (svc *Service) createTeamFromSpec(
 			Features:     features,
 			MDM: fleet.TeamMDM{
 				EnableDiskEncryption:       enableDiskEncryption,
+				FileVault:                  spec.MDM.FileVault,
 				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
 				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
 				MacOSUpdates:               spec.MDM.MacOSUpdates,
@@ -1753,6 +1780,21 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
 	didUpdateDiskEncryption := team.Config.MDM.EnableDiskEncryption != oldEnableDiskEncryption
+
+	// macOS-only FileVault prompt override. Validate, apply, and detect a change
+	// so a prompt-only edit re-pushes the profile when disk encryption is on.
+	var didUpdateFileVaultPrompt bool
+	if spec.MDM.FileVault != nil && spec.MDM.FileVault.PromptEnablementAt.Valid {
+		if !fleet.ValidFileVaultPromptEnablementAt(spec.MDM.FileVault.PromptEnablementAt.Value) {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.filevault.prompt_enablement_at",
+				`must be "login" or "logout"`))
+		}
+		didUpdateFileVaultPrompt = team.Config.MDM.FileVaultPromptEnablementAt() != spec.MDM.FileVault.PromptEnablementAt.Value
+		if team.Config.MDM.FileVault == nil {
+			team.Config.MDM.FileVault = &fleet.MDMFileVaultSettings{}
+		}
+		team.Config.MDM.FileVault.PromptEnablementAt = spec.MDM.FileVault.PromptEnablementAt
+	}
 
 	if didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
@@ -2006,22 +2048,30 @@ func (svc *Service) editTeamFromSpec(
 		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 
-	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
+	if appCfg.MDM.EnabledAndConfigured &&
+		(didUpdateDiskEncryption || (didUpdateFileVaultPrompt && team.Config.MDM.EnableDiskEncryption)) {
 		// TODO: Are we missing an activity or anything else for BitLocker here?
-		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableDiskEncryption {
-			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
 			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 			}
 		} else {
-			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
 			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		// Only emit the enabled/disabled activity when the shorthand actually
+		// changed; a prompt-only change re-pushes the profile without an on/off activity.
+		if didUpdateDiskEncryption {
+			var act fleet.ActivityDetails
+			if team.Config.MDM.EnableDiskEncryption {
+				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			} else {
+				act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+			}
 		}
 	}
 
