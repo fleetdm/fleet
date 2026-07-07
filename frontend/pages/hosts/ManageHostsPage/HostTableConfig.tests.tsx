@@ -89,7 +89,7 @@ describe("getPrimaryDeviceUser", () => {
     }));
     const { tooltipLines } = getPrimaryDeviceUser(users);
     expect(tooltipLines).toHaveLength(5);
-    expect(tooltipLines).not.toContain(expect.stringContaining("more"));
+    expect(tooltipLines.some((line) => line.includes("more"))).toBe(false);
   });
 });
 
