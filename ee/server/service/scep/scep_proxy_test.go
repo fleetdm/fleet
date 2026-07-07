@@ -1166,12 +1166,6 @@ func TestValidateIdentifier(t *testing.T) {
 	})
 }
 
-type fakeTimeoutError struct{}
-
-func (fakeTimeoutError) Error() string   { return "i/o timeout" }
-func (fakeTimeoutError) Timeout() bool   { return true }
-func (fakeTimeoutError) Temporary() bool { return true }
-
 func TestClassifySCEPProxyError(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -1181,7 +1175,7 @@ func TestClassifySCEPProxyError(t *testing.T) {
 		{"nil", nil, "unknown error"},
 		{"deadline exceeded", context.DeadlineExceeded, "timeout"},
 		{"wrapped deadline", fmt.Errorf("doing PKIOperation: %w", context.DeadlineExceeded), "timeout"},
-		{"net timeout", fakeTimeoutError{}, "timeout"},
+		{"net timeout", os.ErrDeadlineExceeded, "timeout"}, // implements net.Error with Timeout() == true
 		{"http 500", errors.New("http request failed with status 500 Internal Server Error, msg: boom"), "HTTP 500"},
 		{"http 403", errors.New("http request failed with status 403 Forbidden, msg: denied"), "HTTP 403"},
 		{"connection refused", errors.New("dial tcp 10.0.0.1:80: connect: connection refused"), "connection refused"},
@@ -1200,67 +1194,59 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 		return &scepProxyService{ds: ds, debugLogger: logger}
 	}
 	const winID = "host-uuid,w-profile-uuid,ca,challenge"
+	upstreamErr := errors.New("http request failed with status 500 Internal Server Error, msg: boom")
 
 	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		var gotDetail string
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
+		ds.SetMDMWindowsHostProfileFailedFunc = func(_ context.Context, hostUUID, profileUUID, detail string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "w-profile-uuid", profileUUID)
 			gotDetail = detail
 			return nil
 		}
-		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation",
-			errors.New("http request failed with status 500 Internal Server Error, msg: boom"))
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
 		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
 		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
 	})
 
-	t.Run("skips a canceled upstream error", func(t *testing.T) {
+	t.Run("records with a live context even when the request deadline is exceeded", func(t *testing.T) {
 		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
-			t.Fatal("must not record a failure for a canceled context")
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, _, _, _ string) error {
+			// The write must be detached from the expired request context (WithoutCancel), or it would fail to persist
+			// the failure we just observed. This assertion is what actually guards that detach.
+			assert.NoError(t, ctx.Err())
 			return nil
 		}
-		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", context.Canceled)
-		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
-	})
-
-	t.Run("skips when the request context is canceled", func(t *testing.T) {
-		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
-			t.Fatal("must not record a failure when the request ctx is canceled")
-			return nil
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation",
-			errors.New("http request failed with status 500 Internal Server Error"))
-		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
-	})
-
-	t.Run("still records when the request context deadline is exceeded", func(t *testing.T) {
-		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
-			return nil
-		}
-		// A deadline-exceeded request ctx (common right after an upstream timeout) must NOT skip the write: the failure
-		// is real and the write detaches from the request deadline. Only true cancellation is skipped.
+		// Deadline already in the past (as after an upstream timeout): ctx.Err() is DeadlineExceeded, which must NOT
+		// skip recording - only true cancellation does.
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 		defer cancel()
-		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation",
-			errors.New("http request failed with status 500 Internal Server Error"))
-		assert.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", upstreamErr)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
 	})
 
-	t.Run("skips non-Windows profiles", func(t *testing.T) {
-		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, hostUUID, profileUUID, detail string) error {
-			t.Fatal("must not record a failure for a non-Windows profile")
-			return nil
-		}
-		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), "host-uuid,a-apple-profile,ca,challenge", "PKIOperation",
-			errors.New("http request failed with status 500 Internal Server Error"))
-		assert.False(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
-	})
+	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
+	canceledCtx, cancelFn := context.WithCancel(context.Background())
+	cancelFn()
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		id   string
+		err  error
+	}{
+		{"a canceled upstream error", context.Background(), winID, context.Canceled},
+		{"a canceled request context", canceledCtx, winID, upstreamErr},
+		{"a non-Windows profile", context.Background(), "host-uuid,a-apple-profile,ca,challenge", upstreamErr},
+		{"a malformed identifier", context.Background(), "garbage-without-commas", upstreamErr},
+	} {
+		t.Run("skips "+tc.name, func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.SetMDMWindowsHostProfileFailedFunc = func(context.Context, string, string, string) error {
+				t.Fatalf("must not record a failure for %s", tc.name)
+				return nil
+			}
+			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", tc.err)
+		})
+	}
 }

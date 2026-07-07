@@ -233,10 +233,6 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 	}
 	res, err := client.GetCACaps(ctx)
 	if err != nil {
-		// Deliberately NOT recorded as a profile failure: GetCACaps fetches CA-wide capabilities, so an error here
-		// (CA momentarily unreachable) is not specific to any one profile and would mass-fail every in-flight
-		// enrollment on a transient blip. The verification backstop marks such profiles failed once their cert is
-		// confirmed missing. Only PKIOperation errors are per-profile and recorded.
 		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", scepURL)
 	}
 	return res, nil
@@ -256,8 +252,6 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
-		// Not recorded as a profile failure for the same reason as GetCACaps: fetching the CA certificate is
-		// CA-wide, not per-profile. See the comment there and recordWindowsSCEPProxyFailure.
 		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", scepURL)
 	}
 	return res, num, nil
@@ -286,11 +280,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 }
 
 // recordWindowsSCEPProxyFailure marks a Windows SCEP profile "failed" when the proxy observes a per-profile upstream
-// error. It is called ONLY from PKIOperation (the certificate-signing step): errors from GetCACaps/GetCACert are
-// CA-wide rather than profile-specific, so recording them would mass-fail every in-flight enrollment on a transient CA
-// blip - those are left to the verification backstop instead. Scoped to Windows profiles (Apple/Android manage their
-// own status transitions). Best-effort: a failure to record is logged but does not change the error returned to the
-// device. If the device's own retry later succeeds, the observed certificate flips the profile back to "verified".
+// error.
 func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
 	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
 	// not an upstream CA failure and must not mark the profile failed. Genuine upstream timeouts arrive as

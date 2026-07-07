@@ -367,11 +367,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
-	// Whether osquery could read at least one user's certificate store in this report. The verification backstop
-	// below uses it to tell a genuinely-missing user-scoped SCEP certificate (a user store WAS readable and the cert
-	// isn't in it) apart from a user who simply isn't logged in (no user store readable, so we can't conclude
-	// anything). SINGLE-USER ASSUMPTION: we treat "any user cert observed" as "the target user's store was readable",
-	// which holds when the device has one primary user. See failStuckWindowsSCEPProfilesDB.
+	// Whether osquery could read at least one user's certificate store in this report. SINGLE-USER ASSUMPTION: we treat
+	// "any user cert observed" as "the target user's store was readable", which holds when the device has one primary
+	// user.
 	anyUserCertObserved := slices.ContainsFunc(certs, func(c *fleet.HostCertificateRecord) bool {
 		return c.Source == fleet.UserHostCertificate
 	})
@@ -422,9 +420,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		// A proxied Windows SCEP profile sits in "verifying" until the certificate it requested is observed on the host.
 		// The managed-cert updates above set not_valid_after/serial when a reported cert matched the profile's
 		// renewal-ID marker, so a matched-and-valid managed-cert row is the signal that the certificate landed. Flip
-		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error). Runs off the
-		// managed-cert state, not just this run's matches, so a profile whose cert was matched on an earlier report also
-		// converges.
+		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error).
 		if err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "verify windows scep profiles from observed certs")
 		}
@@ -446,7 +442,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 const windowsSCEPVerificationGracePeriod = time.Hour
 
 // windowsSCEPCertNotFoundDetail is the failure detail recorded when the verification backstop fires.
-const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate on the host after it was delivered."
+const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate on the host after profile was delivered."
 
 // failStuckWindowsSCEPProfilesDB is the verification backstop for proxied Windows SCEP profiles. It runs on certificate
 // ingestion (so an offline host, or one whose agent can't enumerate certificates, never ingests and is never failed)
