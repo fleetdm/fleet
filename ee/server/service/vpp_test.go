@@ -372,8 +372,14 @@ func TestGetVPPTokensScoping(t *testing.T) {
 	}
 
 	globalMaintainer := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+	// Technician can read installable entities but not write them, so it must be
+	// able to read the token list to use the picker (#46057 names this role).
+	globalTechnician := &fleet.User{GlobalRole: new(fleet.RoleTechnician)}
 	teamMaintainer1 := &fleet.User{Teams: []fleet.UserTeam{
 		{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+	}}
+	teamTechnician1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
 	}}
 	// Observer on the first team, maintainer on the second: must still be
 	// authorized (via team 2) and scoped to team 2, never team 1.
@@ -393,7 +399,9 @@ func TestGetVPPTokensScoping(t *testing.T) {
 	}{
 		{"global admin sees all", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, []uint{1, 2, 3, 4}},
 		{"global maintainer sees all", globalMaintainer, false, []uint{1, 2, 3, 4}},
+		{"global technician sees all", globalTechnician, false, []uint{1, 2, 3, 4}},
 		{"team maintainer scoped to team + all-teams", teamMaintainer1, false, []uint{1, 3}},
+		{"team technician scoped to team + all-teams", teamTechnician1, false, []uint{1, 3}},
 		{"observer-then-maintainer scoped to second team", observerThenMaintainer, false, []uint{2, 3}},
 		{"team observer forbidden", teamObserver1, true, nil},
 	}
