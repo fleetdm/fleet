@@ -453,15 +453,7 @@ const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate
 //   - User-scoped profiles (SyncML uses the ./User SCEP node): the certificate lives in a user's store, which osquery
 //     can read only while that user is logged in. We fail only when this report includes at least one user
 //     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
-//     ./User Windows profile targets (device-channel OMA-DM has no fixed target user, and Fleet's programmatic
-//     enrollment carries no user affinity), so we assume the device has one primary user and treat "any user cert
-//     observed" as "the target user's store was readable". On a multi-user device this can fail a user-scoped profile
-//     whose target user is logged out while another user is logged in; that self-heals to "verified" when the target
-//     user logs in and the certificate is observed. This assumption must be documented in the SCEP contributor docs.
-//
-// It never touches the retry counter (matching Fleet's failure conventions) and only affects install rows still in
-// "verifying"; the ingest flip promotes anything with an observed certificate to "verified" beforehand, and later
-// observation self-heals a wrongly-failed row.
+//     ./User Windows profile targets, so we assume the device has one primary user.
 func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) error {
 	caTypes := fleet.ListCATypesWithRenewalIDSupport()
 	caTypeStrs := make([]string, 0, len(caTypes))
@@ -473,9 +465,7 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 	var query string
 	var args []any
 	if anyUserCertObserved {
-		// The LocalMachine store is always readable and this report proves a user store was readable too, so under
-		// the single-user assumption every proxied SCEP profile's store was reachable: fail device- and user-scoped
-		// profiles alike. No need to inspect the profile's SyncML scope.
+		// System and user scope observed. No need to inspect the profile's SyncML scope.
 		query = `
 			UPDATE host_mdm_windows_profiles hwmp
 			JOIN host_mdm_managed_certificates hmmc
@@ -523,10 +513,11 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 }
 
 // verifyWindowsSCEPProfilesFromObservedCertsDB flips a host's proxied Windows SCEP install profiles from "verifying" or
-// "failed" to "verified" when their managed-certificate row carries a currently-valid observed certificate (matched by
-// renewal-ID marker in UpdateHostCertificates). It clears the detail and preserves the retry counter, matching Fleet's
-// convention that the "verified" transition never resets retries. Scoped to renewal-ID CA types so non-proxied and
-// server-issued (DigiCert) profiles are untouched, and never overwrites an already-"verified" row.
+// "failed" to "verified" once their managed-certificate row shows a certificate was observed (its serial/validity dates
+// were populated by the renewal-ID matcher in UpdateHostCertificates). Current validity is intentionally NOT required:
+// observing that the CA issued a certificate matching this profile's renewal-ID proves the enrollment succeeded, so we
+// mark it verified regardless of the certificate's lifetime. A short-lived certificate that has since expired is a
+// renewal concern (handled by RenewMDMManagedCertificates), not a verification failure.
 func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	caTypes := fleet.ListCATypesWithRenewalIDSupport()
 	caTypeStrs := make([]string, 0, len(caTypes))
@@ -542,9 +533,7 @@ func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.E
 			AND hwmp.operation_type = ?
 			AND hwmp.status IN (?, ?)
 			AND hmmc.type IN (?)
-			AND hmmc.not_valid_after IS NOT NULL
-			AND hmmc.not_valid_after > NOW()
-			AND (hmmc.not_valid_before IS NULL OR hmmc.not_valid_before <= NOW())`,
+			AND hmmc.not_valid_after IS NOT NULL`,
 		fleet.MDMDeliveryVerified, hostUUID, fleet.MDMOperationTypeInstall,
 		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed, caTypeStrs)
 	if err != nil {
