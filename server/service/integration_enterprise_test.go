@@ -21025,10 +21025,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	// Count is the total number of platform-specific maintained apps: an app's
-	// macOS and Windows entries are counted separately, even though the UI
-	// combines them into a single row. The full unfiltered list returns one row
-	// per app, so the count equals the number of rows returned.
+	// Count is the total number of installable platform entries: an app's macOS
+	// and Windows entries are separately installable (one Add button each), so
+	// they count separately even though the UI combines them into a single row.
+	// The unfiltered list returns every platform row, so here the count equals the
+	// number of rows returned.
 	require.Equal(t, len(expectedApps), listMAResp.Count)
 
 	sortFMAs := func(a, b fleet.MaintainedApp) int {

@@ -284,12 +284,6 @@ const (
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
 
-	// APPRU query param expected by STS Auth endpoint
-	STSAuthAppRu = "appru"
-
-	// Login related query param expected by STS Auth endpoint
-	STSLoginHint = "login_hint"
-
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"
 

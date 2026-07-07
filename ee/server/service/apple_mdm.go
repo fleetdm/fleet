@@ -68,6 +68,7 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		idpAccount.Email,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")

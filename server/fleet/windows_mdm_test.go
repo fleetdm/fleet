@@ -11,9 +11,10 @@ import (
 
 func TestValidateUserProvided(t *testing.T) {
 	tests := []struct {
-		name    string
-		profile MDMWindowsConfigProfile
-		wantErr string
+		name                      string
+		profile                   MDMWindowsConfigProfile
+		allowCustomDiskEncryption bool
+		wantErr                   string
 	}{
 		{
 			name: "Valid XML with Replace",
@@ -928,11 +929,25 @@ func TestValidateUserProvided(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "BitLocker LocURI allowed when custom disk encryption is enabled",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/BitLocker/Foo</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			allowCustomDiskEncryption: true,
+			wantErr:                   "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.profile.ValidateUserProvided()
+			err := tt.profile.ValidateUserProvided(tt.allowCustomDiskEncryption)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {

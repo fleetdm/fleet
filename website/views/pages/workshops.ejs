@@ -1,0 +1,147 @@
+<div id="workshops" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+      <div purpose="landing-page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>In-person Workshops</h4>
+            <h1>Earn a Fleet level 1 certificate</h1>
+          </div>
+          <div purpose="page-hero-text">
+            <p>Device management is evolving. Learn how to use Fleet to manage devices at scale with the latest tools and techniques.</p>
+          </div>
+          <div purpose="workshop-details">
+            <div purpose="details-box">
+              <img alt="A stopwatch" src="/images/icon-timer-21x24@2x.png">
+              <p>Session</p>
+              <h4>4hrs</h4>
+            </div>
+            <div purpose="details-box">
+              <img alt="An icon representing a person" src="/images/icon-person-19x24@2x.png">
+              <p>Persons</p>
+              <h4>~7</h4>
+            </div>
+            <div purpose="details-box">
+              <img alt="$" src="/images/icon-dollar-sign-19x32@2x.png">
+              <p>Price</p>
+              <h4>Free</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="photo-carousel">
+        <div purpose="carousel-viewport">
+          <div purpose="carousel-track" :class="[ !animate ? 'no-animate' : '' ]" :style="{ transform: 'translateX(calc((var(--slide-w) / 4 + var(--gap)) - ' + position + ' * (var(--slide-w) + var(--gap))))' }" @transitionend="handleTransitionEnd">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
+            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
+          </div>
+        </div>
+        <div purpose="controls-container">
+          <a purpose="carousel-prev" @click="clickCarouselIndicator('previous')">
+            <img alt="Previous" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+          </a>
+          <ol purpose="carousel-indicators">
+            <li :class="{ active: activeDot === 0 }" @click="clickGoToSlide(0)"></li>
+            <li :class="{ active: activeDot === 1 }" @click="clickGoToSlide(1)"></li>
+            <li :class="{ active: activeDot === 2 }" @click="clickGoToSlide(2)"></li>
+            <li :class="{ active: activeDot === 3 }" @click="clickGoToSlide(3)"></li>
+          </ol>
+          <a purpose="carousel-next" @click="clickCarouselIndicator('next')">
+            <img alt="Next" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+          </a>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="three-column-list">
+          <div purpose="feature">
+
+
+
+
+            <p purpose="feature-headline">What to expect</p>
+            <ul>
+              <li>Fleet level 1 workshops are 4-hour sessions intended for client platform engineers and system administrators.</li>
+              <li>Sessions are small, with an experienced device management instructor.</li>
+              <li>Afterwards, we head out for optional dinner with the group.</li>
+            </ul>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">What you’ll gain</p>
+            <ul>
+              <li>Practice skills used by top IT teams at leading tech companies</li>
+              <li>Earn a certificate you can add to your LinkedIn profile</li>
+              <li>Master the latest device management techniques, including declarative device management, <a href="/infrastructure-as-code">configuration as code</a>, and AI tools like Claude</li>
+            </ul>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">What you’ll need</p>
+            <ul>
+              <li>A laptop and web browser</li>
+              <li>A free <a href="https://github.com" target="_blank" no-icon>GitHub</a> account</li>
+              <li>A free trial account with Claude or comparable AI tool (optional)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Upcoming workshops</h2>
+          <p>Join our free, hands-on workshop and earn your Fleet Level 1 Certificate.</p>
+        </div>
+        <div purpose="event-cards">
+          <%if(futureGitopsWorkshops.length > 0){%>
+            <% for(let event of futureGitopsWorkshops) { %>
+              <div purpose="event-card">
+                  <p purpose="event-city">
+                    <%= event.type %>
+                  </p>
+                <div purpose="event-details">
+                  <div purpose="event-time">
+                  <img alt="Calendar icon" src="/images/icon-calendar-16x16@2x.png">
+                  <p>
+                    <%= event.eventTime %>
+                  </p>
+                  </div>
+                  <div purpose="event-location">
+                  <img alt="Location icon" src="/images/icon-location-16x16@2x.png">
+                  <p>
+                    <%= event.workshopCity %>
+                  </p>
+                  </div>
+                </div>
+                <div purpose="event-link">
+                  <a href="<%= event.eventbriteLink %>" target="_blank">
+                    Join workshop
+                  </a>
+                </div>
+              </div>
+            <% } %>
+          <% } %>
+          <div purpose="event-cta">
+            <div>
+              <h3>Nothing nearby?</h3>
+              <p>Request a workshop in your area.</p>
+            </div>
+            <a class="btn btn-primary" href="/contact#gitops">Request a workshop</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <cloud-city></cloud-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

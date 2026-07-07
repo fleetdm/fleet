@@ -94,6 +94,48 @@ describe("AddHostsModal", () => {
     expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
   });
 
+  it("renders enroll url input for macOS if mac mdm is enabled", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isMacMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "macOS" }));
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Company-owned")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Send this to your end users:/i)
+    ).toBeInTheDocument();
+
+    // Company-owned is selected by default — URL has no byod param
+    const urlInput = screen.getByDisplayValue(
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+    );
+    expect(urlInput).toBeInTheDocument();
+
+    // Switching to Personal (BYOD) appends byod=true
+    await user.click(screen.getByLabelText("Personal (BYOD)"));
+    const byodUrlInput = screen.getByDisplayValue(
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true`)
+    );
+    expect(byodUrlInput).toBeInTheDocument();
+  });
+
   it("renders enroll url input for ios & ipadOS if mac mdm is enabled", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
