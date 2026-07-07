@@ -438,5 +438,5 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="irenareedy">
 <meta name="title" value="🫧 Marketing">
