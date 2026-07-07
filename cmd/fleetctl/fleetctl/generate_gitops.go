@@ -2020,6 +2020,18 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			return nil, err
 		}
 
+		// A title with more than one custom package is written to its own package YAML
+		// file, referenced by a single path entry in the fleet file.
+		if len(softwareTitle.Packages) > 1 {
+			_, inSetup := setupSoftwareBySoftwareTitle[softwareTitle.ID]
+			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup)
+			if err != nil {
+				return nil, err
+			}
+			packages = append(packages, entry)
+			continue
+		}
+
 		var slug string
 
 		if softwareTitle.SoftwarePackage != nil {
@@ -2237,49 +2249,23 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		}
 
-		var labels []fleet.SoftwareScopeLabel
 		var labelKey string
+		var labelNames []string
 		if softwareTitle.SoftwarePackage != nil {
-			if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
-				labelKey = "labels_include_any"
-			}
-			if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
-				labelKey = "labels_exclude_any"
-			}
-			if len(softwareTitle.SoftwarePackage.LabelsIncludeAll) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsIncludeAll
-				labelKey = "labels_include_all"
-			}
+			sp := softwareTitle.SoftwarePackage
+			labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
 			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		} else {
-			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
-
-			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
-				labelKey = "labels_include_any"
-			}
-			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
-				labelKey = "labels_exclude_any"
-			}
-			if len(softwareTitle.AppStoreApp.LabelsIncludeAll) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsIncludeAll
-				labelKey = "labels_include_all"
-			}
-			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
+			app := softwareTitle.AppStoreApp
+			labelKey, labelNames = scopeLabels(app.LabelsIncludeAny, app.LabelsExcludeAny, app.LabelsIncludeAll)
+			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
-		if len(labels) > 0 {
-			labelsList := make([]string, len(labels))
-			for i, label := range labels {
-				labelsList[i] = label.LabelName
-			}
-			softwareSpec[labelKey] = labelsList
+		if labelKey != "" {
+			softwareSpec[labelKey] = labelNames
 		}
 
 		switch {
@@ -2308,6 +2294,87 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	return result, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool) (map[string]any, error) {
+	// Paths inside the package YAML file are resolved relative to that file, which
+	// lives in lib/<team>/software, so a sibling dir is reached with ../<dir>/<name>.
+	writeSideFile := func(dir string, name string, contents any) string {
+		cmd.FilesToWrite[fmt.Sprintf("lib/%s/%s/%s", teamFilename, dir, name)] = contents
+		return fmt.Sprintf("../%s/%s", dir, name)
+	}
+
+	items := make([]map[string]any, 0, len(title.Packages))
+	for i, pkg := range title.Packages {
+		prefix := fmt.Sprintf("%s-%s-%d", generateFilename(swName), pkg.Platform, i+1)
+		item := map[string]any{"hash_sha256": pkg.StorageID}
+		if pkg.URL != "" {
+			item["url"] = pkg.URL
+		}
+		if pkg.SelfService {
+			item["self_service"] = true
+		}
+		if len(pkg.Categories) > 0 {
+			item["categories"] = pkg.Categories
+		}
+		if pkg.InstallScript != "" {
+			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install", pkg.InstallScript)}
+		}
+		if pkg.PostInstallScript != "" {
+			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall", pkg.PostInstallScript)}
+		}
+		if pkg.UninstallScript != "" {
+			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall", pkg.UninstallScript)}
+		}
+		if pkg.PreInstallQuery != "" {
+			item["pre_install_query"] = map[string]any{"path": writeSideFile("queries", prefix+"-preinstallquery.yml", []map[string]any{{"query": pkg.PreInstallQuery}})}
+		}
+		if key, names := scopeLabels(pkg.LabelsIncludeAny, pkg.LabelsExcludeAny, pkg.LabelsIncludeAll); key != "" {
+			item[key] = names
+		}
+		items = append(items, item)
+	}
+
+	// The icon is per-title, so emit it once on the first package.
+	if downloadIcons && title.IconUrl != nil && strings.HasPrefix(*title.IconUrl, "/api") && len(items) > 0 {
+		icon, err := cmd.Client.GetSoftwareTitleIcon(title.ID, teamID)
+		if err != nil {
+			return nil, err
+		}
+		items[0]["icon"] = map[string]any{"path": writeSideFile("icons", generateFilename(swName)+"-icon.png", icon)}
+	}
+
+	// The fleet-level entry points at the package file relative to the fleet file.
+	packageFile := fmt.Sprintf("lib/%s/software/%s.package.yml", teamFilename, generateFilename(swName))
+	cmd.FilesToWrite[packageFile] = items
+	entry := map[string]any{"path": "../" + packageFile}
+	if inSetup {
+		entry["setup_experience"] = true
+	}
+	if title.DisplayName != "" {
+		entry["display_name"] = title.DisplayName
+	}
+	return entry, nil
+}
+
+func scopeLabels(includeAny []fleet.SoftwareScopeLabel, excludeAny []fleet.SoftwareScopeLabel, includeAll []fleet.SoftwareScopeLabel) (string, []string) {
+	var labels []fleet.SoftwareScopeLabel
+	var key string
+	switch {
+	case len(includeAny) > 0:
+		labels, key = includeAny, "labels_include_any"
+	case len(excludeAny) > 0:
+		labels, key = excludeAny, "labels_exclude_any"
+	case len(includeAll) > 0:
+		labels, key = includeAll, "labels_include_all"
+	default:
+		return "", nil
+	}
+	names := make([]string, len(labels))
+	for i, l := range labels {
+		names[i] = l.LabelName
+	}
+	return key, names
 }
 
 func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]any, error) {
