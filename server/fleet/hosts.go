@@ -1054,6 +1054,8 @@ type HostDetail struct {
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
 
+	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
+
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
 
