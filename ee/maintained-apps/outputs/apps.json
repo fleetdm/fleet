@@ -289,13 +289,6 @@
       "description": "Agent Ransack is a free file search tool for finding files on your PC or network drives."
     },
     {
-      "name": "AIMP",
-      "slug": "aimp/windows",
-      "platform": "windows",
-      "unique_identifier": "AIMP",
-      "description": "AIMP is a free audio player."
-    },
-    {
       "name": "Air Explorer",
       "slug": "air-explorer/windows",
       "platform": "windows",
@@ -658,13 +651,6 @@
       "platform": "darwin",
       "unique_identifier": "com.philandro.anydesk",
       "description": "AnyDesk is an app that allows connection to a computer remotely."
-    },
-    {
-      "name": "AnyDesk",
-      "slug": "anydesk/windows",
-      "platform": "windows",
-      "unique_identifier": "AnyDesk",
-      "description": "AnyDesk is a remote desktop application for accessing and supporting devices remotely."
     },
     {
       "name": "Any.do",
@@ -1981,13 +1967,6 @@
       "platform": "darwin",
       "unique_identifier": "com.houdah.CustomShortcuts",
       "description": "CustomShortcuts is a tool to customise menu item keyboard shortcuts."
-    },
-    {
-      "name": "CutePDF Writer",
-      "slug": "cutepdf-writer/windows",
-      "platform": "windows",
-      "unique_identifier": "CutePDF Writer",
-      "description": "CutePDF Writer is a virtual printer for creating PDFs from almost any application."
     },
     {
       "name": "Cyberduck",

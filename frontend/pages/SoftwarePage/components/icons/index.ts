@@ -27,7 +27,6 @@ import AffinityPhoto1 from "./AffinityPhoto1";
 import AffinityPublisher from "./AffinityPublisher";
 import AffinityPublisher1 from "./AffinityPublisher1";
 import AgentRansack from "./AgentRansack";
-import Aimp from "./Aimp";
 import Airbuddy from "./Airbuddy";
 import Aircall from "./Aircall";
 import Airdroid from "./Airdroid";
@@ -227,7 +226,6 @@ import Cursor from "./Cursor";
 import Cursorsense from "./Cursorsense";
 import Cursr from "./Cursr";
 import Customshortcuts from "./Customshortcuts";
-import CutepdfWriter from "./CutepdfWriter";
 import Cyberduck from "./Cyberduck";
 import Daisydisk from "./Daisydisk";
 import Dangerzone from "./Dangerzone";
@@ -1081,7 +1079,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "affinity publisher": AffinityPublisher1,
   "affinity publisher 2": AffinityPublisher,
   "agent ransack": AgentRansack,
-  aimp: Aimp,
   "air explorer": AirExplorer,
   airbuddy: Airbuddy,
   aircall: Aircall,
@@ -1283,7 +1280,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cursorsense: Cursorsense,
   cursr: Cursr,
   customshortcuts: Customshortcuts,
-  "cutepdf writer": CutepdfWriter,
   cyberduck: Cyberduck,
   daisydisk: Daisydisk,
   dangerzone: Dangerzone,

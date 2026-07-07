@@ -2,8 +2,9 @@
 #
 # The inner MSI sets ARPSYSTEMCOMPONENT, so the visible ARP entry is the
 # vendor-written key "Adobe AIR" whose UninstallString runs
-# "...\Adobe AIR Updater.exe" -arp:uninstall. We take that command from the
-# registry and add -silent to keep it quiet.
+# "...\Adobe AIR Updater.exe" -arp:uninstall. Run that command exactly as
+# registered: the updater rejects any extra switches ("too many arguments",
+# exit 2), including -silent.
 
 $softwareName = "Adobe AIR"
 
@@ -33,8 +34,6 @@ foreach ($key in $uninstallKeys) {
         } else {
             $exe = $raw; $exeArgs = ""
         }
-
-        if ($exeArgs -notmatch '(?i)-silent') { $exeArgs = "$exeArgs -silent".Trim() }
 
         Write-Host "Uninstall command: $exe"
         Write-Host "Uninstall args: $exeArgs"
