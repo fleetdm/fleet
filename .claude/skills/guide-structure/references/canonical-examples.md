@@ -41,7 +41,7 @@ Detailed notes on how each reference guide implements the skeleton from `SKILL.m
 - A callout about a strict requirement (`CommandUUID` must be unique) is placed as a **bold-lead sentence inline**, not a blockquote — blockquotes aren't mandatory for every gotcha; a bold lead sentence works when the gotcha is one sentence and directly inside the step it affects.
 - No Verify or Troubleshooting section — appropriate because the guide is a single API call with an obvious pass/fail (the request either 200s or it doesn't), and there's nothing failure-prone enough to warrant one. Don't add sections the task doesn't need.
 
-## articles/manage-boostrap-package-with-gitops.md
+## articles/manage-bootstrap-package-with-gitops.md
 
 - The shortest example: intro (2 sentences) → one `>` Note callout (fleets can't share bootstrap packages) → Prerequisites → three action-headed H2 steps → "More information" link. No Verify, no Troubleshooting.
 - Demonstrates that the skeleton compresses cleanly for a small task — don't pad a three-step guide with a Verify or Troubleshooting section just to look complete.
