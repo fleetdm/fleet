@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,6 +31,7 @@ func TestStatistics(t *testing.T) {
 		{"ConditionalAccessStatistics", testConditionalAccessStatistics},
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
 		{"GitOpsModeStatistics", testGitOpsModeStatistics},
+		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -840,4 +843,50 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.GitOpsModeEnabled)
 	assert.Equal(t, []string{}, stats.GitOpsModeExceptions)
+}
+
+func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// With no hosts, both counts are zero (not null/missing).
+	macOS, windows, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Zero(t, macOS)
+	assert.Zero(t, windows)
+
+	// Each host exercises one branch of the query; only enrolled, non-server, Fleet-MDM darwin/windows hosts are counted.
+	cases := []struct {
+		name     string
+		platform string
+		isServer bool
+		enrolled bool
+		mdmName  string // "" means no MDM data at all
+	}{
+		{"macOS Fleet MDM", "darwin", false, true, fleet.WellKnownMDMFleet},               // counted (macOS)
+		{"windows Fleet MDM", "windows", false, true, fleet.WellKnownMDMFleet},            // counted (Windows)
+		{"macOS third-party MDM", "darwin", false, true, fleet.WellKnownMDMIntune},        // excluded: not Fleet
+		{"macOS unenrolled/ABM pending", "darwin", false, false, fleet.WellKnownMDMFleet}, // excluded: not enrolled
+		{"windows server host", "windows", true, true, fleet.WellKnownMDMFleet},           // excluded: is_server
+		{"iOS Fleet MDM", "ios", false, true, fleet.WellKnownMDMFleet},                    // excluded: not macOS/Windows
+		{"macOS no MDM", "darwin", false, false, ""},                                      // excluded: no MDM data
+	}
+	for i, c := range cases {
+		key := fmt.Sprintf("mdm-stats-%d", i)
+		h := test.NewHost(t, ds, key, "", key, key, time.Now(), test.WithPlatform(c.platform))
+		if c.mdmName != "" {
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", false, c.mdmName, "", false), c.name)
+		}
+	}
+
+	// The counts flow through the full ShouldSendStatistics payload: 1 macOS and 1 Windows Fleet-MDM host.
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) { return nil, nil }
+	statsCtx := ctxerr.NewContext(ctx, eh)
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(statsCtx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledMacOS)
+	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledWindows)
 }
