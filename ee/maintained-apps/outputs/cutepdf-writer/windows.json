@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'CutePDF Writer' AND publisher = 'Acro Software Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CutePDF Writer' AND publisher = 'Acro Software Inc.' AND version_compare(version, '4.0') < 0);"
+      },
+      "installer_url": "https://www.cutepdf.com/download/CuteWriter.zip",
+      "install_script_ref": "5d9a3a02",
+      "uninstall_script_ref": "b685bcec",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "5d9a3a02": "# CutePDF Writer ships as a zip (CuteWriter.zip) containing the Inno Setup\n# installer (CuteWriter.exe) alongside the GPL Ghostscript PS2PDF converter\n# (converter.exe). Fleet downloads the zip to INSTALLER_PATH; this script\n# extracts the FULL zip and runs CuteWriter.exe from the extracted directory\n# so the setup can find and install the adjacent converter (without it the\n# printer produces no PDFs).\n\n$zipFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    $extractPath = Join-Path $env:TEMP \"CutePDFWriterInstall\"\n\n    if (Test-Path $extractPath) {\n        Remove-Item -Path $extractPath -Recurse -Force\n    }\n\n    Expand-Archive -Path $zipFilePath -DestinationPath $extractPath -Force\n\n    $setup = Get-ChildItem -Path $extractPath -Filter \"CuteWriter.exe\" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1\n    if (-not $setup) {\n        Write-Host \"Error: CuteWriter.exe not found under $extractPath\"\n        Exit 1\n    }\n\n    $process = Start-Process -FilePath $setup.FullName `\n        -ArgumentList \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\" `\n        -PassThru -Wait\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n\n    Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue\n\n    # 3010 = success, reboot required; 1641 = success, reboot initiated.\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n        Exit 0\n    }\n\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "b685bcec": "# Uninstalls CutePDF Writer.\n#\n# CutePDF registers under the key \"CutePDF Writer Installation\" with\n# DisplayName \"CutePDF Writer\". Its uninstaller is a custom printer-driver\n# remover (unInstcpw64.exe /uninstall), not an Inno unins000.exe; /s makes it\n# silent.\n\n$softwareName = \"CutePDF Writer\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $raw = $key.QuietUninstallString\n        if (-not $raw) { $raw = $key.UninstallString }\n        if (-not $raw) { continue }\n\n        # Parse into executable + args, handling quoted/unquoted/bare shapes.\n        if ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } else {\n            $exe = $raw; $exeArgs = \"\"\n        }\n\n        if ($exeArgs -notmatch '(?i)/uninstall') { $exeArgs = \"/uninstall $exeArgs\".Trim() }\n        if ($exeArgs -notmatch '(?i)(^|\\s)/s(\\s|$)') { $exeArgs = \"$exeArgs /s\".Trim() }\n\n        Write-Host \"Uninstall command: $exe\"\n        Write-Host \"Uninstall args: $exeArgs\"\n        $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait\n        $exitCode = $process.ExitCode\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\nExit $exitCode\n"
+  }
+}

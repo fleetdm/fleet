@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.7.9",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH' AND version_compare(version, '9.7.9') < 0);"
+      },
+      "installer_url": "https://download.anydesk.com/AnyDesk.exe",
+      "install_script_ref": "ba9c0d6f",
+      "uninstall_script_ref": "7c5d303e",
+      "sha256": "no_check",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "7c5d303e": "# Uninstalls AnyDesk.\n#\n# AnyDesk registers DisplayName \"AnyDesk\" (uninstall key also named \"AnyDesk\").\n# The uninstall runs the installed AnyDesk.exe with --remove; --silent keeps it\n# quiet. We take the executable from the registry UninstallString and force\n# those flags rather than trusting the registered arguments.\n\n$softwareName = \"AnyDesk\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $raw = $key.QuietUninstallString\n        if (-not $raw) { $raw = $key.UninstallString }\n        if (-not $raw) { continue }\n\n        # Parse into executable + args, handling quoted/unquoted/bare shapes.\n        if ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } else {\n            $exe = $raw; $exeArgs = \"\"\n        }\n\n        if ($exeArgs -notmatch '--remove') { $exeArgs = \"$exeArgs --remove\".Trim() }\n        if ($exeArgs -notmatch '--silent') { $exeArgs = \"$exeArgs --silent\".Trim() }\n\n        Write-Host \"Uninstall command: $exe\"\n        Write-Host \"Uninstall args: $exeArgs\"\n        $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait\n        $exitCode = $process.ExitCode\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\nExit $exitCode\n",
+    "ba9c0d6f": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# AnyDesk uses its own installer; NSIS-style /S does nothing. The silent\n# machine-wide install (per the winget manifest) is:\n#   AnyDesk.exe --install <path> --silent\n# The x86 build is the only one published and installs under Program Files (x86).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$installPath = \"${env:ProgramFiles(x86)}\\AnyDesk\"\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--install `\"$installPath`\" --silent --create-shortcuts\"\n  PassThru = $true\n  Wait = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
