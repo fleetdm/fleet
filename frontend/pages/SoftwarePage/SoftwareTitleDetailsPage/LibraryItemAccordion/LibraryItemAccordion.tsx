@@ -9,6 +9,7 @@ import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TruncatedTextList from "components/TruncatedTextList";
+import { IconNames } from "components/icons";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { InstallerType } from "interfaces/software";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
@@ -95,7 +96,9 @@ export interface ILibraryItemAccordionProps {
   /** Click handler for whichever badge is rendered per `badgeState`. The
    * consumer can branch on `badgeState` inside the callback if it needs to
    * differentiate (e.g. exact vs major-version pin); the row itself fires the
-   * same callback for all three. */
+   * same callback for all three. When undefined, the badge still renders but
+   * as a non-interactive span — used for FMA rows viewed by users without
+   * edit permission, so the pin state is visible without a bogus affordance. */
   onBadgeClick?: () => void;
   onLabelCountClick?: () => void;
   /** Click on the labels list in the expanded panel — opens the edit software
@@ -141,8 +144,7 @@ const LibraryItemAccordion = ({
 
   const labelCount = labels?.length ?? 0;
   const hasLabelScope = labelCount > 0;
-  const showAllHostsBadge =
-    isActive && !hasLabelScope && badgeState !== undefined;
+  const showAllHostsBadge = isActive && !hasLabelScope;
 
   const canExpand = isActive;
   const isExpanded = canExpand && expanded;
@@ -183,44 +185,43 @@ const LibraryItemAccordion = ({
     handler?.();
   };
 
+  // Only FMA rows receive a `badgeState`; the click handler is further gated
+  // on canEditSoftware. When the handler is present, render as a Button that
+  // opens the versions modal; when absent (observer viewing an FMA), render
+  // as a static span so the pin state stays visible without a bogus affordance.
+  const renderStatusBadge = (iconName: IconNames, label: string) => {
+    if (onBadgeClick) {
+      return (
+        <Button
+          variant="inverse"
+          size="small"
+          onClick={handleBadgeClick(onBadgeClick)}
+          className={`${baseClass}__badge-button`}
+        >
+          <Icon name={iconName} color="ui-fleet-black-75" />
+          <span>{label}</span>
+        </Button>
+      );
+    }
+    return (
+      <span
+        className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
+      >
+        <Icon name={iconName} color="ui-fleet-black-75" />
+        <span>{label}</span>
+      </span>
+    );
+  };
+
   const renderHeaderBadges = () => {
     if (!isActive) return null;
 
     return (
       <div className={`${baseClass}__badges`}>
-        {badgeState === "latest" && (
-          <Button
-            variant="inverse"
-            size="small"
-            onClick={handleBadgeClick(onBadgeClick)}
-            className={`${baseClass}__badge-button`}
-          >
-            <Icon name="refresh" color="ui-fleet-black-75" />
-            <span>Latest</span>
-          </Button>
-        )}
-        {badgeState === "pinned" && (
-          <Button
-            variant="inverse"
-            size="small"
-            onClick={handleBadgeClick(onBadgeClick)}
-            className={`${baseClass}__badge-button`}
-          >
-            <Icon name="pin" color="ui-fleet-black-75" />
-            <span>Pinned</span>
-          </Button>
-        )}
-        {badgeState === "majorVersion" && (
-          <Button
-            variant="inverse"
-            size="small"
-            onClick={handleBadgeClick(onBadgeClick)}
-            className={`${baseClass}__badge-button`}
-          >
-            <Icon name="pin" color="ui-fleet-black-75" />
-            <span>Major version</span>
-          </Button>
-        )}
+        {badgeState === "latest" && renderStatusBadge("refresh", "Latest")}
+        {badgeState === "pinned" && renderStatusBadge("pin", "Pinned")}
+        {badgeState === "majorVersion" &&
+          renderStatusBadge("pin", "Major version")}
         {hasLabelScope && (
           <TooltipWrapper
             tipContent={renderLabelCountTooltip()}
