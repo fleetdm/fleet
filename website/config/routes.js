@@ -764,6 +764,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
   'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',
