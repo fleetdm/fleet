@@ -1,15 +1,27 @@
 ---
-name: guide-structure
-description: Ensure Fleet how-to guides (articles/ with category "guides") follow the concise, step-by-step structure established by Fleet's best guides — short problem statement, prerequisites, inline gotcha callouts, task-based or numbered steps, optional verify/troubleshoot sections, no filler. Use when writing a new guide, converting a draft into a guide, or auditing/retrofitting an existing guide's structure. Trigger on requests like "write a guide for X," "format this as a guide," "check guide formatting," "audit our guides," "does this follow our guide structure," or when editing a file under articles/ tagged category "guides". This skill governs STRUCTURE — what sections exist, in what order, how steps are shown. For voice, grammar, and word choice, use the content-style skill instead; the two are meant to be used together. A strong signal this skill applies: the draft reads like an opinion piece, roundup, or narrative with no concrete steps an admin could follow — that's the exact anti-pattern this skill exists to catch.
+name: fleet-guide-formatting
+description: Ensure Fleet how-to guides (articles/ with meta category "guides") follow the concise, step-by-step structure established by Fleet's best guides — short problem statement, prerequisites, inline gotcha callouts, task-based or numbered steps, optional verify/troubleshoot sections, no filler. Use when writing a new guide, converting a draft into a guide, or auditing/retrofitting an existing guide's structure. Trigger on requests like "write a guide for X," "format this as a guide," "check guide formatting," "audit our guides," "does this follow our guide structure," or when editing a file under articles/ tagged category "guides". This skill governs STRUCTURE — what sections exist, in what order, how steps are shown. For voice, grammar, and word choice, use the content-style skill instead; the two are meant to be used together. Do NOT use this for articles, case studies, or announcements — those are different meta categories with their own conventions (articles use the fleet-article-formatting skill). If the piece's meta category is anything other than "guides", this format does not apply. A strong signal this skill applies: the draft reads like an opinion piece, roundup, or narrative with no concrete steps an admin could follow — that's the exact anti-pattern this skill exists to catch.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff*), Bash(git status*)
 effort: medium
 ---
 
-# Fleet guide structure
+# Fleet guide formatting
 
-A Fleet guide gets an admin to step 1, step 2, done. It is not a thought piece, a roundup, or an essay that happens to live in `articles/`. This skill captures the structural skeleton established across Fleet's best guides and gives a checklist for writing new guides or auditing existing ones.
+A Fleet guide gets an admin to step 1, step 2, done. It is not a thought piece, a roundup, or an essay that happens to live in `articles/`. This skill exists to do one job: let an admin find the exact step they need without reading past it. Every rule below serves that — this skill captures the structural skeleton established across Fleet's best guides and gives a checklist for writing new guides or auditing existing ones.
 
 This skill is about **structure only**: which sections exist, in what order, how steps are shown. For voice, tone, and grammar mechanics (sentence case, em dashes, filler words, Fleet terminology), use the `content-style` skill and its `references/style-rules.md` — apply both together when writing or reviewing a guide.
+
+## Scope — when this skill applies
+
+This format is for Fleet **guides only** — pieces published under `<meta name="category" value="guides">`: step-by-step procedures an admin follows to accomplish one task.
+
+It does **not** apply to:
+
+- **Articles** (`category` = `articles`) — thought-leadership, how-to essays, and comparison pieces. Use the `fleet-article-formatting` skill instead.
+- **Case studies** (`category` = `success stories`)
+- **Announcements** (`category` = `announcements`)
+
+Before applying this format, check the piece's `<meta name="category" ...>` value (or ask the author which category it's destined for). If it isn't `guides`, stop and don't impose this structure — flag the mismatch instead (see the mistagged-piece check in the audit checklist below).
 
 ## Canonical examples
 
