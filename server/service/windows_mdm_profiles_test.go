@@ -643,6 +643,40 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		assert.Equal(t, "windows", act.Platform)
 	})
 
+	t.Run("profile content update for a team-scoped profile", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 5)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		assert.Equal(t, syncML, []byte(updated.SyncML))
+		require.NotNil(t, updated.TeamID)
+		assert.EqualValues(t, 5, *updated.TeamID)
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		require.True(t, ok)
+		require.NotNil(t, act.TeamID)
+		assert.EqualValues(t, 5, *act.TeamID)
+		require.NotNil(t, act.TeamName)
+		assert.Equal(t, "team-5", *act.TeamName)
+	})
+
 	t.Run("profile content and labels update atomically in one call", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingProfile("Test Profile", 0)
@@ -738,6 +772,70 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarName("HOST_UUID"))
+	})
+
+	t.Run("OS-update profile restrictions apply on update the same as on create", func(t *testing.T) {
+		osUpdateSyncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Update/Install")
+
+		t.Run("update succeeds when OS updates are not already configured", func(t *testing.T) {
+			svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			existing := newExistingProfile("Test Profile", 0)
+
+			ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+				return existing, nil
+			}
+			var updated fleet.MDMWindowsConfigProfile
+			ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+				updated = p
+				return &p, nil
+			}
+
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+			require.NoError(t, err)
+			assert.Equal(t, osUpdateSyncML, []byte(updated.SyncML))
+		})
+
+		t.Run("update is rejected when OS updates are already configured", func(t *testing.T) {
+			svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			existing := newExistingProfile("Test Profile", 0)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{}
+				ac.MDM.WindowsEnabledAndConfigured = true
+				ac.MDM.WindowsUpdates = fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(2),
+				}
+				return ac, nil
+			}
+			ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+				return existing, nil
+			}
+			ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+				t.Fatal("should not reach the datastore update")
+				return nil, nil
+			}
+
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+			require.Error(t, err)
+			assert.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+		})
+
+		t.Run("update requires a premium license", func(t *testing.T) {
+			svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+			existing := newExistingProfile("Test Profile", 0)
+
+			ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+				return existing, nil
+			}
+			ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+				t.Fatal("should not reach the datastore update")
+				return nil, nil
+			}
+
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+			require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		})
 	})
 
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
