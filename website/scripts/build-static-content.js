@@ -843,9 +843,7 @@ module.exports = {
           command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
           dir: topLvlRepoPath,
         })).stdout)).getTime();
-        // Sanity check log to make sure we're checking out the full git history.
-        // TODO: remove before this pull request is ready to merge
-        console.log('open positions yaml:'+lastModifiedAt);
+
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
