@@ -279,10 +279,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 }
 
 // recordWindowsSCEPProxyFailure marks a Windows SCEP profile as "failed" when the proxy observes an upstream
-// certificate-authority error, so the failure surfaces instead of the profile lingering in "verifying". Scoped to
-// Windows profiles (Apple/Android manage their own status transitions). Best-effort: a failure to record is logged but
-// does not alter the error returned to the device. If the device's own SCEP retry later succeeds, the observed
-// certificate flips the profile back to "verified" (see verifyWindowsSCEPProfilesFromObservedCertsDB).
+// certificate-authority error. Scoped to Windows profiles (Apple/Android manage their own status transitions).
 func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
 	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
 	// not an upstream CA failure and must not mark the profile failed. The same canceled ctx would also fail the write.
@@ -298,6 +295,7 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 	if err := svc.ds.SetMDMWindowsHostProfileFailed(ctx, hostUUID, profileUUID, detail); err != nil {
 		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
 			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)
+		ctxerr.Handle(ctx, err)
 	}
 }
 
@@ -318,9 +316,7 @@ func parseHostAndProfileFromSCEPIdentifier(identifier string) (hostUUID, profile
 
 var scepProxyHTTPStatusRegex = regexp.MustCompile(`status (\d{3})`)
 
-// classifySCEPProxyError renders a short, stable, human-readable reason for a Windows profile's failure detail. It
-// never returns secrets or the proxy URL (the raw upstream error carries neither the challenge nor the URL): the SCEP
-// client reports non-2xx responses as "http request failed with status <code> ...".
+// classifySCEPProxyError renders a short, stable, human-readable reason for a Windows profile's failure detail.
 func classifySCEPProxyError(err error) string {
 	if err == nil {
 		return "unknown error"

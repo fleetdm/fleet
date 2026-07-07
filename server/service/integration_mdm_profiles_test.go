@@ -8493,7 +8493,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 			foundProfile = true
 			profileUUID = p.ProfileUUID
 			require.NotNil(t, p.Status)
-			assert.EqualValues(t, fleet.MDMDeliveryVerifying, *p.Status)
+			assert.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
