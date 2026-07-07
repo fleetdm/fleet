@@ -1735,11 +1735,10 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 		return nil
 	}
 	stmt, args, err := sqlx.In(`
-		INSERT INTO mdm_windows_configuration_profiles_prior_content (profile_uuid, checksum, syncml)
+		INSERT IGNORE INTO mdm_windows_configuration_profiles_prior_content (profile_uuid, checksum, syncml)
 		SELECT profile_uuid, checksum, syncml
 		FROM mdm_windows_configuration_profiles
-		WHERE profile_uuid IN (?)
-		ON DUPLICATE KEY UPDATE syncml = VALUES(syncml)`, profileUUIDs)
+		WHERE profile_uuid IN (?)`, profileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for prior-content retention")
 	}
