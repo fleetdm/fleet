@@ -74,6 +74,7 @@ TODO
 
 Then, add connect hide script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script). 
 
+Fleet's agent (fleetd) upgrades won't re-show the menu bar icon because upgrades don't touch the plist updated by the hide script.
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
