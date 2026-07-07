@@ -110,8 +110,8 @@ describe("LibraryItemAccordion", () => {
       "renders the %s badge as a static span (no bogus click affordance) when onBadgeClick is undefined",
       (state, label) => {
         renderAccordion({ badgeState: state, onBadgeClick: undefined });
-        // No button — clicking the pin on custom / App Store rows would go
-        // nowhere, so it should not look interactive.
+        // Observer viewing an FMA: the pin state stays visible but is not a
+        // click target, since observers can't open the versions modal.
         expect(
           screen.queryByRole("button", { name: label })
         ).not.toBeInTheDocument();

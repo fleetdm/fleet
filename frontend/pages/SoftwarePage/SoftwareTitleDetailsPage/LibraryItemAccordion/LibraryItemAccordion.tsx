@@ -96,8 +96,9 @@ export interface ILibraryItemAccordionProps {
   /** Click handler for whichever badge is rendered per `badgeState`. The
    * consumer can branch on `badgeState` inside the callback if it needs to
    * differentiate (e.g. exact vs major-version pin); the row itself fires the
-   * same callback for all three. When undefined, the badge renders as a
-   * non-interactive span (decorative label with no pointer/hover affordance). */
+   * same callback for all three. When undefined, the badge still renders but
+   * as a non-interactive span — used for FMA rows viewed by users without
+   * edit permission, so the pin state is visible without a bogus affordance. */
   onBadgeClick?: () => void;
   onLabelCountClick?: () => void;
   /** Click on the labels list in the expanded panel — opens the edit software
@@ -184,9 +185,10 @@ const LibraryItemAccordion = ({
     handler?.();
   };
 
-  // FMA versions modal is the only consumer that wires a click handler; for
-  // custom packages and App Store apps the badge is decorative, so render as a
-  // static span to avoid a bogus pointer/hover affordance.
+  // Only FMA rows receive a `badgeState`; the click handler is further gated
+  // on canEditSoftware. When the handler is present, render as a Button that
+  // opens the versions modal; when absent (observer viewing an FMA), render
+  // as a static span so the pin state stays visible without a bogus affordance.
   const renderStatusBadge = (iconName: IconNames, label: string) => {
     if (onBadgeClick) {
       return (
