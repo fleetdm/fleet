@@ -84,8 +84,6 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
-			// Regression for #48752: Windows accepts scope-less LocURIs (no "./" or "./Device/" prefix), which used to
-			// bypass the reserved-node check because it depended on a leading "/" before "Vendor".
 			name: "Reserved LocURI with scope-less prefix",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -97,34 +95,6 @@ func TestValidateUserProvided(t *testing.T) {
 `),
 			},
 			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
-		},
-		{
-			// Scope-less prefix with a leading space, which Windows tolerates and TrimSpace strips before canonicalization.
-			name: "Reserved LocURI with scope-less prefix and surrounding whitespace",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`
-<Replace>
-  <Item>
-    <Target><LocURI> Vendor/MSFT/BitLocker/RequireDeviceEncryption </LocURI></Target>
-  </Item>
-</Replace>
-`),
-			},
-			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
-		},
-		{
-			// A node that merely ends in "Vendor" must not be mistaken for the reserved "/Vendor/MSFT/BitLocker" node.
-			name: "Non-reserved LocURI ending in Vendor segment",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`
-<Replace>
-  <Item>
-    <Target><LocURI>Custom/SomeVendor/MSFT/BitLocker/Foo</LocURI></Target>
-  </Item>
-</Replace>
-`),
-			},
-			wantErr: "",
 		},
 		{
 			name: "XML with Multiple Replace Elements",

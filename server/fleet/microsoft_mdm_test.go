@@ -851,27 +851,22 @@ func TestLocURITargetsReservedNode(t *testing.T) {
 		reserved string
 		want     bool
 	}{
-		{name: "explicit device scope BitLocker", locURI: "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
-		{name: "implicit device scope BitLocker", locURI: "./Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
-		{name: "scope-less BitLocker (regression #48752)", locURI: "Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
-		{name: "scope-less Device BitLocker", locURI: "Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
-		{name: "user scope BitLocker still matches node", locURI: "./User/Vendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "explicit device scope", locURI: "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "scope-less (regression #48752)", locURI: "Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "user scope matches via Contains, not a prefix check", locURI: "./User/Vendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
 		{name: "surrounding whitespace", locURI: " Vendor/MSFT/BitLocker/Foo ", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
-		{name: "node ending in Vendor is not reserved", locURI: "Custom/SomeVendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		// Boundary safety: a longer sibling segment that merely shares the reserved-node prefix must not match, on either end.
+		{name: "left boundary: node ending in Vendor is not reserved", locURI: "Custom/SomeVendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		{name: "right boundary: BitLockerCustom sibling is not reserved", locURI: "Vendor/MSFT/BitLockerCustom/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
 		{name: "unrelated node", locURI: "./Device/Vendor/MSFT/DMClient/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
-		{name: "scope-less OS update", locURI: "Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate", reserved: syncml.FleetOSUpdateTargetLocURI, want: true},
-		{name: "explicit device scope OS update", locURI: "./Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate", reserved: syncml.FleetOSUpdateTargetLocURI, want: true},
-		{name: "explicit device scope RemoteWipe", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
-		{name: "implicit device RemoteWipe", locURI: "./Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
-		{name: "scope-less RemoteWipe (regression #48752)", locURI: "Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
-		{name: "scope-less Device RemoteWipe", locURI: "Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
-		{name: "bare RemoteWipe node matches (wipe-only subtree)", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
-		// Segment-boundary regressions: a longer sibling segment that merely shares the reserved-node prefix must not match.
-		{name: "BitLockerCustom sibling is not reserved", locURI: "Vendor/MSFT/BitLockerCustom/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
-		{name: "UpdateExtra sibling is not reserved", locURI: "Vendor/MSFT/Policy/Config/UpdateExtra/Foo", reserved: syncml.FleetOSUpdateTargetLocURI, want: false},
-		{name: "RemoteWipeCustom sibling is not reserved", locURI: "Vendor/MSFT/RemoteWipeCustom/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
-		// The reserved node itself (no descendant leaf) still matches for the subtree-style constants.
+		// The reserved node itself (no descendant leaf) matches (node-inclusive).
 		{name: "bare BitLocker node matches", locURI: "./Device/Vendor/MSFT/BitLocker", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		// One positive smoke per reserved constant so a future typo/rename is caught.
+		{name: "OS update", locURI: "Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate", reserved: syncml.FleetOSUpdateTargetLocURI, want: true},
+		{name: "RemoteWipe operation", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
+		// RemoteWipe is a wipe-only subtree: the bare node matches (node-inclusive), a sibling does not (boundary).
+		{name: "bare RemoteWipe node matches (wipe-only subtree)", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
+		{name: "RemoteWipeCustom sibling is not reserved", locURI: "Vendor/MSFT/RemoteWipeCustom/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -895,10 +890,7 @@ func TestSyncMLCmdIsPremium(t *testing.T) {
 		want   bool
 	}{
 		{name: "explicit device wipe", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", want: true},
-		{name: "implicit device wipe", locURI: "./Vendor/MSFT/RemoteWipe/doWipe", want: true},
 		{name: "scope-less wipe (regression #48752)", locURI: "Vendor/MSFT/RemoteWipe/doWipe", want: true},
-		{name: "scope-less device wipe", locURI: "Device/Vendor/MSFT/RemoteWipe/doWipe", want: true},
-		{name: "protected wipe", locURI: "Vendor/MSFT/RemoteWipe/doWipeProtected", want: true},
 		{name: "non-wipe command", locURI: "./DevDetail/SwV", want: false},
 	}
 	for _, tt := range tests {

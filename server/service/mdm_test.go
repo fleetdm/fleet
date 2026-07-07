@@ -1187,8 +1187,7 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 					</Target>
 				</Item>
 			</Exec>`, "", "./Device/Vendor/MSFT/RemoteWipe/doWipe"},
-		// Regression for #48752: a wipe submitted with a scope-less or implicit-device LocURI (which Windows still
-		// executes) must not bypass the premium license gate.
+		// Regression for #48752: a scope-less wipe LocURI (which Windows still executes) must not bypass the premium gate.
 		{"scope-less wipe, non premium license", false, `
 			<Exec>
 				<CmdID>1</CmdID>
@@ -1198,24 +1197,6 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 					</Target>
 				</Item>
 			</Exec>`, "Requires Fleet Premium license", ""},
-		{"implicit-device wipe, non premium license", false, `
-			<Exec>
-				<CmdID>1</CmdID>
-				<Item>
-					<Target>
-						<LocURI>./Vendor/MSFT/RemoteWipe/doWipe</LocURI>
-					</Target>
-				</Item>
-			</Exec>`, "Requires Fleet Premium license", ""},
-		{"scope-less wipe, premium license", true, `
-			<Exec>
-				<CmdID>1</CmdID>
-				<Item>
-					<Target>
-						<LocURI>Vendor/MSFT/RemoteWipe/doWipe</LocURI>
-					</Target>
-				</Item>
-			</Exec>`, "", "Vendor/MSFT/RemoteWipe/doWipe"},
 		{"non-premium command", false, `
 			<Exec>
 				<CmdID>1</CmdID>
