@@ -1,5 +1,6 @@
 .custom-link {
   @include link;
+
   font-weight: $regular;
   text-decoration: underline;
   text-decoration-color: $ui-fleet-black-75;
@@ -54,7 +55,7 @@
     &:focus-visible {
       color: $core-fleet-green-over;
       text-decoration-color: $core-fleet-green-over;
-      text-decoration: none;
+      text-decoration-line: none;
     }
   }
 
@@ -91,6 +92,7 @@
 
       .external-link-icon__outline {
         fill: rgba($static-white, 0.7);
+        stroke: rgba($static-white, 0.7);
       }
 
       .external-link-icon__arrow {
