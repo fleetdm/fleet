@@ -1158,9 +1158,7 @@ ON DUPLICATE KEY UPDATE
 }
 
 // renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
-// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep). These are the proxied
-// SCEP profiles whose issued certificate Fleet can later observe on the host and match back to the profile. Server-issued
-// CAs (DigiCert) and non-proxied flows (NULL type) are excluded, so their profiles keep their existing status behavior.
+// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep).
 func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, profileUUIDs []string) (map[string]struct{}, error) {
 	if len(profileUUIDs) == 0 {
 		return nil, nil
@@ -1339,9 +1337,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
-	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it), and leave
-	// the retry counter untouched: this is not the SyncML auto-retry path, and the device's own SCEP CSP retry handles
-	// transient upstream blips.
+	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
 	const stmt = `
 		UPDATE host_mdm_windows_profiles
 		SET status = ?, detail = ?

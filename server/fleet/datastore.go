@@ -2276,10 +2276,7 @@ type Datastore interface {
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
 	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
-	// "failed" with the provided detail. It is used by the SCEP proxy to surface an upstream certificate-authority
-	// error the device would otherwise never report (the SyncML <Exec> is ACKed before the SCEP exchange runs). It
-	// updates only an existing install row (a removed profile is not resurrected), never overwrites a "verified" row,
-	// and does not change the retry counter.
+	// "failed" with the provided detail.
 	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
