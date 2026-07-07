@@ -319,7 +319,7 @@ const SoftwareTitleDetailsPage = ({
               pendingPath={statusPath("pending")}
               failedPath={statusPath("failed")}
               hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
-              canDownload={row.isActive && !isScriptPackage}
+              canDownload={row.isActive}
               onBadgeClick={
                 isFma && canEditSoftware
                   ? () => setShowVersionsModal(true)
