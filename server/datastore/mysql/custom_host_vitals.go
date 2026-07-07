@@ -142,10 +142,11 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 func (ds *Datastore) GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 	var vitals []fleet.HostCustomHostVital
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vitals, `
-		SELECT chv.id AS custom_host_vital_id, chv.name, hchv.value
-		FROM host_custom_host_vitals hchv
-		JOIN custom_host_vitals chv ON chv.id = hchv.custom_host_vital_id
-		WHERE hchv.host_id = ?`,
+		SELECT chv.id AS custom_host_vital_id, chv.name, COALESCE(hchv.value, '') AS value
+		FROM custom_host_vitals chv
+		LEFT JOIN host_custom_host_vitals hchv
+			ON hchv.custom_host_vital_id = chv.id AND hchv.host_id = ?
+		ORDER BY chv.name`,
 		hostID,
 	)
 	if err != nil {

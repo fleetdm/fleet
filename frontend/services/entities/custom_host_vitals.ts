@@ -53,4 +53,9 @@ export default {
     const { CUSTOM_HOST_VITALS } = endpoints;
     return sendRequest("DELETE", `${CUSTOM_HOST_VITALS}/${id}`);
   },
+
+  updateHostCustomHostVitalValue(hostId: number, id: number, value: string) {
+    const { HOST_CUSTOM_HOST_VITAL } = endpoints;
+    return sendRequest("PUT", HOST_CUSTOM_HOST_VITAL(hostId, id), { value });
+  },
 };

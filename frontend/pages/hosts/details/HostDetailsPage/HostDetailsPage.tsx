@@ -22,6 +22,7 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
 
 import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -148,6 +149,7 @@ import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import EditHostVitalModal from "../modals/EditHostVitalModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
 
@@ -256,6 +258,11 @@ const HostDetailsPage = ({
   }, [location.query.show_mdm_status]);
 
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
+
+  const [
+    editingCustomHostVital,
+    setEditingCustomHostVital,
+  ] = useState<IHostCustomVital | null>(null);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -1310,6 +1317,12 @@ const HostDetailsPage = ({
   // had one — so we don't gate visibility on orbit/MDM state.
   const canViewMyDeviceLink = isGlobalAdmin;
 
+  const canEditCustomHostVitals =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
+
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1507,6 +1520,12 @@ const HostDetailsPage = ({
                   )}
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
+                  customHostVitals={host.custom_host_vitals}
+                  onEditCustomHostVital={
+                    canEditCustomHostVitals
+                      ? setEditingCustomHostVital
+                      : undefined
+                  }
                 />
                 <ActivityCard
                   className={
@@ -2007,6 +2026,18 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {editingCustomHostVital && (
+          <EditHostVitalModal
+            hostId={host.id}
+            vital={editingCustomHostVital}
+            onCancel={() => setEditingCustomHostVital(null)}
+            onSave={() => {
+              refetchHostDetails();
+              refetchPastActivities();
+              setEditingCustomHostVital(null);
+            }}
           />
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (

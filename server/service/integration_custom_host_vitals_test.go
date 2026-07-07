@@ -65,8 +65,17 @@ func (s *integrationTestSuite) TestCustomHostVitalsCRUD() {
 	s.DoJSON("GET", "/api/latest/fleet/custom_host_vitals", nil, http.StatusOK, &listResp, "query", "nomatch")
 	require.Empty(t, listResp.CustomHostVitals)
 
-	// Set a value for the vital on a host.
+	// Before any value is set, the host detail still surfaces every definition
+	// with an empty value.
 	host := s.createHosts(t)[0]
+	var preSetResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &preSetResp)
+	require.Len(t, preSetResp.Host.CustomHostVitals, 1)
+	assert.Equal(t, vitalID, preSetResp.Host.CustomHostVitals[0].CustomHostVitalID)
+	assert.Equal(t, "Asset ID", preSetResp.Host.CustomHostVitals[0].Name)
+	assert.Empty(t, preSetResp.Host.CustomHostVitals[0].Value)
+
+	// Set a value for the vital on a host.
 	s.Do("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/custom_host_vitals/%d", host.ID, vitalID), fleet.SetHostCustomHostVitalValueRequest{Value: "engineering"}, http.StatusOK)
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedCustomHostVitalValue{}.ActivityName(),
