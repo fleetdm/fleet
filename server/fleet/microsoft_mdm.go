@@ -1972,20 +1972,33 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 // segment-boundary safety, so the canonicalized LocURI is re-anchored with a leading "/" before matching. This makes the
 // check independent of the scope prefix Windows treats as equivalent, closing the scope-less bypass where
 // "Vendor/MSFT/BitLocker/..." slipped past a check that only matched "/Vendor/MSFT/BitLocker". See CanonicalLocURI.
+//
+// The match is segment-boundary-aware on both ends so a longer sibling segment is not treated as reserved: "BitLockerCustom"
+// does not match "/Vendor/MSFT/BitLocker", and "Policy/Config/UpdateExtra" does not match "/Vendor/MSFT/Policy/Config/Update".
 func LocURITargetsReservedNode(locURI, reservedLocURI string) bool {
-	return strings.Contains("/"+CanonicalLocURI(locURI), reservedLocURI)
+	anchored := "/" + CanonicalLocURI(locURI)
+	if strings.HasSuffix(reservedLocURI, "/") {
+		// The reserved subtree is already right-anchored on a segment boundary (matches descendants only, e.g. the RemoteWipe
+		// wipe operations under "/Vendor/MSFT/RemoteWipe/"). A plain substring match is correct here.
+		return strings.Contains(anchored, reservedLocURI)
+	}
+	// Reserved node with no trailing "/": match the node itself or any descendant, but not a longer sibling segment.
+	// Appending "/" to both the value and the reserved node enforces the trailing segment boundary.
+	return strings.Contains(anchored+"/", reservedLocURI+"/")
 }
 
 // ProfileTargetsReservedLocURI reports whether any Add/Replace Target LocURI in the profile targets the given Fleet-reserved
-// node (e.g. syncml.FleetOSUpdateTargetLocURI or syncml.FleetBitLockerTargetLocURI, both stored with a leading "/"). It is a
-// strict superset of a raw bytes.Contains check: the fast path preserves the previous behavior for scope-prefixed forms, and
-// the per-LocURI canonicalization additionally catches the scope-less form ("Vendor/MSFT/...") that Windows accepts but that
-// lacks the leading "/" the raw check depends on. See LocURITargetsReservedNode.
+// node (e.g. syncml.FleetOSUpdateTargetLocURI or syncml.FleetBitLockerTargetLocURI, both stored with a leading "/").
 func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bool {
-	// Fast path preserving prior behavior: scope-prefixed forms and any raw occurrence of the reserved node.
-	if bytes.Contains(profileBytes, []byte(reservedLocURI)) {
-		return true
+	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
+	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
+	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
+		return false
 	}
+	// Confirm a real Add/Replace Target LocURI targets the node, with segment-boundary-correct matching so a longer sibling
+	// segment that merely shares the reject-filter substring is not counted. This also catches the scope-less form
+	// ("Vendor/MSFT/...") that Windows accepts but that a leading-"/" substring check would miss.
 	for _, uri := range ExtractLocURIsFromProfileBytes(profileBytes) {
 		if LocURITargetsReservedNode(uri, reservedLocURI) {
 			return true

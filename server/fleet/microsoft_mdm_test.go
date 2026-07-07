@@ -866,6 +866,12 @@ func TestLocURITargetsReservedNode(t *testing.T) {
 		{name: "scope-less RemoteWipe (regression #48752)", locURI: "Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
 		{name: "scope-less Device RemoteWipe", locURI: "Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
 		{name: "RemoteWipe with no operation node does not match", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
+		// Segment-boundary regressions: a longer sibling segment that merely shares the reserved-node prefix must not match.
+		{name: "BitLockerCustom sibling is not reserved", locURI: "Vendor/MSFT/BitLockerCustom/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		{name: "UpdateExtra sibling is not reserved", locURI: "Vendor/MSFT/Policy/Config/UpdateExtra/Foo", reserved: syncml.FleetOSUpdateTargetLocURI, want: false},
+		{name: "RemoteWipeCustom sibling is not reserved", locURI: "Vendor/MSFT/RemoteWipeCustom/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
+		// The reserved node itself (no descendant leaf) still matches for the subtree-style constants.
+		{name: "bare BitLocker node matches", locURI: "./Device/Vendor/MSFT/BitLocker", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -934,6 +940,13 @@ func TestProfileTargetsReservedLocURI(t *testing.T) {
 		{
 			name:   "node ending in Update is not reserved",
 			syncML: `<Replace><Item><Target><LocURI>Custom/Config/UpdatePolicy/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+		{
+			// Sibling segment sharing the reserved prefix must not be flagged (mentions the node name so the quick-reject
+			// filter passes, forcing the boundary-aware per-LocURI check to make the call).
+			name:   "UpdateExtra sibling segment is not reserved",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/UpdateExtra/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
 			want:   false,
 		},
 	}
