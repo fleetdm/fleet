@@ -227,6 +227,16 @@ const ManageAutomationsModal = ({
     setDestinationUrl(value);
   };
 
+  const onURLBlur = () => {
+    // Only validate while the webhook workflow is active; the field is disabled
+    // otherwise, so avoid surfacing an error on a control the user can't edit.
+    if (!softwareAutomationsEnabled) {
+      return;
+    }
+    const { errors: webhookErrors } = validateWebhookURL(destinationUrl);
+    setErrors((prevErrs) => ({ ...omit(prevErrs, "url"), ...webhookErrors }));
+  };
+
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -459,6 +469,7 @@ const ManageAutomationsModal = ({
           type="text"
           value={destinationUrl}
           onChange={onURLChange}
+          onBlur={onURLBlur}
           error={errors.url}
           helpText={
             "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
