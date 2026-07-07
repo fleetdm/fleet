@@ -6,6 +6,9 @@ examples: |-
   all inbound connections. See our standard query library for an example policy
   query using this.
 
+
+
+
   ```
   SELECT global_state FROM alf;
   ```
