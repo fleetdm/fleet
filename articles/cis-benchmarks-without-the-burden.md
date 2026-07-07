@@ -2,10 +2,6 @@
 
 *Adopting CIS benchmarks is a policy statement. Proving that every device in your fleet actually meets them, right now, is a different job — and it's the one most device tools were never built to do.*
 
-Most organizations have adopted CIS benchmarks. Far fewer can prove, at any given moment, that their entire fleet actually meets them. The benchmark documents are excellent: the Center for Internet Security publishes detailed, consensus-driven configuration guidance that represents the collective judgment of security experts worldwide, and adopting it is the right decision.
-
-But adoption is a policy statement; verification is an operational practice. The gap between the two is where most CIS compliance programs quietly break down — and the tools most organizations use to manage devices were never built to close it.
-
 ## Key takeaways
 
 - **A pushed profile isn't proof.** A traditional MDM can confirm it *sent* a setting; it can't tell you the setting is in effect right now. Fleet reads each device's live state, so a benchmark check reflects reality, not intent.
@@ -15,6 +11,10 @@ But adoption is a policy statement; verification is an operational practice. The
 - **Linux fits the same model, with honest limits.** Fleet doesn't ship a pre-built CIS Linux library today, but because every policy is just a query, teams can author CIS-aligned Linux checks and manage them in the same view with the same evidence trail.
 
 <a purpose="cta-button" href="https://fleetdm.com/security-and-control">See continuous compliance in Fleet</a>
+
+Most organizations have adopted CIS benchmarks. Far fewer can prove, at any given moment, that their entire fleet actually meets them. The benchmark documents are excellent: the Center for Internet Security publishes detailed, consensus-driven configuration guidance that represents the collective judgment of security experts worldwide, and adopting it is the right decision.
+
+But adoption is a policy statement; verification is an operational practice. The gap between the two is where most CIS compliance programs quietly break down, and it's exactly where this piece picks up.
 
 ## Adopting a benchmark is not the same as meeting it
 

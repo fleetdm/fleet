@@ -2,20 +2,20 @@
 
 *Config-as-code has won the argument. The one still worth having is about cost — in time, in skill, and in how much of your operation walks out the door when one person does.*
 
-Config-as-code has quietly become the default expectation for device management. Jamf, Zentral, Workspace ONE, and Fleet all let you describe your endpoints in a repository, review changes through pull requests, and keep an audit trail of who changed what and why. That convergence is a good thing, and the argument about *whether* to manage devices as code is mostly over.
-
-The argument still worth having is about cost — not the license cost, but the cost in time, in skill, and in dependence on a single person. Two config-as-code setups can deliver the same governance benefits and still ask very different things of the team that has to live with them. This isn't a knock on any tool. It's the question every IT leader should ask before committing: when the person who set this up moves on, does the knowledge leave with them, or does it stay in Git?
-
 ## Key takeaways
 
 - **The debate that matters isn't code versus clicks.** Every serious platform now supports config-as-code, so the real decision is how much time, skill, and single-person dependence a given setup asks of you for the same governance benefits.
 - **Terraform brings its whole world along, every day.** Reaching config-as-code through a provider means owning providers, state files, plan/apply, and reference graphs — real infrastructure work that stays whether or not the task in front of you needed it.
 - **The simplest task reveals the gap.** Defining a group and scoping an app to it is a few readable lines of YAML in Fleet; the provider equivalent adds resources, IDs, and a reference graph you have to understand before the diff makes sense.
-- **Simplicity widens who can participate.** GitOps only delivers if many people can safely read, approve, and ship a change — a workflow only one specialist can operate has just moved the old bottleneck into a state file.
+- **Simplicity widens who can participate.** GitOps only delivers if many people can safely read, approve, and ship a change — a workflow only one specialist can operate has recreated the old bottleneck under a new name.
 - **You don't have to go all-in on day one.** Fleet's GitOps exceptions let you manage the parts you're confident about in Git while keeping others editable in the console, so the team can ramp instead of committing to a big-bang cutover.
 - **Turnover is the real test.** When your expert leaves, a documented schema and a readable repository keep your institutional memory in Git; a workflow that depends on deep tooling expertise keeps it only as long as the expert stays.
 
 <a purpose="cta-button" href="https://fleetdm.com/infrastructure-as-code">See config-as-code in Fleet</a>
+
+Config-as-code has quietly become the default expectation for device management. Jamf, Zentral, Workspace ONE, and Fleet all let you describe your endpoints in a repository, review changes through pull requests, and keep an audit trail of who changed what and why. That convergence is a good thing, and the argument about *whether* to manage devices as code is mostly over.
+
+The argument still worth having is about cost — not the license cost, but the cost in time, in skill, and in dependence on a single person. Two config-as-code setups can deliver the same governance benefits and still ask very different things of the team that has to live with them. This isn't a knock on any tool. It's the question every IT leader should ask before committing: when the person who set this up moves on, does the knowledge leave with them, or does it stay in Git?
 
 ## Two roads to the same place
 
@@ -121,7 +121,7 @@ The quickest way to see this in detail is to inspect our [it-and-security](https
 - [**Get a demo**](https://fleetdm.com/contact)**.**  We'll walk through how config-as-code and GitOps exceptions would work in your environment.
 - [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Learn to manage configuration as code: set up apps, configs, reports, and policies in Git, review changes with pull requests, and deploy through CI in our hands‑on workshop.
 
-*Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to try GitOps in your own fleet?* [*Get a demo*](https://fleetdm.com/contact) *or explore the* [*GitOps reference*](https://fleetdm.com/docs/configuration/yaml-files)*.*
+*Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to try GitOps in your own fleet? Explore the* [*GitOps reference*](https://fleetdm.com/docs/configuration/yaml-files)*.*
 
 <meta name="articleTitle" value="The hidden cost of config-as-code: simplicity, tribal knowledge, and what stays in Git">
 <meta name="authorFullName" value="Henry Stamerjohann">
