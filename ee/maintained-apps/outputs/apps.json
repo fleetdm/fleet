@@ -289,6 +289,20 @@
       "description": "Affinity is an image editing and design software."
     },
     {
+      "name": "Agent Ransack",
+      "slug": "agent-ransack/windows",
+      "platform": "windows",
+      "unique_identifier": "Agent Ransack",
+      "description": "Agent Ransack is a free file search tool for finding files on your PC or network drives."
+    },
+    {
+      "name": "Air Explorer",
+      "slug": "air-explorer/windows",
+      "platform": "windows",
+      "unique_identifier": "Air Explorer",
+      "description": "Air Explorer is an app for managing files across multiple cloud storage accounts."
+    },
+    {
       "name": "AirBuddy",
       "slug": "airbuddy/darwin",
       "platform": "darwin",
@@ -394,11 +408,25 @@
       "description": "AlDente is a menu bar tool to limit the maximum charging percentage."
     },
     {
+      "name": "alfaview",
+      "slug": "alfaview/windows",
+      "platform": "windows",
+      "unique_identifier": "alfaview msi version",
+      "description": "alfaview is a GDPR-compliant video conferencing application."
+    },
+    {
       "name": "Alloy",
       "slug": "alloy/darwin",
       "platform": "darwin",
       "unique_identifier": "org.alloytools.alloy",
       "description": "Alloy is a programming language for software modelling."
+    },
+    {
+      "name": "Allway Sync",
+      "slug": "allway-sync/windows",
+      "platform": "windows",
+      "unique_identifier": "Allway Sync",
+      "description": "Allway Sync is a program to sync data between all kinds of devices."
     },
     {
       "name": "AltTab",
@@ -443,6 +471,20 @@
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
+      "name": "Amazon Corretto 11",
+      "slug": "amazon-corretto-11/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 11 is a no-cost, multiplatform, production-ready distribution of OpenJDK 11."
+    },
+    {
+      "name": "Amazon Corretto 17",
+      "slug": "amazon-corretto-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 17 is a no-cost, multiplatform, production-ready distribution of OpenJDK 17."
+    },
+    {
       "name": "Amazon Corretto 21",
       "slug": "amazon-corretto-21/windows",
       "platform": "windows",
@@ -471,6 +513,13 @@
       "description": "Amazon Corretto 26 is a no-cost, multiplatform, production-ready distribution of OpenJDK 26."
     },
     {
+      "name": "Amazon Corretto 8",
+      "slug": "amazon-corretto-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto 8 (x64)",
+      "description": "Amazon Corretto 8 is a no-cost, multiplatform, production-ready distribution of OpenJDK 8."
+    },
+    {
       "name": "Amazon Corretto JRE 8",
       "slug": "amazon-corretto-jre-8/windows",
       "platform": "windows",
@@ -490,6 +539,13 @@
       "platform": "windows",
       "unique_identifier": "Amazon DCV Server",
       "description": "Amazon DCV Server is remote display software that delivers high-performance remote desktop and application streaming to connected clients."
+    },
+    {
+      "name": "Amazon Redshift ODBC Driver",
+      "slug": "amazon-redshift-odbc-driver/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Redshift ODBC Driver 64-bit",
+      "description": "Amazon Redshift ODBC Driver connects SQL client tools to Amazon Redshift clusters."
     },
     {
       "name": "Amazon WorkSpaces",
@@ -588,6 +644,13 @@
       "platform": "darwin",
       "unique_identifier": "com.chabomakers.Antinote",
       "description": "Antinote is a temporary notes app with calculations and extensible features."
+    },
+    {
+      "name": "AnyBurn",
+      "slug": "anyburn/windows",
+      "platform": "windows",
+      "unique_identifier": "AnyBurn",
+      "description": "AnyBurn is a lightweight CD, DVD, and Blu-ray burning tool."
     },
     {
       "name": "AnyDesk",
@@ -772,6 +835,20 @@
       "description": "Aviatrix VPN Client is a VPN client that provides SAML authentication."
     },
     {
+      "name": "AVS Image Converter",
+      "slug": "avs-image-converter/windows",
+      "platform": "windows",
+      "unique_identifier": "AVS Image Converter",
+      "description": "AVS Image Converter is an app for converting and resizing images in all key formats."
+    },
+    {
+      "name": "AVS Media Player",
+      "slug": "avs-media-player/windows",
+      "platform": "windows",
+      "unique_identifier": "AVS Media Player",
+      "description": "AVS Media Player is a free player for audio and video files."
+    },
+    {
       "name": "AWS Command Line Interface v2",
       "slug": "aws-cli/windows",
       "platform": "windows",
@@ -784,6 +861,13 @@
       "platform": "windows",
       "unique_identifier": "AWS SAM Command Line Interface",
       "description": "AWS SAM Command Line Interface is a tool for building, testing, and deploying serverless applications using the AWS Serverless Application Model."
+    },
+    {
+      "name": "AWS Session Manager Plugin",
+      "slug": "aws-session-manager-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Session Manager Plugin",
+      "description": "AWS Session Manager Plugin lets the AWS CLI start and end sessions to managed instances."
     },
     {
       "name": "AWS Client VPN",
@@ -819,6 +903,13 @@
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azure Functions Core Tools",
+      "slug": "azure-functions-core-tools/windows",
+      "platform": "windows",
+      "unique_identifier": "Azure Functions Core Tools",
+      "description": "Azure Functions Core Tools is a command-line toolset for developing and testing Azure Functions locally."
     },
     {
       "name": "Background Music",
@@ -3754,6 +3845,13 @@
       "description": "Itsycal is a menu bar calendar."
     },
     {
+      "name": "iTunes",
+      "slug": "itunes/windows",
+      "platform": "windows",
+      "unique_identifier": "iTunes",
+      "description": "iTunes is a media player and library for playing and managing music, movies, and podcasts."
+    },
+    {
       "name": "Jabra Direct",
       "slug": "jabra-direct/darwin",
       "platform": "darwin",
@@ -5361,6 +5459,13 @@
       "slug": "okta-verify/darwin",
       "platform": "darwin",
       "unique_identifier": "com.okta.mobile",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
+      "name": "Okta Verify",
+      "slug": "okta-verify/windows",
+      "platform": "windows",
+      "unique_identifier": "Okta Verify",
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {

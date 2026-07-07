@@ -192,8 +192,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		_, err = svc.UploadVPPToken(ctx, nil)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
-		_, err = svc.GetVPPTokens(ctx)
-		checkAuthErr(t, shouldFailWithAuth, err)
+		// GetVPPTokens is not admin-only (maintainers/technicians can read it to
+		// use the App Store picker); its authorization is covered by TestVPPAuth.
 
 		err = svc.DeleteVPPToken(ctx, 0)
 		checkAuthErr(t, shouldFailWithAuth, err)

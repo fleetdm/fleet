@@ -876,7 +876,7 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error)
 
-type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
+type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot *uint) (bool, error)
 
 type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
@@ -8315,7 +8315,7 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, host, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error) {
+func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot *uint) (bool, error) {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
