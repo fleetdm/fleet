@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 
 	"github.com/Masterminds/semver"
@@ -18,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
 )
-
-var bomRegexp = regexp.MustCompile(`(.+)\t([0-9]+/[0-9]+)`)
 
 // See helful docs in http://bomutils.dyndns.org/tutorial.html
 
@@ -148,7 +145,7 @@ func BuildPkg(opt Options) (string, error) {
 
 	// Build package
 
-	if err := xarBom(opt, tmpDir); err != nil {
+	if err := xarBom(tmpDir); err != nil {
 		return "", fmt.Errorf("build pkg: %w", err)
 	}
 
@@ -333,7 +330,7 @@ func writeUpdateClientCertificate(opt Options, orbitRoot string) error {
 
 // xarBom creates the actual .pkg format. It's a xar archive with a BOM (Bill of
 // materials?). See http://bomutils.dyndns.org/tutorial.html.
-func xarBom(opt Options, rootPath string) error {
+func xarBom(rootPath string) error {
 	// Adapted from BSD licensed
 	// https://github.com/go-flutter-desktop/hover/blob/v0.46.2/cmd/packaging/darwin-pkg.go
 
@@ -351,101 +348,23 @@ func xarBom(opt Options, rootPath string) error {
 		return fmt.Errorf("cpio Scripts: %w", err)
 	}
 
-	// Make Bill of materials (bom)
-	var cmdMkbom *exec.Cmd
-	isDarwin := runtime.GOOS == "darwin"
-	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
-
-	switch {
-	case isDarwin:
-		// Using mkbom directly results in permissions listed for the current user and group. We
-		// transform the output in order to explicitly set root (0) and admin (80).
-		inBomPath := filepath.Join(rootPath, "inBom")
-		cmd := exec.Command("mkbom", filepath.Join(rootPath, "root"), inBomPath)
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("initial mkbom: %w", err)
-		}
-		bomContents, err := exec.Command("lsbom", inBomPath).Output()
-		if err != nil {
-			return fmt.Errorf("lsbom inBom: %w", err)
-		}
-		bomContents = bomReplace(bomContents)
-		if err := os.WriteFile(inBomPath, bomContents, 0); err != nil {
-			return fmt.Errorf("write inBom: %w", err)
-		}
-
-		// Use the file list (with transformed permissions) via -i flag
-		cmdMkbom = exec.Command("mkbom", "-i", "inBom", filepath.Join("flat", "base.pkg", "Bom"))
-		cmdMkbom.Dir = rootPath
-
-	// No need for transformation when using the Linux mkbom because of the -u and -g flags
-	// available in that command.
-	case isLinuxNative:
-		cmdMkbom = exec.Command(
-			"mkbom", "-u", "0", "-g", "80",
-			filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"),
-		)
-		cmdMkbom.Dir = rootPath
-	default:
-		// Same as linux native, but modified for running in Docker. This should
-		// be either Windows, or Linux without the --native-tooling flag.
-		cmdMkbom = exec.Command(
-			"docker", "run", "--rm", "-v", rootPath+":/root", "fleetdm/bomutils",
-			"mkbom", "-u", "0", "-g", "80",
-			// Use / instead of filepath.Join because these will always be paths within the Docker
-			// container (so Linux file paths) -- if we use filepath.Join we'll get invalid paths on
-			// Windows due to use of backslashes.
-			"/root/root", "/root/flat/base.pkg/Bom",
-		)
+	// Make Bill of materials (bom) with the pure-Go writer (replaces mkbom/lsbom
+	// and the fleetdm/bomutils Docker image). Ownership is fixed to root/admin
+	// (0/80) inside writeBom.
+	if err := writeBom(
+		filepath.Join(rootPath, "root"),
+		filepath.Join(rootPath, "flat", "base.pkg", "Bom"),
+	); err != nil {
+		return fmt.Errorf("write bom: %w", err)
 	}
 
-	cmdMkbom.Stdout, cmdMkbom.Stderr = os.Stdout, os.Stderr
-	if err := cmdMkbom.Run(); err != nil {
-		return fmt.Errorf("mkbom: %w", err)
-	}
-
-	// List files for xar
-	var files []string
-	err := filepath.Walk(
-		filepath.Join(rootPath, "flat"),
-		func(path string, info os.FileInfo, _ error) error {
-			relativePath, err := filepath.Rel(filepath.Join(rootPath, "flat"), path)
-			if err != nil {
-				return err
-			}
-			files = append(files, relativePath)
-			return nil
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("iterate files: %w", err)
-	}
-
-	// Make xar
-	var cmdXar *exec.Cmd
-	switch {
-	case isDarwin, isLinuxNative:
-		cmdXar = exec.Command("xar", append([]string{"--compression", "none", "-cf", filepath.Join("..", "orbit.pkg")}, files...)...)
-		cmdXar.Dir = filepath.Join(rootPath, "flat")
-	default:
-		cmdXar = exec.Command(
-			"docker", "run", "--rm", "-v", rootPath+":/root", "-w", "/root/flat", "fleetdm/bomutils",
-			"xar",
-		)
-		cmdXar.Args = append(cmdXar.Args, append([]string{"--compression", "none", "-cf", "/root/orbit.pkg"}, files...)...)
-	}
-
-	cmdXar.Stdout, cmdXar.Stderr = os.Stdout, os.Stderr
-	if err := cmdXar.Run(); err != nil {
-		return fmt.Errorf("run xar: %w", err)
+	// Make xar (pure Go; replaces the external `xar` and fleetdm/bomutils Docker
+	// invocation). Uncompressed, matching the previous `--compression none`.
+	if err := writeXar(filepath.Join(rootPath, "flat"), filepath.Join(rootPath, "orbit.pkg")); err != nil {
+		return fmt.Errorf("write xar: %w", err)
 	}
 
 	return nil
-}
-
-// bomReplace replaces the permission strings (typically "501/20") with the appropriate string ("0/80")
-func bomReplace(inBom []byte) []byte {
-	return bomRegexp.ReplaceAll(inBom, []byte("$1\t0/80"))
 }
 
 func cpio(srcPath, dstPath string) error {
