@@ -45,7 +45,7 @@ module.exports = {
           authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
         },
       }).tolerate((err)=>{
-        sails.log.warn(`When a user visited the gitops workshop page, a list of future gitiops workshops could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
+        sails.log.warn(`When a user visited the gitops workshop page, a list of future workshops could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
         return {
           events: [],
         };
@@ -120,7 +120,7 @@ module.exports = {
               authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
             },
           }).tolerate((err)=>{
-            sails.log.warn(`When a user visited the gitops workshop page, details about a venue for an event (${event.name.text}) could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When a user visited the workshop page, details about a venue for an event (${event.name.text}) could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
             // If there was an error getting details about the venue for this event, set the address to 'TBA' and use the event name instead of the city name.
             return {
               address: { city: event.name.text },
