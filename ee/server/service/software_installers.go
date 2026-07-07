@@ -1657,14 +1657,23 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// makes Fleet enter the AvailableCount check on every retry and produces
 	// false-positive "no available licenses" errors when the user is just
 	// adding their Nth (≤5) device under one Managed Apple ID.
-	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	// Device-vs-user VPP licensing must key off the actual MDM enrollment
+	// channel, not host_mdm.is_personal_enrollment. is_personal_enrollment is
+	// set for BOTH Account-Driven User Enrollment (user channel, backed by a
+	// Managed Apple ID) and manual-profile BYOD (device channel, no Managed
+	// Apple ID). Only genuine user-channel enrollments get user-scoped
+	// licensing; manual-profile BYOD installs device-scoped, exactly like
+	// company-owned manual enrollment. The user nano-enrollment exists from
+	// enrollment time, whereas the Managed Apple ID only arrives minutes later
+	// via TokenUpdate, so this is the correct, timing-robust signal. See #48879.
+	userEnrollment, err := svc.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "looking up host MDM info for VPP install")
+		return "", ctxerr.Wrap(ctx, err, "looking up user enrollment for VPP install")
 	}
-	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
+	isUserEnrollment := userEnrollment != nil
 
 	var clientUserID string
-	if isPersonal {
+	if isUserEnrollment {
 		// Token-selection policy (per #44009): use the team's default token —
 		// `GetVPPTokenByTeamID` already returns the first token for the team
 		// (existing behavior). Multi-location support is deferred unless a
@@ -1680,7 +1689,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	}
 
 	assignmentFilter := &vpp.AssignmentFilter{AdamID: vppApp.AdamID}
-	if isPersonal {
+	if isUserEnrollment {
 		assignmentFilter.ClientUserID = clientUserID
 	} else {
 		assignmentFilter.SerialNumber = host.HardwareSerial
@@ -1735,7 +1744,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		req := &vpp.AssociateAssetsRequest{Assets: assets}
-		if isPersonal {
+		if isUserEnrollment {
 			req.ClientUserIds = []string{clientUserID}
 		} else {
 			req.SerialNumbers = []string{host.HardwareSerial}

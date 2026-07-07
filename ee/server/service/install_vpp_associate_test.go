@@ -77,13 +77,22 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		})
 	}
 
-	// Common datastore mock setup, parameterized by isPersonalEnrollment.
-	setupDS := func(t *testing.T, isPersonal bool) *mock.Store {
+	// Common datastore mock setup, parameterized by whether the host is enrolled
+	// via a user channel (Account-Driven User Enrollment). The routing decision
+	// keys off the presence of a user-channel nano_enrollments row, NOT
+	// host_mdm.is_personal_enrollment (see #48879), so this drives
+	// GetNanoMDMUserEnrollment rather than GetHostMDM.
+	setupDS := func(t *testing.T, isUserEnrollment bool) *mock.Store {
 		t.Helper()
 		ds := new(mock.Store)
-		ds.GetHostMDMFunc = func(_ context.Context, id uint) (*fleet.HostMDM, error) {
-			require.Equal(t, hostID, id)
-			return &fleet.HostMDM{HostID: id, Enrolled: true, IsPersonalEnrollment: isPersonal}, nil
+		ds.GetNanoMDMUserEnrollmentFunc = func(_ context.Context, deviceID string) (*fleet.NanoEnrollment, error) {
+			require.Equal(t, hostUUID, deviceID)
+			if isUserEnrollment {
+				return &fleet.NanoEnrollment{ID: hostUUID + ":user", DeviceID: hostUUID, Type: "User", Enabled: true}, nil
+			}
+			// Device-channel enrollment (company-owned manual OR manual-profile
+			// BYOD): no user-channel row.
+			return nil, nil
 		}
 		ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
 			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, RenewDate: time.Now().Add(24 * time.Hour)}, nil
@@ -136,7 +145,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		require.True(t, ds.InsertVPPClientUserFuncInvoked)
 	})
 
-	t.Run("non-personal enrollment keeps SerialNumbers", func(t *testing.T) {
+	t.Run("device-channel enrollment keeps SerialNumbers", func(t *testing.T) {
 		var capt captured
 		setupServer(t, &capt)
 
@@ -152,13 +161,51 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			SerialNumbers []string `json:"serialNumbers"`
 		}
 		require.NoError(t, json.Unmarshal(capt.body, &got))
-		require.Equal(t, []string{hostSerial}, got.SerialNumbers, "manually-enrolled hosts must use serialNumbers")
-		require.Empty(t, got.ClientUserIds, "manually-enrolled hosts must not send clientUserIds")
+		require.Equal(t, []string{hostSerial}, got.SerialNumbers, "device-channel hosts must use serialNumbers")
+		require.Empty(t, got.ClientUserIds, "device-channel hosts must not send clientUserIds")
 
-		// User-provisioning datastore writes must NOT happen on the manual path.
+		// User-provisioning datastore writes must NOT happen on the device path.
 		require.False(t, ds.GetVPPClientUserFuncInvoked)
 		require.False(t, ds.InsertVPPClientUserFuncInvoked)
 		require.False(t, ds.GetHostManagedAppleIDFuncInvoked)
+	})
+
+	// Regression test for #48879: a manual-profile BYOD host carries
+	// host_mdm.is_personal_enrollment=1 but is a DEVICE-channel enrollment (no
+	// user-channel nano_enrollments row and no Managed Apple ID). It must install
+	// device-scoped (serialNumbers), exactly like company-owned manual — and must
+	// NOT attempt user provisioning, which previously failed with
+	// errMissingManagedAppleID.
+	t.Run("manual-profile BYOD (personal flag, device channel) routes via serialNumbers", func(t *testing.T) {
+		var capt captured
+		setupServer(t, &capt)
+
+		// isUserEnrollment=false → GetNanoMDMUserEnrollment returns nil even though
+		// this host would have is_personal_enrollment=1 in host_mdm.
+		ds := setupDS(t, false)
+		// Make it explicit that the Managed Apple ID is absent for this host, so a
+		// regression that re-introduces the user path would fail loudly here.
+		ds.GetHostManagedAppleIDFunc = func(_ context.Context, _ uint) (string, error) {
+			return "", nil
+		}
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+
+		require.NotEmpty(t, capt.body)
+		var got struct {
+			ClientUserIds []string `json:"clientUserIds"`
+			SerialNumbers []string `json:"serialNumbers"`
+		}
+		require.NoError(t, json.Unmarshal(capt.body, &got))
+		require.Equal(t, []string{hostSerial}, got.SerialNumbers, "manual-profile BYOD must use serialNumbers (device-scoped)")
+		require.Empty(t, got.ClientUserIds, "manual-profile BYOD must not send clientUserIds")
+
+		// The whole point of #48879: no VPP user lookup/registration for device-channel BYOD.
+		require.False(t, ds.GetHostManagedAppleIDFuncInvoked, "must not look up a Managed Apple ID for device-channel BYOD")
+		require.False(t, ds.GetVPPClientUserFuncInvoked)
+		require.False(t, ds.InsertVPPClientUserFuncInvoked)
 	})
 
 	t.Run("personal enrollment queries assignments by clientUserId", func(t *testing.T) {
