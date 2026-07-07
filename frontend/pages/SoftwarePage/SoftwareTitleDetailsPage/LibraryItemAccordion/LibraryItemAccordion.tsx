@@ -88,8 +88,8 @@ export interface ILibraryItemAccordionProps {
   hashSha256?: string | null;
   /** Show the download button for this row. This should be true only when
    * `onDownloadClick` is wired to download the installer represented by this
-   * row (typically the active installer). False for script-only packages (no
-   * file to download) and App Store / Play Store apps. */
+   * row (typically the active installer). False for App Store / Play Store
+   * apps, which have no installer file to download. */
   canDownload?: boolean;
 
   /** Click handler for whichever badge is rendered per `badgeState`. The
