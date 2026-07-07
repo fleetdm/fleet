@@ -18,6 +18,7 @@ Each content type has its own shape. Identify the type first, then apply the mat
 - Bold UI elements only (e.g. "Navigate to **Settings > Hosts**"). Never bold for emphasis.
 - Surface the simple, high-level steps first; put advanced details lower down.
 - Requires the article endmatter below with `category` set to `guides`.
+- For the full section-by-section skeleton (prerequisites, inline gotcha callouts, step shapes, verify/troubleshoot, a fill-in template) and an audit checklist for existing guides, use the `guide-structure` skill.
 
 ## Articles and blog posts
 
