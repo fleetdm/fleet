@@ -1,0 +1,1 @@
+- Fixed team-scoped admins seeing team memberships (IDs, names, and roles) for teams they do not administer when listing users shared across multiple teams via `GET /api/latest/fleet/users`.
