@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "26.1.1.355",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH' AND version_compare(version, '26.1.1.355') < 0);"
+      },
+      "installer_url": "https://dl.4kdownload.com/app/4kvideodownloaderplus_26.1.1_x64_offline.exe?source=website",
+      "install_script_ref": "e60e87a2",
+      "uninstall_script_ref": "5243d726",
+      "sha256": "570309a02be67a0febc46d9b767fcf577fbc28d0df9f3f23cf47293fb4ddf5f9",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "5243d726": "# Uninstalls the 4K Video Downloader+ WiX \"burn\" bundle.\n#\n# The app registers a bundle ARP entry (DisplayName \"4K Video Downloader+\",\n# publisher \"InterPromo GMBH\") whose UninstallString points at the cached\n# bootstrapper .exe. Burn bundles uninstall by running that .exe with\n# /uninstall /quiet /norestart -- never via msiexec. We look the entry up by\n# its exact DisplayName; the \"+\" keeps this from matching the separate MSI-based\n# \"4K Video Downloader\" product.\n\n$softwareName = \"4K Video Downloader+\"\n\nfunction Invoke-Uninstaller {\n    param([string]$exe, [string]$exeArgs)\n    if ($exeArgs -notmatch '/uninstall') { $exeArgs = \"/uninstall $exeArgs\" }\n    if ($exeArgs -notmatch '/quiet')     { $exeArgs = \"$exeArgs /quiet\" }\n    if ($exeArgs -notmatch '/norestart') { $exeArgs = \"$exeArgs /norestart\" }\n    $exeArgs = $exeArgs.Trim()\n    Write-Host \"Uninstall command: $exe\"\n    Write-Host \"Uninstall args: $exeArgs\"\n    $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait\n    return $process.ExitCode\n}\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $raw = $key.QuietUninstallString\n        if (-not $raw) { $raw = $key.UninstallString }\n        if (-not $raw) { continue }\n\n        # Parse into executable + args, handling quoted/unquoted/bare shapes.\n        if ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } else {\n            $exe = $raw; $exeArgs = \"\"\n        }\n\n        $exitCode = Invoke-Uninstaller -exe $exe -exeArgs $exeArgs\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "e60e87a2": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# 4K Video Downloader+ ships as a WiX \"burn\" bootstrapper (.exe). It installs\n# machine-wide (PerMachine=\"yes\" in the bundle registration) and registers its\n# own ARP entry. Silent switches follow the burn convention (/quiet /norestart).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/quiet /norestart\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n\n    # 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n        Exit 0\n    }\n\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

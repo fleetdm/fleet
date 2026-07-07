@@ -346,6 +346,7 @@ import Forklift from "./Forklift";
 import FourKSlideshowMaker from "./FourKSlideshowMaker";
 import FourKStogram from "./FourKStogram";
 import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoDownloaderPlus from "./FourKVideoDownloaderPlus";
 import FourKVideoToMp3 from "./FourKVideoToMp3";
 import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 import Framer from "./Framer";
@@ -901,6 +902,8 @@ import TextExpander from "./TextExpander";
 import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
 import Thorium from "./Thorium";
+import ThreeDfZephyrFree from "./3DfZephyrFree";
+import ThreeDxware10 from "./3Dxware10";
 import Threema from "./Threema";
 import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
@@ -1037,9 +1040,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "3df zephyr free": ThreeDfZephyrFree,
+  "3dxware 10": ThreeDxware10,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
   "4k video downloader": FourKVideoDownloader,
+  "4k video downloader+": FourKVideoDownloaderPlus,
   "4k video to mp3": FourKVideoToMp3,
   "4k youtube to mp3": FourKYoutubeToMp3,
   "7 zip": SevenZip,

@@ -30,6 +30,20 @@
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "3DF Zephyr Free",
+      "slug": "3df-zephyr-free/windows",
+      "platform": "windows",
+      "unique_identifier": "3DF Zephyr Free",
+      "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
+    },
+    {
+      "name": "3DxWare 10",
+      "slug": "3dxware-10/windows",
+      "platform": "windows",
+      "unique_identifier": "3Dconnexion 3DxWare 10",
+      "description": "3DxWare 10 is 3Dconnexion's driver and configuration software for SpaceMouse and CadMouse devices."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -44,10 +58,24 @@
       "description": "4K Stogram is a tool to download Instagram photos, accounts, hashtags and locations."
     },
     {
+      "name": "4K Video Downloader+",
+      "slug": "4k-video-downloader-plus/windows",
+      "platform": "windows",
+      "unique_identifier": "4K Video Downloader+",
+      "description": "4K Video Downloader+ is an app for downloading videos and playlists from popular sites in high quality."
+    },
+    {
       "name": "4K Video Downloader",
       "slug": "4k-video-downloader/darwin",
       "platform": "darwin",
       "unique_identifier": "com.4kdownload.ApplicationDirectories",
+      "description": "4K Video Downloader is a free video downloader."
+    },
+    {
+      "name": "4K Video Downloader",
+      "slug": "4k-video-downloader/windows",
+      "platform": "windows",
+      "unique_identifier": "4K Video Downloader",
       "description": "4K Video Downloader is a free video downloader."
     },
     {
@@ -4871,7 +4899,7 @@
       "slug": "moom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.manytricks.Moom",
-      "description": "Moom is a utility to move and zoom windows—on one display."
+      "description": "Moom is a utility to move and zoom windows\u2014on one display."
     },
     {
       "name": "Moonlight",
@@ -7139,7 +7167,7 @@
       "slug": "splice/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splice.Splice",
-      "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
+      "description": "Splice is a tool to browse and preview sounds from Splice\u2019s entire catalog."
     },
     {
       "name": "Spokenly",
