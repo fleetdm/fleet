@@ -102,15 +102,6 @@ export const MajorVersionPinnedActive: Story = {
   },
 };
 
-/** Custom (non-FMA) package: no versions modal, so the "Latest" pin renders as
- * a static span rather than a button — no pointer/hover affordance. */
-export const LatestActiveDecorative: Story = {
-  args: {
-    badgeState: "latest",
-    onBadgeClick: undefined,
-  },
-};
-
 export const AllHostsNoLabels: Story = {
   args: {
     badgeState: "latest",
