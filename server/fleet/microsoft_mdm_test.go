@@ -811,6 +811,35 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
 		require.Equal(t, []string{"./Device/A"}, uris)
 	})
+
+	t.Run("surrounding whitespace trimmed", func(t *testing.T) {
+		// A formatting-only spelling change (e.g. an editor reflowing the LocURI text) must not make the same node look like a
+		// different URI: edit-diffing would otherwise emit a <Delete> for a node the new version still enforces.
+		xml := "<Replace><Item><Target><LocURI>\n\t\t./Device/A </LocURI></Target></Item></Replace><Atomic><Add><Item><Target><LocURI> ./Device/B\n</LocURI></Target></Item></Add></Atomic>"
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A", "./Device/B"}, uris)
+	})
+}
+
+func TestCanonicalLocURI(t *testing.T) {
+	t.Parallel()
+
+	// All device-scoped spellings of the same node collapse to one comparison form.
+	for _, spelling := range []string{
+		"./Device/Vendor/MSFT/Policy/Config/X",
+		"./Vendor/MSFT/Policy/Config/X",
+		"Device/Vendor/MSFT/Policy/Config/X",
+		"Vendor/MSFT/Policy/Config/X",
+		" ./Device/Vendor/MSFT/Policy/Config/X\n",
+	} {
+		require.Equal(t, "Vendor/MSFT/Policy/Config/X", CanonicalLocURI(spelling), "spelling: %q", spelling)
+	}
+	// User scope is explicit and stays distinct from device scope.
+	require.Equal(t, "User/Vendor/MSFT/X", CanonicalLocURI("./User/Vendor/MSFT/X"))
+	// Case is preserved: CSP paths are documented case-sensitive.
+	require.Equal(t, "vendor/msft/x", CanonicalLocURI("./Device/vendor/msft/x"))
+	// Only a whole "Device" segment is a scope marker, not a prefix of the first segment.
+	require.Equal(t, "DeviceLock/X", CanonicalLocURI("./DeviceLock/X"))
 }
 
 func TestIsFleetInternalCmdID(t *testing.T) {

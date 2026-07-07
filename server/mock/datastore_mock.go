@@ -52,6 +52,8 @@ type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fle
 
 type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
 
+type ExpireCarvesFunc func(ctx context.Context, ids []int64) error
+
 type CarveFunc func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error)
 
 type CarveBySessionIdFunc func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error)
@@ -344,7 +346,7 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
-type CleanupWindowsMDMPendingDeleteProfilesFunc func(ctx context.Context) error
+type CleanupWindowsMDMProfilePriorContentFunc func(ctx context.Context) error
 
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
@@ -356,7 +358,7 @@ type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error)
 
-type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error
+type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error
 
 type SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
 
@@ -846,7 +848,7 @@ type ExtendHostOrbitDebugUntilFunc func(ctx context.Context, hostID uint, until 
 
 type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
-type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error)
 
 type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
@@ -1366,6 +1368,8 @@ type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, md
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
 
+type MDMWindowsInsertCommandForHostUUIDsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
+
 type MDMWindowsInsertCommandsForHostFunc func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error
 
 type MDMWindowsBulkInsertCommandsFunc func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error
@@ -1425,6 +1429,8 @@ type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string
 type ListWindowsProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error)
 
 type BulkGetHostMDMWindowsProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error)
+
+type GetWindowsMDMProfilePriorContentsFunc func(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error)
 
 type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -2181,6 +2187,9 @@ type DataStore struct {
 	UpdateCarveFunc        UpdateCarveFunc
 	UpdateCarveFuncInvoked bool
 
+	ExpireCarvesFunc        ExpireCarvesFunc
+	ExpireCarvesFuncInvoked bool
+
 	CarveFunc        CarveFunc
 	CarveFuncInvoked bool
 
@@ -2619,8 +2628,8 @@ type DataStore struct {
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
 
-	CleanupWindowsMDMPendingDeleteProfilesFunc        CleanupWindowsMDMPendingDeleteProfilesFunc
-	CleanupWindowsMDMPendingDeleteProfilesFuncInvoked bool
+	CleanupWindowsMDMProfilePriorContentFunc        CleanupWindowsMDMProfilePriorContentFunc
+	CleanupWindowsMDMProfilePriorContentFuncInvoked bool
 
 	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
 	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
@@ -4152,6 +4161,9 @@ type DataStore struct {
 	MDMWindowsInsertCommandForHostsFunc        MDMWindowsInsertCommandForHostsFunc
 	MDMWindowsInsertCommandForHostsFuncInvoked bool
 
+	MDMWindowsInsertCommandForHostUUIDsFunc        MDMWindowsInsertCommandForHostUUIDsFunc
+	MDMWindowsInsertCommandForHostUUIDsFuncInvoked bool
+
 	MDMWindowsInsertCommandsForHostFunc        MDMWindowsInsertCommandsForHostFunc
 	MDMWindowsInsertCommandsForHostFuncInvoked bool
 
@@ -4241,6 +4253,9 @@ type DataStore struct {
 
 	BulkGetHostMDMWindowsProfilesByUUIDsFunc        BulkGetHostMDMWindowsProfilesByUUIDsFunc
 	BulkGetHostMDMWindowsProfilesByUUIDsFuncInvoked bool
+
+	GetWindowsMDMProfilePriorContentsFunc        GetWindowsMDMProfilePriorContentsFunc
+	GetWindowsMDMProfilePriorContentsFuncInvoked bool
 
 	GetMDMWindowsReconcileCursorFunc        GetMDMWindowsReconcileCursorFunc
 	GetMDMWindowsReconcileCursorFuncInvoked bool
@@ -5411,6 +5426,13 @@ func (s *DataStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetada
 	return s.UpdateCarveFunc(ctx, metadata)
 }
 
+func (s *DataStore) ExpireCarves(ctx context.Context, ids []int64) error {
+	s.mu.Lock()
+	s.ExpireCarvesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpireCarvesFunc(ctx, ids)
+}
+
 func (s *DataStore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 	s.mu.Lock()
 	s.CarveFuncInvoked = true
@@ -6433,11 +6455,11 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
 }
 
-func (s *DataStore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error {
+func (s *DataStore) CleanupWindowsMDMProfilePriorContent(ctx context.Context) error {
 	s.mu.Lock()
-	s.CleanupWindowsMDMPendingDeleteProfilesFuncInvoked = true
+	s.CleanupWindowsMDMProfilePriorContentFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupWindowsMDMPendingDeleteProfilesFunc(ctx)
+	return s.CleanupWindowsMDMProfilePriorContentFunc(ctx)
 }
 
 func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
@@ -6475,11 +6497,11 @@ func (s *DataStore) ListHostCertificates(ctx context.Context, hostID uint, opts 
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
 }
 
-func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 	s.mu.Lock()
 	s.UpdateHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs, origin)
+	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs, origin, observedScopes)
 }
 
 func (s *DataStore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
@@ -8190,7 +8212,7 @@ func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, in
 	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error) {
 	s.mu.Lock()
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
 	s.mu.Unlock()
@@ -10010,6 +10032,13 @@ func (s *DataStore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUI
 	return s.MDMWindowsInsertCommandForHostsFunc(ctx, hostUUIDs, cmd)
 }
 
+func (s *DataStore) MDMWindowsInsertCommandForHostUUIDs(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertCommandForHostUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertCommandForHostUUIDsFunc(ctx, hostUUIDs, cmd)
+}
+
 func (s *DataStore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertCommandsForHostFuncInvoked = true
@@ -10218,6 +10247,13 @@ func (s *DataStore) BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, ho
 	s.BulkGetHostMDMWindowsProfilesByUUIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkGetHostMDMWindowsProfilesByUUIDsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
+	s.mu.Lock()
+	s.GetWindowsMDMProfilePriorContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsMDMProfilePriorContentsFunc(ctx, keys)
 }
 
 func (s *DataStore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {

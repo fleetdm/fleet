@@ -42,79 +42,6 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 	return req, nil
 }
 
-func TestIsValidAppruURL(t *testing.T) {
-	tests := []struct {
-		name     string
-		appru    string
-		expected bool
-	}{
-		// Valid URLs
-		{
-			name:     "valid ms-app scheme",
-			appru:    "ms-app://windows.immersivecontrolpanel",
-			expected: true,
-		},
-		{
-			name:     "valid https scheme",
-			appru:    "https://example.com/callback",
-			expected: true,
-		},
-		{
-			name:     "valid http scheme",
-			appru:    "http://localhost/callback",
-			expected: true,
-		},
-		// Invalid URLs - XSS attempts
-		{
-			name:     "javascript injection",
-			appru:    ";for (var key in localStorage){ alert(key)};//",
-			expected: false,
-		},
-		{
-			name:     "javascript protocol",
-			appru:    "javascript:alert(1)",
-			expected: false,
-		},
-		{
-			name:     "data URI",
-			appru:    "data:text/html,<script>alert(1)</script>",
-			expected: false,
-		},
-		{
-			name:     "empty scheme",
-			appru:    "://example.com",
-			expected: false,
-		},
-		{
-			name:     "plain text",
-			appru:    "not-a-url",
-			expected: false,
-		},
-		{
-			name:     "empty string",
-			appru:    "",
-			expected: false,
-		},
-		{
-			name:     "file scheme",
-			appru:    "file:///etc/passwd",
-			expected: false,
-		},
-		{
-			name:     "ftp scheme",
-			appru:    "ftp://example.com",
-			expected: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := isValidAppru(tc.appru)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func TestValidSoapResponse(t *testing.T) {
 	relatesTo := "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749"
 	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, fleet.MDEDiscovery, errors.New("test"))
@@ -278,6 +205,74 @@ func TestInvalidSoapRequestWithDiscoverMsg(t *testing.T) {
 	require.NoError(t, err)
 	err = req.IsValidDiscoveryMsg()
 	require.Error(t, err)
+}
+
+// TestRejectUnsupportedAuth verifies that a policy/enroll request following the OnPremise auth policy with a
+// <wsse:UsernameToken> (username + plaintext password) is turned into an actionable fault, while other token errors pass
+// through unchanged.
+func TestRejectUnsupportedAuth(t *testing.T) {
+	sentinel := errors.New("binarySecurityToken is empty")
+
+	header := func(security string) []byte {
+		return []byte(`
+			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
+				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>` + security + `
+			</s:Header>
+			</s:Envelope>`)
+	}
+
+	const secretPassword = "SuperSecret-PlaintextPassword"
+	usernameToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:UsernameToken>
+						<wsse:Username>user@example.com</wsse:Username>
+						<wsse:Password>` + secretPassword + `</wsse:Password>
+					</wsse:UsernameToken>
+				</wsse:Security>`
+	binarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">dG9rZW4=</wsse:BinarySecurityToken>
+				</wsse:Security>`
+	// A present-but-empty BinarySecurityToken element (ValueType/EncodingType set, no content) is a genuine empty-token
+	// error, not OnPremise auth, so it must keep the original "binarySecurityToken is empty" error.
+	emptyBinarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"></wsse:BinarySecurityToken>
+				</wsse:Security>`
+
+	testCases := []struct {
+		name              string
+		security          string
+		wantActionableMsg bool
+	}{
+		{name: "username/password (OnPremise) is rejected with actionable message", security: usernameToken, wantActionableMsg: true},
+		{name: "binary security token passes the original error through", security: binarySecurityToken, wantActionableMsg: false},
+		{name: "present-but-empty binary security token passes the original error through", security: emptyBinarySecurityToken, wantActionableMsg: false},
+		{name: "missing security header passes the original error through", security: "", wantActionableMsg: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := header(tc.security)
+			req, err := NewSoapRequest(raw)
+			require.NoError(t, err)
+			req.Raw = raw // DecodeBody populates Raw in production; the NewSoapRequest test helper does not.
+
+			got := rejectUnsupportedAuth(&req, sentinel)
+
+			if tc.wantActionableMsg {
+				require.Contains(t, got.Error(), "is not supported")
+				require.Contains(t, got.Error(), "Microsoft Entra ID")
+				// The plaintext password must never be echoed back into the fault (and therefore the logs).
+				require.NotContains(t, got.Error(), secretPassword)
+			} else {
+				require.Equal(t, sentinel, got)
+			}
+		})
+	}
 }
 
 func TestProvisioningDocGeneration(t *testing.T) {
@@ -729,6 +724,15 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return nil
 	}
 	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
+	// Modify-install delete pass: default to no retained prior content (no LocURIs removed) and a no-op enqueue, so reconcile tests
+	// that don't exercise edited-profile <Delete> generation don't nil-panic. Tests covering it can override these.
+	ds.GetWindowsMDMProfilePriorContentsFunc = func(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
+		return nil, nil
+	}
+	ds.MDMWindowsInsertCommandForHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		return nil
 	}
 

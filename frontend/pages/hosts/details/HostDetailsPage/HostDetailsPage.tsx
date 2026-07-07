@@ -1088,6 +1088,9 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.managed_local_account?.password_available ??
           false
         }
+        wipeAllowed={host.mdm.wipe_allowed}
+        lockAllowed={host.mdm.lock_allowed}
+        clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
   };
@@ -1312,7 +1315,8 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDeviceHost && !!hostCertificates?.certificates.length;
+    (isAppleDeviceHost || isWindowsHost) &&
+    (isErrorHostCertificates || !!hostCertificates?.certificates.length);
 
   const renderSoftwareCard = () => {
     return (

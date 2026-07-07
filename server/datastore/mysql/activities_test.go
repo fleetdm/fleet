@@ -2599,12 +2599,31 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_software",
-		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software"},
+		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software", "status": "installed"},
 		hostIDs: []uint{h1.ID},
 	}))
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_software",
-		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software"},
+		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software", "status": "failed_install"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// A historically-successful install whose host_software_installs row was later
+	// marked removed (e.g. after the installer package was edited or the software
+	// re-installed). The generated status column is NULL for such rows, so the
+	// outcome must come from the recorded details.status, not the live column.
+	swRemovedExecID := "sw-removed-exec-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installs
+            (host_id, execution_id, software_installer_id, install_script_exit_code,
+             install_script_output, pre_install_query_output, post_install_script_output, policy_id, removed)
+         VALUES
+            (?, ?, 1, 0, 'install ok', 'pre ok', 'post ok', ?, 1)`,
+		h1.ID, swRemovedExecID, policy.ID)
+	require.NoError(t, err)
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swRemovedExecID, "software_title": "My Software", "status": "installed"},
 		hostIDs: []uint{h1.ID},
 	}))
 
@@ -2697,6 +2716,42 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		require.Positive(t, types["ran_script"])
 		require.Positive(t, types["installed_software"])
 		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("removed install row is categorized by recorded status", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+
+		// hasRemovedInstall reports whether the removed install activity appears in
+		// the given result set (matched by its install_uuid in the details blob).
+		hasRemovedInstall := func(as []*fleet.PolicyAutomationActivity) bool {
+			for _, a := range as {
+				require.NotNil(t, a.Details)
+				var m map[string]any
+				require.NoError(t, json.Unmarshal(*a.Details, &m))
+				if uuid, _ := m["install_uuid"].(string); uuid == swRemovedExecID {
+					// The live host_software_installs.status is NULL (removed=1), but
+					// the recorded details.status is "installed", so the historical
+					// outcome must be reported as success.
+					require.Equal(t, "success", a.Status)
+					return true
+				}
+			}
+			return false
+		}
+		require.True(t, hasRemovedInstall(activities), "expected the removed install activity to be returned")
+
+		// The status filter must agree with the reported status: the removed row
+		// is a success, so it appears under status=success and not status=error.
+		// This guards errorCond/successCond, which the unfiltered query above does
+		// not exercise.
+		success, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.True(t, hasRemovedInstall(success), "removed install should appear under status=success")
+
+		errored, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.False(t, hasRemovedInstall(errored), "removed install must not appear under status=error")
 	})
 
 	t.Run("status and output are populated per activity", func(t *testing.T) {

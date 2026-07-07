@@ -925,6 +925,12 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	}
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
+
+		// Google Workspace IdP is a premium-only integration, so omit it from the
+		// generated free-tier GitOps so the example stays valid on reapply.
+		if !cmd.AppConfig.License.IsPremium() {
+			delete(result, "google_workspace")
+		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
 
@@ -966,6 +972,18 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					Filename: "default.yml",
 					Key:      "integrations.zendesk.api_token",
 				})
+			}
+		}
+		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+			for _, intg := range googleWorkspace.([]any) {
+				intgMap := intg.(map[string]any)
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
+					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+						Filename: "default.yml",
+						Key:      "integrations.google_workspace.api_key_json",
+					})
+				}
 			}
 		}
 	}

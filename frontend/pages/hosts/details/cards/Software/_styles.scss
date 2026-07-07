@@ -19,16 +19,6 @@
     width: 100%;
   }
 
-  .table-container__data-table-block {
-    .data-table-block {
-      .data-table {
-        &__wrapper {
-          overflow-x: auto;
-        }
-      }
-    }
-  }
-
   .host-software-table {
     // When the macOS /Applications dropdown is shown, lay the controls out as
     // search (left) ... dropdown, filters button (right). The dropdown and

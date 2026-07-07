@@ -1653,6 +1653,66 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	}
 }
 
+// TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled verifies that a custom BitLocker profile is rejected by
+// default but accepted when custom disk encryption is enabled via server configuration
+// (mdm.enable_custom_disk_encryption or its alias mdm.enable_custom_filevault).
+func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
+	bitLockerProfile := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`)
+
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true},
+			}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = uuid.New().String()
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		return ds
+	}
+
+	cases := []struct {
+		name                       string
+		enableCustomDiskEncryption bool
+		enableCustomFileVault      bool
+		wantErr                    string // empty means the BitLocker profile is expected to be accepted
+	}{
+		{name: "rejected when neither setting is set", wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg},
+		{name: "allowed when enable_custom_disk_encryption is set", enableCustomDiskEncryption: true},
+		{name: "allowed when enable_custom_filevault is set", enableCustomFileVault: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := newDS()
+			cfg := config.TestConfig()
+			cfg.MDM.EnableCustomDiskEncryption = c.enableCustomDiskEncryption
+			cfg.MDM.EnableCustomFileVault = c.enableCustomFileVault
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+			ctx = test.UserContext(ctx, test.UserAdmin)
+
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				require.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+			} else {
+				require.NoError(t, err)
+				require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+			}
+		})
+	}
+}
+
 func TestMDMBatchSetProfiles(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
@@ -2222,6 +2282,99 @@ func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
+}
+
+// TestMDMBatchSetProfilesWindowsAssumeEnabled is a regression test ensuring the assume_enabled flag is only honored on dry runs
+func TestMDMBatchSetProfilesWindowsAssumeEnabled(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	var windowsEnabled bool
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: windowsEnabled,
+			},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables,
+	) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string,
+		hostUUIDs []string,
+	) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	windowsProfiles := []fleet.MDMProfileBatchPayload{
+		{Name: "win-profile", Contents: []byte(`<Replace></Replace>`)},
+	}
+
+	testCases := []struct {
+		name           string
+		windowsEnabled bool
+		assumeEnabled  *bool
+		dryRun         bool
+		wantErr        string
+		wantDSInvoked  bool
+	}{
+		{
+			name:           "assume_enabled true on real run is a no-op when Windows MDM is disabled",
+			windowsEnabled: false,
+			assumeEnabled:  new(true),
+			dryRun:         false,
+			wantErr:        fleet.ErrWindowsMDMNotConfigured.Error(),
+			wantDSInvoked:  false,
+		},
+		{
+			// The legitimate GitOps dry-run flow
+			name:           "assume_enabled true on dry run validates when Windows MDM is disabled",
+			windowsEnabled: false,
+			assumeEnabled:  new(true),
+			dryRun:         true,
+			wantErr:        "",
+			wantDSInvoked:  false, // dry run never persists
+		},
+		{
+			// The legitimate real run
+			name:           "real run succeeds without assume_enabled when Windows MDM is enabled",
+			windowsEnabled: true,
+			assumeEnabled:  nil,
+			dryRun:         false,
+			wantErr:        "",
+			wantDSInvoked:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			windowsEnabled = tc.windowsEnabled
+			ds.BatchSetMDMProfilesFuncInvoked = false
+
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, false)
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantDSInvoked, ds.BatchSetMDMProfilesFuncInvoked)
+		})
+	}
 }
 
 func TestValidateProfiles(t *testing.T) {
