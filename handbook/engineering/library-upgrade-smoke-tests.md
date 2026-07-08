@@ -82,39 +82,45 @@ The main Go module covers the Fleet server, the `fleetctl` CLI, and the Orbit ag
 
 ### HTTP / Routing / Middleware
 
+> **go-kit/kit** and **gorilla/mux** are the backbone of every API request. If either breaks, nothing works. Test broadly.
+
 | Library | Version | Smoke tests | Risk |
 |---------|---------|-------------|------|
-| `github.com/go-kit/kit` | v0.12.0 | TODO | |
-| `github.com/gorilla/mux` | v1.8.1 | TODO | |
-| `github.com/gorilla/websocket` | v1.5.1 | TODO | |
-| `github.com/igm/sockjs-go/v3` | v3.0.2 | TODO | |
-| `github.com/throttled/throttled/v2` | v2.8.0 | TODO | |
-| `github.com/realclientip/realclientip-go` | v1.0.0 | TODO | |
-| `github.com/e-dard/netbug` | v0.0.0 | TODO | |
+| `github.com/go-kit/kit` | v0.12.0 | Every endpoint is built on go-kit's endpoint/transport layer. **1.** Server starts and `/healthz` responds. **2.** Login returns a valid token. **3.** List hosts API returns results. **4.** Create/edit a policy via API. **5.** MDM endpoints respond (e.g. SCEP, MDM checkin). **6.** Error responses have correct JSON structure. **7.** `fleetctl` CLI commands (get hosts, apply config) work. | Critical |
+| `github.com/gorilla/mux` | v1.8.1 | All Fleet routes are registered on this router. **1.** Hit 5+ distinct API routes and verify 200 responses. **2.** URL path params work (e.g. `/api/v1/fleet/hosts/:id`). **3.** Unknown routes return 404. **4.** SCEP and MDM sub-routes respond. **5.** SCIM routes respond (EE). | Critical |
+| `github.com/gorilla/websocket` | v1.5.1 | Powers the WebSocket transport for live queries. **1.** Run a live query from the Fleet UI -- verify results stream in real time. **2.** Run `fleetctl query` from CLI -- verify results return. **3.** Cancel a live query mid-flight and verify clean disconnect. | High |
+| `github.com/igm/sockjs-go/v3` | v3.0.2 | SockJS fallback when raw WebSocket is blocked. **1.** Run a live query from the Fleet UI (standard path). **2.** If possible, test behind a proxy that blocks WebSocket upgrades -- verify live query still works via XHR fallback. | High |
+| `github.com/throttled/throttled/v2` | v2.8.0 | Rate-limits login, SSO, forgot-password, MFA endpoints. **1.** Attempt 10+ rapid login failures -- verify rate-limit response (HTTP 429). **2.** Verify SSO initiate endpoint is rate-limited. **3.** Verify forgot-password endpoint is rate-limited. **4.** Normal login still works after rate-limit window passes. | High |
+| `github.com/realclientip/realclientip-go` | v1.0.0 | Extracts true client IP for rate limiting behind proxies. **1.** Configure `trusted_proxies` and deploy behind a reverse proxy. **2.** Verify rate limiting keys on the correct client IP (not the proxy IP). **3.** Without `trusted_proxies`, verify `RemoteAddr` is used. | Medium |
+| `github.com/e-dard/netbug` | v0.0.0 | Exposes `/debug/` pprof endpoints behind auth token. **1.** Set `debug_token` in server config. **2.** Hit `/debug/pprof/` with the token -- verify pprof index page renders. **3.** Without the token, verify 403/401. | Low |
 
 ### Database / SQL
 
+> **go-sql-driver/mysql** and **jmoiron/sqlx** underpin every database operation. If either breaks, the server cannot function. Test the full request lifecycle.
+
 | Library | Version | Smoke tests | Risk |
 |---------|---------|-------------|------|
-| `github.com/go-sql-driver/mysql` | v1.9.3 | TODO | |
-| `github.com/jmoiron/sqlx` | v1.3.5 | TODO | |
-| `github.com/doug-martin/goqu/v9` | v9.18.0 | TODO | |
-| `github.com/ngrok/sqlmw` | v0.0.0 | TODO | |
-| `github.com/VividCortex/mysqlerr` | v0.0.0 | TODO | |
-| `github.com/ziutek/mymysql` | v1.5.4 | TODO | |
-| `github.com/mattn/go-sqlite3` | v1.14.22 | TODO | |
-| `github.com/lib/pq` | v1.10.9 | TODO | |
-| `github.com/shogo82148/rdsmysql/v2` | v2.5.0 | TODO | |
-| `github.com/XSAM/otelsql` | v0.39.0 | TODO | |
-| `github.com/DATA-DOG/go-sqlmock` | v1.5.0 | TODO | |
+| `github.com/go-sql-driver/mysql` | v1.9.3 | The MySQL wire-protocol driver -- every DB query goes through it. **1.** Server starts and connects to MySQL. **2.** Login/create user works. **3.** Enroll a host -- verify it appears in the host list. **4.** Create a policy -- verify it persists across server restart. **5.** Run `MYSQL_TEST=1 go test ./server/datastore/mysql/...` | Critical |
+| `github.com/jmoiron/sqlx` | v1.3.5 | Struct scanning and named queries for all data access. **1.** Same as `go-sql-driver/mysql` above (sqlx wraps every query). **2.** Additionally: list hosts with filters (exercises struct scanning). **3.** Edit app config and re-read it (exercises named params). **4.** Run `MYSQL_TEST=1 go test ./server/datastore/mysql/...` | Critical |
+| `github.com/doug-martin/goqu/v9` | v9.18.0 | Query builder for complex dynamic queries in software/host listing. **1.** List software with filters (name, version, vulnerable). **2.** List hosts with multiple filters (platform, label, status). **3.** Vulnerability scanning: run a vuln scan and verify CVEs matched. **4.** Run `go test ./server/datastore/mysql/ -run TestSoftware` | High |
+| `github.com/ngrok/sqlmw` | v0.0.0 | SQL middleware that wraps the MySQL driver for intercepting queries. **1.** Server starts without errors (the wrapped driver registers at init). **2.** If using a custom interceptor (tracing), verify SQL spans appear. **3.** Run `go test ./server/platform/mysql/...` | Medium |
+| `github.com/VividCortex/mysqlerr` | v0.0.0 | MySQL error code constants for duplicate-entry, FK violations, deadlock retry. **1.** Create a duplicate entity (e.g. same email) -- verify 409 Conflict response (not 500). **2.** Delete an entity referenced by a FK -- verify correct error. **3.** Run `go test ./server/datastore/mysql/ -run TestDuplicate` | Medium |
+| `github.com/ziutek/mymysql` | v1.5.4 | Only used by the standalone `goose` migration CLI (not the Fleet server binary). **1.** Run `go build ./server/goose/cmd/goose/` -- verify it compiles. **2.** Run a migration up/down with the goose CLI. | Low |
+| `github.com/mattn/go-sqlite3` | v1.14.22 | CGo SQLite driver for vulnerability scanning (NVD CPE database, OVAL). **1.** Run vulnerability scanning -- verify CVEs are detected for known-vulnerable software. **2.** OVAL-based Linux vuln scanning completes without errors. **3.** Run `go test ./server/vulnerabilities/...` | High |
+| `github.com/lib/pq` | v1.10.9 | PostgreSQL driver, only in standalone CLI tools (goose, nanomdm CLI). Not used by the Fleet server. **1.** Run `go build ./server/goose/cmd/goose/` -- verify it compiles. | Low |
+| `github.com/shogo82148/rdsmysql/v2` | v2.5.0 | AWS RDS IAM auth TLS certificate registration. Only active in AWS RDS deployments. **1.** Configure Fleet with RDS IAM authentication. **2.** Verify the server connects to the RDS instance and serves requests. **3.** If no AWS environment, verify `go build` succeeds. | Medium |
+| `github.com/XSAM/otelsql` | v0.39.0 | OpenTelemetry SQL instrumentation (tracing spans + DB pool metrics). **1.** Enable OTel tracing and point to a collector. **2.** Make API requests -- verify SQL query spans appear in the trace backend. **3.** Verify DB pool metrics are exported. | Low |
+| `github.com/DATA-DOG/go-sqlmock` | v1.5.0 | SQL mock for tests only -- not compiled into production. **1.** Run `go test ./server/platform/mysql/... ./server/datastore/mysql/migrations/...` | Low |
 
 ### Redis / Caching
 
+> **redigo** is used by virtually every feature that coordinates across Fleet server instances: live queries, SSO, host check-ins, MDM, automations. Test broadly.
+
 | Library | Version | Smoke tests | Risk |
 |---------|---------|-------------|------|
-| `github.com/gomodule/redigo` | v1.8.9 | TODO | |
-| `github.com/mna/redisc` | v1.3.2 | TODO | |
-| `github.com/patrickmn/go-cache` | v2.1.0 | TODO | |
+| `github.com/gomodule/redigo` | v1.8.9 | Fleet's foundational Redis client -- used by live query targeting, pub/sub, SSO session storage, distributed locks, async host-seen ingestion, policy automations, MDM profile matching, host auth caching, and error dedup. **1.** Run a live query -- verify results stream back. **2.** SSO login flow completes successfully. **3.** Enroll a host -- verify check-in succeeds (host-seen written to Redis). **4.** Trigger a failing-policy automation -- verify it fires. **5.** In a multi-server deployment, verify distributed lock prevents duplicate cron runs. **6.** Run `REDIS_TEST=1 go test ./server/datastore/redis/...` | Critical |
+| `github.com/mna/redisc` | v1.3.2 | Redis Cluster support -- wraps redigo for slot routing, retries, and replica reads. Only active in Redis Cluster deployments. **1.** Configure Fleet against a Redis Cluster. **2.** Run a live query -- verify results return. **3.** SSO login works. **4.** If no cluster environment, verify `go test ./server/datastore/redis/...` passes. | High |
+| `github.com/patrickmn/go-cache` | v2.1.0 | In-process memory cache for hot DB reads (app config 1s TTL, team settings 1m, packs 1m, MDM config assets 15m). **1.** Change app config -- verify the change takes effect within ~1s. **2.** Update team agent options -- verify hosts pick up the change within ~1m. **3.** Upload an MDM config asset -- verify it's served correctly. **4.** Run `go test ./server/datastore/cached_mysql/...` | High |
 
 ### MDM (Apple / Microsoft / SCEP)
 
