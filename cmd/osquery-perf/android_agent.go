@@ -246,13 +246,9 @@ func (a *androidAgent) runLoop() {
 			a.stats.IncrementAndroidCommandAcks()
 		}
 
-		// Process certificate templates from the proxy state
+		// Process certificate templates from the proxy state.
 		for _, certID := range state.PendingCertificates {
-			if _, ok := verifiedCerts[certID]; ok {
-				continue
-			}
-
-			// GET the certificate template from Fleet
+			// Always GET the cert to check its current status — renewals reuse the same template ID
 			cert, err := a.getCertificateTemplate(certID)
 			if err != nil {
 				log.Printf("Android agent %d: get certificate %d failed: %v", a.agentIndex, certID, err)
@@ -260,8 +256,14 @@ func (a *androidAgent) runLoop() {
 				continue
 			}
 
-			// Only verify certificates that are in "delivered" status
+			// If status went back to non-delivered (renewal in progress), clear our tracking
 			if cert.Status != "delivered" {
+				delete(verifiedCerts, certID)
+				continue
+			}
+
+			// Skip if we already verified this delivery
+			if _, ok := verifiedCerts[certID]; ok {
 				continue
 			}
 
@@ -430,7 +432,7 @@ func (a *androidAgent) sendCommandAck(operationName string) error {
 
 // getCertificateTemplate fetches a certificate template from Fleet.
 func (a *androidAgent) getCertificateTemplate(certID uint) (*certTemplateInfo, error) {
-	url := fmt.Sprintf("%s/api/v1/fleet/fleetd/certificates/%d", a.serverAddress, certID)
+	url := fmt.Sprintf("%s/api/fleetd/certificates/%d", a.serverAddress, certID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -487,7 +489,7 @@ func (a *androidAgent) updateCertificateStatus(certID uint, status, operationTyp
 		return fmt.Errorf("marshal status: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/v1/fleet/fleetd/certificates/%d/status", a.serverAddress, certID)
+	url := fmt.Sprintf("%s/api/fleetd/certificates/%d/status", a.serverAddress, certID)
 	req, err := http.NewRequest("PUT", url, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
