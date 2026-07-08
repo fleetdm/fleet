@@ -252,11 +252,10 @@ const SoftwareTitleDetailsPage = ({
       return null;
     }
 
-    // Prefer the multi-package array (#48397). Fall back to the single-package
-    // alias when the server hasn't moved to the multi-package contract yet, so
-    // back-compat titles render identically to before.
-    // TODO(48400): drop the `software_package` fallback once #48397 ships and
-    // `packages` is always present.
+    // `packages` is the source of truth. The `software_package` alias is
+    // still returned by the API (points at `packages[0]`, first-added) — the
+    // fallback here is defense against a title with no custom packages (e.g.
+    // FMA / app-store branch) so downstream code can treat this as an array.
     const packages =
       title.packages ??
       (title.software_package ? [title.software_package] : []);
