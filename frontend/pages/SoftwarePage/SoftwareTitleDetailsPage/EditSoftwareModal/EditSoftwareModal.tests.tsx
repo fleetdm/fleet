@@ -26,7 +26,7 @@ const renderModal = (
   return render(<EditSoftwareModal {...BASE_PROPS} {...overrides} />);
 };
 
-describe("EditSoftwareModal — multi-package title (#48400)", () => {
+describe("EditSoftwareModal — multi-package title", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

@@ -65,7 +65,7 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  /** Per-installer id on a multi-package title (#48397). When set, only this
+  /** Per-installer id on a multi-package title. When set, only this
    * specific package is deleted; otherwise the request deletes the legacy
    * single-package row (or VPP/FMA installer slot). */
   installerId?: number;
@@ -74,10 +74,10 @@ interface IDeleteSoftwareModalProps {
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
-  /** Passed through from `SoftwareTitleDetailsPage`. When true, the modal
-   * title reads "Delete package" instead of "Delete software" and the
-   * title-level metadata warning is suppressed — we're deleting one specific
-   * installer on a title that can hold several, not the title itself. */
+  /** When true, the modal title reads "Delete package" instead of "Delete
+   * software" and the title-level metadata warning is suppressed — we're
+   * deleting one specific installer on a title that can hold several, not
+   * the title itself. */
   canActivateMultiplePackages?: boolean;
 }
 

@@ -60,7 +60,7 @@ describe("DeleteSoftwareModal", () => {
     expect(screen.getByText(/will be uninstalled/i)).toBeVisible();
   });
 
-  describe("multi-package title (#48400)", () => {
+  describe("multi-package title", () => {
     it("renders the 'Delete software' title and the custom-metadata warning by default (single-package legacy path)", () => {
       renderModal();
 

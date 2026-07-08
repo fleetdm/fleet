@@ -163,7 +163,7 @@ const SoftwareTitleDetailsPage = ({
     softwareTitle ?? ({} as ISoftwareTitleDetails)
   );
 
-  // Canonical "this title can hold multiple custom packages" flag (#48400).
+  // Canonical "this title can hold multiple custom packages" flag.
   // Single source of truth for three coordinated behaviors:
   //   1. Library section shows the "+ Add package" action
   //   2. Accordion rows render the self-service / auto-install icons
@@ -171,8 +171,7 @@ const SoftwareTitleDetailsPage = ({
   //      AND collapses the Actions dropdown into a pencil-icon Edit button
   // True for custom non-FMA, non-iOS titles (Mac .pkg, Linux .deb/.rpm/
   // .tar.gz, Windows .msi/.exe, script-only .sh/.ps1). FMA, VPP, Google
-  // Play, and iOS in-house .ipa stay single-package. Premium-only per
-  // parent story #28108.
+  // Play, and iOS in-house .ipa stay single-package. Premium-only.
   const canActivateMultiplePackages =
     !!isPremiumTier &&
     !!installerResult?.meta.isCustomPackage &&
@@ -468,9 +467,8 @@ const SoftwareTitleDetailsPage = ({
         <LibraryItemAccordionList>
           {/* Row order = API response order. The API returns `packages[]`
               sorted by `installer_id` ascending, so the top row is the
-              first-added package (smallest id = collision fallback per
-              #28108). Decided in #48400 spec discussion; the UI does not
-              re-sort. */}
+              first-added package (smallest id = collision fallback). The
+              UI does not re-sort. */}
           {appStore ? renderAppStoreRow() : packages.map(renderPackageRows)}
         </LibraryItemAccordionList>
       </section>

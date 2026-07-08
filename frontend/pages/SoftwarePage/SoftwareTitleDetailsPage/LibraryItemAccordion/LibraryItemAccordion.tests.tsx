@@ -33,8 +33,8 @@ const baseProps: ILibraryItemAccordionProps = {
   isActive: true,
   canEditSoftware: true,
   // The base accordion mock represents a Fleet-maintained app — that's the
-  // shape where Latest/Pinned/Major-version badges apply (#48400 scopes the
-  // "Latest" badge to FMA only). Custom-package tests opt out with
+  // shape where Latest/Pinned/Major-version badges apply (the "Latest" badge
+  // is scoped to FMA only). Custom-package tests opt out with
   // `isFma: false, isCustomPackage: true` overrides.
   isFma: true,
   installed: 32,
@@ -247,8 +247,8 @@ describe("LibraryItemAccordion", () => {
     });
   });
 
-  // #48400 — custom non-FMA non-iOS rows swap the Latest badge for per-
-  // package self-service / auto-install indicators. The page passes
+  // Custom non-FMA non-iOS rows swap the Latest badge for per-package
+  // self-service / auto-install indicators. The page passes
   // `canActivateMultiplePackages=true` for these rows.
   describe("custom-package row (multi-package title)", () => {
     const customRowProps: Partial<ILibraryItemAccordionProps> = {
@@ -303,8 +303,8 @@ describe("LibraryItemAccordion", () => {
     });
 
     it("does not render the Latest badge for a non-FMA row even when badgeState is 'latest'", () => {
-      // The Latest badge is gated on `isFma` (#48400); custom rows never
-      // surface it regardless of `canActivateMultiplePackages` / badgeState.
+      // The Latest badge is gated on `isFma`; custom rows never surface it
+      // regardless of `canActivateMultiplePackages` / badgeState.
       renderAccordion({
         isFma: false,
         canActivateMultiplePackages: false,

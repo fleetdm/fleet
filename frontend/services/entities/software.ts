@@ -525,7 +525,7 @@ export default {
   }: {
     data: IPackageFormData;
     teamId?: number;
-    /** When set, add this package to an existing software title (multi-package flow, #48397).
+    /** When set, add this package to an existing software title (multi-package flow).
      * When omitted, the server creates a new title for the uploaded file (original flow). */
     softwareTitleId?: number;
     timeout?: number;
@@ -617,7 +617,7 @@ export default {
       | IVersionPinFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
-    /** Targets one specific package on a multi-package title (#48397). Omit on
+    /** Targets one specific package on a multi-package title. Omit on
      * single-package titles to keep the legacy single-package edit behavior. */
     installerId?: number;
     teamId: number;
@@ -772,7 +772,7 @@ export default {
   },
 
   // Endpoint for deleting packages or VPP. Pass `installerId` to delete one
-  // specific package on a multi-package title (#48397); omit to keep the legacy
+  // specific package on a multi-package title; omit to keep the legacy
   // single-package / VPP behavior (deletes the whole installer slot).
   deleteSoftwareInstaller: (
     softwareId: number,

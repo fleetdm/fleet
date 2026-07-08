@@ -40,11 +40,10 @@ interface ISoftwareSummaryCard {
   /** Opens the page-owned Versions modal; the Actions item is gated here by
    * `canManageVersions`. */
   onClickVersions: () => void;
-  /** Canonical "this title can hold multiple custom packages" flag (#48400),
-   * passed from `SoftwareTitleDetailsPage`. When true the card hides its
-   * Self-service / Auto install / Patch chips (Library accordion rows show
-   * per-package icons instead) and collapses the Actions dropdown into a
-   * single pencil-icon Edit-appearance button. */
+  /** Canonical "this title can hold multiple custom packages" flag. When
+   * true the card hides its Self-service / Auto install / Patch chips
+   * (Library accordion rows show per-package icons instead) and collapses
+   * the Actions dropdown into a single pencil-icon Edit-appearance button. */
   canActivateMultiplePackages?: boolean;
 }
 
@@ -156,11 +155,11 @@ const SoftwareSummaryCard = ({
     [isCustomPackage, customPackageChipLabel],
   ] as const).find(([flag]) => flag)?.[1];
 
-  // Titles that can hold multiple custom packages (#48400) move Self-service
-  // and Auto-install/Patch indicators down to per-row icons on the Library
-  // accordion. The title-level chips would be misleading when one package is
-  // self-service and another isn't. FMA and iOS in-house .ipa keep the chips
-  // since they're single-package — the flag is owned by the page.
+  // Titles that can hold multiple custom packages move Self-service and
+  // Auto-install/Patch indicators down to per-row icons on the Library
+  // accordion. The title-level chips would be misleading when one package
+  // is self-service and another isn't. FMA and iOS in-house .ipa keep the
+  // chips since they're single-package — the flag is owned by the page.
   const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
   const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
 
@@ -307,10 +306,10 @@ const SoftwareSummaryCard = ({
           }
           onClickEditSoftware={
             // Multi-package titles move per-installer editing to the Library
-            // accordion row (#48400); the page-level Edit button collapses to
-            // a single pencil-icon Edit-appearance button below. Single-package
-            // types (FMA, VPP, Google Play, iOS in-house .ipa) keep the
-            // Actions dropdown.
+            // accordion row; the page-level Edit button collapses to a single
+            // pencil-icon Edit-appearance button below. Single-package types
+            // (FMA, VPP, Google Play, iOS in-house .ipa) keep the Actions
+            // dropdown.
             canEditSoftware && !canActivateMultiplePackages
               ? onClickEditSoftware
               : undefined

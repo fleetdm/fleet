@@ -44,8 +44,8 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  /** Per-installer id on a multi-package title (#48397). When set, the PATCH
-   * targets this specific package; otherwise the request edits the legacy
+  /** Per-installer id on a multi-package title. When set, the PATCH targets
+   * this specific package; otherwise the request edits the legacy
    * single-package row. */
   installerId?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -58,10 +58,9 @@ interface IEditSoftwareModalProps {
   displayName: string;
   source?: string;
   iconUrl?: string | null;
-  /** Passed through from `SoftwareTitleDetailsPage`. When true, the modal
-   * title reads "Edit package" instead of "Edit software" — we're editing one
-   * specific installer on a title that has several, not the title's only
-   * package (#48400). */
+  /** When true, the modal title reads "Edit package" instead of "Edit
+   * software" — we're editing one specific installer on a title that has
+   * several, not the title's only package. */
   canActivateMultiplePackages?: boolean;
 }
 
@@ -84,9 +83,9 @@ const EditSoftwareModal = ({
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   // Everything visible-but-disabled in GitOps mode for both FMA and custom
-  // multi-package titles (#48400). Users edit these through YAML instead —
-  // the disabled Save button carries the standard GitOps tooltip that links
-  // to the repo.
+  // multi-package titles. Users edit these through YAML instead — the
+  // disabled Save button carries the standard GitOps tooltip that links to
+  // the repo.
   const isGitOpsCompatible =
     gitOpsModeEnabled && (isFleetMaintainedApp || canActivateMultiplePackages);
 

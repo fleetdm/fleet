@@ -206,7 +206,7 @@ interface ISoftwareDetailsSummaryProps {
   isAppleVpp?: boolean;
   /** Custom non-FMA packages collapse the Actions dropdown into a single
    * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
-   * Per-installer Edit lives on the Library accordion row (#48400). */
+   * Per-installer Edit lives on the Library accordion row. */
   useSingleEditAppearanceButton?: boolean;
 }
 

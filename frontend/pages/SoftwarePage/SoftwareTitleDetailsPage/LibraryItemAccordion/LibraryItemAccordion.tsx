@@ -104,8 +104,8 @@ export interface ILibraryItemAccordionProps {
 
   /** Single page-level flag mirroring `SoftwareTitleDetailsPage`'s
    * `canActivateMultiplePackages` — true for titles that can hold multiple
-   * custom packages (#48400). Drives the row's self-service / auto-install
-   * icons (and the absence of the Latest badge, which is FMA-only by gate). */
+   * custom packages. Drives the row's self-service / auto-install icons
+   * (and the absence of the Latest badge, which is FMA-only by gate). */
   canActivateMultiplePackages?: boolean;
   /** Drives the self-service icon's tooltip variant and visibility on the
    * custom-package row. Mirrors `software_package.self_service`. */
@@ -123,7 +123,7 @@ export interface ILibraryItemAccordionProps {
   onSelfServiceClick?: () => void;
   /** Click handler for the auto-install icon — the page resolves whether to
    * navigate straight to the single linked policy or open the PoliciesModal,
-   * scoped to THIS package's policies (#48400). */
+   * scoped to THIS package's policies. */
   onAutoInstallClick?: () => void;
 }
 
@@ -214,7 +214,7 @@ const LibraryItemAccordion = ({
   // Per-row indicator icon — tooltipped, optionally wrapped in a Button when
   // a click handler is provided AND the caller's gate (e.g. permission) is
   // open. Falls back to a static Icon otherwise. Used for the self-service
-  // and auto-install indicators on multi-package custom rows (#48400).
+  // and auto-install indicators on multi-package custom rows.
   const renderRowActionIcon = ({
     iconName,
     tooltipContent,

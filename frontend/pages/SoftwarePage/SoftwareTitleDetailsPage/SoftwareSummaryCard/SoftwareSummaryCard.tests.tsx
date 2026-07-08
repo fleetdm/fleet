@@ -86,7 +86,7 @@ describe("Software Summary Card", () => {
       return options.map((option) => option.textContent || "");
     };
 
-    it("collapses to a single pencil-icon Edit (appearance) button for standard custom software packages (#48400)", () => {
+    it("collapses to a single pencil-icon Edit (appearance) button for standard custom software packages", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -206,7 +206,7 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Edit configuration");
     });
 
-    it("collapses macOS .pkg titles to the single-Edit button (no Edit configuration, no Actions dropdown) (#48400)", () => {
+    it("collapses macOS .pkg titles to the single-Edit button (no Edit configuration, no Actions dropdown)", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -237,7 +237,8 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
             // Explicit null — `createMockSoftwareTitle` defaults to a custom
-            // package, which would otherwise hide the dropdown under #48400.
+            // package, which would otherwise hide the dropdown for
+            // multi-package-capable titles.
             software_package: null,
             app_store_app: createMockAppStoreApp({ platform: "darwin" }),
           })}
@@ -316,7 +317,7 @@ describe("Software Summary Card", () => {
       expect(options).not.toContain("Versions");
     });
 
-    it("hides the Actions dropdown (and therefore Versions) for non-FMA custom installers (#48400)", () => {
+    it("hides the Actions dropdown (and therefore Versions) for non-FMA custom installers", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -509,8 +510,8 @@ describe("Software Summary Card", () => {
 
     it("renders the Self-service pill when self_service is true", () => {
       // FMA mock — custom packages hide the title-level Self-service /
-      // Auto install / Patch chips under #48400 (per-row icons take over).
-      // FMA titles are single-package and keep the chips.
+      // Auto install / Patch chips (per-row icons take over). FMA titles are
+      // single-package and keep the chips.
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -530,7 +531,7 @@ describe("Software Summary Card", () => {
       expect(screen.getByText("Self-service")).toBeInTheDocument();
     });
 
-    it("hides the Self-service / Auto install / Patch chips for custom packages (#48400)", () => {
+    it("hides the Self-service / Auto install / Patch chips for custom packages", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({

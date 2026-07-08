@@ -132,10 +132,10 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
   /** When provided, the categories list is fetched dynamically for this fleet. */
   teamId?: number;
-  /** Set when this form is mounted inside the multi-package add modal
-   * (#48400). Renders a contextual banner just under the file chooser —
-   * GitOps copy when GitOps mode is on, the first-added-wins copy otherwise.
-   * Other call sites (single-package add page, edit modal) leave it false. */
+  /** Set when this form is mounted inside the multi-package add modal.
+   * Renders a contextual banner just under the file chooser — GitOps copy
+   * when GitOps mode is on, the first-added-wins copy otherwise. Other
+   * call sites (single-package add page, edit modal) leave it false. */
   multiPackageContext?: boolean;
   /** Restricts the file picker to a specific platform/file type when set —
    * used by the multi-package add modal so a second .pkg upload can't slip
@@ -404,9 +404,9 @@ const PackageForm = ({
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
   // 4.83 removed option/targets from the (single-package) Add page; the
-  // multi-package Add modal (#48400) reintroduces the targets selector only,
-  // since each package on a multi-package title needs its own label scope.
-  // The options selector (self-service + categories) stays edit-only.
+  // multi-package Add modal reintroduces the targets selector only, since
+  // each package on a multi-package title needs its own label scope. The
+  // options selector (self-service + categories) stays edit-only.
   const showSoftwareOptionsSelector = !gitOpsModeEnabled && isEditingSoftware;
   const showTargetLabelSelector =
     !gitOpsModeEnabled && (isEditingSoftware || multiPackageContext);
@@ -525,7 +525,7 @@ const PackageForm = ({
             // Single source of truth for the submit button — both the
             // tooltipped and non-tooltipped branches need identical text,
             // disabled state, and type. A previous duplication let the
-            // "Save" / "Add software" copy drift between branches (#48400).
+            // "Save" / "Add software" copy drift between branches.
             const submitButton = (
               <Button type="submit" disabled={isSubmitDisabled}>
                 {isEditingSoftware || multiPackageContext

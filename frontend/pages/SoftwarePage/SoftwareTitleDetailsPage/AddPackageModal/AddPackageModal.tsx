@@ -26,8 +26,8 @@ const baseClass = "add-package-modal";
 
 interface IAddPackageModalProps {
   /** The id of the software title we're adding a package to (multi-package
-   * flow, #48397). The POST carries this as `software_title_id` so the new
-   * package attaches to an existing title instead of creating a new one. */
+   * flow). The POST carries this as `software_title_id` so the new package
+   * attaches to an existing title instead of creating a new one. */
   softwareTitleId: number;
   teamId: number;
   /** File name of the title's first-added package — used to derive the
