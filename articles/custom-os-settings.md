@@ -28,7 +28,7 @@ Once the profile is saved, you can edit the profile's targets or replace the con
   - Configuration profile. In the edit modal, hover over the uploaded file and select the **pencil/edit button** to upload a replacement file.
   > The replacement file must match the original:
   > - **DDM profiles:** same declaration identifier and file name
-  > - **v1 .mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
+  > - **.mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
@@ -99,7 +99,7 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 To see the status of a specific setting, hover over the setting's row in the **Configuration profiles** table and select the information (**i**) icon.
 
-When editing a profile via Fleet's GitOps workflow, it may take up to 30 seconds for the profile's status to update to "Pending."
+When editing a profile via Fleet's GitOps workflow, the profile's status will begin updating to "Pending" within 30 seconds. In larger installations, it may take a few minutes for the status to apply to all hosts.
 
 Editing a profile's labels sets the status to "Pending" for newly targeted hosts.
 
