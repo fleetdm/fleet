@@ -146,22 +146,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /success-stories': {
-    skipAssets: false,
-    action: 'articles/view-articles',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },
-
-  'GET /success-stories/*': {
-    skipAssets: false,
-    action: 'articles/view-basic-article',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },// handles /success-stores/foo
-
   'GET /case-study/*': {
     skipAssets: false,
     action: 'articles/view-case-study',// Meta title and description set in view action
