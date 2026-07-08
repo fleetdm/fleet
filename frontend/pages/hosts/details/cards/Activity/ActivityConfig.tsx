@@ -36,6 +36,7 @@ import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityIte
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
+import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -92,6 +93,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
   [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
   [ActivityType.RanCustomMdmCommand]: RanCustomMdmCommandActivityItem,
+  [ActivityType.EditedCustomHostVitalValue]: EditedCustomHostVitalValueActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

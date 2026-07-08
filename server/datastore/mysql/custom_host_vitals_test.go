@@ -150,10 +150,14 @@ func testSetAndGetHostCustomHostVitals(t *testing.T, ds *Datastore) {
 	funcID := createCustomHostVital(t, ds, "Function")
 	deptID := createCustomHostVital(t, ds, "Department")
 
-	// No values yet.
+	// With no per-host values set yet, every definition is still returned for
+	// the host with an empty value.
 	got, err := ds.GetHostCustomHostVitals(ctx, host.ID)
 	require.NoError(t, err)
-	require.Empty(t, got)
+	require.Len(t, got, 2)
+	for _, v := range got {
+		require.Empty(t, v.Value)
+	}
 
 	// Insert two values.
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, funcID, "engineering"))
