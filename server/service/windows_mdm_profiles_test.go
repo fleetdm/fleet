@@ -719,7 +719,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 	t.Run("nonexistent profile propagates the not-found error", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		wantErr := errors.New("boom: not found")
+		wantErr := errors.New("simulated profile lookup error")
 		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
 			return nil, wantErr
 		}
