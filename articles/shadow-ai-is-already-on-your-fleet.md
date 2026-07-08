@@ -2,44 +2,33 @@
 
 *AI tooling lands on endpoints faster than teams can see it, let alone govern it. Here's how to find shadow AI across macOS, Windows, and Linux, and act on what you find.*
 
-I've spent the last few months talking with IT and security teams about AI tooling on their endpoints, and the pattern has been consistent: adoption is running well ahead of anyone's ability to see it, let alone govern it.
-
-It feels eerily similar to the early days of SaaS, when shadow IT spread faster than anyone could inventory it. But this wave is moving faster and with far fewer guardrails. A developer can install an AI coding assistant, wire it up to a handful of MCP servers, and start handing an agent real access to code, credentials, and internal systems all before lunch. No IT help ticket required.
-
-A lot of organizations have tried to stay safe by standardizing inside a single vendor's AI ecosystem. That's a reasonable instinct. The problem is that most of the leading-edge, genuinely transformative work like agentic development and autonomous coding, is happening outside that boundary. It's in native desktop apps, in IDE forks like Cursor, and increasingly on the command line. The boundary you drew doesn't contain the thing you're worried about.
-
-So teams are stuck on two questions:
-
-- What's already running in our environment?
-- How do we adopt agentic development without taking on uncontrolled risk?
-
-You can't answer either one from a dashboard that only knows about sanctioned apps. You answer it from the endpoint, where the tools actually live.
-
 ## Key takeaways
 
-- **Shadow AI is an endpoint problem, and the tools you already run don't catch it.** AI tooling leaves its footprint on disk and in process lists — installed apps, CLI binaries, IDE and browser extensions, MCP configs, local servers. An identity provider or SaaS catalog never sees it, because it was never a sanctioned app. And EDR tends to wave it through, because a signed AI assistant wiring up an MCP server isn't an attack — it's software behaving exactly as installed. Finding it takes an inventory of what's actually there, not an alert on what's malicious.
+- **Shadow AI is an endpoint problem your current tools miss.** AI tooling leaves its footprint on disk and in process lists, but an identity provider or SaaS catalog never sees it because it was never a sanctioned app, and EDR waves it through because a signed assistant wiring up an MCP server isn't an attack. You find it by inventorying what's on the device, not by waiting for a malicious-behavior alert.
 
 - **Standardizing on one AI vendor doesn't contain the risk.** The fastest-moving agentic work happens outside that boundary, in native desktop apps, IDE forks, and the command line, so the boundary you drew doesn't cover what you're actually worried about.
 
 - **Fleet sees it across every OS, in real time.** Fleet's agent turns macOS, Windows, and Linux devices into a live database you can query for an instant, fleet-wide picture of what AI tooling is running, not a once-a-day snapshot.
 
-- **The agent is open source and transparent.** Anyone can read exactly what Fleet collects and what it doesn't, which matters when the machines you're auditing belong to the engineers most likely to scrutinize your tooling.
+- **The agent is open source and transparent.** You can read exactly what Fleet collects and what it doesn't — which matters most when the machines you're auditing belong to the engineers most likely to scrutinize your tooling.
 
 - **Governance is code, not console clicks.** Reports and policies live in Git as YAML, get reviewed in a pull request, and deploy through CI, so your AI governance posture is auditable and reversible instead of a click someone made six months ago.
 
 - **One platform takes you from "see it" to "govern it."** The same tool that finds shadow AI rolls it into software inventory, matches it against CVE data, and lets you patch, enforce, and remediate across the fleet.
 
+<a purpose="cta-button" href="/reports">Explore the reports library</a>
+
+I've spent the last few months talking with IT and security teams about AI tooling on their endpoints, and the pattern is consistent: adoption is running well ahead of anyone's ability to see it, let alone govern it. It feels like the early days of SaaS and shadow IT, only faster and with far fewer guardrails. A developer can install an AI coding assistant, wire it up to a handful of MCP servers, and hand an agent real access to code, credentials, and internal systems — all before lunch, no help ticket required.
+
+Standardizing inside a single vendor's AI ecosystem feels safe, but most of the genuinely transformative work — agentic development, autonomous coding — is happening outside that boundary, in native desktop apps, in IDE forks like Cursor, and on the command line. So teams are stuck on two questions: what's already running in our environment, and how do we adopt agentic development without taking on uncontrolled risk? You can't answer either from a dashboard that only knows about sanctioned apps. You answer it from the endpoint, where the tools actually live.
+
 ## Why this is an endpoint problem
 
 AI tooling leaves a very specific footprint on a device: an installed app, a CLI binary, an IDE extension, a browser extension, a config file pointing at one or more MCP servers, sometimes a local server listening on a port. None of that shows up reliably in an identity provider or a SaaS catalog, because it was never a sanctioned app to begin with. And EDR tends to let it pass, because a signed AI assistant wiring up an MCP server isn't an attack — it's software doing exactly what it was installed to do. It shows up on disk and in process lists, which is why finding it takes an inventory of what's there, not an alert on what's malicious.
 
-That's the layer Fleet operates at. Fleet's agent turns every device into a live database you can ask questions of and run reports against, across all your macOS, Windows, and Linux devices in real time. AI governance shouldn't stop at your Macs, and with Fleet it doesn't.
+That's the layer Fleet operates at. Fleet's agent turns every macOS, Windows, and Linux device into a live database you can ask questions of and run reports against, in real time. AI governance shouldn't stop at your Macs, and with Fleet it doesn't.
 
-A few things that matter when you're inventorying developer machines specifically:
-
-- **The agent is open source and transparent.** Anyone can read exactly what Fleet collects and what it doesn't. When you're auditing the machines of the people most likely to scrutinize your tooling (engineers), "trust us, it's a black box" is not an answer.
-- **Answers come back in seconds.** Live queries let you ask a question right now and get results from every host, rather than waiting on a daily collection cycle. When a new extension CVE drops on a Friday, that difference is the whole game.
-- **It's API-first and GitOps-native.** Every policy and report can live in a Git repo as YAML, get reviewed in a pull request, and deployed through CI. Your AI governance posture becomes code you can audit and roll back, not clicks someone made in a console six months ago.
+Three things matter when the machines you're inventorying belong to developers. First, the agent is open source, so anyone can read what it collects and what it doesn't — "trust us, it's a black box" is not an answer for the engineers most likely to scrutinize your tooling. Second, live queries return results from every host right now instead of on a daily collection cycle, which is the whole game when a new extension CVE drops on a Friday afternoon. And because Fleet is API-first and GitOps-native, every policy and report can live in a Git repo as YAML, get reviewed in a pull request, and deploy through CI — governance you can audit and roll back, not an undocumented console edit from six months ago.
 
 ## A starter pack: reports to find AI tooling on your fleet
 

@@ -1,4 +1,26 @@
-Traditional security models grant access based primarily on network location, but this assumption breaks down when employees connect from coffee shops, home offices, and airports through public WiFi and cloud applications without ever touching the corporate network. Zero trust endpoint security treats every device as potentially compromised and aims to verify trust continuously. This guide covers what zero trust endpoint security means in practice, how it maps to compliance requirements, and how device-level enforcement makes the model work.
+# Zero trust endpoint security: beyond the corporate perimeter
+
+*Your people work from everywhere, so the network can no longer be the thing you trust. Zero trust moves the trust decision onto the device itself — here's what that takes, and where the endpoint layer quietly makes or breaks it.*
+
+## Key takeaways
+
+- **The network stopped being a security boundary.** A laptop on café Wi-Fi faces the same threats as one at headquarters, and an attacker who compromises it inherits whatever access that network location used to grant. Zero trust replaces location-based trust with a check that travels with the device.
+
+- **"Never trust, always verify" is three principles, not a product.** Verify every request explicitly, grant the least access needed, and assume a breach has already happened — enforced at a policy decision point that sits between the user and the resource.
+
+- **Continuous verification produces audit evidence as a byproduct, not a certification.** The logs zero trust generates map to FedRAMP, SOC 2, HIPAA, and ISO 27001 controls and shrink the audit scramble, but they don't replace the documentation, assessments, and programs each framework still requires.
+
+- **Device posture is the signal every other layer leans on.** Identity checks, microsegmentation, and access brokers all decide based on whether the device is healthy, so a posture signal that doesn't reflect the device's real state quietly undermines the whole architecture.
+
+- **MDM and UEM are the device-side half of enforcement.** They feed live posture into the access decision and keep each device in the configured state that makes that posture trustworthy — the counterpart to the enforcement point that allows or denies the connection.
+
+- **Fleet provides the posture layer across macOS, Windows, and Linux, and lets you audit the tool doing the auditing.** It evaluates devices continuously, feeds the result into Okta and Microsoft Entra ID conditional access, and, because it's open source, lets your team verify exactly how that device data is collected.
+
+<a purpose="cta-button" href="/device-management">Explore device management</a>
+
+Traditional security models grant access based on network location. That assumption breaks down the moment employees work from coffee shops, home offices, and airports, reaching cloud applications over public networks that never touch the corporate LAN.
+
+Zero trust endpoint security starts from the opposite premise: treat every device as potentially compromised and verify trust continuously, wherever the device connects from. The harder question is what that actually requires, and why the answer keeps coming back to the endpoint. Start with why the old model ran out of road.
 
 ## Why zero trust endpoint security matters now
 
@@ -24,23 +46,23 @@ The same architectural components that enforce zero trust access decisions also 
 
 Zero trust architectures map to several major compliance frameworks, though the specific implementation details vary based on organizational requirements.
 
-### FedRAMP: Reporting for federal authorization
+### FedRAMP: reporting for federal authorization
 
 Zero trust architectures can help provide unified visibility across human, machine, and AI-driven identities, support near real-time anomaly and privilege misuse detection, and simplify reporting for federal requirements. Zero trust controls can be mapped to NIST SP 800-53 requirements across multiple control families to support FedRAMP compliance efforts. However, FedRAMP authorization requires more than technical controls alone, including documentation, continuous monitoring programs, and third-party assessment.
 
-### SOC 2: Evidence collection for audit cycles
+### SOC 2: evidence collection for audit cycles
 
 Zero trust implementations can support SOC 2 compliance when the Security category serves as the Common Criteria required for all SOC 2 audits, especially when controls and evidence map clearly to SOC 2 requirements. By mapping zero trust components to specific SOC 2 control requirements, you can streamline your compliance approach.
 
 For Type II reports, ongoing key control activities with near real-time security posture visibility support sustained compliance. The continuous monitoring inherent in zero trust architectures aligns well with SOC 2's emphasis on demonstrating controls operate effectively over time.
 
-### HIPAA: Technical controls for healthcare data protection
+### HIPAA: technical controls for healthcare data protection
 
 Zero trust architectures can support HIPAA's technical safeguards requirements through strict access controls, monitoring, encryption, and containment mechanisms. However, zero trust alone doesn't guarantee HIPAA compliance.
 
 HIPAA requires specific administrative, physical, and technical controls working together, along with risk assessments, workforce training, business associate agreements, and documentation requirements that fall outside technical architecture.
 
-### ISO 27001: Continuous monitoring for the global standard
+### ISO 27001: continuous monitoring for the global standard
 
 Zero trust architectures align with ISO 27001's emphasis on access control, continuous monitoring, and risk-based decision-making. The continuous verification and logging that zero trust requires can support several Annex A controls, particularly those covering access management, system and network monitoring, and information security incident management. As with FedRAMP and HIPAA, technical alignment is necessary but not sufficient; ISO 27001 certification also requires a documented Information Security Management System and management review processes.
 
@@ -82,7 +104,7 @@ Continuous monitoring and logging provide the visibility you need for both secur
 
 Policy enforcement ties everything together by acting as the interface between access decisions and actual resource protection. In NIST SP 800-207, Policy Enforcement Points sit between the subject and the resource, allowing, monitoring, and terminating connections based on the access controls the Policy Engine determines.
 
-Configuration enforcement on the device is a related but distinct layer. Network-level PEPs control traffic flow between segments, and application-level PEPs validate requests before they reach backend services. Configuration enforcement, by contrast, makes sure the device itself maintains required encryption, OS patch level, and security settings throughout the session. Effective zero trust implementations combine all of them: configuration enforcement keeps the device trustworthy, and the access-layer PEPs allow or deny connections partly on the strength of that trust signal. Without the device-side layer, the access decision is being made on a posture signal that may not reflect reality.
+Configuration enforcement on the device is a related but distinct layer. Network-level PEPs control traffic flow between segments, and application-level PEPs validate requests before they reach backend services. Configuration enforcement, by contrast, makes sure the device itself maintains required encryption, OS patch level, and security settings throughout the session. Effective zero trust implementations combine all of them; without the device-side layer, the access decision is being made on a posture signal that may not reflect reality.
 
 ## How MDM and UEM tools make zero trust endpoint security possible
 
@@ -92,7 +114,7 @@ Mobile device management (MDM) and unified endpoint management (UEM) tools serve
 
 A unified management console lets your team manage devices, policies, and security settings across your fleet from one place. Whether devices sit in the office or connect remotely, you can deploy consistent configuration profiles and verify compliance through ongoing monitoring.
 
-Timely inventory tracking helps your security team understand what managed devices exist in the environment and what state they were in as of their last check-in, though there can be delays and gaps in visibility depending on network connectivity and check-in intervals. MDM tools and device monitoring agents like osquery maintain updated records of device configurations, installed software, and security status.
+Timely inventory tracking helps your security team understand what managed devices exist in the environment and what state they were in as of their last check-in, though there can be delays and gaps in visibility depending on network connectivity and check-in intervals. MDM tools and lightweight device agents maintain updated records of device configurations, installed software, and security status.
 
 ### Configuration management
 
@@ -110,7 +132,7 @@ Multi-platform device attestation is best handled with MDM and UEM tools. Window
 
 Implementing zero trust endpoint security requires tooling that provides continuous device visibility, consistent policy enforcement, and integration with your existing identity infrastructure. This is where Fleet comes in.
 
-Fleet is an open-source device management solution that provides the device posture assessment layer zero trust architectures require, with osquery-powered visibility and MDM across macOS, Windows, and Linux. Fleet's policy engine continuously evaluates devices against your security requirements and feeds the result into the access decision. Native conditional access integrations with Okta and Microsoft Entra ID block third-party app sign-ins from devices that fail policy checks. The identity provider doesn't have to rely on the device's word about its own state. Fleet also identifies specific CVEs affecting installed software, giving the Policy Engine vulnerability data alongside configuration data when it makes the call.
+Fleet is an open-source device management solution that provides the device posture assessment layer zero trust architectures require, with deep visibility from Fleet's agent and MDM across macOS, Windows, and Linux. Fleet's policy engine continuously evaluates devices against your security requirements and feeds the result into the access decision. Native conditional access integrations with Okta and Microsoft Entra ID block third-party app sign-ins from devices that fail policy checks. The identity provider doesn't have to rely on the device's word about its own state. Fleet also identifies specific CVEs affecting installed software, giving the Policy Engine vulnerability data alongside configuration data when it makes the call.
 
 When a device falls out of compliance, Fleet Desktop notifies the user with remediation instructions for self-service fixes. Fleet Premium can also automatically run remediation scripts or install required software (with retries) to close the loop without IT intervention. Device posture, vulnerability, and compliance events flow into your SIEM through Fleet's integrations, giving security operations a unified record of the device-layer signals zero trust depends on.
 
@@ -132,7 +154,7 @@ In most cases, yes. The standard pattern is to keep your existing MDM as the con
 
 ### Can zero trust endpoint security work with Linux devices?
 
-Linux lacks the standardized MDM enrollment mechanisms that exist for macOS and Windows, but agent-based approaches can achieve comparable security postures. Fleet provides multi-platform management including Linux through osquery-based monitoring alongside MDM for macOS and Windows, giving security teams consistent device posture visibility across all three operating systems. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet handles Linux alongside macOS and Windows.
+Linux lacks the standardized MDM enrollment mechanisms that exist for macOS and Windows, but agent-based approaches can achieve comparable security postures. Fleet provides multi-platform management including Linux through Fleet's agent alongside MDM for macOS and Windows, giving security teams consistent device posture visibility across all three operating systems. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet handles Linux alongside macOS and Windows.
 
 <meta name="articleTitle" value="Zero trust endpoint security: beyond the corporate perimeter">
 <meta name="authorFullName" value="Dan Gordon">
