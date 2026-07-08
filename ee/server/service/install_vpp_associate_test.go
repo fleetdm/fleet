@@ -78,21 +78,23 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 	}
 
 	// Common datastore mock setup, parameterized by whether the host is enrolled
-	// via a user channel (Account-Driven User Enrollment). The routing decision
-	// keys off the presence of a user-channel nano_enrollments row, NOT
-	// host_mdm.is_personal_enrollment (see #48879), so this drives
-	// GetNanoMDMUserEnrollment rather than GetHostMDM.
+	// via Account-Driven User Enrollment (ADUE). The routing decision keys off
+	// the host's primary nano_enrollments row (id = host UUID): ADUE devices
+	// enroll as "User Enrollment (Device)", every other device-channel
+	// enrollment (including manual-profile BYOD) is "Device". It does NOT key
+	// off host_mdm.is_personal_enrollment (see #48879), so this drives
+	// GetNanoMDMEnrollment rather than GetHostMDM.
 	setupDS := func(t *testing.T, isUserEnrollment bool) *mock.Store {
 		t.Helper()
 		ds := new(mock.Store)
-		ds.GetNanoMDMUserEnrollmentFunc = func(_ context.Context, deviceID string) (*fleet.NanoEnrollment, error) {
-			require.Equal(t, hostUUID, deviceID)
+		ds.GetNanoMDMEnrollmentFunc = func(_ context.Context, id string) (*fleet.NanoEnrollment, error) {
+			require.Equal(t, hostUUID, id)
 			if isUserEnrollment {
-				return &fleet.NanoEnrollment{ID: hostUUID + ":user", DeviceID: hostUUID, Type: "User", Enabled: true}, nil
+				return &fleet.NanoEnrollment{ID: hostUUID, DeviceID: hostUUID, Type: "User Enrollment (Device)", Enabled: true}, nil
 			}
 			// Device-channel enrollment (company-owned manual OR manual-profile
-			// BYOD): no user-channel row.
-			return nil, nil
+			// BYOD): the primary row is type "Device".
+			return &fleet.NanoEnrollment{ID: hostUUID, DeviceID: hostUUID, Type: "Device", Enabled: true}, nil
 		}
 		ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
 			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, RenewDate: time.Now().Add(24 * time.Hour)}, nil
@@ -171,17 +173,17 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 	})
 
 	// Regression test for #48879: a manual-profile BYOD host carries
-	// host_mdm.is_personal_enrollment=1 but is a DEVICE-channel enrollment (no
-	// user-channel nano_enrollments row and no Managed Apple ID). It must install
-	// device-scoped (serialNumbers), exactly like company-owned manual — and must
-	// NOT attempt user provisioning, which previously failed with
-	// errMissingManagedAppleID.
+	// host_mdm.is_personal_enrollment=1 but is a DEVICE-channel enrollment (its
+	// primary nano_enrollments row is type "Device", not "User Enrollment
+	// (Device)", and it has no Managed Apple ID). It must install device-scoped
+	// (serialNumbers), exactly like company-owned manual — and must NOT attempt
+	// user provisioning, which previously failed with errMissingManagedAppleID.
 	t.Run("manual-profile BYOD (personal flag, device channel) routes via serialNumbers", func(t *testing.T) {
 		var capt captured
 		setupServer(t, &capt)
 
-		// isUserEnrollment=false → GetNanoMDMUserEnrollment returns nil even though
-		// this host would have is_personal_enrollment=1 in host_mdm.
+		// isUserEnrollment=false → the primary enrollment row is type "Device"
+		// even though this host would have is_personal_enrollment=1 in host_mdm.
 		ds := setupDS(t, false)
 		// Make it explicit that the Managed Apple ID is absent for this host, so a
 		// regression that re-introduces the user path would fail loudly here.

@@ -3107,10 +3107,13 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 		return nil
 	}
 
-	// is_user_enrollment must reflect the actual MDM enrollment channel (a
-	// user-channel nano_enrollments row), NOT host_mdm.is_personal_enrollment:
-	// the latter is also set for manual-profile BYOD, which is device-channel
-	// and must install device-scoped like company-owned manual. See #48879.
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
 	const getHostUUIDStmt = `
 SELECT
 	h.uuid,
@@ -3119,7 +3122,7 @@ SELECT
 	h.hardware_serial,
 	COALESCE((
 		SELECT 1 FROM nano_enrollments ne
-		WHERE ne.device_id = h.uuid AND ne.type = 'User' AND ne.enabled = 1
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
 		LIMIT 1
 	), 0) AS is_user_enrollment
 FROM

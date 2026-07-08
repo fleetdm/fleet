@@ -34,6 +34,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -1659,18 +1660,23 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// adding their Nth (≤5) device under one Managed Apple ID.
 	// Device-vs-user VPP licensing must key off the actual MDM enrollment
 	// channel, not host_mdm.is_personal_enrollment. is_personal_enrollment is
-	// set for BOTH Account-Driven User Enrollment (user channel, backed by a
-	// Managed Apple ID) and manual-profile BYOD (device channel, no Managed
-	// Apple ID). Only genuine user-channel enrollments get user-scoped
-	// licensing; manual-profile BYOD installs device-scoped, exactly like
-	// company-owned manual enrollment. The user nano-enrollment exists from
-	// enrollment time, whereas the Managed Apple ID only arrives minutes later
-	// via TokenUpdate, so this is the correct, timing-robust signal. See #48879.
-	userEnrollment, err := svc.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	// set for BOTH Account-Driven User Enrollment (ADUE, user-scoped, backed by
+	// a Managed Apple ID) and manual-profile BYOD (device channel, no Managed
+	// Apple ID). Only ADUE gets user-scoped licensing; manual-profile BYOD
+	// installs device-scoped, exactly like company-owned manual enrollment.
+	//
+	// The host's primary nano_enrollments row (id = host UUID) tells us the
+	// channel: ADUE devices enroll as "User Enrollment (Device)", while every
+	// other device-channel enrollment (ADE, manual, manual-profile BYOD) is
+	// "Device". Note the "User" type is the separate macOS user channel and is
+	// NOT what we want here. This row exists from enrollment time, whereas the
+	// Managed Apple ID only arrives minutes later via TokenUpdate, so this is
+	// the correct, timing-robust signal. See #48879.
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "looking up user enrollment for VPP install")
+		return "", ctxerr.Wrap(ctx, err, "looking up enrollment for VPP install")
 	}
-	isUserEnrollment := userEnrollment != nil
+	isUserEnrollment := nanoEnroll != nil && nanoEnroll.Type == nanomdm.EnrollType(nanomdm.UserEnrollmentDevice).String()
 
 	var clientUserID string
 	if isUserEnrollment {

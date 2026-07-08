@@ -3449,10 +3449,11 @@ func testVPPInstallOmitsConfigurationOnMacOS(t *testing.T, ds *Datastore) {
 // enqueue layer. The InstallApplication command's IsUserEnrollment flag (which
 // omits ChangeManagementState, valid only on Apple's Account-Driven User
 // Enrollment channel) must be driven by the actual enrollment CHANNEL — the
-// presence of a user-channel nano_enrollments row — NOT by
-// host_mdm.is_personal_enrollment. A manual-profile BYOD host has
-// is_personal_enrollment=1 but is device-channel, so its command must include
-// ChangeManagementState exactly like company-owned manual.
+// host's primary nano_enrollments row (id = host UUID) being type
+// "User Enrollment (Device)" — NOT by host_mdm.is_personal_enrollment. A
+// manual-profile BYOD host has is_personal_enrollment=1 but is device-channel
+// (primary row type "Device"), so its command must include ChangeManagementState
+// exactly like company-owned manual.
 func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -3484,7 +3485,7 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 			HardwareSerial: "BYOD-SERIAL",
 		})
 		require.NoError(t, err)
-		// Device-channel enrollment (no user-channel nano row) ...
+		// Device-channel enrollment (primary row type "Device") ...
 		nanoEnroll(t, ds, host, false)
 		// ... but flagged personal in host_mdm, like a manual BYOD profile.
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
@@ -3502,8 +3503,9 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 			HardwareSerial: "ADUE-SERIAL",
 		})
 		require.NoError(t, err)
-		// User-channel enrollment present → genuine Account-Driven User Enrollment.
-		nanoEnroll(t, ds, host, true)
+		// Account-Driven User Enrollment: the primary enrollment row (id = host
+		// UUID) is type "User Enrollment (Device)".
+		nanoEnrollUserDevice(t, ds, host)
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
 
 		commandXML := enqueueAndReadCommand(t, host, "adue-cmd")
