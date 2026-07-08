@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/semver"
@@ -38,6 +39,26 @@ const postInstallSafeRestart = `
     fi
   fi
 `
+
+// stripRPMRelease removes the "-<release>" segment that nfpm (v2.21+) inserts
+// before the architecture in an RPM file name, turning
+// "fleet-osquery-1.57.0-1.x86_64.rpm" into "fleet-osquery-1.57.0.x86_64.rpm".
+// This relies on the release containing no "-" and the architecture containing
+// no "." (both hold for the values Fleet uses: release "1", arch x86_64/aarch64).
+func stripRPMRelease(filename string) string {
+	const ext = ".rpm"
+	base := strings.TrimSuffix(filename, ext)
+	dot := strings.LastIndex(base, ".") // start of ".arch"
+	if dot < 0 {
+		return filename
+	}
+	nvr, arch := base[:dot], base[dot:] // "name-version-release", ".arch"
+	dash := strings.LastIndex(nvr, "-") // start of "-release"
+	if dash < 0 {
+		return filename
+	}
+	return nvr[:dash] + arch + ext
+}
 
 func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Initialize directories
@@ -185,7 +206,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	contents := files.Contents{
 		&files.Content{
 			Source:      filepath.Join(rootDir, "**"),
-			Destination: "/",
+			Destination: "",
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
@@ -209,10 +230,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	// Add empty folders to be created.
 	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
-		contents = append(contents, (&files.Content{
+		contents = append(contents, &files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults())
+		})
 	}
 
 	if varLibSymlink {
@@ -228,10 +249,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.ExpandContentGlobs(contents, false)
-	if err != nil {
-		return "", fmt.Errorf("glob contents: %w", err)
-	}
 	for _, c := range contents {
 		log.Debug().Interface("file", c).Msg("added file")
 	}
@@ -256,6 +273,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
+		Platform:    "linux",
 		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        opt.Architecture,
 		Maintainer:  "Fleet Device Management",
@@ -274,6 +292,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
+	if _, ok := pkger.(*rpm.RPM); ok {
+		// nfpm v2.21+ started including the RPM "release" number in the
+		// conventional file name (name-version-release.arch.rpm). Fleet has
+		// always shipped RPMs named name-version.arch.rpm, so strip the
+		// release segment to keep the output file name stable. The release is
+		// still set to 1 inside the package metadata.
+		filename = stripRPMRelease(filename)
+	}
 	if opt.CustomOutfile != "" {
 		filename = opt.CustomOutfile
 	}
