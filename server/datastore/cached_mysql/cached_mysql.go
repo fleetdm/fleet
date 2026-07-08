@@ -71,6 +71,10 @@ const (
 	// osquery-reported names with the FMA canonical name.
 	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
+
+	// Windows FMA name prefixes and canonical names, used during software ingestion.
+	windowsFMANamesKey               = "WindowsFMANames"
+	defaultWindowsFMANamesExpiration = 5 * time.Minute
 )
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
@@ -132,6 +136,7 @@ type cachedMysql struct {
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
 	fmaNamesByIdentifierExp time.Duration
+	windowsFMANamesExp      time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -208,6 +213,12 @@ func WithFMANamesByIdentifierExpiration(d time.Duration) Option {
 	}
 }
 
+func WithWindowsFMANamesExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.windowsFMANamesExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:               ds,
@@ -224,6 +235,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
 		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
+		windowsFMANamesExp:      defaultWindowsFMANamesExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -573,14 +585,32 @@ func (ds *cachedMysql) GetFMANamesByIdentifier(ctx context.Context) (map[string]
 	return names, nil
 }
 
+func (ds *cachedMysql) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+	if x, found := ds.c.Get(ctx, windowsFMANamesKey); found {
+		if names, ok := x.(windowsFMANames); ok {
+			return names, nil
+		}
+	}
+
+	names, err := ds.Datastore.GetWindowsFMANames(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, windowsFMANamesKey, windowsFMANames(names), ds.windowsFMANamesExp)
+
+	return names, nil
+}
+
 func (ds *cachedMysql) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	result, err := ds.Datastore.UpsertMaintainedApp(ctx, app)
 	if err != nil {
 		return nil, err
 	}
 
-	// Invalidate the FMA names cache since an app was added/updated
+	// Invalidate the FMA names caches since an app was added/updated
 	ds.c.Delete(fmaNamesByIdentifierKey)
+	ds.c.Delete(windowsFMANamesKey)
 
 	return result, nil
 }
@@ -591,8 +621,9 @@ func (ds *cachedMysql) ClearRemovedFleetMaintainedApps(ctx context.Context, slug
 		return err
 	}
 
-	// Invalidate the FMA names cache since apps may have been removed
+	// Invalidate the FMA names caches since apps may have been removed
 	ds.c.Delete(fmaNamesByIdentifierKey)
+	ds.c.Delete(windowsFMANamesKey)
 
 	return nil
 }

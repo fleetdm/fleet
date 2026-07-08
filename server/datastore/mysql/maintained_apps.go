@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -106,12 +107,111 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 			WHERE s.name <> fma.name`},
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, u := range updates {
 			if _, err := tx.ExecContext(ctx, u.stmt); err != nil {
 				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: %s", u.label)
 			}
 		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return ds.reconcileWindowsMaintainedAppSoftwareTitles(ctx)
+}
+
+// reconcileWindowsMaintainedAppSoftwareTitles collapses versioned Windows program
+// titles onto the canonical FMA title by name prefix (Windows has no bundle
+// identifier to join on). Unlike the macOS rename this is a merge: software is
+// re-pointed at the canonical title and the orphaned versioned titles deleted.
+// Each FMA runs in its own transaction and the operation is idempotent.
+func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
+	fmaNames, err := ds.GetWindowsFMANames(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows FMA names for reconcile")
+	}
+
+	for _, fma := range fmaNames {
+		if err := ds.mergeWindowsFMATitle(ctx, fma); err != nil {
+			return ctxerr.Wrapf(ctx, err, "merge windows FMA title %q", fma.Name)
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.WindowsFMAName) error {
+	// Escape LIKE wildcards so an FMA name with % or _ can't widen the match.
+	escaped := fma.Prefix
+	for _, c := range []string{`\`, `%`, `_`} {
+		escaped = strings.ReplaceAll(escaped, c, `\`+c)
+	}
+	likePrefix := escaped + " %"
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Inventory-only versioned titles matching the prefix. Exclude the canonical
+		// name, MSI titles (upgrade_code collapses those), and titles owned by an
+		// installer/VPP/in-house app (deleting them would null those links).
+		const staleStmt = `
+			SELECT st.id
+			FROM software_titles st
+			WHERE st.source = 'programs' AND st.extension_for = ''
+				AND st.name <> ?
+				AND (st.name = ? OR st.name LIKE ?)
+				AND (st.upgrade_code IS NULL OR st.upgrade_code = '')
+				AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)
+				AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = st.id)
+				AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = st.id)`
+		var staleIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &staleIDs, staleStmt, fma.Name, fma.Prefix, likePrefix); err != nil {
+			return ctxerr.Wrap(ctx, err, "select stale windows titles")
+		}
+		if len(staleIDs) == 0 {
+			return nil
+		}
+
+		// Ensure the canonical title exists (the installer normally created it).
+		if _, err := tx.ExecContext(ctx,
+			`INSERT IGNORE INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, 'programs', '', '')`,
+			fma.Name,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "ensure canonical windows title")
+		}
+		var canonicalID uint
+		if err := sqlx.GetContext(ctx, tx, &canonicalID,
+			`SELECT id FROM software_titles WHERE name = ? AND source = 'programs' AND extension_for = ''`,
+			fma.Name,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "select canonical windows title")
+		}
+
+		// Re-point software onto the canonical title, leaving software.name unchanged.
+		repointStmt, repointArgs, err := sqlx.In(`UPDATE software SET title_id = ? WHERE title_id IN (?)`, canonicalID, staleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build re-point software statement")
+		}
+		if _, err := tx.ExecContext(ctx, repointStmt, repointArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "re-point software to canonical windows title")
+		}
+
+		// Delete the orphaned host counts and titles (counts are recomputed by cron).
+		countsStmt, countsArgs, err := sqlx.In(`DELETE FROM software_titles_host_counts WHERE software_title_id IN (?)`, staleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete stale host counts statement")
+		}
+		if _, err := tx.ExecContext(ctx, countsStmt, countsArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale windows title host counts")
+		}
+
+		titlesStmt, titlesArgs, err := sqlx.In(`DELETE FROM software_titles WHERE id IN (?)`, staleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete stale titles statement")
+		}
+		if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale windows titles")
+		}
+
 		return nil
 	})
 }
@@ -368,6 +468,23 @@ func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]st
 	}
 
 	return result, nil
+}
+
+// GetWindowsFMANames returns each Windows FMA's canonical name and match prefix.
+// The prefix is the shorter of name and unique_identifier (LEAST), matching the
+// fleetMaintainedAppsTeamJoin convention.
+func (ds *Datastore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+	query := `
+		SELECT DISTINCT LEAST(name, unique_identifier) AS prefix, name
+		FROM fleet_maintained_apps
+		WHERE platform = 'windows' AND name != '' AND unique_identifier != ''`
+
+	var names []fleet.WindowsFMAName
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query Windows FMA names")
+	}
+
+	return names, nil
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {

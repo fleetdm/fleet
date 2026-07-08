@@ -53,3 +53,15 @@ func (m fmaNameMap) Clone() (fleet.Cloner, error) {
 	maps.Copy(clone, m)
 	return clone, nil
 }
+
+// windowsFMANames is a slice of Windows FMA name prefixes -> canonical names.
+type windowsFMANames []fleet.WindowsFMAName
+
+func (n windowsFMANames) Clone() (fleet.Cloner, error) {
+	if n == nil {
+		return windowsFMANames(nil), nil
+	}
+	clone := make(windowsFMANames, len(n))
+	copy(clone, n)
+	return clone, nil
+}

@@ -882,6 +882,20 @@ func longestCommonPrefix(strs []string) string {
 	}
 }
 
+// matchWindowsFMAName returns the canonical FMA name when name equals a prefix or
+// begins with "<prefix> " (the space avoids matching "Zoombie" for "Zoom"). fmas
+// must be sorted longest-prefix-first so the most specific FMA wins.
+func matchWindowsFMAName(name string, fmas []fleet.WindowsFMAName) (string, bool) {
+	lowerName := strings.ToLower(name)
+	for _, f := range fmas {
+		lowerPrefix := strings.ToLower(f.Prefix)
+		if lowerName == lowerPrefix || strings.HasPrefix(lowerName, lowerPrefix+" ") {
+			return f.Name, true
+		}
+	}
+	return "", false
+}
+
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
 // to reduce lock contention. These operations are idempotent due to INSERT IGNORE.
 func (ds *Datastore) preInsertSoftwareInventory(
@@ -968,6 +982,19 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		fmaNames = nil
 	}
 
+	// Windows has no bundle identifier, so a name-prefix match is the join key that
+	// collapses versioned program names onto the canonical FMA title.
+	winFMANames, winFMAErr := ds.GetWindowsFMANames(ctx)
+	if winFMAErr != nil {
+		if ds.logger != nil {
+			ds.logger.WarnContext(ctx, "failed to get Windows FMA names", "err", winFMAErr)
+		}
+		winFMANames = nil
+	}
+	sort.Slice(winFMANames, func(i, j int) bool {
+		return len(winFMANames[i].Prefix) > len(winFMANames[j].Prefix)
+	})
+
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
 		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
@@ -997,6 +1024,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							if computedName, exists := bestTitleNames[key]; exists {
 								newTitleName = computedName
 							}
+						}
+					} else if sw.Source == "programs" {
+						// Use the canonical FMA name so versioned program names collapse
+						// onto the single title the FMA installer owns.
+						if fmaName, ok := matchWindowsFMAName(sw.Name, winFMANames); ok {
+							newTitleName = fmaName
 						}
 					}
 

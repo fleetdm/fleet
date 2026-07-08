@@ -1784,6 +1784,8 @@ type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
 
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
 
+type GetWindowsFMANamesFunc func(ctx context.Context) ([]fleet.WindowsFMAName, error)
+
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
 
 type GetAppleHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string, caName string) (*fleet.HostMDMCertificateProfile, error)
@@ -4780,6 +4782,9 @@ type DataStore struct {
 
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
+
+	GetWindowsFMANamesFunc        GetWindowsFMANamesFunc
+	GetWindowsFMANamesFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -11476,6 +11481,13 @@ func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]str
 	s.GetFMANamesByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetFMANamesByIdentifierFunc(ctx)
+}
+
+func (s *DataStore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+	s.mu.Lock()
+	s.GetWindowsFMANamesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsFMANamesFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
