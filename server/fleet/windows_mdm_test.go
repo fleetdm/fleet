@@ -716,6 +716,21 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
 		},
 		{
+			name: fmt.Sprintf("scope-less SCEP LocURI is treated as Device SCEP (missing $FLEET_VAR_%s rejected)", FleetVarSCEPWindowsCertificateID),
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+					<Item>
+						<Target>
+							<LocURI>Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-id-that-is-not-fleet-var/Install/CAThumbprint</LocURI>
+						</Target>
+					</Item>
+				</Add>
+				`),
+			},
+			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
+		},
+		{
 			name: "SCEP Profile with missing required LocURI",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`

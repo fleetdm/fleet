@@ -405,9 +405,9 @@ func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
 }
 
 func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
-	trimmed := strings.TrimSpace(locURI)
+	normalized := canonicalizeSCEPScope(locURI)
 	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
-	return strings.ReplaceAll(trimmed, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
+	return strings.ReplaceAll(normalized, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
 }
 
 func (v *windowsSCEPProfileValidator) isSCEPProfile() bool {
@@ -505,6 +505,22 @@ func (v windowsSCEPProfileValidator) isSCEPLocURIWithoutFleetVar(locURI string) 
 func IsWindowsSCEPLocURI(locURI string) bool {
 	return strings.HasPrefix(locURI, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/") ||
 		strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
+}
+
+// canonicalizeSCEPScope rewrites a SCEP ClientCertificateInstall LocURI to its explicit scoped form so the SCEP validations
+// (which key off the "./Device/"/"./User/" prefix) can't be bypassed by a scope-less spelling. Non-SCEP LocURIs are returned unchanged.
+func canonicalizeSCEPScope(locURI string) string {
+	// CanonicalLocURI strips the device scope to the bare "Vendor/MSFT/..." form and preserves explicit user scope as
+	// "User/Vendor/MSFT/...".
+	canon := CanonicalLocURI(locURI)
+	switch {
+	case strings.HasPrefix(canon, scepInstallLocURINode+"/"):
+		return "./Device/" + canon
+	case strings.HasPrefix(canon, "User/"+scepInstallLocURINode+"/"):
+		return "./" + canon
+	default:
+		return locURI
+	}
 }
 
 func (v *windowsSCEPProfileValidator) finalizeValidation() error {

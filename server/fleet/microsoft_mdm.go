@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	WINDOWS_SCEP_LOC_URI_PART = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
+	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
+	scepInstallLocURINode     = "Vendor/MSFT/ClientCertificateInstall/SCEP"
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
@@ -1831,9 +1832,7 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 	normalized := FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(profileBytes, []byte(profileUUID))
 
 	// Mirror the install-side behavior: SCEP profiles are wrapped in <Atomic> if not already.
-	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
-		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
-	}
+	normalized = WrapSCEPProfileInAtomic(normalized)
 
 	allURIs := ExtractLocURIsFromProfileBytes(normalized)
 	if len(allURIs) == 0 {
@@ -1924,16 +1923,22 @@ func CanonicalLocURI(locURI string) string {
 	return s
 }
 
+// WrapSCEPProfileInAtomic wraps profileBytes in <Atomic> when the profile targets the Windows SCEP ClientCertificateInstall
+// node and isn't already wrapped.
+func WrapSCEPProfileInAtomic(profileBytes []byte) []byte {
+	if bytes.Contains(profileBytes, []byte(scepInstallLocURINode)) && !bytes.Contains(profileBytes, []byte("<Atomic>")) {
+		return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", profileBytes)
+	}
+	return profileBytes
+}
+
 // ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the
 // profile's Replace and Add commands. Exec commands are excluded (they
 // trigger one-time actions, not persistent settings). For Atomic profiles,
 // nested commands are inspected.
 func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 	// Mirror the install-side SCEP normalization.
-	normalized := profileBytes
-	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
-		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
-	}
+	normalized := WrapSCEPProfileInAtomic(profileBytes)
 
 	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
 	if err != nil || len(cmds) == 0 {
