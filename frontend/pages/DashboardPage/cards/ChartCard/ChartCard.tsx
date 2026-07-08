@@ -238,8 +238,10 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          iOS and iPadOS hosts count as online as long as they have power and an
-          internet connection.
+          iPhones/iPads check in and count as online anytime they have power and
+          an internet connection (including locked). Macs count as online
+          sometimes (infrequently) when the lid is closed. Android hosts never
+          show online when locked.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
