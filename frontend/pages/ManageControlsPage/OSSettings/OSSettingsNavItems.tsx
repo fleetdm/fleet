@@ -7,6 +7,7 @@ import DiskEncryption from "./cards/DiskEncryption";
 import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import Certificates from "./cards/Certificates";
 import Passwords from "./cards/Passwords";
+import HostNameTemplate from "./cards/HostNameTemplate";
 import { IConfigurationProfilesProps } from "./cards/ConfigurationProfiles/ConfigurationProfiles";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
@@ -23,7 +24,8 @@ type IOSSettingsCardProps = IDiskEncryptionProps | IConfigurationProfilesProps;
 // Observers and observers+ will not have access to the Controls page at all, so the only role to
 // exclude at this point is technician
 const getOSSettingsNavItems = (
-  isTechnician: boolean
+  isTechnician: boolean,
+  isNoTeam: boolean
 ): ISideNavItem<IOSSettingsCardProps>[] => {
   const items = [
     {
@@ -51,6 +53,13 @@ const getOSSettingsNavItems = (
       urlSection: "passwords",
       path: PATHS.CONTROLS_PASSWORDS,
       exclude: isTechnician,
+    },
+    {
+      title: "Host names",
+      Card: HostNameTemplate,
+      urlSection: "host-name-template",
+      path: PATHS.CONTROLS_HOST_NAME_TEMPLATE,
+      exclude: isTechnician || isNoTeam,
     },
   ];
   return items.filter((item) => !item.exclude);

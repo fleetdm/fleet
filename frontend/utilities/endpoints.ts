@@ -187,6 +187,7 @@ export default {
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+  HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (
     token: string,
