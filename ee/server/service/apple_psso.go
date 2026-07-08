@@ -23,6 +23,7 @@ import (
 	jwt "github.com/golang-jwt/jwt/v4"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/pssocrypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
@@ -873,6 +874,18 @@ type pssoAASAApps struct {
 	Apps []string `json:"apps"`
 }
 
+// pssoDevAASAAppIDs returns the local-development app ID override read from
+// FLEET_DEV_PSSO_AASA_APP_IDS (comma-separated <TeamID>.<BundleID>)
+func pssoDevAASAAppIDs() []string {
+	var ids []string
+	for id := range strings.SplitSeq(dev_mode.Env("FLEET_DEV_PSSO_AASA_APP_IDS"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
 // PSSOAASA returns the apple-app-site-association JSON Apple's framework
 // uses to validate the extension's authsrv: entitlement against Fleet's
 // hostname. Returns 404 when the feature is not configured. Note Apple's CDN
@@ -891,7 +904,14 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 		return nil, &notFoundError{}
 	}
 
-	ids := []string{fleetTeamID + "." + appBundleID, fleetTeamID + "." + extensionBundleID}
+	// A contributor testing locally signs the extension under their own
+	// (non-production) Apple Developer team, so the published app IDs must match
+	// that team. The FLEET_DEV_PSSO_AASA_APP_IDS override supplies them; it is
+	// honored only when the server runs with --dev (dev_mode.Env gates on it), so
+	// production only uses Fleet's built-in app IDs but dev servers allow the production
+	// binary or a local development override.
+	ids := pssoDevAASAAppIDs()
+	ids = append(ids, fleetTeamID+"."+appBundleID, fleetTeamID+"."+extensionBundleID)
 	doc := pssoAASA{
 		AuthSrv: pssoAASAApps{
 			Apps: ids,
