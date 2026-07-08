@@ -30,6 +30,7 @@ import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
+  generateHostNameSettingIfEligible,
   generateLinuxDiskEncryptionSetting,
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
@@ -180,6 +181,21 @@ const HostSummary = ({
     hostSettings = hostSettings
       ? [...hostSettings, recoveryLockSetting]
       : [recoveryLockSetting];
+  }
+
+  // The host name template row (macOS/iOS/iPadOS) is synthetic like the rows
+  // above, so it must be added here too — otherwise a host whose only OS setting
+  // is the host name wouldn't surface the "OS settings" indicator that opens the
+  // modal.
+  const hostNameSetting = generateHostNameSettingIfEligible(
+    platform,
+    mdm?.enrollment_status ?? null,
+    osSettings
+  );
+  if (hostNameSetting) {
+    hostSettings = hostSettings
+      ? [...hostSettings, hostNameSetting]
+      : [hostNameSetting];
   }
 
   return (
