@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import TooltipWrapper from "components/TooltipWrapper";
+import Tag from "components/Tag";
 
 const baseClass = "pill-badge";
 
@@ -24,7 +25,7 @@ const PillBadge = ({ children, tipContent, className }: IPillBadgeProps) => {
         tipOffset={12}
         delayInMs={300}
       >
-        <span className={`${baseClass}__element`}>{children}</span>
+        <Tag>{children}</Tag>
       </TooltipWrapper>
     </div>
   );

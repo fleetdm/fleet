@@ -204,13 +204,28 @@ $base-class: "button";
     padding: 0 $pad-small;
     height: 28px;
 
-    &:hover,
-    &:focus {
+    // Override the $inverse branch of button-variant, which hardcodes its
+    // own hover/active backgrounds and adds a separate ::after focus ring —
+    // this variant instead borrows its tokens straight from the Tag
+    // component's clickable states so the two stay visually identical.
+    &:hover {
+      background-color: $ui-off-white;
       border: 1px solid $ui-fleet-black-50;
     }
 
+    &:focus-visible {
+      border: 1px solid $core-fleet-black;
+      outline: none;
+
+      &::after {
+        content: none;
+      }
+    }
+
     &:active {
-      box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.1);
+      background-color: $ui-fleet-black-5;
+      border: 1px solid $ui-fleet-black-50;
+      box-shadow: none;
     }
   }
 
