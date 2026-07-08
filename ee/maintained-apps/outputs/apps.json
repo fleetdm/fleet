@@ -1367,13 +1367,6 @@
       "description": "Buzz is a tool to transcribe and translate audio."
     },
     {
-      "name": "Bytello Share",
-      "slug": "bytello-share/windows",
-      "platform": "windows",
-      "unique_identifier": "Bytello Share",
-      "description": "Bytello Share is a screen sharing app that connects desktops and interactive displays."
-    },
-    {
       "name": "Cacher",
       "slug": "cacher/darwin",
       "platform": "darwin",

@@ -151,7 +151,6 @@ import BurpSuiteProfessional from "./BurpSuiteProfessional";
 import Busycontacts from "./Busycontacts";
 import Buttercup from "./Buttercup";
 import Buzz from "./Buzz";
-import BytelloShare from "./BytelloShare";
 import Cacher from "./Cacher";
 import Caffeine from "./Caffeine";
 import Calibre from "./Calibre";
@@ -1216,7 +1215,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   busycontacts: Busycontacts,
   buttercup: Buttercup,
   buzz: Buzz,
-  "bytello share": BytelloShare,
   cacher: Cacher,
   caffeine: Caffeine,
   calibre: Calibre,
