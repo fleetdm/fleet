@@ -4376,11 +4376,7 @@ func executeWindowsProfileReconcileBatch(
 // Windows equivalent of Apple's Commander struct, but I'd like
 // to keep it simpler for now until we understand more.
 func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
-	rawCommand := profileBytes
-	if strings.Contains(string(rawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") && !strings.Contains(string(rawCommand), "<Atomic>") {
-		// It's a SCEP profile, so wrap it with <Atomic>
-		rawCommand = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", rawCommand)
-	}
+	rawCommand := fleet.WrapSCEPProfileInAtomic(profileBytes)
 	cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(rawCommand)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling profile bytes: %w", err)

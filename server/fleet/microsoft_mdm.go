@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	WINDOWS_SCEP_LOC_URI_PART = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
+	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
+	scepInstallLocURINode     = "Vendor/MSFT/ClientCertificateInstall/SCEP"
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
@@ -1161,7 +1162,9 @@ const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe co
 func (cmd SyncMLCmd) IsPremium() bool {
 	// NOTE: if this implementation changes, make sure to also update the error
 	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
-	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+	//
+	// LocURITargetsReservedNode canonicalizes the target so the premium gate matches every LocURI form Windows accepts.
+	return LocURITargetsReservedNode(cmd.GetTargetURI(), syncml.FleetRemoteWipeTargetLocURI)
 }
 
 // DataType returns the SyncMLDataType corresponding to the command's format.
@@ -1829,9 +1832,7 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 	normalized := FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(profileBytes, []byte(profileUUID))
 
 	// Mirror the install-side behavior: SCEP profiles are wrapped in <Atomic> if not already.
-	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
-		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
-	}
+	normalized = WrapSCEPProfileInAtomic(normalized)
 
 	allURIs := ExtractLocURIsFromProfileBytes(normalized)
 	if len(allURIs) == 0 {
@@ -1922,16 +1923,22 @@ func CanonicalLocURI(locURI string) string {
 	return s
 }
 
+// WrapSCEPProfileInAtomic wraps profileBytes in <Atomic> when the profile targets the Windows SCEP ClientCertificateInstall
+// node and isn't already wrapped.
+func WrapSCEPProfileInAtomic(profileBytes []byte) []byte {
+	if bytes.Contains(profileBytes, []byte(scepInstallLocURINode)) && !bytes.Contains(profileBytes, []byte("<Atomic>")) {
+		return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", profileBytes)
+	}
+	return profileBytes
+}
+
 // ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the
 // profile's Replace and Add commands. Exec commands are excluded (they
 // trigger one-time actions, not persistent settings). For Atomic profiles,
 // nested commands are inspected.
 func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 	// Mirror the install-side SCEP normalization.
-	normalized := profileBytes
-	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
-		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
-	}
+	normalized := WrapSCEPProfileInAtomic(profileBytes)
 
 	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
 	if err != nil || len(cmds) == 0 {
@@ -1961,4 +1968,29 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 		}
 	}
 	return uris
+}
+
+// LocURITargetsReservedNode reports whether locURI targets the given Fleet-reserved node, or any descendant of it, matching
+// at path-segment boundaries.
+func LocURITargetsReservedNode(locURI, reservedLocURI string) bool {
+	node := strings.Trim(reservedLocURI, "/")
+	// Frame both the canonicalized LocURI and the node with "/" so the substring match is boundary-safe on both ends.
+	return strings.Contains("/"+CanonicalLocURI(locURI)+"/", "/"+node+"/")
+}
+
+// ProfileTargetsReservedLocURI reports whether any Target LocURI in the profile targets the given Fleet-reserved node.
+func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bool {
+	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
+	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
+	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
+		return false
+	}
+	// Confirm a real Add/Replace Target LocURI targets the node
+	for _, uri := range ExtractLocURIsFromProfileBytes(profileBytes) {
+		if LocURITargetsReservedNode(uri, reservedLocURI) {
+			return true
+		}
+	}
+	return false
 }

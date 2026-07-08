@@ -25,9 +25,11 @@ import AffinityPhoto from "./AffinityPhoto";
 import AffinityPhoto1 from "./AffinityPhoto1";
 import AffinityPublisher from "./AffinityPublisher";
 import AffinityPublisher1 from "./AffinityPublisher1";
+import AgentRansack from "./AgentRansack";
 import Airbuddy from "./Airbuddy";
 import Aircall from "./Aircall";
 import Airdroid from "./Airdroid";
+import AirExplorer from "./AirExplorer";
 import Airparrot from "./Airparrot";
 import Airserver from "./Airserver";
 import Airtable from "./Airtable";
@@ -37,7 +39,9 @@ import Akiflow from "./Akiflow";
 import Alacritty from "./Alacritty";
 import Alcove from "./Alcove";
 import Aldente from "./Aldente";
+import Alfaview from "./Alfaview";
 import Alloy from "./Alloy";
+import AllwaySync from "./AllwaySync";
 import AltairGraphqlClient from "./AltairGraphqlClient";
 import AltTab from "./AltTab";
 import AmadeusPro from "./AmadeusPro";
@@ -61,6 +65,7 @@ import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import Antigravity from "./Antigravity";
 import AntigravityIde from "./AntigravityIde";
 import Antinote from "./Antinote";
+import Anyburn from "./Anyburn";
 import AnyDesk from "./AnyDesk";
 import Anydo from "./Anydo";
 import Anytype from "./Anytype";
@@ -85,18 +90,22 @@ import Audiveris from "./Audiveris";
 import Autopsy from "./Autopsy";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AviatrixVpnClient from "./AviatrixVpnClient";
+import AvsImageConverter from "./AvsImageConverter";
+import AvsMediaPlayer from "./AvsMediaPlayer";
 import AwsCli from "./AwsCli";
 import AwsSamCli from "./AwsSamCli";
 import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureFunctionsCoreTools from "./AzureFunctionsCoreTools";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
 import Badgeify from "./Badgeify";
 import BalenaEtcher from "./BalenaEtcher";
 import BalsamiqWireframes from "./BalsamiqWireframes";
 import BambuStudio from "./BambuStudio";
+import Bandiview from "./Bandiview";
 import Bartender from "./Bartender";
 import Batfi from "./Batfi";
 import BBEdit from "./BBEdit";
@@ -117,6 +126,7 @@ import Bitbox from "./Bitbox";
 import Bitrix24 from "./Bitrix24";
 import Bitwarden from "./Bitwarden";
 import BitwigStudio from "./BitwigStudio";
+import Bleachbit from "./Bleachbit";
 import Blender from "./Blender";
 import Bleunlock from "./Bleunlock";
 import Blip from "./Blip";
@@ -132,9 +142,12 @@ import Box from "./Box";
 import Brave from "./Brave";
 import Breaktimer from "./Breaktimer";
 import BricklinkStudio from "./BricklinkStudio";
+import Browserstacklocal from "./Browserstacklocal";
 import Bruno from "./Bruno";
+import BulkCrapUninstaller from "./BulkCrapUninstaller";
 import Bunch from "./Bunch";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import BurpSuiteProfessional from "./BurpSuiteProfessional";
 import Busycontacts from "./Busycontacts";
 import Buttercup from "./Buttercup";
 import Buzz from "./Buzz";
@@ -437,6 +450,7 @@ import iPadOS from "./iPadOS";
 import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
 import Itsycal from "./Itsycal";
+import Itunes from "./Itunes";
 import JabraDirect from "./JabraDirect";
 import Jami from "./Jami";
 import Jamovi from "./Jamovi";
@@ -782,6 +796,7 @@ import Safari from "./Safari";
 import SafeExamBrowser from "./SafeExamBrowser";
 import Sanesidebuttons from "./Sanesidebuttons";
 import Santa from "./Santa";
+import ScaleFt from "./ScaleFt";
 import ScMenu from "./ScMenu";
 import Scratch from "./Scratch";
 import Screenflick from "./Screenflick";
@@ -1071,6 +1086,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "affinity photo 2": AffinityPhoto,
   "affinity publisher": AffinityPublisher1,
   "affinity publisher 2": AffinityPublisher,
+  "agent ransack": AgentRansack,
+  "air explorer": AirExplorer,
   airbuddy: Airbuddy,
   aircall: Aircall,
   airdroid: Airdroid,
@@ -1083,16 +1100,21 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   alacritty: Alacritty,
   alcove: Alcove,
   aldente: Aldente,
+  alfaview: Alfaview,
   alloy: Alloy,
+  "allway sync": AllwaySync,
   "altair graphql client": AltairGraphqlClient,
   alttab: AltTab,
   "amadeus pro": AmadeusPro,
   amadine: Amadine,
   "amazon chime": AmazonChime,
+  "amazon corretto 11": AmazonCorretto21,
+  "amazon corretto 17": AmazonCorretto21,
   "amazon corretto 21": AmazonCorretto21,
   "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
   "amazon corretto 26": AmazonCorretto26,
+  "amazon corretto 8": AmazonCorretto21,
   "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
@@ -1107,6 +1129,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "antigravity ide": AntigravityIde,
   antinote: Antinote,
   "any.do": Anydo,
+  anyburn: Anyburn,
   anydesk: AnyDesk,
   anytype: Anytype,
   apidog: Apidog,
@@ -1129,19 +1152,24 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
+  "avs image converter": AvsImageConverter,
+  "avs media player": AvsMediaPlayer,
   "aws client vpn": AwsVpnClient,
   "aws command line interface": AwsCli,
   "aws sam command line interface": AwsSamCli,
+  "aws session manager plugin": AwsCli,
   "aws vpn client": AwsVpnClient,
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure functions core tools": AzureFunctionsCoreTools,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,
   bbedit: BBEdit,
@@ -1163,6 +1191,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   bitrix24: Bitrix24,
   bitwarden: Bitwarden,
   "bitwig studio": BitwigStudio,
+  bleachbit: Bleachbit,
   blender: Blender,
   bleunlock: Bleunlock,
   blip: Blip,
@@ -1178,9 +1207,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   brave: Brave,
   breaktimer: Breaktimer,
   "bricklink studio": BricklinkStudio,
+  browserstacklocal: Browserstacklocal,
   bruno: Bruno,
+  "bulk crap uninstaller": BulkCrapUninstaller,
   bunch: Bunch,
   "burp suite community": BurpSuiteCommunity,
+  "burp suite professional": BurpSuiteProfessional,
   busycontacts: Busycontacts,
   buttercup: Buttercup,
   buzz: Buzz,
@@ -1485,6 +1517,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   istherenet: Istherenet,
   iterm2: ITerm,
   itsycal: Itsycal,
+  itunes: Itunes,
   "jabra direct": JabraDirect,
   jami: Jami,
   jamovi: Jamovi,
@@ -1677,6 +1710,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
   "ok json": OkJson,
+  "okta advanced server access": ScaleFt,
   "okta verify": OktaVerify,
   ollama: Ollama,
   omnidisksweeper: Omnidisksweeper,
@@ -1838,6 +1872,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   santa: Santa,
   "sbarex qlmarkdown": Qlmarkdown,
   "sc menu": ScMenu,
+  scaleft: ScaleFt,
   scratch: Scratch,
   "screen studio": ScreenStudio,
   screenflick: Screenflick,

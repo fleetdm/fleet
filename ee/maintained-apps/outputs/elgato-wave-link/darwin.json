@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.2.0",
+      "version": "3.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.WaveLink';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.WaveLink' AND version_compare(bundle_short_version, '3.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.WaveLink' AND version_compare(bundle_short_version, '3.2.1') < 0);"
       },
-      "installer_url": "https://edge.elgato.com/egc/macos/ewlm/release/ElgatoWaveLink-3.2.0.2698.dmg",
+      "installer_url": "https://edge.elgato.com/egc/macos/ewlm/release/ElgatoWaveLink-3.2.1.2886.dmg",
       "install_script_ref": "246335ee",
       "uninstall_script_ref": "adcd3954",
-      "sha256": "5b4cd8d229963c2ae157c47d17d1d8efc1382906acf8e2bfb662456e98ef5c14",
+      "sha256": "5099fac79d618a982a90789a8a025e16af56f94f96285751c44fcfe6b9491ead",
       "default_categories": [
         "Productivity"
       ]

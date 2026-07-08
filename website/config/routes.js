@@ -146,22 +146,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /success-stories': {
-    skipAssets: false,
-    action: 'articles/view-articles',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },
-
-  'GET /success-stories/*': {
-    skipAssets: false,
-    action: 'articles/view-basic-article',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },// handles /success-stores/foo
-
   'GET /case-study/*': {
     skipAssets: false,
     action: 'articles/view-case-study',// Meta title and description set in view action
@@ -781,9 +765,10 @@ module.exports.routes = {
   'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications#docs',
   'GET /handbook/marketing/website-handbook/': '/handbook/company/communications#website',
   'GET /handbook/quality': '/handbook/engineering#quality',
-  'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
-  'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
-  'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
+  'GET /success-stories': '/customers',
+  'GET /device-management/fleet-user-stories-f100': '/customers',
+  'GET /device-management/fleet-user-stories-schrodinger': '/customers',
+  'GET /device-management/fleet-user-stories-wayfair': '/customers',
   'GET /handbook/security': '/handbook/it/security',
   'GET /handbook/digital-experience/security': '/handbook/it/security',
   'GET /handbook/business-operations/security-policies': '/handbook/it/security',
@@ -1163,6 +1148,7 @@ module.exports.routes = {
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
   'GET /orchestration': '/visibility-and-reporting',
   'GET /gitops-workshop': '/workshops',
+  'GET /gitops-workshops': '/workshops',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝

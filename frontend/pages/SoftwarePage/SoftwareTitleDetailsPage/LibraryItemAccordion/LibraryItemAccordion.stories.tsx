@@ -80,21 +80,25 @@ export const Expanded: Story = {
   },
 };
 
+/** FMA row: the pin is a clickable button that opens the versions modal. */
 export const LatestActive: Story = {
   args: {
     badgeState: "latest",
+    onBadgeClick: () => undefined,
   },
 };
 
 export const PinnedActive: Story = {
   args: {
     badgeState: "pinned",
+    onBadgeClick: () => undefined,
   },
 };
 
 export const MajorVersionPinnedActive: Story = {
   args: {
     badgeState: "majorVersion",
+    onBadgeClick: () => undefined,
   },
 };
 

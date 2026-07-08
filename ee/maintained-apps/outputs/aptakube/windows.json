@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.18.3",
+      "version": "1.18.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL' AND version_compare(version, '1.18.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL' AND version_compare(version, '1.18.4') < 0);"
       },
-      "installer_url": "https://releases.aptakube.com/Aptakube_1.18.3_x64_en-US.msi",
+      "installer_url": "https://releases.aptakube.com/Aptakube_1.18.4_x64_en-US.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "d2281ec5",
-      "sha256": "ce6e89abfa4edf3c5ab2a717bc83860a7ee10c20ebd71e37feb4e17b9e8479f6",
+      "sha256": "73e9ee63ba4af35590ca891730cc7e1d019a01546c226e95eea06ea9577c9ffe",
       "default_categories": [
         "Developer tools"
       ],
