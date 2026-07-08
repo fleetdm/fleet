@@ -679,6 +679,23 @@ type HostMDMOSSettings struct {
 	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
 	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
 	ManagedLocalAccount  HostMDMManagedLocalAccount  `json:"managed_local_account" db:"-" csv:"-"`
+	HostName             *HostMDMHostNameSetting     `json:"host_name,omitempty" db:"-" csv:"-"`
+}
+
+// HostNameSettingStatus is the per-host status of the host-name template
+// enforcement surfaced in the host detail response.
+type HostNameSettingStatus string
+
+const (
+	HostNameSettingPending   HostNameSettingStatus = "pending"
+	HostNameSettingVerifying HostNameSettingStatus = "verifying"
+	HostNameSettingVerified  HostNameSettingStatus = "verified"
+	HostNameSettingFailed    HostNameSettingStatus = "failed"
+)
+
+type HostMDMHostNameSetting struct {
+	Status HostNameSettingStatus `json:"status" db:"-" csv:"-"`
+	Detail string                `json:"detail" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {

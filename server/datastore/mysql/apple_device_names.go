@@ -199,44 +199,48 @@ func (ds *Datastore) ReconcileHostDeviceNamesForHosts(ctx context.Context, hostI
 	if len(hostIDs) == 0 {
 		return nil
 	}
-
-	// A host should have a queued enforcement row when it is eligible and its team
-	// carries a non-empty name template; otherwise any existing row is removed.
-	// The template lives in teams.config JSON at $.mdm.name_template (empty string
-	// when unset, NULL for teams whose config predates the feature).
-	//
-	// Rather than conditionally upsert-or-delete per host, we delete every row for
-	// the given hosts and re-create queued rows only for the ones that should
-	// still be enforced. Both statements run in a single transaction, so no
-	// window ever exposes a missing row; the only observable difference from an
-	// upsert is that created_at resets, which is correct after a team change.
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		deleteStmt, deleteArgs, err := sqlx.In(`
-			DELETE hmadn
-			FROM host_mdm_apple_device_names hmadn
-			JOIN hosts h ON h.uuid = hmadn.host_uuid
-			WHERE h.id IN (?)`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build reconcile device name delete")
-		}
-		if _, err := tx.ExecContext(ctx, deleteStmt, deleteArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "reconcile device name delete")
-		}
-
-		insertStmt, insertArgs, err := sqlx.In(`
-			INSERT INTO host_mdm_apple_device_names (host_uuid, status)
-			SELECT h.uuid, NULL`+deviceNameEligibleHostsJoins+`
-			JOIN teams t ON t.id = h.team_id
-			WHERE h.id IN (?)
-				AND `+deviceNameEligibleHostsWhere+`
-				AND t.config->>'$.mdm.name_template' IS NOT NULL
-				AND t.config->>'$.mdm.name_template' != ''`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build reconcile device name insert")
-		}
-		if _, err := tx.ExecContext(ctx, insertStmt, insertArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "reconcile device name insert")
-		}
-		return nil
+		return reconcileHostDeviceNamesForHostsDB(ctx, tx, hostIDs)
 	})
+}
+
+// reconcileHostDeviceNamesForHostsDB upserts or deletes host-name enforcement
+// rows for the given hosts based on each host's current team template.
+//
+// A host should have a queued enforcement row when it is eligible and its team
+// carries a non-empty name template; otherwise any existing row is removed. The
+// template lives in teams.config JSON at $.mdm.name_template (empty string when
+// unset, NULL for teams whose config predates the feature).
+func reconcileHostDeviceNamesForHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	deleteStmt, deleteArgs, err := sqlx.In(`
+		DELETE hmadn
+		FROM host_mdm_apple_device_names hmadn
+		JOIN hosts h ON h.uuid = hmadn.host_uuid
+		WHERE h.id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build reconcile device name delete")
+	}
+	if _, err := tx.ExecContext(ctx, deleteStmt, deleteArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile device name delete")
+	}
+
+	insertStmt, insertArgs, err := sqlx.In(`
+		INSERT INTO host_mdm_apple_device_names (host_uuid, status)
+		SELECT h.uuid, NULL`+deviceNameEligibleHostsJoins+`
+		JOIN teams t ON t.id = h.team_id
+		WHERE h.id IN (?)
+			AND `+deviceNameEligibleHostsWhere+`
+			AND t.config->>'$.mdm.name_template' IS NOT NULL
+			AND t.config->>'$.mdm.name_template' != ''`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build reconcile device name insert")
+	}
+	if _, err := tx.ExecContext(ctx, insertStmt, insertArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile device name insert")
+	}
+	return nil
 }

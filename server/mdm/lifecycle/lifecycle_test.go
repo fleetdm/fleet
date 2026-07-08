@@ -66,6 +66,109 @@ func TestDoParamValidation(t *testing.T) {
 	}
 }
 
+// TestReconcileHostNameEnforcementOnEnrollment verifies that both Apple
+// enrollment lifecycle branches — turn-on (TokenUpdate) and reset (Authenticate,
+// covering re-enrollment) — reconcile the host's host-name template enforcement,
+// so a host enrolling into a team with a template gets a queued row.
+func TestReconcileHostNameEnforcementOnEnrollment(t *testing.T) {
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	const hostID = uint(99)
+
+	t.Run("turn-on reconciles with the enrolled host id", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, uuid string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
+		}
+		ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMCheckinInfo, error) {
+			return &fleet.HostMDMCheckinInfo{HostID: hostID, Platform: "darwin"}, nil
+		}
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+		var gotIDs []uint
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(ctx context.Context, hostIDs []uint) error {
+			gotIDs = hostIDs
+			return nil
+		}
+
+		lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
+		require.NoError(t, lc.Do(ctx, HostOptions{Action: HostActionTurnOn, Platform: "darwin", UUID: "host-uuid"}))
+		require.True(t, ds.ReconcileHostDeviceNamesForHostsFuncInvoked)
+		require.Equal(t, []uint{hostID}, gotIDs)
+	})
+
+	t.Run("turn-on reconciles on the DEP branch before its early return", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, uuid string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
+		}
+		// DEPAssignedToFleet takes the DEP branch, which queues a job and returns
+		// early — the reconcile must run before that branch.
+		ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMCheckinInfo, error) {
+			return &fleet.HostMDMCheckinInfo{HostID: hostID, Platform: "darwin", DEPAssignedToFleet: true}, nil
+		}
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+		var gotIDs []uint
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(ctx context.Context, hostIDs []uint) error {
+			gotIDs = hostIDs
+			return nil
+		}
+
+		lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
+		require.NoError(t, lc.Do(ctx, HostOptions{Action: HostActionTurnOn, Platform: "darwin", UUID: "host-uuid"}))
+		require.True(t, ds.ReconcileHostDeviceNamesForHostsFuncInvoked)
+		require.Equal(t, []uint{hostID}, gotIDs)
+		require.True(t, ds.NewJobFuncInvoked, "DEP branch should have been taken")
+	})
+
+	t.Run("turn-on skips reconcile when the enrollment is not ready", func(t *testing.T) {
+		ds := new(mock.Store)
+		// TokenUpdateTally != 1 makes turnOnApple short-circuit before reconciling.
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, uuid string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 2}, nil
+		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(ctx context.Context, hostIDs []uint) error { return nil }
+
+		lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
+		require.NoError(t, lc.Do(ctx, HostOptions{Action: HostActionTurnOn, Platform: "darwin", UUID: "host-uuid"}))
+		require.False(t, ds.ReconcileHostDeviceNamesForHostsFuncInvoked)
+	})
+
+	t.Run("reset reconciles with the upserted host id", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
+			mdmHost.ID = hostID
+			return nil
+		}
+		ds.MDMResetEnrollmentFunc = func(ctx context.Context, uuid string, scepRenewalInProgress bool) error { return nil }
+		var gotIDs []uint
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(ctx context.Context, hostIDs []uint) error {
+			gotIDs = hostIDs
+			return nil
+		}
+
+		lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
+		require.NoError(t, lc.Do(ctx, HostOptions{
+			Action: HostActionReset, Platform: "darwin",
+			UUID: "host-uuid", HardwareSerial: "serial", HardwareModel: "MacBookPro",
+		}))
+		require.True(t, ds.ReconcileHostDeviceNamesForHostsFuncInvoked)
+		require.Equal(t, []uint{hostID}, gotIDs)
+	})
+
+	t.Run("reset skips reconcile during SCEP renewal", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMResetEnrollmentFunc = func(ctx context.Context, uuid string, scepRenewalInProgress bool) error { return nil }
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(ctx context.Context, hostIDs []uint) error { return nil }
+
+		lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
+		require.NoError(t, lc.Do(ctx, HostOptions{
+			Action: HostActionReset, Platform: "darwin",
+			UUID: "host-uuid", HardwareSerial: "serial", HardwareModel: "MacBookPro",
+			SCEPRenewalInProgress: true,
+		}))
+		require.False(t, ds.ReconcileHostDeviceNamesForHostsFuncInvoked)
+	})
+}
+
 // TestDeleteAppleDuplicateDEPHost verifies that deleting one of a set of
 // duplicate DEP hosts (same serial) does not recreate a pending "ghost" host
 // when another DEP-assigned host with that serial still exists, while a host

@@ -3090,6 +3090,81 @@ func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// POST /hosts/{host_id:[0-9]+}/name_template/resend
+////////////////////////////////////////////////////////////////////////////////
+
+type resendHostNameTemplateRequest struct {
+	HostID uint `url:"host_id"`
+}
+
+type resendHostNameTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendHostNameTemplateResponse) Error() error { return r.Err }
+
+func (r resendHostNameTemplateResponse) Status() int { return http.StatusAccepted }
+
+func resendHostNameTemplateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*resendHostNameTemplateRequest)
+
+	if err := svc.ResendHostNameTemplate(ctx, req.HostID); err != nil {
+		return resendHostNameTemplateResponse{Err: err}, nil
+	}
+
+	return resendHostNameTemplateResponse{}, nil
+}
+
+func (svc *Service) ResendHostNameTemplate(ctx context.Context, hostID uint) error {
+	if !license.IsPremium(ctx) {
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMissingLicense
+	}
+
+	// Coarse gate before loading the host. We use selective_list (like the profile
+	// resend) so GitOps tokens are admitted here — GitOps manages host name
+	// templates (controls.name_template), so it must also be able to resend.
+	// Team-scoped enforcement is the ActionResend check below, once the host's team
+	// is known (that policy admits GitOps for the host's team too).
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if host.TeamID == nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host names are only enforced for hosts that belong to a fleet.").WithStatus(http.StatusUnprocessableEntity))
+	}
+
+	enforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostName", "Unable to match host name to host.").WithStatus(http.StatusNotFound), "getting host device name enforcement")
+		}
+		return ctxerr.Wrap(ctx, err, "getting host device name enforcement")
+	}
+
+	// A NULL status is a queued row. Pending and verifying rows can't be resent.
+	if enforcement.Status == nil || *enforcement.Status == fleet.MDMDeliveryPending || *enforcement.Status == fleet.MDMDeliveryVerifying {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostName", `Couldn't resend. Host names with "pending" or "verifying" status can't be resent.`).WithStatus(http.StatusConflict), "check host name status")
+	}
+
+	if err := svc.ds.ResendHostDeviceName(ctx, host.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resending host device name")
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // POST /hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}
 ////////////////////////////////////////////////////////////////////////////////
 

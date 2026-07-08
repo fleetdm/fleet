@@ -1346,6 +1346,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
 		query += sqlJoinRecoveryLockStatus()
+		query += sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
