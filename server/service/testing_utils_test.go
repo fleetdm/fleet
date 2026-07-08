@@ -38,6 +38,7 @@ import (
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -472,6 +473,22 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
 		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
+	}
+
+	// The chart bounded context is wired into the real server in serve.go but not into
+	// this test handler, so build a path-only stub (regardless of DBConns) so that
+	// apiendpoints.Validate can see the chart routes declared in api_endpoints.yml.
+	// chart_bootstrap.New stores its deps without dereferencing them, so empty conns +
+	// nil authorizer/viewer are fine when only the route paths are needed.
+	{
+		_, chartRoutesFn := chart_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(chartRoutesFn(noopAuth)))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
@@ -1470,3 +1487,7 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	}
 	return rt.next.RoundTrip(req)
 }
+
+// errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
+// for assertions that only care about the error.
+func errOnly(_ []uint, err error) error { return err }

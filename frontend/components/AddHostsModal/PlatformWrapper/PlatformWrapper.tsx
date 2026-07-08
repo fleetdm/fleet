@@ -20,6 +20,7 @@ import TabText from "components/TabText";
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
 import AndroidPanel from "./AndroidPanel";
+import MacosPanel from "./MacosPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -281,9 +282,6 @@ const PlatformWrapper = ({
           hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
-    } else if (packageType === "pkg") {
-      packageTypeHelpText =
-        "Run this on your computer, then deploy the generated package to your hosts.";
     } else {
       packageTypeHelpText = "";
     }
@@ -345,6 +343,10 @@ const PlatformWrapper = ({
 
     if (packageType === "android") {
       return <AndroidPanel enrollSecret={enrollSecret} />;
+    }
+
+    if (packageType === "pkg") {
+      return <MacosPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "advanced") {

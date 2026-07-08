@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "10.0.1",
+      "version": "10.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.rightfontapp.RightFont5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rightfontapp.RightFont5' AND version_compare(bundle_short_version, '10.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rightfontapp.RightFont5' AND version_compare(bundle_short_version, '10.1') < 0);"
       },
       "installer_url": "https://rightfontapp.com/update/rightfont.zip",
       "install_script_ref": "40969d32",

@@ -216,6 +216,7 @@ type Policy struct {
 	ID               uint   `json:"id"`
 	Name             string `json:"name"`
 	Description      string `json:"description"`
+	Query            string `json:"query"`
 	Platform         string `json:"platform"`
 	PassingHostCount int    `json:"passing_host_count"`
 	FailingHostCount int    `json:"failing_host_count"`
@@ -815,7 +816,7 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 		go func(idx int, team Team) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team.ID), nil)
+			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/fleets/%d/policies", team.ID), nil)
 			if err != nil {
 				logrus.Warnf("team %d policies error: %v", team.ID, err)
 				return
@@ -933,7 +934,7 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 
 // GetTeams retrieves all teams from Fleet
 func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
-	endpoint := "/api/v1/fleet/teams"
+	endpoint := "/api/v1/fleet/fleets"
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teams: %w", err)
@@ -1465,13 +1466,13 @@ func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID string)
 }
 
 // GetTeamPolicyCompliance retrieves policy compliance scoped to a single fleet
-// (team). Wraps GET /api/v1/fleet/teams/:team_id/policies/:policy_id and
+// (team). Wraps GET /api/v1/fleet/fleets/:team_id/policies/:policy_id and
 // returns the same PolicyCompliance shape as the global variant so callers
 // can treat both uniformly. Use this — not GetPolicyCompliance — when the
 // caller knows the policy belongs to a specific fleet, or when global counts
 // would be misleading because the policy is fleet-scoped.
 func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/teams/%s/policies/%s", url.PathEscape(teamID), url.PathEscape(policyID))
+	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%s/policies/%s", url.PathEscape(teamID), url.PathEscape(policyID))
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get team policy compliance: %w", err)

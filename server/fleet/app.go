@@ -2068,6 +2068,14 @@ type NatsConfig struct {
 	AuditSubject  string `json:"audit_subject"`
 }
 
+// SplunkConfig shadows config.SplunkConfig only exposing a subset of fields
+type SplunkConfig struct {
+	URL        string `json:"url"`
+	Index      string `json:"index"`
+	Source     string `json:"source"`
+	SourceType string `json:"source_type"`
+}
+
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
