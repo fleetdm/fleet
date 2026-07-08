@@ -1654,13 +1654,6 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
-      "name": "Citrix Workspace",
-      "slug": "citrix-workspace/windows",
-      "platform": "windows",
-      "unique_identifier": "Citrix Workspace",
-      "description": "Citrix Workspace provides secure access to virtual apps, desktops, and content."
-    },
-    {
       "name": "Claude DevTools",
       "slug": "claude-devtools/darwin",
       "platform": "darwin",
@@ -1820,13 +1813,6 @@
       "platform": "darwin",
       "unique_identifier": "com.eltima.cloudmounter",
       "description": "Eltima CloudMounter is a mounts cloud storages as local discs."
-    },
-    {
-      "name": "CloudShow",
-      "slug": "cloudshow/windows",
-      "platform": "windows",
-      "unique_identifier": "CloudShow Launcher",
-      "description": "CloudShow is a digital signage app that turns any screen into a managed display."
     },
     {
       "name": "CMake",
@@ -2023,20 +2009,6 @@
       "platform": "windows",
       "unique_identifier": "Creative Force Triad",
       "description": "Creative Force Triad enables direct printing from the Creative Force platform to Zebra label printers."
-    },
-    {
-      "name": "Crestron AirMedia Peripherals",
-      "slug": "crestron-airmedia-peripherals/windows",
-      "platform": "windows",
-      "unique_identifier": "Crestron AirMedia Peripherals",
-      "description": "Crestron AirMedia Peripherals enables wireless conferencing with Crestron AirMedia Series 3 receivers."
-    },
-    {
-      "name": "Crestron AirMedia",
-      "slug": "crestron-airmedia/windows",
-      "platform": "windows",
-      "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
-      "description": "Crestron AirMedia enables wireless presentation and conferencing with AirMedia receivers."
     },
     {
       "name": "Cribl Edge",
