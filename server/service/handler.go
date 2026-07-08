@@ -772,6 +772,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
+	// This section handles MDM "assets", specifically for Apple DDM.
+	mdmAppleMW.GET("/api/_version_/fleet/assets", listAppleDDMAssetsEndpoint, listAppleDDMAssetsRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/assets/{asset_uuid}", getAppleDDMAssetEndpoint, getAppleDDMAssetRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/assets", createAppleDDMAssetEndpoint, createAppleDDMAssetRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/assets/{asset_uuid}", deleteAppleDDMAssetEndpoint, deleteAppleDDMAssetRequest{})
+
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
