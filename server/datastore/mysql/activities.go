@@ -1595,20 +1595,31 @@ const policyAutomationHostJoin = `
     JOIN  hosts               h   ON h.id            = ahp.host_id
     LEFT JOIN host_display_names hdn ON hdn.host_id  = ahp.host_id`
 
-// statusOutputCols renders the trailing "status, output" column pair that every
-// UNION branch must project after policyAutomationCols. Modeling it as a struct
+// statusOutputCols renders the trailing status/output columns that every UNION
+// branch must project after policyAutomationCols. Modeling it as a struct
 // (rather than a raw SQL fragment) makes the positional contract that UNION ALL
-// relies on impossible to break by hand: both columns are always present,
-// always aliased, and always in this order, so no branch can silently reorder
-// or drop one. status and output are SQL expressions; use "NULL" for output
-// when the branch has nothing to surface.
+// relies on impossible to break by hand: the columns are always present, always
+// aliased, and always in this order, so no branch can silently reorder or drop
+// one. All fields are SQL expressions. status and output are required; an empty
+// preInstallOutput/postInstallOutput is projected as NULL (only the
+// installed_software branch surfaces those).
 type statusOutputCols struct {
-	status string
-	output string
+	status            string
+	output            string
+	preInstallOutput  string
+	postInstallOutput string
 }
 
 func (c statusOutputCols) sql() string {
-	return fmt.Sprintf("%s AS status, %s AS output", c.status, c.output)
+	pre, post := c.preInstallOutput, c.postInstallOutput
+	if pre == "" {
+		pre = "NULL"
+	}
+	if post == "" {
+		post = "NULL"
+	}
+	return fmt.Sprintf("%s AS status, %s AS output, %s AS pre_install_output, %s AS post_install_output",
+		c.status, c.output, pre, post)
 }
 
 // policyAutomationNamedStatusCols projects the status/output pair for the named
@@ -1631,7 +1642,9 @@ type policyAutomationTaskBranch struct {
 	joins string
 	// errorCond and successCond are the WHERE fragments selecting failed and
 	// successful tasks respectively. They are wrapped in parentheses when
-	// applied, so internal OR/AND precedence is preserved.
+	// applied, so internal OR/AND precedence is preserved. Together they must
+	// partition the rows the branch surfaces: every row is matched by exactly one
+	// of them, and that must agree with statusCols.
 	errorCond   string
 	successCond string
 	// statusCols projects the status/output pair for this branch. The
@@ -1665,11 +1678,25 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
                 ON  hsi.host_id      = ahp.host_id
                 AND hsi.execution_id = ap.details->>'$.install_uuid'
                 AND hsi.policy_id    = ?`,
+		// Outcome comes from the recorded details.status (a historical snapshot),
+		// not the live host_software_installs status, which goes NULL once the row
+		// is removed. The activity is only written for a terminal install (see
+		// svc.NewActivity in orbit.go, gated on status != pending_install), and
+		// details.status has been recorded since the activity type was introduced,
+		// so in practice the only values are 'installed' and 'failed_install'.
+		// 'failed_install' is treated as the sole failure and anything else (an
+		// unexpected or empty status) as success, so errorCond and successCond are
+		// null-safe complements that exactly partition what statusCols reports.
 		errorCond:   "ap.details->>'$.status' = 'failed_install'",
-		successCond: "ap.details->>'$.status' = 'installed'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed_install')",
+		// A software install can fail at the pre-install query, install script, or
+		// post-install script stage, so surface all three outputs; the modal shows
+		// them as separate sections.
 		statusCols: statusOutputCols{
-			status: "IF(ap.details->>'$.status' = 'installed', 'success', 'error')",
-			output: "hsi.install_script_output",
+			status:            "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
+			output:            "hsi.install_script_output",
+			preInstallOutput:  "hsi.pre_install_query_output",
+			postInstallOutput: "hsi.post_install_script_output",
 		},
 	},
 	{
@@ -1678,19 +1705,22 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
             INNER JOIN host_vpp_software_installs hvsi
                 ON  hvsi.host_id      = ahp.host_id
                 AND hvsi.command_uuid = ap.details->>'$.command_uuid'
-                AND hvsi.policy_id    = ?
-            LEFT JOIN nano_command_results ncr
-                ON  ncr.command_uuid = hvsi.command_uuid
-                AND ncr.id = (SELECT uuid FROM hosts WHERE id = ahp.host_id)`,
-		errorCond: "hvsi.verification_failed_at IS NOT NULL OR ncr.status IN ('Error', 'CommandFormatError')",
-		// verification_at IS NOT NULL is the canonical "installed" indicator: it
-		// is set by Fleet after the MDM command result is confirmed, independently
-		// of the nano_command_results row.
-		successCond: "hvsi.verification_at IS NOT NULL",
+                AND hvsi.policy_id    = ?`,
+		// Like installed_software, a VPP activity is only written in a terminal
+		// state — either on a command error (apple_mdm.go) or once the install is
+		// verified/timed out (setStatusForExpectedInstall in
+		// apple_mdm_cmd_results.go) — recording the outcome in details.status. Read
+		// that historical snapshot rather than the live hvsi.verification_* columns,
+		// which mutate over the install's lifetime and go NULL when the row is
+		// removed. 'failed_install' is the sole failure; everything else is a
+		// success. error and success conditions are null-safe complements that
+		// exactly partition what statusCols reports.
+		errorCond:   "ap.details->>'$.status' = 'failed_install'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed_install')",
 		// VPP apps are installed via MDM command, not a script, so there is no
 		// script output to surface.
 		statusCols: statusOutputCols{
-			status: "IF(hvsi.verification_at IS NOT NULL, 'success', 'error')",
+			status: "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
 			output: "NULL",
 		},
 	},

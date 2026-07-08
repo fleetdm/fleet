@@ -489,11 +489,7 @@ const PolicyDetailsPage = ({
           includeScopeLabel={labelModalData.includeScopeLabel}
           excludeLabels={labelModalData.excludeLabels}
           excludeScopeLabel={labelModalData.excludeScopeLabel}
-          onLabelClick={
-            canEditLabels
-              ? (labelId) => router.push(PATHS.LABEL_EDIT(labelId))
-              : undefined
-          }
+          getLabelPath={canEditLabels ? PATHS.LABEL_EDIT : undefined}
           onClose={() => setShowLabelModal(false)}
         />
       )}
