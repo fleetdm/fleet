@@ -37,12 +37,12 @@ func TestUp_20260707150000(t *testing.T) {
 	insertProfile("host-verified", "p1", "Profile A", "install", statusPtr("verified"))
 	insertProfile("host-verified", "p2", "Profile B", "install", statusPtr("verified"))
 
-	// host-reserved-only: the only profile is the reserved "Windows OS Updates" one, so it is excluded and the host resolves to ''
-	// (not counted by the summary).
+	// host-reserved-only: the only profile is the reserved "Windows OS Updates" one, so it is excluded and the host resolves to the
+	// empty status (not counted by the summary).
 	insertProfile("host-reserved-only", "p1", "Windows OS Updates", "install", statusPtr("failed"))
 
 	// host-remove-verifying: a remove verifying does not count as verifying (install-only), so with no other non-reserved status the
-	// host resolves to ''.
+	// host resolves to the empty status.
 	insertProfile("host-remove-verifying", "p1", "Profile A", "remove", statusPtr("verifying"))
 
 	applyNext(t, db)

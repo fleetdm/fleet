@@ -10,7 +10,7 @@ func init() {
 }
 
 // Up_20260707150000 creates host_mdm_windows_profiles_status, a per-host rollup of the aggregate Windows configuration-profile
-// delivery status. It materializes exactly one bucket per host ('failed'|'pending'|'verifying'|'verified'|”)
+// delivery status. It materializes exactly one bucket per host ('failed'|'pending'|'verifying'|'verified'|empty)
 func Up_20260707150000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 CREATE TABLE host_mdm_windows_profiles_status (

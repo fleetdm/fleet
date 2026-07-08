@@ -1870,7 +1870,7 @@ func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error
 // windowsHostProfileStatusCaseExpr returns the SQL CASE expression (and its as-yet-unexpanded args)
 // that reduces a group of host_mdm_windows_profiles rows (aliased hmwp) to a single status bucket:
 // `<statusPrefix>failed`, `<statusPrefix>pending`, `<statusPrefix>verifying`, `<statusPrefix>verified`,
-// or ”. It is the single source of truth for the Windows profile status priority logic (failed >
+// or the empty string. It is the single source of truth for the Windows profile status priority logic (failed >
 // pending > verifying > verified, reserved profiles excluded, install-only for verifying/verified,
 // NULL treated as pending) and is shared by the correlated per-host subquery
 // (windowsHostProfileStatusSubquery, used by the list-hosts filter), the set-based rollup maintenance
@@ -1955,7 +1955,7 @@ WHERE host_uuid IN (?)
 //     caller (BulkUpsertMDMWindowsHostProfiles, which only inserts/updates profile rows and so can never
 //     orphan a rollup row) safe without wrapping it in a transaction.
 //   - The orphan-delete removes the now-stale rollup row for a host whose last profile row was just
-//     deleted (the upsert's GROUP BY produces no row for it), which the summary treats as ”.
+//     deleted (the upsert's GROUP BY produces no row for it), which the summary treats as empty.
 //
 // Because it is keyed per host, concurrent host check-ins never contend on a shared counter row.
 func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContext, hostUUIDs []string) error {
@@ -2162,10 +2162,10 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 		args = append(args, *teamID)
 	}
 
-	// The per-host profile status bucket ('failed'|'pending'|'verifying'|'verified'|'') is maintained in
+	// The per-host profile status bucket ('failed'|'pending'|'verifying'|'verified'|empty) is maintained in
 	// host_mdm_windows_profiles_status (issue #48340), so this is an O(hosts) grouped read instead of the
 	// former O(hosts x profiles-per-host) correlated aggregation. The LEFT JOIN + COALESCE reproduces the
-	// prior behavior for enrolled hosts with no profile rows (they count under status ''). The outer
+	// prior behavior for enrolled hosts with no profile rows (they count under the empty status). The outer
 	// FROM/WHERE/GROUP BY shape is otherwise unchanged, so row-level counts (including duplicate enrolled
 	// rows in mdm_windows_enrollments, if any) match the prior implementation.
 	stmt := fmt.Sprintf(`
@@ -2228,9 +2228,9 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 
 	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status
 	// rollup (issue #48340) instead of recomputing a correlated aggregation over host_mdm_windows_profiles
-	// per host; only the (cheap, one-row-per-host) BitLocker status is still computed on the fly. The
-	// COALESCE(hmwps.status,'') empty value falls through to the ELSE branch, so a host with only BitLocker
-	// (no config profiles) still reports its BitLocker status, exactly as before.
+	// per host; only the (cheap, one-row-per-host) BitLocker status is still computed on the fly. A missing
+	// rollup row COALESCEs to the empty string and falls through to the ELSE branch, so a host with only
+	// BitLocker (no config profiles) still reports its BitLocker status, exactly as before.
 	stmt := fmt.Sprintf(`
 SELECT
     CASE COALESCE(hmwps.status, '')
