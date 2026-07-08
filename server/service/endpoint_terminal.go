@@ -30,6 +30,19 @@ import (
 	gws "github.com/gorilla/websocket"
 )
 
+// ─── WebSocket heartbeat constants ───────────────────────────────────────────
+
+const (
+	// terminalPingPeriod is how often the Fleet server sends a WS ping to the
+	// orbit agent to verify the connection is still alive.
+	terminalPingPeriod = 30 * time.Second
+
+	// terminalPongWait is how long the server waits for a pong reply before
+	// treating the connection as dead and tearing down the session.
+	// Must be greater than terminalPingPeriod.
+	terminalPongWait = 60 * time.Second
+)
+
 // ─── message types ────────────────────────────────────────────────────────────
 
 // terminalMsg is the JSON envelope used on both the browser-facing and
@@ -209,10 +222,12 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger) http.Han
 
 		// Mark the session as browser-claimed and notify orbit.  Orbit only
 		// sees session IDs after this point, so no shell is started without a
-		// verified browser connection.
-		if !terminalStore.markBrowserClaimed(sessionID) {
-			// Session was swept between get() and auth — nothing to clean up.
-			writeTerminalError(conn, "session expired")
+		// verified browser connection.  markBrowserClaimed also enforces:
+		//   • single-use: a second browser tab for the same session is rejected.
+		//   • creator-bound: only the user who created the session can attach.
+		if !terminalStore.markBrowserClaimed(sessionID, user.ID) {
+			// Session was swept, already claimed, or caller is not the creator.
+			writeTerminalError(conn, "session expired or not authorized")
 			return
 		}
 		terminalNotifyStore.notifyHost(sess.hostID)
@@ -236,7 +251,10 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger) http.Han
 			return
 		}
 
-		ctx, cancel := context.WithCancel(r.Context())
+		// Apply the same absolute wall-clock limit used by the orbit handler and
+		// the TTL sweeper.  When the timeout fires, ctx.Done() unblocks the
+		// relay loops and the deferred conn.Close() tears down the browser WS.
+		ctx, cancel := context.WithTimeout(r.Context(), maxSessionDuration)
 		defer cancel()
 
 		// Browser → fromBrowser (keyboard input, resize events).
@@ -372,16 +390,44 @@ func makeTerminalOrbitHandler(svc fleet.Service, logger *slog.Logger) http.Handl
 		// Signal the browser side that the agent is ready.
 		close(sess.orbitConnected)
 
-		ctx, cancel := context.WithCancel(r.Context())
+		// Enforce an absolute wall-clock limit and enable WebSocket heartbeats
+		// to detect half-open TCP connections before the OS keepalive fires.
+		ctx, cancel := context.WithTimeout(r.Context(), maxSessionDuration)
 		defer cancel()
 
-		// When the session is torn down (browser disconnect, TTL, auth failure),
-		// close the WS connection so the blocking ReadMessage call below returns.
+		// Ping/pong: set an initial read deadline; the pong handler resets it
+		// on each pong.  If orbit stops responding (dead network, hung agent),
+		// ReadMessage returns a deadline error and the session is torn down.
+		conn.SetReadDeadline(time.Now().Add(terminalPongWait)) //nolint:errcheck
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+		})
+
+		// Send periodic pings to the orbit agent.
+		go func() {
+			t := time.NewTicker(terminalPingPeriod)
+			defer t.Stop()
+			for {
+				select {
+				case <-t.C:
+					if err := conn.WriteControl(gws.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+						cancel()
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
+		// When the session is torn down (browser disconnect, TTL, auth failure,
+		// absolute timeout), close the WS so blocking ReadMessage returns.
 		go func() {
 			select {
 			case <-sess.done:
 				conn.Close()
 			case <-ctx.Done():
+				conn.Close()
 			}
 		}()
 

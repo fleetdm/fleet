@@ -17,11 +17,13 @@ func newTestStore() *terminalSessionStore {
 
 // addSession inserts a session directly into the store without triggering
 // gcOnce, so tests remain isolated from the package-level GC goroutine.
+// creatorUserID defaults to 0; pass a non-zero value to test user-binding.
 func addSession(s *terminalSessionStore, hostID uint, name string) (string, *terminalSession) {
 	id := uuid.New().String()
 	sess := &terminalSession{
 		hostID:          hostID,
 		hostDisplayName: name,
+		creatorUserID:   0, // tests use the zero-value user ID
 		createdAt:       time.Now(),
 		fromBrowser:     make(chan []byte, 256),
 		toBrowser:       make(chan []byte, 256),
@@ -37,11 +39,10 @@ func addSession(s *terminalSessionStore, hostID uint, name string) (string, *ter
 // ── markBrowserClaimed ────────────────────────────────────────────────────────
 
 func TestMarkBrowserClaimed(t *testing.T) {
-	s := newTestStore()
-
-	t.Run("returns true and sets flag for existing session", func(t *testing.T) {
-		id, _ := addSession(s, 1, "host-a")
-		ok := s.markBrowserClaimed(id)
+	t.Run("returns true and sets flag for existing session with matching user", func(t *testing.T) {
+		s := newTestStore()
+		id, _ := addSession(s, 1, "host-a") // creatorUserID == 0
+		ok := s.markBrowserClaimed(id, 0)
 		require.True(t, ok)
 
 		s.mu.Lock()
@@ -51,8 +52,24 @@ func TestMarkBrowserClaimed(t *testing.T) {
 	})
 
 	t.Run("returns false for nonexistent session", func(t *testing.T) {
-		ok := s.markBrowserClaimed("does-not-exist")
+		s := newTestStore()
+		ok := s.markBrowserClaimed("does-not-exist", 0)
 		assert.False(t, ok)
+	})
+
+	t.Run("single-use: second call is rejected", func(t *testing.T) {
+		s := newTestStore()
+		id, _ := addSession(s, 1, "host-a")
+		require.True(t, s.markBrowserClaimed(id, 0), "first call must succeed")
+		ok := s.markBrowserClaimed(id, 0)
+		assert.False(t, ok, "second call must be rejected (single-use)")
+	})
+
+	t.Run("returns false when user ID does not match creator", func(t *testing.T) {
+		s := newTestStore()
+		id, _ := addSession(s, 1, "host-a") // creatorUserID == 0
+		ok := s.markBrowserClaimed(id, 99)  // wrong user
+		assert.False(t, ok, "non-creator user must be rejected")
 	})
 }
 
@@ -71,7 +88,7 @@ func TestClaim(t *testing.T) {
 
 	t.Run("succeeds after browser claim with correct host", func(t *testing.T) {
 		id, _ := addSession(s, 2, "host-b")
-		require.True(t, s.markBrowserClaimed(id))
+		require.True(t, s.markBrowserClaimed(id, 0))
 
 		sess, ok := s.claim(id, 2)
 		require.True(t, ok)
@@ -81,7 +98,7 @@ func TestClaim(t *testing.T) {
 
 	t.Run("fails for wrong host ID", func(t *testing.T) {
 		id, _ := addSession(s, 3, "host-c")
-		require.True(t, s.markBrowserClaimed(id))
+		require.True(t, s.markBrowserClaimed(id, 0))
 
 		sess, ok := s.claim(id, 99)
 		assert.False(t, ok)
@@ -96,7 +113,7 @@ func TestClaim(t *testing.T) {
 
 	t.Run("duplicate claim is rejected", func(t *testing.T) {
 		id, _ := addSession(s, 4, "host-d")
-		require.True(t, s.markBrowserClaimed(id))
+		require.True(t, s.markBrowserClaimed(id, 0))
 
 		_, ok1 := s.claim(id, 4)
 		require.True(t, ok1, "first claim must succeed")
@@ -120,7 +137,7 @@ func TestPendingForHost(t *testing.T) {
 	t.Run("includes browser-claimed, not-yet-connected sessions", func(t *testing.T) {
 		s2 := newTestStore()
 		id, _ := addSession(s2, 10, "host-x")
-		require.True(t, s2.markBrowserClaimed(id))
+		require.True(t, s2.markBrowserClaimed(id, 0))
 
 		ids := s2.pendingForHost(10)
 		assert.Equal(t, []string{id}, ids)
@@ -129,7 +146,7 @@ func TestPendingForHost(t *testing.T) {
 	t.Run("excludes connected sessions", func(t *testing.T) {
 		s3 := newTestStore()
 		id, _ := addSession(s3, 10, "host-x")
-		require.True(t, s3.markBrowserClaimed(id))
+		require.True(t, s3.markBrowserClaimed(id, 0))
 		_, ok := s3.claim(id, 10)
 		require.True(t, ok)
 
@@ -141,8 +158,8 @@ func TestPendingForHost(t *testing.T) {
 		s4 := newTestStore()
 		idA, _ := addSession(s4, 10, "host-a")
 		idB, _ := addSession(s4, 20, "host-b")
-		require.True(t, s4.markBrowserClaimed(idA))
-		require.True(t, s4.markBrowserClaimed(idB))
+		require.True(t, s4.markBrowserClaimed(idA, 0))
+		require.True(t, s4.markBrowserClaimed(idB, 0))
 
 		ids := s4.pendingForHost(10)
 		assert.Equal(t, []string{idA}, ids)
@@ -178,7 +195,7 @@ func TestSweep(t *testing.T) {
 	t.Run("removes expired browser-claimed (but not orbit-connected) sessions", func(t *testing.T) {
 		s := newTestStore()
 		id, sess := addSession(s, 1, "host")
-		require.True(t, s.markBrowserClaimed(id))
+		require.True(t, s.markBrowserClaimed(id, 0))
 
 		s.mu.Lock()
 		sess.createdAt = time.Now().Add(-sessionTTL - time.Second)
@@ -193,7 +210,7 @@ func TestSweep(t *testing.T) {
 	t.Run("preserves active (connected) sessions regardless of age", func(t *testing.T) {
 		s := newTestStore()
 		id, sess := addSession(s, 1, "host")
-		require.True(t, s.markBrowserClaimed(id))
+		require.True(t, s.markBrowserClaimed(id, 0))
 		_, ok := s.claim(id, 1)
 		require.True(t, ok)
 
@@ -216,6 +233,31 @@ func TestSweep(t *testing.T) {
 
 		_, ok := s.get(id)
 		assert.True(t, ok, "fresh session must not be removed")
+	})
+
+	t.Run("removes connected sessions past absolute timeout", func(t *testing.T) {
+		s := newTestStore()
+		id, sess := addSession(s, 1, "host")
+		require.True(t, s.markBrowserClaimed(id, 0))
+		_, ok := s.claim(id, 1)
+		require.True(t, ok)
+
+		// Backdate connectedAt past maxSessionDuration.
+		s.mu.Lock()
+		sess.connectedAt = time.Now().Add(-maxSessionDuration - time.Second)
+		s.mu.Unlock()
+
+		s.sweep()
+
+		_, ok = s.get(id)
+		assert.False(t, ok, "expired connected session must be removed")
+
+		select {
+		case <-sess.done:
+			// done channel must be closed
+		default:
+			t.Fatal("done channel must be closed after sweep removes expired connected session")
+		}
 	})
 }
 

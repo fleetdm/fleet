@@ -14,17 +14,27 @@ import (
 type terminalSession struct {
 	hostID          uint
 	hostDisplayName string
-	createdAt       time.Time
+	// creatorUserID is the Fleet user ID of the global admin who created the
+	// session via POST /hosts/{id}/terminal.  markBrowserClaimed enforces that
+	// only the same user can attach a browser WebSocket, preventing any other
+	// admin from hijacking a session UUID they obtained out-of-band.
+	creatorUserID uint
+	createdAt     time.Time
 
-	// browserClaimed is set to true after a browser WebSocket has successfully
-	// authenticated for this session.  Orbit only receives session IDs when
-	// browserClaimed is true, so no shell is ever started without a verified
-	// browser connection.  Protected by the store's mutex.
+	// browserClaimed is set to true after the creating user's browser WebSocket
+	// has successfully authenticated for this session.  It is single-use: a
+	// second call to markBrowserClaimed for the same session is rejected.
+	// Orbit only receives session IDs when browserClaimed is true.
+	// Protected by the store's mutex.
 	browserClaimed bool
 
 	// connected is set to true once an orbit agent has successfully claimed the
 	// session via claim().  Protected by the store's mutex.
 	connected bool
+
+	// connectedAt records when orbit claimed the session.  The sweeper uses
+	// this to enforce maxSessionDuration on active (connected) sessions.
+	connectedAt time.Time
 
 	// fromBrowser buffers bytes from the browser WebSocket headed to the orbit
 	// agent (keyboard input, resize events).
@@ -55,14 +65,22 @@ type terminalSessionStore struct {
 	sessions map[string]*terminalSession
 }
 
-// sessionTTL is the maximum lifetime of a session that has not yet been
-// connected by an orbit agent.  Active (connected) sessions are not swept;
-// they are cleaned up when the browser or orbit handler returns.
-const sessionTTL = 5 * time.Minute
+const (
+	// sessionTTL is the maximum lifetime of a session that has not yet been
+	// connected by an orbit agent.
+	sessionTTL = 5 * time.Minute
 
-// create allocates a new session for hostID and returns its ID.
-// It also starts the background TTL sweeper on first call.
-func (s *terminalSessionStore) create(hostID uint, hostDisplayName string) (string, *terminalSession) {
+	// maxSessionDuration is the absolute wall-clock limit on an active
+	// (connected) terminal session.  The sweeper removes sessions that exceed
+	// this limit so that forgotten or half-open shells cannot live forever.
+	// The orbit handler also enforces this with context.WithTimeout so the
+	// WS relay exits promptly rather than waiting for the next sweep cycle.
+	maxSessionDuration = 8 * time.Hour
+)
+
+// create allocates a new session for hostID, bound to creatorUserID, and
+// returns its ID.  It also starts the background TTL sweeper on first call.
+func (s *terminalSessionStore) create(hostID uint, hostDisplayName string, creatorUserID uint) (string, *terminalSession) {
 	// Start GC goroutine once, the first time any session is created.
 	gcOnce.Do(func() { go s.sweepLoop() })
 
@@ -70,6 +88,7 @@ func (s *terminalSessionStore) create(hostID uint, hostDisplayName string) (stri
 	sess := &terminalSession{
 		hostID:          hostID,
 		hostDisplayName: hostDisplayName,
+		creatorUserID:   creatorUserID,
 		createdAt:       time.Now(),
 		fromBrowser:     make(chan []byte, 256),
 		toBrowser:       make(chan []byte, 256),
@@ -82,15 +101,28 @@ func (s *terminalSessionStore) create(hostID uint, hostDisplayName string) (stri
 	return id, sess
 }
 
-// markBrowserClaimed records that a browser has authenticated for this session.
-// Returns false if the session no longer exists (e.g. expired and swept).
-// After a successful call the session becomes visible to orbit via pendingForHost.
-func (s *terminalSessionStore) markBrowserClaimed(id string) bool {
+// markBrowserClaimed records that the creating user's browser has authenticated
+// for this session.  It enforces two invariants:
+//
+//  1. Single-use: a second call (e.g. a racing browser tab) is rejected, so
+//     multiple browser WebSockets cannot concurrently read the same channels.
+//  2. Creator-bound: only the user who called CreateTerminalSession can attach.
+//
+// Returns false if the session no longer exists, was already claimed, or the
+// claiming user does not match the creator.
+// On success the session becomes visible to orbit via pendingForHost.
+func (s *terminalSessionStore) markBrowserClaimed(id string, userID uint) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sess, ok := s.sessions[id]
 	if !ok {
 		return false
+	}
+	if sess.browserClaimed {
+		return false // single-use: reject any subsequent attempt
+	}
+	if sess.creatorUserID != userID {
+		return false // only the creating admin may attach
 	}
 	sess.browserClaimed = true
 	return true
@@ -120,6 +152,7 @@ func (s *terminalSessionStore) claim(id string, hostID uint) (*terminalSession, 
 		return nil, false // duplicate orbit connection
 	}
 	sess.connected = true
+	sess.connectedAt = time.Now()
 	return sess, true
 }
 
@@ -132,16 +165,27 @@ func (s *terminalSessionStore) sweepLoop() {
 	}
 }
 
-// sweep removes non-connected sessions older than sessionTTL.
-// Active (connected) sessions are never swept — they are removed when the
-// orbit or browser handler returns.
+// sweep removes stale sessions:
+//   - Non-connected sessions older than sessionTTL (pre-connection timeout).
+//   - Connected sessions whose connectedAt exceeds maxSessionDuration (absolute
+//     timeout).  Closing sess.done signals the browser/orbit handlers to exit.
 func (s *terminalSessionStore) sweep() {
-	cutoff := time.Now().Add(-sessionTTL)
+	now := time.Now()
+	cutoff := now.Add(-sessionTTL)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, sess := range s.sessions {
 		if sess.connected {
-			continue // live terminal — leave it alone
+			// Apply absolute wall-clock limit to active sessions.
+			if !sess.connectedAt.IsZero() && now.Sub(sess.connectedAt) > maxSessionDuration {
+				select {
+				case <-sess.done:
+				default:
+					close(sess.done)
+				}
+				delete(s.sessions, id)
+			}
+			continue
 		}
 		if sess.createdAt.Before(cutoff) {
 			select {

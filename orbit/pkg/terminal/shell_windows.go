@@ -140,19 +140,31 @@ func startShell(_ context.Context) (*shell, error) {
 	siEx.Cb = uint32(unsafe.Sizeof(siEx))
 	siEx.ProcThreadAttributeList = &attrBuf[0]
 
-	cmdUTF16, err := windows.UTF16PtrFromString(bin)
+	// Quote the binary path so CreateProcess correctly identifies the module
+	// even when the path contains spaces (e.g. C:\Program Files\PowerShell\…).
+	// lpApplicationName is set explicitly as a belt-and-suspenders measure.
+	appUTF16, err := windows.UTF16PtrFromString(bin)
 	if err != nil {
 		procDeleteProcThreadAttrList.Call(uintptr(unsafe.Pointer(&attrBuf[0]))) //nolint:errcheck
-		windows.CloseHandle(hInW) //nolint:errcheck
-		windows.CloseHandle(hOutR) //nolint:errcheck
-		procClosePseudoConsole.Call(uintptr(hpc)) //nolint:errcheck
-		return nil, fmt.Errorf("terminal: UTF16PtrFromString: %w", err)
+		windows.CloseHandle(hInW)                                               //nolint:errcheck
+		windows.CloseHandle(hOutR)                                              //nolint:errcheck
+		procClosePseudoConsole.Call(uintptr(hpc))                               //nolint:errcheck
+		return nil, fmt.Errorf("terminal: UTF16PtrFromString application: %w", err)
+	}
+	// lpCommandLine provides argv[0]; quote path to handle embedded spaces.
+	cmdUTF16, err := windows.UTF16PtrFromString(`"` + bin + `"`)
+	if err != nil {
+		procDeleteProcThreadAttrList.Call(uintptr(unsafe.Pointer(&attrBuf[0]))) //nolint:errcheck
+		windows.CloseHandle(hInW)                                               //nolint:errcheck
+		windows.CloseHandle(hOutR)                                              //nolint:errcheck
+		procClosePseudoConsole.Call(uintptr(hpc))                               //nolint:errcheck
+		return nil, fmt.Errorf("terminal: UTF16PtrFromString command: %w", err)
 	}
 
 	// ── CreateProcessW ───────────────────────────────────────────────────────
 	var pi windows.ProcessInformation
 	if err := windows.CreateProcess(
-		nil,
+		appUTF16,
 		cmdUTF16,
 		nil, nil,
 		false,

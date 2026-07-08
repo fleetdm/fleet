@@ -31,7 +31,9 @@ func (svc *Service) CreateTerminalSession(ctx context.Context, hostID uint) (str
 		return "", fleet.NewPermissionError("terminal sessions require global admin role")
 	}
 
-	sessionID, _ := terminalStore.create(host.ID, host.DisplayName())
+	// Bind the session to the creating user so that markBrowserClaimed later
+	// rejects any other global admin who might have obtained the session UUID.
+	sessionID, _ := terminalStore.create(host.ID, host.DisplayName(), vc.User.ID)
 	// Orbit is NOT notified here.  The browser WebSocket handler calls
 	// terminalNotifyStore.notifyHost after the browser authenticates, so no
 	// shell is ever started for a session that no browser has claimed.
