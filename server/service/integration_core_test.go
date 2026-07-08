@@ -15301,7 +15301,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_NAME1}"}`),
 		TeamID:     &foobarTeam.ID,
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)

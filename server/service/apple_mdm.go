@@ -961,7 +961,12 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
+	assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "handling declaration asset references")
+	}
+
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames, assetRefs)
 	if err != nil {
 		return nil, err
 	}
@@ -985,6 +990,96 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 
 	return decl, nil
+}
+
+func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *fleet.MDMAppleDeclaration) ([]string, error) {
+	assetRefs, err := findAssetReferences(string(decl.RawJSON))
+	if err != nil {
+		return nil, err
+	}
+
+	// List all assets for the given team
+	assets, err := svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
+	}
+
+	for _, ref := range assetRefs {
+		// Check each one exists.
+		found := false
+		for _, asset := range assets {
+			if asset.Identifier == ref {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. Asset (%q) doesn't exist. Make sure the asset is uploaded in OS Settings > Configuration profiles > Assets before referencing it in a profile.", ref),
+			}
+		}
+	}
+
+	return assetRefs, nil
+}
+
+// findAssetReferences walks the raw declaration JSON recursively to find any DDM Asset references
+// it returns a list of asset identifiers, or an error.
+func findAssetReferences(contents string) ([]string, error) {
+	var root map[string]any
+	if err := json.Unmarshal([]byte(contents), &root); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message: "invalid declaration JSON",
+		}
+	}
+
+	payload, ok := root["Payload"]
+	if !ok {
+		return nil, &fleet.BadRequestError{
+			Message: `declaration is missing required "Payload" key`,
+		}
+	}
+
+	refs := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	var walk func(node any) error
+	walk = func(node any) error {
+		switch v := node.(type) {
+		case map[string]any:
+			for key, child := range v {
+				if strings.HasSuffix(key, "AssetReference") {
+					ref, ok := child.(string)
+					if !ok || ref == "" {
+						return &fleet.BadRequestError{
+							Message: fmt.Sprintf(`expected "%s" to be a non-empty string`, key),
+						}
+					}
+					if _, exists := seen[ref]; !exists {
+						seen[ref] = struct{}{}
+						refs = append(refs, ref)
+					}
+				}
+				if err := walk(child); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, item := range v {
+				if err := walk(item); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	if err := walk(payload); err != nil {
+		return nil, err
+	}
+
+	return refs, nil
 }
 
 func validateDeclarationFleetVariables(contents string, lic license.LicenseChecker) ([]string, error) {

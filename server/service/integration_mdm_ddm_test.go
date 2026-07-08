@@ -2119,6 +2119,17 @@ func declarationForTest(identifier string) []byte {
 }`, identifier))
 }
 
+func declarationForTestWithAssetReference(identifier string, assetReference string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "com.apple.configuration.management.test",
+    "Payload": {
+        "EchoAssetReference": "%s"
+    },
+    "Identifier": "%s"
+}`, assetReference, identifier))
+}
+
 func declarationForTestWithScope(identifier string, scope fleet.PayloadScope) []byte {
 	return fmt.Appendf(nil, `
 {

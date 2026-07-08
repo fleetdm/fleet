@@ -191,14 +191,14 @@ func testDDMChannelScopeIsolation(t *testing.T, ds *Datastore) {
 		Identifier: "com.example.device",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.device"}`),
 		Scope:      fleet.PayloadScopeSystem,
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	userDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Name:       "UserDecl",
 		Identifier: "com.example.user",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.user"}`),
 		Scope:      fleet.PayloadScopeUser,
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	readBinaryToken := func(declUUID string) []byte {
@@ -307,7 +307,7 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 		Name:            "New Declaration",
 		Identifier:      "com.example.cleanup",
 		RawJSON:         declJSON,
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// Read the raw (binary) token. BulkUpsertMDMAppleHostDeclarations writes the
@@ -536,7 +536,7 @@ func testDeleteAppleDDMAsset(t *testing.T, ds *Datastore) {
 			Identifier:      "declaration.identifier",
 			Name:            "decl-name",
 			RawJSON:         []byte(`{"foo":"bar"}`),
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES (?, ?)`, decl.DeclarationUUID, assetUUID)

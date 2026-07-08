@@ -2516,7 +2516,7 @@ type Datastore interface {
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	// An OS-update (software update) declaration is tracked as the team's OS-update
 	// profile within the same transaction, failing if one already exists.
-	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, assetReferences []string) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
 	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)

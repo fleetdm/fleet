@@ -936,6 +936,7 @@ func (r *MDMAppleRawDeclaration) ValidateScope() error {
 // added by users into Fleet.
 var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.watch.enrollment": {},
+	"com.apple.configuration.account.google":   {},
 }
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {

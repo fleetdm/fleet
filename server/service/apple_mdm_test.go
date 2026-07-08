@@ -924,16 +924,28 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
 
-	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return []*fleet.DDMAsset{
+			{
+				Identifier: "valid-asset",
+			},
+		}, nil
+	}
+
+	// decl using a missing asset
+	b = declarationForTestWithAssetReference("D1", "missing-asset")
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
+	assert.ErrorContains(t, err, `Asset ("missing-asset") doesn't exist`)
 
 	// Good declaration
-	b = declBytesForTest("D1", "d1content")
+	b = declarationForTestWithAssetReference("D1", "valid-asset")
 	d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, d)
@@ -1010,7 +1022,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
 			return s, nil, nil
 		}
-		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1053,7 +1065,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
 			return s, nil, nil
 		}
-		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1113,7 +1125,7 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		// The existing-profile check and tracking insert now happen inside this
 		// datastore call's transaction; the unit test only verifies that the
 		// service passes the correct isSoftwareUpdate flag and surfaces errors.
-		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
 			d.DeclarationUUID = "decl-uuid"
 			return d, nil
 		}
