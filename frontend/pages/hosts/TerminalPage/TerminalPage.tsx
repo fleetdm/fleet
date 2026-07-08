@@ -5,8 +5,9 @@
  * Flow:
  *  1. POST /api/v1/fleet/hosts/{id}/terminal  →  { session_id }
  *  2. WebSocket  ws[s]://<host>/api/v1/fleet/hosts/{id}/terminal/{session_id}/ws
- *  3. First WS message: { "token": "<fleet-session-token>" }
- *  4. Relay xterm.js keystrokes as  { "type":"input",  "data":"<base64>" }
+ *  3. First WS message (client→server): { "token": "<fleet-session-token>" }
+ *  4. Server sends { "type":"ready" } once the orbit agent has connected.
+ *  5. Relay xterm.js keystrokes as  { "type":"input",  "data":"<base64>" }
  *     Receive PTY output as          { "type":"output", "data":"<base64>" }
  *     Send resize events as          { "type":"resize", "cols":N, "rows":N }
  *
@@ -23,6 +24,7 @@ import "@xterm/xterm/css/xterm.css";
 
 import hostAPI from "services/entities/hosts";
 import authToken from "utilities/auth_token";
+import URL_PREFIX from "router/url_prefix";
 
 type ConnState = "connecting" | "connected" | "error" | "closed";
 
@@ -158,8 +160,9 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
       if (cancelled) return;
 
       // 2. Open WebSocket — protocol follows page protocol automatically.
+      // URL_PREFIX handles subpath deployments (e.g. Fleet served at /fleet/).
       const proto = window.location.protocol === "https:" ? "wss" : "ws";
-      const wsURL = `${proto}://${window.location.host}/api/v1/fleet/hosts/${hostId}/terminal/${sessionId}/ws`;
+      const wsURL = `${proto}://${window.location.host}${URL_PREFIX}/api/v1/fleet/hosts/${hostId}/terminal/${sessionId}/ws`;
       const ws = new WebSocket(wsURL);
       wsRef.current = ws;
 
@@ -169,11 +172,12 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
           return;
         }
         // 3. Authenticate using the Fleet session token (cookie-backed).
+        // State transitions to "connected" only after the server sends a
+        // {"type":"ready"} frame confirming the orbit agent has connected
+        // and a shell is live.  This prevents ws.onclose from silently
+        // closing the tab when orbit times out or auth fails.
         const token = authToken.get() ?? "";
         ws.send(JSON.stringify({ token }));
-        wasConnectedRef.current = true;
-        setConnState("connected");
-        term.focus();
       };
 
       ws.onmessage = (event: MessageEvent) => {
@@ -182,7 +186,14 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
             type: string;
             data?: string;
           };
-          if (msg.type === "output" && msg.data) {
+          if (msg.type === "ready") {
+            // Shell is live — the orbit agent has connected and the PTY is open.
+            if (!cancelled) {
+              wasConnectedRef.current = true;
+              setConnState("connected");
+              term.focus();
+            }
+          } else if (msg.type === "output" && msg.data) {
             term.write(atob(msg.data));
           } else if (msg.type === "error" && msg.data) {
             if (!cancelled) {

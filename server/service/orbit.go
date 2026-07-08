@@ -635,8 +635,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
-	if termSessionIDs := pendingTerminalSessionIDsForHost(host.ID); len(termSessionIDs) > 0 {
-		notifs.PendingTerminalSessionIDs = termSessionIDs
+	// Terminal is a Fleet Premium feature.  On Free-tier deployments, suppress
+	// both the session IDs and the TerminalEnabled flag so that orbit does not
+	// start its long-poll goroutine against the notify endpoint.
+	lic, _ := license.FromContext(ctx)
+	if lic != nil && lic.IsPremium() {
+		notifs.TerminalEnabled = true
+		if termSessionIDs := pendingTerminalSessionIDsForHost(host.ID); len(termSessionIDs) > 0 {
+			notifs.PendingTerminalSessionIDs = termSessionIDs
+		}
 	}
 
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&

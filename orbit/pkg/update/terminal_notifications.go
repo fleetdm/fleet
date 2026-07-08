@@ -26,8 +26,9 @@ type TerminalConfigReceiver struct {
 	tlsInsecure bool
 	httpClient  *http.Client
 
-	mu             sync.Mutex
-	activeSessions map[string]struct{} // session IDs currently being handled
+	mu              sync.Mutex
+	activeSessions  map[string]struct{} // session IDs currently being handled
+	terminalEnabled bool                // updated by Run(); gates the long-poll loop
 }
 
 // ApplyTerminalConfigReceiverMiddleware creates a receiver that handles
@@ -56,13 +57,17 @@ func ApplyTerminalConfigReceiverMiddleware(
 
 // Run implements fleet.OrbitConfigReceiver.  Called by the orbit config poll
 // cycle (typically every 30 s).  For faster pickup, StartFastPoll runs an
-// independent 5-second ticker.
+// independent long-poll loop.
 func (t *TerminalConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
-	if len(cfg.Notifications.PendingTerminalSessionIDs) == 0 {
+	t.mu.Lock()
+	// Always update the enabled flag so longPollOnce learns about license
+	// changes without waiting for the next config poll.
+	t.terminalEnabled = cfg.Notifications.TerminalEnabled
+
+	if !cfg.Notifications.TerminalEnabled || len(cfg.Notifications.PendingTerminalSessionIDs) == 0 {
+		t.mu.Unlock()
 		return nil
 	}
-
-	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	for _, sessionID := range cfg.Notifications.PendingTerminalSessionIDs {
@@ -109,6 +114,20 @@ func (t *TerminalConfigReceiver) StartFastPoll(ctx context.Context) {
 // longPollOnce calls the notify endpoint once.  It blocks until the server
 // responds (≤30 s), then processes any returned session IDs.
 func (t *TerminalConfigReceiver) longPollOnce(ctx context.Context) {
+	// If the server has not signalled that terminal is available (e.g. Free
+	// tier), skip the HTTP round-trip entirely and sleep until the next
+	// regular config poll cycle may flip the flag.
+	t.mu.Lock()
+	enabled := t.terminalEnabled
+	t.mu.Unlock()
+	if !enabled {
+		select {
+		case <-time.After(30 * time.Second):
+		case <-ctx.Done():
+		}
+		return
+	}
+
 	nodeKey, err := t.nodeKey()
 	if err != nil {
 		select {
@@ -161,6 +180,7 @@ func (t *TerminalConfigReceiver) longPollOnce(ctx context.Context) {
 	}
 
 	cfg := &fleet.OrbitConfig{}
+	cfg.Notifications.TerminalEnabled = true // already in long-poll loop → terminal is enabled
 	cfg.Notifications.PendingTerminalSessionIDs = result.PendingTerminalSessionIDs
 	_ = t.Run(cfg) //nolint:errcheck
 }

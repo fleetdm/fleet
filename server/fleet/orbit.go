@@ -49,6 +49,13 @@ type OrbitConfigNotifications struct {
 	// Fleet server for each session and proxy a local shell over the WebSocket.
 	PendingTerminalSessionIDs []string `json:"pending_terminal_session_ids,omitempty"`
 
+	// TerminalEnabled tells the orbit agent that the Fleet server has the web
+	// terminal feature available for this host (Fleet Premium required).  When
+	// false, orbit must not start the long-poll loop against the terminal notify
+	// endpoint — this prevents every Free-tier device from maintaining a
+	// persistent HTTP connection that serves no purpose.
+	TerminalEnabled bool `json:"terminal_enabled,omitempty"`
+
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`

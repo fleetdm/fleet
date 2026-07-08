@@ -247,6 +247,15 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger) http.Han
 			}); err != nil {
 				logger.Error("terminal browser: failed to record activity", "err", err)
 			}
+			// Tell the browser the shell is ready.  The frontend only
+			// transitions to "connected" state on this frame, so errors
+			// before it (orbit timeout, auth failure) surface as an error
+			// banner instead of silently closing the tab.
+			readyMsg, _ := json.Marshal(terminalMsg{Type: "ready"})
+			if err := conn.WriteMessage(gws.TextMessage, readyMsg); err != nil {
+				terminalStore.remove(sessionID)
+				return
+			}
 		case <-time.After(30 * time.Second):
 			writeTerminalError(conn, "timed out waiting for host agent to connect")
 			terminalStore.remove(sessionID)
