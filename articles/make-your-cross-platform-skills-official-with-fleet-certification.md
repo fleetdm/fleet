@@ -1,6 +1,6 @@
 # Make your cross-platform skills official with Fleet certification
 
-*This August, the multi-OS work you already do gets a credential to match: Mac, Windows, and Linux, managed as code.*
+*This August, the multi-OS work you already do gets a credential to match: Apple, Windows, and Linux, managed as code.*
 
 ## Key takeaways
 
@@ -21,7 +21,7 @@ That changes in August. Fleet is launching its first certification program, buil
 
 The program opens with three platform credentials: Fleet-certified Apple admin, Fleet-certified Windows admin, and Fleet-certified Linux admin. Each one covers running that operating system through Fleet end to end: enrolling devices, enforcing configuration and policies, deploying and updating software, and answering questions about your fleet with live queries.
 
-They're separate credentials rather than one blended exam because the day-to-day reality of each platform is different. Earning all three is a statement in itself. You're not a Mac admin who dabbles in Windows, or a Linux person who avoids desktops. You can run the whole floor.
+They're separate credentials rather than one blended exam because the day-to-day reality of each platform is different. Earning all three is a statement in itself. You're not an Apple admin who dabbles in Windows, or a Linux person who avoids desktops. You can run the whole floor.
 
 ## A track for GitOps
 
@@ -55,8 +55,8 @@ The core workshops land first, and the electives follow through the year. If cro
 *Fleet certification opens in August. Keep an eye on the [Fleet workshops page](https://fleetdm.com/workshops) for dates and how to sign up.*
 
 <meta name="articleTitle" value="Make your cross-platform skills official with Fleet certification">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Dave Siederer">
+<meta name="authorGitHubUsername" value="ds0x">
 <meta name="publishedOn" value="">
 <meta name="category" value="articles">
-<meta name="description" value="Fleet's first certification program launches in August: Apple, Windows, Linux, and GitOps workshops that lead to the Fleet expert credential.">
+<meta name="description" value="Fleet's updated certification program launches in August: Apple, Windows, Linux, and GitOps workshops that lead to the Fleet expert credential.">
