@@ -2158,11 +2158,20 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 
 	// App config
+	appConfigSaved := false
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		if appConfigSaved {
+			// Return the config persisted earlier in the same GitOps run, as the real
+			// datastore would: profile validation re-reads the app config after
+			// org_settings has enabled Windows MDM.
+			config := *savedAppConfig
+			return &config, nil
+		}
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
+		appConfigSaved = true
 		return nil
 	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
@@ -2199,6 +2208,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			deletedLabels = nil
 			enrolledSecrets = nil
 			savedAppConfig = &fleet.AppConfig{}
+			appConfigSaved = false
 			policyDeleted = false
 			queryDeleted = false
 			deletedPolicyIDs = nil

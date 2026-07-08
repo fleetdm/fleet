@@ -100,6 +100,23 @@ export const filterSoftwareByCustomCategory = (
   });
 };
 
+// Keeps only categories that have at least one software item. Membership is
+// resolved the same way as `filterSoftwareByCustomCategory` so the dropdown
+// stays consistent with what selecting a category shows.
+export const filterCategoriesWithSoftware = (
+  categories: ISelfServiceCategory[],
+  software: IDeviceSoftwareWithUiStatus[]
+): ISelfServiceCategory[] => {
+  const categoryNamesInUse = new Set<string>();
+  software.forEach((item) => {
+    [
+      ...(item.software_package?.categories ?? []),
+      ...(item.app_store_app?.categories ?? []),
+    ].forEach((name) => categoryNamesInUse.add(name.toLowerCase()));
+  });
+  return categories.filter((c) => categoryNamesInUse.has(c.name.toLowerCase()));
+};
+
 /** Count of items in the list that are eligible to be queued by install_all. */
 export const countUninstalledForInstallAll = (
   software: IDeviceSoftwareWithUiStatus[]

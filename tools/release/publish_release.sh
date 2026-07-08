@@ -82,6 +82,7 @@ usage() {
     echo "  -n, --announce_only        Announce the release only, do not publish the release."
     echo "  -o, --open_api_key         Set the Open API key for calling out to ChatGPT"
     echo "  -p, --print                If the release is already drafted then print out the helpful info"
+    echo "  -Q, --create_qa_issue      Create the QA issue for the target version and exit"
     echo "  -q, --quiet                This will skip notifying in slack"
     echo "  -r, --release_notes        Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
     echo "  -s, --start_version        Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
@@ -124,6 +125,7 @@ do_tag=false
 quiet=false
 skip_deploy_dogfood=false
 manual_cherry_pick_selection=false
+create_qa_only=false
 
 # Parse long options manually
 for arg in "$@"; do
@@ -140,6 +142,7 @@ for arg in "$@"; do
     "--announce_only") set -- "$@" "-n" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
+    "--create_qa_issue") set -- "$@" "-Q" ;;
     "--quiet") set -- "$@" "-q" ;;
     "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
@@ -152,7 +155,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhgkmMno:pqrs:t:uv:w" opt; do
+while getopts "acdfhgkmMno:pQqrs:t:uv:w" opt; do
     case "$opt" in
         a) minor_cherry_pick=true ;;
         c) cherry_pick_resolved=true ;;
@@ -166,6 +169,7 @@ while getopts "acdfhgkmMno:pqrs:t:uv:w" opt; do
         n) announce_only=true ;;
         o) open_api_key=$OPTARG ;;
         p) print_info=true ;;
+        Q) create_qa_only=true ;;
         q) quiet=true ;;
         r) release_notes=true ;;
         s) start_version=$OPTARG ;;
@@ -362,14 +366,10 @@ changelog_and_versions() {
         git add CHANGELOG.md
         escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
         version_files=$(ack -l --ignore-dir=tools/release --ignore-dir=articles --ignore-dir=orbit --ignore-dir=server/service --ignore-file=is:CHANGELOG.md "$escaped_start_version")
-        unameOut="$(uname -s)"
-        case "${unameOut}" in
-            Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";
-                   sed -i -E 's/(version: v[0-9]+\.[0-9]+\.)([0-9]+)/echo "\1$((\2+1))"/e' charts/fleet/Chart.yaml;;
-            Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";
-                   sed -i '' -E 's/(version: v[0-9]+\.[0-9]+\.)([0-9]+)/echo "\1$((\2+1))"/e' charts/fleet/Chart.yaml;;
-            *)          echo "unknown distro to parse version"
-        esac
+        # perl -i edits files in place identically on both Linux and macOS,
+        # unlike sed -i which needs an empty backup arg ('') on BSD/macOS.
+        echo "$version_files" | xargs perl -i -pe "s/$escaped_start_version/$target_milestone/g"
+        perl -i -pe 's/(version: v[0-9]+\.[0-9]+\.)(\d+)/$1 . ($2+1)/e' charts/fleet/Chart.yaml
         git add terraform charts infrastructure tools
         git commit -m "Adding changes for Fleet v$target_milestone"
         git push origin $branch_for_changelog -f
@@ -387,8 +387,8 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "AndreyKizimenko"  --label "#g-mdm" --label ":release" \
-                --label "#g-software" \
+                --assignee "AndreyKizimenko"  --label "#g-apple-at-work" --label ":release" \
+                --label "#g-auto-patching" \
                 --assignee "xpkoala" --label "#g-orchestration" \
                 --label "#g-security-compliance"
             rm -f temp_qa_issue_file
@@ -541,6 +541,32 @@ tag() {
 }
 
 
+close_milestone_issues() {
+    local repo=$1
+    local milestone_number
+    milestone_number=$(gh api "repos/$repo/milestones" --jq ".[] | select(.title==\"$target_milestone\") | .number")
+    if [[ -z "$milestone_number" ]]; then
+        echo "No milestone '$target_milestone' found in $repo, skipping"
+        return
+    fi
+
+    local issues
+    issues=$(gh issue list -R "$repo" -L 500 -m "$target_milestone" --json number | jq -r '.[] | .number')
+    for iss in $issues; do
+        local is_story
+        is_story=$(gh issue view "$iss" -R "$repo" --json labels | jq -r '.labels | .[] | .name' | grep story)
+        # close all non-stories
+        if [[ "$is_story" == "" ]]; then
+            echo "Closing $repo#$iss"
+            gh issue close "$iss" -R "$repo"
+        fi
+    done
+
+    echo "Closing milestone in $repo"
+    gh api "repos/$repo/milestones/$milestone_number" -f state=closed
+}
+
+
 publish() {
     if [ "$dry_run" = "false" ]; then
         if [ "$announce_only" = "false" ]; then
@@ -584,18 +610,8 @@ publish() {
             fi
 
 
-            issues=$(gh issue list -L 500 -m $target_milestone --json number | jq -r '.[] | .number')
-            for iss in $issues; do
-                is_story=$(gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story)
-                # close all non-stories
-                if [[ "$is_story" == "" ]]; then
-                    echo "Closing #$iss"
-                    gh issue close $iss
-                fi
-            done
-
-            echo "Closing milestone"
-            gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
+            close_milestone_issues fleetdm/fleet
+            close_milestone_issues fleetdm/confidential
         fi
     else
         echo "DRYRUN: Would have published $next_tag / deployed to dogfood / closed non-stories / closed milestone / announced in slack"
@@ -740,6 +756,13 @@ if [ "$release_notes" = "true" ]; then
     fi
 fi
 
+if [ "$create_qa_only" = "true" ]; then
+    if [ "$announce_only" = "false" ]; then
+        create_qa_issue
+        exit 0
+    fi
+fi
+
 if [ "$publish_release" = "true" ]; then
     publish
     exit 0
@@ -784,22 +807,28 @@ if [ "$cherry_pick_resolved" = "false" ]; then
     echo "Issue list for new patch $next_ver"
     echo $issue_list
 
-    for issue in $issue_list; do
-        prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
-        echo -n "https://github.com/fleetdm/fleet/issues/$issue"
-        if [[ "$prs_for_issue" == "" ]]; then
-            echo -n " - No PRs found."
-        fi
-        for val in $prs_for_issue; do
-            echo -n " $val"
-            total_prs+=("$val")
+    # Minor releases branch off main and don't cherry-pick code in from issues,
+    # so the per-issue PR check doesn't apply (unless also cherry-picking via -a).
+    if [[ "$minor" == "false" || "$minor_cherry_pick" == "true" ]]; then
+        for issue in $issue_list; do
+            prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
+            echo -n "https://github.com/fleetdm/fleet/issues/$issue"
+            if [[ "$prs_for_issue" == "" ]]; then
+                echo -n " - No PRs found."
+            fi
+            for val in $prs_for_issue; do
+                echo -n " $val"
+                total_prs+=("$val")
+            done
+            echo
         done
-        echo
-    done
 
-    ask "Check any issues that have no pull requests, no to cancel and yes to continue? [y/N] "
+        ask "Check any issues that have no pull requests, no to cancel and yes to continue? [y/N] "
+    fi
 
     commits=""
+
+    rm -f cherry-picks-remaining
 
     if [[ "$minor" == "false" || "$minor_cherry_pick" == "true" ]]; then
         echo "Continuing to cherry-pick"
@@ -874,6 +903,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
                     fi
                 else
                     echo "git cherry-pick $commit_hash"
+                    echo "git cherry-pick $commit_hash" >> cherry-picks-remaining
                 fi
                 is_on_current_branch=false
             fi

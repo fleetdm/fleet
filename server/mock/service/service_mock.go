@@ -286,7 +286,7 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 
 type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error)
 
-type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
+type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
 type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) error
 
@@ -721,8 +721,6 @@ type ResetAutomationFunc func(ctx context.Context, teamIDs []uint, policyIDs []u
 type ProcessMDMMicrosoftDiscoveryFunc func(ctx context.Context, req *fleet.SoapRequest) (*fleet.SoapResponse, error)
 
 type GetMDMMicrosoftDiscoveryResponseFunc func(ctx context.Context, upnEmail string) (*fleet.DiscoverResponse, error)
-
-type GetMDMMicrosoftSTSAuthResponseFunc func(ctx context.Context, appru string, loginHint string) (string, error)
 
 type GetMDMWindowsPolicyResponseFunc func(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (*fleet.GetPoliciesResponse, error)
 
@@ -1998,9 +1996,6 @@ type Service struct {
 	GetMDMMicrosoftDiscoveryResponseFunc        GetMDMMicrosoftDiscoveryResponseFunc
 	GetMDMMicrosoftDiscoveryResponseFuncInvoked bool
 
-	GetMDMMicrosoftSTSAuthResponseFunc        GetMDMMicrosoftSTSAuthResponseFunc
-	GetMDMMicrosoftSTSAuthResponseFuncInvoked bool
-
 	GetMDMWindowsPolicyResponseFunc        GetMDMWindowsPolicyResponseFunc
 	GetMDMWindowsPolicyResponseFuncInvoked bool
 
@@ -3265,11 +3260,11 @@ func (s *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDi
 	return s.HostEncryptionKeyFunc(ctx, id)
 }
 
-func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
+func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
 	s.mu.Lock()
 	s.EscrowLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError)
+	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType)
 }
 
 func (s *Service) AddLabelsToHost(ctx context.Context, id uint, labels []string) error {
@@ -4789,13 +4784,6 @@ func (s *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail
 	s.GetMDMMicrosoftDiscoveryResponseFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMMicrosoftDiscoveryResponseFunc(ctx, upnEmail)
-}
-
-func (s *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
-	s.mu.Lock()
-	s.GetMDMMicrosoftSTSAuthResponseFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMMicrosoftSTSAuthResponseFunc(ctx, appru, loginHint)
 }
 
 func (s *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (*fleet.GetPoliciesResponse, error) {

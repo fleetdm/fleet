@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "3.18.3",
+      "version": "3.19.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.18.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.19.3') < 0);"
       },
       "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/UnityHubSetup-arm64.dmg",
       "install_script_ref": "c26804cb",
