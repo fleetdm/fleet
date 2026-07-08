@@ -1799,8 +1799,8 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	}
 
 	if host.FleetPlatform() != requiredPlatform {
-		// Allow .sh scripts for any unix-like platform (linux and darwin)
-		if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+		// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
+		if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
 			return &fleet.BadRequestError{
 				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
 				InternalErr: ctxerr.NewWithData(
@@ -2097,7 +2097,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -2271,6 +2271,8 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		payload.Source = "sh_packages"
 	case "ps1":
 		payload.Source = "ps1_packages"
+	case "py":
+		payload.Source = "py_packages"
 	}
 
 	platform, err := fleet.SoftwareInstallerPlatformFromExtension(extension)
@@ -2956,7 +2958,7 @@ func (svc *Service) softwareBatchUpload(
 					ext = strings.TrimPrefix(ext, ".")
 
 					if !fleet.IsScriptPackage(ext) {
-						return fmt.Errorf("script:// URL must reference a .sh or .ps1 file, got: %s", filename)
+						return fmt.Errorf("script:// URL must reference a .sh, .py, or .ps1 file, got: %s", filename)
 					}
 
 					if p.InstallScript == "" {
@@ -3728,7 +3730,7 @@ func packageExtensionToPlatform(ext string) string {
 		requiredPlatform = "windows"
 	case ".pkg", ".dmg":
 		requiredPlatform = "darwin"
-	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
+	case ".deb", ".rpm", ".gz", ".tgz", ".sh", ".py":
 		requiredPlatform = "linux"
 	default:
 		return ""
