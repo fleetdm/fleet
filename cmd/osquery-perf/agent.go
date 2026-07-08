@@ -736,7 +736,10 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
-		withholdSCEPCert:         rand.Intn(100) < 5, // ~5%: withhold issued SCEP certs to exercise the verification backstop (test-only)
+		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop
+		// (test-only failure). Derived from agentIndex (1-based) rather than the shared seeded RNG so the
+		// selection is deterministic and doesn't shift unrelated rand-derived outcomes across --seed runs.
+		withholdSCEPCert: agentIndex%20 == 0,
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),

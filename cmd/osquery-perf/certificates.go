@@ -181,9 +181,12 @@ func (a *agent) storeSCEPCertSpec(uniqueID string, cert *x509.Certificate) {
 // machine-scoped: osquery-perf drives SCEP CSPs on the device channel, so the cert lands in the LocalMachine store.
 func scepIssuedCertSpec(cert *x509.Certificate) simulatedCert {
 	return simulatedCert{
-		commonName:         cert.Subject.CommonName,
-		subjectCommonName:  cert.Subject.CommonName,
-		subjectOrg:         firstOrEmpty(cert.Subject.Organization),
+		commonName:        cert.Subject.CommonName,
+		subjectCommonName: cert.Subject.CommonName,
+		subjectOrg:        firstOrEmpty(cert.Subject.Organization),
+		// Join multiple OUs with "+OU=", mirroring how osquery reports multi-OU certs and how
+		// fleet.NewHostCertificateRecord stores them; parseWindowsDN round-trips this form. Taking only the first
+		// OU would drop the renewal-ID marker whenever the profile's SubjectName puts another OU before it.
 		subjectOrgUnit:     strings.Join(cert.Subject.OrganizationalUnit, "+OU="),
 		subjectCountry:     firstOrEmpty(cert.Subject.Country),
 		issuerCommonName:   cert.Issuer.CommonName,
