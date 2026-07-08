@@ -286,8 +286,7 @@
         <h1>Already finished?</h1>
         <div class="android-content">
           <p>You can close this tab.</p>
-          <p>If something went wrong, select Try again.</p>
-          <a class="enroll-link try-again-btn" href="#">Try again</a>
+          <p>If something went wrong, <a class="refresh-link" href="#">refresh this page.</a></p>
         </div>
       </section>
     </template>
@@ -922,14 +921,14 @@
                   setTimeout(() => {
                     mainContent.innerHTML = "";
                     renderContent("android-enrolled-template");
-                    const tryAgainBtn = document.querySelector(".try-again-btn");
-                    if (tryAgainBtn) {
-                      tryAgainBtn.addEventListener("click", (e) => {
+                    const refreshLink = document.querySelector(".refresh-link");
+                    if (refreshLink) {
+                      refreshLink.addEventListener("click", (e) => {
                         e.preventDefault();
                         window.location.reload();
                       });
                     }
-                  }, 1000);
+                  }, 2000);
                 });
               }
             };
