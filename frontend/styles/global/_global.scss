@@ -319,6 +319,15 @@ body.dark-mode .card .button--icon:hover {
   background-color: $core-fleet-white;
 }
 
+// A modal opened from inside a card inherits the .card hover above, which
+// matches the modal surface and hides it. Restore the normal inverse hover.
+body.dark-mode .modal__modal_container .button--inverse:hover,
+body.dark-mode .modal__modal_container .button--inverse-alert:hover,
+body.dark-mode .modal__modal_container .button--text-icon:hover,
+body.dark-mode .modal__modal_container .button--icon:hover {
+  background-color: $ui-fleet-black-5;
+}
+
 body.dark-mode .checkbox-unchecked-state {
   fill: $core-fleet-white;
   stroke: $ui-fleet-black-25;
@@ -328,6 +337,13 @@ body.dark-mode .checkbox-unchecked-state {
 // so !important is needed to override them in dark mode.
 body.dark-mode .react-select__control {
   background-color: $ui-fleet-black-5 !important;
+}
+
+// A "button" dropdown (e.g. software Actions) hardcodes its hover to
+// $ui-fleet-black-5, which matches the card surface and hides it. Darken to
+// $core-fleet-white on cards, same as the .card button rule above.
+body.dark-mode .card .dropdown-wrapper__button .react-select__control:hover {
+  background-color: $core-fleet-white !important;
 }
 
 // Legacy react-select v1 (Dropdown) uses SCSS-applied backgrounds.
