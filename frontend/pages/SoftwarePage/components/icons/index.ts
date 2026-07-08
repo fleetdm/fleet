@@ -17,6 +17,7 @@ import Adguard from "./Adguard";
 import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdvancedInstaller from "./AdvancedInstaller";
 import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
 import AffinityDesigner from "./AffinityDesigner";
@@ -167,9 +168,11 @@ import CarbonCopyCloner from "./CarbonCopyCloner";
 import Cardhop from "./Cardhop";
 import Cavalry from "./Cavalry";
 import Cellprofiler from "./Cellprofiler";
+import CertifyTheWeb from "./CertifyTheWeb";
 import Chalk from "./Chalk";
 import Charles from "./Charles";
 import Charmstone from "./Charmstone";
+import Chatbox from "./Chatbox";
 import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import Chatwise from "./Chatwise";
@@ -184,6 +187,7 @@ import ChromeOS from "./ChromeOS";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
 import CiscoJabber from "./CiscoJabber";
+import CiscoWebexRecorderAndPlayer from "./CiscoWebexRecorderAndPlayer";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClaudeDevtools from "./ClaudeDevtools";
@@ -193,18 +197,22 @@ import CleanShotX from "./CleanShotX";
 import ClickShare from "./ClickShare";
 import ClickUp from "./ClickUp";
 import CLion from "./CLion";
+import Clipboardfusion from "./Clipboardfusion";
 import Clipbook from "./Clipbook";
 import Clipgrab from "./Clipgrab";
 import Clipy from "./Clipy";
+import Clockassist from "./Clockassist";
 import Clocker from "./Clocker";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Clop from "./Clop";
 import Cloudflare from "./Cloudflare";
 import Cloudmounter from "./Cloudmounter";
+import Cloudshow from "./Cloudshow";
 import CmakeApp from "./CmakeApp";
 import Cmux from "./Cmux";
 import Coconutbattery from "./Coconutbattery";
 import Codeedit from "./Codeedit";
+import CodemeterRuntimeKit from "./CodemeterRuntimeKit";
 import Coderunner from "./Coderunner";
 import CodexApp from "./CodexApp";
 import Codexbar from "./Codexbar";
@@ -220,17 +228,25 @@ import ConnectFonts from "./ConnectFonts";
 import CopilotMoney from "./CopilotMoney";
 import Cork from "./Cork";
 import CotEditor from "./CotEditor";
+import CpuZ from "./CpuZ";
 import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
+import CreativeForceKelvin from "./CreativeForceKelvin";
+import CreativeForceTriad from "./CreativeForceTriad";
+import CrestronAirmedia from "./CrestronAirmedia";
+import CrestronAirmediaPeripherals from "./CrestronAirmediaPeripherals";
 import CriblEdge from "./CriblEdge";
+import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
 import Crystalfetch from "./Crystalfetch";
+import CubeBrowser from "./CubeBrowser";
 import Cursor from "./Cursor";
 import Cursorsense from "./Cursorsense";
 import Cursr from "./Cursr";
 import Customshortcuts from "./Customshortcuts";
 import Cyberduck from "./Cyberduck";
+import CyberduckCli from "./CyberduckCli";
 import Daisydisk from "./Daisydisk";
 import Dangerzone from "./Dangerzone";
 import Darkmodebuddy from "./Darkmodebuddy";
@@ -1078,6 +1094,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  "advanced installer": AdvancedInstaller,
   "advanced renamer": AdvancedRenamer,
   affinity: Affinity,
   "affinity designer": AffinityDesigner1,
@@ -1232,9 +1249,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cardhop: Cardhop,
   cavalry: Cavalry,
   cellprofiler: Cellprofiler,
+  "certify the web": CertifyTheWeb,
   chalk: Chalk,
   charles: Charles,
   charmstone: Charmstone,
+  chatbox: Chatbox,
   chatgpt: ChatGpt,
   "chatgpt atlas": ChatGptAtlas,
   chatwise: Chatwise,
@@ -1247,6 +1266,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "chrome remote desktop": ChromeRemoteDesktop,
   "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
+  "cisco webex recorder and player": CiscoWebexRecorderAndPlayer,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
@@ -1257,18 +1277,22 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   clickshare: ClickShare,
   clickup: ClickUp,
   clion: CLion,
+  clipboardfusion: Clipboardfusion,
   clipbook: Clipbook,
   clipgrab: Clipgrab,
   clipy: Clipy,
+  clockassist: Clockassist,
   clocker: Clocker,
   "clockify desktop": ClockifyDesktop,
   clop: Clop,
   cloudflare: Cloudflare,
+  cloudshow: Cloudshow,
   cmake: CmakeApp,
   cmux: Cmux,
   coconutbattery: Coconutbattery,
   code: VisualStudioCode,
   codeedit: Codeedit,
+  "codemeter runtime kit": CodemeterRuntimeKit,
   coderunner: Coderunner,
   codex: CodexApp,
   codexbar: Codexbar,
@@ -1284,16 +1308,24 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   copilot: CopilotMoney,
   cork: Cork,
   coteditor: CotEditor,
+  "cpu-z": CpuZ,
   crashplan: CrashPlan,
+  "creative force kelvin": CreativeForceKelvin,
+  "creative force triad": CreativeForceTriad,
+  "crestron airmedia": CrestronAirmedia,
+  "crestron airmedia peripherals": CrestronAirmediaPeripherals,
   "cribl edge": CriblEdge,
+  crisisgo: Crisisgo,
   crossover: Crossover,
   cryptomator: Cryptomator,
   crystalfetch: Crystalfetch,
+  "cube browser": CubeBrowser,
   cursor: Cursor,
   cursorsense: Cursorsense,
   cursr: Cursr,
   customshortcuts: Customshortcuts,
   cyberduck: Cyberduck,
+  "cyberduck cli": CyberduckCli,
   daisydisk: Daisydisk,
   dangerzone: Dangerzone,
   darkmodebuddy: Darkmodebuddy,
