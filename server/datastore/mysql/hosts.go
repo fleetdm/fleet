@@ -6429,6 +6429,33 @@ SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE 
 	return count, nil
 }
 
+// numHostsFleetMDMEnrolledDB returns the number of macOS and Windows hosts that are currently enrolled in Fleet's own
+// MDM. It excludes hosts enrolled in a third-party MDM, server hosts (host_mdm.is_server = 1), and hosts that are not
+// currently enrolled (host_mdm.enrolled = 0, which includes ABM-pending and unenrolled hosts).
+func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, err error) {
+	var counts struct {
+		MacOS   int `db:"macos"`
+		Windows int `db:"windows"`
+	}
+	const stmt = `
+SELECT
+	COALESCE(SUM(CASE WHEN h.platform = 'darwin' THEN 1 ELSE 0 END), 0) AS macos,
+	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows
+FROM host_mdm hm
+	JOIN hosts h ON h.id = hm.host_id
+	JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
+WHERE hm.enrolled = 1
+	AND NOT COALESCE(hm.is_server, false)
+	AND mdms.name = ?
+	AND h.platform IN ('darwin', 'windows')
+	`
+	if err := sqlx.GetContext(ctx, db, &counts, stmt, fleet.WellKnownMDMFleet); err != nil {
+		return 0, 0, err
+	}
+
+	return counts.MacOS, counts.Windows, nil
+}
+
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
 	result := map[string]*fleet.Host{}
 	if len(serials) == 0 {

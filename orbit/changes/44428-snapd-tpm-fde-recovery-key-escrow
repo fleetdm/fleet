@@ -1,0 +1,1 @@
+- Added support for escrowing snapd-managed TPM-backed FDE recovery keys (Ubuntu 26+). Orbit now detects snapd-managed LUKS2 volumes from token metadata and enrolls a dedicated `fleet-escrow` recovery key via the snapd `/v2/system-volumes` socket, escrowing silently without any end-user dialog.

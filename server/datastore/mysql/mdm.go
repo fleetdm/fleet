@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -635,7 +634,7 @@ func batchTrackUpdateConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, t
 	}
 
 	for _, p := range winProfiles {
-		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		if !fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 			continue
 		}
 		var profileUUID string

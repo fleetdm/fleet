@@ -2312,7 +2312,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	for _, p := range windowsProfilesSlice {
-		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		if !fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 			continue
 		}
 
@@ -2586,8 +2586,16 @@ func getAppleProfiles(
 				}
 			}
 
+			if err := rawDecl.ValidateScope(); err != nil {
+				return nil, nil, err
+			}
+
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
+			// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
+			// parsed value drives the scope column; the key stays in the stored JSON
+			// and is stripped at delivery time so it isn't sent to the device.
+			mdmDecl.Scope = rawDecl.ScopeOrDefault()
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{

@@ -25,9 +25,11 @@ import AffinityPhoto from "./AffinityPhoto";
 import AffinityPhoto1 from "./AffinityPhoto1";
 import AffinityPublisher from "./AffinityPublisher";
 import AffinityPublisher1 from "./AffinityPublisher1";
+import AgentRansack from "./AgentRansack";
 import Airbuddy from "./Airbuddy";
 import Aircall from "./Aircall";
 import Airdroid from "./Airdroid";
+import AirExplorer from "./AirExplorer";
 import Airparrot from "./Airparrot";
 import Airserver from "./Airserver";
 import Airtable from "./Airtable";
@@ -37,7 +39,9 @@ import Akiflow from "./Akiflow";
 import Alacritty from "./Alacritty";
 import Alcove from "./Alcove";
 import Aldente from "./Aldente";
+import Alfaview from "./Alfaview";
 import Alloy from "./Alloy";
+import AllwaySync from "./AllwaySync";
 import AltairGraphqlClient from "./AltairGraphqlClient";
 import AltTab from "./AltTab";
 import AmadeusPro from "./AmadeusPro";
@@ -61,6 +65,7 @@ import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import Antigravity from "./Antigravity";
 import AntigravityIde from "./AntigravityIde";
 import Antinote from "./Antinote";
+import Anyburn from "./Anyburn";
 import AnyDesk from "./AnyDesk";
 import Anydo from "./Anydo";
 import Anytype from "./Anytype";
@@ -85,12 +90,15 @@ import Audiveris from "./Audiveris";
 import Autopsy from "./Autopsy";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AviatrixVpnClient from "./AviatrixVpnClient";
+import AvsImageConverter from "./AvsImageConverter";
+import AvsMediaPlayer from "./AvsMediaPlayer";
 import AwsCli from "./AwsCli";
 import AwsSamCli from "./AwsSamCli";
 import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureFunctionsCoreTools from "./AzureFunctionsCoreTools";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
 import Badgeify from "./Badgeify";
@@ -346,6 +354,7 @@ import Forklift from "./Forklift";
 import FourKSlideshowMaker from "./FourKSlideshowMaker";
 import FourKStogram from "./FourKStogram";
 import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoDownloaderPlus from "./FourKVideoDownloaderPlus";
 import FourKVideoToMp3 from "./FourKVideoToMp3";
 import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 import Framer from "./Framer";
@@ -436,6 +445,7 @@ import iPadOS from "./iPadOS";
 import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
 import Itsycal from "./Itsycal";
+import Itunes from "./Itunes";
 import JabraDirect from "./JabraDirect";
 import Jami from "./Jami";
 import Jamovi from "./Jamovi";
@@ -901,6 +911,7 @@ import TextExpander from "./TextExpander";
 import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
 import Thorium from "./Thorium";
+import ThreeDfZephyrFree from "./3DfZephyrFree";
 import Threema from "./Threema";
 import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
@@ -1037,9 +1048,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "3df zephyr free": ThreeDfZephyrFree,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
   "4k video downloader": FourKVideoDownloader,
+  "4k video downloader+": FourKVideoDownloaderPlus,
   "4k video to mp3": FourKVideoToMp3,
   "4k youtube to mp3": FourKYoutubeToMp3,
   "7 zip": SevenZip,
@@ -1067,6 +1080,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "affinity photo 2": AffinityPhoto,
   "affinity publisher": AffinityPublisher1,
   "affinity publisher 2": AffinityPublisher,
+  "agent ransack": AgentRansack,
+  "air explorer": AirExplorer,
   airbuddy: Airbuddy,
   aircall: Aircall,
   airdroid: Airdroid,
@@ -1079,16 +1094,21 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   alacritty: Alacritty,
   alcove: Alcove,
   aldente: Aldente,
+  alfaview: Alfaview,
   alloy: Alloy,
+  "allway sync": AllwaySync,
   "altair graphql client": AltairGraphqlClient,
   alttab: AltTab,
   "amadeus pro": AmadeusPro,
   amadine: Amadine,
   "amazon chime": AmazonChime,
+  "amazon corretto 11": AmazonCorretto21,
+  "amazon corretto 17": AmazonCorretto21,
   "amazon corretto 21": AmazonCorretto21,
   "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
   "amazon corretto 26": AmazonCorretto26,
+  "amazon corretto 8": AmazonCorretto21,
   "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
@@ -1103,6 +1123,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "antigravity ide": AntigravityIde,
   antinote: Antinote,
   "any.do": Anydo,
+  anyburn: Anyburn,
   anydesk: AnyDesk,
   anytype: Anytype,
   apidog: Apidog,
@@ -1125,13 +1146,17 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
+  "avs image converter": AvsImageConverter,
+  "avs media player": AvsMediaPlayer,
   "aws client vpn": AwsVpnClient,
   "aws command line interface": AwsCli,
   "aws sam command line interface": AwsSamCli,
+  "aws session manager plugin": AwsCli,
   "aws vpn client": AwsVpnClient,
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure functions core tools": AzureFunctionsCoreTools,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
@@ -1481,6 +1506,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   istherenet: Istherenet,
   iterm2: ITerm,
   itsycal: Itsycal,
+  itunes: Itunes,
   "jabra direct": JabraDirect,
   jami: Jami,
   jamovi: Jamovi,
