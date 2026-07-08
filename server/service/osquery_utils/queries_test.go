@@ -711,7 +711,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Simulate a linux with a proper version
+	// Arch Linux based distribution with a major, minor and patch should still be ingested with "rolling".
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -730,7 +730,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
-	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -1749,6 +1749,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "1.2.3",
 				Arch:          "x86_64",
 				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
+		{
+			// CachyOS is an Arch-based rolling-release distribution. It reports a
+			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
+			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "CachyOS Linux",
+					"version":        "20260628.0.549485",
+					"major":          "20260628",
+					"minor":          "0",
+					"patch":          "549485",
+					"build":          "rolling",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-2-cachyos",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
 	} {
@@ -3008,7 +3031,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
@@ -3088,7 +3111,7 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 1)
 		cert := certs[0]
@@ -3109,139 +3132,188 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
+// windowsCertRow builds an osquery Windows `certificates` table row for tests,
+// starting from a common set of base fields and applying the given overrides.
+func windowsCertRow(overrides map[string]string) map[string]string {
+	r := map[string]string{
+		"ca":                "0",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2048",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "05",
+	}
+	maps.Copy(r, overrides)
+	return r
+}
+
 func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
 
-	// Fleet SCEP cert example based on data from a real Windows host
-	c1 := map[string]string{
-		"ca":                "-1",
-		"common_name":       "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
-		"subject":           "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
-		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
-		"key_algorithm":     "RSA",
-		"key_strength":      "2160",
-		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		"not_valid_after":   "1780784467",
-		"not_valid_before":  "1749248467",
-		"serial":            "05",
-		"sha1":              "1A395245953C61AE12657704FF45F31A1E7BC1E8",
-		"username":          "Admin",
-		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	const (
+		userSID    = "S-1-5-21-1043593016-4249271388-1765263865-1000"
+		secondUSID = "S-1-5-21-1043593016-4249271388-1765263865-1500"
+		// Microsoft Entra ID (Azure AD) accounts on Entra-joined devices use the
+		// S-1-12-1 SID prefix rather than S-1-5-21.
+		entraSID = "S-1-12-1-1234567890-1234567890-1234567890-1234567890"
+	)
+
+	const (
+		machineSHA1 = "AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555"
+		sysAcctSHA1 = "1111AAAA2222BBBB3333CCCC4444DDDD5555EEEE"
+		userSHA1    = "EE5E756CC1A0782078C7C45180A4544A37D0F6D7"
+		entraSHA1   = "FACE1234FACE1234FACE1234FACE1234FACE1234"
+	)
+
+	// Machine-wide LocalMachine store: empty sid and empty username.
+	machine := windowsCertRow(map[string]string{
+		"common_name": "Fleet Root CA",
+		"subject2":    "CN=Fleet Root CA, O=Fleet Device Management Inc., OU=Engineering, C=US",
+		"issuer2":     "CN=Fleet Root CA, O=Fleet Device Management Inc., C=US",
+		"sha1":        machineSHA1,
+		"username":    "",
+		"sid":         "",
+		"path":        "LocalMachine\\Personal",
+	})
+
+	// LocalSystem account (S-1-5-18) store, enumerated three times across redundant hive views. These must collapse into
+	// a single System entry and be retained (a distinct cert from LocalMachine, often a device/enrollment cert).
+	sysAcctCurrentUser := windowsCertRow(map[string]string{
+		"common_name": "Device Enrollment",
+		"subject2":    "CN=Device Enrollment, C=US",
+		"issuer2":     "CN=Fleet SCEP CA, C=US",
+		"sha1":        sysAcctSHA1,
+		"username":    "SYSTEM",
+		"sid":         "S-1-5-18",
+		"path":        "CurrentUser\\Personal",
+	})
+	sysAcctServices := maps.Clone(sysAcctCurrentUser)
+	sysAcctServices["path"] = "Services\\S-1-5-18\\Personal"
+	sysAcctUsersHive := maps.Clone(sysAcctCurrentUser)
+	sysAcctUsersHive["path"] = "Users\\S-1-5-18\\Personal"
+
+	// Real interactive user (S-1-5-21-*), present in the Personal hive and the redundant _Classes sub-hive (same base
+	// SID). These collapse into one User/Admin entry. The issuer carries a quoted comma to exercise the parser.
+	userAdmin := windowsCertRow(map[string]string{
+		"common_name": "admin@example.com",
+		"subject2":    "CN=admin@example.com, OU=fleet-abc, OU=People, O=Example",
+		"issuer2":     `CN=SCEP CA, O="Example, Inc.", C=US`,
+		"sha1":        userSHA1,
+		"username":    "Admin",
+		"sid":         userSID,
+		"path":        "Users\\" + userSID + "\\Personal",
+	})
+	userAdminClasses := maps.Clone(userAdmin)
+	userAdminClasses["sid"] = userSID + "_Classes"
+	userAdminClasses["path"] = "Users\\" + userSID + "_Classes\\Personal"
+
+	// The same certificate (same SHA1) also installed in a second user's store
+	userBob := maps.Clone(userAdmin)
+	userBob["username"] = "Bob"
+	userBob["sid"] = secondUSID
+	userBob["path"] = "Users\\" + secondUSID + "\\Personal"
+
+	// An Entra ID (Azure AD) user, whose hive SID uses the S-1-12-1 prefix
+	entraUser := windowsCertRow(map[string]string{
+		"common_name": "entra@example.com",
+		"subject2":    "CN=entra@example.com, O=Example",
+		"issuer2":     "CN=SCEP CA, C=US",
+		"sha1":        entraSHA1,
+		"username":    "AzureAD\\entrauser",
+		"sid":         entraSID,
+		"path":        "Users\\" + entraSID + "\\Personal",
+	})
+
+	rows := []map[string]string{
+		machine,
+		sysAcctCurrentUser, sysAcctServices, sysAcctUsersHive,
+		userAdmin, userAdminClasses,
+		userBob,
+		entraUser,
 	}
-	// Custom SCEP cert example based on data from a real Windows host
-	c2 := map[string]string{
-		"ca":                "-1",
-		"common_name":       "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN",
-		"subject":           "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"",
-		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
-		"key_algorithm":     "RSA",
-		"key_strength":      "1120",
-		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		"not_valid_after":   "1796430423",
-		"not_valid_before":  "1764893823",
-		"serial":            "23",
-		"sha1":              "EE5E756CC1A0782078C7C45180A4544A37D0F6D7",
-		"username":          "Admin",
-		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+
+	type scopeKey struct {
+		sha1     string
+		source   fleet.HostCertificateSource
+		username string
 	}
 
-	// We'll use the examples above to create rows with minor variations, similar to what
-	// we would get from a real Windows host.
-	c3 := maps.Clone(c1)
-	c3["username"] = "SYSTEM"
-	c3["path"] = "Users\\S-1-5-18\\Personal"
-
-	c4 := maps.Clone(c1)
-	c4["username"] = "SYSTEM"
-	c4["path"] = "CurrentUser\\Personal"
-
-	c5 := maps.Clone(c1)
-	c5["username"] = "SYSTEM"
-	c5["path"] = "Users\\S-1-5-18\\Personal"
-
-	c6 := maps.Clone(c1)
-	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	c7 := maps.Clone(c2)
-	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
-
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
-		require.Len(t, certs, 3)
 
-		// We expect that the ingest function will deduplicate certs based on SHA1+username
-		// so we should see only 3 unique combinations from the 7 rows above.
-		expectSha1Users := map[string]bool{
-			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "Admin":  true, // c1, c6
-			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "SYSTEM": true, // c3, c4, c5
-			"EE5E756CC1A0782078C7C45180A4544A37D0F6D7" + "Admin":  true, // c2, c7
+		// 8 rows collapse to 5 distinct (SHA1, scope, username) entries.
+		require.Len(t, certs, 5)
+
+		expected := map[scopeKey]bool{
+			{machineSHA1, fleet.SystemHostCertificate, ""}:               true,
+			{sysAcctSHA1, fleet.SystemHostCertificate, ""}:               true,
+			{userSHA1, fleet.UserHostCertificate, "Admin"}:               true,
+			{userSHA1, fleet.UserHostCertificate, "Bob"}:                 true,
+			{entraSHA1, fleet.UserHostCertificate, "AzureAD\\entrauser"}: true,
 		}
-		seenSha1Users := map[string]bool{}
+		seen := map[scopeKey]bool{}
 		for _, cert := range certs {
-			s := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-			_, ok := expectSha1Users[s+cert.Username]
-			require.True(t, ok, "unexpected cert SHA1+username combination: %s + %s", s, cert.Username)
-			seenSha1Users[s+cert.Username] = true
+			sha1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+			k := scopeKey{sha1, cert.Source, cert.Username}
+			require.True(t, expected[k], "unexpected (sha1, scope, username): %+v", k)
+			seen[k] = true
 
-			// Validate fields that differ between the cert examples
-			switch s {
-			case "1A395245953C61AE12657704FF45F31A1E7BC1E8":
-				require.Equal(t, "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
-				require.Equal(t, "05", cert.Serial)
-				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
-				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
-				require.Equal(t, 2160, cert.KeyStrength)
-				require.Equal(t, "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.CommonName)
-				require.Equal(t, "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.SubjectCommonName)
-				require.Equal(t, "\"\", scep-ca, SCEP CA, FleetDM", cert.IssuerCommonName)
-				require.Contains(t, []string{"Admin", "SYSTEM"}, cert.Username)
-
-			case "EE5E756CC1A0782078C7C45180A4544A37D0F6D7":
-				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
-				require.Equal(t, "23", cert.Serial)
-				require.Equal(t, int64(1796430423), cert.NotValidAfter.Unix())
-				require.Equal(t, int64(1764893823), cert.NotValidBefore.Unix())
-				require.Equal(t, 1120, cert.KeyStrength)
-				require.Equal(t, "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN", cert.CommonName)
-				require.Equal(t, "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"", cert.SubjectCommonName)
-				require.Equal(t, "US, scep-ca, SCEP CA, MICROMDM SCEP CA", cert.IssuerCommonName)
-				require.Equal(t, "Admin", cert.Username)
-
-			default:
-				t.Fatalf("unexpected cert SHA1: %s", s)
-			}
-
-			// Validate fields common across all Windows certs in this test
 			require.Equal(t, "RSA", cert.KeyAlgorithm)
 			require.Equal(t, "sha256RSA", cert.SigningAlgorithm)
-			require.False(t, cert.CertificateAuthority)
-			if cert.Username == "SYSTEM" {
-				require.Equal(t, fleet.SystemHostCertificate, cert.Source)
-			} else {
-				require.Equal(t, fleet.UserHostCertificate, cert.Source)
+
+			switch k {
+			case scopeKey{machineSHA1, fleet.SystemHostCertificate, ""}:
+				// non-DN fields are mapped straight from the osquery row
+				require.Equal(t, "Fleet Root CA", cert.CommonName)
+				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
+				require.Equal(t, "05", cert.Serial)
+				require.Equal(t, 2048, cert.KeyStrength)
+				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.False(t, cert.CertificateAuthority)
+				// distinguished name fields are parsed from subject2 / issuer2
+				require.Equal(t, "Fleet Root CA", cert.SubjectCommonName)
+				require.Equal(t, "Fleet Device Management Inc.", cert.SubjectOrganization)
+				require.Equal(t, "Engineering", cert.SubjectOrganizationalUnit)
+				require.Equal(t, "US", cert.SubjectCountry)
+				require.Equal(t, "Fleet Root CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
+			case scopeKey{sysAcctSHA1, fleet.SystemHostCertificate, ""}:
+				require.Equal(t, "Device Enrollment", cert.SubjectCommonName)
+				require.Equal(t, "US", cert.SubjectCountry)
+				require.Equal(t, "Fleet SCEP CA", cert.IssuerCommonName)
+			case scopeKey{userSHA1, fleet.UserHostCertificate, "Admin"}, scopeKey{userSHA1, fleet.UserHostCertificate, "Bob"}:
+				require.Equal(t, "admin@example.com", cert.SubjectCommonName)
+				require.Equal(t, "Example", cert.SubjectOrganization)
+				require.Equal(t, "fleet-abc+OU=People", cert.SubjectOrganizationalUnit)
+				// quoted comma inside the issuer organization must be preserved
+				require.Equal(t, "Example, Inc.", cert.IssuerOrganization)
+				require.Equal(t, "SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
+			case scopeKey{entraSHA1, fleet.UserHostCertificate, "AzureAD\\entrauser"}:
+				require.Equal(t, "entra@example.com", cert.SubjectCommonName)
+				require.Equal(t, "Example", cert.SubjectOrganization)
+				require.Equal(t, "SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
 			}
-
-			// For Windows certs, osquery squeezes all distinguished name fields into
-			// the comma-separated list that we store as Issuer/SubjectCommonName and
-			// we leave all other fields empty for now (see fleet.ExtractDetailsFromOsqueryDistinguishedName)
-			require.Empty(t, cert.SubjectOrganization)
-			require.Empty(t, cert.SubjectOrganizationalUnit)
-			require.Empty(t, cert.SubjectCountry)
-			require.Empty(t, cert.IssuerOrganization)
-			require.Empty(t, cert.IssuerOrganizationalUnit)
-			require.Empty(t, cert.IssuerCountry)
-
 		}
-		require.Equal(t, expectSha1Users, seenSha1Users)
+		require.Equal(t, expected, seen)
+
+		// Observed scopes: System is always observed, plus each user that reported
+		// a cert. This is what lets reconciliation preserve logged-off users.
+		require.ElementsMatch(t, []fleet.HostCertificateScope{
+			{Source: fleet.SystemHostCertificate},
+			{Source: fleet.UserHostCertificate, Username: "Admin"},
+			{Source: fleet.UserHostCertificate, Username: "Bob"},
+			{Source: fleet.UserHostCertificate, Username: "AzureAD\\entrauser"},
+		}, observedScopes)
 
 		return nil
 	}
@@ -3249,6 +3321,39 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	err := directIngestHostCertificatesWindows(ctx, logger, host, ds, rows)
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
+func TestDirectIngestHostCertificatesWindowsMalformedDN(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	// subject2 contains a non-empty fragment with no '=' (malformed osquery output).
+	// The certificate must still be ingested best-effort, not dropped.
+	row := windowsCertRow(map[string]string{
+		"common_name": "malformed.example.com",
+		"subject2":    "CN=malformed.example.com, garbage-no-equals, C=US",
+		"issuer2":     "CN=Issuer CA, C=US",
+		"sha1":        "1234123412341234123412341234123412341234",
+		"username":    "",
+		"sid":         "",
+		"path":        "LocalMachine\\Personal",
+	})
+
+	var got []*fleet.HostCertificateRecord
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
+		got = certs
+		return nil
+	}
+
+	require.NoError(t, directIngestHostCertificatesWindows(ctx, logger, host, ds, []map[string]string{row}))
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+	// The cert is kept, with the parseable fields populated (the malformed fragment is dropped).
+	require.Len(t, got, 1)
+	require.Equal(t, "malformed.example.com", got[0].SubjectCommonName)
+	require.Equal(t, "US", got[0].SubjectCountry)
+	require.Equal(t, fleet.SystemHostCertificate, got[0].Source)
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {

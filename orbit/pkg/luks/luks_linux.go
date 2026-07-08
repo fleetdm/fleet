@@ -49,6 +49,21 @@ func isInstalled(toolName string) bool {
 	return path != ""
 }
 
+// ensureNotifier sets lr.notifier to the first available desktop dialog tool
+// (zenity, then kdialog). If neither is installed the notifier stays nil and
+// callers must treat notifications as best-effort.
+func (lr *LuksRunner) ensureNotifier() {
+	if lr.notifier != nil {
+		return
+	}
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	}
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
@@ -56,16 +71,39 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	// Pick a notifier up front so both escrow paths can surface user-facing
+	// warnings. The passphrase path treats "no dialog tool" as fatal (it needs
+	// to prompt for a passphrase); the snapd/recovery-key path treats it as
+	// best-effort (silent success is fine, the failure notification just
+	// degrades to a log line).
+	lr.ensureNotifier()
+
+	// cryptsetup is a prerequisite for both the snapd detection path (which
+	// reads LUKS2 metadata via luksDump) and the passphrase escrow path (which
+	// adds a key slot), so check it up front before doing any detection.
 	if !isInstalled("cryptsetup") {
 		return errors.New("cryptsetup is not installed")
 	}
 
-	switch {
-	case isInstalled("zenity"):
-		lr.notifier = zenity.New()
-	case isInstalled("kdialog"):
-		lr.notifier = kdialog.New()
-	default:
+	// snapd-managed TPM-backed FDE (e.g. Ubuntu 26) escrows a recovery key
+	// silently and needs no desktop dialog. Detect it first and take that path
+	// when present. Errors during detection are fatal here: a metadata read
+	// failure could mean the host IS snapd-managed but we cannot confirm, and
+	// silently falling through to the passphrase escrow path would show a
+	// misleading prompt for a passphrase the user doesn't have.
+	log.Info().Msg("disk encryption escrow requested; determining escrow path")
+	snapd := newSnapdFDE()
+	isSnapd, err := snapd.Detect(ctx)
+	if err != nil {
+		return fmt.Errorf("detecting snapd-managed FDE: %w", err)
+	}
+	if isSnapd {
+		log.Info().Msg("host uses snapd-managed TPM-backed FDE; escrowing recovery key via the snapd socket")
+		return lr.runRecoveryKeyEscrow(ctx, snapd)
+	}
+	log.Info().Msg("host is not snapd-managed FDE; using the passphrase escrow path")
+
+	if lr.notifier == nil {
 		return errors.New("No supported dialog tool found")
 	}
 
@@ -381,6 +419,51 @@ func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
 	}
 
 	return nil
+}
+
+// snapdFDE is the production SnapdFDE implementation. It manages TPM-backed FDE
+// recovery keys exclusively through the snapd REST API socket, which is
+// guaranteed present wherever snapd-managed FDE is in use and requires no
+// network or snap store access. Detection is pure LUKS2 metadata inspection.
+type snapdFDE struct {
+	socket *snapdSocketFDE
+}
+
+func newSnapdFDE() SnapdFDE {
+	return &snapdFDE{socket: newSnapdSocketFDE()}
+}
+
+func (s *snapdFDE) Detect(ctx context.Context) (bool, error) {
+	// Decide purely from the LUKS2 metadata whether the volume is managed by
+	// snapd's secboot stack; plain or systemd-cryptenroll volumes are handled by
+	// the legacy passphrase path.
+	devicePath, err := lvm.FindRootDisk()
+	if err != nil {
+		// No LUKS root partition found; nothing for us to manage.
+		log.Debug().Err(err).Msg("no LUKS root disk found while detecting snapd FDE")
+		return false, nil
+	}
+	log.Debug().Str("device", devicePath).Msg("inspecting LUKS root disk for snapd-managed FDE")
+
+	dump, err := GetLuksDump(ctx, devicePath)
+	if err != nil {
+		return false, fmt.Errorf("inspecting LUKS metadata: %w", err)
+	}
+
+	tokenTypes := make([]string, 0, len(dump.Tokens))
+	for _, tok := range dump.Tokens {
+		tokenTypes = append(tokenTypes, tok.Type)
+	}
+	managed := IsSnapdManaged(dump)
+	log.Debug().Str("device", devicePath).Strs("luks_tokens", tokenTypes).
+		Int("keyslots", len(dump.Keyslots)).Bool("snapd_managed", managed).
+		Msg("inspected LUKS2 metadata for snapd-managed FDE")
+
+	return managed, nil
+}
+
+func (s *snapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	return s.socket.ensureFleetRecoveryKey(ctx)
 }
 
 // isCryptsetupVersionLessThan2_4 checks if the installed cryptsetup version is less than 2.4.0

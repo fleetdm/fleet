@@ -2,7 +2,7 @@
 // FleetPSSOExtension
 //
 // ASAuthorizationProviderExtensionRegistrationHandler conformance. The
-// framework hands us a login manager; we ask it for the user device
+// framework hands us a login manager; we ask it for the shared device
 // signing + encryption keys, build a registration payload, and configure
 // the SSO endpoints from extensionData supplied by the configuration
 // profile. Apple owns the private key material — we only see SecKey
