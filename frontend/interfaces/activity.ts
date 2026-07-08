@@ -120,6 +120,7 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
+  ConnectedToHost = "connected_to_host",
   FailedWipe = "failed_wipe",
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
@@ -236,7 +237,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationWebhook
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
-  | ActivityType.FailedAutomationConditionalAccess;
+  | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.ConnectedToHost;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -523,6 +525,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_logged_in: "User login: success",
   wiped_host: "Wiped host",
   failed_wipe: "Failed wipe",
+  connected_to_host: "Connected to host via terminal",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:

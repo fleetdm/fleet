@@ -72,6 +72,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Connect",
+    value: "terminal",
+    disabled: false,
+  },
+  {
     label: "Unlock",
     value: "unlock",
     disabled: false,
@@ -336,6 +341,10 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 };
 
+const canConnectTerminal = (config: IHostActionConfigOptions) => {
+  return config.isGlobalAdmin;
+};
+
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
@@ -542,6 +551,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "unlock");
   }
 
+  if (!canConnectTerminal(config)) {
+    options = options.filter((option) => option.value !== "terminal");
+  }
+
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
   // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options.
   // This is a bit confusing since we remove options instead of add options
@@ -686,10 +699,12 @@ const modifyOptions = (
   }
 
   let optionsToDisable: IDropdownOption[] = [];
-  // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
+  // When the host is offline, always disable Query and terminal.
   if (!isHostOnline) {
     optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "query")
+      options.filter(
+        (option) => option.value === "query" || option.value === "terminal"
+      )
     );
   }
 

@@ -1038,6 +1038,9 @@ const HostDetailsPage = ({
       case "clearPasscode":
         setShowClearPasscodeModal(true);
         break;
+      case "terminal":
+        window.open(PATHS.HOST_TERMINAL(hostIdFromURL), "_blank");
+        break;
       default: // do nothing
     }
   };

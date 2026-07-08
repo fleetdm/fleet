@@ -37,6 +37,7 @@ import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEn
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
 import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
+import ConnectedToHostActivityItem from "./ActivityItems/ConnectedToHostActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -101,6 +102,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedAutomationTicket]: PolicyAutomationActivityItem,
   [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
   [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
+  [ActivityType.ConnectedToHost]: ConnectedToHostActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

@@ -786,4 +786,7 @@ export default {
     const { HOST_DEP_ASSIGNMENT } = endpoints;
     return sendRequest("GET", HOST_DEP_ASSIGNMENT(id));
   },
+  createTerminalSession: (hostId: number): Promise<{ session_id: string }> => {
+    return sendRequest("POST", endpoints.HOST_TERMINAL(hostId));
+  },
 };

@@ -35,6 +35,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import TerminalPage from "pages/hosts/TerminalPage/TerminalPage";
 import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
 import EditLabelPage from "pages/labels/EditLabelPage";
@@ -305,6 +306,7 @@ const routes = (
               <Route path="reports" component={HostDetailsPage} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
+            <Route path=":host_id/terminal" component={TerminalPage} />
 
             <Redirect
               from=":host_id/queries/:query_id"

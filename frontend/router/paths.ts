@@ -170,6 +170,9 @@ export default {
   HOST_LIBRARY: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software/library`;
   },
+  HOST_TERMINAL: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/terminal`;
+  },
   HOST_REPORTS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/reports`;
   },

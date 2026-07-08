@@ -545,6 +545,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  connectedToHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        connected to <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   viewedHostRecoveryLockPassword: (activity: IActivity) => {
     return (
       <>
@@ -2256,6 +2264,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.RetrievedHostMyDeviceURL: {
       return TAGGED_TEMPLATES.retrievedHostMyDeviceURL(activity);
+    }
+    case ActivityType.ConnectedToHost: {
+      return TAGGED_TEMPLATES.connectedToHost(activity);
     }
     case ActivityType.ViewedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);

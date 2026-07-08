@@ -65,7 +65,9 @@
     "use-debounce": "9.0.4",
     "uuid": "14.0.0",
     "validator": "13.15.22",
-    "when": "3.7.8"
+    "when": "3.7.8",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
   },
   "devDependencies": {
     "@babel/cli": "7.17.6",
