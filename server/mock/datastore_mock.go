@@ -2146,6 +2146,16 @@ type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challenge stri
 
 type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
 
+type ListAppleDDMAssetsFunc func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error)
+
+type GetAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error)
+
+type GetAppleDDMAssetForDownloadFunc func(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error)
+
+type CreateAppleDDMAssetFunc func(ctx context.Context, name string, identifier string, data []byte, teamID *uint) (string, error)
+
+type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5329,6 +5339,21 @@ type DataStore struct {
 
 	CleanupExpiredADUEEnrollmentChallengesFunc        CleanupExpiredADUEEnrollmentChallengesFunc
 	CleanupExpiredADUEEnrollmentChallengesFuncInvoked bool
+
+	ListAppleDDMAssetsFunc        ListAppleDDMAssetsFunc
+	ListAppleDDMAssetsFuncInvoked bool
+
+	GetAppleDDMAssetFunc        GetAppleDDMAssetFunc
+	GetAppleDDMAssetFuncInvoked bool
+
+	GetAppleDDMAssetForDownloadFunc        GetAppleDDMAssetForDownloadFunc
+	GetAppleDDMAssetForDownloadFuncInvoked bool
+
+	CreateAppleDDMAssetFunc        CreateAppleDDMAssetFunc
+	CreateAppleDDMAssetFuncInvoked bool
+
+	DeleteAppleDDMAssetFunc        DeleteAppleDDMAssetFunc
+	DeleteAppleDDMAssetFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -12758,4 +12783,39 @@ func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) 
 	s.CleanupExpiredADUEEnrollmentChallengesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupExpiredADUEEnrollmentChallengesFunc(ctx)
+}
+
+func (s *DataStore) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.ListAppleDDMAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleDDMAssetsFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *DataStore) GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetForDownloadFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetForDownloadFunc(ctx, assetUUID)
+}
+
+func (s *DataStore) CreateAppleDDMAsset(ctx context.Context, name string, identifier string, data []byte, teamID *uint) (string, error) {
+	s.mu.Lock()
+	s.CreateAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAppleDDMAssetFunc(ctx, name, identifier, data, teamID)
+}
+
+func (s *DataStore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	s.mu.Lock()
+	s.DeleteAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAppleDDMAssetFunc(ctx, assetUUID)
 }

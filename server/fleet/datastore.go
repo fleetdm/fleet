@@ -3551,6 +3551,12 @@ type Datastore interface {
 	ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
 	// CleanupExpiredADUEEnrollmentChallenges deletes enrollment challenges expired more than 1 day ago.
 	CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error
+
+	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
+	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
+	GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*DownloadableDDMAsset, error)
+	CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error)
+	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
 }
 
 type AndroidDatastore interface {
