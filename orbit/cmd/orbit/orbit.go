@@ -1228,6 +1228,15 @@ func orbitAction(c *cli.Context) error {
 	)
 	orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
+	// Register the web terminal receiver so orbit dials back to the Fleet
+	// server whenever the server requests an interactive terminal session.
+	terminalReceiver := update.ApplyTerminalConfigReceiverMiddleware(
+		fleetURL,
+		func() (string, error) { return orbitClient.GetNodeKey() },
+		c.Bool("insecure"),
+	)
+	orbitClient.RegisterConfigReceiver(terminalReceiver)
+
 	var trw *token.ReadWriter
 	var deviceClient *fleetclient.DeviceClient
 	// Note that the deviceClient used by orbit must not define a retry on
@@ -1597,6 +1606,10 @@ func orbitAction(c *cli.Context) error {
 	})
 
 	go sigusrListener(c.String("root-dir"))
+
+	// Fast-poll for pending terminal sessions every 5 s so the browser
+	// terminal appears quickly rather than waiting for the full config poll.
+	go terminalReceiver.StartFastPoll(ctx)
 
 	setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 	setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
