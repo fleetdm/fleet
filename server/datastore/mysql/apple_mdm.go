@@ -7867,11 +7867,16 @@ func (ds *Datastore) CreateAppleDDMAsset(ctx context.Context, name, identifier s
 
 	now := time.Now()
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, secretsUpdatedAt, err := ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO mdm_apple_declaration_assets 
-		(asset_uuid, team_id, identifier, name, raw_json, uploaded_at)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		assetUUID, teamID, identifier, name, data, now)
+		(asset_uuid, team_id, identifier, name, raw_json, uploaded_at, secrets_updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		assetUUID, teamID, identifier, name, data, now, secretsUpdatedAt)
 	if err != nil {
 		if IsDuplicate(err) {
 			switch {
