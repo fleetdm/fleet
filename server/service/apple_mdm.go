@@ -3852,6 +3852,8 @@ type deleteAppleDDMAssetResponse struct {
 
 func (r deleteAppleDDMAssetResponse) Error() error { return r.Err }
 
+func (r deleteAppleDDMAssetResponse) Status() int { return http.StatusNoContent }
+
 func deleteAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteAppleDDMAssetRequest)
 	if err := svc.DeleteAppleDDMAsset(ctx, req.AssetUUID); err != nil {
