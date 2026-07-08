@@ -164,7 +164,7 @@ resource "aws_security_group" "android_amapi_mock" {
 resource "aws_iam_role_policy" "android_mock_secrets" {
   count = var.enable_google_forwarding ? 1 : 0
   name  = "${local.customer}-android-mock-secrets"
-  role  = split("/", data.terraform_remote_state.infra.outputs.ecs_execution_arn)[1]
+  role  = basename(data.terraform_remote_state.infra.outputs.ecs_execution_arn)
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -247,6 +247,7 @@ resource "aws_ecs_service" "android_amapi_mock" {
   depends_on = [
     aws_lb_listener_rule.android_amapi_mock_v1,
     aws_lb_listener_rule.android_amapi_mock_coordination,
+    aws_iam_role_policy.android_mock_secrets,
   ]
 }
 
