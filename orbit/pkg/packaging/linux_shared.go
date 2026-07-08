@@ -40,24 +40,21 @@ const postInstallSafeRestart = `
   fi
 `
 
-// stripRPMRelease removes the "-<release>" segment that nfpm (v2.21+) inserts
+// stripRPMRelease removes the "-1" release segment that nfpm (v2.21+) inserts
 // before the architecture in an RPM file name, turning
 // "fleet-osquery-1.57.0-1.x86_64.rpm" into "fleet-osquery-1.57.0.x86_64.rpm".
-// This relies on the release containing no "-" and the architecture containing
-// no "." (both hold for the values Fleet uses: release "1", arch x86_64/aarch64).
-func stripRPMRelease(filename string) string {
-	const ext = ".rpm"
-	base := strings.TrimSuffix(filename, ext)
-	dot := strings.LastIndex(base, ".") // start of ".arch"
-	if dot < 0 {
+//
+// Fleet never overrides the RPM release, so nfpm always uses its default of "1".
+// We strip exactly the "-1.<arch>.rpm" suffix rather than guessing the
+// version/release boundary from the file name; a name that doesn't carry that
+// suffix (e.g. "orbit-1.0.0.x86_64.rpm") is returned unchanged.
+func stripRPMRelease(filename, arch string) string {
+	suffix := "-1." + arch + ".rpm"
+	trimmed := strings.TrimSuffix(filename, suffix)
+	if trimmed == filename {
 		return filename
 	}
-	nvr, arch := base[:dot], base[dot:] // "name-version-release", ".arch"
-	dash := strings.LastIndex(nvr, "-") // start of "-release"
-	if dash < 0 {
-		return filename
-	}
-	return nvr[:dash] + arch + ext
+	return trimmed + "." + arch + ".rpm"
 }
 
 func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
@@ -298,7 +295,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		// always shipped RPMs named name-version.arch.rpm, so strip the
 		// release segment to keep the output file name stable. The release is
 		// still set to 1 inside the package metadata.
-		filename = stripRPMRelease(filename)
+		//
+		// ConventionalFileName above maps info.Arch to its RPM form
+		// (e.g. amd64 -> x86_64), which is exactly what appears in the file name.
+		filename = stripRPMRelease(filename, info.Arch)
 	}
 	if opt.CustomOutfile != "" {
 		filename = opt.CustomOutfile
