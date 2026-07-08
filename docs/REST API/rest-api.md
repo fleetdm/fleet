@@ -3119,6 +3119,7 @@ None.
 - [Run live report on host by identifier (ad hoc)](#run-live-report-on-host-by-identifier-ad-hoc)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 - [Get host's managed account password](#get-hosts-managed-account-password)
+- [Release host from AB](#release-host-from-ab)
 
 
 #### About host timestamps
@@ -6006,6 +6007,30 @@ The host will only return a password if its managed account password status is "
   }
 }
 ```
+
+### Release host from AB
+
+_Available in Fleet Premium_
+
+Release host from Apple Business (AB) by calling Apple's Disown Device API.
+
+This permanently removes the host from your AB, and cannot be added back automatically. This action can't be undone.
+
+`POST /api/v1/fleet/hosts/:id/release_ab`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| id                            | integer | path  | The host ID to release from AB.                                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/release_ab`
+
+##### Default response
+
+`204`
 
 ---
 
