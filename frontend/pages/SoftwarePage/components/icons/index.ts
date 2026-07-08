@@ -796,6 +796,7 @@ import Safari from "./Safari";
 import SafeExamBrowser from "./SafeExamBrowser";
 import Sanesidebuttons from "./Sanesidebuttons";
 import Santa from "./Santa";
+import ScaleFt from "./ScaleFt";
 import ScMenu from "./ScMenu";
 import Scratch from "./Scratch";
 import Screenflick from "./Screenflick";
@@ -1709,6 +1710,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
   "ok json": OkJson,
+  "okta advanced server access": ScaleFt,
   "okta verify": OktaVerify,
   ollama: Ollama,
   omnidisksweeper: Omnidisksweeper,
@@ -1870,6 +1872,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   santa: Santa,
   "sbarex qlmarkdown": Qlmarkdown,
   "sc menu": ScMenu,
+  scaleft: ScaleFt,
   scratch: Scratch,
   "screen studio": ScreenStudio,
   screenflick: Screenflick,
