@@ -1911,8 +1911,37 @@ func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 }
 
 // windowsProfilesStatusRollupBatchSize bounds how many host UUIDs are recomputed per statement in
-// updateWindowsProfilesStatusRollupDB.
+// updateWindowsProfilesStatusRollupDB and per page in ReconcileWindowsProfilesStatus.
 const windowsProfilesStatusRollupBatchSize = 1000
+
+// windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that
+// recomputes host_mdm_windows_profiles_status rows for a set of hosts from their current
+// host_mdm_windows_profiles rows. The trailing IN (?) takes the host-UUID batch: callers append the
+// batch to the returned args and expand the statement with sqlx.In. Thanks to ON DUPLICATE KEY UPDATE,
+// rows whose bucket did not change are not rewritten.
+func windowsProfilesStatusUpsertStmtAndArgs() (string, []any) {
+	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
+	stmt := fmt.Sprintf(`
+INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
+SELECT hmwp.host_uuid, %s
+FROM host_mdm_windows_profiles hmwp
+WHERE hmwp.host_uuid IN (?)
+GROUP BY hmwp.host_uuid
+ON DUPLICATE KEY UPDATE status = VALUES(status)`, caseExpr)
+	return stmt, caseArgs
+}
+
+// windowsProfilesStatusOrphanDeleteStmt drops rollup rows for hosts in the IN (?) batch that no longer
+// have any host_mdm_windows_profiles rows. The NOT EXISTS re-checks the orphan condition at execution
+// time, so a host that concurrently regained profile rows (and re-upserted its rollup row) is not
+// deleted. The subquery reads a different table than the DELETE target, so correlating on it is allowed.
+const windowsProfilesStatusOrphanDeleteStmt = `
+DELETE FROM host_mdm_windows_profiles_status
+WHERE host_uuid IN (?)
+	AND NOT EXISTS (
+		SELECT 1 FROM host_mdm_windows_profiles hmwp
+		WHERE hmwp.host_uuid = host_mdm_windows_profiles_status.host_uuid
+	)`
 
 // updateWindowsProfilesStatusRollupDB recomputes the host_mdm_windows_profiles_status rollup rows for
 // the given hosts from their current host_mdm_windows_profiles rows. Every path that inserts, updates,
@@ -1954,25 +1983,7 @@ func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContex
 		return nil
 	}
 
-	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
-	upsertStmt := fmt.Sprintf(`
-INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
-SELECT hmwp.host_uuid, %s
-FROM host_mdm_windows_profiles hmwp
-WHERE hmwp.host_uuid IN (?)
-GROUP BY hmwp.host_uuid
-ON DUPLICATE KEY UPDATE status = VALUES(status)`, caseExpr)
-
-	// Orphan-delete: drop rollup rows for hosts in the batch that no longer have any profile rows. The
-	// subquery reads a different table (host_mdm_windows_profiles), so deleting from the rollup while
-	// correlating on it is allowed.
-	const orphanDeleteStmt = `
-DELETE FROM host_mdm_windows_profiles_status
-WHERE host_uuid IN (?)
-	AND NOT EXISTS (
-		SELECT 1 FROM host_mdm_windows_profiles hmwp
-		WHERE hmwp.host_uuid = host_mdm_windows_profiles_status.host_uuid
-	)`
+	upsertStmt, caseArgs := windowsProfilesStatusUpsertStmtAndArgs()
 
 	return common_mysql.BatchProcessSimple(uniqueHostUUIDs, windowsProfilesStatusRollupBatchSize, func(batch []string) error {
 		args := make([]any, 0, len(caseArgs)+1)
@@ -1986,7 +1997,7 @@ WHERE host_uuid IN (?)
 			return ctxerr.Wrap(ctx, err, "upserting windows profiles status rollup rows")
 		}
 
-		delStmt, delArgs, err := sqlx.In(orphanDeleteStmt, batch)
+		delStmt, delArgs, err := sqlx.In(windowsProfilesStatusOrphanDeleteStmt, batch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building orphan-delete for windows profiles status rollup")
 		}
@@ -2044,36 +2055,88 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 // backstops a future write path that forgets to maintain the rollup. It runs on the hourly cleanups
 // cron and logs how many rows it corrected so persistent drift is visible.
 //
-// The upsert reads host_mdm_windows_profiles with a streaming GROUP BY on the (host_uuid, profile_uuid)
-// clustered PK prefix (no temp table) and, thanks to ON DUPLICATE KEY UPDATE, only rewrites rows whose
+// Both passes page by host_uuid in bounded batches, one statement per page. Fleet runs MySQL at its
+// default REPEATABLE READ isolation, where the SELECT side of INSERT ... SELECT takes shared locks on
+// the host_mdm_windows_profiles rows it scans for the statement's duration; that table is written on
+// every Windows host check-in, so a single unbounded statement over all of it would periodically stall
+// check-ins on large deployments. Thanks to ON DUPLICATE KEY UPDATE the upsert only rewrites rows whose
 // bucket actually changed, so a drift-free run performs no rollup writes.
 func (ds *Datastore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
-	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
-	upsertStmt := fmt.Sprintf(`
-INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
-SELECT hmwp.host_uuid, %s
-FROM host_mdm_windows_profiles hmwp
-GROUP BY hmwp.host_uuid
-ON DUPLICATE KEY UPDATE status = VALUES(status)`, caseExpr)
-	stmt, args, err := sqlx.In(upsertStmt, caseArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building windows profiles status reconcile upsert")
+	batchSize := windowsProfilesStatusRollupBatchSize
+	if ds.testWindowsProfilesStatusReconcileBatchSize > 0 {
+		batchSize = ds.testWindowsProfilesStatusReconcileBatchSize
 	}
-	upsertRes, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reconciling windows profiles status rollup")
-	}
-	rowsChanged, _ := upsertRes.RowsAffected()
 
-	// Remove rollup rows for hosts that no longer have any profile rows.
-	delRes, err := ds.writer(ctx).ExecContext(ctx, `
-DELETE hmwps FROM host_mdm_windows_profiles_status hmwps
-LEFT JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = hmwps.host_uuid
-WHERE hmwp.host_uuid IS NULL`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "removing orphan windows profiles status rollup rows")
+	upsertStmt, upsertArgs := windowsProfilesStatusUpsertStmtAndArgs()
+
+	// Pass 1: recompute the rollup for every host that currently has profile rows. DISTINCT host_uuid
+	// pages the leftmost column of the (host_uuid, profile_uuid) clustered PK in index order, so each
+	// page is a bounded range scan.
+	var rowsChanged int64
+	cursor := ""
+	for {
+		var hostUUIDs []string
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostUUIDs, `
+SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE host_uuid > ? ORDER BY host_uuid LIMIT ?`,
+			cursor, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "paging hosts with windows profiles for status reconcile")
+		}
+		if len(hostUUIDs) == 0 {
+			break
+		}
+
+		args := make([]any, 0, len(upsertArgs)+1)
+		args = append(args, upsertArgs...)
+		args = append(args, hostUUIDs)
+		stmt, inArgs, err := sqlx.In(upsertStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building windows profiles status reconcile upsert")
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, inArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reconciling windows profiles status rollup")
+		}
+		batchRowsChanged, _ := res.RowsAffected()
+		rowsChanged += batchRowsChanged
+
+		cursor = hostUUIDs[len(hostUUIDs)-1]
 	}
-	orphansRemoved, _ := delRes.RowsAffected()
+
+	// Pass 2: remove rollup rows for hosts that no longer have any profile rows. Candidates come from a
+	// non-locking read; the DELETE re-checks NOT EXISTS at execution time, so a host that concurrently
+	// regained profile rows (and re-upserted its rollup row) is not deleted. The cursor advances past
+	// every candidate whether or not it was deleted, so a candidate skipped by the re-check cannot make
+	// the loop spin.
+	var orphansRemoved int64
+	cursor = ""
+	for {
+		var candidateUUIDs []string
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &candidateUUIDs, `
+SELECT hmwps.host_uuid
+FROM host_mdm_windows_profiles_status hmwps
+LEFT JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = hmwps.host_uuid
+WHERE hmwps.host_uuid > ? AND hmwp.host_uuid IS NULL
+ORDER BY hmwps.host_uuid LIMIT ?`,
+			cursor, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "paging orphan windows profiles status rollup rows")
+		}
+		if len(candidateUUIDs) == 0 {
+			break
+		}
+
+		delStmt, delArgs, err := sqlx.In(windowsProfilesStatusOrphanDeleteStmt, candidateUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building windows profiles status reconcile orphan-delete")
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx, delStmt, delArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing orphan windows profiles status rollup rows")
+		}
+		batchOrphansRemoved, _ := res.RowsAffected()
+		orphansRemoved += batchOrphansRemoved
+
+		cursor = candidateUUIDs[len(candidateUUIDs)-1]
+	}
 
 	if rowsChanged > 0 || orphansRemoved > 0 {
 		ds.logger.InfoContext(ctx, "reconciled windows profiles status rollup",
