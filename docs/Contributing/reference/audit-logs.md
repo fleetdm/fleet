@@ -2963,6 +2963,8 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 
+#### Example
+
 ```json
 {
   "host_id": 1,
@@ -3047,6 +3049,23 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "label_id": 42,
   "label_name": "Engineering"
+}
+```
+
+## released_from_AB
+
+Generated when a host has been released from AB.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
