@@ -547,8 +547,15 @@ type agent struct {
 	// cache of this host's per-host certificates (the certs unique to this host, excluding the shared certs every host
 	// reports). Note that this requires a mutex even though only used in a.processQuery, that's because both the runLoop
 	// and the live query goroutines may call DistributedWrite (which calls processQuery).
-	certificatesMutex        sync.RWMutex
-	hostCertSpecs            []simulatedCert
+	certificatesMutex sync.RWMutex
+	hostCertSpecs     []simulatedCert
+	// scepCertSpecs holds the certs issued to this host during Windows MDM SCEP exchanges, keyed by the SCEP CSP
+	// unique ID so a re-issued cert replaces its predecessor.
+	scepCertSpecs map[string]simulatedCert
+	// withholdSCEPCert marks ~5% of hosts that never report their issued SCEP certs, exercising the server's SCEP
+	// verification backstop (test-only failure).
+	withholdSCEPCert bool
+
 	commonSoftwareNameSuffix string
 
 	entraIDDeviceID          string
@@ -727,6 +734,8 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
+		withholdSCEPCert: agentIndex%20 == 0,
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
@@ -1624,6 +1633,16 @@ func (a *agent) doWindowsMDMCheckIn(onDemand bool) (newPollInterval time.Duratio
 					continue
 				}
 				a.stats.IncrementMDMSCEPSuccess()
+				if res.Cert == nil {
+					continue
+				}
+				// Report the issued cert via the certificates detail query so the server observes the
+				// fleet-<profileUUID> renewal-ID marker and marks the SCEP profile verified. The withheld ~5% never
+				// report theirs, so the server's verification backstop fails those profiles.
+				if a.withholdSCEPCert {
+					continue
+				}
+				a.storeSCEPCertSpec(res.UniqueID, res.Cert)
 			}
 		}()
 	} else {
