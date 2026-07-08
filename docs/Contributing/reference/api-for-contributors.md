@@ -2256,7 +2256,7 @@ If the `name` is not already associated with an existing fleet, this API route c
             },
           ],
           "assets": [
-			{
+            {
               "path": "path/to/assets/asset.json"
             },
           ],
