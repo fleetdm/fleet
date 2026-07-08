@@ -235,10 +235,10 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          iOS/iPadOS hosts are online anytime they have power and
-          an internet connection (including locked). macOS, Windows, and Linux hosts 
-          can be online when locked (lid closed), but less frequently than when 
-          the lid is open. Android hosts are never online when locked.
+          iOS/iPadOS hosts are online anytime they have power and an internet
+          connection (including locked). macOS, Windows, and Linux hosts can be
+          online when locked (lid closed), but less frequently than when the lid
+          is open. Android hosts are never online when locked.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
