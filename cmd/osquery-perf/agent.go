@@ -550,9 +550,7 @@ type agent struct {
 	certificatesMutex sync.RWMutex
 	hostCertSpecs     []simulatedCert
 	// scepCertSpecs holds the certs issued to this host during Windows MDM SCEP exchanges, keyed by the SCEP CSP
-	// unique ID so a re-issued cert replaces its predecessor. certificatesWindows reports them so the server
-	// observes the fleet-<profileUUID> renewal-ID marker and marks the SCEP profile verified. Guarded by
-	// certificatesMutex.
+	// unique ID so a re-issued cert replaces its predecessor.
 	scepCertSpecs map[string]simulatedCert
 	// withholdSCEPCert marks ~5% of hosts that never report their issued SCEP certs, exercising the server's SCEP
 	// verification backstop (test-only failure).
@@ -736,9 +734,7 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
-		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop
-		// (test-only failure). Derived from agentIndex (1-based) rather than the shared seeded RNG so the
-		// selection is deterministic and doesn't shift unrelated rand-derived outcomes across --seed runs.
+		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
 		withholdSCEPCert: agentIndex%20 == 0,
 
 		entraIDDeviceID:          uuid.NewString(),
@@ -1641,10 +1637,9 @@ func (a *agent) doWindowsMDMCheckIn(onDemand bool) (newPollInterval time.Duratio
 					continue
 				}
 				// Report the issued cert via the certificates detail query so the server observes the
-				// fleet-<profileUUID> renewal-ID marker and marks the SCEP profile verified. The withheld
-				// ~5% never report theirs, so the server's verification backstop fails those profiles.
+				// fleet-<profileUUID> renewal-ID marker and marks the SCEP profile verified. The withheld ~5% never
+				// report theirs, so the server's verification backstop fails those profiles.
 				if a.withholdSCEPCert {
-					log.Printf("[test-only] agent %d: withholding issued SCEP cert for CSP %s to exercise the SCEP verification backstop", a.agentIndex, res.UniqueID)
 					continue
 				}
 				a.storeSCEPCertSpec(res.UniqueID, res.Cert)

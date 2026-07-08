@@ -164,8 +164,7 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 	return specs
 }
 
-// storeSCEPCertSpec records a certificate issued during a Windows MDM SCEP exchange so certificatesWindows reports
-// it, keyed by the SCEP CSP unique ID so a re-issued cert (profile resend or renewal) replaces its predecessor.
+// storeSCEPCertSpec records a certificate issued during a Windows MDM SCEP exchange
 func (a *agent) storeSCEPCertSpec(uniqueID string, cert *x509.Certificate) {
 	a.certificatesMutex.Lock()
 	defer a.certificatesMutex.Unlock()
@@ -184,9 +183,7 @@ func scepIssuedCertSpec(cert *x509.Certificate) simulatedCert {
 		commonName:        cert.Subject.CommonName,
 		subjectCommonName: cert.Subject.CommonName,
 		subjectOrg:        firstOrEmpty(cert.Subject.Organization),
-		// Join multiple OUs with "+OU=", mirroring how osquery reports multi-OU certs and how
-		// fleet.NewHostCertificateRecord stores them; parseWindowsDN round-trips this form. Taking only the first
-		// OU would drop the renewal-ID marker whenever the profile's SubjectName puts another OU before it.
+		// Join multiple OUs with "+OU=", mirroring how osquery reports multi-OU certs
 		subjectOrgUnit:     strings.Join(cert.Subject.OrganizationalUnit, "+OU="),
 		subjectCountry:     firstOrEmpty(cert.Subject.Country),
 		issuerCommonName:   cert.Issuer.CommonName,
