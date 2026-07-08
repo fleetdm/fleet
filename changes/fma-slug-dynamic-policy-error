@@ -1,0 +1,1 @@
+- Added a GitOps error when `fleet_maintained_app_slug` is set on a non-patch policy.

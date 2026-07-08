@@ -141,6 +141,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported on patch policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -618,6 +619,9 @@ func (p PolicySpec) Verify() error {
 	}
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
+	}
+	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
+		return errPolicyFMASlugRequiresPatch
 	}
 	return p.VerifyLabelScopes()
 }
