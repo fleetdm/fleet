@@ -983,7 +983,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" ||
+	return h.Platform == "ubuntu" || h.Platform == "zorin" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
 		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
 		h.Platform == "cachyos"
@@ -1170,6 +1170,7 @@ func PlatformSupportsOsquery(platform string) bool {
 var HostLinuxOSs = []string{
 	"linux",
 	"ubuntu",
+	"zorin",
 	"debian",
 	"rhel",
 	"centos",
@@ -1214,6 +1215,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 var HostDebPackageOSs = map[string]struct{}{
 	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
 	"ubuntu":    {},
+	"zorin":     {},
 	"debian":    {},
 	"kali":      {},
 	"pop":       {},

@@ -1,0 +1,1 @@
+- Fixed a bug where the DEP syncer could silently drop device enrollment events when interrupted mid-run (e.g. context cancelled). The sync cursor now only advances after device records are successfully written, ensuring affected devices are replayed on the next sync rather than lost.

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.04.2",
+      "version": "26.04.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.Kdenlive';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.Kdenlive' AND version_compare(bundle_short_version, '26.04.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.Kdenlive' AND version_compare(bundle_short_version, '26.04.3') < 0);"
       },
-      "installer_url": "https://cdn.download.kde.org/stable/kdenlive/26.04/macOS/kdenlive-26.04.2-arm64.dmg",
+      "installer_url": "https://cdn.download.kde.org/stable/kdenlive/26.04/macOS/kdenlive-26.04.3-arm64.dmg",
       "install_script_ref": "bc830162",
       "uninstall_script_ref": "a2f49d83",
-      "sha256": "56ba17fafc8176e8176bdd5f612618f71f8110c935c200d349df8bcb9acd233d",
+      "sha256": "ea82cd8b81789455c987d9fb0d47ab47fe9495a632bb2d495c31b27e19992802",
       "default_categories": [
         "Developer tools"
       ]

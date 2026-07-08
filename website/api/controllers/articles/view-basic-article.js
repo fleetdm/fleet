@@ -61,7 +61,6 @@ module.exports = {
     let articleCategorySlug = this.req.path.split('/')[1];
     // console.log(articleCategorySlug);
     let categoryFriendlyNamesByCategorySlug = {
-      'success-stories': 'Success stories',
       'releases': 'Releases',
       'guides': 'Guides',
       'securing': 'Security articles',

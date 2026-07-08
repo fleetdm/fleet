@@ -146,22 +146,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /success-stories': {
-    skipAssets: false,
-    action: 'articles/view-articles',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },
-
-  'GET /success-stories/*': {
-    skipAssets: false,
-    action: 'articles/view-basic-article',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },// handles /success-stores/foo
-
   'GET /case-study/*': {
     skipAssets: false,
     action: 'articles/view-case-study',// Meta title and description set in view action
@@ -554,10 +538,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /gitops-workshop': {
-    action: 'view-gitops-workshop',
+  'GET /workshops': {
+    action: 'view-workshops',
     locals: {
-      pageTitleForMeta: 'GitOps workshops',
+      pageTitleForMeta: 'Workshops',
       pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
     }
   },
@@ -781,9 +765,10 @@ module.exports.routes = {
   'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications#docs',
   'GET /handbook/marketing/website-handbook/': '/handbook/company/communications#website',
   'GET /handbook/quality': '/handbook/engineering#quality',
-  'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
-  'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
-  'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
+  'GET /success-stories': '/customers',
+  'GET /device-management/fleet-user-stories-f100': '/customers',
+  'GET /device-management/fleet-user-stories-schrodinger': '/customers',
+  'GET /device-management/fleet-user-stories-wayfair': '/customers',
   'GET /handbook/security': '/handbook/it/security',
   'GET /handbook/digital-experience/security': '/handbook/it/security',
   'GET /handbook/business-operations/security-policies': '/handbook/it/security',
@@ -1155,13 +1140,15 @@ module.exports.routes = {
       return res.redirect(301, '/reports/' + req.param('slug'));
     }
   },
-  'GET /meetups': '/gitops-workshop',
+  'GET /meetups': '/workshops',
   'GET /replace-jamf': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/replace-jamf' + originalQueryString); },
   'GET /on-premise': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/on-premise' + originalQueryString); },
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
   'GET /orchestration': '/visibility-and-reporting',
+  'GET /gitops-workshop': '/workshops',
+  'GET /gitops-workshops': '/workshops',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1272,7 +1259,7 @@ module.exports.routes = {
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
   'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
-  'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
+  'GET /learn-more-about/uninstall-fleetd': '/guides/how-to-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
   'GET /learn-more-about/dep-profile': 'https://developer.apple.com/documentation/devicemanagement/define_a_profile',
   'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-ab-tokens',
