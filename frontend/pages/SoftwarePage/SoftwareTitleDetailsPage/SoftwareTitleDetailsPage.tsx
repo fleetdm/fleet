@@ -57,7 +57,6 @@ import VersionsModal from "./VersionsModal";
 import { getDisplayedSoftwareName, mergePolicies } from "../helpers";
 import { buildLibraryVersionRows } from "./helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
-import ViewYamlModal from "./ViewYamlModal";
 
 const baseClass = "software-title-details-page";
 
@@ -95,8 +94,6 @@ const SoftwareTitleDetailsPage = ({
 
   const softwareId = parseInt(routeParams.id, 10);
   const { gitOpsModeEnabled } = useGitOpsMode("software");
-  const autoOpenGitOpsYamlModal =
-    location.query.gitops_yaml === "true" && gitOpsModeEnabled;
 
   const {
     currentTeamId,
@@ -111,12 +108,6 @@ const SoftwareTitleDetailsPage = ({
   });
 
   const canEditSoftware = canWriteSoftware(currentUser, currentTeamId ?? null);
-
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
-  // as it automatically opens from adding flow of custom software in gitOps mode
-  const [showViewYamlModal, setShowViewYamlModal] = useState(
-    autoOpenGitOpsYamlModal || false
-  );
 
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -179,14 +170,12 @@ const SoftwareTitleDetailsPage = ({
   //      AND collapses the Actions dropdown into a pencil-icon Edit button
   // True for custom non-FMA, non-iOS titles (Mac .pkg, Linux .deb/.rpm/
   // .tar.gz, Windows .msi/.exe, script-only .sh/.ps1). FMA, VPP, Google
-  // Play, and iOS in-house .ipa stay single-package.
+  // Play, and iOS in-house .ipa stay single-package. Premium-only per
+  // parent story #28108.
   const canActivateMultiplePackages =
+    !!isPremiumTier &&
     !!installerResult?.meta.isCustomPackage &&
     !installerResult.meta.isIosOrIpadosApp;
-
-  const onToggleViewYaml = () => {
-    setShowViewYamlModal(!showViewYamlModal);
-  };
 
   const onDeleteInstaller = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
@@ -250,7 +239,6 @@ const SoftwareTitleDetailsPage = ({
         teamId={teamIdForApi}
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
-        onToggleViewYaml={onToggleViewYaml}
         onClickVersions={() => setShowVersionsModal(true)}
         canActivateMultiplePackages={canActivateMultiplePackages}
       />
@@ -349,11 +337,6 @@ const SoftwareTitleDetailsPage = ({
         patchPolicy: pkg.patch_policy,
       });
       const hasAutoInstallPolicy = perPackagePolicies.length > 0;
-      // If every linked policy on this package is patch-only, surface the
-      // policy icon variant — matches SoftwareSummaryCard's chip split.
-      const isPatchPolicyOnly =
-        hasAutoInstallPolicy &&
-        perPackagePolicies.every((p) => !p.type.has("dynamic"));
       const { installed, pending, failed } = aggregateInstallStatusCounts(
         pkg.status
       );
@@ -380,7 +363,6 @@ const SoftwareTitleDetailsPage = ({
           canActivateMultiplePackages={canActivateMultiplePackages}
           isSelfService={pkg.self_service}
           hasAutoInstallPolicy={hasAutoInstallPolicy}
-          isPatchPolicyOnly={isPatchPolicyOnly}
           labels={row.isActive ? labels : null}
           labelKind={kind}
           canEditSoftware={canEditSoftware}
@@ -484,6 +466,11 @@ const SoftwareTitleDetailsPage = ({
           {headerAction}
         </div>
         <LibraryItemAccordionList>
+          {/* Row order = API response order. The API returns `packages[]`
+              sorted by `installer_id` ascending, so the top row is the
+              first-added package (smallest id = collision fallback per
+              #28108). Decided in #48400 spec discussion; the UI does not
+              re-sort. */}
           {appStore ? renderAppStoreRow() : packages.map(renderPackageRows)}
         </LibraryItemAccordionList>
       </section>
@@ -515,27 +502,6 @@ const SoftwareTitleDetailsPage = ({
           countsUpdatedAt={title.counts_updated_at}
         />
       </section>
-    );
-  };
-
-  // Renders the YAML modal for custom (non-FMA) packages. Two flows open it:
-  // (1) `?gitops_yaml=true` redirect after add, and (2) editing a custom
-  // package in gitops mode — `EditSoftwareModal` calls `openViewYamlModal()`
-  // instead of flashing success.
-  const renderViewYamlModal = (title: ISoftwareTitleDetails) => {
-    if (!showViewYamlModal) return null;
-    const pkg = title.software_package;
-    // FMA packages don't expose YAML editing — only custom packages do.
-    if (!pkg || pkg.fleet_maintained_app_id) return null;
-    return (
-      <ViewYamlModal
-        softwareTitleName={title.name}
-        iconUrl={title.icon_url}
-        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
-        softwarePackage={pkg}
-        onExit={onToggleViewYaml}
-        isScriptPackage={installerResult?.cardInfo.isScriptPackage}
-      />
     );
   };
 
@@ -603,7 +569,6 @@ const SoftwareTitleDetailsPage = ({
         refetchSoftwareTitle={refetchSoftwareTitle}
         onExit={closeLibraryEditModal}
         installerType={meta.installerType}
-        openViewYamlModal={onToggleViewYaml}
         isFleetMaintainedApp={meta.isFleetMaintainedApp}
         isIosOrIpadosApp={meta.isIosOrIpadosApp}
         name={title.name}
@@ -696,7 +661,6 @@ const SoftwareTitleDetailsPage = ({
           {renderDeleteModal(softwareTitle)}
           {renderAddPackageModal(softwareTitle)}
           {renderPackagePoliciesModal()}
-          {renderViewYamlModal(softwareTitle)}
           {renderVersionsModal(softwareTitle)}
         </>
       );

@@ -47,12 +47,11 @@ describe("AddPackageModal", () => {
       expect(screen.getByText("Add package")).toBeInTheDocument();
     });
 
-    it("renders the multi-package first-added banner copy verbatim", () => {
+    it("renders the multi-package first-added banner in the target section", () => {
       renderModal();
-      // Figma page 2:130 — single source of truth for this string.
       expect(
         screen.getByText(
-          "If multiple packages target the same host, Fleet will install the one that was added first."
+          /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i
         )
       ).toBeInTheDocument();
     });
@@ -98,16 +97,14 @@ describe("AddPackageModal", () => {
   });
 
   describe("GitOps mode", () => {
-    it("renders the GitOps banner copy verbatim (apostrophe typo preserved per Figma)", () => {
+    it("renders the GitOps banner copy", () => {
       renderModal({}, true);
-      // The "it's" misspelling is intentional — sourced verbatim from
-      // Figma page 2:130 so copy stays in sync with design.
       expect(
         screen.getByText(/Add custom packages in GitOps mode/i)
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          /copy it.s SHA-256 hash into your YAML so the next GitOps workflow doesn.t delete it/i
+          /copy its SHA-256 hash into your YAML so the next GitOps workflow doesn.t delete it/i
         )
       ).toBeInTheDocument();
     });

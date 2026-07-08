@@ -302,23 +302,6 @@ describe("LibraryItemAccordion", () => {
       expect(onAutoInstallClick).toHaveBeenCalledTimes(1);
     });
 
-    it("uses the patch-policy aria-label when isPatchPolicyOnly is true", () => {
-      renderAccordion({
-        ...customRowProps,
-        badgeState: "latest",
-        hasAutoInstallPolicy: true,
-        isPatchPolicyOnly: true,
-        onAutoInstallClick: jest.fn(),
-      });
-
-      expect(
-        screen.getByRole("button", { name: "View patch policy" })
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "View auto-install policies" })
-      ).not.toBeInTheDocument();
-    });
-
     it("does not render the Latest badge for a non-FMA row even when badgeState is 'latest'", () => {
       // The Latest badge is gated on `isFma` (#48400); custom rows never
       // surface it regardless of `canActivateMultiplePackages` / badgeState.

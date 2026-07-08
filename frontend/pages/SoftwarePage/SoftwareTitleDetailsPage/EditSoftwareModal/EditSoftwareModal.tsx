@@ -6,7 +6,6 @@ import { ILabelSummary } from "interfaces/label";
 import {
   IAppStoreApp,
   ISoftwarePackage,
-  isSoftwarePackage,
   InstallerType,
 } from "interfaces/software";
 import useBlockNavigation from "hooks/useBlockNavigation";
@@ -53,7 +52,6 @@ interface IEditSoftwareModalProps {
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: InstallerType;
-  openViewYamlModal: () => void;
   isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
   name: string;
@@ -75,7 +73,6 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
-  openViewYamlModal,
   isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
   name,
@@ -86,8 +83,12 @@ const EditSoftwareModal = ({
 }: IEditSoftwareModalProps) => {
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
-  // Viewing an FMA in GitOps mode only allows viewing options, not editing
-  const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
+  // Everything visible-but-disabled in GitOps mode for both FMA and custom
+  // multi-package titles (#48400). Users edit these through YAML instead —
+  // the disabled Save button carries the standard GitOps tooltip that links
+  // to the repo.
+  const isGitOpsCompatible =
+    gitOpsModeEnabled && (isFleetMaintainedApp || canActivateMultiplePackages);
 
   const formClassNames = classnames(`${baseClass}__package-form`, {
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
@@ -221,23 +222,14 @@ const EditSoftwareModal = ({
         },
       });
 
-      if (
-        isSoftwarePackage(softwareInstaller) &&
-        softwareInstaller.title_id &&
-        gitOpsModeEnabled
-      ) {
-        // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
-        openViewYamlModal();
-      } else {
-        notify.success(
-          <>
-            Successfully edited <b>{formData.software?.name}</b>.
-            {formData.selfService
-              ? " The end user can install from Fleet Desktop."
-              : ""}
-          </>
-        );
-      }
+      notify.success(
+        <>
+          Successfully edited <b>{formData.software?.name}</b>.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
+      );
       // Invalidate both list caches so edits (e.g. self-service toggle)
       // are reflected when navigating back to Inventory or Library tabs
       queryClient.invalidateQueries({

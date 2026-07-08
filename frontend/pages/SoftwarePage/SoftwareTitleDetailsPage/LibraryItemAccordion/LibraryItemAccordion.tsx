@@ -111,11 +111,9 @@ export interface ILibraryItemAccordionProps {
    * custom-package row. Mirrors `software_package.self_service`. */
   isSelfService?: boolean;
   /** Drives the auto-install icon's visibility on the custom-package row.
-   * Truthy when the package has ≥1 linked policy (auto-install OR patch). */
+   * Truthy when the package has ≥1 linked auto-install policy. Custom
+   * packages don't support patch policies, so this is auto-install only. */
   hasAutoInstallPolicy?: boolean;
-  /** When set, tooltips mention "Patch policy" instead of "Auto install" —
-   * matches the SoftwareSummaryCard chip's tooltip split. */
-  isPatchPolicyOnly?: boolean;
   /** Self-service tooltip copy varies for Android Play Store apps. Wired
    * through for completeness even though the current call sites only enable
    * the custom-package path for desktop titles. */
@@ -163,7 +161,6 @@ const LibraryItemAccordion = ({
   canActivateMultiplePackages = false,
   isSelfService = false,
   hasAutoInstallPolicy = false,
-  isPatchPolicyOnly = false,
   isAndroidPlayStoreApp = false,
   onSelfServiceClick,
   onAutoInstallClick,
@@ -272,19 +269,14 @@ const LibraryItemAccordion = ({
     });
 
   // Auto-install icon navigates rather than edits — its label is verb-forward
-  // ("View") so it doesn't read as a state toggle. Patch-only and dynamic
-  // variants get their own labels for screen-reader clarity.
+  // ("View") so it doesn't read as a state toggle. Custom packages only
+  // support auto-install policies (no patch policies), so there's no patch
+  // variant here.
   const renderAutoInstallIcon = () =>
     renderRowActionIcon({
-      iconName: isPatchPolicyOnly ? "policy" : "refresh",
-      tooltipContent: isPatchPolicyOnly ? (
-        <>Patch policy is linked to this package.</>
-      ) : (
-        <>Policy triggers install.</>
-      ),
-      ariaLabel: isPatchPolicyOnly
-        ? "View patch policy"
-        : "View auto-install policies",
+      iconName: "refresh",
+      tooltipContent: <>Policy triggers install.</>,
+      ariaLabel: "View auto-install policies",
       onClick: onAutoInstallClick,
     });
 

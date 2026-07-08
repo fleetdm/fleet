@@ -37,7 +37,6 @@ interface ISoftwareSummaryCard {
   teamId?: number;
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
-  onToggleViewYaml: () => void;
   /** Opens the page-owned Versions modal; the Actions item is gated here by
    * `canManageVersions`. */
   onClickVersions: () => void;
@@ -71,7 +70,6 @@ const SoftwareSummaryCard = ({
   teamId,
   router,
   refetchSoftwareTitle,
-  onToggleViewYaml,
   onClickVersions,
   canActivateMultiplePackages = false,
 }: ISoftwareSummaryCard) => {
@@ -363,7 +361,6 @@ const SoftwareSummaryCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerResult.meta.installerType}
-          openViewYamlModal={onToggleViewYaml}
           isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}

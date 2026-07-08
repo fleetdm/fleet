@@ -12,7 +12,11 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
-import { SoftwareCategory } from "interfaces/software";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  SoftwareCategory,
+} from "interfaces/software";
 import { isScriptOnlyPackageType } from "interfaces/package_type";
 
 import { notify } from "components/ToastNotification";
@@ -28,6 +32,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
@@ -111,7 +116,11 @@ interface IPackageFormProps {
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
   isFleetMaintainedApp?: boolean;
-  defaultSoftware?: any; // TODO
+  /** Installer being edited — seeds the form's target-type / label / category
+   * defaults. Only passed on the edit flow (`EditSoftwareModal`); the add flow
+   * leaves it undefined. Not a `File` — the user's newly-picked file lands in
+   * `formData.software` after `onFileSelect`. */
+  defaultSoftware?: ISoftwarePackage | IAppStoreApp;
   defaultInstallScript?: string;
   defaultPreInstallQuery?: string;
   defaultPostInstallScript?: string;
@@ -169,7 +178,14 @@ const PackageForm = ({
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
-    software: defaultSoftware || null,
+    // `formData.software` is typed as `File | null` (its shape once a user
+    // picks a file), but on the edit flow we seed it with the existing
+    // installer so truthy-gated UI (advanced options, file details) reads
+    // correctly before any re-upload. `File` is not extended to include the
+    // installer types because `formData.software` becomes a real `File` the
+    // moment `onFileSelect` fires, and downstream (multipart upload) needs
+    // that shape.
+    software: ((defaultSoftware as unknown) as File) || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
@@ -409,21 +425,33 @@ const PackageForm = ({
   );
 
   const renderTargetLabelSelector = () => (
-    <DropdownTargetLabelSelector
-      selectedTargetType={formData.targetType}
-      selectedCustomTarget={formData.customTarget}
-      selectedLabels={formData.labelTargets}
-      customTargetOptions={CUSTOM_TARGET_OPTIONS}
-      className={`${baseClass}__target`}
-      onSelectTargetType={onSelectTargetType}
-      onSelectCustomTarget={onSelectCustomTarget}
-      onSelectLabel={onSelectLabel}
-      labels={labels || []}
-      dropdownHelpText={
-        formData.targetType === "Custom" &&
-        generateHelpText(formData.automaticInstall, formData.customTarget)
-      }
-    />
+    <>
+      {multiPackageContext && (
+        <InfoBanner
+          icon="error-outline"
+          className={`${baseClass}__multi-package-banner`}
+          borderRadius="medium"
+        >
+          If multiple packages of the same software target the same host, Fleet
+          will install the one that was added first.
+        </InfoBanner>
+      )}
+      <DropdownTargetLabelSelector
+        selectedTargetType={formData.targetType}
+        selectedCustomTarget={formData.customTarget}
+        selectedLabels={formData.labelTargets}
+        customTargetOptions={CUSTOM_TARGET_OPTIONS}
+        className={`${baseClass}__target`}
+        onSelectTargetType={onSelectTargetType}
+        onSelectCustomTarget={onSelectCustomTarget}
+        onSelectLabel={onSelectLabel}
+        labels={labels || []}
+        dropdownHelpText={
+          formData.targetType === "Custom" &&
+          generateHelpText(formData.automaticInstall, formData.customTarget)
+        }
+      />
+    </>
   );
 
   return (
@@ -444,34 +472,13 @@ const PackageForm = ({
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
-        {multiPackageContext &&
-          (gitOpsModeEnabled ? (
-            // Preserves the apostrophe typo "it's" verbatim from Figma page
-            // 2:130 so copy stays in sync with design.
-            <InfoBanner
-              icon="info"
-              className={`${baseClass}__multi-package-banner`}
-              borderRadius="medium"
-            >
-              Add custom packages in GitOps mode so Fleet can host your
-              software. After adding, copy it&apos;s SHA-256 hash into your YAML
-              so the next GitOps workflow doesn&apos;t delete it.{" "}
-              <CustomLink
-                url={`${LEARN_MORE_ABOUT_BASE_LINK}/software-yaml`}
-                text="YAML docs"
-                newTab
-              />
-            </InfoBanner>
-          ) : (
-            <InfoBanner
-              icon="info"
-              className={`${baseClass}__multi-package-banner`}
-              borderRadius="medium"
-            >
-              If multiple packages target the same host, Fleet will install the
-              one that was added first.
-            </InfoBanner>
-          ))}
+        {/* GitOps-mode banner lives under the file uploader because the
+            target section is hidden in GitOps mode. The non-GitOps
+            first-added-wins banner moved into `renderTargetLabelSelector`
+            per Figma 5944-4477. */}
+        {multiPackageContext && gitOpsModeEnabled && (
+          <GitOpsCustomPackageBanner />
+        )}
         {(showDeploySoftwareSlider ||
           showSoftwareOptionsSelector ||
           showTargetLabelSelector) && ( // Only show container if any one component will render — avoids stray gap spacing

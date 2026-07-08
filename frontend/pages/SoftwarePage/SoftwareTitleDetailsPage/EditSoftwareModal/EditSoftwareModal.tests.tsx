@@ -13,7 +13,6 @@ const BASE_PROPS: React.ComponentProps<typeof EditSoftwareModal> = {
   refetchSoftwareTitle: jest.fn(),
   onExit: jest.fn(),
   installerType: "package",
-  openViewYamlModal: jest.fn(),
   name: "GlobalProtect",
   displayName: "GlobalProtect",
   source: "apps",

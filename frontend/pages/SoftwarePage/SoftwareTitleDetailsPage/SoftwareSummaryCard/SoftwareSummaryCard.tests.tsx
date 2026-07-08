@@ -44,7 +44,6 @@ describe("Software Summary Card", () => {
         softwareId={1}
         router={router}
         refetchSoftwareTitle={jest.fn()}
-        onToggleViewYaml={jest.fn()}
         onClickVersions={jest.fn()}
       />
     );
@@ -97,7 +96,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
           canActivateMultiplePackages
         />
@@ -123,7 +121,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -148,7 +145,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -175,7 +171,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -200,7 +195,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -224,7 +218,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
           canActivateMultiplePackages
         />
@@ -252,7 +245,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -276,7 +268,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -317,7 +308,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -336,7 +326,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
           canActivateMultiplePackages
         />
@@ -379,7 +368,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -418,7 +406,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -458,7 +445,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -478,7 +464,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -498,7 +483,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -516,7 +500,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -540,7 +523,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -564,7 +546,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
           canActivateMultiplePackages
         />
@@ -589,7 +570,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -613,7 +593,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -634,7 +613,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -659,7 +637,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -678,7 +655,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -702,7 +678,6 @@ describe("Software Summary Card", () => {
           teamId={3}
           router={pushedRouter}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -730,7 +705,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
@@ -752,7 +726,6 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
-          onToggleViewYaml={jest.fn()}
           onClickVersions={jest.fn()}
         />
       );
