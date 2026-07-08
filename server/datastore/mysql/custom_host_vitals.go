@@ -240,15 +240,133 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 }
 
 func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO host_custom_host_vitals (host_id, custom_host_vital_id, value)
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-		hostID, vitalID, value,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set host custom host vital value")
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_custom_host_vitals (host_id, custom_host_vital_id, value)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+			hostID, vitalID, value,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "set host custom host vital value")
+		}
+
+		// Re-queue any MDM profiles/declarations already delivered to this host
+		// that reference the vital, so the reconcilers re-expand
+		// $FLEET_HOST_VITAL_<id> with the new value. Runs in the same transaction
+		// as the value write so the reconciler never reads a stale value.
+		if err := resendMDMProfilesForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend mdm profiles for custom host vital value change")
+		}
+		return nil
+	})
+}
+
+// The resend SELECTs below filter on host_uuid first, which is the leftmost
+// column of each host-profile table's PRIMARY KEY (host_uuid, {profile,declaration}_uuid).
+// The INSTR content match therefore only evaluates the rows for a single host
+// (the profiles/declarations assigned to it), not the whole table — so cost is
+// independent of fleet size.
+const (
+	customHostVitalResendAppleProfilesSelectStmt = `SELECT hmap.profile_uuid AS uuid, macp.mobileconfig AS contents
+		FROM host_mdm_apple_profiles hmap
+		JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
+		WHERE hmap.host_uuid = ? AND hmap.operation_type = ? AND hmap.status IS NOT NULL AND INSTR(macp.mobileconfig, ?) > 0`
+
+	customHostVitalResendWindowsProfilesSelectStmt = `SELECT hmwp.profile_uuid AS uuid, mwcp.syncml AS contents
+		FROM host_mdm_windows_profiles hmwp
+		JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
+		WHERE hmwp.host_uuid = ? AND hmwp.operation_type = ? AND hmwp.status IS NOT NULL AND INSTR(mwcp.syncml, ?) > 0`
+
+	customHostVitalResendAppleDeclarationsSelectStmt = `SELECT hmad.declaration_uuid AS uuid, mad.raw_json AS contents
+		FROM host_mdm_apple_declarations hmad
+		JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+		WHERE hmad.host_uuid = ? AND hmad.operation_type = ? AND hmad.status IS NOT NULL AND INSTR(mad.raw_json, ?) > 0`
+)
+
+// resendMDMProfilesForCustomHostVital resets the status of the Apple/Windows
+// configuration profiles and Apple DDM declarations already delivered to the
+// host that reference $FLEET_HOST_VITAL_<vitalID>, so the reconcilers resend
+// them with the host's newly-set value. Mirrors triggerResendProfilesUsingVariables,
+// but matches by profile/declaration content because custom host vitals aren't
+// tracked in mdm_configuration_profile_variables. Declarations only reset status
+// (the DDM reconciler re-stamps variables_updated_at, cache-busting the token).
+//
+// Unlike the IdP resend, this deliberately omits certificate templates and
+// Android managed configs: a vital can't reach either (cert templates only take
+// fleet_variables, and Android rejects $FLEET_HOST_VITAL_ at upload), so there's
+// nothing on those surfaces to resend.
+func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
+	var hostUUID string
+	if err := sqlx.GetContext(ctx, tx, &hostUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get host uuid for custom host vital resend")
 	}
+
+	// varName is the exact token (id included) matched precisely, id-boundary and
+	// ${...}-aware, by ContainsVar in Go. The INSTR prefix filter in SQL only
+	// narrows candidates; it deliberately over-matches (ignores the id) so the
+	// Go pass does the authoritative match.
+	varName := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)
+
+	targets := []struct {
+		desc       string
+		selectStmt string
+		updateStmt string
+	}{
+		{
+			desc:       "apple profiles",
+			selectStmt: customHostVitalResendAppleProfilesSelectStmt,
+			updateStmt: `UPDATE host_mdm_apple_profiles
+				SET status = NULL, detail = NULL, command_uuid = ''
+				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
+		},
+		{
+			desc:       "windows profiles",
+			selectStmt: customHostVitalResendWindowsProfilesSelectStmt,
+			updateStmt: `UPDATE host_mdm_windows_profiles
+				SET status = NULL, detail = NULL, command_uuid = ''
+				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
+		},
+		{
+			desc:       "apple declarations",
+			selectStmt: customHostVitalResendAppleDeclarationsSelectStmt,
+			updateStmt: `UPDATE host_mdm_apple_declarations
+				SET status = NULL, detail = NULL
+				WHERE host_uuid = ? AND operation_type = ? AND declaration_uuid IN (?)`,
+		},
+	}
+
+	for _, tgt := range targets {
+		var rows []struct {
+			UUID     string `db:"uuid"`
+			Contents string `db:"contents"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &rows, tgt.selectStmt,
+			hostUUID, fleet.MDMOperationTypeInstall, fleet.CustomHostVitalPrefix); err != nil {
+			return ctxerr.Wrap(ctx, err, "select "+tgt.desc+" referencing custom host vital")
+		}
+
+		var uuids []string
+		for _, r := range rows {
+			if fleet.ContainsVar(r.Contents, varName) {
+				uuids = append(uuids, r.UUID)
+			}
+		}
+		if len(uuids) == 0 {
+			continue
+		}
+
+		stmt, args, err := sqlx.In(tgt.updateStmt, hostUUID, fleet.MDMOperationTypeInstall, uuids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build resend update for "+tgt.desc)
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset "+tgt.desc+" for custom host vital resend")
+		}
+	}
+
 	return nil
 }
 

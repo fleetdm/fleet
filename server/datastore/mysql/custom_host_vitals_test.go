@@ -9,6 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,6 +28,8 @@ func TestCustomHostVitals(t *testing.T) {
 		{"GetCustomHostVitals", testGetCustomHostVitals},
 		{"DeleteCustomHostVital", testDeleteCustomHostVital},
 		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
+		{"SetHostValueResendsReferencingProfiles", testSetHostCustomHostVitalValueResendsProfiles},
+		{"ReconcileSnapshotMarksVitalDeclarations", testReconcileSnapshotMarksVitalDeclarations},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -394,4 +398,117 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 	name, err := ds.DeleteCustomHostVital(ctx, id)
 	require.NoError(t, err)
 	require.Equal(t, "FUNCTION", name)
+}
+
+// Setting a host's value for a vital must re-queue the MDM profiles and DDM
+// declarations already delivered to that host that reference the vital, so the
+// reconcilers re-expand $FLEET_HOST_VITAL_<id> with the new value. Profiles
+// referencing a different vital (or none), and other hosts, must be untouched.
+func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "mac", "1", "mackey", "macuuid", time.Now())
+	winHost := test.NewHost(t, ds, "win", "2", "winkey", "winuuid", time.Now(), test.WithPlatform("windows"))
+
+	vitalID := createCustomHostVital(t, ds, "FUNCTION")
+	otherID := createCustomHostVital(t, ds, "OTHER")
+	token := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vitalID)
+	otherToken := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, otherID)
+
+	// generateAppleCP/generateWindowsCP embed name+identifier in the profile
+	// body, so passing the token there puts the reference in the content the
+	// resend scan matches on.
+	profVital, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("pv", token, 0), nil)
+	require.NoError(t, err)
+	profOther, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("po", otherToken, 0), nil)
+	require.NoError(t, err)
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("pn", "plain", 0), nil)
+	require.NoError(t, err)
+
+	profWVital, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wv", token, 0), nil)
+	require.NoError(t, err)
+	profWNone, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wn", "plain", 0), nil)
+	require.NoError(t, err)
+
+	forceSetAppleHostProfileStatus(t, ds, host.UUID, profVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, host.UUID, profOther, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	// DDM declaration referencing the vital, delivered (verifying) to the mac host.
+	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
+	declVital, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "decl-vital", Name: "decl-vital",
+		RawJSON: json.RawMessage(fmt.Sprintf(`{"note":"%s"}`, bracedToken)),
+	}, nil)
+	require.NoError(t, err)
+	forceSetAppleHostDeclarationStatus(t, ds, host.UUID, declVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	// Set the value on both hosts; only referencing entities on the same host reset.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, winHost.ID, vitalID, "Engineering"))
+
+	// A reset row has NULL status, which assertHostProfileStatus reports as
+	// pending. The declaration surfaces through GetHostMDMAppleProfiles too, so
+	// it's included here; it should also be reset.
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profVital.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profOther.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{declVital.DeclarationUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, winHost.UUID,
+		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	var declStatus *fleet.MDMDeliveryStatus
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &declStatus,
+			`SELECT status FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ?`,
+			host.UUID, declVital.DeclarationUUID)
+	})
+	require.Nil(t, declStatus, "declaration should be reset (NULL status) so the DDM reconciler re-delivers it")
+}
+
+// The DDM reconcile snapshot must flag declarations that reference a custom host
+// vital as HasFleetVariables, so the reconciler stamps variables_updated_at on
+// the host declaration row — the signal handleDeclarationItems relies on to load
+// raw_json, drop unresolvable declarations from the manifest, and cache-bust the
+// DDM token. Custom host vitals aren't in mdm_configuration_profile_variables, so
+// this depends on the body scan rather than the variables join.
+func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A macOS host must be MDM-enrolled to enter the reconcile window; otherwise
+	// the snapshot skips loading declarations entirely.
+	host := test.NewHost(t, ds, "macos-1", "1", "macos-1-key", "macos-1-uuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+
+	vitalID := createCustomHostVital(t, ds, "FUNCTION")
+	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
+
+	declVital, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "decl-vital", Name: "decl-vital",
+		RawJSON: json.RawMessage(fmt.Sprintf(`{"note":"%s"}`, bracedToken)),
+	}, nil)
+	require.NoError(t, err)
+	declPlain, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "decl-plain", Name: "decl-plain",
+		RawJSON: json.RawMessage(`{"note":"static"}`),
+	}, nil)
+	require.NoError(t, err)
+
+	_, allDecls, _, _, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, "", 100)
+	require.NoError(t, err)
+
+	byUUID := make(map[string]*fleet.AppleDeclarationForReconcile, len(allDecls))
+	for _, d := range allDecls {
+		byUUID[d.DeclarationUUID] = d
+	}
+	require.Contains(t, byUUID, declVital.DeclarationUUID)
+	require.Contains(t, byUUID, declPlain.DeclarationUUID)
+	assert.True(t, byUUID[declVital.DeclarationUUID].HasFleetVariables,
+		"declaration referencing a custom host vital should be marked HasFleetVariables")
+	assert.False(t, byUUID[declPlain.DeclarationUUID].HasFleetVariables,
+		"declaration without any variables should not be marked")
 }
