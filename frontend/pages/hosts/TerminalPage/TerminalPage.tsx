@@ -114,6 +114,11 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
 
   useEffect(() => {
     let cancelled = false;
+    // resizeCleanup holds the teardown for ResizeObserver + window resize
+    // listener registered inside the async init().  We can't return it from
+    // init() (React ignores async cleanup returns), so we capture it here and
+    // call it from the synchronous useEffect cleanup below.
+    let resizeCleanup: (() => void) | undefined;
 
     const init = async () => {
       // Create xterm.js instance and mount it immediately so it sizes itself.
@@ -229,7 +234,8 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
       if (termRef.current) ro.observe(termRef.current);
       window.addEventListener("resize", sendResize);
 
-      return () => {
+      // Register teardown for the synchronous useEffect cleanup to invoke.
+      resizeCleanup = () => {
         ro.disconnect();
         window.removeEventListener("resize", sendResize);
       };
@@ -239,6 +245,7 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
 
     return () => {
       cancelled = true;
+      resizeCleanup?.();
       wsRef.current?.close();
       xtermRef.current?.dispose();
     };

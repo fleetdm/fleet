@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -19,6 +20,12 @@ func (svc *Service) CreateTerminalSession(ctx context.Context, hostID uint) (str
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host for terminal session")
+	}
+
+	// Terminal is a Fleet Premium feature.
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		return "", ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 	}
 
 	// Authorize: start with standard host write check (filters unauthenticated

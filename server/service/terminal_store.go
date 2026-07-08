@@ -53,6 +53,16 @@ type terminalSession struct {
 }
 
 // terminalStore is the package-level singleton that owns all live sessions.
+//
+// TODO(cloud): terminalStore and terminalNotifyStore are in-process globals.
+// On a single-replica Fleet deployment this is fine, but Fleet Cloud runs
+// multiple server replicas behind a load balancer.  A session created on
+// replica A will not be visible to replica B, so the browser and orbit agent
+// may connect to different replicas and never find each other.  Before rolling
+// this feature out to Fleet Cloud, either (a) require sticky sessions (LB
+// affinity by session cookie), or (b) replace the in-process store with a
+// shared backend (e.g. Redis pub/sub for notifications + a distributed KV for
+// session state).
 var terminalStore = &terminalSessionStore{
 	sessions: make(map[string]*terminalSession),
 }

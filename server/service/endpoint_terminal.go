@@ -262,6 +262,32 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger) http.Han
 		ctx, cancel := context.WithTimeout(r.Context(), maxSessionDuration)
 		defer cancel()
 
+		// Ping/pong: keep the browser WebSocket alive through idle-connection
+		// timeouts on load balancers (e.g. AWS ALB default is 60 s).  The
+		// pong handler resets the read deadline on each reply; if the browser
+		// stops responding the read goroutine below returns a deadline error
+		// and cancel() tears down the session.
+		conn.SetReadDeadline(time.Now().Add(terminalPongWait)) //nolint:errcheck
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+		})
+
+		go func() {
+			t := time.NewTicker(terminalPingPeriod)
+			defer t.Stop()
+			for {
+				select {
+				case <-t.C:
+					if err := conn.WriteControl(gws.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+						cancel()
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
 		// Browser → fromBrowser (keyboard input, resize events).
 		go func() {
 			defer cancel()

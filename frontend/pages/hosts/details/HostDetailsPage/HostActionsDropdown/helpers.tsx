@@ -342,6 +342,8 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canConnectTerminal = (config: IHostActionConfigOptions) => {
+  // Terminal is a Fleet Premium feature.
+  if (!config.isPremiumTier) return false;
   // Terminal requires the orbit agent with PTY support.  ChromeOS, iOS,
   // iPadOS, and Android are managed via MDM protocols only — orbit does not
   // run on those platforms and cannot spawn a shell.

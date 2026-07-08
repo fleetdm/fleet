@@ -212,8 +212,8 @@ func (s *shell) close() {
 	s.outR.Close()
 	procClosePseudoConsole.Call(uintptr(s.hpc))                               //nolint:errcheck
 	procDeleteProcThreadAttrList.Call(uintptr(unsafe.Pointer(&s.attrBuf[0]))) //nolint:errcheck
-	windows.TerminateProcess(s.proc, 1)                                        //nolint:errcheck
-	windows.WaitForSingleObject(s.proc, windows.INFINITE)                      //nolint:errcheck
-	windows.CloseHandle(s.proc)                                                //nolint:errcheck
-	windows.CloseHandle(s.thread)                                              //nolint:errcheck
+	windows.TerminateProcess(s.proc, 1)                                       //nolint:errcheck
+	windows.WaitForSingleObject(s.proc, windows.INFINITE)                     //nolint:errcheck
+	windows.CloseHandle(s.proc)                                               //nolint:errcheck
+	windows.CloseHandle(s.thread)                                             //nolint:errcheck
 }
