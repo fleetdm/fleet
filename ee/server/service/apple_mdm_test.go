@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -344,5 +345,159 @@ func TestDeleteAppleDDMAsset(t *testing.T) {
 
 		ds.GetAppleDDMAssetFuncInvoked = false
 		ds.DeleteAppleDDMAssetFuncInvoked = false
+	})
+}
+
+func TestCreateAppleDDMAsset(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	validData := []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"https://example.com/data"}}}`)
+
+	ds.CreateAppleDDMAssetFunc = func(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error) {
+		return "some-asset-uuid", nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+
+	reset := func() {
+		ds.CreateAppleDDMAssetFuncInvoked = false
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = false
+	}
+
+	t.Run("Observer cannot create DDM asset", func(t *testing.T) {
+		defer reset()
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleObserver)}})
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", validData)
+		require.Error(t, err)
+		var forbiddenErr *authz.Forbidden
+		require.ErrorAs(t, err, &forbiddenErr)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+
+		ds.CreateAppleDDMAssetFuncInvoked = false
+	})
+
+	t.Run("Global admin can create DDM asset", func(t *testing.T) {
+		defer reset()
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", validData)
+		require.NoError(t, err)
+		require.True(t, ds.CreateAppleDDMAssetFuncInvoked)
+
+		ds.CreateAppleDDMAssetFuncInvoked = false
+	})
+
+	t.Run("Team admin can create DDM asset for their team", func(t *testing.T) {
+		defer reset()
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: nil, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}})
+		_, err := svc.CreateAppleDDMAsset(ctx, new(uint(1)), "asset", validData)
+		require.NoError(t, err)
+		require.True(t, ds.CreateAppleDDMAssetFuncInvoked)
+
+		ds.CreateAppleDDMAssetFuncInvoked = false
+	})
+
+	t.Run("Team admin cannot create DDM asset for other teams", func(t *testing.T) {
+		defer reset()
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: nil, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}})
+		_, err := svc.CreateAppleDDMAsset(ctx, new(uint(2)), "asset", validData)
+		require.Error(t, err)
+		var forbiddenErr *authz.Forbidden
+		require.ErrorAs(t, err, &forbiddenErr)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+
+		ds.CreateAppleDDMAssetFuncInvoked = false
+	})
+
+	t.Run("Malformed JSON is rejected", func(t *testing.T) {
+		defer reset()
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", []byte(`{not json`))
+		require.Error(t, err)
+		require.False(t, ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Empty identifier is rejected", func(t *testing.T) {
+		defer reset()
+		data := []byte(`{"Type":"com.apple.asset.data","Identifier":"","Payload":{"Reference":{"DataURL":"https://example.com/data"}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.Error(t, err)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Invalid asset type is rejected", func(t *testing.T) {
+		defer reset()
+		data := []byte(`{"Type":"com.example.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"https://example.com/data"}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.Error(t, err)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Empty payload reference data URL is rejected", func(t *testing.T) {
+		defer reset()
+		data := []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":""}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.Error(t, err)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Invalid payload reference data URL is rejected", func(t *testing.T) {
+		defer reset()
+		data := []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"notaurl"}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.Error(t, err)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Secret in type is rejected before expansion", func(t *testing.T) {
+		defer reset()
+		data := []byte(`{"Type":"$FLEET_SECRET_TYPE","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"https://example.com/data"}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.Error(t, err)
+		require.False(t, ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Secret in identifier is rejected before expansion", func(t *testing.T) {
+		defer reset()
+		data := []byte(`{"Type":"com.apple.asset.data","Identifier":"$FLEET_SECRET_ID","Payload":{"Reference":{"DataURL":"https://example.com/data"}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.Error(t, err)
+		require.False(t, ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Secret in payload data URL is expanded and allowed", func(t *testing.T) {
+		defer reset()
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+			return string(validData), nil, nil
+		}
+		defer func() {
+			ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+				return document, nil, nil
+			}
+		}()
+		data := []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"$FLEET_SECRET_URL"}}}`)
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", data)
+		require.NoError(t, err)
+		require.True(t, ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked)
+		require.True(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
+	t.Run("Expanded payload with authentication key is rejected", func(t *testing.T) {
+		defer reset()
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+			return `{"Type":"com.apple.asset.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"https://example.com/data"},"Authentication":{"Username":"u"}}}`, nil, nil
+		}
+		defer func() {
+			ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+				return document, nil, nil
+			}
+		}()
+		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", validData)
+		require.Error(t, err)
+		require.True(t, ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked)
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
 	})
 }
