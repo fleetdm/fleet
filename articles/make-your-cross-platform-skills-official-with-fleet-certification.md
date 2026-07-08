@@ -4,7 +4,7 @@
 
 ## Key takeaways
 
-- **Cross-platform skill, on paper.** Fleet's first certification program launches in August with admin credentials for Apple, Windows, and Linux, so the multi-OS work you already do has something official behind it.
+- **Cross-platform skill, on paper.** Fleet's updated certification program launches in August with admin credentials for Apple, Windows, and Linux, so the multi-OS work you already do has something official behind it.
 - **GitOps gets its own track.** Two credentials, Fleet GitOps level 1 and Fleet GitOps level 2, cover managing devices declaratively through pull requests instead of console clicks.
 - **Five credentials unlock the capstone.** The three platform certifications and both GitOps levels are prerequisites for Fleet expert, a single exam you can only take once you hold all five.
 - **The core path is taught in person.** Every credential on the road to Fleet expert comes from a hands-on, instructor-led workshop. You learn by doing it live, not by watching a video.
