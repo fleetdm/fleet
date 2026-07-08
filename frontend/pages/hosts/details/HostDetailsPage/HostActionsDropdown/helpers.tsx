@@ -342,7 +342,14 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canConnectTerminal = (config: IHostActionConfigOptions) => {
-  return config.isGlobalAdmin;
+  // Terminal requires the orbit agent with PTY support.  ChromeOS, iOS,
+  // iPadOS, and Android are managed via MDM protocols only — orbit does not
+  // run on those platforms and cannot spawn a shell.
+  const hasOrbitShell =
+    isMacOS(config.hostPlatform) ||
+    config.hostPlatform === "windows" ||
+    isLinuxLike(config.hostPlatform);
+  return config.isGlobalAdmin && hasOrbitShell;
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
