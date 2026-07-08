@@ -7806,7 +7806,7 @@ func (ds *Datastore) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*f
 		teamID = new(uint(0))
 	}
 
-	var assets []*fleet.DDMAsset
+	assets := []*fleet.DDMAsset{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &assets, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at
 		FROM mdm_apple_declaration_assets WHERE team_id = ?`, teamID)
 	if err != nil {
@@ -7877,13 +7877,11 @@ func (ds *Datastore) CreateAppleDDMAsset(ctx context.Context, name, identifier s
 			switch {
 			case strings.Contains(err.Error(), "asset_team_name"):
 				{
-					return "", alreadyExists("asset", name).WithTeamID(*teamID)
-					// TODO: Service error ---- return "", &fleet.ConflictError{Message: "An asset with the same name already exists for this team"}
+					return "", alreadyExists("asset_name", name).WithTeamID(*teamID)
 				}
 			case strings.Contains(err.Error(), "asset_team_identifier"):
 				{
-					return "", alreadyExists("asset", identifier).WithTeamID(*teamID)
-					// TODO: Service error ---- return "", &fleet.ConflictError{Message: "An asset with the same identifier already exists for this team"}
+					return "", alreadyExists("asset_identifier", identifier).WithTeamID(*teamID)
 				}
 			}
 			return "", ctxerr.Wrap(ctx, err, "inserting apple ddm asset")

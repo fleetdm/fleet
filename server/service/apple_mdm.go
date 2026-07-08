@@ -3674,7 +3674,7 @@ type listAppleDDMAssetsRequest struct {
 }
 
 type listAppleDDMAssetsResponse struct {
-	Assets []*fleet.DDMAsset `json:"assets,omitempty"`
+	Assets []*fleet.DDMAsset `json:"assets"`
 	Err    error             `json:"error,omitempty"`
 }
 
@@ -3726,7 +3726,7 @@ func (r downloadAppleDDMAssetResponse) Error() error { return r.Err }
 
 func (r downloadAppleDDMAssetResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.Data)))
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "application/json")                                   // We know we return JSON, if we ever serve other files we need a generic octet-stream
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename=%q`, r.Name)) // make the caller download the file
 	if n, err := w.Write(r.Data); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
@@ -3801,6 +3801,10 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Asset = fhs[0]
 
+	if !strings.HasSuffix(decoded.Asset.Filename, ".json") {
+		return nil, &fleet.BadRequestError{Message: "Invalid file type for asset. Only \".json\" files are allowed"}
+	}
+
 	return decoded, nil
 }
 
@@ -3822,8 +3826,8 @@ func createAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Ser
 		return createAppleDDMAssetResponse{Err: err}, nil
 	}
 	f.Close()
-
-	assetUUID, err := svc.CreateAppleDDMAsset(ctx, req.TeamID, req.Asset.Filename, assetData)
+	assetName := strings.TrimSuffix(req.Asset.Filename, ".json")
+	assetUUID, err := svc.CreateAppleDDMAsset(ctx, req.TeamID, assetName, assetData)
 	if err != nil {
 		return createAppleDDMAssetResponse{Err: err}, nil
 	}
