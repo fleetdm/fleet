@@ -1,6 +1,7 @@
 import React from "react";
 
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import FileSaver from "file-saver";
 import classnames from "classnames";
 
@@ -62,7 +63,7 @@ const ProfileDetails = ({
       <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
       <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
-        {`Uploaded ${formatDistanceToNow(new Date(uploadedAt))} ago`}
+        {`Uploaded ${timeAgo(new Date(uploadedAt))} ago`}
       </span>
     </div>
   );

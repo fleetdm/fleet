@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useContext } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
@@ -203,8 +203,7 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Updated{" "}
-                {formatDistanceToNow(new Date(created_at))} ago
+                {caName} &bull; Updated {timeAgo(new Date(created_at))} ago
               </>
             );
 

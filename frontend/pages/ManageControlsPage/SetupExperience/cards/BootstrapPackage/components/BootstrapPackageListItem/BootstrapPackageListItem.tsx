@@ -1,5 +1,5 @@
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import URL_PREFIX from "router/url_prefix";
 
 import { IBootstrapPackageMetadata } from "interfaces/mdm";
@@ -68,9 +68,7 @@ const BootstrapPackageListItem = ({
             {bootstrapPackage.name}
           </span>
           <span className={`${baseClass}__list-item-uploaded`}>
-            {`Uploaded ${formatDistanceToNow(
-              new Date(bootstrapPackage.created_at)
-            )} ago`}
+            {`Uploaded ${timeAgo(new Date(bootstrapPackage.created_at))} ago`}
           </span>
         </div>
       </div>
