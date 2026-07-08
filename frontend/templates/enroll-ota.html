@@ -823,12 +823,33 @@
         return urlParams.get("enroll_secret");
       };
 
-      // DEV STUB: bypass Google API call for local frontend testing
       const getEnrollmentToken = async (fullyManaged) => {
-        return {
-          android_enrollment_url: "https://enterprise.google.com/android/enroll?et=fake-token",
-          android_enrollment_qr_code: "fake-qr-code-data",
-        };
+        const enrollSecret = getEnrollmentSecret();
+
+        let url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+          enrollSecret
+        )}`;
+
+        if (fullyManaged) {
+          url = url.concat("&fully_managed=true");
+        }
+
+        if (IDP_UUID) {
+          url = url.concat(
+            `&idp_uuid=${encodeURIComponent(IDP_UUID)}`
+          );
+        }
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Failed to get enrollment token");
+        }
+        return await response.json();
       };
 
       // here we render the page content
