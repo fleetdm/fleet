@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 
 import { QueryContext } from "context/query";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import queryAPI from "services/entities/queries";
@@ -39,7 +39,6 @@ const RunQuery = ({
   targetsTotalCount,
 }: IRunQueryProps): JSX.Element | null => {
   const { lastEditedQueryBody } = useContext(QueryContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isQueryFinished, setIsQueryFinished] = useState(false);
   const [isQueryClipped, setIsQueryClipped] = useState(false);
@@ -159,8 +158,7 @@ const RunQuery = ({
 
   const onRunQuery = debounce(async () => {
     if (!lastEditedQueryBody) {
-      renderFlash(
-        "error",
+      notify.error(
         "Something went wrong running your report. Please try again."
       );
       return;
@@ -182,22 +180,24 @@ const RunQuery = ({
     } catch (campaignError) {
       const err = String(campaignError);
       if (err.includes("no hosts targeted")) {
-        renderFlash(
-          "error",
-          "Your target selections did not include any hosts. Please try again."
+        notify.error(
+          "Your target selections did not include any hosts. Please try again.",
+          { response: campaignError }
         );
       } else if (err.includes("resource already created")) {
-        renderFlash(
-          "error",
-          "A campaign with the provided query text has already been created"
+        notify.error(
+          "A campaign with the provided query text has already been created",
+          { response: campaignError }
         );
       } else if (err.includes("forbidden") || err.includes("unauthorized")) {
-        renderFlash(
-          "error",
-          "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
+        notify.error(
+          "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator.",
+          { response: campaignError }
         );
       } else {
-        renderFlash("error", "Something has gone wrong. Please try again.");
+        notify.error("Something has gone wrong. Please try again.", {
+          response: campaignError,
+        });
       }
 
       return teardownDistributedQuery();

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.3.0",
+      "version": "11.4.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lwouis.alt-tab-macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lwouis.alt-tab-macos' AND version_compare(bundle_short_version, '11.3.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lwouis.alt-tab-macos' AND version_compare(bundle_short_version, '11.4.2') < 0);"
       },
-      "installer_url": "https://github.com/lwouis/alt-tab-macos/releases/download/v11.3.0/AltTab-11.3.0.zip",
+      "installer_url": "https://github.com/lwouis/alt-tab-macos/releases/download/v11.4.2/AltTab-11.4.2.zip",
       "install_script_ref": "b04664c1",
       "uninstall_script_ref": "2cc2914b",
-      "sha256": "5b28c3b26d29c1ccbd1f110736d6100378a89d242fd7c797a3603592cc92c8aa",
+      "sha256": "7aa0fd8d779bab05d58003dfedee598d8dd587cadad440e770e5768597694ee3",
       "default_categories": [
         "Productivity"
       ]

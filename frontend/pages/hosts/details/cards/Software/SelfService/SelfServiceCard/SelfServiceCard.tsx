@@ -22,6 +22,7 @@ import SelfServiceTable from "../components/SelfServiceTable";
 import SelfServiceTiles from "../components/SelfServiceTiles";
 import {
   countUninstalledForInstallAll,
+  filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
   hasInProgressInstallAllItems,
 } from "../helpers";
@@ -94,14 +95,21 @@ const SelfServiceCard = ({
 
   const categories = useMemo(() => categoriesData ?? [], [categoriesData]);
 
+  // Hide categories with no software. enhancedSoftware is the host's full
+  // self-service list (unpaginated), so everything downstream keys off this.
+  const visibleCategories = useMemo(
+    () => filterCategoriesWithSoftware(categories, enhancedSoftware),
+    [categories, enhancedSoftware]
+  );
+
   const softwareInSelectedCategory = useMemo(
     () =>
       filterSoftwareByCustomCategory(
         enhancedSoftware,
-        categories,
+        visibleCategories,
         queryParams.category_id
       ),
-    [enhancedSoftware, categories, queryParams.category_id]
+    [enhancedSoftware, visibleCategories, queryParams.category_id]
   );
 
   const uninstalledCount = useMemo(
@@ -186,19 +194,29 @@ const SelfServiceCard = ({
   );
 
   // Recover from stale links: if the URL has a category_id that doesn't match
-  // any loaded category (admin deleted it, or the list resolved empty), the
-  // trigger label would fall through to "All" while filterSoftwareByCustomCategory
-  // returns [] — contradicting what the label promises. Drop the param so the
-  // user lands back on a real "All" view.
+  // any visible category (admin deleted it, the list resolved empty, or the
+  // category no longer has any self-service software), the trigger label would
+  // fall through to "All" while filterSoftwareByCustomCategory returns [] —
+  // contradicting what the label promises. Drop the param so the user lands
+  // back on a real "All" view.
   useEffect(() => {
-    if (!isCategoriesSuccess || queryParams.category_id === undefined) return;
-    const idIsKnown = categories.some((c) => c.id === queryParams.category_id);
+    // Wait for software too, else a valid category_id is cleared mid-load.
+    if (
+      !isCategoriesSuccess ||
+      !selfServiceData ||
+      queryParams.category_id === undefined
+    )
+      return;
+    const idIsKnown = visibleCategories.some(
+      (c) => c.id === queryParams.category_id
+    );
     if (!idIsKnown) {
       onCategoryChange(undefined);
     }
   }, [
     isCategoriesSuccess,
-    categories,
+    selfServiceData,
+    visibleCategories,
     queryParams.category_id,
     onCategoryChange,
   ]);
@@ -232,12 +250,12 @@ const SelfServiceCard = ({
       })
     : softwareInSelectedCategory;
 
-  // The button shows in all four variants (including "All"). On "All",
-  // `categoryId` is undefined; the click posts to install_all without a
+  // The button is shown on desktop in the "All" filter and in any selected
+  // category. On
+  // "All", `categoryId` is undefined; the click posts to install_all without a
   // category_id query param and the BE installs every eligible (uninstalled,
-  // not-in-progress) self-service item. Disabled state is driven purely by
-  // hasInProgressInCategory || uninstalledCount === 0 — no special case for
-  // categoryId === undefined.
+  // not-in-progress) self-service item. Visibility, count, and disabled state
+  // are owned by InstallAllInCategoryButton — see #47855 for the full rules.
   const installAllButton = !isMobileView ? (
     <InstallAllInCategoryButton
       uninstalledCount={uninstalledCount}
@@ -256,7 +274,7 @@ const SelfServiceCard = ({
           <SelfServiceFilters
             query={queryParams.query}
             categoryId={queryParams.category_id}
-            categories={categories}
+            categories={visibleCategories}
             onSearchQueryChange={onSearchQueryChange}
             onCategoryChange={onCategoryChange}
           />
@@ -292,7 +310,7 @@ const SelfServiceCard = ({
         <SelfServiceFilters
           query={queryParams.query}
           categoryId={queryParams.category_id}
-          categories={categories}
+          categories={visibleCategories}
           onSearchQueryChange={onSearchQueryChange}
           onCategoryChange={onCategoryChange}
           installAllSlot={installAllButton}

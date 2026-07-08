@@ -1,0 +1,1 @@
+- Added support for `$FLEET_VAR_HOST_*` variables in Android managed app configuration. 

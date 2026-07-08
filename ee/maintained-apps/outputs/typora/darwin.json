@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.13.7",
+      "version": "1.13.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'abnerworks.Typora';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'abnerworks.Typora' AND version_compare(bundle_short_version, '1.13.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'abnerworks.Typora' AND version_compare(bundle_short_version, '1.13.8') < 0);"
       },
-      "installer_url": "https://downloads.typora.io/mac/Typora-1.13.7.dmg",
+      "installer_url": "https://downloads.typora.io/mac/Typora-1.13.8.dmg",
       "install_script_ref": "46cc7e99",
       "uninstall_script_ref": "a8ba94c9",
-      "sha256": "756e4f64818958b5d9d291c467f7a9dddef90a7df9d0e9ead70ba3f746f4aa9b",
+      "sha256": "bea6c1d7c8ab138634674e4c96c077e7a0db140da725d9b8294e446789d81ac7",
       "default_categories": [
         "Productivity"
       ]

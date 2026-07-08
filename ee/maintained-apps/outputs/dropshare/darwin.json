@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.12",
+      "version": "6.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.mkswap.Dropshare6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.mkswap.Dropshare6' AND version_compare(bundle_short_version, '6.12') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.mkswap.Dropshare6' AND version_compare(bundle_short_version, '6.13') < 0);"
       },
-      "installer_url": "https://d2wvuuix8c9e48.cloudfront.net/Dropshare6-6227.app.zip",
+      "installer_url": "https://d2wvuuix8c9e48.cloudfront.net/Dropshare6-6249.app.zip",
       "install_script_ref": "4ff3b255",
       "uninstall_script_ref": "ea78fa85",
-      "sha256": "6f36425693093ad3fb1536051f761f152fca373198e0befaa5d8579ae7a73c7f",
+      "sha256": "456f08c30c00a1ac9e52b7d251561337c674e419b6758e739aec16fd4aacb989",
       "default_categories": [
         "Productivity"
       ]

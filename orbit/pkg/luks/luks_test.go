@@ -1,9 +1,13 @@
 package luks
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -208,9 +212,9 @@ var extractedJSON = `{
 }`
 
 func TestExtractJson(t *testing.T) {
-	extracted, err := extractJSON([]byte(output))
+	json, err := extractJSON([]byte(output))
 	assert.NoError(t, err)
-	assert.JSONEq(t, extractedJSON, string(extracted))
+	assert.Equal(t, extractedJSON, string(json))
 
 	_, err = extractJSON([]byte("no json"))
 	assert.Error(t, err)
@@ -349,4 +353,223 @@ func TestDetectEncryptionType(t *testing.T) {
 			require.Equal(t, tc.want, DetectEncryptionType(tc.dump))
 		})
 	}
+}
+
+func TestIsSnapdManaged(t *testing.T) {
+	cases := []struct {
+		name string
+		dump *LuksDump
+		want bool
+	}{
+		{name: "nil dump", dump: nil, want: false},
+		{name: "no tokens", dump: &LuksDump{}, want: false},
+		{
+			name: "systemd tpm2 only is not snapd-managed",
+			dump: &LuksDump{Tokens: map[string]Token{"0": {Type: systemdTPM2Type}}},
+			want: false,
+		},
+		{
+			name: "snapd fde token",
+			dump: &LuksDump{Tokens: map[string]Token{"0": {Type: "ubuntu-fde"}}},
+			want: true,
+		},
+		{
+			name: "snapd fde token mixed case",
+			dump: &LuksDump{Tokens: map[string]Token{"0": {Type: "Ubuntu-FDE-hook"}}},
+			want: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, IsSnapdManaged(tc.dump))
+		})
+	}
+}
+
+func TestParseRecoveryKey(t *testing.T) {
+	key, err := parseRecoveryKey("Recovery key: 55055-39320-64491-48436-47667-15525-36879-32875\n")
+	require.NoError(t, err)
+	require.Equal(t, "55055-39320-64491-48436-47667-15525-36879-32875", key)
+
+	_, err = parseRecoveryKey("no key here")
+	require.Error(t, err)
+}
+
+type fakeEscrower struct {
+	responses    []LuksResponse
+	err          error
+	capabilities fleet.CapabilityMap
+}
+
+func (f *fakeEscrower) SendLinuxKeyEscrowResponse(r LuksResponse) error {
+	f.responses = append(f.responses, r)
+	return f.err
+}
+
+func (f *fakeEscrower) GetServerCapabilities() fleet.CapabilityMap {
+	if f.capabilities == nil {
+		return fleet.CapabilityMap{}
+	}
+	return f.capabilities
+}
+
+// newRecoveryKeyEscrower returns a fake escrower whose server capabilities
+// already include LUKSRecoveryKeyEscrow, so tests focused on the happy path
+// don't have to repeat the setup.
+func newRecoveryKeyEscrower() *fakeEscrower {
+	return &fakeEscrower{
+		capabilities: fleet.CapabilityMap{
+			fleet.CapabilityLUKSRecoveryKeyEscrow: {},
+		},
+	}
+}
+
+// fakeNotifier records ShowInfo invocations so tests can assert the
+// notification firing rules without a real desktop.
+type fakeNotifier struct {
+	infoCalls []dialog.InfoOptions
+}
+
+func (f *fakeNotifier) ShowEntry(dialog.EntryOptions) ([]byte, error) {
+	return nil, errors.New("unused in these tests")
+}
+
+func (f *fakeNotifier) ShowInfo(opts dialog.InfoOptions) error {
+	f.infoCalls = append(f.infoCalls, opts)
+	return nil
+}
+
+type fakeSnapdFDE struct {
+	recoveryKey string
+	ensureErr   error
+	ensureCalls int
+}
+
+func (f *fakeSnapdFDE) Detect(ctx context.Context) (bool, error) { return true, nil }
+func (f *fakeSnapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	f.ensureCalls++
+	return f.recoveryKey, f.ensureErr
+}
+
+func TestRunRecoveryKeyEscrow(t *testing.T) {
+	ctx := t.Context()
+	const recoveryKey = "55055-39320-64491-48436-47667-15525-36879-32875"
+
+	t.Run("success escrows the recovery key with no salt or key slot", func(t *testing.T) {
+		escrower := newRecoveryKeyEscrower()
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		lr := New(escrower)
+
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Len(t, escrower.responses, 1)
+		resp := escrower.responses[0]
+		assert.Equal(t, fleet.LUKSKeyTypeRecoveryKey, resp.KeyType)
+		assert.Equal(t, recoveryKey, resp.Passphrase)
+		assert.Empty(t, resp.Salt)
+		assert.Nil(t, resp.KeySlot)
+		assert.Empty(t, resp.Err)
+	})
+
+	t.Run("reports a client error when key creation fails", func(t *testing.T) {
+		escrower := newRecoveryKeyEscrower()
+		snapd := &fakeSnapdFDE{ensureErr: errors.New("snap-tpmctl boom")}
+		lr := New(escrower)
+
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Len(t, escrower.responses, 1)
+		resp := escrower.responses[0]
+		assert.Equal(t, fleet.LUKSKeyTypeRecoveryKey, resp.KeyType)
+		assert.Empty(t, resp.Passphrase)
+		assert.NotEmpty(t, resp.Err)
+	})
+
+	t.Run("returns an error when escrow to the server fails", func(t *testing.T) {
+		// snapd has no recovery-key delete operation, so there is no rollback;
+		// the enrolled key is replaced on the next escrow attempt.
+		escrower := newRecoveryKeyEscrower()
+		escrower.err = errors.New("network down")
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		lr := New(escrower)
+
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+	})
+
+	t.Run("server without capability skips snapd work entirely", func(t *testing.T) {
+		escrower := &fakeEscrower{} // no capabilities advertised
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		notifier := &fakeNotifier{}
+		lr := New(escrower)
+		lr.notifier = notifier
+
+		// First call: should notify.
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.Empty(t, escrower.responses, "must not POST to old servers")
+		assert.Zero(t, snapd.ensureCalls, "must not touch snapd against old servers")
+		require.Len(t, notifier.infoCalls, 1)
+		assert.Equal(t, recoveryKeyServerTooOldText, notifier.infoCalls[0].Text)
+
+		// Second call: notification is one-shot.
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.Len(t, notifier.infoCalls, 1, "must not spam the user")
+	})
+
+	t.Run("consecutive failures trigger one notification then stay quiet", func(t *testing.T) {
+		escrower := newRecoveryKeyEscrower()
+		escrower.err = errors.New("network down")
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		notifier := &fakeNotifier{}
+		lr := New(escrower)
+		lr.notifier = notifier
+
+		// One below the threshold — no notification yet.
+		for range recoveryKeyFailureNotifyThreshold - 1 {
+			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		}
+		assert.Empty(t, notifier.infoCalls, "must stay silent below the threshold")
+
+		// Crossing the threshold fires exactly one notification.
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Len(t, notifier.infoCalls, 1)
+		assert.Equal(t, recoveryKeyEscrowFailedText, notifier.infoCalls[0].Text)
+
+		// Further failures do not re-fire.
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.Len(t, notifier.infoCalls, 1, "notification is one-shot per streak")
+	})
+
+	t.Run("a successful escrow arms the notification for the next failure streak", func(t *testing.T) {
+		escrower := newRecoveryKeyEscrower()
+		escrower.err = errors.New("network down")
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		notifier := &fakeNotifier{}
+		lr := New(escrower)
+		lr.notifier = notifier
+
+		// Fail past the threshold to fire the notification.
+		for range recoveryKeyFailureNotifyThreshold {
+			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		}
+		require.Len(t, notifier.infoCalls, 1)
+
+		// Now a success resets the streak and the one-shot flag.
+		escrower.err = nil
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+
+		// A fresh streak eventually re-notifies.
+		escrower.err = errors.New("network down")
+		for range recoveryKeyFailureNotifyThreshold {
+			require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		}
+		assert.Len(t, notifier.infoCalls, 2, "new streak should trigger a new notification")
+	})
+
+	t.Run("notifier stays optional (no dialog tool installed)", func(t *testing.T) {
+		escrower := &fakeEscrower{}
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		lr := New(escrower) // no notifier assigned
+
+		// Must not panic despite no notifier.
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+	})
 }

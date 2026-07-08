@@ -5,8 +5,12 @@ import { http, HttpResponse } from "msw";
 
 import { createCustomRenderer, baseUrl } from "test/test-utils";
 import mockServer from "test/mock-server";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 
-import ChartCard from "./ChartCard";
+import ChartCard, {
+  buildInitialChartFilters,
+  hostFilterLines,
+} from "./ChartCard";
 
 // Mock ResizeObserver for CheckerboardViz
 const MOCK_WIDTH = 600;
@@ -197,5 +201,111 @@ describe("ChartCard", () => {
     expect(
       screen.queryByText(/Data collection is disabled/i)
     ).not.toBeInTheDocument();
+  });
+
+  it("excludes mobile platforms by default and shows the Filtered badge", async () => {
+    let requestedPlatforms: string | null = null;
+    mockServer.use(
+      http.get(baseUrl("/charts/:metric"), ({ params, request }) => {
+        requestedPlatforms = new URL(request.url).searchParams.get("platforms");
+        return HttpResponse.json(
+          generateMockChartResponse(params.metric as string, 30)
+        );
+      })
+    );
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<ChartCard />);
+
+    // The default platform filter is the four non-mobile platforms, which both
+    // excludes iOS/iPadOS/Android and surfaces the "Filtered" badge on load.
+    await waitFor(() => {
+      expect(screen.getByText("Filtered")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(requestedPlatforms).toBe("darwin,windows,linux,chrome");
+    });
+    expect(requestedPlatforms).not.toMatch(/ios|ipados|android/);
+  });
+});
+
+describe("buildInitialChartFilters", () => {
+  it("uses built-in defaults when no persisted defaults are provided", () => {
+    const filters = buildInitialChartFilters(undefined);
+    expect(filters.softwareFilters).toEqual([
+      ...ALL_CVE_SOFTWARE_CATEGORY_VALUES,
+    ]);
+    expect(filters.knownExploit).toBe(false);
+    expect(filters.epssMin).toBe("");
+    expect(filters.epssMax).toBe("");
+    expect(filters.excludeCVEs).toEqual([]);
+  });
+
+  it("seeds present fields and falls back per-field for absent ones", () => {
+    const filters = buildInitialChartFilters({
+      software_filters: ["browsers"],
+      has_known_exploit: true,
+    });
+    expect(filters.softwareFilters).toEqual(["browsers"]);
+    expect(filters.knownExploit).toBe(true);
+    expect(filters.epssMin).toBe("");
+    expect(filters.epssMax).toBe("");
+    expect(filters.excludeCVEs).toEqual([]);
+  });
+
+  it("converts numeric EPSS bounds (0-100) to strings", () => {
+    const filters = buildInitialChartFilters({ epss_min: 0, epss_max: 90 });
+    expect(filters.epssMin).toBe("0");
+    expect(filters.epssMax).toBe("90");
+  });
+
+  it("honors an explicit empty software_filters list as 'none'", () => {
+    const filters = buildInitialChartFilters({ software_filters: [] });
+    expect(filters.softwareFilters).toEqual([]);
+  });
+
+  it("seeds the exclude-CVE list", () => {
+    const filters = buildInitialChartFilters({
+      exclude_vulnerabilities: ["CVE-2025-50897"],
+    });
+    expect(filters.excludeCVEs).toEqual(["CVE-2025-50897"]);
+  });
+});
+
+describe("hostFilterLines", () => {
+  const filtersWithPlatforms = (platforms: string[]) => ({
+    ...buildInitialChartFilters(undefined),
+    platforms,
+  });
+
+  it("preserves branded platform casing (macOS, iOS, iPadOS)", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms(["darwin", "ios", "ipados"])
+    );
+    expect(line).toBe("macOS, iOS, and iPadOS");
+    // Guards the reported bug: no word-capitalized variants.
+    expect(line).not.toMatch(/MacOS|Ios|Ipados/);
+  });
+
+  it("renders a single platform without mangling its casing", () => {
+    expect(hostFilterLines(filtersWithPlatforms(["darwin"]))).toEqual([
+      "macOS",
+    ]);
+  });
+
+  it("maps every filterable platform to its correct display name", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms([
+        "darwin",
+        "windows",
+        "linux",
+        "chrome",
+        "ios",
+        "ipados",
+        "android",
+      ])
+    );
+    expect(line).toBe(
+      "macOS, Windows, Linux, ChromeOS, iOS, iPadOS, and Android"
+    );
   });
 });

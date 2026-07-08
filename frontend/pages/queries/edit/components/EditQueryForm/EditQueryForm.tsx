@@ -76,6 +76,8 @@ import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
 
+const NAME_MAX_LENGTH = 255;
+
 interface IEditQueryFormProps {
   router: InjectedRouter;
   location: Location;
@@ -464,6 +466,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
       );
     }
@@ -480,7 +483,7 @@ const EditQueryForm = ({
           placeholder="Add description"
           value={lastEditedQueryDescription}
           type="textarea"
-          helpText="What information does your report reveal? (Optional)"
+          helpText="What information does your report reveal? (optional)"
           onChange={(value: string) => setLastEditedQueryDescription(value)}
           disabled={gitOpsModeEnabled}
         />

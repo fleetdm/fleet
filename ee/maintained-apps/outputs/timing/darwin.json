@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.3.1",
+      "version": "2026.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'info.eurocomp.Timing2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'info.eurocomp.Timing2' AND version_compare(bundle_short_version, '2026.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'info.eurocomp.Timing2' AND version_compare(bundle_short_version, '2026.4.1') < 0);"
       },
-      "installer_url": "https://updates.timingapp.com/download/Timing-2026.3.1.dmg",
+      "installer_url": "https://updates.timingapp.com/download/Timing-2026.4.1.dmg",
       "install_script_ref": "a3717392",
       "uninstall_script_ref": "c2ba8bc0",
-      "sha256": "ce8f19fcff2aef3d7a1544ea84a74c1abd4c30e494864948f2afc829098fd944",
+      "sha256": "43f74cd2010b89e4864be9a845528455ddb936bdafc905131af6474b0adcad79",
       "default_categories": [
         "Productivity"
       ]

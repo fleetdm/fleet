@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.15.14",
+      "version": "11.15.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND version_compare(bundle_short_version, '11.15.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND version_compare(bundle_short_version, '11.15.15') < 0);"
       },
-      "installer_url": "https://www.syncovery.com/release/SyncoveryMac11.15.14-Apple.dmg",
+      "installer_url": "https://www.syncovery.com/release/SyncoveryMac11.15.15-Apple.dmg",
       "install_script_ref": "618d4067",
       "uninstall_script_ref": "04c1cc55",
-      "sha256": "45ffff57cc7e5619ebd8cd67dd6ad3e492bc81a6fa0060c7bf4e4cac8c7638ad",
+      "sha256": "d4ef0b5947dbe4545fdc8f65beb9e09b68b41e63f83e9c0f8761becfef5cfcbb",
       "default_categories": [
         "Productivity"
       ]

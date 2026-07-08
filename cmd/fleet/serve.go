@@ -34,7 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -49,9 +49,7 @@ import (
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -69,8 +67,6 @@ import (
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -90,7 +86,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -159,6 +154,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
+	}
+
+	// Set network blocking mode for outbound integration requests.
+	switch {
+	case dev_mode.IsEnabled:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingBypassAll)
+	case config.Server.AllowPrivateNetworkIntegrations:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingPrivateAllowed)
+	default:
+		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingFull)
 	}
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
@@ -284,7 +289,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
-	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
+	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
+		config.Redis.LiveQuerySmallTargetThreshold)
 	ssoSessionStore := sso.NewSessionStore(redisPool)
 
 	osquerydStatusLogger, osquerydResultLogger, auditLogger := initOsqueryLogging(cmd.Context(), config, license, logger, initFatal)
@@ -322,6 +328,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if config.MDM.EnableCustomFileVault && !license.IsPremium() {
 		config.MDM.EnableCustomFileVault = false
 		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
+	}
+
+	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
+		config.MDM.EnableCustomDiskEncryption = false
+		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
@@ -624,45 +635,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
-	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register chart_data_collection schedule")
-		}
-	} else {
-		logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")
-	}
-
-	// Perform a cleanup of cron_stats outside of the cronSchedules because the
-	// schedule package uses cron_stats entries to decide whether a schedule will
-	// run or not (see https://github.com/fleetdm/fleet/issues/9486).
-	go func() {
-		cleanupCronStats := func() {
-			logger.DebugContext(ctx, "cleaning up cron_stats")
-			// Datastore.CleanupCronStats should be safe to run by multiple fleet
-			// instances at the same time and it should not be an expensive operation.
-			if err := ds.CleanupCronStats(ctx); err != nil {
-				logger.InfoContext(ctx, "failed to clean up cron_stats", "err", err)
-			}
-		}
-
-		cleanupCronStats()
-
-		cleanUpCronStatsTick := time.NewTicker(1 * time.Hour)
-		defer cleanUpCronStatsTick.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-cleanUpCronStatsTick.C:
-				cleanupCronStats()
-			}
-		}
-	}()
-
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
 	// replicas. No-op when OTEL is disabled.
@@ -670,295 +642,32 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		go tracing.StartSettingsPoller(ctx, traceSampler, ds, logger)
 	}
 
-	if softwareInstallStore != nil {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return cronUninstallSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
-			},
-		); err != nil {
-			initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
-		}
-
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return cronUpgradeCodeSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
-			},
-		); err != nil {
-			initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUpgradeCodeSoftwareMigration))
-		}
-	}
-
-	if config.Server.FrequentCleanupsEnabled {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return newFrequentCleanupsSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register frequent_cleanups schedule")
-		}
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, carveStore, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
-			)
-		},
-	); err != nil {
-		initFatal(err, "failed to register cleanups_then_aggregations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newQueryResultsCleanupSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register query_results_cleanup schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newUpcomingActivitiesSchedule(ctx, instanceID, ds, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register upcoming_activities_maintenance schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
-	}); err != nil {
-		initFatal(err, "failed to register stats schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newBatchActivitiesSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-		initFatal(err, "failed to register batch activities schedule")
-	}
-
-	vulnerabilityScheduleDisabled := false
-	if config.Vulnerabilities.DisableSchedule {
-		vulnerabilityScheduleDisabled = true
-		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
-	}
-	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
-		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
-		vulnerabilityScheduleDisabled = true
-	}
-	if !vulnerabilityScheduleDisabled {
-		// vuln processing by default is run by internal cron mechanism
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
-		}); err != nil {
-			initFatal(err, "failed to register vulnerabilities schedule")
-		}
-	} else {
-		// Register a remote trigger proxy so triggering still works
-		// when the vulnerability schedule runs on a separate server.
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
-		}); err != nil {
-			initFatal(err, "failed to register remote vulnerability trigger")
-		}
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
-	}); err != nil {
-		initFatal(err, "failed to register automations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
-	}); err != nil {
-		initFatal(err, "failed to register worker integrations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_worker schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger, config.Server.URLPrefix)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_service_discovery schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAppleMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-			redis_key_value.New(redisPool),
-			logger,
-			config.MDM.CertificateProfilesLimit,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_profile_manager schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newWindowsMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_windows_profile_manager schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAndroidMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
-			config.MDM.AndroidAgent,
-			config.MDM.AndroidBatchSize,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_profile_manager schedule")
-	}
-
-	// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAndroidMDMDeviceReconcilerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-			config.License.Key,
-			svc.NewActivity,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_device_reconciler schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return cronMigrateToPerHostPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register migrate_to_per_host_policy cron")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newMDMAPNsPusher(
-			ctx,
-			instanceID,
-			ds,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-			logger,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register APNs pusher schedule")
-	}
-
-	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-			initFatal(err, "failed to register maintained apps schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.Configure(ctx, ds, config.License.Key, config.MDM.AppleConnectJWT))
-		}); err != nil {
-			initFatal(err, "failed to register refresh vpp app versions schedule")
-		}
-
-		// One-shot backfill for VPP token and app country codes that
-		// predate the country_code column. Fire-and-forget is safe because
-		// the work is idempotent and ctx cancels on shutdown.
-		go vpp.BackfillLegacyCountries(ctx, ds, logger)
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register recovery lock password schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newManagedLocalAccountRotationSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register managed local account rotation schedule")
-		}
-	}
-
-	if license.IsPremium() && config.Activity.EnableAuditLog {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newActivitiesStreamingSchedule(ctx, instanceID, activitySvc, ds, logger, auditLogger)
-		}); err != nil {
-			initFatal(err, "failed to register activities streaming schedule")
-		}
-	}
-
-	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				if config.Calendar.Periodicity > 0 {
-					config.Calendar.SetAlwaysReloadEvent(true)
-				} else {
-					config.Calendar.Periodicity = 5 * time.Minute
-				}
-				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register calendar schedule")
-		}
-	}
-
-	// Start the service that calculates and updates host vitals label membership.
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newHostVitalsLabelMembershipSchedule(ctx, instanceID, ds, logger)
-	}); err != nil {
-		initFatal(err, "failed to register host vitals label membership schedule")
-	}
-
-	// Start the service that marks activities as completed.
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)
-	}); err != nil {
-		initFatal(err, "failed to register batch activity completion checker schedule")
-	}
-
-	logger.InfoContext(ctx, fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
+	startCronSchedules(ctx, cronSchedulesDeps{
+		instanceID:             instanceID,
+		config:                 &config,
+		license:                license,
+		logger:                 logger,
+		cronSchedules:          cronSchedules,
+		ds:                     ds,
+		svc:                    svc,
+		carveStore:             carveStore,
+		enrollHostLimiter:      redisWrapperDS,
+		liveQueryStore:         liveQueryStore,
+		failingPolicySet:       failingPolicySet,
+		redisPool:              redisPool,
+		commander:              apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+		depStorage:             depStorage,
+		softwareInstallStore:   softwareInstallStore,
+		bootstrapPackageStore:  bootstrapPackageStore,
+		softwareTitleIconStore: softwareTitleIconStore,
+		androidSvc:             androidSvc,
+		activitySvc:            activitySvc,
+		acmeSvc:                acmeSvc,
+		chartSvc:               chartSvc,
+		auditLogger:            auditLogger,
+		distributedLock:        distributedLock,
+		initFatal:              initFatal,
+	})
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, logger.With("cron", "async_task"))
@@ -1031,7 +740,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Validate(apiHandler); err != nil {
+		// SCIM endpoints are served by a prefix-mounted handler (see
+		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
+		// their routes to the validator explicitly.
+		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
@@ -1243,107 +955,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
-			// when running a script synchronously, we wait a while for a script
-			// execution result, so the write timeout (to write the response)
-			// must be extended.
-			rc := http.NewResponseController(rw)
-			// add an additional 30 seconds to prevent race conditions where the
-			// request is terminated early.
-			if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for script sync run",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
-			(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
-				"/fleet/software/titles/")) ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet_maintained_apps")) ||
-			(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||
-			(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
-			var zeroTime time.Time
-			rc := http.NewResponseController(rw)
-			// For large software installers and bootstrap packages, the server time needs time to read the full
-			// request body so we use the zero value to remove the deadline and override the
-			// default read timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetReadDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-			// For large software installers, the server time needs time to store the
-			// installer to S3 (or the configured storage location) and write the response
-			// body so we use the zero value to remove the deadline and override the
-			// default write timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetWriteDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-
-			// We need to add the context value here because we need the installer max size when doing request
-			// parsing, which happens somewhere where we're only passed the request (and not the service object)
-			req.Body = http.MaxBytesReader(rw, req.Body, config.Server.MaxInstallerSizeBytes)
-			req = req.WithContext(installersize.NewContext(req.Context(), config.Server.MaxInstallerSizeBytes))
-		}
-
-		if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
-			// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for android enterpriset setup",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
-			// For customers using large profiles and/or large numbers of profiles, the
-			// server needs time to completely read the request body and also to process
-			// all the side effects of a potentially large number of profiles being changed
-			// across a large number of hosts, so set the timeouts a bit higher than default
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-			if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		apiHandler.ServeHTTP(rw, req)
-	})
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.
@@ -1430,6 +1042,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		select {
 		case <-sig:
 		case <-dbFatalCh:
+		// cmd.Context() is context.Background() in production (the root command
+		// is run via Execute, not ExecuteContext), so this case never fires
+		// there. Tests run the command with a cancelable context to trigger a
+		// graceful shutdown without sending an OS signal.
+		case <-cmd.Context().Done():
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -1582,7 +1199,7 @@ func printFleetv4732FixNeededMessage() {
 func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
 	if devLicense {
 		// This license key is valid for development only
-		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzgyNzc3NjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCwgSW5jLiBEZXZlbG9wZXIiLCJkZXZpY2VzIjoxMDAwLCJub3RlIjoiQ3JlYXRlZCB3aXRoIEZsZWV0IExpY2Vuc2Uga2V5IGRpc3BlbnNlciIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzY3MjAzODg2fQ.X9O3CXJOzIfgkzlXgL45iBaSvAbZyQn4UjcvH_gEXJGIQw0xMW4r3tJBSEuUqQXoaQnADVR1Oocfp6j_hMZX0A"
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzk4NTk3MDU1LCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMDAsIm5vdGUiOiJmb3IgZGV2ZWxvcG1lbnQgb25seSIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzgyODI5MDU1fQ.SCwrVBV3fIb7JSS5tOLx0EmlyS6m20h34C9WOW1RqlLf009gEldWk2eO3ma8caW5_te4aEbjcvTBDeIkvM7NIA"
 	} else if devExpiredLicense {
 		// An expired license key
 		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"

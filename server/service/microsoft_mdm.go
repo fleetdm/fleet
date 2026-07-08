@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"html/template"
 	"io"
 	"log/slog"
 	"net"
@@ -202,23 +201,6 @@ func (req MDMWebContainer) HijackRender(ctx context.Context, w http.ResponseWrit
 	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(resData); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
-}
-
-type MDMAuthContainer struct {
-	Data *string
-	Err  error
-}
-
-func (r MDMAuthContainer) Error() error { return r.Err }
-
-// HijackRender writes the response header and the RAW XML output
-func (r MDMAuthContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(*r.Data)))
-	w.WriteHeader(http.StatusOK)
-	if n, err := w.Write([]byte(*r.Data)); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
 }
@@ -413,14 +395,6 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 				Lang:    syncml.SoapFaultLocale,
 			},
 		},
-	}
-}
-
-// getSTSAuthContent Returns STS auth content
-func getSTSAuthContent(data string) mdm_types.Errorer {
-	return MDMAuthContainer{
-		Data: &data,
-		Err:  nil,
 	}
 }
 
@@ -784,45 +758,19 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
-// isValidAppru validates that appru is a valid URL with an allowed scheme.
-// It returns true if appru is a valid URL with http, https, or ms-app scheme.
-func isValidAppru(appru string) bool {
-	parsed, err := url.Parse(appru)
-	if err != nil {
-		return false
+// rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
+// is a device following the advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext
+// password) and NO <wsse:BinarySecurityToken>.
+func rejectUnsupportedAuth(req *fleet.SoapRequest, err error) error {
+	if req != nil && req.Header.Security != nil &&
+		len(req.Header.Security.Security.Content) == 0 &&
+		len(req.Header.Security.Security.Value) == 0 &&
+		len(req.Header.Security.Security.Encoding) == 0 &&
+		bytes.Contains(req.Raw, []byte("UsernameToken")) {
+		return errors.New("Username and password (OnPremise) enrollment is not supported. " +
+			"Join the device to Microsoft Entra ID, or enroll it with fleetd.")
 	}
-
-	return slices.Contains([]string{"http", "https", "ms-app"}, parsed.Scheme)
-}
-
-// mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
-func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
-	params := request.(*SoapRequestContainer).Params
-
-	// Sanity check on the expected query params
-	if !params.Has(syncml.STSAuthAppRu) || !params.Has(syncml.STSLoginHint) {
-		return getSTSAuthContent(""), errors.New("expected STS params are not present")
-	}
-
-	appru := params.Get(syncml.STSAuthAppRu)
-	loginHint := params.Get(syncml.STSLoginHint)
-
-	if (len(appru) == 0) || (len(loginHint) == 0) {
-		return getSTSAuthContent(""), errors.New("expected STS params are empty")
-	}
-
-	// Validate that appru is a valid URL
-	if !isValidAppru(appru) {
-		return getSTSAuthContent(""), fmt.Errorf("non-URL appru parameter attempted: %q", appru)
-	}
-
-	// Getting the STS endpoint HTML content
-	stsAuthContent, err := svc.GetMDMMicrosoftSTSAuthResponse(ctx, appru, loginHint)
-	if err != nil {
-		return getSTSAuthContent(""), errors.New("error generating STS content")
-	}
-
-	return getSTSAuthContent(stsAuthContent), nil
+	return err
 }
 
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
@@ -839,7 +787,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrSecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -884,7 +832,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrBinarySecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -1171,66 +1119,14 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
+	// Fleet always advertises the OnPremise auth policy. But its WSTEP handlers only accept a <wsse:BinarySecurityToken>
+	// (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined / Autopilot devices).
 	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
 
 	return &discoveryMsg, nil
-}
-
-// GetMDMMicrosoftSTSAuthResponse returns a valid Security Token Service (STS) page content
-func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
-	// skipauth: This endpoint does not use authentication
-	svc.authz.SkipAuthorization(ctx)
-
-	// Dummy data will be returned as part of the token as user-driven enrollment is not supported yet
-	// In the future, the following calls would have to be made to support user-driven enrollment
-	// encodedBST will carry the token to return
-	// authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
-	// encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
-	encodedBST := "user_driven_enrollment_not_implemented"
-
-	// STS Auth Endpoint returns HTML content that gets render in a webview container
-	// The webview container expect a POST request to the appru URL with the wresult parameter set to the auth token
-	// The security token in wresult is later passed back in <wsse:BinarySecurityToken>
-	// This string is opaque to the enrollment client; the client does not interpret the string.
-	// The returned HTML content contains a JS script that will perform a POST request to the appru URL automatically
-	// This will set the wresult parameter to the value of auth token
-	tmpl, err := template.New("").Parse(`
-				<script>
-				function performPost() {
-				  // Dinamically create a form element to submit the request
-				  var form = document.createElement('form');
-				  form.method = 'POST';
-				  form.action = "{{.ActionURL}}"
-
-				  var inputToken = document.createElement('input');
-				  inputToken.type = 'hidden';
-				  inputToken.name = 'wresult';
-				  inputToken.value = '{{.Token}}';
-				  form.appendChild(inputToken);
-
-				  // Submit the form
-				  document.body.appendChild(form);
-				  form.submit();
-				}
-
-				// Call performPost() when the script is executed
-				performPost();
-				</script>
-				`)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "STS content template")
-	}
-
-	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"ActionURL": appru, "Token": encodedBST})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
-	}
-
-	return htmlBuf.String(), nil
 }
 
 // GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
@@ -1514,6 +1410,10 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 	})
 }
 
+// fleetdPresenceGracePeriod is how far before the current MDM enrollment's created_at an orbit/osquery check-in still
+// counts as "fleetd present". It absorbs a relaxed agent check-in interval.
+const fleetdPresenceGracePeriod = 90 * time.Second
+
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed.
 // The enrolled device is resolved upstream (by isTrustedRequest) and threaded
 // in to avoid a duplicate lookup on every session-start alert.
@@ -1533,7 +1433,11 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
 				}
 				if orbitInfo != nil {
-					isPresent = orbitInfo.Version != ""
+					// Require a recent orbit/osquery check-in (seen_time at/after the enrollment, minus a grace window)
+					// so a host that has not checked in since re-enrollment gets the fleetd install (re)enqueued.
+					// seen_time only moves forward, so once fleetd checks in after install this stays true.
+					isPresent = orbitInfo.Version != "" &&
+						!host.SeenTime.Before(enrolledDevice.CreatedAt.Add(-fleetdPresenceGracePeriod))
 				}
 			}
 		}
@@ -1591,7 +1495,9 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
 	globalEnrollSecret := secrets[0].Secret
-	addCommandUUID := uuid.NewString()
+	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
+	// the important one, and we only track that.
+	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
 	execCommandUUID := uuid.NewString()
 
 	euaTokenArg := ""
@@ -1647,23 +1553,17 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 </Exec>
 `)
 
-	// TODO: add ability to batch-enqueue multiple commands at the same time
-	addFleetdCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  addCommandUUID,
-		RawCommand:   rawAddCmd,
-		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
-	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
-	}
-
-	execFleetCmd := &fleet.MDMWindowsCommand{
+	// Deliver the Add and Exec as a SINGLE command so they ride in one SyncML body with Add textually before Exec. As
+	// two separate queued commands they can be reordered when they are applied in the same second, we must manually
+	// guarantee the ordering.
+	rawCombinedCmd := slices.Concat(rawAddCmd, rawExecCmd)
+	fleetdInstallCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
-		RawCommand:   rawExecCmd,
+		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, fleetdInstallCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
 	}
 
 	return nil
@@ -2326,8 +2226,15 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 }
 
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
-// a terminal state, then either releases the device or, when require_all_software_windows is true and any item failed
-// (or the 3-hour timeout was hit), blocks the device on the ESP failure screen.
+// a terminal state, then finalizes the device down one of three paths:
+//
+//   - hard block (require_all_software_windows=true and any item failed, or the 3-hour timeout was hit): the ESP
+//     failure screen is shown with only the "Reset device" recovery option, and remaining items are canceled.
+//   - soft block (require_all_software_windows=false and an item failed, or the 3-hour timeout was hit): the ESP
+//     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
+//     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
+//     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
+//   - release (no failure and no timeout): the device proceeds to login.
 func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
@@ -2341,6 +2248,21 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 
 	// hasSoftwareFailure tracks setup-experience software failures only.
 	var hasSoftwareFailure bool
+
+	// failedSoftwareNames collects the names of the failed setup-experience items
+	var failedSoftwareNames []string
+
+	// recordSoftwareFailure marks a failed setup-experience item
+	recordSoftwareFailure := func(r *fleet.SetupExperienceStatusResult) {
+		hasSoftwareFailure = true
+		name := r.Name
+		if r.DisplayName != "" {
+			name = r.DisplayName
+		}
+		if name != "" {
+			failedSoftwareNames = append(failedSoftwareNames, name)
+		}
+	}
 
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
@@ -2367,6 +2289,18 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return host, nil
 	}
 
+	// hostTeamID resolves the host's team_id (0 for "no team / global"), used to scope setup-experience queries.
+	hostTeamID := func() (uint, error) {
+		host, err := loadHost()
+		if err != nil {
+			return 0, err
+		}
+		if host.TeamID != nil {
+			return *host.TeamID, nil
+		}
+		return 0, nil
+	}
+
 	// setupExperienceHostUUID returns the identifier used as setup_experience_status_results.host_uuid for this host.
 	// On Windows that's OsqueryHostID per fleet.HostUUIDForSetupExperience; if it's missing for some reason we fall back
 	// to the Fleet host UUID.
@@ -2379,6 +2313,25 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			return *host.OsqueryHostID, nil
 		}
 		return device.HostUUID, nil
+	}
+
+	// listSetupExperienceResults fetches the host's setup-experience status rows. They are keyed by the Windows
+	// setup-experience host UUID (OsqueryHostID per fleet.HostUUIDForSetupExperience) and team-scoped so the rows carry
+	// the team's custom software display names (used in the soft-block message).
+	listSetupExperienceResults := func() ([]*fleet.SetupExperienceStatusResult, error) {
+		seHostUUID, err := setupExperienceHostUUID()
+		if err != nil {
+			return nil, err
+		}
+		teamID, err := hostTeamID()
+		if err != nil {
+			return nil, err
+		}
+		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP")
+		}
+		return results, nil
 	}
 
 	// loadRequireAll memoizes the host -> team's require_all_software_windows lookup. It is consulted at most twice
@@ -2453,35 +2406,23 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 
 		// Stage 3: setup experience software/scripts still running. Orbit initiates setup experience during startup when it
 		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results.
-		//
-		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; on Windows that's the
-		// host's OsqueryHostID. We pass teamID=0 because that parameter is only used for icon and display-name enrichment
-		// in the datastore call, not for filtering (the query filters only by host_uuid).
-		seHostUUID, err := setupExperienceHostUUID()
+		results, err := listSetupExperienceResults()
 		if err != nil {
 			return nil, err
 		}
-		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, 0)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
-		}
 		svc.logger.DebugContext(ctx, "ESP: setup experience check",
-			"host_uuid", device.HostUUID, "se_host_uuid", seHostUUID, "results_count", len(results))
+			"host_uuid", device.HostUUID, "results_count", len(results))
 
 		// Empty results is ambiguous: it can mean "no setup experience is configured for this team" (safe to release) or
 		// "setup is configured but orbit hasn't called SetupExperienceInit yet" (must wait). Orbit links the host UUID to
 		// the MDM enrollment independently of when it calls init, so on the first Active checkin after link we can hit
 		// this race. Disambiguate by checking whether items are configured for the host's team.
 		if len(results) == 0 {
-			host, err := loadHost()
+			teamID, err := hostTeamID()
 			if err != nil {
 				return nil, err
 			}
-			var teamIDForQuery uint
-			if host.TeamID != nil {
-				teamIDForQuery = *host.TeamID
-			}
-			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamIDForQuery)
+			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "check setup experience items configured for team")
 			}
@@ -2501,7 +2442,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		for _, r := range results {
 			switch r.Status {
 			case fleet.SetupExperienceStatusFailure:
-				hasSoftwareFailure = true
+				recordSoftwareFailure(r)
 			case fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusCancelled:
 				// terminal, nothing to record
 			default:
@@ -2539,13 +2480,31 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return nil, err
 	}
 
-	failed := timedOut || hasSoftwareFailure
-	shouldBlock := failed && requireAll
+	// On a timeout with require_all=false, scan for software failures so the finalize surfaces them instead of
+	// releasing silently: the timeout path skipped Stage 3, so failures observed before the timeout are otherwise
+	// invisible. require_all=true keeps its existing behavior (hard block with timeout text) and is deliberately not
+	// re-scanned here -- a real failure under require_all=true would already have blocked on an earlier checkin via the
+	// Stage 3 in-flight short-circuit, before the 3-hour window elapsed.
+	if timedOut && !requireAll {
+		results, err := listSetupExperienceResults()
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range results {
+			if r.Status == fleet.SetupExperienceStatusFailure {
+				recordSoftwareFailure(r)
+			}
+		}
+	}
+
+	shouldBlock := requireAll && (timedOut || hasSoftwareFailure)
+	shouldWarn := !requireAll && (timedOut || hasSoftwareFailure)
 
 	// Build commands for the response.
 	provID := syncml.DocProvisioningAppProviderID
 	var cmds []*mdm_types.SyncMLCmd
-	if shouldBlock {
+	switch {
+	case shouldBlock:
 		// Pick the user-facing error text to surface on the failure UI. Software failure takes precedence over timeout
 		// because it's more actionable; pure timeout (no software failed) uses the timeout text so the user sees an
 		// accurate reason.
@@ -2553,8 +2512,16 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		if hasSoftwareFailure {
 			errorText = microsoft_mdm.ESPSoftwareFailureErrorText
 		}
-		cmds = buildESPBlockCommands(provID, errorText)
-	} else {
+		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsReset)
+	case shouldWarn:
+		// List the failed software when we have any; otherwise (require_all=false timeout with nothing failed) show the
+		// timeout text. Both keep the "Continue anyway" option so the user is never stuck.
+		errorText := microsoft_mdm.ESPTimeoutErrorText
+		if hasSoftwareFailure {
+			errorText = microsoft_mdm.ESPSoftwareFailureContinuableErrorText(failedSoftwareNames)
+		}
+		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsResetAndContinue)
+	default:
 		// Release path: device proceeds to login. We do not send CustomErrorText here because the failure UI never renders
 		// on a release (no BlockInStatusPage, no forced timeout), so any error text would be dead state on the DMClient
 		// node.
@@ -2625,15 +2592,12 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
 		}
 
-		// Emit the canceled_setup_experience activity for the timeout case. The software-failure-with-require_all=true
-		// case is already covered upstream by maybeCancelPendingSetupExperienceSteps (called from the software-install
-		// result reporter), which references the failed item; do not duplicate it here.
-		//
-		// For timeout, pick the first pending or running software item (the one that was in flight when the timeout
-		// fired) as the activity reference. If none was queued (orbit's setup_experience/init never ran, or the timeout
-		// fired before any software was scheduled), the activity is still emitted but with empty software fields so the
-		// host is still represented in the activity feed.
-		if timedOut && !hasSoftwareFailure {
+		// Emit canceled_setup_experience for every timeout, which cancels whatever was still pending. It references the
+		// first pending/running software item (in flight when the timeout fired), or empty fields if none was queued.
+		// Gated on timedOut alone (not !hasSoftwareFailure): no duplication, since the require_all=true failure case
+		// emits upstream in maybeCancelPendingSetupExperienceSteps and blocks before any timeout, while the
+		// require_all=false failure case emits nowhere else.
+		if timedOut {
 			host, err := loadHost()
 			if err != nil {
 				return nil, err
@@ -2692,25 +2656,33 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		"timed_out", timedOut,
 		"has_software_failure", hasSoftwareFailure,
 		"require_all", requireAll,
-		"blocking", shouldBlock)
+		"blocking", shouldBlock,
+		"soft_blocking", shouldWarn)
 
 	return cmds, nil
 }
 
-// buildESPBlockCommands builds SyncML commands that put the device's ESP into a failed state with a "Reset device"
-// button and "Collect logs" button.
-func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
+// BlockInStatusPage values per Microsoft DMClient CSP docs (bit flags): 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+const (
+	// espBlockButtonsReset shows only the "Reset PC" button: used for the hard block
+	espBlockButtonsReset = "1"
+	// espBlockButtonsResetAndContinue shows "Reset PC" and "Continue anyway" (1|4)
+	espBlockButtonsResetAndContinue = "5"
+)
+
+// buildESPBlockCommands builds SyncML commands that put the device's ESP into a failed state showing errorText, a
+// "Collect logs" button, and the recovery buttons selected by blockButtons (one of the espBlockButtons* constants).
+func buildESPBlockCommands(provID, errorText, blockButtons string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		// CustomErrorText: shown in the ESP failure UI as the failure reason.
 		newSyncMLCmdText(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
 			errorText),
-		// BlockInStatusPage=1: show the "Reset PC" button (per Microsoft DMClient CSP docs). Reset triggers an Autopilot
-		// wipe and re-enrollment, which is the only reliable in-product recovery path for a failed ESP. Documented values:
-		// 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+		// BlockInStatusPage: which recovery buttons the failure UI offers. Reset triggers an Autopilot wipe and
+		// re-enrollment; Continue anyway (soft block only) lets the user proceed to the desktop.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID),
-			"1"),
+			blockButtons),
 		// AllowCollectLogsButton: show the "Collect logs" button so IT can gather diagnostics from the failure screen.
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", provID),
@@ -3380,11 +3352,15 @@ func newSyncMLNoFormat(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// newSyncMLCmdText creates a new SyncML command with text data
+// newSyncMLCmdText creates a new SyncML command with text data. The value is XML-escaped (matching
+// newSyncMLCmdXml/newSyncMLCmdBase64) because SyncML <Data> is serialized as innerxml (written raw); without
+// escaping, a value containing &, <, or > -- e.g. a software title like "AT&T" surfaced in CustomErrorText --
+// would produce malformed SyncML that the device rejects.
 func newSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "chr"
-	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	escapedData := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &escapedData)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
@@ -3730,6 +3706,19 @@ func filterWindowsPayloadsByHost(payloads []*fleet.MDMWindowsProfilePayload, all
 	return out
 }
 
+// modifyDeleteKey identifies one retained prior profile version during reconcile: the edited profile and the version a host still has
+// installed (raw checksum bytes as a string so it can be a map key). All hosts on the same version share one prior-content lookup.
+type modifyDeleteKey struct {
+	profileUUID  string
+	fromChecksum string
+}
+
+// hostProfileKey identifies one (host, profile) pair during reconcile.
+type hostProfileKey struct {
+	hostUUID    string
+	profileUUID string
+}
+
 // executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline against the in-memory toInstall / toRemove sets
 // produced by ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard, bulk command pre-build for non-variable
 // profiles, per-host variable expansion, LocURI-protected <Delete> generation, host-profile upserts, and managed-certificate
@@ -3833,6 +3822,84 @@ func executeWindowsProfileReconcileBatch(
 		}
 	}
 
+	// Modify-installs (content changed) may also need supplemental <Delete> commands for LocURIs the edit removed: a re-install only
+	// Replaces/Adds the new content, it never reverts a LocURI that was dropped. Collect them keyed by (profileUUID, the version the
+	// host currently has installed) so we can look up the retained removed-LocURI set per version, and pull in the other profiles
+	// desired on those hosts so their LocURIs can protect shared settings from being deleted (same protection as the remove path).
+	modifyHostsByKey := make(map[modifyDeleteKey][]string)
+	seenModifyHost := make(map[string]struct{}, len(toInstall))
+	for _, p := range toInstall {
+		if len(p.PreviousInstalledChecksum) == 0 {
+			continue // fresh install, nothing was removed
+		}
+		k := modifyDeleteKey{profileUUID: p.ProfileUUID, fromChecksum: string(p.PreviousInstalledChecksum)}
+		modifyHostsByKey[k] = append(modifyHostsByKey[k], p.HostUUID)
+		if _, ok := seenModifyHost[p.HostUUID]; !ok {
+			seenModifyHost[p.HostUUID] = struct{}{}
+			for _, q := range desiredByHost[p.HostUUID] {
+				toGetContents[q] = true
+			}
+		}
+	}
+
+	// Version keys for the remove path: each removed-from host's <Delete> is built from the exact version that host has installed
+	// (its row checksum) when that version is retained, so LocURIs dropped by edits the host never applied still get cleaned up. A
+	// key with no retained row is normal here (e.g. the host is on the live version of a still-live profile being unassigned);
+	// those hosts fall back to the profile's current content in the remove pass below.
+	removeVersionKeys := make(map[modifyDeleteKey]struct{})
+	for _, p := range toRemove {
+		if len(p.Checksum) == 0 {
+			continue
+		}
+		removeVersionKeys[modifyDeleteKey{profileUUID: p.ProfileUUID, fromChecksum: string(p.Checksum)}] = struct{}{}
+	}
+
+	// Fetch the retained prior contents for the modify and remove version keys now, BEFORE the install loop advances the host rows
+	// to the new checksum. While those rows still reference the prior version, the reference-counted GC cannot collect it, so this
+	// read cannot race with a concurrent cleanup tick.
+	priorContentByKey := make(map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent, len(modifyHostsByKey)+len(removeVersionKeys))
+	if len(modifyHostsByKey)+len(removeVersionKeys) > 0 {
+		keySet := make(map[modifyDeleteKey]struct{}, len(modifyHostsByKey)+len(removeVersionKeys))
+		for k := range modifyHostsByKey {
+			keySet[k] = struct{}{}
+		}
+		for k := range removeVersionKeys {
+			keySet[k] = struct{}{}
+		}
+		keys := make([]fleet.MDMWindowsProfileVersionKey, 0, len(keySet))
+		for k := range keySet {
+			keys = append(keys, fleet.MDMWindowsProfileVersionKey{ProfileUUID: k.profileUUID, Checksum: []byte(k.fromChecksum)})
+		}
+		// Read from the primary: this pass consumes each modify-install once (the re-install advances the host's checksum, so the host
+		// won't be revisited as a modify), so a replica-lag miss would permanently drop the supplemental <Delete>. The retained row is
+		// written in the same transaction as the profile edit, so the primary always has it. Eliminating this primary-read requirement
+		// would take retry/tracking logic (persisting a pending-delete marker per host-version).
+		priorContents, err := ds.GetWindowsMDMProfilePriorContents(ctxdb.RequirePrimary(ctx, true), keys)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get prior content for edited profiles")
+		}
+		for _, pc := range priorContents {
+			priorContentByKey[modifyDeleteKey{profileUUID: pc.ProfileUUID, fromChecksum: string(pc.Checksum)}] = pc
+		}
+
+		// Only modify keys are guaranteed retained (every edit path retains the outgoing version in the same transaction as the
+		// overwrite); a miss there means a version overwritten before prior-content retention shipped (bounded post-upgrade
+		// transition) or an invariant violation (an edit path that skipped retention).
+		missingModify := 0
+		for k := range modifyHostsByKey {
+			if _, ok := priorContentByKey[k]; !ok {
+				missingModify++
+			}
+		}
+		if missingModify > 0 {
+			missErr := ctxerr.NewWithData(ctx, "windows reconcile: prior profile content not retained for edited profiles",
+				map[string]any{"requested": len(modifyHostsByKey), "missing": missingModify})
+			logger.ErrorContext(ctx, "windows reconcile: prior profile content not retained for edited profiles",
+				"requested", len(modifyHostsByKey), "missing", missingModify)
+			ctxerr.Handle(ctx, missErr)
+		}
+	}
+
 	// Grab the contents of all the profiles we need to install
 	profileUUIDs := make([]string, 0, len(toGetContents))
 	for pid := range toGetContents {
@@ -3906,6 +3973,10 @@ func executeWindowsProfileReconcileBatch(
 		}
 	}
 
+	// enqueuedInstalls tracks the (host, profile) pairs whose install command was actually enqueued (and host row advanced to the
+	// new checksum). The modify-install <Delete> pass below only reverts removed LocURIs for these.
+	enqueuedInstalls := make(map[hostProfileKey]struct{}, len(toInstall))
+
 	for profUUID, target := range installTargets {
 		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
 			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
@@ -3961,6 +4032,9 @@ func executeWindowsProfileReconcileBatch(
 			if err := ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, target.hostUUIDs, command, payloads); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 			}
+			for _, hostUUID := range target.hostUUIDs {
+				enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}] = struct{}{}
+			}
 		} else {
 			// Profile contains Fleet variables, process each host individually
 			for _, hostUUID := range target.hostUUIDs {
@@ -4013,6 +4087,7 @@ func executeWindowsProfileReconcileBatch(
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())
 					continue
 				}
+				enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}] = struct{}{}
 			}
 		}
 	}
@@ -4038,6 +4113,19 @@ func executeWindowsProfileReconcileBatch(
 		return uris
 	}
 
+	// priorLocURIsFor caches SCEP-resolved LocURIs of retained prior versions, keyed by (profile, version); the fallback (live or
+	// newest-retained) content is cached by locURIsFor above.
+	resolvedPriorLocURIs := make(map[modifyDeleteKey][]string)
+	priorLocURIsFor := func(k modifyDeleteKey, syncML []byte) []string {
+		if v, ok := resolvedPriorLocURIs[k]; ok {
+			return v
+		}
+		resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(syncML, []byte(k.profileUUID))
+		uris := fleet.ExtractLocURIsFromProfileBytes(resolved)
+		resolvedPriorLocURIs[k] = uris
+		return uris
+	}
+
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
 			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
@@ -4049,49 +4137,72 @@ func executeWindowsProfileReconcileBatch(
 		}
 		removedURIs := locURIsFor(profUUID)
 
+		// Index this profile's remove payloads by host
+		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
+		for _, rp := range removePayloadData[profUUID] {
+			payloadByHost[rp.HostUUID] = rp
+		}
+
+		// version distinguishes which content a group's <Delete> is built from: the raw checksum of the host's own retained
+		// version, or "" for the fallback (live or newest-retained) content.
+		type removeGroupKey struct {
+			version   string
+			protected string // sorted "\n"-joined protected subset of the group's candidate LocURIs
+		}
 		type removeGroup struct {
+			syncML        []byte
 			activeLocURIs map[string]struct{}
 			hostUUIDs     []string
 		}
-		groups := make(map[string]*removeGroup)
+		groups := make(map[removeGroupKey]*removeGroup)
 		for _, hostUUID := range target.hostUUIDs {
+			// Build this host's <Delete> from the exact version it has installed when that version is retained, so LocURIs dropped
+			// by edits the host never applied are still cleaned up. Hosts on the current version (or with no retained match, e.g.
+			// pre-retention rows) use the fallback content.
+			hostSyncML := profileContents[profUUID].SyncML
+			hostVersion := ""
+			candidateURIs := removedURIs
+			if rp := payloadByHost[hostUUID]; rp != nil && len(rp.Checksum) > 0 {
+				k := modifyDeleteKey{profileUUID: profUUID, fromChecksum: string(rp.Checksum)}
+				if pc, ok := priorContentByKey[k]; ok {
+					hostSyncML = pc.SyncML
+					hostVersion = k.fromChecksum
+					candidateURIs = priorLocURIsFor(k, pc.SyncML)
+				}
+			}
+
+			// Protection compares CanonicalLocURI forms so spelling variants of the same node ("./Device/Vendor/X" vs "./Vendor/X")
+			// protect each other.
 			active := make(map[string]struct{})
 			for _, desiredUUID := range desiredByHost[hostUUID] {
 				if desiredUUID == profUUID {
 					continue
 				}
 				for _, uri := range locURIsFor(desiredUUID) {
-					active[uri] = struct{}{}
+					active[fleet.CanonicalLocURI(uri)] = struct{}{}
 				}
 			}
 			// Key on the protected subset of the removed profile's own LocURIs so hosts with identical effective protection share a
-			// single command; the common (no label) case collapses to one group.
+			// single command; the common (no label, single version) case collapses to one group.
 			var keyURIs []string
-			for _, uri := range removedURIs {
-				if _, ok := active[uri]; ok {
+			for _, uri := range candidateURIs {
+				if _, ok := active[fleet.CanonicalLocURI(uri)]; ok {
 					keyURIs = append(keyURIs, uri)
 				}
 			}
 			slices.Sort(keyURIs)
-			key := strings.Join(keyURIs, "\n")
+			key := removeGroupKey{version: hostVersion, protected: strings.Join(keyURIs, "\n")}
 			g := groups[key]
 			if g == nil {
-				g = &removeGroup{activeLocURIs: active}
+				g = &removeGroup{syncML: hostSyncML, activeLocURIs: active}
 				groups[key] = g
 			}
 			g.hostUUIDs = append(g.hostUUIDs, hostUUID)
 		}
 
-		// Index this profile's remove payloads by host once so each group builds its command payloads with O(1) lookups instead of
-		// rescanning the full per-profile payload list per group (which is O(groups x hosts) when label scoping forms many groups).
-		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
-		for _, rp := range removePayloadData[profUUID] {
-			payloadByHost[rp.HostUUID] = rp
-		}
-
 		for _, g := range groups {
 			cmdUUID := uuid.New().String()
-			command, err := fleet.BuildDeleteCommandFromProfileBytes(profileContents[profUUID].SyncML, cmdUUID, profUUID, g.activeLocURIs)
+			command, err := fleet.BuildDeleteCommandFromProfileBytes(g.syncML, cmdUUID, profUUID, g.activeLocURIs)
 			if err != nil {
 				logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
 				continue
@@ -4125,6 +4236,106 @@ func executeWindowsProfileReconcileBatch(
 			}
 			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+			}
+		}
+	}
+
+	// Enqueue supplemental <Delete> commands for LocURIs removed by profile edits, for the modify-installs collected above. A
+	// re-install only Replaces/Adds the new content, so a LocURI dropped from the profile would otherwise stay enforced on the
+	// device. For each (profile, host-version) we diff the retained prior content (fetched before the install loop) against the live
+	// version and delete the LocURIs that no still-applicable profile on the host enforces (per-host protection, mirroring the remove
+	// path). The host's re-install upserts its row to the new checksum separately; once it does, the (profile, old-version) retained
+	// set is GC'd.
+	if len(modifyHostsByKey) > 0 {
+		// removedByKey holds, per (profile, prior version), the LocURIs that version had but the new (live) version no longer does --
+		// the candidates to <Delete>. Diffing against the live content (rather than a stored delta) is correct even when a host skips
+		// versions or the edit re-added a LocURI a prior edit removed.
+		removedByKey := make(map[modifyDeleteKey][]string, len(modifyHostsByKey))
+		for k := range modifyHostsByKey {
+			pc, ok := priorContentByKey[k]
+			if !ok {
+				continue // never retained (pre-retention edit); already surfaced above
+			}
+			// SCEP-resolve to the profile's own UUID so LocURIs compare on resolved paths, consistent with locURIsFor and the install side.
+			resolvedPrior := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(pc.SyncML, []byte(pc.ProfileUUID))
+			desired := make(map[string]struct{})
+			for _, uri := range locURIsFor(pc.ProfileUUID) { // the new (live) version's LocURIs
+				desired[fleet.CanonicalLocURI(uri)] = struct{}{}
+			}
+			var removed []string
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolvedPrior) {
+				if _, stillDesired := desired[fleet.CanonicalLocURI(uri)]; !stillDesired {
+					removed = append(removed, uri)
+				}
+			}
+			if len(removed) > 0 {
+				removedByKey[k] = removed
+			}
+		}
+
+		for k, hostUUIDs := range modifyHostsByKey {
+			removedURIs := removedByKey[k]
+			if len(removedURIs) == 0 {
+				// The edit removed no LocURIs from this version (only values changed), or its prior content was never retained (the
+				// version was overwritten before prior-content retention shipped). Nothing to do.
+				continue
+			}
+
+			// Group hosts by the protected subset of the removed URIs, like the remove path: a removed URI is deleted on a host only
+			// when no OTHER profile still applicable to that host enforces it. A label-scoped protector that applies to only some hosts
+			// splits them into separate groups; the common (no shared LocURIs) case collapses to a single group.
+			type modGroup struct {
+				toDelete  []string
+				hostUUIDs []string
+			}
+			groups := make(map[string]*modGroup)
+			for _, hostUUID := range hostUUIDs {
+				if _, ok := enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: k.profileUUID}]; !ok {
+					// The reinstall for this host was skipped or failed this tick, so don't revert its old settings. A skipped host keeps
+					// its old checksum and is retried on a later tick.
+					continue
+				}
+				// Protection compares CanonicalLocURI forms, like the remove path.
+				active := make(map[string]struct{})
+				for _, desiredUUID := range desiredByHost[hostUUID] {
+					if desiredUUID == k.profileUUID {
+						continue // the edited profile's new content can't protect a LocURI it no longer contains
+					}
+					for _, uri := range locURIsFor(desiredUUID) {
+						active[fleet.CanonicalLocURI(uri)] = struct{}{}
+					}
+				}
+				var toDelete []string
+				for _, uri := range removedURIs {
+					if _, protected := active[fleet.CanonicalLocURI(uri)]; !protected {
+						toDelete = append(toDelete, uri)
+					}
+				}
+				if len(toDelete) == 0 {
+					continue
+				}
+				slices.Sort(toDelete)
+				groupKey := strings.Join(toDelete, "\n")
+				g := groups[groupKey]
+				if g == nil {
+					g = &modGroup{toDelete: toDelete}
+					groups[groupKey] = g
+				}
+				g.hostUUIDs = append(g.hostUUIDs, hostUUID)
+			}
+
+			for _, g := range groups {
+				cmd, err := fleet.BuildDeleteCommandFromLocURIs(g.toDelete, uuid.New().String())
+				if err != nil {
+					logger.InfoContext(ctx, "error building delete command for removed LocURIs", "err", err, "profile_uuid", k.profileUUID)
+					continue
+				}
+				if cmd == nil {
+					continue
+				}
+				if err := ds.MDMWindowsInsertCommandForHostUUIDs(ctx, g.hostUUIDs, cmd); err != nil {
+					return ctxerr.Wrap(ctx, err, "enqueuing delete commands for removed LocURIs")
+				}
 			}
 		}
 	}

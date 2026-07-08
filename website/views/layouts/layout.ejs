@@ -7,6 +7,7 @@
   var currentSection;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
+  var hideFooter;// Hides the footer.
   var showAdminLinks;// Shows links to admin pages to admin users.
   var showConfigurationProfileLayout;
   var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
@@ -33,6 +34,11 @@
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% if(typeof pageFaqForSeo !== 'undefined'){ %>
+    <script type="application/ld+json">
+      <%- pageFaqForSeo %>
+    </script>
+    <% } %>
     <% if (sails.config.environment === 'production') { %>
     <% /* ConsentMode */ %>
     <script>
@@ -162,7 +168,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : (showConfigurationProfileLayout || hideFooter) ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
@@ -240,6 +246,21 @@
                             </p>
                             <p purpose="nav-item-body">
                               Inventory, patch, and manage installed software.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Security & control" href="/security-and-control">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-security-and-control-40x40@2x.png" alt="Security & control">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Security & control
+                            </p>
+                            <p purpose="nav-item-body">
+                              Control what belongs on your devices and detect vulnerabilities automatically.
                             </p>
                           </div>
                         </div>
@@ -468,21 +489,23 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/infrastructure-as-code">
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Infrastructure as code
+                              Linux device management
                             </p>
                             <p purpose="nav-item-body">
-                              See every change, undo any error, repeat every success.
+                              Manage Linux devices with full visibility and control.
                             </p>
                           </div>
                         </div>
                       </a>
+
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Visibility & reporting" href="/visibility-and-reporting">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
@@ -498,21 +521,23 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Infrastructure as code" href="/infrastructure-as-code">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                            <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Deployment
+                              Infrastructure as code
                             </p>
                             <p purpose="nav-item-body">
-                              Run Fleet the way that fits your team.
+                              See every change, undo any error, repeat every success.
                             </p>
                           </div>
                         </div>
                       </a>
+
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
@@ -528,6 +553,39 @@
                           </div>
                         </div>
                       </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Deployment
+                            </p>
+                            <p purpose="nav-item-body">
+                              Run Fleet the way that fits your team.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Security & control" href="/security-and-control">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-security-and-control-40x40@2x.png" alt="Security & control">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Security & control
+                            </p>
+                            <p purpose="nav-item-body">
+                              Control what belongs on your devices and detect vulnerabilities automatically.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
@@ -539,21 +597,6 @@
                             </p>
                             <p purpose="nav-item-body">
                               Integrate your favorite tools with Fleet.
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              Linux device management
-                            </p>
-                            <p purpose="nav-item-body">
-                              Manage Linux devices with full visibility and control.
                             </p>
                           </div>
                         </div>
@@ -721,6 +764,7 @@
       <% } %>
 
       <%- body %>
+      <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
@@ -844,6 +888,7 @@
           </div>
       <% } %>
       <% } %>
+      <% } %>
     </div>
     <% /*
       Client-side JavaScript
@@ -881,6 +926,7 @@
     <script src="/js/components/bar-chart.component.js"></script>
     <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
+    <script src="/js/components/cloud-city.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/code-block-copy-buttons.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
@@ -889,7 +935,6 @@
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/multifield.component.js"></script>
     <script src="/js/components/open-positions.component.js"></script>
-    <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
@@ -939,7 +984,6 @@
     <script src="/js/pages/fast-track.page.js"></script>
     <script src="/js/pages/fleet-premium-trial.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
-    <script src="/js/pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/infrastructure-as-code.page.js"></script>
@@ -962,6 +1006,7 @@
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/security-and-control.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
@@ -971,6 +1016,7 @@
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <script src="/js/pages/visibility-and-reporting.page.js"></script>
+    <script src="/js/pages/workshops.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

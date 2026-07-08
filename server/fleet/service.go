@@ -233,7 +233,7 @@ type Service interface {
 	MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string)
 
 	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
-	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error)
+	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -475,7 +475,7 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -745,6 +745,8 @@ type Service interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
+	ResetPolicy(ctx context.Context, policyID uint) error
+	ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
 	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
@@ -851,7 +853,7 @@ type Service interface {
 	// the host, and associates the host if byod idp was enabled.
 	//
 	// [1]: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1
-	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret, idpUUID string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
+	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret, idpUUID string, personal bool, deviceInfo MDMAppleMachineInfo) ([]byte, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -1033,8 +1035,8 @@ type Service interface {
 	// CountABMTokens counts the ABM tokens in Fleet.
 	CountABMTokens(ctx context.Context) (int, error)
 
-	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
-	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
+	// UpdateABMTokenTeams updates the default macOS, iOS, iPadOS, and BYOD team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*ABMToken, error)
 
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
@@ -1148,7 +1150,7 @@ type Service interface {
 	// for MDM macOS migration.
 	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
 
-	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
+	GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error)
 
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
@@ -1156,7 +1158,9 @@ type Service interface {
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
-	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error)
+	// personal indicates whether the end user selected "Personal (BYOD)" on the /enroll page; it is
+	// baked into the POST-back URL so the OTA enrollment handler can set the correct access rights.
+	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
@@ -1176,9 +1180,6 @@ type Service interface {
 
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
-
-	// GetMDMMicrosoftSTSAuthResponse returns a valid STS auth page
-	GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error)
 
 	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
 	GetMDMWindowsPolicyResponse(ctx context.Context, authToken *HeaderBinarySecurityToken) (*GetPoliciesResponse, error)
@@ -1462,7 +1463,7 @@ type Service interface {
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
 	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll []string) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps, including associated software title for supplied team ID (if any)
-	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts MaintainedAppListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID, including associated software title for supplied team ID (if any)
 	GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 

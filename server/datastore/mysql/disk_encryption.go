@@ -133,10 +133,13 @@ func (ds *Datastore) SaveLUKSData(
 	host *fleet.Host,
 	encryptedBase64Passphrase string,
 	encryptedBase64Salt string,
-	keySlot uint,
+	keySlot *uint,
 ) (bool, error) {
-	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
-		return false, errors.New("passphrase and salt must be set")
+	// Salt and key slot are empty/nil for TPM-backed FDE recovery keys, where
+	// snapd owns the LUKS key slots; only the passphrase/recovery key itself is
+	// guaranteed to be present.
+	if encryptedBase64Passphrase == "" { // should have been caught at service level
+		return false, errors.New("passphrase must be set")
 	}
 
 	existingKey, err := ds.getExistingHostDiskEncryptionKey(ctx, host)
@@ -146,7 +149,7 @@ func (ds *Datastore) SaveLUKSData(
 
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
 	incomingKey := encryptionKey{
-		Base: encryptedBase64Passphrase, Salt: encryptedBase64Salt, KeySlot: &keySlot,
+		Base: encryptedBase64Passphrase, Salt: encryptedBase64Salt, KeySlot: keySlot,
 		CreatedAt: time.Now().UTC(),
 	}
 	archived, err := ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)

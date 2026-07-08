@@ -2,7 +2,7 @@
 
 In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
 
-Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
+Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and run `fleetctl new` to generate a starter repository. [Learn how](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
 
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
@@ -177,6 +177,7 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
+  continuous_automations_enabled: true
   install_software:
     package_path: ./firefox.package.yml
 - name: macOS - Logic Pro installed
@@ -200,6 +201,7 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: zoom/darwin
+  continuous_automations_enabled: true
   install_software: true
 ```
 
@@ -343,6 +345,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts. Supports `path:` (single file) and `paths:` (glob pattern, filtered to `.sh` and `.ps1` files only). Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for "All fleets" (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
+- `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for "All fleets" (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
@@ -363,6 +366,8 @@ controls:
   windows_enabled_and_configured: true
   windows_entra_tenant_ids:
     - 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
+  windows_entra_client_ids:
+    - 8c8e3fd4-9b2c-4d3e-8f10-2233445566aa
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
@@ -408,6 +413,10 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
+  apple_account_provisioning: # Available in Fleet Premium
+    oauth_idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
+    oauth_idp_client_id: Ooa12345abcdeFGHI678
+    oauth_idp_client_secret: a1b2c3d4e5
 ```
 
 ### macos_updates
@@ -467,6 +476,14 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
+### apple_account_provisioning
+
+The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`) and only supports macOS hosts today
+
+  - `oauth_idp_token_url` is the token URL for your Oauth ROPG(Resource Owner Password Grant) IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
+  - `oauth_idp_client_id` is the client ID of your Oauth ROPG application within your IdP. In Okta this can be found under your application's Client Credentials
+  - `oauth_idp_client_secret` is the client secret of your Oauth ROPG application within your IdP
+
 ### setup_experience
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
@@ -475,9 +492,9 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
+- `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail.
+- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
@@ -535,7 +552,7 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
       categories:
-        - Browsers
+        - "🌎 Browsers"
       self_service: true
       setup_experience: true
     - path: ../lib/software-name2.package.yml
@@ -546,7 +563,7 @@ software:
         - Product
         - Marketing
       categories:
-        - Communication
+        - "👬 Communication"
       setup_experience: true
       auto_update_enabled: true
       auto_update_window_start: "00:00"
@@ -574,8 +591,8 @@ software:
         - Design
         - Sales
       categories:
-        - Communication
-        - Productivity
+        - "👬 Communication"
+        - "💻 Productivity"
     - slug: parallels/darwin
       version: "^26"
       self_service: true
@@ -587,14 +604,10 @@ software:
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
-- `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
-  - `Browsers`: shown as **🌎 Browsers**
-  - `Communication`: shown as **👬 Communication**
-  - `Developer tools`: shown as **🧰 Developer tools**
-  - `Productivity`: shown as **🖥️ Productivity**
-  - `Security`: shown as **🔐 Security**
-  - `Utilities`: shown as **🛠️ Utilities**
-- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `categories` is a list of self-service category names. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once.
+  - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
+  - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
+- `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
 
@@ -659,7 +672,7 @@ software:
          path: ../lib/icons/vpn-setup.png
       self_service: true
       categories:
-        - Utilities
+        - "🛟 Support"
       labels_include_any:
       - Engineering
       - Customer Support
@@ -701,7 +714,7 @@ If the fields below are omitted, they default to values specified in [the app's 
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
-- `categories` is an array of categories, from [supported categories](#labels-and-categories).
+- `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
 ## org_settings and settings
 
@@ -716,8 +729,13 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
-
-  A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+- `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
+  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+  - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
+  - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
+  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+ 
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -734,6 +752,18 @@ org_settings:
     historical_data:
       uptime: true
       vulnerabilities: false
+    vulnerability_exposure_historical_reporting:
+      software_filters:
+        - os
+        - browsers
+        - office
+        - adobe
+      has_known_exploit: true
+      epss_min: 0
+      epss_max: 100
+      exclude_vulnerabilities:
+        - CVE-2025-50897
+        - CVE-2025-76306
 ```
 
 ### fleet_desktop
@@ -1216,7 +1246,7 @@ org_settings:
 
 #### end_user_authentication
 
-The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during Automated Device Enrollment (ADE).
+The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during Automated Device Enrollment (ADE).
 
 Once the IdP settings are configured, you can use the [`controls.setup_experience.enable_end_user_authentication`](#setup-experience) key to control the end user experience during ADE.
 

@@ -26,9 +26,9 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
+import { notify } from "components/ToastNotification";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -131,7 +131,6 @@ const HostSoftwareLibrary = ({
   refetchHostDetails,
   isHostDetailsPolling,
 }: IHostSoftwareLibraryProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -296,11 +295,11 @@ const HostSoftwareLibrary = ({
           setHostSoftwareLibraryRes(response);
         }
       },
-      onError: () => {
+      onError: (error) => {
         pendingSoftwareSetRef.current = new Set();
-        renderFlash(
-          "error",
-          "We're having trouble checking pending installs. Please refresh the page."
+        notify.error(
+          "We're having trouble checking pending installs. Please refresh the page.",
+          { response: error }
         );
       },
     }
@@ -519,17 +518,16 @@ const HostSoftwareLibrary = ({
           }
         };
 
-        renderFlash(
-          "success",
+        notify.success(
           <>
             {message()} To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
       } catch (e) {
-        renderFlash("error", getInstallErrorMessage(e));
+        notify.error(getInstallErrorMessage(e), { response: e });
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
+    [id, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const onClickUninstallAction = useCallback(
@@ -542,8 +540,7 @@ const HostSoftwareLibrary = ({
         queryClient.invalidateQueries({
           queryKey: [{ scope: "upcoming-activities" }],
         });
-        renderFlash(
-          "success",
+        notify.success(
           <>
             Software{" "}
             {isHostOnline
@@ -553,10 +550,10 @@ const HostSoftwareLibrary = ({
           </>
         );
       } catch (e) {
-        renderFlash("error", getUninstallErrorMessage(e));
+        notify.error(getUninstallErrorMessage(e), { response: e });
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
+    [id, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const tableConfig = useMemo(() => {

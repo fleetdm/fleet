@@ -306,11 +306,11 @@ type ModifyPolicyPayload struct {
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
-	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
@@ -430,12 +430,10 @@ type PolicyData struct {
 	UpdateCreateTimestamps
 }
 
-// Verify checks that the policy's label scopes are valid: at most one include
-// scope (any/all) combined with at most one exclude scope (any/all), with no
-// label appearing in both an include and an exclude list. It validates only the
-// label scopes — name/query/platform are validated on the payload types at
-// create/modify time.
-func (p PolicyData) Verify() error {
+// VerifyLabelScopes checks that the policy's label scopes are valid: at most one
+// include scope (any/all) combined with at most one exclude scope (any/all),
+// with no label appearing in both an include and an exclude list.
+func (p PolicyData) VerifyLabelScopes() error {
 	return verifyPolicyLabelScopes(
 		LabelIdentsToNames(p.LabelsIncludeAny),
 		LabelIdentsToNames(p.LabelsIncludeAll),

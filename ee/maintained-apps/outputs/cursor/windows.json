@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.7.27",
+      "version": "3.10.11",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere' AND version_compare(version, '3.7.27') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere' AND version_compare(version, '3.10.11') < 0);"
       },
-      "installer_url": "https://downloads.cursor.com/production/e48ee6102a199492b0c9964699bf011886708ba3/win32/x64/system-setup/CursorSetup-x64-3.7.27.exe",
+      "installer_url": "https://downloads.cursor.com/production/4ef9fe3d055f8c4523179a090f14eb835bc3c94e/win32/x64/system-setup/CursorSetup-x64-3.10.11.exe",
       "install_script_ref": "03589b5e",
       "uninstall_script_ref": "6c8096c5",
-      "sha256": "9ed8f75379baf84b75a6539cb1296e5c7c3386c41f7f50fee8fe310b6e5ebe7d",
+      "sha256": "b9bffc722d2c944ef76d6bb51f9a13d45c4b9fed498c2e0c568b35ef2d789ed1",
       "default_categories": [
         "Developer tools"
       ]
