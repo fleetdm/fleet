@@ -1,0 +1,1 @@
+- Fixed recovery lock password being enforced on personally-owned (BYOD) macOS hosts, where it would always fail because personal enrollments have device lock rights stripped. These hosts are now skipped.

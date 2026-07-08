@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.1.5",
+      "version": "26.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3' AND version_compare(bundle_short_version, '26.1.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3' AND version_compare(bundle_short_version, '26.2.0') < 0);"
       },
-      "installer_url": "https://dl.4kdownload.com/app/4kyoutubetomp3_26.1.5_arm64.dmg",
+      "installer_url": "https://dl.4kdownload.com/app/4kyoutubetomp3_26.2.0_arm64.dmg",
       "install_script_ref": "32bb3c2c",
       "uninstall_script_ref": "f51f85f1",
-      "sha256": "c96299d6795caaaf867fc2a580a8061d92a02a735495a51893a7176f778b595b",
+      "sha256": "97899624241ed522080b255ad95bd6bbdd867ccde4de227850f31710b7232b4a",
       "default_categories": [
         "Productivity"
       ]

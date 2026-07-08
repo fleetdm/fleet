@@ -316,6 +316,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
 
+### [CVE-2026-58016](https://nvd.nist.gov/vuln/detail/CVE-2026-58016)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use glib/GDBus introspection; libglib2.0-0t64 is a transitive OS dependency of libgtk-3-0/wine, installed only for installer-packaging tooling, and g_dbus_node_info_new_for_xml is never reached with untrusted input.
+- **Products:** `fleetctl`,`pkg:deb/debian/libglib2.0-0t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-06 08:51:11
+
 ### [CVE-2026-54513](https://nvd.nist.gov/vuln/detail/CVE-2026-54513)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`

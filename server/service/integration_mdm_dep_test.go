@@ -2730,9 +2730,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: scepChallenge,
-							SCEPURL:       scepURL,
-							MDMURL:        mdmURL,
+							SCEPChallenge:  scepChallenge,
+							SCEPURL:        scepURL,
+							MDMURL:         mdmURL,
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
@@ -2776,9 +2777,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: "scepcha/><llenge",
-							SCEPURL:       s.server.URL + "/mdm/apple/scep",
-							MDMURL:        s.server.URL + "/mdm/apple/mdm",
+							SCEPChallenge:  "scepcha/><llenge",
+							SCEPURL:        s.server.URL + "/mdm/apple/scep",
+							MDMURL:         s.server.URL + "/mdm/apple/mdm",
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 
@@ -3490,5 +3492,57 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 			require.NoError(t, s.ds.DeleteTeam(context.Background(), extraTeam.ID))
 			require.NoError(t, s.ds.DeleteTeam(context.Background(), defaultDEPTeam.ID))
 		})
+	})
+}
+
+// TestDEPSyncCursorPersistedAfterSuccessfulSync verifies the end-to-end happy
+// path: after a successful DEP sync the cursor Apple returned is written to
+// nano_dep_names.syncer_cursor. This confirms the full stack wires up
+// correctly — the syncer, the callback, and the cursor storage layer — in a
+// way that cannot be tested with real devices.
+func (s *integrationMDMTestSuite) TestDEPSyncCursorPersistedAfterSuccessfulSync() {
+	t := s.T()
+	ctx := context.Background()
+
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+
+	const expectedCursor = "test-sync-cursor"
+
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_ = encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+		case "/profile":
+			_ = encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+		case "/server/devices":
+			_ = encoder.Encode(godep.DeviceResponse{
+				Devices: []godep.Device{
+					{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+				},
+			})
+		case "/devices/sync":
+			_ = encoder.Encode(godep.DeviceResponse{
+				Cursor:  expectedCursor,
+				Devices: []godep.Device{},
+			})
+		case "/profile/devices":
+			_ = encoder.Encode(godep.ProfileResponse{})
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.runDEPSchedule()
+
+	// Verify the cursor Apple returned was persisted to the DB.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var cursor string
+		err := sqlx.GetContext(ctx, q, &cursor, `SELECT syncer_cursor FROM nano_dep_names WHERE name = ?`, t.Name())
+		require.NoError(t, err)
+		require.Equal(t, expectedCursor, cursor)
+		return nil
 	})
 }
