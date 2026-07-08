@@ -105,6 +105,7 @@ import Badgeify from "./Badgeify";
 import BalenaEtcher from "./BalenaEtcher";
 import BalsamiqWireframes from "./BalsamiqWireframes";
 import BambuStudio from "./BambuStudio";
+import Bandiview from "./Bandiview";
 import Bartender from "./Bartender";
 import Batfi from "./Batfi";
 import BBEdit from "./BBEdit";
@@ -125,6 +126,7 @@ import Bitbox from "./Bitbox";
 import Bitrix24 from "./Bitrix24";
 import Bitwarden from "./Bitwarden";
 import BitwigStudio from "./BitwigStudio";
+import Bleachbit from "./Bleachbit";
 import Blender from "./Blender";
 import Bleunlock from "./Bleunlock";
 import Blip from "./Blip";
@@ -140,9 +142,12 @@ import Box from "./Box";
 import Brave from "./Brave";
 import Breaktimer from "./Breaktimer";
 import BricklinkStudio from "./BricklinkStudio";
+import Browserstacklocal from "./Browserstacklocal";
 import Bruno from "./Bruno";
+import BulkCrapUninstaller from "./BulkCrapUninstaller";
 import Bunch from "./Bunch";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import BurpSuiteProfessional from "./BurpSuiteProfessional";
 import Busycontacts from "./Busycontacts";
 import Buttercup from "./Buttercup";
 import Buzz from "./Buzz";
@@ -1163,6 +1168,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,
   bbedit: BBEdit,
@@ -1184,6 +1190,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   bitrix24: Bitrix24,
   bitwarden: Bitwarden,
   "bitwig studio": BitwigStudio,
+  bleachbit: Bleachbit,
   blender: Blender,
   bleunlock: Bleunlock,
   blip: Blip,
@@ -1199,9 +1206,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   brave: Brave,
   breaktimer: Breaktimer,
   "bricklink studio": BricklinkStudio,
+  browserstacklocal: Browserstacklocal,
   bruno: Bruno,
+  "bulk crap uninstaller": BulkCrapUninstaller,
   bunch: Bunch,
   "burp suite community": BurpSuiteCommunity,
+  "burp suite professional": BurpSuiteProfessional,
   busycontacts: Busycontacts,
   buttercup: Buttercup,
   buzz: Buzz,

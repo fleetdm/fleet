@@ -954,6 +954,13 @@
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
     },
     {
+      "name": "BandiView",
+      "slug": "bandiview/windows",
+      "platform": "windows",
+      "unique_identifier": "BandiView",
+      "description": "BandiView is a fast image viewer supporting a wide range of photo and comic formats."
+    },
+    {
       "name": "Bartender",
       "slug": "bartender/darwin",
       "platform": "darwin",
@@ -1143,6 +1150,13 @@
       "description": "Bitwig Studio is a digital audio workstation."
     },
     {
+      "name": "BleachBit",
+      "slug": "bleachbit/windows",
+      "platform": "windows",
+      "unique_identifier": "BleachBit",
+      "description": "BleachBit is a free utility for cleaning disk space and protecting privacy."
+    },
+    {
       "name": "Blender",
       "slug": "blender/darwin",
       "platform": "darwin",
@@ -1276,6 +1290,13 @@
       "description": "BrickLink Studio is a tool to build, render, and create LEGO instructions."
     },
     {
+      "name": "BrowserStackLocal",
+      "slug": "browserstacklocal/windows",
+      "platform": "windows",
+      "unique_identifier": "BrowserStackLocal",
+      "description": "BrowserStackLocal connects your machine to BrowserStack for testing work-in-progress web apps without public hosting."
+    },
+    {
       "name": "Bruno",
       "slug": "bruno/darwin",
       "platform": "darwin",
@@ -1290,6 +1311,13 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "Bulk Crap Uninstaller",
+      "slug": "bulk-crap-uninstaller/windows",
+      "platform": "windows",
+      "unique_identifier": "BCUninstaller",
+      "description": "Bulk Crap Uninstaller is a free tool for removing large numbers of applications with minimal user input."
+    },
+    {
       "name": "Bunch",
       "slug": "bunch/darwin",
       "platform": "darwin",
@@ -1302,6 +1330,13 @@
       "platform": "windows",
       "unique_identifier": "Burp Suite Community Edition 2026.3.3",
       "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
+      "name": "Burp Suite Professional",
+      "slug": "burp-suite-professional/windows",
+      "platform": "windows",
+      "unique_identifier": "Burp Suite Professional",
+      "description": "Burp Suite Professional is a toolkit for web application security testing."
     },
     {
       "name": "Burp Suite Community Edition",
