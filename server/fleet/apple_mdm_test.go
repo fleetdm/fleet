@@ -228,15 +228,27 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 		},
 		{
 			name:        "forbidden declaration type",
-			declType:    "com.apple.configuration.account.mail",
+			declType:    "com.apple.configuration.watch.enrollment",
 			wantErr:     true,
-			errContains: "Only configuration declarations that don’t require an asset reference are supported.",
+			errContains: "Is a forbidden declaration type.",
 		},
 		{
 			name:        "status subscriptions not allowed",
 			declType:    "com.apple.configuration.management.status-subscriptions",
 			wantErr:     true,
-			errContains: "Declaration profile can’t include status subscription type.",
+			errContains: "Declaration profile can't include status subscription type.",
+		},
+		{
+			name:        "managed app configuration not allowed",
+			declType:    "com.apple.configuration.app.managed",
+			wantErr:     true,
+			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
+		},
+		{
+			name:        "managed app configuration not allowed",
+			declType:    "com.apple.configuration.package",
+			wantErr:     true,
+			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
 		},
 		{
 			name:        "non-configuration declaration not allowed",

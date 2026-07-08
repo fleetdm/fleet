@@ -935,29 +935,22 @@ func (r *MDMAppleRawDeclaration) ValidateScope() error {
 // ForbiddenDeclTypes is a set of declaration types that are not allowed to be
 // added by users into Fleet.
 var ForbiddenDeclTypes = map[string]struct{}{
-	"com.apple.configuration.account.caldav":               {},
-	"com.apple.configuration.account.carddav":              {},
-	"com.apple.configuration.account.exchange":             {},
-	"com.apple.configuration.account.google":               {},
-	"com.apple.configuration.account.ldap":                 {},
-	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.screensharing.connection":     {},
-	"com.apple.configuration.security.certificate":         {},
-	"com.apple.configuration.security.identity":            {},
-	"com.apple.configuration.security.passkey.attestation": {},
-	"com.apple.configuration.services.configuration-files": {},
-	"com.apple.configuration.watch.enrollment":             {},
+	"com.apple.configuration.watch.enrollment": {},
 }
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+		return NewInvalidArgumentError(r.Type, "Is a forbidden declaration type.")
 	}
 
 	if r.Type == "com.apple.configuration.management.status-subscriptions" {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
+	}
+
+	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
 	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
