@@ -79,6 +79,8 @@ APP_BUNDLE_ID=com.fleetdm.pssotesting \
 # → build/dist/fleet_desktop-v<version>.pkg  (signed)
 ```
 
+> If you change `APP_BUNDLE_ID` after the app is already built, pass `FORCE_REBUILD=1` — otherwise `build-pkg.sh` repackages the cached app under its old bundle ID while the installer's quit/relaunch scripts target the new one.
+
 `build-pkg.sh` reuses the already-signed app from the previous step (no rebuild unless `FORCE_REBUILD=1`) and `productsign`s the finished pkg. Find the Installer identity's name or SHA-1 with `security find-identity -v -p basic | grep 5K28R5ZUK5` (either form works for `--sign`). Confirm the result:
 
 ```bash
