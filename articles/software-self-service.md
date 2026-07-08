@@ -30,7 +30,7 @@ You can also add the software and later make it available in self-service:
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
-> Self-service is set per [package](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title). When a title has more than one self-service package and a host matches more than one, Fleet installs the package that was added first.
+> For [custom packages](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title), self-service is set per package. When a title has more than one self-service package and a host matches more than one, Fleet installs the package that was added first.
 
 ## Manage self-service categories
 
