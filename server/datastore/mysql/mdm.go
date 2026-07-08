@@ -2408,28 +2408,29 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 
 	var count int64
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Capture the affected hosts before the update so the per-host Windows profile status rollup can
-		// be refreshed in the same transaction (issue #48340). host_uuid values are already unique here
-		// because (host_uuid, profile_uuid) is the PK and the filter is on a single profile UUID.
-		var windowsHostUUIDs []string
-		if table == "host_mdm_windows_profiles" {
-			if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs,
-				`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND status = ?`,
-				profileUUID, filters.ProfileStatus); err != nil {
-				return ctxerr.Wrap(ctx, err, "selecting affected hosts for batch resend")
-			}
-		}
-
 		res, err := tx.ExecContext(ctx, updateStmt, profileUUID, filters.ProfileStatus)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resending MDM profile on hosts")
 		}
 		count, _ = res.RowsAffected()
 
-		// The rows now have status NULL, which the summary reports as pending. No-op for non-Windows
-		// profiles (empty host list).
-		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after batch resend")
+		// Refresh the per-host Windows profile status rollup for the affected hosts in the same
+		// transaction (issue #48340). Selecting status IS NULL rows AFTER the update sees this
+		// transaction's own writes, so it cannot miss a row the update touched (a pre-update snapshot
+		// read could, if a concurrent commit changed a row's status in between). It also picks up rows
+		// that were already NULL, which is harmless: the rollup recompute is idempotent. host_uuid values
+		// are already unique here because (host_uuid, profile_uuid) is the PK and the filter is on a
+		// single profile UUID.
+		if table == "host_mdm_windows_profiles" {
+			var windowsHostUUIDs []string
+			if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs,
+				`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND status IS NULL`,
+				profileUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting affected hosts for batch resend")
+			}
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after batch resend")
+			}
 		}
 		return nil
 	})

@@ -2099,6 +2099,9 @@ SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE host_uuid > ? ORD
 		batchRowsChanged, _ := res.RowsAffected()
 		rowsChanged += batchRowsChanged
 
+		if len(hostUUIDs) < batchSize {
+			break // short page = last page; skip the extra empty fetch
+		}
 		cursor = hostUUIDs[len(hostUUIDs)-1]
 	}
 
@@ -2135,6 +2138,9 @@ ORDER BY hmwps.host_uuid LIMIT ?`,
 		batchOrphansRemoved, _ := res.RowsAffected()
 		orphansRemoved += batchOrphansRemoved
 
+		if len(candidateUUIDs) < batchSize {
+			break // short page = last page; skip the extra empty fetch
+		}
 		cursor = candidateUUIDs[len(candidateUUIDs)-1]
 	}
 
