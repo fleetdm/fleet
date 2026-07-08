@@ -1156,7 +1156,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Web terminal WebSocket endpoints. Auth is performed inside each handler.
 	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/terminal/{session_id}/ws",
-		makeTerminalBrowserHandler(svc, logger)).Methods("GET")
+		makeTerminalBrowserHandler(svc, logger, config.Server)).Methods("GET")
 	// Long-poll notify must be registered before the parameterized session route
 	// so gorilla/mux does not treat "notify" as a session_id.
 	r.Handle("/api/fleet/orbit/terminal/notify",

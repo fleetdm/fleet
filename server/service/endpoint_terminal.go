@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/gorilla/mux"
@@ -68,13 +69,13 @@ type terminalMsg struct {
 
 // ─── WebSocket upgraders ──────────────────────────────────────────────────────
 
-// browserUpgrader is used for browser connections; it enforces same-origin to
-// prevent cross-site WebSocket hijacking.
-var browserUpgrader = gws.Upgrader{
-	HandshakeTimeout: 10 * time.Second,
-	ReadBufferSize:   64 * 1024,
-	WriteBufferSize:  64 * 1024,
-	CheckOrigin: func(r *http.Request) bool {
+// newBrowserUpgrader builds a WebSocket upgrader for browser connections.
+// When websocketsAllowUnsafeOrigin is true (mirrors server.websockets_allow_unsafe_origin
+// used by the live-query WS), all Origins are accepted — useful for reverse-proxy
+// or dev setups where Origin and Host differ.  Otherwise the upgrader enforces
+// same-origin to prevent cross-site WebSocket hijacking.
+func newBrowserUpgrader(websocketsAllowUnsafeOrigin bool) gws.Upgrader {
+	checkOrigin := func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
 			return false
@@ -85,7 +86,16 @@ var browserUpgrader = gws.Upgrader{
 		}
 		// Allow only requests whose Origin host matches the Host header.
 		return u.Host == r.Host
-	},
+	}
+	if websocketsAllowUnsafeOrigin {
+		checkOrigin = func(r *http.Request) bool { return true }
+	}
+	return gws.Upgrader{
+		HandshakeTimeout: 10 * time.Second,
+		ReadBufferSize:   64 * 1024,
+		WriteBufferSize:  64 * 1024,
+		CheckOrigin:      checkOrigin,
+	}
 }
 
 // orbitUpgrader is used for orbit agent connections.  Orbit is not a browser
@@ -179,7 +189,8 @@ func createTerminalSessionEndpoint(ctx context.Context, request interface{}, svc
 //
 // Authentication: the browser sends its Fleet session token as the first
 // JSON text message: {"token":"<fleet-session-token>"}
-func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger) http.HandlerFunc {
+func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger, cfg config.ServerConfig) http.HandlerFunc {
+	upgrader := newBrowserUpgrader(cfg.WebsocketsAllowUnsafeOrigin)
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		sessionID := vars["session_id"]
@@ -206,7 +217,7 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger) http.Han
 			}
 		}
 
-		conn, err := browserUpgrader.Upgrade(w, r, nil)
+		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			logger.Error("terminal browser: WebSocket upgrade failed", "err", err)
 			return
@@ -362,6 +373,10 @@ func authenticateTerminalBrowser(ctx context.Context, conn *gws.Conn, svc fleet.
 	// Terminal sessions are restricted to global admins only.
 	if vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
 		return nil, fleet.NewAuthFailedError("terminal sessions require global admin role")
+	}
+	// Reject accounts that must reset their password before taking any action.
+	if vc.User.IsAdminForcedPasswordReset() {
+		return nil, fleet.ErrPasswordResetRequired
 	}
 	return vc.User, nil
 }

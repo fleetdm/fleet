@@ -194,7 +194,11 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
               term.focus();
             }
           } else if (msg.type === "output" && msg.data) {
-            term.write(atob(msg.data));
+            // Decode base64 → Uint8Array so xterm handles UTF-8 sequences
+            // correctly (bare atob returns a JS string, losing multi-byte chars).
+            const binary = atob(msg.data);
+            const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+            term.write(bytes);
           } else if (msg.type === "error" && msg.data) {
             if (!cancelled) {
               setConnState("error");
@@ -228,7 +232,13 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
       // 4. Forward keystrokes.
       term.onData((data: string) => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "input", data: btoa(data) }));
+          // Encode as UTF-8 bytes before base64 so multi-byte characters
+          // (e.g. arrow keys, emoji, non-ASCII pastes) round-trip intact.
+          const inputBytes = new TextEncoder().encode(data);
+          const inputBinary = Array.from(inputBytes, (b) =>
+            String.fromCharCode(b)
+          ).join("");
+          ws.send(JSON.stringify({ type: "input", data: btoa(inputBinary) }));
         }
       });
 

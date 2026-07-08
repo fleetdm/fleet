@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -26,6 +27,11 @@ func (svc *Service) CreateTerminalSession(ctx context.Context, hostID uint) (str
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		return "", ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+	}
+
+	// Reject unsupported platforms before doing any auth work.
+	if !fleet.IsLinux(host.Platform) && host.Platform != "darwin" && host.Platform != "windows" {
+		return "", fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("web terminal is not supported on %q hosts", host.Platform))
 	}
 
 	// Authorize: start with standard host write check (filters unauthenticated
