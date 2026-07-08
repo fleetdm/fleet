@@ -20,6 +20,7 @@ import {
   ISoftwareInstallPolicyUI,
   ISoftwarePackage,
   ISoftwareTitleDetails,
+  MAX_PACKAGES_PER_TITLE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
@@ -409,7 +410,7 @@ const SoftwareTitleDetailsPage = ({
     // early-returns when there are no packages and no app-store app, so we
     // don't need to re-check `packages.length` here.
     const showAddPackageAction = canActivateMultiplePackages && canEditSoftware;
-    const atPackageLimit = packages.length >= 10;
+    const atPackageLimit = packages.length >= MAX_PACKAGES_PER_TITLE;
     const addPackageButton = showAddPackageAction && (
       <Button
         variant="inverse"
@@ -425,7 +426,7 @@ const SoftwareTitleDetailsPage = ({
         <TooltipWrapper
           tipContent={
             <>
-              This title already has 10 packages.
+              This title already has {MAX_PACKAGES_PER_TITLE} packages.
               <br />
               Delete one you no longer use before adding.
             </>
@@ -542,6 +543,7 @@ const SoftwareTitleDetailsPage = ({
         gitOpsModeEnabled={gitOpsModeEnabled}
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
+        canActivateMultiplePackages={canActivateMultiplePackages}
         onExit={closeDeleteModal}
         onSuccess={() => {
           closeDeleteModal();

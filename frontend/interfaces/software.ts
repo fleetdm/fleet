@@ -352,6 +352,13 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
 
+/** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
+ * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
+ * conflict error — the UI uses this constant to disable "+ Add package" and
+ * surface a matching tooltip before the user hits the API. Keep in sync if
+ * the backend limit changes. */
+export const MAX_PACKAGES_PER_TITLE = 10;
+
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:
  * - Never shows “Update available” (no version to compare against the package version).

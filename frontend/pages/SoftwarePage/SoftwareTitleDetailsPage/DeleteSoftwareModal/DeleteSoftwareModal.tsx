@@ -74,6 +74,11 @@ interface IDeleteSoftwareModalProps {
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
+  /** Passed through from `SoftwareTitleDetailsPage`. When true, the modal
+   * title reads "Delete package" instead of "Delete software" and the
+   * title-level metadata warning is suppressed — we're deleting one specific
+   * installer on a title that can hold several, not the title itself. */
+  canActivateMultiplePackages?: boolean;
 }
 
 const DeleteSoftwareModal = ({
@@ -85,6 +90,7 @@ const DeleteSoftwareModal = ({
   gitOpsModeEnabled,
   isAppStoreApp = false,
   isAndroidApp = false,
+  canActivateMultiplePackages = false,
 }: IDeleteSoftwareModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -123,7 +129,7 @@ const DeleteSoftwareModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Delete software"
+      title={canActivateMultiplePackages ? "Delete package" : "Delete software"}
       onExit={onExit}
       isContentDisabled={isDeleting}
     >
@@ -134,7 +140,9 @@ const DeleteSoftwareModal = ({
         </InfoBanner>
       )}
       {getPlatformMessage(isAppStoreApp, isAndroidApp)}
-      <p>Custom icon and display name will be deleted.</p>
+      {!canActivateMultiplePackages && (
+        <p>Custom icon and display name will be deleted.</p>
+      )}
       <div className="modal-cta-wrap">
         <Button
           variant="alert"
