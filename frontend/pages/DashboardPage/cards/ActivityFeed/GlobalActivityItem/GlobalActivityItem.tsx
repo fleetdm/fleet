@@ -2040,6 +2040,30 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        created a custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  editedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        edited custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  deletedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        deleted custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
   editedSetupExperienceSoftware: (activity: IActivity) => {
     const { platform, team_name, team_id } = activity.details || {};
 
@@ -2622,6 +2646,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+    case ActivityType.CreatedCustomHostVital: {
+      return TAGGED_TEMPLATES.createdCustomHostVital(activity);
+    }
+    case ActivityType.EditedCustomHostVital: {
+      return TAGGED_TEMPLATES.editedCustomHostVital(activity);
+    }
+    case ActivityType.DeletedCustomHostVital: {
+      return TAGGED_TEMPLATES.deletedCustomHostVital(activity);
     }
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);

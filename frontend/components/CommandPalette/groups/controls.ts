@@ -7,7 +7,13 @@ const buildControlsItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
-  const { canAccessControls, isPremiumTier, isTechnician, withTeamId } = ctx;
+  const {
+    canAccessControls,
+    canAccessVariables,
+    isPremiumTier,
+    isTechnician,
+    withTeamId,
+  } = ctx;
   const { hasTeamOrUnassigned } = derived;
 
   // Controls pages don't support "All fleets" (includeAllTeams: false),
@@ -187,14 +193,34 @@ const buildControlsItems = (
         },
       ],
     },
-    // Variables
-    {
-      id: "controls-variables",
-      label: "Variables",
-      group: "Controls" as const,
-      path: withTeamId(paths.CONTROLS_VARIABLES),
-      keywords: ["custom", "scripts", "profiles"],
-    },
+    // Variables — including its Global variables and Custom host vitals
+    // sub-tabs. Gated on canAccessVariables (admins + maintainers) since the
+    // Controls sub-nav hides this section from technicians.
+    ...(canAccessVariables
+      ? [
+          {
+            id: "controls-variables",
+            label: "Variables",
+            group: "Controls" as const,
+            path: withTeamId(paths.CONTROLS_VARIABLES),
+            keywords: ["custom", "scripts", "profiles"],
+            subItems: [
+              {
+                id: "controls-global-variables",
+                label: "Global variables",
+                path: withTeamId(paths.CONTROLS_VARIABLES_GLOBAL_VARIABLES),
+                keywords: ["custom", "secret"],
+              },
+              {
+                id: "controls-custom-host-vitals",
+                label: "Custom host vitals",
+                path: withTeamId(paths.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS),
+                keywords: ["host", "vital", "custom", "host vital"],
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 };
 
