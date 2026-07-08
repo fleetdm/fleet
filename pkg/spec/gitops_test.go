@@ -5005,7 +5005,7 @@ policies:
     fleet_maintained_app_slug: google-chrome/darwin
     install_software: true
 `,
-			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies, use install_software.fleet_maintained_app_slug to trigger software install"},
+			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies"},
 		},
 	}
 
