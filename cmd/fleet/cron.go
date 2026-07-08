@@ -1394,9 +1394,7 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
-			// Self-healing safety net for the per-host Windows profile status rollup (issue #48340).
-			// The write paths maintain host_mdm_windows_profiles_status in real time; this reconciles any
-			// drift and removes orphan rows.
+			// Self-healing safety net for the per-host Windows profile status rollup. This reconciles any drift and removes orphan rows.
 			"windows_profiles_status_reconcile",
 			func(ctx context.Context) error {
 				return ds.ReconcileWindowsProfilesStatus(ctx)

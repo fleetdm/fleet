@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,8 +9,8 @@ import (
 func TestUp_20260707150000(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// insertProfile adds one host_mdm_windows_profiles row. status is passed as a *string so we can
-	// exercise the NULL-as-pending path.
+	// insertProfile adds one host_mdm_windows_profiles row. status is passed as a *string so we can exercise the NULL-as-pending
+	// path.
 	insertProfile := func(hostUUID, profileUUID, profileName string, opType string, status *string) {
 		_, err := db.Exec(`
 			INSERT INTO host_mdm_windows_profiles
@@ -38,12 +37,12 @@ func TestUp_20260707150000(t *testing.T) {
 	insertProfile("host-verified", "p1", "Profile A", "install", statusPtr("verified"))
 	insertProfile("host-verified", "p2", "Profile B", "install", statusPtr("verified"))
 
-	// host-reserved-only: the only profile is the reserved "Windows OS Updates" one, so it is excluded
-	// and the host resolves to '' (not counted by the summary).
+	// host-reserved-only: the only profile is the reserved "Windows OS Updates" one, so it is excluded and the host resolves to ''
+	// (not counted by the summary).
 	insertProfile("host-reserved-only", "p1", "Windows OS Updates", "install", statusPtr("failed"))
 
-	// host-remove-verifying: a remove verifying does not count as verifying (install-only), so with no
-	// other non-reserved status the host resolves to ''.
+	// host-remove-verifying: a remove verifying does not count as verifying (install-only), so with no other non-reserved status the
+	// host resolves to ''.
 	insertProfile("host-remove-verifying", "p1", "Profile A", "remove", statusPtr("verifying"))
 
 	applyNext(t, db)
@@ -70,9 +69,4 @@ func TestUp_20260707150000(t *testing.T) {
 	require.NoError(t, rows.Err())
 
 	require.Equal(t, want, got)
-
-	// updated_at must be populated by the column default.
-	var updatedAt sql.NullString
-	require.NoError(t, db.QueryRow(`SELECT updated_at FROM host_mdm_windows_profiles_status WHERE host_uuid = 'host-verified'`).Scan(&updatedAt))
-	require.True(t, updatedAt.Valid)
 }

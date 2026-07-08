@@ -9,19 +9,8 @@ func init() {
 	MigrationClient.AddMigration(Up_20260707150000, Down_20260707150000)
 }
 
-// Up_20260707150000 creates host_mdm_windows_profiles_status, a per-host rollup of the aggregate
-// Windows configuration-profile delivery status. It materializes exactly one bucket per host
-// ('failed'|'pending'|'verifying'|'verified'|”), which is the value the Windows profiles summary
-// previously recomputed on every request via a correlated aggregation over the whole
-// host_mdm_windows_profiles table (O(hosts x profiles-per-host)). Reading the rollup instead makes
-// GET /configuration_profiles/summary O(hosts). See issue #48340.
-//
-// The bucket priority (failed > pending > verifying > verified), the reserved-profile exclusion, the
-// install-only filter for verifying/verified, and the NULL-as-pending rule are kept byte-for-byte in
-// sync with windowsHostProfileStatusSubquery (server/datastore/mysql/microsoft_mdm.go). The enum
-// strings and the single reserved Windows profile name ("Windows OS Updates") are hardcoded here so
-// this migration stays self-contained; the reconciler cron and the in-transaction write-path
-// maintenance keep the table correct going forward, so any later divergence self-heals.
+// Up_20260707150000 creates host_mdm_windows_profiles_status, a per-host rollup of the aggregate Windows configuration-profile
+// delivery status. It materializes exactly one bucket per host ('failed'|'pending'|'verifying'|'verified'|”)
 func Up_20260707150000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 CREATE TABLE host_mdm_windows_profiles_status (
@@ -34,10 +23,8 @@ CREATE TABLE host_mdm_windows_profiles_status (
 		return fmt.Errorf("creating host_mdm_windows_profiles_status table: %w", err)
 	}
 
-	// Backfill one row per host. GROUP BY host_uuid is a leftmost prefix of the clustered PRIMARY KEY
-	// (host_uuid, profile_uuid), so MySQL streams the aggregation in index order without a temp table,
-	// which keeps this bounded even on multi-million-row installs. Rows that resolve to '' (host has only
-	// reserved profiles) are stored as '' and ignored by the summary read, matching prior behavior.
+	// Backfill one row per host. GROUP BY host_uuid is a leftmost prefix of the clustered PRIMARY KEY (host_uuid, profile_uuid), so
+	// MySQL streams the aggregation in index order without a temp table.
 	if _, err := tx.Exec(`
 INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
 SELECT
