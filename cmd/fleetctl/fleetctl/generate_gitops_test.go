@@ -1812,10 +1812,10 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 
 	packages, ok := software["packages"].([]interface{})
 	require.True(t, ok, "packages should be an array")
-	require.Len(t, packages, 3, "should have 3 packages: 1 regular + 2 scripts (.sh and .ps1)")
+	require.Len(t, packages, 4, "should have 4 packages: 1 regular + 3 scripts (.sh, .ps1, and .py)")
 
 	// Identify by URL since hash_sha256 includes comment tokens
-	var shScriptPkg, ps1ScriptPkg, regularPkg map[string]interface{}
+	var shScriptPkg, ps1ScriptPkg, pyScriptPkg, regularPkg map[string]any
 	for _, pkg := range packages {
 		p := pkg.(map[string]interface{})
 		url, ok := p["url"].(string)
@@ -1827,6 +1827,8 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 			shScriptPkg = p
 		case "https://example.com/download/setup.ps1":
 			ps1ScriptPkg = p
+		case "https://example.com/download/install.py":
+			pyScriptPkg = p
 		case "https://example.com/download/regular-package.deb":
 			regularPkg = p
 		}
@@ -1834,6 +1836,7 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 
 	require.NotNil(t, shScriptPkg, ".sh script package should exist")
 	require.NotNil(t, ps1ScriptPkg, ".ps1 script package should exist")
+	require.NotNil(t, pyScriptPkg, ".py script package should exist")
 	require.NotNil(t, regularPkg, "regular package should exist")
 
 	_, hasInstallScript := shScriptPkg["install_script"]
@@ -1860,10 +1863,24 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	_, hasPreInstallQuery = ps1ScriptPkg["pre_install_query"]
 	require.False(t, hasPreInstallQuery, ".ps1 script package should NOT have pre_install_query in YAML output")
 
+	_, hasInstallScript = pyScriptPkg["install_script"]
+	require.False(t, hasInstallScript, ".py script package should NOT have install_script in YAML output")
+
+	_, hasPostInstallScript = pyScriptPkg["post_install_script"]
+	require.False(t, hasPostInstallScript, ".py script package should NOT have post_install_script in YAML output")
+
+	_, hasUninstallScript = pyScriptPkg["uninstall_script"]
+	require.False(t, hasUninstallScript, ".py script package should NOT have uninstall_script in YAML output")
+
+	_, hasPreInstallQuery = pyScriptPkg["pre_install_query"]
+	require.False(t, hasPreInstallQuery, ".py script package should NOT have pre_install_query in YAML output")
+
 	require.Contains(t, shScriptPkg, "url", ".sh script package should have url")
 	require.Contains(t, shScriptPkg, "hash_sha256", ".sh script package should have hash_sha256")
 	require.Contains(t, ps1ScriptPkg, "url", ".ps1 script package should have url")
 	require.Contains(t, ps1ScriptPkg, "hash_sha256", ".ps1 script package should have hash_sha256")
+	require.Contains(t, pyScriptPkg, "url", ".py script package should have url")
+	require.Contains(t, pyScriptPkg, "hash_sha256", ".py script package should have hash_sha256")
 
 	require.Contains(t, regularPkg, "install_script", "regular package should have install_script")
 	require.Contains(t, regularPkg, "post_install_script", "regular package should have post_install_script")
@@ -1881,6 +1898,7 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	}
 	require.NotContains(t, commentFor("my-script.sh"), "version", ".sh script package comment should not mention version")
 	require.NotContains(t, commentFor("setup.ps1"), "version", ".ps1 script package comment should not mention version")
+	require.NotContains(t, commentFor("install.py"), "version", ".py script package comment should not mention version")
 	require.Contains(t, commentFor("regular-package.deb"), "version", "regular package comment should still mention version")
 
 	for filename := range cmd.FilesToWrite {
@@ -1893,6 +1911,11 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 		require.NotContains(t, filename, "powershell-script-windows-postinstall", "should not write post-install script file for .ps1 script package")
 		require.NotContains(t, filename, "powershell-script-windows-uninstall", "should not write uninstall script file for .ps1 script package")
 		require.NotContains(t, filename, "powershell-script-windows-preinstallquery", "should not write pre-install query file for .ps1 script package")
+
+		require.NotContains(t, filename, "python-script-linux-install", "should not write install script file for .py script package")
+		require.NotContains(t, filename, "python-script-linux-postinstall", "should not write post-install script file for .py script package")
+		require.NotContains(t, filename, "python-script-linux-uninstall", "should not write uninstall script file for .py script package")
+		require.NotContains(t, filename, "python-script-linux-preinstallquery", "should not write pre-install query file for .py script package")
 	}
 }
 
@@ -1932,6 +1955,16 @@ func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.
 					Name:     "setup.ps1",
 					Platform: "windows",
 					Version:  "1.5",
+				},
+			},
+			{
+				ID:         6,
+				Name:       "Python Script",
+				HashSHA256: new("py-script-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "install.py",
+					Platform: "linux",
+					Version:  "1.2",
 				},
 			},
 		}, nil
@@ -1995,6 +2028,25 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 				Platform:          "windows",
 				URL:               "https://example.com/download/setup.ps1",
 				Name:              "setup.ps1",
+			},
+		}, nil
+	case 6:
+		if *teamID != 2 {
+			return nil, errors.New("team ID mismatch")
+		}
+		// InstallScript is populated internally from file contents, but these fields
+		// should NOT be output in GitOps YAML
+		return &fleet.SoftwareTitle{
+			ID: 6,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "#!/usr/bin/env python3\nprint('This is the Python script content')",
+				PostInstallScript: "",
+				UninstallScript:   "",
+				PreInstallQuery:   "",
+				SelfService:       true,
+				Platform:          "linux",
+				URL:               "https://example.com/download/install.py",
+				Name:              "install.py",
 			},
 		}, nil
 	default:
