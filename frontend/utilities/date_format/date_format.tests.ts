@@ -8,6 +8,14 @@ import {
 } from ".";
 
 describe("date_format utilities", () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-06-15T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   describe("uploadedFromNow util", () => {
     it("returns an user friendly uploaded message", () => {
       const currentDate = new Date();
