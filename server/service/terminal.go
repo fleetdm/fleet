@@ -1,0 +1,50 @@
+package service
+
+import (
+	"context"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
+
+// CreateTerminalSession implements fleet.Service.
+//
+// It verifies the caller has write access to the host, creates an in-memory
+// terminal session, and returns the session ID.  The orbit agent learns about
+// the session on its next config poll (OrbitConfigNotifications.PendingTerminalSessionIDs)
+// and dials back to open a PTY.
+func (svc *Service) CreateTerminalSession(ctx context.Context, hostID uint) (string, error) {
+	// HostLite returns *fleet.Host with the primary host data (no detail columns).
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get host for terminal session")
+	}
+
+	// Authorize: start with standard host write check (filters unauthenticated
+	// callers, observers, etc.) then further restrict to global admins only.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok || vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
+		return "", fleet.NewPermissionError("terminal sessions require global admin role")
+	}
+
+	sessionID, _ := terminalStore.create(host.ID, host.DisplayName())
+	// Orbit is NOT notified here.  The browser WebSocket handler calls
+	// terminalNotifyStore.notifyHost after the browser authenticates, so no
+	// shell is ever started for a session that no browser has claimed.
+
+	// Activity is recorded in the browser WebSocket handler, after the orbit
+	// agent has connected and the shell is truly live. Recording it here
+	// (at session creation) would log the event even if orbit never connects.
+
+	return sessionID, nil
+}
+
+// pendingTerminalSessionIDsForHost returns session IDs waiting for this host.
+// Called from GetOrbitConfig to populate PendingTerminalSessionIDs.
+func pendingTerminalSessionIDsForHost(hostID uint) []string {
+	return terminalStore.pendingForHost(hostID)
+}

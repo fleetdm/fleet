@@ -3309,6 +3309,10 @@ func (s *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name str
 	return s.UpdateSoftwareNameFunc(ctx, titleID, name)
 }
 
+func (s *Service) CreateTerminalSession(ctx context.Context, hostID uint) (string, error) {
+	return "", nil
+}
+
 func (s *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostCertificatesFuncInvoked = true

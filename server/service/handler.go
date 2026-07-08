@@ -587,6 +587,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/scripts/batch", batchScriptExecutionListEndpoint, fleet.BatchScriptExecutionListRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/scripts", getHostScriptDetailsEndpoint, fleet.GetHostScriptDetailsRequest{})
+	// Web terminal: create a session (returns session_id), then upgrade to WS.
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/terminal", createTerminalSessionEndpoint, createTerminalSessionRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming", listHostUpcomingActivitiesEndpoint, listHostUpcomingActivitiesRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming/{activity_id}", cancelHostUpcomingActivityEndpoint, cancelHostUpcomingActivityRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, fleet.LockHostRequest{})
@@ -1150,6 +1152,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
+
+
+	// Web terminal WebSocket endpoints. Auth is performed inside each handler.
+	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/terminal/{session_id}/ws",
+		makeTerminalBrowserHandler(svc, logger)).Methods("GET")
+	// Long-poll notify must be registered before the parameterized session route
+	// so gorilla/mux does not treat "notify" as a session_id.
+	r.Handle("/api/fleet/orbit/terminal/notify",
+		makeTerminalNotifyOrbitHandler(svc, logger)).Methods("GET")
+	r.Handle("/api/fleet/orbit/terminal/{session_id}",
+		makeTerminalOrbitHandler(svc, logger)).Methods("GET")
 
 	orgLogoLimiter := ratelimit.NewMiddleware(limitStore).Limit(
 		"org_logo",

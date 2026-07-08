@@ -44,6 +44,11 @@ type OrbitConfigNotifications struct {
 	// haven't received a result yet.
 	PendingScriptExecutionIDs []string `json:"pending_script_execution_ids,omitempty"`
 
+	// PendingTerminalSessionIDs lists the IDs of web terminal sessions that are
+	// waiting for this host to connect. The orbit agent should dial back to the
+	// Fleet server for each session and proxy a local shell over the WebSocket.
+	PendingTerminalSessionIDs []string `json:"pending_terminal_session_ids,omitempty"`
+
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`

@@ -635,6 +635,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
+	if termSessionIDs := pendingTerminalSessionIDsForHost(host.ID); len(termSessionIDs) > 0 {
+		notifs.PendingTerminalSessionIDs = termSessionIDs
+	}
+
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
 		host.DiskEncryptionEnabled != nil &&
 		*host.DiskEncryptionEnabled &&

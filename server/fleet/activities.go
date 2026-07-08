@@ -2269,3 +2269,18 @@ func (a ActivityTypeRanAutomationConditionalAccess) HostIDs() []uint {
 func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
 	return true
 }
+
+// ActivityTypeConnectedToHost is recorded when a Fleet user opens a web
+// terminal session to a host via Actions → Connect.
+type ActivityTypeConnectedToHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeConnectedToHost) ActivityName() string {
+	return "connected_to_host"
+}
+
+func (a ActivityTypeConnectedToHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}

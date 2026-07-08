@@ -511,6 +511,10 @@ type Service interface {
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
 
+	// CreateTerminalSession creates a new interactive terminal session for the given host.
+	// Returns the session ID to be used for the WebSocket connection.
+	CreateTerminalSession(ctx context.Context, hostID uint) (string, error)
+
 	// GetHostRecoveryLockPassword retrieves the recovery lock password for the specified host.
 	// Requires admin or maintainer role and MDM to be enabled.
 	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)
