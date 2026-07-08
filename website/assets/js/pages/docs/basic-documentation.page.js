@@ -38,7 +38,7 @@ parasails.registerPage('basic-documentation', {
       return _.startsWith(page.url, '/docs');
     });
     this.pagesBySectionSlug = (() => {
-      const DOCS_SLUGS = ['get-started', 'deploy', 'configuration', 'rest-api'];
+      const DOCS_SLUGS = ['get-started', 'deploy', 'configuration', 'api'];
       let sectionSlugs = _.uniq(this.pages.map((page) => page.url.split(/\//).slice(-2)[0]));
       let pagesBySectionSlug = {};
 
