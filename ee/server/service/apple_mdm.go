@@ -175,6 +175,20 @@ func (svc *Service) validateAppleDDMAsset(ctx context.Context, data []byte) (ide
 		return "", &fleet.BadRequestError{Message: "Asset type must be a valid Apple asset type beginning with 'com.apple.asset.'"}
 	}
 
+	// Check if Identifier uses a FLEET_SECRET, fail if so.
+	if strings.Contains(rawAsset.Identifier, "FLEET_SECRET") {
+		return "", &fleet.BadRequestError{Message: "Asset identifier must not contain a $FLEET_SECRET"}
+	}
+
+	expanded, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets and updated_at")
+	}
+
+	if err := json.Unmarshal([]byte(expanded), &rawAsset); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshaling asset data")
+	}
+
 	// We disallow authentication, as we force MDM auth when serving the assets.
 	if rawAsset.Payload.Authentication != nil {
 		return "", &fleet.BadRequestError{Message: "Asset payload must not contain an authentication key"}
