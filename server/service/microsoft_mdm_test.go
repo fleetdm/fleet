@@ -593,6 +593,20 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 			string(scepCmdWithAtomic.RawCommand),
 		)
 	})
+
+	t.Run("scope-less SCEP profile is wrapped in Atomic", func(t *testing.T) {
+		scepLocURI := "Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL"
+		cmd, err := buildCommandFromProfileBytes(syncMLForTest(scepLocURI), "uuid-scopeless")
+		require.NoError(t, err)
+		require.Contains(t, string(cmd.RawCommand), "<Atomic>")
+
+		// A non-wrapped profile unmarshalls into a single top-level command; only an <Atomic> wrapper populates both nested
+		// command slices, so this is a definitive check that the scope-less SCEP profile was wrapped.
+		wrapped := new(fleet.SyncMLCmd)
+		require.NoError(t, xml.Unmarshal(cmd.RawCommand, wrapped))
+		require.Len(t, wrapped.ReplaceCommands, 1)
+		require.Len(t, wrapped.AddCommands, 1)
+	})
 }
 
 func syncMLForTest(locURI string) []byte {
