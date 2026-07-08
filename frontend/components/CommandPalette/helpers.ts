@@ -40,6 +40,7 @@ export interface ICommandPaletteContext {
   availableTeams?: ITeamSummary[];
   config: IConfig | null;
   canAccessControls?: boolean;
+  canAccessVariables?: boolean;
   canWrite?: boolean;
   canRunLiveReport?: boolean;
   canAccessSettings?: boolean;
