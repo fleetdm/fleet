@@ -83,6 +83,13 @@
     &:active {
       background-color: transparent;
     }
+
+    &.button > .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+      width: 100%;
+    }
   }
 
   &__details-text {

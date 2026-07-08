@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.02') < 0);"
       },
-      "installer_url": "https://7-zip.org/a/7z2602-x64.msi",
+      "installer_url": "https://github.com/ip7z/7zip/releases/download/26.02/7z2602-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "cd80dc1f",
       "sha256": "db407a4f6d4999e5c7bc00ce8a882be94717b56e7fa68140fe3f12605d91643e",

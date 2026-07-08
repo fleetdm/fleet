@@ -8,26 +8,14 @@
   column-gap: $pad-small;
   row-gap: $pad-small;
 
-  // Adds the third row only when pills are present — otherwise the empty
-  // track would still add `row-gap` below the data row.
+  // Pills sit inline with the title row (between the name and Actions) at
+  // every width — the title's `minmax(0, 1fr)` track absorbs the squeeze by
+  // truncating further, rather than pushing pills to their own row below.
   &--has-pills {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     grid-template-areas:
-      "icon  title  actions"
-      "icon  data   data"
-      "pills pills  pills";
-  }
-
-  @media (min-width: $break-md) {
-    grid-template-areas:
-      "icon  title  actions"
-      "icon  data   data";
-
-    &--has-pills {
-      grid-template-columns: auto minmax(0, 1fr) auto auto;
-      grid-template-areas:
-        "icon  title  pills  actions"
-        "icon  data   data   data";
-    }
+      "icon  title  pills  actions"
+      "icon  data   data   data";
   }
 
   .software-icon {
@@ -45,9 +33,9 @@
   }
 
   // `__info` is a flat wrapper around the title row, action button, data list,
-  // and pills. We use `display: contents` so its children participate directly
-  // in the outer grid — that lets pills span the full row width (including
-  // under the icon) on narrow viewports.
+  // and pills. We use `display: contents` so its children (title, pills,
+  // actions, data) participate directly in the outer grid instead of being
+  // laid out as one nested box.
   &__info {
     display: contents;
 
@@ -68,14 +56,12 @@
   &__header-pills {
     grid-area: pills;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: $pad-small;
-
-    @media (min-width: $break-md) {
-      // Push pills toward the actions column when inline.
-      justify-self: end;
-    }
+    // Push pills toward the actions column now that they're always inline
+    // with the title.
+    justify-self: end;
   }
 
   h1 {

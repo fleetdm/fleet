@@ -149,6 +149,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
 		{"IDPHostDeviceMapping", testIDPHostDeviceMapping},
+		{"ListHostsDeviceMappingOrder", testHostsListDeviceMappingOrder},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
@@ -949,6 +950,15 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 		hosts = append(hosts, newHost.Host)
 	}
 
+	// Add a Zorin OS host (Ubuntu-based), supported for linux disk encryption.
+	// Appended after the Android hosts (index 22) so the existing host indices
+	// used for team assignments below are unaffected. Left on "no team" and
+	// pending (no escrowed key) to exercise the supported-linux OS settings /
+	// disk-encryption filter path.
+	zorinHost := test.NewHost(t, ds, "foo.local.22", "1.1.1.1", "22", "22", time.Now(), test.WithPlatform("zorin"))
+	hosts = append(hosts, zorinHost)
+	nanoEnrollAndSetHostMDMData(t, ds, zorinHost, false)
+
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 
 	// confirm initial state
@@ -1041,19 +1051,19 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 6) // pending supported linux hosts (ubuntu 1,2; fedora 3,4,5; zorin 22)
 
-	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)
+	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", new(uint(1)))
 	require.NoError(t, err)                                                              // set host 1 to verified
 	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error")) // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 2)   // hosts[2], hosts[21]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 3)  // still-pending supported linux hosts
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 4)  // still-pending supported linux hosts (fedora 3,4,5; zorin 22)
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 1)
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 3)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 4) // fedora 3,4,5; zorin 22
 
 	// test team filter in combination with os settings disk encryptionfilter
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -1106,7 +1116,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[18]
 
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 4) // hosts[3, 4, 5, 19]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 5) // hosts[3, 4, 5, 19, 22 (zorin)]
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
@@ -1118,7 +1128,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)
+	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", new(uint(2)))
 	require.NoError(t, err)                                                              // set host 1 to verified
 	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error")) // set host 2 to failed
 
@@ -4434,8 +4444,8 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: new(true)}, time.Now(), false, nil))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: new(false)}, time.Now(), false, nil)))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
@@ -5438,18 +5448,18 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil)))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil)))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
 	checkHostIssuesWithOpts(t, ds, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
@@ -5516,8 +5526,8 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil)))
 
 	prevRead := getReads(t, ds)
 	h1WithExtras, err := ds.Host(context.Background(), h1.ID)
@@ -7867,6 +7877,50 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.Equal(t, mappings[0].Source, fleet.DeviceMappingCustomReplacement)
 }
 
+func testHostsListDeviceMappingOrder(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("dm-order-host"),
+		NodeKey:         new("dm-order-host"),
+		Platform:        "linux",
+		Hostname:        "dm-order-host",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Insert the google_chrome_profiles rows first so they get lower ids: with
+	// ORDER BY (email, source), "b@example.com"/custom_installer sorts before
+	// "b@example.com"/google_chrome_profiles even though it was inserted last,
+	// so an accidental id-ordered read cannot pass this test.
+	require.NoError(t, ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "z@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: host.ID, Email: "b@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles))
+	_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, host.ID, "b@example.com", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	gotHosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DeviceMapping: true}, 1)
+	require.NotNil(t, gotHosts[0].DeviceMapping)
+
+	var dm []*fleet.HostDeviceMapping
+	require.NoError(t, json.Unmarshal(*gotHosts[0].DeviceMapping, &dm))
+
+	// ListHosts must return device_mapping ordered by (email, source), matching
+	// ListHostDeviceMapping, so all endpoints agree regardless of insertion order.
+	require.Len(t, dm, 3)
+	assert.Equal(t, "b@example.com", dm[0].Email)
+	assert.Equal(t, fleet.DeviceMappingCustomReplacement, dm[0].Source)
+	assert.Equal(t, "b@example.com", dm[1].Email)
+	assert.Equal(t, fleet.DeviceMappingGoogleChromeProfiles, dm[1].Source)
+	assert.Equal(t, "z@example.com", dm[2].Email)
+	assert.Equal(t, fleet.DeviceMappingGoogleChromeProfiles, dm[2].Source)
+}
+
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err := ds.GetHostMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
@@ -9369,7 +9423,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO query_results (host_id, query_id, last_fetched, data) VALUES (?, ?, ?, ?)`, host.ID, policy.ID, time.Now(), `{"foo": "bar"}`)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil)))
 	// Update host_mdm.
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "", "", false)
 	require.NoError(t, err)
@@ -9548,7 +9602,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		NotValidAfter:  now.Add(365 * 24 * time.Hour),
 		Source:         fleet.SystemHostCertificate,
 		Username:       "test-user",
-	}}, fleet.HostCertificateOriginOsquery))
+	}}, fleet.HostCertificateOriginOsquery, nil))
 
 	// create an android device from this host
 	deviceID := strings.ReplaceAll(uuid.NewString(), "-", "")
@@ -10129,7 +10183,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 
 		for _, tc := range testCases {
 			if len(tc.policyEx) != 0 {
-				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil))
+				require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil)))
 			}
 			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
 			require.NoError(t, err)
@@ -10171,7 +10225,7 @@ func testHostsRecordNoPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
 	policyUpdatedAt := initialTime.Add(1 * time.Hour)
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false, nil)))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
 	require.Len(t, hosts, 2)
@@ -10358,9 +10412,9 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 			results[policies[j].ID] = ptr.Bool(true) // pass
 		}
 		require.NoError(
-			t, ds.RecordPolicyQueryExecutions(
+			t, errOnly(ds.RecordPolicyQueryExecutions(
 				context.Background(), createdHosts[i], results, time.Now(), false, nil,
-			),
+			)),
 		)
 	}
 	hostIDs := make([]uint, len(createdHosts))
@@ -10847,18 +10901,14 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 
-	// no change when blank key or salt attempted to save
-	keyArchived, err := ds.SaveLUKSData(ctx, host1, "", "", 0)
-	require.Error(t, err)
-	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
-	require.False(t, keyArchived)
-	keyArchived, err = ds.SaveLUKSData(ctx, host1, "foo", "", 0)
+	// no change when blank key attempted to save
+	keyArchived, err := ds.SaveLUKSData(ctx, host1, "", "", nil)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.False(t, keyArchived)
 
 	// persists with passphrase and salt set
-	keyArchived, err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", 0)
+	keyArchived, err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", new(uint(0)))
 	require.NoError(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
@@ -10866,11 +10916,19 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	checkLUKSEncryptionKey(t, ds, host2.ID, "bazqux", "fuzzmuffin")
 
 	// persists when host hasn't had anything queued
-	keyArchived, err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", 1)
+	keyArchived, err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", new(uint(1)))
 	require.NoError(t, err)
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 	require.True(t, keyArchived)
 	checkLUKSEncryptionKey(t, ds, host3.ID, "newstuff", "fuzzball")
+
+	// persists a TPM-backed FDE recovery key, which has no salt or key slot
+	// (snapd owns the LUKS key slots)
+	keyArchived, err = ds.SaveLUKSData(ctx, host1, "recoverykey", "", nil)
+	require.NoError(t, err)
+	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.True(t, keyArchived)
+	checkLUKSEncryptionKey(t, ds, host1.ID, "recoverykey", "")
 }
 
 func checkLUKSEncryptionKey(t *testing.T, ds *Datastore, hostID uint, expectedKey string, expectedSalt string) {
@@ -12360,8 +12418,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil)))
 
 	// set up vulnerable software
 	software := []fleet.Software{
@@ -12883,9 +12941,9 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		}
 		require.NoError(
 			// RecordPolicyQueryExecutions should call UpdateHostIssuesFailingPolicies, so we don't have to
-			t, ds.RecordPolicyQueryExecutions(
+			t, errOnly(ds.RecordPolicyQueryExecutions(
 				context.Background(), hosts[i], results, time.Now(), false, nil,
-			),
+			)),
 		)
 	}
 

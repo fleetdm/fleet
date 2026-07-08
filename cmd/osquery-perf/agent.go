@@ -10,7 +10,6 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -558,12 +557,11 @@ type agent struct {
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
 
-	// cache of certificates returned by this agent. Note that this requires
-	// a mutex even though only used in a.processQuery, that's because both
-	// the runLoop and the live query goroutines may call DistributedWrite
-	// (which calls processQuery).
+	// cache of this host's per-host certificates (the certs unique to this host, excluding the shared certs every host
+	// reports). Note that this requires a mutex even though only used in a.processQuery, that's because both the runLoop
+	// and the live query goroutines may call DistributedWrite (which calls processQuery).
 	certificatesMutex        sync.RWMutex
-	certificatesCache        []map[string]string
+	hostCertSpecs            []simulatedCert
 	commonSoftwareNameSuffix string
 
 	entraIDDeviceID          string
@@ -2990,156 +2988,6 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 		{"path": "/etc", "encrypted": "0"},
 		{"path": "/tmp", "encrypted": "0"},
 	}
-}
-
-func (a *agent) certificatesDarwin() []map[string]string {
-	a.certificatesMutex.RLock()
-	cache := a.certificatesCache
-	a.certificatesMutex.RUnlock()
-
-	// 90% of the time certificates do not change
-	if rand.Intn(100) < 90 && len(cache) > 0 {
-		return cache
-	}
-
-	// between 2 and 10 certificates (probably impossible to have 0, quick check
-	// on dogfood gives between 4-7)
-	count := rand.Intn(9) + 2
-
-	sources := []string{"system", "user"}
-	users := a.hostUsers()
-	const day = 24 * time.Hour
-
-	results := make([]map[string]string, count)
-	for i := range count {
-		m := make(map[string]string, 12)
-		m["ca"] = fmt.Sprint(rand.Intn(2))
-		m["common_name"] = uuid.NewString()
-		m["issuer"] = fmt.Sprintf("/C=US/O=Issuer %d Inc./CN=Issuer %d Common Name", i, i)
-		m["subject"] = fmt.Sprintf("/C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name", i, i, i)
-		m["key_algorithm"] = "rsaEncryption"
-		m["key_strength"] = "2048"
-		m["key_usage"] = "Data Encipherment, Key Encipherment, Digital Signature"
-		m["serial"] = uuid.NewString()
-		m["signing_algorithm"] = "sha256WithRSAEncryption"
-		// generate so that it may be expired
-		m["not_valid_after"] = fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix())
-		// notBefore is always in the past (1-10 days in the past)
-		m["not_valid_before"] = fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix())
-		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
-		hash := hex.EncodeToString(rawHash[:])
-		m["sha1"] = hash
-		m["source"] = sources[rand.Intn(2)]
-
-		if m["source"] == "user" {
-			// Set username for user keychain certificates
-			user := users[rand.Intn(len(users))]
-			m["path"] = fmt.Sprintf(`/Users/%s/Library/Keychains/login.keychain-db`, user["username"])
-		}
-
-		results[i] = m
-	}
-
-	a.certificatesMutex.Lock()
-	a.certificatesCache = results
-	a.certificatesMutex.Unlock()
-	return results
-}
-
-func (a *agent) certificatesWindows() []map[string]string {
-	a.certificatesMutex.RLock()
-	cache := a.certificatesCache
-	a.certificatesMutex.RUnlock()
-
-	// 90% of the time certificates do not change
-	if rand.Intn(100) < 90 && len(cache) > 0 {
-		return cache
-	}
-
-	const day = 24 * time.Hour
-
-	// custom SCEP profile ID used for certs issued via custom SCEP profiles (inserted by
-	// FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID)
-	//
-	// TODO: make this configurable as a loadtest agent parameter? for now, just hardcode it and try
-	// manipulating it in loadtest DB directly if needed.
-	profileIDCustomSCEP := "w2a6fd2c4-0018-4bdc-8046-c7342962b576"
-
-	// when windows hosts enroll to Fleet MDM, we issue them a unique cert during the WSTEP/SCEP process
-	uuidFleetSCEP := uuid.NewString()
-
-	// uuids that we'll use in serials and hashes to ensure uniqueness
-	serial1 := uuid.NewString()
-	s1 := sha1.Sum([]byte(serial1)) //nolint: gosec
-
-	serial2 := uuid.NewString()
-	s2 := sha1.Sum([]byte(serial2)) //nolint: gosec
-
-	// Fleet SCEP cert example based on data from a real Windows host
-	c1 := map[string]string{
-		"ca":                "-1",
-		"common_name":       uuidFleetSCEP,
-		"subject":           "Fleet, " + uuidFleetSCEP,
-		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
-		"key_algorithm":     "RSA",
-		"key_strength":      "2160",
-		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		// generate so that it may be expired
-		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
-		// notBefore is always in the past (1-10 days in the past)
-		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
-		"serial":           serial1,
-		"sha1":             hex.EncodeToString(s1[:]),
-		"username":         "Admin",
-		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
-	}
-	// Custom SCEP cert example based on data from a real Windows host
-	c2 := map[string]string{
-		"ca":                "-1",
-		"common_name":       fmt.Sprintf("%s User\n            CN", profileIDCustomSCEP),
-		"subject":           fmt.Sprintf("fleet-%s, \"%s User\n            CN\"", profileIDCustomSCEP, profileIDCustomSCEP),
-		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
-		"key_algorithm":     "RSA",
-		"key_strength":      "1120",
-		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		// generate so that it may be expired
-		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
-		// notBefore is always in the past (1-10 days in the past)
-		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
-		"serial":           serial2,
-		"sha1":             hex.EncodeToString(s2[:]),
-		"username":         "Admin",
-		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
-	}
-
-	// We'll use the examples above to create rows with minor variations, similar to what
-	// we would get from a real Windows host.
-	c3 := maps.Clone(c1)
-	c3["username"] = "SYSTEM"
-	c3["path"] = "Users\\S-1-5-18\\Personal"
-
-	c4 := maps.Clone(c1)
-	c4["username"] = "SYSTEM"
-	c4["path"] = "CurrentUser\\Personal"
-
-	c5 := maps.Clone(c1)
-	c5["username"] = "SYSTEM"
-	c5["path"] = "Users\\S-1-5-18\\Personal"
-
-	c6 := maps.Clone(c1)
-	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	c7 := maps.Clone(c2)
-	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
-
-	a.certificatesMutex.Lock()
-	a.certificatesCache = rows
-	a.certificatesMutex.Unlock()
-	return rows
 }
 
 func (a *agent) orbitInfo() []map[string]string {

@@ -1,4 +1,11 @@
-## Fleet 4.87.1 (Jun 25, 2026)
+## Fleet 4.88.0 (Jul 01, 2026)
+
+### Bug fixes
+
+- Added support for personal (BYOD) Apple MDM enrollment, tracking per-host enrollment permissions so that personal devices cannot be remotely wiped or locked, and preserving those permissions across SCEP/ACME certificate renewal.
+- Fixed an issue where fleetd could intermittently fail to install during Windows MDM enrollment, which could cause the Windows Autopilot Enrollment Status Page to hang.
+
+## Fleet 4.87.1 (Jun 26, 2026)
 
 ### Bug fixes
 

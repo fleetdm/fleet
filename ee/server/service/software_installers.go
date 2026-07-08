@@ -2091,7 +2091,6 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			return ext, nil
 		}
 		// For non-Windows zip files (e.g., macOS), let ExtractInstallerMetadata handle it
-		// (it will detect it as IPA due to shared magic bytes, but that's handled elsewhere)
 	}
 
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
