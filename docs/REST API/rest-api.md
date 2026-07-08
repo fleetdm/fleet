@@ -7018,6 +7018,8 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 
 Add an asset to reference in a configuration profile.
 
+> You need to send a request of type `multipart/form-data`.
+
 > This endpoint accepts a maximum request body size of 1.5MiB.
 
 `POST /api/v1/fleet/assets`
@@ -7098,7 +7100,6 @@ List all assets available for the "Unassigned" fleet.
     {
       "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
       "asset": "my-asset.json",
-      "name": "My asset",
       "identifier": "com.example.asset1",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
@@ -7107,7 +7108,6 @@ List all assets available for the "Unassigned" fleet.
     {
       "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
       "asset": "my-asset2.json",
-      "name": "My asset2",
       "identifier": "com.example.asset2",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
@@ -7141,7 +7141,6 @@ List all assets available for the "Unassigned" fleet.
   "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
   "fleet_id": 0,
   "asset": "my-asset.json",
-  "name": "My asset",
   "identifier": "com.example.asset1",
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
@@ -7193,7 +7192,7 @@ Content-Disposition: attachment;filename="2023-03-31 my-asset.json"
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
 ### Resend configuration profile by Fleet Desktop token
 
