@@ -4068,6 +4068,66 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 	}
 }
 
+// TestSoftwareTitleUpgradeCodeDriftMatch verifies the #48875 fix: a Windows program whose
+// reported name has drifted from the stored title's name but shares its upgrade_code is
+// resolved to that existing title by the pre-insert lookup — so it is NOT treated as a new
+// title and does not issue a doomed INSERT IGNORE on every ingest.
+func TestSoftwareTitleUpgradeCodeDriftMatch(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	const upgradeCode = "{55ac7218-24cb-4b99-9449-f28d9c59cc7e}"
+
+	// Host 1 reports "7-Zip 24.08 (x64)" — this creates the title, keyed by upgrade_code.
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: "7-Zip 24.08 (x64)", Version: "24.08", Source: "programs", UpgradeCode: new(upgradeCode)},
+	})
+	require.NoError(t, err)
+
+	var stored struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stored,
+			`SELECT id, name, upgrade_code FROM software_titles WHERE source='programs' AND upgrade_code=?`, upgradeCode)
+	})
+	require.Equal(t, "7-Zip 24.08 (x64)", stored.Name)
+
+	// A different host reports the SAME program at a drifted name but the SAME upgrade_code.
+	drift := fleet.Software{Name: "7-Zip 24.09 (x64 edition)", Version: "24.09", Source: "programs", UpgradeCode: new(upgradeCode)}
+	cs, err := drift.ComputeRawChecksum()
+	require.NoError(t, err)
+	csKey := string(cs)
+
+	got, _, err := ds.getIncomingSoftwareChecksumsToExistingTitles(ctx,
+		map[string]struct{}{csKey: {}},
+		map[string]fleet.Software{csKey: drift},
+	)
+	require.NoError(t, err)
+
+	// The drift-named program must resolve to the existing title via its upgrade_code.
+	// Before the fix this map is empty (name lookup misses), so the program is treated as new.
+	summary, ok := got[csKey]
+	require.True(t, ok, "drift-named program should resolve to the existing title by upgrade_code")
+	require.Equal(t, stored.ID, summary.ID)
+
+	// Negative control: a program with an unknown upgrade_code is not matched (correctly new).
+	other := fleet.Software{Name: "Nonexistent 1.0", Version: "1.0", Source: "programs", UpgradeCode: new("{00000000-0000-0000-0000-000000000000}")}
+	ocs, err := other.ComputeRawChecksum()
+	require.NoError(t, err)
+	ocsKey := string(ocs)
+	gotOther, _, err := ds.getIncomingSoftwareChecksumsToExistingTitles(ctx,
+		map[string]struct{}{ocsKey: {}},
+		map[string]fleet.Software{ocsKey: other},
+	)
+	require.NoError(t, err)
+	_, matched := gotOther[ocsKey]
+	require.False(t, matched, "program with unknown upgrade_code should not match any title")
+}
+
 func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 

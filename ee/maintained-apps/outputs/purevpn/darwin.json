@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "9.43.0",
+      "version": "9.44.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.purevpn.app.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.purevpn.app.mac' AND version_compare(bundle_short_version, '9.43.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.purevpn.app.mac' AND version_compare(bundle_short_version, '9.44.0') < 0);"
       },
       "installer_url": "https://dzglif4kkvz04.cloudfront.net/mac-2.0/packages/Production/PureVPN.pkg",
       "install_script_ref": "0c187c4e",

@@ -60,11 +60,6 @@ module.exports = {
 
     // Set a pageTitleForMeta, pageDescriptionForMeta, and currentSection variable based on the article category.
     switch(category) {
-      case 'success-stories':
-        pageTitleForMeta = 'Success stories';
-        pageDescriptionForMeta = 'Read about how others are using Fleet and osquery.';
-        currentSection = 'platform';
-        break;
       case 'deploy':
         pageTitleForMeta = 'Deployment guides';
         pageDescriptionForMeta = 'Learn how to deploy Fleet on a variety of production environments.';

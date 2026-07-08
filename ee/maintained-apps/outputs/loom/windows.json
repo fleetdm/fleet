@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.357.1",
+      "version": "0.359.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Loom' AND publisher = 'Loom, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Loom' AND publisher = 'Loom, Inc.' AND version_compare(version, '0.357.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Loom' AND publisher = 'Loom, Inc.' AND version_compare(version, '0.359.2') < 0);"
       },
-      "installer_url": "https://cdn.loom.com/desktop-packages/Loom%20Setup%200.357.1.exe",
+      "installer_url": "https://cdn.loom.com/desktop-packages/Loom%20Setup%200.359.2.exe",
       "install_script_ref": "77327cbf",
       "uninstall_script_ref": "b012f1e7",
-      "sha256": "001d9fa6d78f2922f74a8d224dfa8aba2becd68424379af6d70adae66242c8fd",
+      "sha256": "95b09541c0c5f922a15af0aa777ce773d6129ba274b6fe8ce2d9a1a814e34f04",
       "default_categories": [
         "Productivity"
       ]
