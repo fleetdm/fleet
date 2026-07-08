@@ -29,19 +29,21 @@ func (svc *Service) CreateTerminalSession(ctx context.Context, hostID uint) (str
 		return "", ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 	}
 
-	// Reject unsupported platforms before doing any auth work.
-	if !fleet.IsLinux(host.Platform) && host.Platform != "darwin" && host.Platform != "windows" {
-		return "", fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("web terminal is not supported on %q hosts", host.Platform))
-	}
-
-	// Authorize: start with standard host write check (filters unauthenticated
+	// Authorize first: standard host write check (filters unauthenticated
 	// callers, observers, etc.) then further restrict to global admins only.
+	// Platform validation comes after so that unauthorized callers cannot
+	// probe host existence or platform via a cheaper error path.
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
 		return "", err
 	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok || vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
 		return "", fleet.NewPermissionError("terminal sessions require global admin role")
+	}
+
+	// Reject unsupported platforms only after the caller is verified.
+	if !fleet.IsLinux(host.Platform) && host.Platform != "darwin" && host.Platform != "windows" {
+		return "", fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("web terminal is not supported on %q hosts", host.Platform))
 	}
 
 	// Bind the session to the creating user so that markBrowserClaimed later

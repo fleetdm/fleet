@@ -140,6 +140,11 @@ func (s *terminalNotifyStoreT) subscribe(hostID uint) (ch chan struct{}, unsubsc
 				break
 			}
 		}
+		// Remove the map entry entirely when the last waiter unsubscribes
+		// so that the map does not grow unbounded over time.
+		if len(s.waiters[hostID]) == 0 {
+			delete(s.waiters, hostID)
+		}
 		s.mu.Unlock()
 	}
 }
