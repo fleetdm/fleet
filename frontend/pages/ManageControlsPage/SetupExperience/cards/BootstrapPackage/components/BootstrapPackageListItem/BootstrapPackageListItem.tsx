@@ -68,7 +68,9 @@ const BootstrapPackageListItem = ({
             {bootstrapPackage.name}
           </span>
           <span className={`${baseClass}__list-item-uploaded`}>
-            {`Uploaded ${timeAgo(new Date(bootstrapPackage.created_at))} ago`}
+            {`Uploaded ${timeAgo(new Date(bootstrapPackage.created_at), {
+              addSuffix: true,
+            })}`}
           </span>
         </div>
       </div>

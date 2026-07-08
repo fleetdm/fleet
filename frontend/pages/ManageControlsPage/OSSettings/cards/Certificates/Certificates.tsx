@@ -203,7 +203,8 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Updated {timeAgo(new Date(created_at))} ago
+                {caName} &bull; Updated{" "}
+                {timeAgo(new Date(created_at), { addSuffix: true })}
               </>
             );
 

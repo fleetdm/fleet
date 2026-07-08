@@ -63,7 +63,7 @@ const ProfileDetails = ({
       <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
       <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
-        {`Uploaded ${timeAgo(new Date(uploadedAt))} ago`}
+        {`Uploaded ${timeAgo(new Date(uploadedAt), { addSuffix: true })}`}
       </span>
     </div>
   );

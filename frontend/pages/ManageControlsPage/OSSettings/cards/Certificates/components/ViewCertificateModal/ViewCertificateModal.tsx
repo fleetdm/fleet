@@ -1,5 +1,5 @@
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import { ICertificate } from "services/entities/certificates";
 
@@ -32,7 +32,7 @@ const ViewCertificateModal = ({ cert, onExit }: IViewCertificateModalProps) => {
             <DataSet title="Certificate authority" value={caName} />
             <DataSet
               title="Added"
-              value={`${formatDistanceToNow(new Date(created_at))} ago`}
+              value={timeAgo(new Date(created_at), { addSuffix: true })}
             />
           </div>
           <InputField

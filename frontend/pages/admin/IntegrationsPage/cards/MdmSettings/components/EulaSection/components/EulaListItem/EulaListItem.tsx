@@ -30,7 +30,9 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
             {eulaData.name}
           </span>
           <span className={`${baseClass}__list-item-uploaded`}>
-            {`Uploaded ${timeAgo(new Date(eulaData.created_at))} ago`}
+            {`Uploaded ${timeAgo(new Date(eulaData.created_at), {
+              addSuffix: true,
+            })}`}
           </span>
         </div>
       </div>
