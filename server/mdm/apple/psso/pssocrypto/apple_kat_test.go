@@ -62,8 +62,11 @@ func TestAppleEncryptionVerificationVectors(t *testing.T) {
 	require.Equal(t, wantZ, z, "ECDH shared secret Z must match Apple's vector")
 
 	// 2. Fleet's apu construction ("APPLE" || uncompressed epk) matches Apple's
-	// apu byte-for-byte.
-	fleetAPU := EncodeApplePartyInfo([]byte(APUPartyLabel), ephECDH.PublicKey().Bytes())
+	// apu byte-for-byte, via the same PublicKey().ECDH() path BuildPartyInfoJWE
+	// uses (derives the point from the ephemeral X/Y, not the scalar).
+	epkECDH, err := eph.PublicKey.ECDH()
+	require.NoError(t, err)
+	fleetAPU := EncodeApplePartyInfo([]byte(APUPartyLabel), epkECDH.Bytes())
 	require.Equal(t, appleAPU, fleetAPU, "apu construction must match Apple's vector")
 
 	// 3. The derived content-encryption key matches Apple's, using the identical
