@@ -458,7 +458,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				if _, err := tx.ExecContext(ctx, delProfilesStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_windows_profiles for host")
 				}
-				// Drop the now-orphaned per-host profile status rollup row (issue #48340).
+				// Drop the now-orphaned per-host profile status rollup row.
 				if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}); err != nil {
 					return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup on re-enrollment")
 				}
@@ -528,7 +528,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 				`DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, hostUUID.String); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles after unenrollment")
 			}
-			// Drop the now-orphaned per-host profile status rollup row (issue #48340).
+			// Drop the now-orphaned per-host profile status rollup row.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}); err != nil {
 				return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup on unenrollment")
 			}
@@ -687,8 +687,6 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
 			}
 
-			// Keep the per-host profile status rollup current for the hosts in this batch (issue #48340),
-			// in the same transaction as the profile upsert above.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after enqueue upsert")
 			}
@@ -1296,7 +1294,6 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 	}
 
-	// Keep the per-host profile status rollup current for this host (issue #48340).
 	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup from response")
 	}
@@ -1731,7 +1728,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	//   - never-sent installs (status IS NULL): nothing was delivered, so no <Delete> is needed.
 	// Sent installs and pending removes are left untouched for the reconciler.
 	// Capture the hosts that currently have rows for these profiles before the delete so we can refresh
-	// their per-host profile status rollup afterwards (issue #48340).
+	// their per-host profile status rollup afterwards.
 	var affectedHostUUIDs []string
 	selHostsStmt, selHostsArgs, err := sqlx.In(
 		`SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid IN (?)`, profileUUIDs)

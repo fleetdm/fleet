@@ -2338,10 +2338,8 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
-	// ReconcileWindowsProfilesStatus recomputes the per-host Windows profile status rollup that backs
-	// GetMDMWindowsProfilesSummary from host_mdm_windows_profiles and drops rollup rows for hosts with no
-	// profiles. The write paths maintain the rollup in real time; this periodic sweep (run on the hourly
-	// cleanups cron) is a self-healing safety net.
+	// ReconcileWindowsProfilesStatus recomputes the per-host Windows profile status rollup and drops rollup rows for hosts with no
+	// profiles.
 	ReconcileWindowsProfilesStatus(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

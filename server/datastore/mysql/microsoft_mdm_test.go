@@ -4093,18 +4093,10 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	// profile status rollup in the same transaction (issue #48340). After processing the response, the
 	// rollup row must already exist and equal what a full reconcile would compute (reconcile is a no-op),
 	// proving the hot check-in path keeps host_mdm_windows_profiles_status current without a reconcile.
-	var rollupAfterCheckin string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &rollupAfterCheckin,
-			`SELECT status FROM host_mdm_windows_profiles_status WHERE host_uuid = ?`, enrolledDevice1.HostUUID)
-	})
+	rollupAfterCheckin := readWindowsProfilesStatusRollup(t, ds)[enrolledDevice1.HostUUID]
 	require.NotEmpty(t, rollupAfterCheckin, "check-in must materialize the host's profile status rollup")
 	require.NoError(t, ds.ReconcileWindowsProfilesStatus(context.Background()))
-	var rollupAfterReconcile string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &rollupAfterReconcile,
-			`SELECT status FROM host_mdm_windows_profiles_status WHERE host_uuid = ?`, enrolledDevice1.HostUUID)
-	})
+	rollupAfterReconcile := readWindowsProfilesStatusRollup(t, ds)[enrolledDevice1.HostUUID]
 	require.Equal(t, rollupAfterCheckin, rollupAfterReconcile, "check-in path must keep the rollup in sync without a reconcile")
 
 	// Finish setting up the second device for testing
@@ -6402,6 +6394,27 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 // reserved or non-reserved (2). Per row that is 30 shapes; for 2-profile hosts
 // we enumerate all 30x30 = 900 ordered pairs, plus 30 single-profile cases,
 // plus one zero-profile case.
+// readWindowsProfilesStatusRollup returns every host_mdm_windows_profiles_status row keyed by host
+// UUID, read directly from the table (no reconcile).
+func readWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) map[string]string {
+	rollup := map[string]string{}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		rows := []struct {
+			HostUUID string `db:"host_uuid"`
+			Status   string `db:"status"`
+		}{}
+		if err := sqlx.SelectContext(context.Background(), q, &rows,
+			`SELECT host_uuid, status FROM host_mdm_windows_profiles_status`); err != nil {
+			return err
+		}
+		for _, row := range rows {
+			rollup[row.HostUUID] = row.Status
+		}
+		return nil
+	})
+	return rollup
+}
+
 // testWindowsProfilesStatusRollup verifies that the per-host profile status rollup
 // (host_mdm_windows_profiles_status) that backs GetMDMWindowsProfilesSummary is maintained
 // INCREMENTALLY by the real write paths, with no reconcile. This is the property that lets the summary
@@ -6417,24 +6430,15 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 
 	newEnrolledWindowsHost := func(t *testing.T) (*fleet.Host, string) {
 		u := uuid.New().String()
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(),
-			SeenTime: time.Now(), NodeKey: &u, UUID: u, Hostname: u, Platform: "windows",
-		})
-		require.NoError(t, err)
+		h := test.NewHost(t, ds, "rollup-host-"+u, "10.0.0.1", u, u, time.Now(), test.WithPlatform("windows"))
 		deviceID := windowsEnroll(t, ds, h)
 		return h, deviceID
 	}
 
 	// rollupStatus reads the materialized rollup row directly (no reconcile).
 	rollupStatus := func(t *testing.T, hostUUID string) (string, bool) {
-		var rows []string
-		require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
-			`SELECT status FROM host_mdm_windows_profiles_status WHERE host_uuid = ?`, hostUUID))
-		if len(rows) == 0 {
-			return "", false
-		}
-		return rows[0], true
+		status, ok := readWindowsProfilesStatusRollup(t, ds)[hostUUID]
+		return status, ok
 	}
 
 	// assertSummary asserts the summary WITHOUT reconciling first, proving incremental maintenance.
@@ -6609,31 +6613,35 @@ func testWindowsProfilesStatusReconcileBatching(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	readRollup := func(t *testing.T) map[string]string {
-		rollup := map[string]string{}
+	// Both passes need three pages each (2 + 2 + 1) at batch size 2.
+	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+	require.Equal(t, want, readWindowsProfilesStatusRollup(t, ds))
+
+	// A second reconcile over the already-correct state must not rewrite any row, not merely converge to
+	// the same values: ON DUPLICATE KEY UPDATE with an unchanged status leaves the row untouched, so each
+	// row's updated_at (DATETIME(6), bumped ON UPDATE) is the observable.
+	readUpdatedAtStamps := func(t *testing.T) map[string]string {
+		stamps := map[string]string{}
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			rows := []struct {
-				HostUUID string `db:"host_uuid"`
-				Status   string `db:"status"`
+				HostUUID  string `db:"host_uuid"`
+				UpdatedAt string `db:"updated_at"`
 			}{}
-			if err := sqlx.SelectContext(ctx, q, &rows, `SELECT host_uuid, status FROM host_mdm_windows_profiles_status`); err != nil {
+			if err := sqlx.SelectContext(ctx, q, &rows,
+				`SELECT host_uuid, CAST(updated_at AS CHAR) AS updated_at FROM host_mdm_windows_profiles_status`); err != nil {
 				return err
 			}
 			for _, row := range rows {
-				rollup[row.HostUUID] = row.Status
+				stamps[row.HostUUID] = row.UpdatedAt
 			}
 			return nil
 		})
-		return rollup
+		return stamps
 	}
-
-	// Both passes need three pages each (2 + 2 + 1) at batch size 2.
+	stampsBeforeSecondReconcile := readUpdatedAtStamps(t)
 	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
-	require.Equal(t, want, readRollup(t))
-
-	// A second reconcile over the already-correct state changes nothing.
-	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
-	require.Equal(t, want, readRollup(t))
+	require.Equal(t, want, readWindowsProfilesStatusRollup(t, ds))
+	require.Equal(t, stampsBeforeSecondReconcile, readUpdatedAtStamps(t), "a drift-free reconcile must not rewrite any rollup row")
 }
 
 func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
