@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -517,8 +517,8 @@ const ActivityFeed = ({
             const cmdDisplayName = getMdmCommandDisplayName(
               result.request_type
             );
-            const timeAgo = result.updated_at
-              ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+            const timeAgoText = result.updated_at
+              ? ` (${timeAgo(new Date(result.updated_at), {
                   addSuffix: true,
                 })})`
               : "";
@@ -540,7 +540,7 @@ const ActivityFeed = ({
                       )}
                       {" is pending on "}
                       <b>{result.hostname}</b>
-                      {`${timeAgo}.`}
+                      {`${timeAgoText}.`}
                     </span>
                   ) : (
                     <span>

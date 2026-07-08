@@ -1328,7 +1328,7 @@ func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
 	if windowsConfigured {
 		windowsSettings, _ := controls.WindowsSettings.(fleet.WindowsSettings)
 		for _, profile := range windowsSettings.CustomSettings.Value {
-			contains, err := profileFileContains(profile.Path, syncml.FleetOSUpdateTargetLocURI)
+			contains, err := windowsProfileFileTargetsReservedLocURI(profile.Path, syncml.FleetOSUpdateTargetLocURI)
 			if err != nil {
 				return err
 			}
@@ -1374,6 +1374,19 @@ func profileFileContains(path, needle string) (bool, error) {
 		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
 	}
 	return bytes.Contains(fileBytes, []byte(needle)), nil
+}
+
+// windowsProfileFileTargetsReservedLocURI reports whether the Windows profile file at path targets the given Fleet-reserved
+// LocURI node.
+func windowsProfileFileTargetsReservedLocURI(path, reservedLocURI string) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
+	}
+	return fleet.ProfileTargetsReservedLocURI(fileBytes, reservedLocURI), nil
 }
 
 func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) []error {

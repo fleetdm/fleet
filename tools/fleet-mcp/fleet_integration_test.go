@@ -1080,7 +1080,7 @@ func TestGetPolicies_IncludesQueryField(t *testing.T) {
 				{"id":1,"name":"with sql","query":"` + wantSQL + `"},
 				{"id":2,"name":"empty sql","query":""}
 			]}`))
-		case "/api/v1/fleet/teams":
+		case "/api/v1/fleet/fleets":
 			_, _ = w.Write([]byte(`{"teams":[]}`))
 		default:
 			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
