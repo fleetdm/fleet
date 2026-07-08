@@ -41,6 +41,11 @@ const (
 	// treating the connection as dead and tearing down the session.
 	// Must be greater than terminalPingPeriod.
 	terminalPongWait = 60 * time.Second
+
+	// terminalIdleTimeout tears down a session when no data has flowed in
+	// either direction for this long.  This caps how long a forgotten but
+	// healthy shell can stay open without an absolute-timeout sweep.
+	terminalIdleTimeout = 30 * time.Minute
 )
 
 // ─── message types ────────────────────────────────────────────────────────────
@@ -431,6 +436,38 @@ func makeTerminalOrbitHandler(svc fleet.Service, logger *slog.Logger) http.Handl
 			}
 		}()
 
+		// Idle timeout: tear down if no data flows in either direction for
+		// terminalIdleTimeout.  A buffered channel (capacity 1) means the
+		// resetIdle call in the hot relay paths is always non-blocking.
+		idleActivity := make(chan struct{}, 1)
+		resetIdle := func() {
+			select {
+			case idleActivity <- struct{}{}:
+			default:
+			}
+		}
+		go func() {
+			t := time.NewTimer(terminalIdleTimeout)
+			defer t.Stop()
+			for {
+				select {
+				case <-idleActivity:
+					if !t.Stop() {
+						select {
+						case <-t.C:
+						default:
+						}
+					}
+					t.Reset(terminalIdleTimeout)
+				case <-t.C:
+					cancel() // idle timeout — no data for terminalIdleTimeout
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
 		// fromBrowser → orbit WebSocket (input / resize events).
 		go func() {
 			defer cancel()
@@ -440,6 +477,7 @@ func makeTerminalOrbitHandler(svc fleet.Service, logger *slog.Logger) http.Handl
 					if err := conn.WriteMessage(gws.TextMessage, data); err != nil {
 						return
 					}
+					resetIdle()
 				case <-sess.done:
 					return
 				case <-ctx.Done():
@@ -454,6 +492,7 @@ func makeTerminalOrbitHandler(svc fleet.Service, logger *slog.Logger) http.Handl
 			if err != nil {
 				return
 			}
+			resetIdle()
 			select {
 			case sess.toBrowser <- msg:
 			case <-sess.done:

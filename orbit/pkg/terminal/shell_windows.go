@@ -114,8 +114,8 @@ func startShell(_ context.Context) (*shell, error) {
 	if ret, _, e := procInitializeProcThreadAttrList.Call(
 		uintptr(unsafe.Pointer(&attrBuf[0])), 1, 0, uintptr(unsafe.Pointer(&attrListSize)),
 	); ret == 0 {
-		windows.CloseHandle(hInW) //nolint:errcheck
-		windows.CloseHandle(hOutR) //nolint:errcheck
+		windows.CloseHandle(hInW)                 //nolint:errcheck
+		windows.CloseHandle(hOutR)                //nolint:errcheck
 		procClosePseudoConsole.Call(uintptr(hpc)) //nolint:errcheck
 		return nil, fmt.Errorf("terminal: InitializeProcThreadAttributeList: %w", e)
 	}
@@ -129,9 +129,9 @@ func startShell(_ context.Context) (*shell, error) {
 		0, 0,
 	); ret == 0 {
 		procDeleteProcThreadAttrList.Call(uintptr(unsafe.Pointer(&attrBuf[0]))) //nolint:errcheck
-		windows.CloseHandle(hInW) //nolint:errcheck
-		windows.CloseHandle(hOutR) //nolint:errcheck
-		procClosePseudoConsole.Call(uintptr(hpc)) //nolint:errcheck
+		windows.CloseHandle(hInW)                                               //nolint:errcheck
+		windows.CloseHandle(hOutR)                                              //nolint:errcheck
+		procClosePseudoConsole.Call(uintptr(hpc))                               //nolint:errcheck
 		return nil, fmt.Errorf("terminal: UpdateProcThreadAttribute: %w", e)
 	}
 
@@ -176,9 +176,9 @@ func startShell(_ context.Context) (*shell, error) {
 		&pi,
 	); err != nil {
 		procDeleteProcThreadAttrList.Call(uintptr(unsafe.Pointer(&attrBuf[0]))) //nolint:errcheck
-		windows.CloseHandle(hInW) //nolint:errcheck
-		windows.CloseHandle(hOutR) //nolint:errcheck
-		procClosePseudoConsole.Call(uintptr(hpc)) //nolint:errcheck
+		windows.CloseHandle(hInW)                                               //nolint:errcheck
+		windows.CloseHandle(hOutR)                                              //nolint:errcheck
+		procClosePseudoConsole.Call(uintptr(hpc))                               //nolint:errcheck
 		return nil, fmt.Errorf("terminal: CreateProcess: %w", err)
 	}
 

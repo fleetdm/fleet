@@ -281,8 +281,8 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
     if (connState === "error") {
       return (
         <div style={{ ...styles.banner, ...styles.bannerError }}>
-          <strong>Connection failed:</strong> {errorMsg} — make sure the host
-          is online and the Fleet agent (orbit) is running.
+          <strong>Connection failed:</strong> {errorMsg} — make sure the host is
+          online and the Fleet agent (orbit) is running.
         </div>
       );
     }
