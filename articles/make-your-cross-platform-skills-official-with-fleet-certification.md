@@ -8,7 +8,7 @@
 - **GitOps gets its own track.** Two credentials, Fleet GitOps level 1 and Fleet GitOps level 2, cover managing devices declaratively through pull requests instead of console clicks.
 - **Five credentials unlock the capstone.** The three platform certifications and both GitOps levels are prerequisites for Fleet expert, a single exam you can only take once you hold all five.
 - **The core path is taught in person.** Every credential on the road to Fleet expert comes from a hands-on, instructor-led workshop. You learn by doing it live, not by watching a video.
-- **Electives are self-paced and arrive all year.** Tracks like Fleet on-prem (self-managed) and Developing with the Fleet API let you study on your own schedule, then validate the outcome. The list grows alongside the product.
+- **Electives are self-paced and arrive all year.** Tracks like Fleet self-managed and Developing with the Fleet API let you study on your own schedule, then validate the outcome. The list grows alongside the product.
 - **Workshops begin in August.** Dates and details on how to take part will land on the Fleet workshops page.
 
 <a purpose="cta-button" href="/workshops">Find a workshop</a>
@@ -45,7 +45,7 @@ It also means the certification measures something real. You don't pass by memor
 
 The core path is where Fleet expert lives, but it isn't the whole program. Fleet is also rolling out self-paced elective certifications throughout the year. Each one goes deep on a specific way people run and build on Fleet.
 
-The first two are Fleet on-prem (self-managed), for teams running Fleet in their own infrastructure rather than the cloud, and Developing with the Fleet API, for the people writing automation and integrations on top of Fleet. Electives work differently from the core workshops: you study on your own schedule, then book time to validate the outcome. That makes them easy to add whenever you're ready, and the list will keep growing.
+The first two are Fleet self-managed, for teams running Fleet in their own infrastructure rather than the cloud, and Developing with the Fleet API, for the people writing automation and integrations on top of Fleet. Electives work differently from the core workshops: you study on your own schedule, then book time to validate the outcome. That makes them easy to add whenever you're ready, and the list will keep growing.
 
 ## August is the start, not the finish
 
