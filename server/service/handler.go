@@ -1153,7 +1153,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
 
-
 	// Web terminal WebSocket endpoints. Auth is performed inside each handler.
 	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/terminal/{session_id}/ws",
 		makeTerminalBrowserHandler(svc, logger, config.Server)).Methods("GET")
