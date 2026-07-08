@@ -50,9 +50,28 @@ For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-
 pbpaste | base64 -d
 ```
 
+
 ## MDM troubleshooting
 
 Fleet's MDM software engineering team has created a resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
+
+If the device is enrolled in Fleet, you can grab `mdmclient` logs remotely with this query:
+
+```sql
+SELECT
+  timestamp,
+  datetime(timestamp, 'unixepoch') AS event_time,
+  process,
+  subsystem,
+  category,
+  level,
+  message
+FROM unified_log
+WHERE timestamp > (SELECT unix_time - 3600 FROM time)
+  AND process = 'mdmclient'
+  AND subsystem = 'com.apple.ManagedClient'
+```
+
 
 ## Server-side logs
 
