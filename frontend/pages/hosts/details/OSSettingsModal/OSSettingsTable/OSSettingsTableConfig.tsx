@@ -230,6 +230,8 @@ export const generateTableData = (
       return makeDarwinRows(hostMDMData);
     case "ubuntu":
       return makeLinuxRows(hostMDMData);
+    case "zorin":
+      return makeLinuxRows(hostMDMData);
     case "rhel":
       return makeLinuxRows(hostMDMData);
     case "ios":

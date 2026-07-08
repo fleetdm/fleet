@@ -557,3 +557,106 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 		}
 	}))
 }
+
+// newTwoVersionServer serves a package with version dirs 2.0 and 1.0; the 2.0 installer
+// manifest responds with the given status.
+func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+		manifest := installerManifest{
+			ProductCode:    "{ABCDEF}",
+			InstallerType:  "msi",
+			Scope:          "machine",
+			PackageVersion: "1.0",
+			Installers: []installer{
+				{Architecture: "x64", InstallerType: "msi", ProductCode: "{ABCDEF}", Scope: "machine"},
+			},
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{
+				{Name: new("2.0"), Type: new("dir")},
+				{Name: new("1.0"), Type: new("dir")},
+			}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/2.0/Foo.installer.yaml":
+			w.WriteHeader(latestInstallerStatus)
+			_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(manifest)
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
+func TestIngestOneVersionWalk(t *testing.T) {
+	ctx := context.Background()
+	input := inputApp{
+		Name:              "Foo",
+		UniqueIdentifier:  "Foo",
+		PackageIdentifier: "Foo",
+		Slug:              "foo/windows",
+		InstallerArch:     "x64",
+		InstallerType:     "msi",
+		InstallerScope:    "machine",
+	}
+
+	newIngester := func(srv *httptest.Server) *wingetIngester {
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
+		require.NoError(t, err)
+		gc.BaseURL = u
+		return &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+	}
+
+	t.Run("404 on the latest version dir falls through to the next", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusNotFound)
+		t.Cleanup(srv.Close)
+
+		out, err := newIngester(srv).ingestOne(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+	})
+
+	t.Run("429 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusTooManyRequests)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "429")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+
+	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusGatewayTimeout)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "504")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+}
