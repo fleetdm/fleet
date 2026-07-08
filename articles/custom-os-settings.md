@@ -17,6 +17,13 @@ For macOS hosts, Fleet supports uploading Apple Declarative Device Management (D
 #### Configurations (`com.apple.configuration.*`)
 Enforce settings like passcode policies, account configurations, and more.
 
+The following configuration declarations are not supported:
+
+- com.apple.configuration.management.status-subscriptions
+- com.apple.configuration.watch.enrollment
+- com.apple.configuration.app.managed
+- com.apple.configuration.package
+
 #### Assets (`com.apple.asset.*`)
 Deploy credentials, certificates, and other assets referenced by configurations.
 
@@ -59,7 +66,7 @@ Once the profile is saved, you can edit the profile's targets or replace the con
   - Configuration profile. In the edit modal, hover over the uploaded file and select the **pencil/edit button** to upload a replacement file.
   > The replacement file must match the original:
   > - **DDM profiles:** same declaration identifier and file name
-  > - **v1 .mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
+  > - **.mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
