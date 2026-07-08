@@ -176,7 +176,10 @@ const generateTableHeaders = (
           repoURL
         );
 
-        if (dropdownOptions.length === 1) {
+        if (
+          dropdownOptions.length === 1 &&
+          dropdownOptions[0].value === "view_hosts"
+        ) {
           return <ViewAllHostsButton platformLabelId={label.id} rowHover />;
         }
 
