@@ -1129,19 +1129,6 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 		return nil
 	}
 
-	// Expand custom host vitals first. On a missing/empty value the caller marks
-	// the declaration failed with this error's Detail.
-	if hasHostVitals {
-		if err := hydrateHost(); err != nil {
-			return "", err
-		}
-		expanded, err := svc.ds.ExpandCustomHostVitals(ctx, hostLite.ID, contents)
-		if err != nil {
-			return "", err
-		}
-		contents = expanded
-	}
-
 	var idpUser *fleet.HostEndUser
 	resolveIDPUser := func(varName string) (*fleet.HostEndUser, error) {
 		if idpUser != nil {
@@ -1235,6 +1222,23 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 		}
 
 		contents = variables.Replace(contents, fleetVar, jsonEscapeString(value))
+	}
+
+	// Expand custom host vitals last, after the Fleet-var pass. variables.Replace
+	// is a blind global string replace, so expanding vitals earlier would let a
+	// vital value that happens to contain a literal $FLEET_VAR_<name> be rewritten
+	// by that pass. Doing it last makes the vital value the terminal substitution.
+	// On a missing/empty value the caller marks the declaration failed with this
+	// error's Detail.
+	if hasHostVitals {
+		if err := hydrateHost(); err != nil {
+			return "", err
+		}
+		expanded, err := svc.ds.ExpandCustomHostVitals(ctx, hostLite.ID, contents)
+		if err != nil {
+			return "", err
+		}
+		contents = expanded
 	}
 
 	return contents, nil
