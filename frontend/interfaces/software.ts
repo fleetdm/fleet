@@ -546,6 +546,11 @@ export interface ISoftwareInstallResult {
   created_at: string;
   updated_at: string | null;
   self_service: boolean;
+  /** SHA-256 of the installer package. Present when the payload was
+   * hydrated from a package-backed install; absent for VPP / older results
+   * whose backend join hasn't been extended. The install-details modal
+   * surfaces this as a tooltip on the filename. */
+  hash_sha256?: string;
 }
 
 // Script results are only install results, never uninstall

@@ -73,6 +73,13 @@
     text-align: left;
   }
 
+  &__software-pickers {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+    align-items: flex-end;
+  }
+
   &__learn-more {
     font-size: $x-small;
     color: $ui-fleet-black-75;

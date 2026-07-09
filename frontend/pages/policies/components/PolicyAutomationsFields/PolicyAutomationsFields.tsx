@@ -3,6 +3,7 @@
 import React, {
   forwardRef,
   useContext,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -26,7 +27,9 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import {
+  findFirstAddedPackage,
   generateSoftwareOptionHelpText,
+  generateSoftwarePackageOptionHelpText,
   getTicketOrWebhookInfo,
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
@@ -163,6 +166,13 @@ const PolicyAutomationsFields = forwardRef<
     const [softwareTitleId, setSoftwareTitleId] = useState<number | null>(
       policy.install_software?.software_title_id ?? null
     );
+    // Pins the automation to a specific package on a multi-package title.
+    // Legacy policies (and any policy whose install_software payload hasn't
+    // hydrated `software_installer_id` yet — see the TODO on
+    // IPolicySoftwareToInstall) auto-resolve to first-added below.
+    const [softwareInstallerId, setSoftwareInstallerId] = useState<
+      number | null
+    >(policy.install_software?.software_installer_id ?? null);
     const [scriptId, setScriptId] = useState<number | null>(
       policy.run_script?.id ?? null
     );
@@ -181,6 +191,18 @@ const PolicyAutomationsFields = forwardRef<
       const newErrors: IAutomationsErrors = {};
       if (installSoftware && softwareTitleId === null) {
         newErrors.install_software = "Please select software to install.";
+      } else if (
+        installSoftware &&
+        softwareTitleId !== null &&
+        (selectedTitlePackages?.length ?? 0) > 0 &&
+        softwareInstallerId === null
+      ) {
+        // Only reachable when a custom title (with packages[]) is selected
+        // but its packages haven't hydrated yet — the auto-select effect
+        // resolves this as soon as the softwareTitlesData query returns.
+        // VPP / App Store titles carry no packages[] and legitimately have
+        // no installer id, so the gate above excludes them.
+        newErrors.install_software = "Please select a package to install.";
       }
       if (runScript && scriptId === null) {
         newErrors.run_script = "Please select a script to run.";
@@ -198,6 +220,13 @@ const PolicyAutomationsFields = forwardRef<
     };
     const handleSelectSoftware = (id: number | null) => {
       setSoftwareTitleId(id);
+      // A title change invalidates the pinned installer — reset so the
+      // auto-select effect can pick first-added on the new title's packages.
+      setSoftwareInstallerId(null);
+      if (id !== null) clearError("install_software");
+    };
+    const handleSelectPackage = (id: number | null) => {
+      setSoftwareInstallerId(id);
       if (id !== null) clearError("install_software");
     };
     const handleSelectScript = (id: number | null) => {
@@ -226,6 +255,49 @@ const PolicyAutomationsFields = forwardRef<
       [softwareTitlesData]
     );
 
+    // Packages on the currently-selected title. Non-null only for custom
+    // multi-package titles — VPP / App Store titles carry no packages[].
+    const selectedTitlePackages = useMemo(() => {
+      if (softwareTitleId === null) return null;
+      const selected = softwareTitlesData?.software_titles?.find(
+        (t) => t.id === softwareTitleId
+      );
+      return selected?.packages ?? null;
+    }, [softwareTitleId, softwareTitlesData]);
+
+    const packageOptions: CustomOptionType[] = useMemo(
+      () =>
+        (selectedTitlePackages ?? []).map((pkg) => ({
+          label: pkg.name,
+          value: String(pkg.installer_id),
+          helpText: generateSoftwarePackageOptionHelpText(pkg),
+        })),
+      [selectedTitlePackages]
+    );
+
+    // Auto-select the first-added package whenever the current selection
+    // isn't valid for the resolved packages list — covers three cases:
+    //   1. Fresh title selection: installer id was reset to null in
+    //      handleSelectSoftware; pick first-added.
+    //   2. Legacy policy load: hydrated with software_title_id but no
+    //      software_installer_id (backend gap — see IPolicySoftwareToInstall
+    //      TODO); resolve to first-added on the title's packages.
+    //   3. Stale selection: an installer id that no longer appears on the
+    //      title's packages (rare — e.g., a race where the package was
+    //      deleted server-side); fall back to first-added rather than saving
+    //      a broken pin.
+    useEffect(() => {
+      if (!selectedTitlePackages || selectedTitlePackages.length === 0) return;
+      const stillValid =
+        softwareInstallerId !== null &&
+        selectedTitlePackages.some(
+          (p) => p.installer_id === softwareInstallerId
+        );
+      if (stillValid) return;
+      const first = findFirstAddedPackage(selectedTitlePackages);
+      if (first) setSoftwareInstallerId(first.installer_id);
+    }, [selectedTitlePackages, softwareInstallerId]);
+
     const scriptOptions: CustomOptionType[] = useMemo(
       () =>
         (scriptsData?.scripts ?? []).map((s) => ({
@@ -248,6 +320,8 @@ const PolicyAutomationsFields = forwardRef<
           (installSoftware !== initialInstallSoftware ||
             softwareTitleId !==
               (policy.install_software?.software_title_id ?? null) ||
+            softwareInstallerId !==
+              (policy.install_software?.software_installer_id ?? null) ||
             runScript !== initialRunScript ||
             scriptId !== (policy.run_script?.id ?? null) ||
             calendarEvent !== initialCalendar ||
@@ -261,6 +335,13 @@ const PolicyAutomationsFields = forwardRef<
           policyUpdate: perPolicyDirty
             ? {
                 software_title_id: installSoftware ? softwareTitleId : null,
+                // Send the pinned installer id when install-software is on;
+                // omit when unchecked so the backend can clear it. Null
+                // (title selected, no packages hydrated yet) is a validation
+                // error and shouldn't reach here.
+                software_installer_id: installSoftware
+                  ? softwareInstallerId
+                  : null,
                 script_id: runScript ? scriptId : null,
                 // When the team has the feature disabled, the row is locked
                 // and the user can't toggle it — so we omit the field instead
@@ -310,21 +391,47 @@ const PolicyAutomationsFields = forwardRef<
           onToggle: handleToggleInstallSoftware,
           isDisabled: false,
           picker: installSoftware ? (
-            <DropdownWrapper
-              name="software-title"
-              className={`${baseClass}__row-picker`}
-              isDisabled={gitOpsModeEnabled}
-              value={
-                softwareOptions.find(
-                  (o) => o.value === String(softwareTitleId ?? "")
-                ) ?? null
-              }
-              options={softwareOptions}
-              placeholder="Select software"
-              onChange={(opt: SingleValue<CustomOptionType>) =>
-                handleSelectSoftware(opt ? Number(opt.value) : null)
-              }
-            />
+            <div className={`${baseClass}__software-pickers`}>
+              <DropdownWrapper
+                name="software-title"
+                className={`${baseClass}__row-picker`}
+                isDisabled={gitOpsModeEnabled}
+                value={
+                  softwareOptions.find(
+                    (o) => o.value === String(softwareTitleId ?? "")
+                  ) ?? null
+                }
+                options={softwareOptions}
+                placeholder="Select software"
+                onChange={(opt: SingleValue<CustomOptionType>) =>
+                  handleSelectSoftware(opt ? Number(opt.value) : null)
+                }
+              />
+              {/* Second dropdown only surfaces for multi-package titles —
+                  VPP / App Store titles have no packages[] and single-package
+                  titles collapse to a one-option list where a second picker
+                  would be noise. The first-added package is auto-selected
+                  (see the effect above) so this is a pin-adjustment, not a
+                  required selection. */}
+              {packageOptions.length > 1 && (
+                <DropdownWrapper
+                  name="software-package"
+                  ariaLabel="Select package"
+                  className={`${baseClass}__row-picker`}
+                  isDisabled={gitOpsModeEnabled}
+                  value={
+                    packageOptions.find(
+                      (o) => o.value === String(softwareInstallerId ?? "")
+                    ) ?? null
+                  }
+                  options={packageOptions}
+                  placeholder="Select package"
+                  onChange={(opt: SingleValue<CustomOptionType>) =>
+                    handleSelectPackage(opt ? Number(opt.value) : null)
+                  }
+                />
+              )}
+            </div>
           ) : undefined,
         },
         {

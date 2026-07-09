@@ -80,6 +80,12 @@ export interface IPolicySoftwareToInstall {
   display_name?: string;
   software_title_id: number;
   icon_url?: string | null;
+  // TODO: backend `PolicySoftwareTitle` (server/fleet/policies.go:591) does not
+  // yet expose the pinned installer_id. Until it does, the automations UI
+  // re-derives first-added on every load, so a user's choice of a non-default
+  // package on a multi-package title isn't reflected on reload (persists
+  // server-side; just not visible).
+  software_installer_id?: number;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -141,6 +147,10 @@ export interface IPolicyFormData {
   conditional_access_enabled?: boolean;
   continuous_automations_enabled?: boolean;
   software_title_id?: number | null;
+  /** Pins the policy to a specific package on a multi-package title. `null`
+   * on PATCH lets the backend fall back to the title's first-added package
+   * (mirrors `software_title_id`'s unset asymmetry). */
+  software_installer_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
   labels_include_any?: string[];

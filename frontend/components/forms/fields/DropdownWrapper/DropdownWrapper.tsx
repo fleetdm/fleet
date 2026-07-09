@@ -125,6 +125,10 @@ export interface IDropdownWrapper {
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
   customNoOptionsMessage?: string;
+  /** Accessible name for the combobox when there's no visible `label`.
+   * react-select doesn't infer one from `placeholder`, so screen readers
+   * hear "combobox" with no context unless we pass this through. */
+  ariaLabel?: string;
 }
 
 const getOptionBackgroundColor = (
@@ -452,6 +456,7 @@ const DropdownWrapper = ({
   variant,
   nowrapMenu,
   customNoOptionsMessage,
+  ariaLabel,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -559,6 +564,7 @@ const DropdownWrapper = ({
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
         controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
+        aria-label={ariaLabel}
       />
     </FormField>
   );

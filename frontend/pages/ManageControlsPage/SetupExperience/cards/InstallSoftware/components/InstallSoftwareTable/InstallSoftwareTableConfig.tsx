@@ -9,6 +9,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
@@ -113,6 +114,27 @@ const generateTableConfig = (
               displayedVersion ?? DEFAULT_EMPTY_CELL_VALUE
             ).concat(` (.${packageTypeCopy})`);
           }
+        }
+
+        // Setup experience only installs the first-added package on a
+        // multi-package custom title; surface a tooltip so the admin knows
+        // the other packages aren't in scope here. Single-package titles
+        // (VPP, FMA, and any custom title with only one package) don't need
+        // the disclaimer — there's no "other" to explain away.
+        const isMultiPackageCustom = (title.packages?.length ?? 0) > 1;
+        if (isMultiPackageCustom) {
+          return (
+            <TextCell
+              value={
+                <TooltipWrapper
+                  tipContent="For custom packages, the first added version will be installed."
+                  showArrow
+                >
+                  {displayedVersion}
+                </TooltipWrapper>
+              }
+            />
+          );
         }
         return <TextCell value={displayedVersion} />;
       },
