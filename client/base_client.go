@@ -243,9 +243,12 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	// filepath.Base("") returns "." and filepath.Base("..") returns "..",
 	// neither of which is a valid installer filename.
 	if filename == "" || filename == "." || filename == ".." {
-		filename = f.DestFile
+		// DestFile is server-supplied (e.g. the installer name on the Orbit
+		// signed-URL download path, where SkipMediaType is set), so strip any
+		// directory components from it as well to prevent path traversal.
+		filename = filepath.Base(f.DestFile)
 	}
-	if filename == "" {
+	if filename == "" || filename == "." || filename == ".." {
 		filename = uuid.NewString()
 	}
 

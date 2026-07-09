@@ -1,0 +1,1 @@
+- Fixed a path traversal vulnerability in the Orbit software installer download path where a crafted installer filename could write outside the download directory.
