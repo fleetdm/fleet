@@ -13271,6 +13271,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			},
 		}, http.StatusNoContent)
 
+		// while the installer exists, the install results carry its hash
+		beforeDelete, err := s.ds.GetSoftwareInstallResults(context.Background(), installUUID)
+		require.NoError(t, err)
+		require.NotNil(t, beforeDelete.HashSHA256)
+		wantHash := *beforeDelete.HashSHA256
+
 		_ = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
@@ -13281,6 +13287,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
+		// the installed_software activity keeps its hash after the installer is deleted
+		var hostActivities listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostInTeam.ID), nil, http.StatusOK, &hostActivities)
+		require.Len(t, hostActivities.Activities, 1)
+		require.Equal(t, fleet.ActivityTypeInstalledSoftware{}.ActivityName(), hostActivities.Activities[0].Type)
+		var installedActivity fleet.ActivityTypeInstalledSoftware
+		require.NoError(t, json.Unmarshal([]byte(*hostActivities.Activities[0].Details), &installedActivity))
+		require.NotNil(t, installedActivity.HashSHA256)
+		require.Equal(t, wantHash, *installedActivity.HashSHA256)
+
+		// but the live install results lose it
+		afterDelete, err := s.ds.GetSoftwareInstallResults(context.Background(), installUUID)
+		require.NoError(t, err)
+		require.Nil(t, afterDelete.HashSHA256)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -18842,28 +18863,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	hostVanillaOsquery5Team1LastInstall, err := s.ds.GetHostLastInstallData(ctx, hostVanillaOsquery5Team1.ID, dummyInstallerPkgInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
-
-	// Disable policy automation so the installer can be deleted.
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE policies SET software_installer_id = NULL WHERE software_installer_id = ?`, dummyInstallerPkgInstallerID)
-		return err
-	})
-	require.NoError(t, s.ds.DeleteSoftwareInstaller(ctx, dummyInstallerPkgInstallerID))
-
-	// The recorded activity keeps its hash even after the installer is deleted.
-	var activityHash *string
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &activityHash,
-			`SELECT details->>'$.hash_sha256' FROM activity_past WHERE activity_type = 'installed_software' AND details->>'$.install_uuid' = ?`,
-			host1LastInstall.ExecutionID)
-	})
-	require.NotNil(t, activityHash)
-	require.Equal(t, host1InstallerHash, *activityHash)
-
-	// The live install results, though, lose the hash once the installer is gone.
-	resultsAfterDelete, err := s.ds.GetSoftwareInstallResults(ctx, host1LastInstall.ExecutionID)
-	require.NoError(t, err)
-	require.Nil(t, resultsAfterDelete.HashSHA256)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetries() {
