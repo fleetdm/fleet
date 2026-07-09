@@ -64,7 +64,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		}}, http.StatusUnprocessableEntity)
 
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported.")
+		require.Contains(t, errMsg, "is a forbidden declaration")
 	}
 
 	// "com.apple.configuration.management.status-subscriptions" type should fail

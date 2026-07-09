@@ -6543,13 +6543,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 	"Type": "com.apple.configuration.decl%d",
 	"Identifier": "com.fleet.config%d",
 	"Payload": {
-		"ServiceType": "com.apple.bash%d",
-		"DataAssetReference": "com.fleet.asset.bash"
+		"ServiceType": "com.apple.bash%d"
 	}
 }`
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return fmt.Appendf(nil, tmpl, i, i, i)
 	}
 
 	getProfileContents := func(profileUUID string) string {
@@ -6559,23 +6558,18 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 		return string(profile.RawJSON)
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin")
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin", false)
 }
 
 func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte,
-	getProfileContents func(profileUUID string) string, fileExtension string, platform string,
+	getProfileContents func(profileUUID string) string, fileExtension string, platform string, testWholeProfileSecret bool,
 ) {
 	t := s.T()
-	const numProfiles = 2
-	var profiles [][]byte
-	for i := 0; i < numProfiles; i++ {
-		profiles = append(profiles, newProfileBytes(i))
-	}
-	// Use secrets
+	numProfiles := 1
+	profiles := [][]byte{newProfileBytes(0)}
+
 	myBash := "com.apple.bash0"
 	profiles[0] = []byte(strings.ReplaceAll(string(profiles[0]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
-	secretProfile := profiles[1]
-	profiles[1] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
 
 	body, headers := generateNewProfileMultipartRequest(
 		t, "secret-config0."+fileExtension, profiles[0], s.token, nil,
@@ -6590,12 +6584,20 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 				Name:  "FLEET_SECRET_BASH",
 				Value: myBash,
 			},
-			{
-				Name:  "FLEET_SECRET_PROFILE",
-				Value: string(secretProfile),
-			},
 		},
 	}
+
+	if testWholeProfileSecret {
+		secretProfile := newProfileBytes(1)
+		profiles = append(profiles, []byte("${"+fleet.ServerSecretPrefix+"PROFILE}"))
+
+		req.SecretVariables = append(req.SecretVariables, fleet.SecretVariable{
+			Name:  "FLEET_SECRET_PROFILE",
+			Value: string(secretProfile),
+		})
+		numProfiles++
+	}
+
 	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
@@ -6604,14 +6606,16 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.ProfileUUID)
 
-	body, headers = generateNewProfileMultipartRequest(
-		t, "secret-config1."+fileExtension, profiles[1], s.token, nil,
-	)
-	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.ProfileUUID)
+	if testWholeProfileSecret {
+		body, headers = generateNewProfileMultipartRequest(
+			t, "secret-config1."+fileExtension, profiles[1], s.token, nil,
+		)
+		s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+		res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		err = json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp.ProfileUUID)
+	}
 
 	var listResp listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
@@ -6693,7 +6697,7 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 		return string(profile.Mobileconfig)
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin")
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
 }
 
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
@@ -6722,7 +6726,7 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 		return string(profile.SyncML)
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows", true)
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
