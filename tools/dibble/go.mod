@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/dibble
 
-go 1.26.4
+go 1.26.5
 
 // The parent fleet module is included so we can enumerate every activity
 // type for the `dibble activities` seeder. Pinned to the local checkout via
