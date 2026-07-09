@@ -109,9 +109,7 @@ Cap free-text inputs' `maxLength` to the backend column length (check `server/da
 
 ## Validation
 
-**Read `frontend/docs/patterns.md#data-validation` before adding or editing form validation.** Fleet's rules diverge from common React defaults; the patterns doc is authoritative.
-
-Anti-defaults — the traps to avoid:
+**Read `frontend/docs/patterns.md#data-validation` before adding or editing form validation — that doc is authoritative.** Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
 - No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
 - Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. Handler shows errors and returns early.
 - Field errors clear on **focus**, not on typing.
