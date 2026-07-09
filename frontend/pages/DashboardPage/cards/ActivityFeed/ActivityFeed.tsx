@@ -544,7 +544,7 @@ const ActivityFeed = ({
                 <>
                   <IconStatusMessage
                     className={`${cls}__status-message`}
-                    iconName="warning"
+                    iconName="info-outline"
                     message={
                       <span>
                         {actorText && <b>{actorText}</b>}

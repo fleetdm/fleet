@@ -36,7 +36,7 @@ export const getIconName = (status: string): IconNames => {
     // sentinel used when the command results API returns a 200 with no
     // results (e.g. the host it was sent to was wiped and re-enrolled since)
     case "Deleted":
-      return "warning";
+      return "info-outline";
     default:
       break;
   }
