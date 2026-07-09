@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,11 @@ func TestMDMDDMApple(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"ListAppleDDMAssets", testListAppleDDMAssets},
+		{"GetAppleDDMAsset", testGetAppleDDMAsset},
+		{"GetAppleDDMAssetForDownload", testGetAppleDDMAssetForDownload},
+		{"CreateAppleDDMAsset", testCreateAppleDDMAsset},
+		{"DeleteAppleDDMAsset", testDeleteAppleDDMAsset},
 		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
 		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
 		{"ChannelScopeIsolation", testDDMChannelScopeIsolation},
@@ -408,4 +414,205 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 			assert.True(t, d2Row.Resync, "host %s: D2 should have resync=1", h.UUID)
 		}
 	}
+}
+
+func testListAppleDDMAssets(t *testing.T, ds *Datastore) {
+	t.Run("no assets returns empty list", func(t *testing.T) {
+		ctx := t.Context()
+		assets, err := ds.ListAppleDDMAssets(ctx, nil)
+		require.NoError(t, err)
+		require.Empty(t, assets)
+	})
+
+	t.Run("returns assets for requested team", func(t *testing.T) {
+		ctx := t.Context()
+
+		// insert helper
+		_, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), new(uint(1)))
+		require.NoError(t, err)
+
+		assets, err := ds.ListAppleDDMAssets(ctx, nil)
+		require.NoError(t, err)
+		require.Empty(t, assets)
+
+		assets, err = ds.ListAppleDDMAssets(ctx, new(uint(1)))
+		require.NoError(t, err)
+		require.Len(t, assets, 1)
+	})
+}
+
+func testGetAppleDDMAsset(t *testing.T, ds *Datastore) {
+	t.Run("returns not found for missing asset", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAsset(ctx, "fake-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, asset)
+	})
+
+	t.Run("returns asset for existing asset", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		asset, err := ds.GetAppleDDMAsset(ctx, assetUUID)
+		require.NoError(t, err)
+		require.NotNil(t, asset)
+	})
+
+	t.Run("return error for empty asset uuid", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAsset(ctx, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset UUID is required")
+		require.Nil(t, asset)
+	})
+}
+
+func testGetAppleDDMAssetForDownload(t *testing.T, ds *Datastore) {
+	t.Run("returns not found for missing asset", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAssetForDownload(ctx, "fake-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, asset)
+	})
+
+	t.Run("returns asset values for existing asset", func(t *testing.T) {
+		ctx := t.Context()
+		assetName := "asset-1"
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, assetName, "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		asset, err := ds.GetAppleDDMAssetForDownload(ctx, assetUUID)
+		require.NoError(t, err)
+		require.NotNil(t, asset)
+		require.Equal(t, assetName, asset.Name)
+		require.NotNil(t, asset.Data)
+	})
+
+	t.Run("return error for empty asset uuid", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAssetForDownload(ctx, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset UUID is required")
+		require.Nil(t, asset)
+	})
+}
+
+func testDeleteAppleDDMAsset(t *testing.T, ds *Datastore) {
+	t.Run("returns not found for missing asset", func(t *testing.T) {
+		ctx := t.Context()
+		err := ds.DeleteAppleDDMAsset(ctx, "fake-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("returns error for empty asset UUID", func(t *testing.T) {
+		ctx := t.Context()
+		err := ds.DeleteAppleDDMAsset(ctx, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset UUID is required")
+	})
+
+	t.Run("deletes existing asset", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		err = ds.DeleteAppleDDMAsset(ctx, assetUUID)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns foreign key error for asset with declaration association", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		// Insert a declaration, and decl<->asset association.
+		declUUID := uuid.NewString()
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			DeclarationUUID: declUUID,
+			Identifier:      "declaration.identifier",
+			Name:            "decl-name",
+			RawJSON:         []byte(`{"foo":"bar"}`),
+		}, nil)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES (?, ?)`, decl.DeclarationUUID, assetUUID)
+			require.NoError(t, err)
+			return nil
+		})
+
+		err = ds.DeleteAppleDDMAsset(ctx, assetUUID)
+		require.Error(t, err)
+		var foreignKeyErr *foreignKeyError
+		require.ErrorAs(t, err, &foreignKeyErr)
+	})
+}
+
+func testCreateAppleDDMAsset(t *testing.T, ds *Datastore) {
+	t.Run("creates asset with valid data", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "valid-asset", "valid-asset-identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, assetUUID)
+	})
+
+	t.Run("fails to create asset with empty name", func(t *testing.T) {
+		ctx := t.Context()
+		_, err := ds.CreateAppleDDMAsset(ctx, "", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset name is required")
+	})
+
+	t.Run("fails to create asset with empty identifier", func(t *testing.T) {
+		ctx := t.Context()
+		_, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "", []byte(`{"foo":"bar"}`), nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset identifier is required")
+	})
+
+	t.Run("fails to create asset with empty data", func(t *testing.T) {
+		ctx := t.Context()
+		_, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", nil, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset data is required")
+	})
+
+	t.Run("returns already exists error when creating asset with duplicate identifier", func(t *testing.T) {
+		ctx := t.Context()
+		assetIdentifier := "conflict.asset.identifier"
+		_, err := ds.CreateAppleDDMAsset(ctx, "conflict-asset-1", assetIdentifier, []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		_, err = ds.CreateAppleDDMAsset(ctx, "asset-2", assetIdentifier, []byte(`{"foo":"baz"}`), nil)
+		require.Error(t, err)
+		var alreadyExistsErr *existsError
+		require.ErrorAs(t, err, &alreadyExistsErr)
+	})
+
+	t.Run("returns already exists error when creating asset with duplicate name", func(t *testing.T) {
+		ctx := t.Context()
+
+		assetName := "conflict-asset-name"
+		_, err := ds.CreateAppleDDMAsset(ctx, assetName, "conflict.asset.identifier-one", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		_, err = ds.CreateAppleDDMAsset(ctx, assetName, "conflict.asset.identifier-2", []byte(`{"foo":"baz"}`), nil)
+		require.Error(t, err)
+		var alreadyExistsErr *existsError
+		require.ErrorAs(t, err, &alreadyExistsErr)
+	})
+
+	t.Run("does not conflict across teams", func(t *testing.T) {
+		ctx := t.Context()
+		assetIdentifier := "no-conflict.asset.identifier"
+		assetName := "no-conflict.asset-1"
+		_, err := ds.CreateAppleDDMAsset(ctx, assetName, assetIdentifier, []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		_, err = ds.CreateAppleDDMAsset(ctx, assetName, assetIdentifier, []byte(`{"foo":"baz"}`), new(uint(1)))
+		require.NoError(t, err)
+	})
 }

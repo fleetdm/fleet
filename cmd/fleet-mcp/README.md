@@ -4,7 +4,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for th
 
 **Transform how you interact with your endpoint data. Query osquery, check compliance, drill into per-host policy results, and investigate CVEs natively from Claude, Cursor, and any MCP-compatible AI agent.**
 
-🔗 **GitHub Repo:** [https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp](https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp)
+🔗 **GitHub Repo:** [https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp](https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp)
 🔗 **Learn about MCP:** [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 🔗 **Learn about Fleet:** [https://fleetdm.com/](https://fleetdm.com/)
 
@@ -124,7 +124,7 @@ cp .env.example .env
 
 ```bash
 git clone https://github.com/fleetdm/fleet
-cd fleet/tools/fleet-mcp
+cd fleet/cmd/fleet-mcp
 go mod tidy
 go build -o fleet-mcp .
 ```
@@ -286,11 +286,11 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 
 ## Deploying to Render
 
-`tools/fleet-mcp/render.yaml` is a standalone Render Blueprint, separate from the root `render.yaml` used by the main Fleet service.
+`cmd/fleet-mcp/render.yaml` is a standalone Render Blueprint, separate from the root `render.yaml` used by the main Fleet service.
 
-1. Push `tools/fleet-mcp/render.yaml` to your repo.
+1. Push `cmd/fleet-mcp/render.yaml` to your repo.
 2. In the Render dashboard go to **New → Blueprint**.
-3. Connect your repo and set the **Blueprint file path** to `tools/fleet-mcp/render.yaml`.
+3. Connect your repo and set the **Blueprint file path** to `cmd/fleet-mcp/render.yaml`.
 4. During setup, fill in the following environment variables:
    - `FLEET_BASE_URL` — URL of your Fleet instance
    - `FLEET_API_KEY` — Fleet API token
@@ -304,7 +304,7 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 ### Project layout
 
 ```
-tools/fleet-mcp/
+cmd/fleet-mcp/
   main.go                  # entrypoint, flag parsing, transport selection, http.Server timeouts, body-size cap
   config.go                # env-var loading
   auth.go                  # bearer-auth middleware (SSE)
@@ -317,7 +317,7 @@ tools/fleet-mcp/
   mcp_tools_policies.go    # policy/vuln MCP tools
   mcp_tools_inventory.go   # inventory MCP tools
   schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
-  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./tools/fleet-mcp/...`.
+  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./cmd/fleet-mcp/...`.
   vetted_queries.go        # vetted CIS-8.1 query library
   seed_fleet.go            # -seed mode
 ```

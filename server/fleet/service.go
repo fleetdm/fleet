@@ -1564,6 +1564,20 @@ type Service interface {
 	// PSSOAASA returns the apple-app-site-association JSON used by Apple's
 	// framework to bind the extension's authsrv: entitlement to a Team+Bundle ID.
 	PSSOAASA(ctx context.Context) ([]byte, error)
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Apple MDM Assets
+
+	// ListAppleDDMAssets returns a list of assets used for Apple DDM belonging to the specified team, in their API representation.
+	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
+	// GetAppleDDMAsset returns the asset with the given UUID, in its API representation.
+	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
+	// DownloadAppleDDMAsset returns the filename and contents of the asset with the given UUID.
+	DownloadAppleDDMAsset(ctx context.Context, assetUUID string) (filename string, data []byte, err error)
+	// CreateAppleDDMAsset creates a new asset used for Apple DDM. It returns the UUID of the created asset.
+	CreateAppleDDMAsset(ctx context.Context, teamID *uint, name string, data []byte) (string, error)
+	// DeleteAppleDDMAsset deletes the asset with the given UUID.
+	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
 }
 
 type KeyValueStore interface {
