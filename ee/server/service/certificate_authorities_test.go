@@ -253,7 +253,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 		err = svc.BatchApplyCertificateAuthorities(ctx, fleet.GroupedCertificateAuthorities{}, fleet.BatchApplyCertificateAuthoritiesOpts{ViaGitOps: true})
-		require.EqualError(t, err, "Private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		require.EqualError(t, err, "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	})
 
 	t.Run("Create DigiCert CA - Happy path", func(t *testing.T) {

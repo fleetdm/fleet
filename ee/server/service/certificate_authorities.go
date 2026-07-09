@@ -517,9 +517,8 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
 	}
 
-	errPrefix := ""
 	if len(svc.config.Server.PrivateKey) == 0 {
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sPrivate key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key", errPrefix)}
+		return &fleet.BadRequestError{Message: "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
 	}
 
 	ops, err := svc.getCertificateAuthoritiesBatchOperations(ctx, incoming)
