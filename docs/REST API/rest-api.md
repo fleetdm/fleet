@@ -1613,7 +1613,20 @@ None.
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activations.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "custom_settings": [
@@ -1980,7 +1993,20 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
         },
-      ]
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activations.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "custom_settings": [
@@ -2723,7 +2749,20 @@ _Available in Fleet Premium._
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activations.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -6554,6 +6593,14 @@ Deletes the label specified by ID.
 - [Get or download configuration profile](#get-or-download-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
+- [Create Apple asset declaration](#create-apple-asset-declaration)
+- [List Apple asset declarations](#list-apple-asset-declarations)
+- [Get or download Apple asset declaration](#get-or-download-apple-asset-declaration)
+- [Delete Apple asset declaration](#delete-apple-asset-declaration)
+- [Create Apple activation declaration](#create-apple-activation-declaration)
+- [List Apple activation declarations](#list-apple-activation-declarations)
+- [Get or download Apple activation declaration](#get-or-download-apple-activation-declaration)
+- [Delete Apple activation declaration](#delete-apple-activation-declaration)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update Recovery Lock](#update-recovery-lock)
@@ -6887,6 +6934,375 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 ##### Default response
 
 `204`
+
+### Create Apple asset declaration
+
+Add an Apple asset declaration to reference in a configuration profile.
+
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
+`POST /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                                                                   |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| asset                   | file     | body | **Required.** The JSON asset declaration. The "Type" must be a valid Apple asset declaration type (e.g., "com.apple.asset.data"), and an "Identifier" must be defined. See [Apple's documentation](https://developer.apple.com/documentation/devicemanagement) for type-specific payload requirements. |
+| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the asset. If specified, the asset is available to only the configuration profile(s) that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/assets`
+
+##### Request body
+
+```
+fleet_id="1"
+asset="my-asset.json"
+```
+
+##### Example asset file (my-asset.json)
+```
+{
+    "Type": "com.apple.asset.data",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
+    "Payload": {
+        "Reference": {
+            "DataURL": "https://example.com/asset-data/data/test.txt",
+            "ContentType": "text/plain"
+        },
+        "Authentication": {
+            "Type": "MDM"
+        }
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
+```
+
+### List Apple asset declarations
+
+Get a list of the Apple asset declarations in Fleet.
+
+For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet assets are excluded from the results (i.e., only assets that are associated with "Unassigned" are listed).
+
+`GET /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| fleet_id                  | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.            |
+
+#### Example
+
+List all assets available for the "Unassigned" fleet.
+
+`GET /api/v1/fleet/assets`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "assets": [
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset.json",
+      "identifier": "com.example.asset1",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset2.json",
+      "identifier": "com.example.asset2",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+  ],
+}
+```
+
+### Get or download Apple asset declaration
+
+Get or download the original Apple asset declaration file that was uploaded to Fleet.
+
+`GET /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                             |
+| ------------------------- | ------- | ----- | ------------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to get.  |
+| alt                       | string  | query | If specified and set to "media", downloads the asset. |
+
+#### Example (get asset metadata)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+  "fleet_id": 0,
+  "asset": "my-asset.json",
+  "identifier": "com.example.asset1",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download an asset)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 my-asset.json"
+```
+
+###### Example response body
+
+```json
+{
+  "Type": "com.apple.asset.data",
+  "Identifier": "com.example.asset1",
+  "ServerURL": "https://example.com/assets/my-asset.json"
+}
+```
+
+### Delete Apple asset declaration
+
+Deletes an Apple asset declaration.
+
+> If an asset is referenced in a configuration profile, you must delete the configuration profile first before being able to remove the asset.
+
+`DELETE /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                       |
+| ------------------------- | ------- | ----- | ------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to delete.     |
+
+#### Example
+
+`DELETE /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 204`
+
+
+### Create Apple activation declaration
+
+Add an Apple activation declaration.
+
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
+`POST /api/v1/fleet/activation_declaration`
+
+#### Parameters
+
+| Name                   | Type     | In   | Description                                          |
+| -----------------------| -------- | ---- | ---------------------------------------------------- |
+| activation_declaration | file     | body | **Required.** The JSON activation declaration. The "Type" must be a valid Apple activation declaration type (e.g., "com.apple.activation.*"), and an "Identifier" must be defined. See [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/activationsimple) for activation specific payload requirements. |
+| fleet_id               | string   | body | _Available in Fleet Premium_. The fleet ID for the asset. If specified, the asset is available to only the configuration profile(s) that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/activation_declaration`
+
+##### Request body
+
+```
+fleet_id="1"
+activation_declaration="my-activation.json"
+```
+
+##### Example activation declaration file (my-activation.json) with defined predicate
+```
+{
+    "Type": "com.apple.activation.simple",
+    "Identifier": "04BECEFA-47B9-4F2E-8040-246509A52409",
+    "ServerToken": "CBE396A0-637B-438D-9F0C-EA912A5BB587",
+    "Payload": {
+        "Predicate": "@status(device.model.family) == 'AppleTV'",
+        "StandardConfigurations": [
+            "892853C1-DDD1-4562-84B9-1591A76AD42B",
+            "DCF869F1-09B7-4EC2-83B5-073F6FE94597"
+        ]
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activation_declaration_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
+```
+
+### List Apple activation declarations
+
+Get a list of the Apple activation declarations in Fleet.
+
+For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet activation declarations are excluded from the results (i.e., only activation declarations that are associated with "Unassigned" are listed).
+
+`GET /api/v1/fleet/activation_declaration`
+
+#### Parameters
+
+| Name           | Type   | In    | Description                                                      |
+| -------------- | ------ | ----- | ---------------------------------------------------------------- |
+| fleet_id       | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.   |
+
+#### Example
+
+List all activation declarations available for the "Unassigned" fleet.
+
+`GET /api/v1/fleet/activation_declaration`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activations": [
+    {
+      "activation_declaration_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "activation_declaration": "my-activation.json",
+      "identifier": "com.example.asset1",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+    {
+      "activation_declaration_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "activation_declaration": "my-activation2.json",
+      "identifier": "com.example.asset2",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+  ],
+}
+```
+
+### Get or download Apple activation declaration
+
+Get or download the original Apple activation declaration file that was uploaded to Fleet.
+
+`GET /api/v1/fleet/activation_declaration/:activation_declaration_uuid`
+
+#### Parameters
+
+| Name                         | Type    | In    | Description                                                  |
+| ---------------------------- | ------- | ----- | ------------------------------------------------------------ |
+| activation_declaraction_uuid | string  | url   | **Required** The UUID of the activation declaration to get.  |
+| alt                          | string  | query | If specified and set to "media", downloads the activation declaration.        |
+
+#### Example (get activation declaration metadata)
+
+`GET /api/v1/fleet/activation_declaration/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activation_declaration_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+  "fleet_id": 0,
+  "activation_declaration": "my-activation.json",
+  "identifier": "com.example.asset1",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download an activation declaration)
+
+`GET /api/v1/fleet/activation_declaration/954ec5ea-a334-4825-87b3-937e7e381f24?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 my-activation.json"
+```
+
+###### Example response body
+
+```json
+{
+  "Type": "com.apple.activation.simple",
+  "Identifier": "com.example.activation1",
+  "ServerURL": "https://example.com/activations/my-activation.json"
+}
+```
+
+### Delete Apple activation declaration
+
+Deletes an Apple activation declaration.
+
+`DELETE /api/v1/fleet/activation_declaration/:activation_declaration_uuid`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                              |
+| ----------------------------- | ------- | ----- | -------------------------------------------------------- |
+| activation_declaration_uuid   | string  | url   | **Required** The UUID of the activation declaration to delete.     |
+
+#### Example
+
+`DELETE /api/v1/fleet/activation_declaration/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 204`
 
 ### Resend configuration profile by Fleet Desktop token
 
@@ -13539,7 +13955,20 @@ _Available in Fleet Premium_
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "activations": [
+          {
+            "path": "path/to/activations/activations.json"
+          }
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -14036,7 +14465,20 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activations.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "custom_settings": [
@@ -14182,7 +14624,20 @@ _Available in Fleet Premium_
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "activations": [
+          {
+            "path": "path/to/activations/activations.json"
+          }
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "windows_settings": {
         "custom_settings": [
