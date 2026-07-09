@@ -326,7 +326,7 @@ When building a React-controlled form:
 
 ### Data validation
 
-The rules below describe the target behavior. A shared validation hook is planned to encode them; until it lands, forms implement the rules directly and are migrated one at a time. New forms should follow these rules on day one.
+The rules below describe the target behavior. Existing forms implement the rules directly and are migrated one at a time. New forms should follow these rules on day one.
 
 #### How to validate
 
@@ -380,7 +380,6 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 - Cross-field or global server errors (e.g. `formatErrorResponse` `.base`) surface as a toast only. No inline surface.
 - When the user focuses a field that has a server-set error, clear it immediately — same rule as client-side.
 - Multiple field errors returned by the server: iterate the error map and set all inline. Prefer a single summary toast when there are many.
-- Backend field key → UI field key mapping stays local to the form. Do not centralize until the API is normalized.
 
 #### Conditional / dependent validation
 
