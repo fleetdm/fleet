@@ -356,7 +356,7 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 
 #### When errors clear
 
-- On focus (click-in) of a field that has an error, clear that field's error immediately. Do not wait for the user to type a valid value.
+- On focus (click-in) of a field that has an error, clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
 - Re-validate on blur, not on keystroke.
 - Typing in one field never clears errors on other fields. Clearing is per-field.
 - When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
@@ -370,7 +370,7 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 #### Submit button state
 
 - The submit button is enabled by default. Empty required fields, currently-invalid values, unchanged Edit forms, and prior server errors do not disable it.
-- The only reason to disable the submit button is an in-flight submission — see [In-flight and submission lifecycle](#in-flight-and-submission-lifecycle).
+- The only reasons to disable the submit button are an in-flight submission (see [In-flight and submission lifecycle](#in-flight-and-submission-lifecycle)) or the entire form being disabled by GitOps mode. GitOps-managed pages disable the form's fields and submit button together — users cannot save through the UI at all.
 - If the user clicks submit with invalid data, the submit handler shows all inline errors and returns without submitting. The button itself stays enabled so the click can surface the errors.
 - Do not gate on `isDirty` or "form has changes." A no-op re-save is allowed.
 

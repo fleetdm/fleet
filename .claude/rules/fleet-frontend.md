@@ -113,7 +113,7 @@ Cap free-text inputs' `maxLength` to the backend column length (check `server/da
 
 Anti-defaults — the traps to avoid:
 - No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
-- Submit button stays enabled with invalid fields. Only disable during in-flight submission. Handler shows errors and returns early.
+- Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. Handler shows errors and returns early.
 - Field errors clear on **focus**, not on typing.
 - Re-validate on blur, never on keystroke.
 - Error text renders in the field's label slot via `FormField` (replaces the label). No separate error line below the input.
