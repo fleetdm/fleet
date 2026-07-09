@@ -160,6 +160,8 @@ const ActivityFeed = ({
     host_uuid?: string;
     command_uuid: string;
     actor_full_name?: string;
+    host_display_name?: string;
+    request_type?: string;
   } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -337,6 +339,8 @@ const ActivityFeed = ({
           command_uuid: details.command_uuid,
           host_uuid: details?.host_uuid,
           actor_full_name,
+          host_display_name: details?.host_display_name,
+          request_type: details?.request_type,
         });
         break;
       }
@@ -513,15 +517,48 @@ const ActivityFeed = ({
         <MdmCommandDetailsModal
           command={mdmCommandActivityDetails}
           contentBody={(cls, result) => {
+            const isDeleted = result.status === "Deleted";
             const isPending = getIconName(result.status) === "pending-outline";
             const cmdDisplayName = getMdmCommandDisplayName(
-              result.request_type
+              isDeleted
+                ? mdmCommandActivityDetails.request_type
+                : result.request_type
             );
             const timeAgoText = result.updated_at
               ? ` (${timeAgo(new Date(result.updated_at), {
                   addSuffix: true,
                 })})`
               : "";
+
+            if (isDeleted) {
+              // no result -- likely the host was wiped and re-enrolled since.
+              // Use the activity's own details, captured at click-time,
+              // instead of the (empty) fetched result.
+              return (
+                <>
+                  <IconStatusMessage
+                    className={`${cls}__status-message`}
+                    iconName="warning"
+                    message={
+                      <span>
+                        {mdmCommandActivityDetails.actor_full_name && (
+                          <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                        )}
+                        {" ran "}
+                        {formatMdmCommandNameForActivityItem(
+                          mdmCommandActivityDetails.request_type
+                        )}
+                        {" on "}
+                        <b>{mdmCommandActivityDetails.host_display_name}</b>
+                        {"."}
+                      </span>
+                    }
+                  />
+                  <div>This command has been deleted.</div>
+                </>
+              );
+            }
+
             return (
               <IconStatusMessage
                 className={`${cls}__status-message`}
