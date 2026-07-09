@@ -1406,6 +1406,10 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "EnableRecoveryLockPassword")] = teamMdm.EnableRecoveryLockPassword
 			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
+			// name_template is fleets-only, so only emit it for real fleets.
+			if teamId != nil && *teamId != 0 {
+				result[jsonFieldName(mdmT, "HostNameTemplate")] = teamMdm.HostNameTemplate
+			}
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
