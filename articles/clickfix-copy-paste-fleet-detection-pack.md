@@ -1,12 +1,21 @@
 # ClickFix copy/paste social engineering: threat brief and Fleet detection pack
 
-## Executive summary
+*No exploit, no CVE, no patch to wait for, just a fake "verify you're human" prompt that talks the user into pasting an attacker's command into Run or Terminal. Here's the execution chain, and a vetted Fleet detection pack that catches it on Windows and macOS.*
 
-ClickFix is a social-engineering technique, first observed in 2023 and adopted broadly across crimeware groups by 2026, in which a malicious web page presents a fake verification or support prompt (counterfeit Cloudflare CAPTCHA, QuickBooks support page, Booking.com prompt, Apple "I'm not a robot" overlay, etc.), silently copies an obfuscated shell command to the victim's clipboard, and instructs the victim to paste it into the Windows Run dialog or macOS Terminal. The victim runs the command themselves; no software vulnerability is exploited.
+## Key takeaways
 
-The technique is attractive to attackers for three reasons. It bypasses execution-prevention controls because every step uses legitimate, signed binaries the user invokes deliberately. It defeats most browser-side defences because the malicious code never executes in the browser. Only the clipboard write does. And it shifts the detection burden onto post-paste endpoint telemetry, where most organisations have either not yet deployed evented tables or not yet tuned detections to look for the specific behavioural patterns ClickFix produces.
+- **There's no vulnerability to patch, because the attack recruits the user instead of a bug.** Every step runs on legitimate, signed binaries the user invokes deliberately, so execution-prevention controls and browser-side defences wave it through. Detection has to happen on the endpoint, after the paste.
+- **The lures borrow trust from brands users already recognise.** Counterfeit Cloudflare, Google, QuickBooks, Booking.com, and Apple verification prompts drive the paste into the Windows Run dialog or macOS Terminal, one narrow playbook shared across at least five distinct crimeware clusters.
+- **Hunt the behaviour, not the indicators.** Staging domains and staging paths rotate within days of public reporting; the durable signal is the obfuscated process tree, pipe-to-shell stagers, and plist or Run-key persistence that outlive any single domain.
+- **Three behavioural lenses cover the whole chain on both platforms.** Shell obfuscation, Run-dialog or Terminal parentage, and post-install persistence give you detection coverage on Windows and macOS from a single pack.
+- **The queries actually run against Fleet's schema.** Every query is validated against Fleet's live table reference, with the common copy-paste bugs (`file_events` on Windows, `LIKE` on `file_contents`) corrected inline.
+- **Prevention comes before detection.** Disabling the Run dialog, enforcing Constrained Language Mode, and restricting Terminal remove the technique's foothold; the detection pack backs up what prevention misses.
 
-Recent reporting documents at least five distinct clusters using this method to deliver NetSupport RAT, Lumma and other infostealers on Windows, and AMOS-family / MacSync stealers plus AppleScript-based keychain theft on macOS. The cluster set is broad; the playbook is narrow. This brief treats ClickFix as a technique rather than a single actor, maps the consistent execution chain, consolidates atomic indicators, and ships a vetted Fleet/osquery detection pack for both platforms.
+<a purpose="cta-button" href="/security-and-control">Explore Fleet security</a>
+
+ClickFix is a social-engineering technique, first observed in 2023 and adopted broadly across crimeware groups by 2026. A malicious page presents a fake verification or support prompt, silently copies an obfuscated shell command to the victim's clipboard, and instructs the victim to paste it into the Windows Run dialog or macOS Terminal. The victim runs the command themselves; no software vulnerability is exploited.
+
+That design is exactly what makes it hard to stop. Recent reporting documents at least five distinct clusters using this method to deliver NetSupport RAT, Lumma, and other infostealers on Windows, and AMOS-family / MacSync stealers plus AppleScript-based keychain theft on macOS. The cluster set is broad; the playbook is narrow. This brief treats ClickFix as a technique rather than a single actor, maps the consistent execution chain, consolidates atomic indicators, and ships a vetted Fleet detection pack for both platforms, starting with how the attack actually lands.
 
 ## At a glance
 
@@ -244,7 +253,7 @@ WHERE
   AND cmdline LIKE '%|%';
 ```
 
-`es_process_events` provides EndpointSecurity-backed process telemetry richer than the audit-framework `process_events` table: it exposes Apple code-signing metadata (`signing_id`, `team_id`, `platform_binary`, `cdhash`, `codesigning_flags`). Two schema notes worth flagging: the time column is `time` (bigint epoch), not `datetime`; and the parent-process column is `parent` (bigint), not `parent_pid`. Requires the EndpointSecurity entitlement granted to the osquery binary via MDM and Full Disk Access. Schema ref: [`es_process_events`](https://fleetdm.com/tables/es_process_events).
+`es_process_events` provides EndpointSecurity-backed process telemetry richer than the audit-framework `process_events` table: it exposes Apple code-signing metadata (`signing_id`, `team_id`, `platform_binary`, `cdhash`, `codesigning_flags`). Two schema notes worth flagging: the time column is `time` (bigint epoch), not `datetime`; and the parent-process column is `parent` (bigint), not `parent_pid`. Requires the EndpointSecurity entitlement granted to Fleet's agent via MDM and Full Disk Access. Schema ref: [`es_process_events`](https://fleetdm.com/tables/es_process_events).
 
 **False-positive note.** This query catches the same `curl ... | shell` idiom legitimate package managers use (Homebrew, rustup, several language toolchains). The EndpointSecurity columns make the disambiguation tractable: filter results in the SIEM by `team_id` and `signing_id` allowlists. Homebrew's CLT, Apple-signed system binaries, and your approved dev tooling all have stable team/signing identities. Anything outside that allowlist running `curl | shell` is the high-fidelity signal.
 
@@ -282,7 +291,7 @@ FROM file
 WHERE path LIKE '/tmp/.xdivcmp/%';
 ```
 
-The `file` table accepts a `path LIKE` predicate when the pattern starts with a literal directory prefix (`/tmp/.xdivcmp/` satisfies osquery's path-constraint planner). `/tmp/.xdivcmp/` is the documented staging directory for AppleScript stealers in current campaigns; treat any contents (especially `login.keychain-db` copies and `.zip` archives) as a high-confidence finding.
+The `file` table accepts a `path LIKE` predicate when the pattern starts with a literal directory prefix (`/tmp/.xdivcmp/` satisfies the path-constraint planner). `/tmp/.xdivcmp/` is the documented staging directory for AppleScript stealers in current campaigns; treat any contents (especially `login.keychain-db` copies and `.zip` archives) as a high-confidence finding.
 
 #### 3.4 New artefacts appearing in `/tmp/.xdivcmp/` (macOS, evented)
 
@@ -367,7 +376,7 @@ config:
 Prerequisites outside Fleet:
 
 - **Windows Script Block Logging** enabled via Group Policy (without it, `powershell_events.script_text` is empty).
-- **EndpointSecurity entitlement** on macOS for `es_process_events`: requires MDM profile granting Full Disk Access to the osquery binary.
+- **EndpointSecurity entitlement** on macOS for `es_process_events`: requires MDM profile granting Full Disk Access to Fleet's agent.
 
 ## Hardening and response playbook
 
@@ -383,7 +392,7 @@ Recommended actions, ordered by priority and platform applicability.
 
 4. **Restrict Terminal access** via MDM configuration profile for non-developer user groups. ClickFix's macOS path depends on Terminal being available.
 5. **Keep System Integrity Protection enabled** and verify via MDM compliance reporting. SIP does not block ClickFix directly but blocks several common second-stage techniques.
-6. **Enable XProtect Remediator** (built into macOS 14+). Apple ships baseline AMOS-family detections via XProtect; ensure XProtect signatures are receiving updates.
+6. **Enable XProtect Remediator** (built into recent macOS versions). Apple ships baseline AMOS-family detections via XProtect; ensure XProtect signatures are receiving updates.
 
 ### Priority 3: detection deployment (both platforms)
 
@@ -405,6 +414,10 @@ Recommended actions, ordered by priority and platform applicability.
 4. **Cluster attribution is not actor attribution.** Multiple unrelated crimeware groups use ClickFix concurrently. A NetSupport RAT finding tells you *one specific cluster* compromised the host; it does not tell you *which one* without further correlation against C2 infrastructure or payload analysis.
 5. **Constrained Language Mode coverage gaps.** PowerShell CLM blocks many but not all stager patterns; operators using cmd.exe + curl + cscript or wscript can bypass PowerShell-specific controls. Layer AppLocker / WDAC / Defender Application Control on top.
 6. **AppleScript stealers prompt repeatedly.** Some macOS AppleScript stealers loop on password prompts after the user dismisses them. This is a *user-visible* indicator that incident-response triage should specifically check for in self-reported "weird popup" tickets.
+
+## The bottom line
+
+ClickFix wins by sidestepping the prevention stack and getting the user to do the attacker's work, so the durable posture is to close the paste path first and instrument the endpoint for the behaviour that follows. Infrastructure rotates in days; the execution chain doesn't. Deploy the query pack against those behavioural shapes, promote the highest-fidelity queries to policies, and pair them with the Run-dialog and Terminal controls that stop the technique before a query ever has to fire.
 
 ## Downloads
 
