@@ -528,8 +528,8 @@ yarn test
 | `file-saver` | 1.3.8 | Medium | `yarn test` (1 test file) |
 | `recharts` | 3.8.1 | Medium | `yarn test` (1 test file) |
 | `sockjs-client` | 1.6.1 | High | Gap (WebSocket -- manual test: live query in UI) |
-| `react-markdown` / `remark-gfm` | 10.1.0 / 4.0.1 | Medium | Gap (manual test: view markdown description) |
-| `sonner` | 2.0.7 | Low | Gap (manual test: trigger a toast) |
+| `react-markdown` / `remark-gfm` | 10.1.0 / 4.0.1 | Medium | `yarn test -- FleetMarkdown` (9 tests: plain text, bold/italic, links, lists, GFM tables, strikethrough, code blocks, inline code) |
+| `sonner` | 2.0.7 | Low | `yarn test -- ToastNotification` (9 tests: notify API, fallback, batch, dismiss, response unwrap) |
 | `react-tabs` | 3.2.3 | Low | Indirect |
 | `react-tooltip` / `react-tooltip-5` | 4.2.21 / 5.29.1 | Low | Indirect |
 | `react-error-boundary` | 3.1.4 | Low | Indirect |
@@ -580,15 +580,12 @@ yarn storybook    # Verifies storybook pipeline
 | Inlined third-party | 8 | Good (MDM + vuln integration tests) |
 | Goval-dictionary | 20 | Good (OVAL vuln tests) |
 | Tools | ~34 | Build-verified |
-| Frontend (runtime) | 49 | Good (330 test files, 4 gaps) |
+| Frontend (runtime) | 49 | Good (330+ test files, 2 remaining gaps) |
 | Frontend (dev) | ~60 | Pipeline-verified (`make build` / `yarn test` / `yarn lint`) |
 
-### Identified gaps
+### Remaining gaps (manual verification only)
 
 | Library | Risk | Why it's a gap | Mitigation |
 |---------|------|----------------|------------|
-| `fyne.io/systray` | High | GUI code, no unit test possible | Manual: verify tray icon on macOS/Win/Linux |
-| `sockjs-client` | High | WebSocket, needs live server | Manual: run live query from Fleet UI |
-| `react-table` | High | Component rendering, no dedicated test | Indirectly tested via page-level tests |
-| `react-markdown` | Medium | Markdown rendering | Manual: view a policy with markdown description |
-| `sonner` | Low | Toast notifications | Manual: perform an action, verify toast appears |
+| `fyne.io/systray` | High | GUI code -- no unit test possible | Manual: verify tray icon on macOS/Win/Linux |
+| `sockjs-client` | High | WebSocket -- needs a live Fleet server | Manual: run live query from Fleet UI |
