@@ -7800,3 +7800,120 @@ func (ds *Datastore) GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Con
 
 	return orgNames, nil
 }
+
+func (ds *Datastore) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	if teamID == nil {
+		teamID = new(uint(0))
+	}
+
+	assets := []*fleet.DDMAsset{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &assets, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at
+		FROM mdm_apple_declaration_assets WHERE team_id = ?`, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple ddm assets")
+	}
+	return assets, nil
+}
+
+func (ds *Datastore) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	if assetUUID == "" {
+		return nil, ctxerr.New(ctx, "asset UUID is required")
+	}
+
+	var asset fleet.DDMAsset
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at
+		FROM mdm_apple_declaration_assets WHERE asset_uuid = ?`, assetUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("Asset").WithName(assetUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting apple ddm asset")
+	}
+	return &asset, nil
+}
+
+func (ds *Datastore) GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error) {
+	if assetUUID == "" {
+		return nil, ctxerr.New(ctx, "asset UUID is required")
+	}
+
+	var asset fleet.DownloadableDDMAsset
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at, raw_json
+		FROM mdm_apple_declaration_assets WHERE asset_uuid = ?`, assetUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("Asset").WithName(assetUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting apple ddm asset")
+	}
+	return &asset, nil
+}
+
+func (ds *Datastore) CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error) {
+	if name == "" {
+		return "", ctxerr.New(ctx, "asset name is required")
+	}
+	if identifier == "" {
+		return "", ctxerr.New(ctx, "asset identifier is required")
+	}
+	if len(data) == 0 {
+		return "", ctxerr.New(ctx, "asset data is required")
+	}
+
+	assetUUID := uuid.NewString()
+	if teamID == nil {
+		teamID = new(uint(0))
+	}
+
+	now := time.Now()
+
+	_, secretsUpdatedAt, err := ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO mdm_apple_declaration_assets 
+		(asset_uuid, team_id, identifier, name, raw_json, uploaded_at, secrets_updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		assetUUID, teamID, identifier, name, data, now, secretsUpdatedAt)
+	if err != nil {
+		if IsDuplicate(err) {
+			switch {
+			case strings.Contains(err.Error(), "asset_team_name"):
+				return "", alreadyExists("asset_name", name).WithTeamID(*teamID)
+			case strings.Contains(err.Error(), "asset_team_identifier"):
+				return "", alreadyExists("asset_identifier", identifier).WithTeamID(*teamID)
+			}
+		}
+		return "", ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
+	}
+
+	return assetUUID, nil
+}
+
+func (ds *Datastore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	if assetUUID == "" {
+		return ctxerr.New(ctx, "asset UUID is required")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM mdm_apple_declaration_assets 
+		WHERE asset_uuid = ?`, assetUUID)
+	if err != nil {
+		if isMySQLForeignKey(err) {
+			return foreignKey("asset", assetUUID)
+		}
+		return ctxerr.Wrap(ctx, err, "deleting apple ddm asset")
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking rows affected for apple ddm asset deletion")
+	}
+	if rowsAffected == 0 {
+		return ctxerr.Wrap(ctx, notFound("Asset").WithName(assetUUID))
+	}
+
+	return nil
+}
