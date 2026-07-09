@@ -4050,6 +4050,37 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 	return fleet.ErrMissingLicense
 }
 
+type batchSetAppleDDMAssetsRequest struct {
+	TeamID   *uint                                `json:"-" query:"fleet_id,optional"`
+	TeamName string                               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	DryRun   bool                                 `json:"-" query:"dry_run,optional"`
+	Assets   []fleet.MDMAppleDDMAssetBatchPayload `json:"assets"`
+}
+
+type batchSetAppleDDMAssetsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetAppleDDMAssetsResponse) Error() error { return r.Err }
+
+func (r batchSetAppleDDMAssetsResponse) Status() int { return http.StatusNoContent }
+
+func batchSetAppleDDMAssetsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchSetAppleDDMAssetsRequest)
+	if err := svc.BatchSetAppleDDMAssets(ctx, req.TeamID, req.TeamName, req.Assets, req.DryRun); err != nil {
+		return batchSetAppleDDMAssetsResponse{Err: err}, nil
+	}
+	return batchSetAppleDDMAssetsResponse{}, nil
+}
+
+func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////

@@ -72,8 +72,10 @@ type generateGitopsClient interface {
 	ListTeams(query string) ([]fleet.Team, error)
 	ListScripts(query string) ([]*fleet.Script, error)
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
+	ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
 	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
@@ -1338,11 +1340,23 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
 		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
 
-		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
-			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-					jsonFieldName(macosSettingsT, "CustomSettings"): profiles["apple_profiles"],
+		if cmd.AppConfig.MDM.EnabledAndConfigured {
+			macosSettings := map[string]any{}
+			if profiles != nil {
+				if appleProfiles, _ := profiles["apple_profiles"].([]map[string]any); len(appleProfiles) > 0 {
+					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
 				}
+			}
+			assets, err := cmd.generateAssets(teamId, teamName)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
+				return nil, err
+			}
+			if len(assets) > 0 {
+				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+			}
+			if len(macosSettings) > 0 {
+				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
@@ -1582,6 +1596,44 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		"windows_profiles": windowsProfilesSlice,
 		"android_profiles": androidProfilesSlice,
 	}, nil
+}
+
+// generateAssets emits the apple_settings.assets section: it writes each DDM
+// asset's JSON to an assets/ file and returns the list of path entries.
+func (cmd *GenerateGitopsCommand) generateAssets(teamId *uint, teamName string) ([]map[string]any, error) {
+	assets, err := cmd.Client.ListDDMAssets(teamId)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting assets: %v\n", err)
+		return nil, err
+	}
+	if len(assets) == 0 {
+		return nil, nil
+	}
+
+	result := make([]map[string]any, 0, len(assets))
+	for _, asset := range assets {
+		contents, err := cmd.Client.DownloadDDMAsset(asset.AssetUUID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting asset contents: %s\n", err)
+			return nil, err
+		}
+
+		fileName := fmt.Sprintf("assets/%s.json", asset.Name)
+		if teamId == nil {
+			fileName = fmt.Sprintf("lib/%s", fileName)
+		} else {
+			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+		}
+		cmd.FilesToWrite[fileName] = string(contents)
+
+		path := fmt.Sprintf("./%s", fileName)
+		if teamId != nil {
+			path = fmt.Sprintf("../%s", fileName)
+		}
+		result = append(result, map[string]any{"path": path})
+	}
+
+	return result, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string) ([]map[string]interface{}, error) {

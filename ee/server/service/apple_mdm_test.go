@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -499,5 +500,72 @@ func TestCreateAppleDDMAsset(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, ds.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked)
 		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+}
+
+func TestBatchSetAppleDDMAssets(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	assetData := func(identifier string) []byte {
+		return []byte(fmt.Sprintf(`{"Type":"com.apple.asset.data","Identifier":%q,"Payload":{"Reference":{"DataURL":"https://example.com/%s"}}}`, identifier, identifier))
+	}
+
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) error {
+		return nil
+	}
+	reset := func() { ds.BatchSetAppleDDMAssetsFuncInvoked = false }
+
+	t.Run("Observer cannot batch set", func(t *testing.T) {
+		defer reset()
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleObserver)}})
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: "a", Contents: assetData("id.a")}}, false)
+		require.Error(t, err)
+		var forbiddenErr *authz.Forbidden
+		require.ErrorAs(t, err, &forbiddenErr)
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Global admin can batch set", func(t *testing.T) {
+		defer reset()
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{
+			{Name: "a", Contents: assetData("id.a")},
+			{Name: "b", Contents: assetData("id.b")},
+		}, false)
+		require.NoError(t, err)
+		require.True(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Duplicate identifier is rejected", func(t *testing.T) {
+		defer reset()
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{
+			{Name: "a", Contents: assetData("id.dup")},
+			{Name: "b", Contents: assetData("id.dup")},
+		}, false)
+		require.Error(t, err)
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Duplicate name is rejected", func(t *testing.T) {
+		defer reset()
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{
+			{Name: "same", Contents: assetData("id.a")},
+			{Name: "same", Contents: assetData("id.b")},
+		}, false)
+		require.Error(t, err)
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Dry run does not write", func(t *testing.T) {
+		defer reset()
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{
+			{Name: "a", Contents: assetData("id.a")},
+		}, true)
+		require.NoError(t, err)
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
 	})
 }

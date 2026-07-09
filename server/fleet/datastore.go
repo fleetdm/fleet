@@ -3586,6 +3586,13 @@ type Datastore interface {
 	CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error)
 	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
 	GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*DDMAsset, error)
+	// BatchSetAppleDDMAssets sets the complete desired set of Apple DDM assets
+	// for a team: it upserts the given assets (matched by identifier) and
+	// deletes any existing assets not in the set. It returns a ConflictError if
+	// an incoming asset changes the type of an existing asset with the same
+	// identifier, or if a to-be-deleted asset is still referenced by a
+	// declaration.
+	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) error
 }
 
 type AndroidDatastore interface {

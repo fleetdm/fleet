@@ -2362,6 +2362,19 @@ func (svc *Service) BatchSetMDMProfiles(
 		})
 	}
 
+	// Resolve DDM asset references for declarations so the batch path links each
+	// declaration to the assets it references (mirroring the single-upload
+	// path). GitOps applies assets before declarations, so referenced assets
+	// already exist by this point.
+	for _, d := range appleDeclsSlice {
+		d.TeamID = tmID
+		assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "handling declaration asset references")
+		}
+		d.AssetReferenceUUIDs = assetRefs
+	}
+
 	var profUpdates fleet.MDMProfilesUpdates
 	// OS-update (software update) profiles/declarations are tracked atomically
 	// inside BatchSetMDMProfiles' transaction.
