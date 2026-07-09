@@ -180,10 +180,7 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <PillBadge
-              className={`${baseClass}__clipped-badge`}
-              tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination."
-            >
+            <PillBadge tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
             </PillBadge>

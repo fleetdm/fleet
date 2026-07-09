@@ -121,16 +121,6 @@
     overflow-wrap: anywhere;
   }
 
-  &__clipped-badge {
-    .pill-badge__element {
-      background: transparent;
-      font-size: $xx-small;
-      color: $ui-fleet-black-75;
-      border: 1px solid $ui-fleet-black-25;
-      padding: $pad-small;
-    }
-  }
-
   &__data-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
