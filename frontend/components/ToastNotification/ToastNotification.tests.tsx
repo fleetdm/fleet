@@ -12,9 +12,8 @@ jest.mock("sonner", () => ({
     dismiss: jest.fn(),
   },
   Toaster: () => null,
-}), { virtual: true });
+}));
 
-// eslint-disable-next-line import/first
 import { notify } from "./ToastNotification";
 
 // Access the mocked functions after the mock is established
