@@ -91,8 +91,8 @@
       text-decoration-color: rgba($static-white, 0.7);
 
       .external-link-icon__outline {
-        fill: rgba($static-white, 0.7);
-        stroke: rgba($static-white, 0.7);
+        fill: #cbcdd5;
+        stroke: #cbcdd5;
       }
 
       .external-link-icon__arrow {
@@ -111,14 +111,13 @@
     // which assume a dark background — flash messages use a light background.
     &:hover,
     &:focus-visible {
-      color: $ui-fleet-black-75-over;
-
       .external-link-icon__outline {
-        fill: $ui-fleet-black-75-over;
+        fill: $core-fleet-black;
+        stroke: $core-fleet-black;
       }
 
       .external-link-icon__arrow {
-        stroke: $ui-fleet-black-75-over;
+        stroke: $core-fleet-white;
       }
     }
 

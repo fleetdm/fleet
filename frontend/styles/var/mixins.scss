@@ -160,7 +160,7 @@ $max-width: 2560px;
   &:focus-visible {
     color: $core-fleet-black;
     outline-color: $core-focused-outline;
-    outline-offset: 2px;
+    outline-offset: 1px;
     outline-style: solid;
     outline-width: 1px;
     border-radius: 4px;
@@ -484,7 +484,11 @@ $max-width: 2560px;
 }
 
 @mixin gradient-background {
-  background-image: linear-gradient(180deg, $gradient-background 0%, $core-fleet-white 100%);
+  background-image: linear-gradient(
+    180deg,
+    $gradient-background 0%,
+    $core-fleet-white 100%
+  );
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
   background-color: $core-fleet-white; // area below gradient — transitionable
