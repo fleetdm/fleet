@@ -133,7 +133,7 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
         )}
         {showTurnOffMdmModal && config && (
           <TurnOffAppleMdmModal
-            serverUrl={getMdmServerUrl(config.server_settings)}
+            serverUrl={config.server_settings.server_url}
             onCancel={toggleTurnOffMdmModal}
             onConfirm={turnOffMdm}
           />
