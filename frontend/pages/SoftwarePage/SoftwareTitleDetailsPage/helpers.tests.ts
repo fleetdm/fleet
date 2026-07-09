@@ -92,6 +92,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
+          installer_id: 1,
           labels_include_any: null,
           labels_exclude_any: null,
           labels_include_all: null,
@@ -113,6 +114,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           automatic_install_policies: [],
           url: "",
         },
+        packages: null,
         app_store_app: null,
         source: "apps",
         hosts_count: 10,
@@ -145,6 +147,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: null,
+        packages: null,
         app_store_app: {
           app_store_id: "1",
           name: "Test App",

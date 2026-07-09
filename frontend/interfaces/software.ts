@@ -124,6 +124,10 @@ export interface IFleetMaintainedVersion {
 }
 
 export interface ISoftwarePackage {
+  /** Per-installer id — distinct from `title_id`. Used by per-package edit
+   * and delete endpoints so the request targets one specific package on a
+   * title that may have several. */
+  installer_id: number;
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
    * Custom name set per team by admin
@@ -212,7 +216,11 @@ export interface ISoftwareTitle {
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title (trimmed shape on list responses).
+   * `null` when the title has no custom packages. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   /** @deprecated Use extension_for instead */
   browser?: string;
@@ -225,7 +233,13 @@ export interface ISoftwareTitleDetails {
   /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title, in first-added order (smallest
+   * `installer_id` first). `null` when the title has no custom packages.
+   * When present, treat as the source of truth; `software_package` is a
+   * convenience alias to `packages[0]`. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
@@ -337,6 +351,13 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
+
+/** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
+ * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
+ * conflict error — the UI uses this constant to disable "+ Add package" and
+ * surface a matching tooltip before the user hits the API. Keep in sync if
+ * the backend limit changes. */
+export const MAX_PACKAGES_PER_TITLE = 10;
 
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:

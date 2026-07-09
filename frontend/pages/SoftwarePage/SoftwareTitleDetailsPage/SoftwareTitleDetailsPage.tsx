@@ -17,8 +17,10 @@ import {
   aggregateInstallStatusCounts,
   IAppStoreApp,
   isIpadOrIphoneSoftwareSource,
+  ISoftwareInstallPolicyUI,
   ISoftwarePackage,
   ISoftwareTitleDetails,
+  MAX_PACKAGES_PER_TITLE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
@@ -34,6 +36,9 @@ import URL_PREFIX from "router/url_prefix";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { notify } from "components/ToastNotification";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
@@ -47,11 +52,12 @@ import LibraryItemAccordion, {
 import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
 import EditSoftwareModal from "./EditSoftwareModal";
 import DeleteSoftwareModal from "./DeleteSoftwareModal";
+import AddPackageModal from "./AddPackageModal";
+import PoliciesModal from "./PoliciesModal";
 import VersionsModal from "./VersionsModal";
-import { getDisplayedSoftwareName } from "../helpers";
+import { getDisplayedSoftwareName, mergePolicies } from "../helpers";
 import { buildLibraryVersionRows } from "./helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
-import ViewYamlModal from "./ViewYamlModal";
 
 const baseClass = "software-title-details-page";
 
@@ -89,8 +95,6 @@ const SoftwareTitleDetailsPage = ({
 
   const softwareId = parseInt(routeParams.id, 10);
   const { gitOpsModeEnabled } = useGitOpsMode("software");
-  const autoOpenGitOpsYamlModal =
-    location.query.gitops_yaml === "true" && gitOpsModeEnabled;
 
   const {
     currentTeamId,
@@ -106,14 +110,23 @@ const SoftwareTitleDetailsPage = ({
 
   const canEditSoftware = canWriteSoftware(currentUser, currentTeamId ?? null);
 
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
-  // as it automatically opens from adding flow of custom software in gitOps mode
-  const [showViewYamlModal, setShowViewYamlModal] = useState(
-    autoOpenGitOpsYamlModal || false
-  );
-
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAddPackageModal, setShowAddPackageModal] = useState(false);
+  // When set, opens a PoliciesModal scoped to a single package's policies
+  // (the auto-install icon on a custom-package row). Distinct from the
+  // SoftwareSummaryCard's title-aggregate PoliciesModal — that one stays
+  // owned by the card and shows policies across all packages.
+  const [selectedPackagePolicies, setSelectedPackagePolicies] = useState<
+    ISoftwareInstallPolicyUI[] | null
+  >(null);
+  // Per-installer target for the currently-open Edit or Delete modal on a
+  // multi-package title. `null` means "fall back to first-added", which keeps
+  // single-package back-compat callers (and the page-level header Edit)
+  // pointing at `software_package` without any extra wiring.
+  const [selectedInstallerId, setSelectedInstallerId] = useState<number | null>(
+    null
+  );
   // Page-owned so both the Actions menu and the Library accordion badge open
   // the same Versions modal.
   const [showVersionsModal, setShowVersionsModal] = useState(false);
@@ -150,9 +163,19 @@ const SoftwareTitleDetailsPage = ({
     softwareTitle ?? ({} as ISoftwareTitleDetails)
   );
 
-  const onToggleViewYaml = () => {
-    setShowViewYamlModal(!showViewYamlModal);
-  };
+  // Canonical "this title can hold multiple custom packages" flag.
+  // Single source of truth for three coordinated behaviors:
+  //   1. Library section shows the "+ Add package" action
+  //   2. Accordion rows render the self-service / auto-install icons
+  //   3. SoftwareSummaryCard hides the Self-service / Auto install chips
+  //      AND collapses the Actions dropdown into a pencil-icon Edit button
+  // True for custom non-FMA, non-iOS titles (Mac .pkg, Linux .deb/.rpm/
+  // .tar.gz, Windows .msi/.exe, script-only .sh/.ps1). FMA, VPP, Google
+  // Play, and iOS in-house .ipa stay single-package. Premium-only.
+  const canActivateMultiplePackages =
+    !!isPremiumTier &&
+    !!installerResult?.meta.isCustomPackage &&
+    !installerResult.meta.isIosOrIpadosApp;
 
   const onDeleteInstaller = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
@@ -216,8 +239,8 @@ const SoftwareTitleDetailsPage = ({
         teamId={teamIdForApi}
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
-        onToggleViewYaml={onToggleViewYaml}
         onClickVersions={() => setShowVersionsModal(true)}
+        canActivateMultiplePackages={canActivateMultiplePackages}
       />
     );
   };
@@ -229,7 +252,32 @@ const SoftwareTitleDetailsPage = ({
       return null;
     }
 
-    const openEditModal = () => setShowLibraryEditModal(true);
+    // `packages` is the source of truth. The `software_package` alias is
+    // still returned by the API (points at `packages[0]`, first-added) — the
+    // fallback here is defense against a title with no custom packages (e.g.
+    // FMA / app-store branch) so downstream code can treat this as an array.
+    const packages =
+      title.packages ??
+      (title.software_package ? [title.software_package] : []);
+    const appStore = title.app_store_app;
+
+    // No installable to render at all.
+    if (packages.length === 0 && !appStore) {
+      return null;
+    }
+
+    // Per-row callbacks set `selectedInstallerId` so the modals target the
+    // right package on a multi-package title. Called without an id (e.g. from
+    // the app-store branch or a back-compat single-package title), they fall
+    // back to first-added — same as legacy behavior.
+    const openEditModal = (id?: number) => {
+      setSelectedInstallerId(id ?? null);
+      setShowLibraryEditModal(true);
+    };
+    const openDeleteModal = (id?: number) => {
+      setSelectedInstallerId(id ?? null);
+      setShowDeleteModal(true);
+    };
 
     const statusPath = (software_status: "installed" | "pending" | "failed") =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
@@ -238,109 +286,191 @@ const SoftwareTitleDetailsPage = ({
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
-    const libraryAccordionList = () => {
-      const pkg = title.software_package;
-      const appStore = title.app_store_app;
+    const renderAppStoreRow = () => {
+      if (!appStore) return null;
+      const { labels, kind } = pickLabels(appStore);
+      const isAndroidPlayStoreApp = appStore.platform === "android";
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      return (
+        <LibraryItemAccordion
+          filename={appStore.name}
+          version={appStore.latest_version}
+          addedAt={appStore.created_at}
+          installerType="app-store"
+          androidPlayStoreId={
+            isAndroidPlayStoreApp ? appStore.app_store_id : undefined
+          }
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          isActive
+          badgeState="latest"
+          labels={labels}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={appStore.status?.installed ?? 0}
+          pending={appStore.status?.pending ?? 0}
+          failed={appStore.status?.failed ?? 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          onLabelCountClick={openEditModal}
+          onLabelsClick={openEditModal}
+          onTrashClick={openDeleteModal}
+        />
+      );
+    };
 
-      if (appStore) {
-        const { labels, kind } = pickLabels(appStore);
-        const isAndroidPlayStoreApp = appStore.platform === "android";
-        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
-        return (
-          <LibraryItemAccordionList>
-            <LibraryItemAccordion
-              filename={appStore.name}
-              version={appStore.latest_version}
-              addedAt={appStore.created_at}
-              installerType="app-store"
-              androidPlayStoreId={
-                isAndroidPlayStoreApp ? appStore.app_store_id : undefined
-              }
-              isIosOrIpadosApp={isIosOrIpadosApp}
-              isActive
-              badgeState="latest"
-              labels={labels}
-              labelKind={kind}
-              canEditSoftware={canEditSoftware}
-              installed={appStore.status?.installed ?? 0}
-              pending={appStore.status?.pending ?? 0}
-              failed={appStore.status?.failed ?? 0}
-              installedPath={statusPath("installed")}
-              pendingPath={statusPath("pending")}
-              failedPath={statusPath("failed")}
-              onLabelCountClick={openEditModal}
-              onLabelsClick={openEditModal}
-              onTrashClick={() => setShowDeleteModal(true)}
-            />
-          </LibraryItemAccordionList>
-        );
-      }
-
-      if (!pkg) return null;
+    // FMAs expand a single package into one badged "active" row plus dimmed
+    // rollback rows for every cached version. Custom packages render exactly
+    // one row each. With multi-package titles we run this per `pkg` so each
+    // top-level entry stays addressable by its own `installer_id`.
+    const renderPackageRows = (pkg: ISoftwarePackage) => {
       const { labels, kind } = pickLabels(pkg);
       const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
       const isLatestFmaVersion =
         installerResult?.meta.isLatestFmaVersion ?? false;
       const isScriptPackage =
         installerResult?.cardInfo.isScriptPackage ?? false;
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const perPackagePolicies = mergePolicies({
+        automaticInstallPolicies: pkg.automatic_install_policies,
+        patchPolicy: pkg.patch_policy,
+      });
+      const hasAutoInstallPolicy = perPackagePolicies.length > 0;
       const { installed, pending, failed } = aggregateInstallStatusCounts(
         pkg.status
       );
-      // FMAs list every cached version (active row badged from the pin, the
-      // rest dimmed rollback candidates); other packages render a single row.
       const rows = buildLibraryVersionRows({
         fleetMaintainedVersions: pkg.fleet_maintained_versions,
         activeVersion: pkg.version,
         pinnedVersion: pkg.pinned_version,
         addedTimestamp: pkg.uploaded_at,
       });
-      return (
-        <LibraryItemAccordionList>
-          {rows.map((row) => (
-            <LibraryItemAccordion
-              key={row.id}
-              filename={row.filename ?? pkg.name}
-              version={row.version}
-              addedAt={row.uploaded_at}
-              installerType="package"
-              isFma={isFma}
-              isLatestFmaVersion={row.isActive && isLatestFmaVersion}
-              isScriptPackage={isScriptPackage}
-              isTarballPackage={title.source === "tgz_packages"}
-              isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
-              isActive={row.isActive}
-              badgeState={row.badgeState}
-              labels={row.isActive ? labels : null}
-              labelKind={kind}
-              canEditSoftware={canEditSoftware}
-              installed={row.isActive ? installed : 0}
-              pending={row.isActive ? pending : 0}
-              failed={row.isActive ? failed : 0}
-              installedPath={statusPath("installed")}
-              pendingPath={statusPath("pending")}
-              failedPath={statusPath("failed")}
-              hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
-              downloadUrl={row.isActive ? pkg.url : undefined}
-              onBadgeClick={
-                isFma && canEditSoftware
-                  ? () => setShowVersionsModal(true)
-                  : undefined
-              }
-              onLabelCountClick={openEditModal}
-              onLabelsClick={openEditModal}
-              onDownloadClick={onDownloadInstaller}
-              onTrashClick={() => setShowDeleteModal(true)}
-            />
-          ))}
-        </LibraryItemAccordionList>
-      );
+      return rows.map((row) => (
+        <LibraryItemAccordion
+          key={`${pkg.installer_id}-${row.id}`}
+          filename={row.filename ?? pkg.name}
+          version={row.version}
+          addedAt={row.uploaded_at}
+          installerType="package"
+          isFma={isFma}
+          isLatestFmaVersion={row.isActive && isLatestFmaVersion}
+          isScriptPackage={isScriptPackage}
+          isTarballPackage={title.source === "tgz_packages"}
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          isActive={row.isActive}
+          badgeState={row.badgeState}
+          canActivateMultiplePackages={canActivateMultiplePackages}
+          isSelfService={pkg.self_service}
+          hasAutoInstallPolicy={hasAutoInstallPolicy}
+          labels={row.isActive ? labels : null}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={row.isActive ? installed : 0}
+          pending={row.isActive ? pending : 0}
+          failed={row.isActive ? failed : 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
+          downloadUrl={row.isActive ? pkg.url : undefined}
+          onBadgeClick={
+            isFma && canEditSoftware
+              ? () => setShowVersionsModal(true)
+              : undefined
+          }
+          onLabelCountClick={() => openEditModal(pkg.installer_id)}
+          onLabelsClick={() => openEditModal(pkg.installer_id)}
+          onDownloadClick={onDownloadInstaller}
+          onTrashClick={() => openDeleteModal(pkg.installer_id)}
+          onSelfServiceClick={() => openEditModal(pkg.installer_id)}
+          onAutoInstallClick={() => {
+            // Single linked policy: jump straight to it (mirrors the chip's
+            // "Select to open policy" shortcut). Multiple: open the modal
+            // scoped to this specific package, not the aggregate.
+            if (perPackagePolicies.length === 1) {
+              router.push(
+                getPathWithQueryParams(
+                  paths.POLICY_DETAILS(perPackagePolicies[0].id),
+                  { fleet_id: teamIdForApi }
+                )
+              );
+              return;
+            }
+            setSelectedPackagePolicies(perPackagePolicies);
+          }}
+        />
+      ));
     };
 
+    // "Add package" lives on titles that can hold multiple custom packages —
+    // gated by the page-level `canActivateMultiplePackages` flag. FMA, VPP,
+    // Google Play, and iOS in-house .ipa are all single-package by design
+    // and so don't surface the action at all. The Library section already
+    // early-returns when there are no packages and no app-store app, so we
+    // don't need to re-check `packages.length` here.
+    const showAddPackageAction = canActivateMultiplePackages && canEditSoftware;
+    const atPackageLimit = packages.length >= MAX_PACKAGES_PER_TITLE;
+    const addPackageButton = showAddPackageAction && (
+      <Button
+        variant="inverse"
+        onClick={() => setShowAddPackageModal(true)}
+        disabled={atPackageLimit}
+      >
+        <Icon name="plus" />
+        Add package
+      </Button>
+    );
+    const headerAction =
+      showAddPackageAction && atPackageLimit ? (
+        <TooltipWrapper
+          tipContent={
+            <>
+              This title already has {MAX_PACKAGES_PER_TITLE} packages.
+              <br />
+              Delete one you no longer use before adding.
+            </>
+          }
+          showArrow
+          position="left"
+          underline={false}
+        >
+          {addPackageButton}
+        </TooltipWrapper>
+      ) : (
+        addPackageButton
+      );
+
+    // App-store and custom-package paths are mutually exclusive at the data
+    // layer (the backend rejects custom uploads against an FMA/VPP title), so
+    // only one branch ever renders rows. The wrapper stays the same shape.
+    // The "Add package" action sits on the description row (not the section
+    // header) so it visually aligns with the secondary copy rather than the
+    // h2 title — matches the Library row layout in Figma page 2:130.
     return (
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
-        <PageDescription content="Software available to be installed" />
-        {libraryAccordionList()}
+        <div className={`${baseClass}__library-description-row`}>
+          {/* The multi-package copy is an action prompt — only meaningful to
+              a user who can both edit software AND is on a multi-package-
+              eligible title. Read-only users and single-package types (FMA,
+              VPP, Google Play, iOS in-house .ipa) get the legacy
+              "available to be installed" wording. */}
+          <PageDescription
+            content={
+              canActivateMultiplePackages && canEditSoftware
+                ? "Add packages for a staged rollout or to support multiple architectures."
+                : "Software available to be installed"
+            }
+          />
+          {headerAction}
+        </div>
+        <LibraryItemAccordionList>
+          {/* Row order = API response order. The API returns `packages[]`
+              sorted by `installer_id` ascending, so the top row is the
+              first-added package (smallest id = collision fallback). The
+              UI does not re-sort. */}
+          {appStore ? renderAppStoreRow() : packages.map(renderPackageRows)}
+        </LibraryItemAccordionList>
       </section>
     );
   };
@@ -373,43 +503,48 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
-  // Renders the YAML modal for custom (non-FMA) packages. Two flows open it:
-  // (1) `?gitops_yaml=true` redirect after add, and (2) editing a custom
-  // package in gitops mode — `EditSoftwareModal` calls `openViewYamlModal()`
-  // instead of flashing success.
-  const renderViewYamlModal = (title: ISoftwareTitleDetails) => {
-    if (!showViewYamlModal) return null;
-    const pkg = title.software_package;
-    // FMA packages don't expose YAML editing — only custom packages do.
-    if (!pkg || pkg.fleet_maintained_app_id) return null;
+  // Resolves the targeted package on a multi-package title. Returns the
+  // package matching `selectedInstallerId`, or `null` if none matches — in
+  // which case the caller falls back to the legacy `software_package` flow.
+  const findSelectedPackage = (
+    title: ISoftwareTitleDetails
+  ): ISoftwarePackage | null => {
+    if (selectedInstallerId === null) return null;
     return (
-      <ViewYamlModal
-        softwareTitleName={title.name}
-        iconUrl={title.icon_url}
-        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
-        softwarePackage={pkg}
-        onExit={onToggleViewYaml}
-        isScriptPackage={installerResult?.cardInfo.isScriptPackage}
-      />
+      title.packages?.find((p) => p.installer_id === selectedInstallerId) ??
+      null
     );
   };
 
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedInstallerId(null);
+  };
+
+  const closeLibraryEditModal = () => {
+    setShowLibraryEditModal(false);
+    setSelectedInstallerId(null);
+  };
+
   // Delete modal for the active library row's installer.
-  const renderDeleteModal = () => {
+  const renderDeleteModal = (title: ISoftwareTitleDetails) => {
     if (!showDeleteModal || typeof teamIdForApi !== "number") return null;
     const meta = installerResult?.meta;
     const isAndroidApp = !!meta?.isAndroidPlayStoreApp;
     const isAppStoreApp = meta?.installerType === "app-store" && !isAndroidApp;
+    const selected = findSelectedPackage(title);
     return (
       <DeleteSoftwareModal
         softwareId={softwareId}
         teamId={teamIdForApi}
+        installerId={selected?.installer_id}
         gitOpsModeEnabled={gitOpsModeEnabled}
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
-        onExit={() => setShowDeleteModal(false)}
+        canActivateMultiplePackages={canActivateMultiplePackages}
+        onExit={closeDeleteModal}
         onSuccess={() => {
-          setShowDeleteModal(false);
+          closeDeleteModal();
           onDeleteInstaller();
         }}
       />
@@ -419,21 +554,60 @@ const SoftwareTitleDetailsPage = ({
   const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
     if (!showLibraryEditModal || !installerResult) return null;
     const { meta } = installerResult;
+    // On a multi-package title, the row callback set `selectedInstallerId`;
+    // resolve it to the actual package so the modal edits the right one.
+    // Otherwise (single-package back-compat or app-store), `meta.softwareInstaller`
+    // already points at the only installer.
+    const selected = findSelectedPackage(title);
     return (
       <EditSoftwareModal
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        softwareInstaller={meta.softwareInstaller}
+        installerId={selected?.installer_id}
+        softwareInstaller={selected ?? meta.softwareInstaller}
         refetchSoftwareTitle={refetchSoftwareTitle}
-        onExit={() => setShowLibraryEditModal(false)}
+        onExit={closeLibraryEditModal}
         installerType={meta.installerType}
-        openViewYamlModal={onToggleViewYaml}
         isFleetMaintainedApp={meta.isFleetMaintainedApp}
         isIosOrIpadosApp={meta.isIosOrIpadosApp}
         name={title.name}
         displayName={getDisplayedSoftwareName(title.name, title.display_name)}
         source={title.source}
         iconUrl={title.icon_url}
+        canActivateMultiplePackages={canActivateMultiplePackages}
+      />
+    );
+  };
+
+  const renderPackagePoliciesModal = () => {
+    if (!selectedPackagePolicies) return null;
+    return (
+      <PoliciesModal
+        policies={selectedPackagePolicies}
+        teamId={teamIdForApi}
+        onExit={() => setSelectedPackagePolicies(null)}
+      />
+    );
+  };
+
+  const renderAddPackageModal = (title: ISoftwareTitleDetails) => {
+    if (!showAddPackageModal || typeof teamIdForApi !== "number") return null;
+    // First-added is the canonical source for the file-type restriction.
+    // Multi-package titles always have `packages[0]`; back-compat titles fall
+    // back to `software_package`. The "+ Add package" button is gated on the
+    // section being visible, so we always have a name here.
+    const existingPackageName =
+      title.packages?.[0]?.name ?? title.software_package?.name ?? "";
+    return (
+      <AddPackageModal
+        softwareTitleId={softwareId}
+        teamId={teamIdForApi}
+        existingPackageName={existingPackageName}
+        onExit={() => setShowAddPackageModal(false)}
+        onSuccess={() => {
+          setShowAddPackageModal(false);
+          refetchSoftwareTitle();
+        }}
       />
     );
   };
@@ -483,8 +657,9 @@ const SoftwareTitleDetailsPage = ({
           {renderLibrarySection(softwareTitle)}
           {renderInventorySection(softwareTitle)}
           {renderLibraryEditModal(softwareTitle)}
-          {renderDeleteModal()}
-          {renderViewYamlModal(softwareTitle)}
+          {renderDeleteModal(softwareTitle)}
+          {renderAddPackageModal(softwareTitle)}
+          {renderPackagePoliciesModal()}
           {renderVersionsModal(softwareTitle)}
         </>
       );
