@@ -49,7 +49,7 @@ const Tag = ({
 
   if (type === "dismissible") {
     return (
-      <div className={classNames}>
+      <span className={classNames}>
         <span className={`${baseClass}__label`}>{children}</span>
         <button
           type="button"
@@ -61,11 +61,11 @@ const Tag = ({
         >
           <Icon name="close" color="core-fleet-black" size="small" />
         </button>
-      </div>
+      </span>
     );
   }
 
-  return <div className={classNames}>{children}</div>;
+  return <span className={classNames}>{children}</span>;
 };
 
 export default Tag;
