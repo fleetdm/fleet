@@ -894,81 +894,9 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 
-	// Get license for team lookup and variable validation
-	lic, _ := license.FromContext(ctx)
-
-	var teamName string
-	if teamID > 0 {
-		if lic == nil || !lic.IsPremium() {
-			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
-		}
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
-	}
-	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
-		if lic == nil || !lic.IsPremium() {
-			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for declaration profile label scoping")
-		}
-	}
-
-	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
-	}
-	validatedIncludeLabels, excludeLabels, err := svc.validateDeclarationLabelSets(ctx, teamID, labelsInclude, labelsExcludeAny)
+	d, varNames, teamName, err := svc.parseAndValidateAppleDeclaration(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	if err != nil {
 		return nil, err
-	}
-
-	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
-	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
-	declVars, err := validateDeclarationFleetVariables(dataWithSecrets, lic)
-	if err != nil {
-		var badReqErr *fleet.BadRequestError
-		if errors.As(err, &badReqErr) {
-			badReqErr.Message = "Couldn't upload profile. " + badReqErr.Message
-			err = badReqErr
-		}
-		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
-	}
-
-	varNames := make([]fleet.FleetVarName, 0, len(declVars))
-	for _, v := range declVars {
-		varNames = append(varNames, fleet.FleetVarName(v))
-	}
-
-	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
-	rawDecl, err := fleet.GetRawDeclarationValues([]byte(dataWithSecrets))
-	if err != nil {
-		return nil, err
-	}
-	// After validation, we should no longer need to keep the expanded secrets.
-
-	if !svc.config.MDM.AllowAllDeclarations {
-		if err := rawDecl.ValidateUserProvided(); err != nil {
-			return nil, err
-		}
-	}
-
-	d := fleet.NewMDMAppleDeclaration(data, &teamID, name, rawDecl.Type, rawDecl.Identifier)
-	d.SecretsUpdatedAt = secretsUpdatedAt
-
-	switch labelsMembershipMode {
-	case fleet.LabelsIncludeAny:
-		d.LabelsIncludeAny = validatedIncludeLabels
-	default:
-		// default to include all
-		d.LabelsIncludeAll = validatedIncludeLabels
-	}
-	d.LabelsExcludeAny = excludeLabels
-
-	if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
@@ -995,6 +923,216 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 
 	return decl, nil
+}
+
+// parseAndValidateAppleDeclaration runs the validation shared by creating and
+// updating an Apple DDM declaration: validates label scoping/license
+// requirements, expands secrets, validates Fleet variables, parses the
+// Type/Identifier from the content, validates it (unless AllowAllDeclarations
+// bypasses this), and runs the software-update-declaration precondition
+// check. It returns the constructed declaration (Name/Type/Identifier/labels
+// set, DeclarationUUID not yet set), the Fleet variable names it references,
+// and the team's name (empty string for no team).
+func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, []fleet.FleetVarName, string, error) {
+	// Get license for team lookup and variable validation
+	lic, _ := license.FromContext(ctx)
+
+	var teamName string
+	if teamID > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, nil, "", ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, nil, "", ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for declaration profile label scoping")
+		}
+	}
+
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	validatedIncludeLabels, excludeLabels, err := svc.validateDeclarationLabelSets(ctx, teamID, labelsInclude, labelsExcludeAny)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
+	if err != nil {
+		return nil, nil, "", fleet.NewInvalidArgumentError("profile", err.Error())
+	}
+
+	declVars, err := validateDeclarationFleetVariables(dataWithSecrets, lic)
+	if err != nil {
+		var badReqErr *fleet.BadRequestError
+		if errors.As(err, &badReqErr) {
+			badReqErr.Message = "Couldn't upload profile. " + badReqErr.Message
+			err = badReqErr
+		}
+		return nil, nil, "", ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+	}
+
+	varNames := make([]fleet.FleetVarName, 0, len(declVars))
+	for _, v := range declVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
+
+	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
+	rawDecl, err := fleet.GetRawDeclarationValues([]byte(dataWithSecrets))
+	if err != nil {
+		return nil, nil, "", err
+	}
+	// After validation, we should no longer need to keep the expanded secrets.
+
+	if !svc.config.MDM.AllowAllDeclarations {
+		if err := rawDecl.ValidateUserProvided(); err != nil {
+			return nil, nil, "", err
+		}
+	}
+
+	decl := fleet.NewMDMAppleDeclaration(data, &teamID, name, rawDecl.Type, rawDecl.Identifier)
+	decl.SecretsUpdatedAt = secretsUpdatedAt
+
+	switch labelsMembershipMode {
+	case fleet.LabelsIncludeAny:
+		decl.LabelsIncludeAny = validatedIncludeLabels
+	default:
+		// default to include all
+		decl.LabelsIncludeAll = validatedIncludeLabels
+	}
+	decl.LabelsExcludeAny = excludeLabels
+
+	if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
+		return nil, nil, "", ctxerr.Wrap(ctx, err, "handling declaration software update")
+	}
+
+	return decl, varNames, teamName, nil
+}
+
+// updateMDMAppleDeclaration implements the Apple DDM declaration branch of
+// UpdateMDMConfigProfile: it loads the existing declaration, re-validates a
+// new upload (when provided) the same way NewMDMAppleDeclaration does, then
+// upserts it and logs the edit activity.
+//
+// Unlike a .mobileconfig profile, a declaration's Identifier is allowed to
+// change on update: SetOrUpdateMDMAppleDeclaration matches the existing row
+// by (name, team_id), not by identifier, so only Name needs to stay fixed.
+//
+// No explicit "mark pending" call is needed here: mdm_apple_declarations.token
+// is a MySQL generated column derived from raw_json, so updating the content
+// changes the token on its own, and the ReconcileAppleDeclarations cron picks
+// up the change and marks affected hosts pending without any extra signal.
+func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+	// first we perform a basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	existing, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	var teamName string
+	teamID := *existing.TeamID
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	// now we can do a specific authz check based on team id of the declaration before we update it
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: existing.TeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// prevent editing declarations that are managed by Fleet
+	fleetNames := mdm_types.FleetReservedProfileNames()
+	if _, ok := fleetNames[existing.Name]; ok {
+		return &fleet.BadRequestError{
+			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
+			InternalErr: fmt.Errorf("editing declaration %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+		}
+	}
+
+	var (
+		decl     *fleet.MDMAppleDeclaration
+		varNames []fleet.FleetVarName
+	)
+	if len(profile) > 0 {
+		decl, varNames, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		if err != nil {
+			return err
+		}
+	} else {
+		// no new content -- only labels are being changed.
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking license")
+		}
+		if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+			if lic == nil || !lic.IsPremium() {
+				return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for declaration profile label scoping")
+			}
+		}
+		if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+		}
+		includeLabels, excludeLabels, err := svc.validateDeclarationLabelSets(ctx, teamID, labelsInclude, labelsExcludeAny)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validating labels")
+		}
+		decl = &fleet.MDMAppleDeclaration{
+			Name:             existing.Name,
+			Identifier:       existing.Identifier,
+			TeamID:           existing.TeamID,
+			RawJSON:          existing.RawJSON,
+			SecretsUpdatedAt: existing.SecretsUpdatedAt,
+		}
+		switch labelsMembershipMode {
+		case fleet.LabelsIncludeAll:
+			decl.LabelsIncludeAll = includeLabels
+		case fleet.LabelsIncludeAny:
+			decl.LabelsIncludeAny = includeLabels
+		}
+		decl.LabelsExcludeAny = excludeLabels
+	}
+
+	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {
+		var existsErr endpointer.ExistsErrorInterface
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("profile", "Couldn't edit. A configuration profile with this identifier already exists.").WithStatus(http.StatusConflict)
+		}
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       decl.Name,
+			ProfileIdentifier: decl.Identifier,
+			Platform:          "darwin",
+		}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm apple declaration")
+	}
+
+	return nil
 }
 
 func validateDeclarationFleetVariables(contents string, lic license.LicenseChecker) ([]string, error) {

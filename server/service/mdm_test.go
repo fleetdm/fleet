@@ -1825,12 +1825,22 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
-	// Apple declaration profile UUIDs are not yet implemented -- see
-	// TestUpdateMDMAppleConfigProfile for the Apple .mobileconfig branch,
-	// TestUpdateMDMWindowsConfigProfile for the Windows branch, and
-	// TestUpdateMDMAndroidConfigProfile for the Android branch, all of which
-	// are implemented.
-	err := svc.UpdateMDMConfigProfile(ctx, "d"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+	// Apple declaration profile UUIDs now dispatch to updateMDMAppleDeclaration
+	// -- see TestUpdateMDMAppleConfigProfile for the Apple .mobileconfig
+	// branch, TestUpdateMDMWindowsConfigProfile for the Windows branch, and
+	// TestUpdateMDMAndroidConfigProfile for the Android branch.
+	declUUID := "d" + uuid.NewString()
+	ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, puid string) (*fleet.MDMAppleDeclaration, error) {
+		require.Equal(t, declUUID, puid)
+		return nil, errors.New("simulated declaration lookup error")
+	}
+
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+	require.ErrorContains(t, err, "simulated declaration lookup error")
+	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
+
+	// an unrecognized profile UUID prefix still falls through to "not supported".
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
 }

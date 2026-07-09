@@ -2005,8 +2005,9 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 		return svc.updateMDMWindowsConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	case isAndroidProfileUUID(profileUUID):
 		return svc.updateMDMAndroidConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	case isAppleDeclarationUUID(profileUUID):
+		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	default:
-		// TODO(#48342): implement update for Apple DDM declarations.
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
