@@ -1039,7 +1039,11 @@ const HostDetailsPage = ({
         setShowClearPasscodeModal(true);
         break;
       case "terminal":
-        window.open(PATHS.HOST_TERMINAL(hostIdFromURL), "_blank");
+        if (!window.open(PATHS.HOST_TERMINAL(hostIdFromURL), "_blank")) {
+          notify.error(
+            "Couldn't open terminal. Please allow pop-ups and try again."
+          );
+        }
         break;
       default: // do nothing
     }

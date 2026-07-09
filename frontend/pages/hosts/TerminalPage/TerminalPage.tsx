@@ -108,6 +108,7 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const sendResizeRef = useRef<(() => void) | null>(null);
   const wasConnectedRef = useRef(false);
 
   const [connState, setConnState] = useState<ConnState>("connecting");
@@ -251,12 +252,14 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
           );
         }
       };
+      sendResizeRef.current = sendResize;
       const ro = new ResizeObserver(sendResize);
       if (termRef.current) ro.observe(termRef.current);
       window.addEventListener("resize", sendResize);
 
       // Register teardown for the synchronous useEffect cleanup to invoke.
       resizeCleanup = () => {
+        sendResizeRef.current = null;
         ro.disconnect();
         window.removeEventListener("resize", sendResize);
       };
@@ -272,13 +275,14 @@ const TerminalPage = ({ params }: ITerminalPageProps) => {
     };
   }, [hostId]);
 
-  // Auto-focus the terminal once it becomes visible.
-  // term.focus() in ws.onopen fires before React re-renders the div to
-  // display:block, so xterm ignores it.  This effect runs after the render.
+  // Fit, resize, and focus the terminal once its container becomes visible.
   useEffect(() => {
     if (connState === "connected") {
-      const t = setTimeout(() => xtermRef.current?.focus(), 30);
-      return () => clearTimeout(t);
+      const frame = window.requestAnimationFrame(() => {
+        sendResizeRef.current?.();
+        xtermRef.current?.focus();
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
     return undefined;
   }, [connState]);

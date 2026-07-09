@@ -106,7 +106,17 @@ func (t *TerminalConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 //	go terminalReceiver.StartFastPoll(ctx)
 func (t *TerminalConfigReceiver) StartFastPoll(ctx context.Context) {
 	for ctx.Err() == nil {
+		started := time.Now()
 		t.longPollOnce(ctx)
+
+		// A healthy server holds this request for up to 30 seconds. Keep a
+		// minimum interval if an older server or proxy returns immediately.
+		if wait := time.Second - time.Since(started); wait > 0 {
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+			}
+		}
 	}
 }
 
