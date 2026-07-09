@@ -62,12 +62,15 @@ module.exports = {
     enterprise.pubsubTopic = fullPubSubTopicName;
     let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
 
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Complete the setup of the new Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let newEnterprise = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
-      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       let pubsub = google.pubsub({version: 'v1', auth: androidManagementAuthClient});
 

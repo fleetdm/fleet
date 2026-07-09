@@ -61,12 +61,14 @@ module.exports = {
       throw 'notFound';
     }
 
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Get the device for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
     let getApplicationsResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
-      // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper
-      let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Applications.html#get
       let getApplicationsResult = await androidManagementConnection.enterprises.applications.get({
