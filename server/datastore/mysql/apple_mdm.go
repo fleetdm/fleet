@@ -7881,12 +7881,12 @@ func (ds *Datastore) CreateAppleDDMAsset(ctx context.Context, name, identifier s
 		if IsDuplicate(err) {
 			switch {
 			case strings.Contains(err.Error(), "asset_team_name"):
-					return "", alreadyExists("asset_name", name).WithTeamID(*teamID)
+				return "", alreadyExists("asset_name", name).WithTeamID(*teamID)
 			case strings.Contains(err.Error(), "asset_team_identifier"):
-					return "", alreadyExists("asset_identifier", identifier).WithTeamID(*teamID)
-				}
+				return "", alreadyExists("asset_identifier", identifier).WithTeamID(*teamID)
 			}
-			return "", ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
+		}
+		return "", ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
 	}
 
 	return assetUUID, nil
