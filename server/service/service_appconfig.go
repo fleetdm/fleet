@@ -235,6 +235,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					Server:        conf.Nats.Server,
 				},
 			}
+		case "splunk":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "splunk",
+				Config: fleet.SplunkConfig{
+					URL:        conf.Splunk.URL,
+					Index:      conf.Splunk.Index,
+					Source:     conf.Splunk.Source,
+					SourceType: conf.Splunk.SourceType,
+				},
+			}
 		default:
 			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
 		}

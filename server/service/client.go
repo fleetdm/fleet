@@ -1001,6 +1001,10 @@ func (c *Client) ApplyGroup(
 		}
 
 		if len(tmFileContents) > 0 {
+			// A prior step in this GitOps run may have updated AppConfig (e.g. enabled Windows MDM), so bypass the cached AppConfig on the
+			// server. This lets profile validation read the freshly persisted state.
+			teamProfilesOpts := teamOpts
+			teamProfilesOpts.NoCache = true
 			for tmName, profs := range tmFileContents {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
@@ -1013,7 +1017,7 @@ func (c *Client) ApplyGroup(
 					} else {
 						logfn("[+] applying MDM profiles for fleet %s\n", tmName)
 					}
-					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
+					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamProfilesOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for fleet %q: %w", tmName, err)
 					}
 				}
@@ -2218,6 +2222,13 @@ func (c *Client) DoGitOps(
 		if enable, ok := macOSMigration["enable"]; !ok || enable == nil {
 			macOSMigration["enable"] = false
 		}
+		// Put in default value for apple_account_provisioning to clear the
+		// configuration if it's not set in the gitops config.
+		if incoming.Controls.AppleAccountProvisioning != nil {
+			mdmAppConfig["apple_account_provisioning"] = incoming.Controls.AppleAccountProvisioning
+		} else {
+			mdmAppConfig["apple_account_provisioning"] = map[string]any{}
+		}
 		// Put in default values for windows_enabled_and_configured
 		mdmAppConfig["windows_enabled_and_configured"] = incoming.Controls.WindowsEnabledAndConfigured
 		if incoming.Controls.WindowsEnabledAndConfigured != nil {
@@ -3141,7 +3152,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
-			if !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.

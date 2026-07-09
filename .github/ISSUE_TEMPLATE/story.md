@@ -50,7 +50,6 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
 - [ ] Pre-QA load test: TODO <!-- If this story has high risk of changing load profile, engineers must load-test prior to QA, with a subtask dedicated to that effort. Remove this checkbox if the change won't measurably modify Fleet's load profile, such that either load testing isn't needed at all or load testing is expected to be only performed during QA. -->
 - [ ] Load testing/osquery-perf improvements: TODO <!-- List, or link a subtask for, any osquery-perf or load test environment changes required to comprehensively load test this story if load testing is needed. -->
-- [ ] This is a premium only feature: Yes / No  <!-- If yes, make sure the test plan includes confirmation that both the frontend and backend are protected. -->
 
 > ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 

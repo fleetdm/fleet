@@ -2093,7 +2093,7 @@ type batchSetMDMProfilesRequest struct {
 	TeamID        *uint                        `json:"-" query:"team_id,optional" renameto:"fleet_id"`
 	TeamName      *string                      `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
-	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
+	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume Windows MDM is enabled; honored on dry run only
 	Profiles      backwardsCompatProfilesParam `json:"profiles"`
 	NoCache       bool                         `json:"-" query:"no_cache,optional"`
 }
@@ -2173,7 +2173,8 @@ func (svc *Service) BatchSetMDMProfiles(
 		ctx = ctxdb.BypassCachedMysql(ctx, false)
 	}
 
-	if assumeEnabled != nil {
+	// assume_enabled is only honored on dry runs
+	if dryRun && assumeEnabled != nil {
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
 
@@ -2247,7 +2248,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -2311,7 +2312,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	for _, p := range windowsProfilesSlice {
-		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		if !fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 			continue
 		}
 
@@ -2585,8 +2586,16 @@ func getAppleProfiles(
 				}
 			}
 
+			if err := rawDecl.ValidateScope(); err != nil {
+				return nil, nil, err
+			}
+
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
+			// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
+			// parsed value drives the scope column; the key stays in the stored JSON
+			// and is stripped at delivery time so it isn't sent to the device.
+			mdmDecl.Scope = rawDecl.ScopeOrDefault()
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
@@ -2679,7 +2688,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomFileVaultEnabled()); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomDiskEncryptionEnabled()); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2732,6 +2741,7 @@ func getWindowsProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	mdmConfig config.MDMConfig,
 ) (map[int]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMWindowsConfigProfile, len(profiles))
 
@@ -2775,7 +2785,7 @@ func getWindowsProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomDiskEncryptionEnabled()); err != nil {
 			msg := err.Error()
 			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`

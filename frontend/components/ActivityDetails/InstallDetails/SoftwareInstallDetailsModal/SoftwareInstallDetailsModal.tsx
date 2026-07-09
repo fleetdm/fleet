@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { AxiosError } from "axios";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -134,7 +134,7 @@ export const StatusMessage = ({
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`

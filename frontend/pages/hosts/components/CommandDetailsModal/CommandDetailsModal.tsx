@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -63,7 +63,7 @@ export const getVerbForCommandStatus = (status: string): string => {
 
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
-    ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+    ? ` (${timeAgo(new Date(result.updated_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`

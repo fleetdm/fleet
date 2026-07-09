@@ -44,6 +44,20 @@ interface ISoftwareSummaryCard {
 
 const baseClass = "software-summary-card";
 
+const getPolicyChipTooltip = (
+  isPatchPolicyOnly: boolean,
+  isSinglePolicy: boolean
+) => {
+  if (isPatchPolicyOnly) {
+    return <>Policy fails if the host is on an older version.</>;
+  }
+  return isSinglePolicy ? (
+    <>Policy triggers install.</>
+  ) : (
+    <>Policies trigger install.</>
+  );
+};
+
 const SoftwareSummaryCard = ({
   softwareTitle,
   softwareId,
@@ -148,7 +162,7 @@ const SoftwareSummaryCard = ({
         )}
         {hasLinkedPolicies && (
           <Chip
-            icon={isPatchPolicyOnly ? "policy" : "refresh"}
+            icon={isPatchPolicyOnly ? undefined : "refresh"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
@@ -164,21 +178,10 @@ const SoftwareSummaryCard = ({
               }
               setShowPoliciesModal(true);
             }}
-            tooltip={
-              mergedPolicies.length === 1 ? (
-                <>
-                  Policy triggers install.
-                  <br />
-                  Select to open policy.
-                </>
-              ) : (
-                <>
-                  Policies trigger install.
-                  <br />
-                  Select to view policies.
-                </>
-              )
-            }
+            tooltip={getPolicyChipTooltip(
+              isPatchPolicyOnly,
+              mergedPolicies.length === 1
+            )}
           />
         )}
       </>

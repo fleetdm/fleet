@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.2.92.148.g882cc571",
+      "version": "1.2.93.667.g7b5cc0ce",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Spotify' AND publisher = 'Spotify AB';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Spotify' AND publisher = 'Spotify AB' AND version_compare(version, '1.2.92.148.g882cc571') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Spotify' AND publisher = 'Spotify AB' AND version_compare(version, '1.2.93.667.g7b5cc0ce') < 0);"
       },
       "installer_url": "https://download.scdn.co/SpotifyFullSetupX64.exe",
       "install_script_ref": "7e4727ac",
       "uninstall_script_ref": "48d55e3d",
-      "sha256": "2cd6bb280e9728b27b12044e4a277f7754145287882fb112e8bb495726fff616",
+      "sha256": "614741858a7def3fb21da385312fe7b114dd2873f6d79fb3d980a979af560ba0",
       "default_categories": [
         "Productivity"
       ]

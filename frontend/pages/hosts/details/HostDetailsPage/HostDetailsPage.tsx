@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -1315,7 +1315,8 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDeviceHost && !!hostCertificates?.certificates.length;
+    (isAppleDeviceHost || isWindowsHost) &&
+    (isErrorHostCertificates || !!hostCertificates?.certificates.length);
 
   const renderSoftwareCard = () => {
     return (
@@ -1874,8 +1875,8 @@ const HostDetailsPage = ({
                 const cmdDisplayName = getMdmCommandDisplayName(
                   result.request_type
                 );
-                const timeAgo = result.updated_at
-                  ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+                const timeAgoText = result.updated_at
+                  ? ` (${timeAgo(new Date(result.updated_at), {
                       addSuffix: true,
                     })})`
                   : "";
@@ -1897,7 +1898,7 @@ const HostDetailsPage = ({
                           )}
                           {" is pending on "}
                           <b>{result.hostname}</b>
-                          {`${timeAgo}.`}
+                          {`${timeAgoText}.`}
                         </span>
                       ) : (
                         <span>
