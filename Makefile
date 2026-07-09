@@ -1063,7 +1063,7 @@ UPDATE_GO_MODS := \
 	./tools/qacheck/go.mod \
 	./tools/screencap/go.mod \
 	./tools/hangar/go.mod \
-	./tools/fleet-mcp/go.mod \
+	./cmd/fleet-mcp/go.mod \
 	./tools/dibble/go.mod
 update-go:
 	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
