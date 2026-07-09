@@ -959,7 +959,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
-		return NewInvalidArgumentError(r.Type, "Is a forbidden declaration type.")
+		return NewInvalidArgumentError(r.Type, r.Type+" is a forbidden declaration type.")
 	}
 
 	if r.Type == "com.apple.configuration.management.status-subscriptions" {

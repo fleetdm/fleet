@@ -232,7 +232,7 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 			name:        "forbidden declaration type",
 			declType:    "com.apple.configuration.watch.enrollment",
 			wantErr:     true,
-			errContains: "Is a forbidden declaration type.",
+			errContains: "com.apple.configuration.watch.enrollment is a forbidden declaration type.",
 		},
 		{
 			name:        "status subscriptions not allowed",
