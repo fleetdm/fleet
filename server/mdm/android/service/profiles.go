@@ -192,6 +192,10 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		bulkHostProfs = append(bulkHostProfs, bulkProfs...)
 	}
 
+	if hostCount > 0 {
+		r.Logger.InfoContext(ctx, "android profile reconciler processed hosts", "host_count", hostCount, "profile_count", len(bulkHostProfs))
+	}
+
 	if err := r.DS.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
 	}
@@ -442,6 +446,12 @@ func (r *profileReconciler) sendHostProfiles(
 				prof.IncludedInPolicyVersion = &v
 			}
 		}
+	}
+
+	if skip && !policyReq.PolicyVersion.Valid {
+		r.Logger.WarnContext(ctx, "android policy patch returned not-modified without a version; profiles will have nil IncludedInPolicyVersion",
+			"host_uuid", hostUUID, "policy_request_uuid", policyReq.RequestUUID, "status_code", policyReq.StatusCode,
+			"profile_count", len(bulkProfilesByUUID))
 	}
 	if patchPolicyReqFailed {
 		appendWithheld()
