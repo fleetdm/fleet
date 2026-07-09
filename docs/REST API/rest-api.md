@@ -9300,6 +9300,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "only_when_closed": true,
       "install_software": {
         "name": "Adobe Acrobat",
         "software_title_id": 1234
@@ -9661,6 +9662,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
+| only_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open, and the skip doesn't count against the software install retry limit. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
@@ -9669,6 +9671,8 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+
+`only_when_closed` is only supported for patch policies tied to a Fleet-maintained app (`patch_software_title_id` refers to a title added via [Add Fleet-maintained app](#add-fleet-maintained-app)). Enabling it overrides any `pre_install_query` previously set on that software title — see [Update package](#update-package).
 
 Either `query` or `query_id` must be provided.
 
@@ -9894,6 +9898,7 @@ _Available in Fleet Premium_
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
+| only_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open, and the skip doesn't count against the software install retry limit. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
@@ -9901,6 +9906,8 @@ _Available in Fleet Premium_
 Either `query` or `query_id` must be provided.
 
 Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+
+Setting `only_when_closed` to `false` after it was `true` removes the read-only pre-install condition Fleet added; `pre_install_query` becomes editable again on the software title.
 
 #### Example
 
@@ -12195,6 +12202,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
+> If this software title has a patch policy with `only_when_closed` set to `true` (see [Update fleet-level policy](#update-fleet-level-policy)), `pre_install_query` is managed by Fleet and can't be set directly. Requests that include `pre_install_query` for this title return an error until `only_when_closed` is turned off.
+
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
 #### Example
@@ -12678,11 +12687,13 @@ Add Fleet-maintained app so it's available for install.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software ("Force install"). This policy doesn't check the installed version. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
+
+To keep this app patched to the latest version ("Patch"), create a [patch policy](#create-fleet-level-policy) with `patch_software_title_id` set to the `software_title_id` returned below. `automatic_install` and a patch policy can both be added for the same app.
 
 #### Example
 
@@ -12841,6 +12852,8 @@ To get the results of an Apple App Store app install, use the [List MDM commands
 | ----            | ------- | ---- | --------------------------------------------     |
 | install_uuid | string | path | **Required**. The software installation UUID.|
 
+`install_skipped` is `true` when this attempt was skipped by a patch policy's `only_when_closed` condition (the app was open) rather than a real install failure. `status` remains `failed_install` in this case, but the attempt doesn't count against the software install retry limit.
+
 #### Example
 
 `GET /api/v1/fleet/software/install/b15ce221-e22e-4c6a-afe7-5b3400a017da/results`
@@ -12858,9 +12871,30 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
+   "install_skipped": false,
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+ }
+```
+
+##### Skipped because the app was open
+
+`Status: 200`
+
+```json
+ {
+   "install_uuid": "d3b7f0d1-6e5e-4b2b-9b1f-2e6a2c8a1a11",
+   "software_title": "zoom.us.app",
+   "software_title_id": 8412,
+   "software_package": "Zoom.pkg",
+   "host_id": 123,
+   "host_display_name": "Marko's MacBook Pro",
+   "status": "failed_install",
+   "install_skipped": true,
+   "output": "The app was open. It will update once the user closes it and policy runs again, or update via self service.",
+   "pre_install_query_output": "",
+   "post_install_script_output": ""
  }
 ```
 

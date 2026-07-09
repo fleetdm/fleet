@@ -1623,6 +1623,7 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "install_skipped": Whether the install was skipped because the app was open, per a patch policy's `only_when_closed` condition. Only present when "status" is "failed_install" and the install was skipped for this reason; omitted otherwise. Skipped attempts don't count against the software install retry limit.
 
 
 #### Example
@@ -1639,6 +1640,25 @@ This activity contains the following fields:
   "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date",
+  "from_setup_experience": false
+}
+```
+
+#### Example: install skipped because the app was open
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "zoom.us.app",
+  "software_package": "Zoom.pkg",
+  "self_service": false,
+  "install_uuid": "d3b7f0d1-6e5e-4b2b-9b1f-2e6a2c8a1a11",
+  "status": "failed_install",
+  "install_skipped": true,
+  "source": "pkg_packages",
+  "policy_id": 1338,
+  "policy_name": "Zoom up to date",
   "from_setup_experience": false
 }
 ```
