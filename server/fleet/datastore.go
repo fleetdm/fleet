@@ -3529,6 +3529,29 @@ type Datastore interface {
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple Platform SSO (PSSO)
+
+	// SetOrUpdatePSSODevice persists a Mac's PSSO registration: the device row
+	// plus the given key rows in a single transaction. Keys are upserted by
+	// kid; existing keys for the host are left in place so they keep working
+	// after a re-registration.
+	SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []PSSOKey) error
+
+	// GetPSSODevice returns the PSSO registration record for the given host
+	// UUID, or a notFound error if the host isn't registered.
+	GetPSSODevice(ctx context.Context, hostUUID string) (*PSSODevice, error)
+
+	// GetPSSOKey looks up a registered device key by its kid.
+	GetPSSOKey(ctx context.Context, kid string) (*PSSOKey, error)
+
+	// ListPSSOKeys returns all keys registered for the given host UUID.
+	ListPSSOKeys(ctx context.Context, hostUUID string) ([]*PSSOKey, error)
+
+	// DeletePSSODevice removes a host's PSSO registration and, via cascade,
+	// all of its registered keys. Deleting an unregistered host is a no-op.
+	DeletePSSODevice(ctx context.Context, hostUUID string) error
+
 	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
 	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
 

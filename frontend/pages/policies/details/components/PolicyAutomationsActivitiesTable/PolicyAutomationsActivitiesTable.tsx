@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Row } from "react-table";
 import { AxiosError } from "axios";
 import classnames from "classnames";
 
+import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
 import {
   IPolicy,
@@ -62,6 +63,12 @@ const PolicyAutomationsActivitiesTable = ({
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
   const { id: policyId } = policy;
   const queryClient = useQueryClient();
+  const { config } = useContext(AppContext);
+
+  const {
+    activity_expiry_enabled: activityExpiryEnabled,
+    activity_expiry_window: activityExpiryWindow,
+  } = config?.activity_expiry_settings ?? {};
 
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -178,13 +185,15 @@ const PolicyAutomationsActivitiesTable = ({
         />
       );
     }
-    return (
-      <EmptyState
-        header="No automation runs"
-        info="When this policy's automations run, their results will appear here."
-      />
-    );
-  }, [isFiltered]);
+    const info =
+      activityExpiryEnabled && activityExpiryWindow
+        ? `Automation history is retained for ${activityExpiryWindow} ${pluralize(
+            activityExpiryWindow,
+            "day"
+          )}.`
+        : "Automation history will appear here.";
+    return <EmptyState header="No automation runs" info={info} />;
+  }, [isFiltered, activityExpiryEnabled, activityExpiryWindow]);
 
   const columnConfigs = useMemo(
     () => generateColumnConfigs(baseClass, setSelectedActivity),

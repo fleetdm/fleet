@@ -286,6 +286,11 @@ type MDM struct {
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
 	AndroidSettings             AndroidSettings `json:"android_settings"`
 
+	// AppleAccountProvisioning holds the macOS local account provisioning /
+	// Platform SSO password sync configuration. The IdP client secret is stored
+	// in mdm_config_assets, not in this JSON; only the masked value is returned.
+	AppleAccountProvisioning AppleAccountProvisioning `json:"apple_account_provisioning"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
@@ -818,6 +823,13 @@ func (c *AppConfig) Obfuscate() {
 	}
 	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
 		gwIntegration.ApiKey.SetMasked()
+	}
+	// The Apple account provisioning IdP client secret lives in
+	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
+	// whenever the feature is configured (token URL present implies a stored
+	// secret), so the API never leaks it but still signals it's set.
+	if c.MDM.AppleAccountProvisioning.Configured() || c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value != "" {
+		c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.SetString(MaskedPassword)
 	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
