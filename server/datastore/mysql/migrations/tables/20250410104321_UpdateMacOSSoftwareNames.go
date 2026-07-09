@@ -22,7 +22,7 @@ func Up_20250410104321(tx *sql.Tx) error {
 		return fmt.Errorf("updating software_titles.name: %w", err)
 	}
 
-	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids, MD5(
+	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids, SHA2(
 			-- simulate new hash
 			CONCAT_WS(CHAR(0),
 				version,
@@ -33,8 +33,8 @@ func Up_20250410104321(tx *sql.Tx) error {
 				vendor,
 				browser,
 				extension_id
-			)
-		) AS new_checksum
+			),
+		256) AS new_checksum
 				FROM software
 				WHERE source = 'apps' AND bundle_identifier IS NOT NULL AND bundle_identifier != ''
 				GROUP BY
@@ -199,7 +199,7 @@ WHERE
 	UPDATE software SET 
 		name = TRIM( TRAILING '.app' FROM name ),
 		checksum = UNHEX(
-		MD5(
+		SHA2(
 			-- concatenate with separator \x00
 			CONCAT_WS(CHAR(0),
 				version,
@@ -210,8 +210,8 @@ WHERE
 				vendor,
 				browser,
 				extension_id
-			)
-		)
+			),
+		256)
 	)
 		WHERE source = 'apps'
 		AND bundle_identifier IS NOT NULL

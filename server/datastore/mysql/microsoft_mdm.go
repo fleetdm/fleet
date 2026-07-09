@@ -2364,7 +2364,7 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 	}
 	if len(missing) > 0 {
 		pdStmt, pdArgs, pdErr := sqlx.In(`
-			SELECT profile_uuid, syncml, UNHEX(MD5(syncml)) AS checksum
+			SELECT profile_uuid, syncml, UNHEX(SHA2(syncml, 256)) AS checksum
 			FROM mdm_windows_configuration_profiles_pending_delete WHERE profile_uuid IN (?)`, missing)
 		if pdErr != nil {
 			return nil, ctxerr.Wrap(ctx, pdErr, "building in statement for pending-delete contents")

@@ -1426,7 +1426,7 @@ func softwareChecksumComputedColumn(tableAlias string, source string) string {
 	// concatenate with separator \x00
 	return fmt.Sprintf(
 		` UNHEX(
-		MD5(
+		SHA2(
 			CONCAT_WS(CHAR(0),
 				%s
 				%[2]sversion,
@@ -1437,8 +1437,8 @@ func softwareChecksumComputedColumn(tableAlias string, source string) string {
 				%[2]svendor,
 				%[2]sextension_for,
 				%[2]sextension_id
-			)
-		)
+			),
+		256)
 	) `, nameCol, tableAlias,
 	)
 }
@@ -5188,7 +5188,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			return err
 		}
 		res, err := q.ExecContext(ctx,
-			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(MD5(?)))`,
+			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(SHA2(?, 256)))`,
 			i4Title.Name,
 			i4Title.Source,
 			"i4Title.com.example",
@@ -5351,7 +5351,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		titleIDUint := uint(titleID)
 		softwareAlreadyInstalled.TitleID = &titleIDUint
-		res, err = q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(MD5(?)))`,
+		res, err = q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(SHA2(?, 256)))`,
 			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID, "dummy-checksum")
 		if err != nil {
 			return err
@@ -6280,7 +6280,7 @@ func testListHostSoftwareVPPSelfServiceTeamFilter(t *testing.T, ds *Datastore) {
 	// Insert software entry for the installed VPP app
 	res, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
-		VALUES (?, ?, ?, ?, ?, UNHEX(MD5(?)))
+		VALUES (?, ?, ?, ?, ?, UNHEX(SHA2(?, 256)))
 	`, vppApp.Name, "1.0.0", "ios_apps", vppApp.BundleIdentifier, va.TitleID, "vppfilter_checksum_input")
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -11886,7 +11886,7 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		insertScript := func(script string) (int64, error) {
 			res, err := q.ExecContext(ctx,
-				`INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5(?)), ?)`, script, script,
+				`INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(SUBSTR(SHA2(?, 256), 1, 32)), ?)`, script, script,
 			)
 			if err != nil {
 				return 0, err

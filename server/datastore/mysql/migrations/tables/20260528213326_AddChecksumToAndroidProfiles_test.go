@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
+	"crypto/sha256"
 	"fmt"
 	"testing"
 
@@ -36,7 +36,7 @@ func TestUp_20260528213326(t *testing.T) {
 	// Apply migration
 	applyNext(t, db)
 
-	// Verify config profile checksum matches MD5 of raw_json
+	// Verify config profile checksum matches SHA2-256 of raw_json
 	var checksum []byte
 	err = db.QueryRow(`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID).Scan(&checksum)
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestUp_20260528213326(t *testing.T) {
 	var storedJSON string
 	err = db.QueryRow(`SELECT CAST(raw_json AS CHAR) FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID).Scan(&storedJSON)
 	require.NoError(t, err)
-	expectedChecksum := md5.Sum([]byte(storedJSON)) // nolint:gosec // used only to hash for efficient comparisons
+	expectedChecksum := sha256.Sum256([]byte(storedJSON))
 	assert.Equal(t, fmt.Sprintf("%x", expectedChecksum), fmt.Sprintf("%x", checksum))
 
 	// Verify host profile checksum was backfilled from config profile
@@ -53,7 +53,7 @@ func TestUp_20260528213326(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("%x", expectedChecksum), fmt.Sprintf("%x", checksum))
 
 	// Verify orphan host profile got default checksum (COALESCE returns 0,
-	// which MySQL stores as 0x30 followed by zeros in BINARY(16))
+	// which MySQL stores as 0x30 followed by zeros in BINARY(32))
 	var orphanChecksum []byte
 	err = db.QueryRow(`SELECT checksum FROM host_mdm_android_profiles WHERE host_uuid = ?`, "host-uuid-2").Scan(&orphanChecksum)
 	require.NoError(t, err)

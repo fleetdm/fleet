@@ -19,13 +19,13 @@ func Up_20240221112844(tx *sql.Tx) error {
 		policies
 	SET
 		checksum = UNHEX(
-			MD5(
+			SHA2(
 				-- concatenate with separator \x00
 				CONCAT_WS(CHAR(0),
 					COALESCE(team_id, ''),
 					name
-				)
-			)
+				),
+			256)
 		)
 	`
 	const updateNameStmt = `
@@ -34,13 +34,13 @@ func Up_20240221112844(tx *sql.Tx) error {
 	SET
 		name = CONCAT(name, '%d'),
 		checksum = UNHEX(
-			MD5(
+			SHA2(
 				-- concatenate with separator \x00
 				CONCAT_WS(CHAR(0),
 					COALESCE(team_id, ''),
 					name
-				)
-			)
+				),
+			256)
 		)
 	WHERE id = ?
 	`

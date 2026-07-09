@@ -2,7 +2,8 @@ package fleet
 
 import (
 	"context"
-	"crypto/md5" // nolint: gosec
+	"crypto/md5" // nolint: gosec // used only for HexMD5Hash (Redis key, not MySQL)
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -891,7 +892,7 @@ func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string
 	}
 	// Must match MySQL's DATETIME(6) string representation used in
 	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
-	hasher := md5.New() // nolint:gosec // used for declarative management token
+	hasher := sha256.New()
 	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
 	return hex.EncodeToString(hasher.Sum(nil))
 }

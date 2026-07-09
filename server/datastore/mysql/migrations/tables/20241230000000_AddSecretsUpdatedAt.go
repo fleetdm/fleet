@@ -34,8 +34,8 @@ func Up_20241230000000(tx *sql.Tx) error {
 		MODIFY COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 		MODIFY COLUMN uploaded_at TIMESTAMP(6) NULL DEFAULT NULL,
     	-- token is used to identify if declaration needs to be re-applied
-    	ADD COLUMN token BINARY(16) GENERATED ALWAYS AS
-    		(UNHEX(MD5(CONCAT(raw_json, IFNULL(secrets_updated_at, ''))))) STORED NULL`)
+    	ADD COLUMN token BINARY(32) GENERATED ALWAYS AS
+    		(UNHEX(SHA2(CONCAT(raw_json, IFNULL(secrets_updated_at, '')), 256))) STORED NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to alter mdm_apple_declarations table: %w", err)
 	}

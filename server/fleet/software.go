@@ -1,7 +1,7 @@
 package fleet
 
 import (
-	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -230,7 +230,7 @@ func (s Software) ToUniqueStr() string {
 // computeRawChecksum computes the checksum for a software entry
 // The calculation must match the one in softwareChecksumComputedColumn
 func (s Software) ComputeRawChecksum() ([]byte, error) {
-	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	h := sha256.New()
 	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID, s.Name}
 
 	if s.ApplicationID != nil && *s.ApplicationID != "" {

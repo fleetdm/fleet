@@ -10,16 +10,16 @@ func init() {
 }
 
 func Up_20240131083822(tx *sql.Tx) error {
-	// binary(16) is the efficient way to store md5 hashes,
+	// binary(32) is the efficient way to store sha2-256 hashes,
 	// see https://dev.mysql.com/doc/refman/8.0/en/encryption-functions.html
-	// We store it using UNHEX(MD5(<the string value to hash>)).
+	// We store it using UNHEX(SHA2(<the string value to hash>, 256)).
 	//
-	// We use md5 for consistency as we already use it in the software table and
-	// for configuration profiles. So instead of using different hashing
-	// algorithms, we'll stick to md5.
+	// We use sha2-256 for consistency as we already use it in the software
+	// table and for configuration profiles. MD5() was removed in MySQL 9.6+,
+	// so we use SHA2().
 	//
 	// This approach closely matches the one used in the software table.
-	_, err := tx.Exec(`ALTER TABLE policies ADD COLUMN checksum BINARY(16) DEFAULT NULL`)
+	_, err := tx.Exec(`ALTER TABLE policies ADD COLUMN checksum BINARY(32) DEFAULT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to add checksum column to policies table: %w", err)
 	}
@@ -37,13 +37,13 @@ func Up_20240131083822(tx *sql.Tx) error {
 		policies
 	SET
 		checksum = UNHEX(
-			MD5(
+			SHA2(
 				-- concatenate with separator \x00
 				CONCAT_WS(CHAR(0),
 					COALESCE(team_id, ''),
 					name
-				)
-			)
+				),
+			256)
 		)
 	`,
 	)
@@ -54,7 +54,7 @@ func Up_20240131083822(tx *sql.Tx) error {
 	// now that every row has a checksum, make it non-nullable and unique
 	_, err = tx.Exec(
 		`ALTER TABLE policies
-		CHANGE COLUMN checksum checksum BINARY(16) NOT NULL,
+		CHANGE COLUMN checksum checksum BINARY(32) NOT NULL,
 		ADD UNIQUE INDEX idx_policies_checksum (checksum)`,
 	)
 	if err != nil {

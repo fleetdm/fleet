@@ -13,7 +13,7 @@ func Up_20251015103505(tx *sql.Tx) error {
 	softwareStmt := `
 		UPDATE software SET
 			checksum = UNHEX(
-			MD5(
+			SHA2(
 				-- concatenate with separator \x00
 				CONCAT_WS(CHAR(0),
 					version,
@@ -25,8 +25,8 @@ func Up_20251015103505(tx *sql.Tx) error {
 					browser,
 					extension_id,
 					name
-				)
-			)
+				),
+			256)
 		)
 		WHERE source = 'apps'
 		  AND bundle_identifier IS NOT NULL

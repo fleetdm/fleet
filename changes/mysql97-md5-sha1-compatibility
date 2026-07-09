@@ -1,0 +1,1 @@
+- Added support for MySQL 9.6+ (including 9.7 LTS) by replacing all SQL `MD5()` and `SHA1()` function calls with `SHA2()`. Existing instances are migrated automatically; checksum columns are widened from 16 to 32 bytes.

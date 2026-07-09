@@ -248,7 +248,7 @@ func batchInstallSoftware(ctx context.Context, ds *mysql.Datastore, hosts []*fle
 
 			for i := batchStart; i < batchEnd; i++ {
 				software := vulnerableSoftware[i]
-				placeholders = append(placeholders, "(?, ?, ?, ?, ?, ?, ?, UNHEX(MD5(CONCAT(COALESCE(?, ''), COALESCE(?, ''), ?))))")
+				placeholders = append(placeholders, "(?, ?, ?, ?, ?, ?, ?, UNHEX(SHA2(CONCAT(COALESCE(?, ''), COALESCE(?, ''), ?), 256)))")
 				args = append(args,
 					software.Name,
 					software.Version,

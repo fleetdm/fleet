@@ -17,7 +17,7 @@ func TestUp_20260702164518(t *testing.T) {
 			name, source, upgradeCode)
 	}
 
-	scriptID := execNoErrLastID(t, db, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5('sc')), '')`)
+	scriptID := execNoErrLastID(t, db, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX('0123456789abcdef0123456789abcdef'), '')`)
 	addInstaller := func(titleID int64) {
 		execNoErr(t, db, `
 			INSERT INTO software_installers
@@ -45,7 +45,7 @@ func TestUp_20260702164518(t *testing.T) {
 	aircallDrop := insertTitle("Aircall", "programs", aircallUC)
 	aircallKeep := insertTitle("Aircall", "programs", "")
 	addInstaller(aircallKeep)
-	execNoErr(t, db, `INSERT INTO software (name, source, checksum, title_id) VALUES ('Aircall', 'programs', UNHEX(MD5('aircall-sw')), ?)`, aircallDrop)
+	execNoErr(t, db, `INSERT INTO software (name, source, checksum, title_id) VALUES ('Aircall', 'programs', UNHEX(SHA2('aircall-sw', 256)), ?)`, aircallDrop)
 	execNoErr(t, db, `INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (0, ?, 'aircall-icon', 'i.png')`, aircallDrop)
 
 	// Scenario 2 (not the bug): two distinct programs share a name, neither has an installer, so
@@ -60,7 +60,7 @@ func TestUp_20260702164518(t *testing.T) {
 	slackEmpty := insertTitle("Slack", "programs", "")
 	slackCode := insertTitle("Slack", "programs", slackUC)
 	addInstaller(slackCode)
-	execNoErr(t, db, `INSERT INTO software (name, source, checksum, title_id) VALUES ('Slack', 'programs', UNHEX(MD5('slack-sw')), ?)`, slackEmpty)
+	execNoErr(t, db, `INSERT INTO software (name, source, checksum, title_id) VALUES ('Slack', 'programs', UNHEX(SHA2('slack-sw', 256)), ?)`, slackEmpty)
 
 	// Scenario 4 (ambiguous, should be skipped): one installer-backed empty title but two different
 	// upgrade-code titles. We can't tell which code is right, so don't touch anything.
@@ -112,7 +112,7 @@ func TestUp_20260702164518(t *testing.T) {
 	require.Equal(t, 1, count, "only one Aircall programs title should remain")
 
 	var swTitleID int64
-	require.NoError(t, db.QueryRow(`SELECT title_id FROM software WHERE checksum = UNHEX(MD5('aircall-sw'))`).Scan(&swTitleID))
+	require.NoError(t, db.QueryRow(`SELECT title_id FROM software WHERE checksum = UNHEX(SHA2('aircall-sw', 256))`).Scan(&swTitleID))
 	require.Equal(t, aircallKeep, swTitleID)
 
 	var iconTitleID int64
@@ -131,7 +131,7 @@ func TestUp_20260702164518(t *testing.T) {
 	require.Equal(t, slackUC, upgradeCodeOf(slackCode), "installer title keeps its upgrade code")
 
 	var slackSwTitleID int64
-	require.NoError(t, db.QueryRow(`SELECT title_id FROM software WHERE checksum = UNHEX(MD5('slack-sw'))`).Scan(&slackSwTitleID))
+	require.NoError(t, db.QueryRow(`SELECT title_id FROM software WHERE checksum = UNHEX(SHA2('slack-sw', 256))`).Scan(&slackSwTitleID))
 	require.Equal(t, slackCode, slackSwTitleID)
 
 	// Scenario 4: untouched, keep title still has no upgrade code.

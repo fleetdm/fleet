@@ -27,8 +27,8 @@ CREATE TABLE mdm_apple_declarations (
     -- raw_json contains a JSON blob with the declaration contents
     raw_json json NOT NULL,
 
-    -- checksum is an MD5 checksum of the declaration, in binary form
-    checksum binary(16) NOT NULL,
+    -- checksum is a SHA2-256 checksum of the declaration, in binary form
+    checksum binary(32) NOT NULL,
 
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     uploaded_at timestamp NULL DEFAULT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE host_mdm_apple_declarations (
     detail text COLLATE utf8mb4_unicode_ci,
 
     -- checksum of the currently implemented declaration
-    checksum binary(16) NOT NULL,
+    checksum binary(32) NOT NULL,
 
     -- declaration_uuid references the declaration assigned to the host's team
     declaration_uuid varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',

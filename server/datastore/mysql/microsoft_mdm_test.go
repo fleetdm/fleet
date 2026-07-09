@@ -211,7 +211,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
 				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
-			VALUES (?, ?, ?, ?, ?, UNHEX(MD5('test')), ?)`,
+			VALUES (?, ?, ?, ?, ?, UNHEX(SHA2('test', 256)), ?)`,
 			host.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, uuid.NewString(), "TestProfile", profUUID); err != nil {
 			return err
 		}
@@ -5767,7 +5767,7 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
 				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
-			VALUES (?, ?, ?, ?, ?, UNHEX(MD5('test')), ?)`,
+			VALUES (?, ?, ?, ?, ?, UNHEX(SHA2('test', 256)), ?)`,
 			host.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, uuid.NewString(), "TestProfile", profUUID)
 		return err
 	})

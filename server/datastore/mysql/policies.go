@@ -302,12 +302,12 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 func policiesChecksumComputedColumn() string {
 	// concatenate with separator \x00
 	return ` UNHEX(
-		MD5(
+		SHA2(
 			CONCAT_WS(CHAR(0),
 				COALESCE(team_id, ''),
 				name
-			)
-		)
+			),
+		256)
 	) `
 }
 
