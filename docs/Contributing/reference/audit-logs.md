@@ -3013,8 +3013,8 @@ This activity contains the following fields:
 Generated when the default fleet for Windows automatic enrollments is edited.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the default fleet for Windows automatic enrollments, null if set to no fleet.
-- "fleet_name": The name of the default fleet for Windows automatic enrollments, null if set to no fleet.
+- "fleet_id": The ID of the default fleet for Windows automatic enrollments, `null` if set to no fleet.
+- "fleet_name": The name of the default fleet for Windows automatic enrollments, `null` if set to no fleet.
 
 #### Example
 
