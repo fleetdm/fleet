@@ -1402,16 +1402,26 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
 	const getHostStmt = `
 SELECT
 	h.uuid,
 	h.team_id,
 	h.platform,
 	h.hardware_serial,
-	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+	COALESCE((
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
+		LIMIT 1
+	), 0) AS is_user_enrollment
 FROM
 	hosts h
-	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
 	h.id = ?
 `
@@ -1439,11 +1449,11 @@ ORDER BY
 	}
 
 	var hostData struct {
-		UUID                 string `db:"uuid"`
-		TeamID               *uint  `db:"team_id"`
-		Platform             string `db:"platform"`
-		HardwareSerial       string `db:"hardware_serial"`
-		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
+		UUID             string `db:"uuid"`
+		TeamID           *uint  `db:"team_id"`
+		Platform         string `db:"platform"`
+		HardwareSerial   string `db:"hardware_serial"`
+		IsUserEnrollment bool   `db:"is_user_enrollment"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
@@ -1546,7 +1556,7 @@ WHERE
 			HostPlatform:     hostData.Platform,
 			ManifestURL:      manifestURL,
 			Configuration:    cfg,
-			IsUserEnrollment: hostData.IsPersonalEnrollment,
+			IsUserEnrollment: hostData.IsUserEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
