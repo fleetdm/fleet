@@ -583,8 +583,7 @@ const LibraryItemAccordion = ({
   // Single-package custom titles keep the shipped behavior — deletable via
   // UI with a GitOps banner in the delete modal.
   const isAppStore = installerType === "app-store";
-  const lockedByGitOpsMode =
-    isFma || isAppStore || canActivateMultiplePackages;
+  const lockedByGitOpsMode = isFma || isAppStore || canActivateMultiplePackages;
 
   const renderTrashButton = () =>
     lockedByGitOpsMode ? (

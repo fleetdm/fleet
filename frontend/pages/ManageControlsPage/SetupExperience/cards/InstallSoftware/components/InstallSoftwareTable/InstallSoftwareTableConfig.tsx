@@ -100,7 +100,6 @@ const generateTableConfig = (
               added version will be installed.
             </>
           }
-          showArrow
         >
           Version
         </TooltipWrapper>
