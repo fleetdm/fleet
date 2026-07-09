@@ -6,7 +6,7 @@ import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
@@ -116,8 +116,13 @@ const ProfileListItem = ({
     labels_exclude_any,
     name,
     platform,
+    scope,
   } = profile;
   const subClass = "list-item";
+
+  // iOS/iPadOS don't support user channels, so never show the user-scope icon
+  // for them (matches the host details OS settings table).
+  const isUserScoped = scope === "User" && !isIPadOrIPhone(platform);
 
   const onClickDownload = async () => {
     const fileContent = await createFileContent(profile);
@@ -153,14 +158,27 @@ const ProfileListItem = ({
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />
         <div className={`${subClass}__info`}>
-          <TooltipWrapper
-            tipContent={`UUID: ${profile.profile_uuid}`}
-            underline={false}
-            position="top"
-            showArrow
-          >
-            <span className={`${subClass}__title`}>{name}</span>
-          </TooltipWrapper>
+          <div className={`${baseClass}__title-row`}>
+            <TooltipWrapper
+              tipContent={`UUID: ${profile.profile_uuid}`}
+              underline={false}
+              position="top"
+              showArrow
+            >
+              <span className={`${subClass}__title`}>{name}</span>
+            </TooltipWrapper>
+            {isUserScoped && (
+              <TooltipWrapper
+                className={`${baseClass}__scope-tooltip`}
+                tipContent="Scoped to the user channel."
+                underline={false}
+                position="top"
+                showArrow
+              >
+                <Icon name="user" />
+              </TooltipWrapper>
+            )}
+          </div>
           <div className={`${subClass}__details`}>
             <ProfileDetails
               platform={platform}

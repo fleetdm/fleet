@@ -3,6 +3,7 @@ import {
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
+  IMdmAsset,
   IMdmProfile,
   IMdmSSOResponse,
   MdmProfileStatus,
@@ -46,6 +47,23 @@ export interface IUploadProfileApiParams {
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+}
+
+export interface IGetAssetsApiParams {
+  fleet_id?: number;
+}
+
+export interface IListAssetsResponse {
+  assets: IMdmAsset[] | null;
+}
+
+export interface IUploadAssetApiParams {
+  file: File;
+  teamId?: number;
+}
+
+export interface IUploadAssetResponse {
+  asset_uuid: string;
 }
 
 export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
@@ -178,6 +196,42 @@ const mdmService = {
   deleteProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
+  },
+
+  getAssets: (params: IGetAssetsApiParams): Promise<IListAssetsResponse> => {
+    const { MDM_ASSETS } = endpoints;
+    const path = `${MDM_ASSETS}?${buildQueryStringFromParams({ ...params })}`;
+
+    return sendRequest("GET", path);
+  },
+
+  uploadAsset: ({
+    file,
+    teamId,
+  }: IUploadAssetApiParams): Promise<IUploadAssetResponse> => {
+    const { MDM_ASSETS } = endpoints;
+
+    const formData = new FormData();
+    formData.append("asset", file);
+
+    if (teamId) {
+      formData.append("fleet_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_ASSETS, formData);
+  },
+
+  downloadAsset: (assetUuid: string) => {
+    const { MDM_ASSET } = endpoints;
+    const path = `${MDM_ASSET(assetUuid)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
+  },
+
+  deleteAsset: (assetUuid: string) => {
+    const { MDM_ASSET } = endpoints;
+    return sendRequest("DELETE", MDM_ASSET(assetUuid));
   },
 
   getProfilesStatusSummary: (teamId: number) => {
