@@ -17157,7 +17157,9 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	})
 	require.False(t, installDuringSetup, "linux not selected → install_during_setup should stay false")
 
-	// Re-apply without the field clears the row — declarative reconcile.
+	// Omitting the field on re-apply leaves the cross-table alone — the batch
+	// only reconciles when at least one payload opts in, so UI-set selections
+	// aren't clobbered by callers that don't know about the field.
 	crossPkgNoField := []*fleet.SoftwareInstallerPayload{
 		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript},
 	}
@@ -17168,7 +17170,21 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		return sqlx.SelectContext(ctx, q, &crossRows,
 			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
 	})
-	require.Empty(t, crossRows, "cross-table row should be cleared when field is omitted on re-apply")
+	require.Len(t, crossRows, 1, "omitting the field is a no-op; prior selection survives")
+
+	// Explicit empty list opts into reconcile with nothing selected → clears.
+	emptyPlatforms := []string{}
+	crossPkgEmpty := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &emptyPlatforms},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgEmpty}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Empty(t, crossRows, "explicit empty list clears the cross-table row")
 
 	// Re-apply is idempotent.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)

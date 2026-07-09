@@ -3397,9 +3397,9 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
-	// GitOps is declarative: replace the cross-platform setup experience
-	// selections for this team on every apply, so removing the field on
-	// re-apply clears the corresponding rows.
+	// Reconcile cross-platform setup experience selections when the incoming
+	// batch mentions them. A batch that never touches setup_experience_platforms
+	// leaves the cross-table alone so UI-set selections aren't clobbered.
 	if err := svc.reconcileGitOpsSetupExperienceCrossInstallers(ctx, ptr.ValOrZero(teamID), softwareInstallers); err != nil {
 		batchErr = fmt.Errorf("reconciling cross-platform setup experience selections: %w", err)
 		return
@@ -3415,14 +3415,27 @@ func (svc *Service) softwareBatchUpload(
 var gitOpsCrossPlatformTargets = []string{"darwin"}
 
 // reconcileGitOpsSetupExperienceCrossInstallers replaces the
-// setup_experience_software_installers rows for the team from the incoming
-// payloads. Nil SetupExperiencePlatforms on a payload counts as no selection,
-// so a re-apply with the field removed clears the row.
+// setup_experience_software_installers rows for the team when the incoming
+// batch explicitly opts into cross-platform setup experience. Nil
+// SetupExperiencePlatforms across every payload means "no opinion" and the
+// cross-table is left alone — this preserves UI-set selections for callers
+// that never touch the field.
 func (svc *Service) reconcileGitOpsSetupExperienceCrossInstallers(
 	ctx context.Context,
 	teamID uint,
 	payloads []*fleet.UploadSoftwareInstallerPayload,
 ) error {
+	var anyOptIn bool
+	for _, p := range payloads {
+		if p != nil && p.SetupExperiencePlatforms != nil {
+			anyOptIn = true
+			break
+		}
+	}
+	if !anyOptIn {
+		return nil
+	}
+
 	type key struct{ filename, platform string }
 	perTarget := make(map[string][]key, len(gitOpsCrossPlatformTargets))
 	var allKeys []key
