@@ -177,7 +177,7 @@ type createTerminalSessionResponse struct {
 
 func (r createTerminalSessionResponse) Error() error { return r.Err }
 
-func createTerminalSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func createTerminalSessionEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createTerminalSessionRequest)
 	sessionID, err := svc.CreateTerminalSession(ctx, req.ID)
 	if err != nil {
@@ -214,7 +214,7 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger, cfg conf
 		// This is a belt-and-suspenders check; auth already scopes the session,
 		// but an explicit mismatch rejection avoids confusion and information leak.
 		if rawID := vars["id"]; rawID != "" {
-			if id, err := strconv.ParseUint(rawID, 10, 64); err == nil {
+			if id, err := strconv.ParseUint(rawID, 10, strconv.IntSize); err == nil {
 				if uint(id) != sess.hostID {
 					http.Error(w, "session belongs to a different host", http.StatusForbidden)
 					return
@@ -224,7 +224,7 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger, cfg conf
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			logger.Error("terminal browser: WebSocket upgrade failed", "err", err)
+			logger.ErrorContext(r.Context(), "terminal browser: WebSocket upgrade failed", "err", err)
 			return
 		}
 		defer conn.Close()
@@ -235,7 +235,7 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger, cfg conf
 		// First message must carry a valid Fleet session token.
 		user, err := authenticateTerminalBrowser(r.Context(), conn, svc)
 		if err != nil {
-			logger.Warn("terminal browser: authentication failed", "err", err)
+			logger.WarnContext(r.Context(), "terminal browser: authentication failed", "err", err)
 			writeTerminalError(conn, "unauthorized")
 			terminalStore.remove(sessionID)
 			return
@@ -261,7 +261,7 @@ func makeTerminalBrowserHandler(svc fleet.Service, logger *slog.Logger, cfg conf
 				HostID:          sess.hostID,
 				HostDisplayName: sess.hostDisplayName,
 			}); err != nil {
-				logger.Error("terminal browser: failed to record activity", "err", err)
+				logger.ErrorContext(r.Context(), "terminal browser: failed to record activity", "err", err)
 			}
 			// Tell the browser the shell is ready.  The frontend only
 			// transitions to "connected" state on this frame, so errors
@@ -434,7 +434,7 @@ func makeTerminalOrbitHandler(svc fleet.Service, logger *slog.Logger) http.Handl
 
 		conn, err := orbitUpgrader.Upgrade(w, r, nil)
 		if err != nil {
-			logger.Error("terminal orbit: WebSocket upgrade failed", "err", err)
+			logger.ErrorContext(r.Context(), "terminal orbit: WebSocket upgrade failed", "err", err)
 			// Upgrade failed; tear down the session we already claimed.
 			terminalStore.remove(sessionID)
 			return

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/terminal"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -48,9 +49,7 @@ func ApplyTerminalConfigReceiverMiddleware(
 		nodeKey:     nodeKeyFn,
 		tlsInsecure: tlsInsecure,
 		// No client-level Timeout — per-request context (35 s) handles cancellation.
-		httpClient: &http.Client{
-			Transport: &http.Transport{TLSClientConfig: tlsCfg},
-		},
+		httpClient:     fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsCfg)),
 		activeSessions: make(map[string]struct{}),
 	}
 }

@@ -1155,13 +1155,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Web terminal WebSocket endpoints. Auth is performed inside each handler.
 	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/terminal/{session_id}/ws",
-		makeTerminalBrowserHandler(svc, logger, config.Server)).Methods("GET")
+		makeTerminalBrowserHandler(svc, logger, config.Server)).Name("terminal_browser_ws").Methods("GET")
 	// Long-poll notify must be registered before the parameterized session route
 	// so gorilla/mux does not treat "notify" as a session_id.
 	r.Handle("/api/fleet/orbit/terminal/notify",
-		makeTerminalNotifyOrbitHandler(svc, logger)).Methods("GET")
+		makeTerminalNotifyOrbitHandler(svc, logger)).Name("terminal_orbit_notify").Methods("GET")
 	r.Handle("/api/fleet/orbit/terminal/{session_id}",
-		makeTerminalOrbitHandler(svc, logger)).Methods("GET")
+		makeTerminalOrbitHandler(svc, logger)).Name("terminal_orbit_ws").Methods("GET")
 
 	orgLogoLimiter := ratelimit.NewMiddleware(limitStore).Limit(
 		"org_logo",

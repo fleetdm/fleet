@@ -83,9 +83,7 @@ func Connect(ctx context.Context, fleetURL, sessionID, nodeKey string, tlsInsecu
 	var wg sync.WaitGroup
 
 	// shell stdout/stderr → WebSocket (output messages).
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		buf := make([]byte, 4096)
 		for {
 			n, readErr := shell.read(buf)
@@ -112,12 +110,10 @@ func Connect(ctx context.Context, fleetURL, sessionID, nodeKey string, tlsInsecu
 				return
 			}
 		}
-	}()
+	})
 
 	// WebSocket → shell stdin (input / resize messages).
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		// When the server closes the session (browser disconnect, auth failure,
 		// TTL expiry), ReadMessage returns an error.  Closing the shell here
 		// unblocks the PTY read goroutine above, allowing wg.Wait() to return
@@ -147,7 +143,7 @@ func Connect(ctx context.Context, fleetURL, sessionID, nodeKey string, tlsInsecu
 				shell.resize(m.Cols, m.Rows) //nolint:errcheck
 			}
 		}
-	}()
+	})
 
 	wg.Wait()
 	log.Info().Str("session_id", sessionID).Msg("terminal: session ended")

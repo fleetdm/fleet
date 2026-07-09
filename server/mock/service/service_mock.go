@@ -302,6 +302,8 @@ type UpdateSoftwareNameFunc func(ctx context.Context, titleID uint, name string)
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error)
 
+type CreateTerminalSessionFunc func(ctx context.Context, hostID uint) (string, error)
+
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
 type HostDeviceURLFunc func(ctx context.Context, hostID uint) (string, error)
@@ -1365,6 +1367,9 @@ type Service struct {
 
 	ListHostCertificatesFunc        ListHostCertificatesFunc
 	ListHostCertificatesFuncInvoked bool
+
+	CreateTerminalSessionFunc        CreateTerminalSessionFunc
+	CreateTerminalSessionFuncInvoked bool
 
 	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
 	GetHostRecoveryLockPasswordFuncInvoked bool
@@ -3309,15 +3314,18 @@ func (s *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name str
 	return s.UpdateSoftwareNameFunc(ctx, titleID, name)
 }
 
-func (s *Service) CreateTerminalSession(ctx context.Context, hostID uint) (string, error) {
-	return "", nil
-}
-
 func (s *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
+}
+
+func (s *Service) CreateTerminalSession(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.CreateTerminalSessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateTerminalSessionFunc(ctx, hostID)
 }
 
 func (s *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
