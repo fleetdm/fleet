@@ -35,7 +35,7 @@
         <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
           <div purpose="article-details" class="d-flex align-items-sm-center">
             <span v-if="!showUpdatedTimestamp"><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
-            <span v-else>Updated <js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+            <span v-else>Updated <js-timestamp format="billing" :at="thisPage.lastModifiedAt"></js-timestamp></span>
             <span  purpose="divider" class="px-2">|</span>
             <% if(articleCategorySlug !== 'customers') { %>
               <div purpose="article-author" class="d-flex flex-row align-items-center">
