@@ -228,7 +228,15 @@ export type IHostPastActivityType =
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
-  | ActivityType.RanCustomMdmCommand;
+  | ActivityType.RanCustomMdmCommand
+  | ActivityType.RanAutomationWebhook
+  | ActivityType.RanAutomationTicket
+  | ActivityType.RanAutomationCalendarEvent
+  | ActivityType.RanAutomationConditionalAccess
+  | ActivityType.FailedAutomationWebhook
+  | ActivityType.FailedAutomationTicket
+  | ActivityType.FailedAutomationCalendarEvent
+  | ActivityType.FailedAutomationConditionalAccess;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =

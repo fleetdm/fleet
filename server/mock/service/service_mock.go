@@ -286,7 +286,7 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 
 type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error)
 
-type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
+type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
 type AddLabelsToHostFunc func(ctx context.Context, id uint, labels []string) error
 
@@ -941,6 +941,16 @@ type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs f
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 
 type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
+
+type ListAppleDDMAssetsFunc func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error)
+
+type GetAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error)
+
+type DownloadAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (filename string, data []byte, err error)
+
+type CreateAppleDDMAssetFunc func(ctx context.Context, teamID *uint, name string, data []byte) (string, error)
+
+type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -2326,6 +2336,21 @@ type Service struct {
 	UnenrollMDMFunc        UnenrollMDMFunc
 	UnenrollMDMFuncInvoked bool
 
+	ListAppleDDMAssetsFunc        ListAppleDDMAssetsFunc
+	ListAppleDDMAssetsFuncInvoked bool
+
+	GetAppleDDMAssetFunc        GetAppleDDMAssetFunc
+	GetAppleDDMAssetFuncInvoked bool
+
+	DownloadAppleDDMAssetFunc        DownloadAppleDDMAssetFunc
+	DownloadAppleDDMAssetFuncInvoked bool
+
+	CreateAppleDDMAssetFunc        CreateAppleDDMAssetFunc
+	CreateAppleDDMAssetFuncInvoked bool
+
+	DeleteAppleDDMAssetFunc        DeleteAppleDDMAssetFunc
+	DeleteAppleDDMAssetFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3260,11 +3285,11 @@ func (s *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDi
 	return s.HostEncryptionKeyFunc(ctx, id)
 }
 
-func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
+func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
 	s.mu.Lock()
 	s.EscrowLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError)
+	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType)
 }
 
 func (s *Service) AddLabelsToHost(ctx context.Context, id uint, labels []string) error {
@@ -5554,4 +5579,39 @@ func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	s.UnenrollMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnenrollMDMFunc(ctx, hostID)
+}
+
+func (s *Service) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.ListAppleDDMAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleDDMAssetsFunc(ctx, teamID)
+}
+
+func (s *Service) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *Service) DownloadAppleDDMAsset(ctx context.Context, assetUUID string) (filename string, data []byte, err error) {
+	s.mu.Lock()
+	s.DownloadAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.DownloadAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name string, data []byte) (string, error) {
+	s.mu.Lock()
+	s.CreateAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAppleDDMAssetFunc(ctx, teamID, name, data)
+}
+
+func (s *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	s.mu.Lock()
+	s.DeleteAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAppleDDMAssetFunc(ctx, assetUUID)
 }

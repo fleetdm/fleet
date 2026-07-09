@@ -264,6 +264,37 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 	}
 }
 
+func TestMDMAppleDeclarationPayloadScope(t *testing.T) {
+	t.Parallel()
+
+	t.Run("parse and default", func(t *testing.T) {
+		cases := []struct {
+			name  string
+			raw   string
+			want  PayloadScope
+			valid bool
+		}{
+			{name: "absent defaults to System", raw: `{"Type":"com.apple.configuration.passcode.settings","Identifier":"x"}`, want: PayloadScopeSystem, valid: true},
+			{name: "explicit System", raw: `{"Type":"x","Identifier":"y","PayloadScope":"System"}`, want: PayloadScopeSystem, valid: true},
+			{name: "explicit User", raw: `{"Type":"x","Identifier":"y","PayloadScope":"User"}`, want: PayloadScopeUser, valid: true},
+			{name: "invalid value", raw: `{"Type":"x","Identifier":"y","PayloadScope":"Nope"}`, valid: false},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				decl, err := GetRawDeclarationValues([]byte(c.raw))
+				require.NoError(t, err)
+				if c.valid {
+					require.NoError(t, decl.ValidateScope())
+					require.Equal(t, c.want, decl.ScopeOrDefault())
+				} else {
+					require.Error(t, decl.ValidateScope())
+					require.ErrorContains(t, decl.ValidateScope(), "Invalid PayloadScope")
+				}
+			})
+		}
+	})
+}
+
 func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
 	cases := []struct {
 		testName           string
@@ -574,6 +605,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
 	fieldsInEqualMethod++
 	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
+	fieldsInEqualMethod++
+	items[1].Scope = items[0].Scope
 	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))

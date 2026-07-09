@@ -56,6 +56,7 @@ export interface IQueryKeyGetCerts extends IGetCertsParams {
 export interface ICertificate {
   id: number;
   name: string;
+  subject_name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
   subject_alternative_name?: string;

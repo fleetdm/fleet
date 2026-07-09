@@ -447,6 +447,7 @@ SELECT
 	name,
 	identifier,
 	raw_json,
+	scope,
 	token,
 	created_at,
 	uploaded_at,
@@ -759,7 +760,7 @@ SELECT
 	COALESCE(detail, '') AS detail,
 	scope,
 	CASE
-		WHEN scope = 'user' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
+		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
 		ELSE ''
 	END AS managed_local_account
 FROM
@@ -781,7 +782,10 @@ SELECT
 	COALESCE(operation_type, '') AS operation_type,
 	COALESCE(detail, '') AS detail,
 	scope,
-	'' AS managed_local_account
+	CASE
+		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
+		ELSE ''
+	END AS managed_local_account
 FROM
 	host_mdm_apple_declarations
 WHERE
@@ -4696,30 +4700,38 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
+	scope,
 	secrets_updated_at,
 	uploaded_at,
 	team_id
 )
 VALUES (
-	?,?,?,?,?,NOW(6),?
+	?,?,?,?,?,?,NOW(6),?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   name = VALUES(name),
   identifier = VALUES(identifier),
+  scope = VALUES(scope),
   raw_json = VALUES(raw_json)
 `
 
 	updatedDeclarationUUIDs := make([]string, 0, len(incomingDeclarations))
 	for _, d := range incomingDeclarations {
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+		// Scope defaults to System
+		scope := d.Scope
+		if scope == "" {
+			scope = fleet.PayloadScopeSystem
+		}
 		var result sql.Result
 		if result, err = tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
 			d.Name,
 			d.RawJSON,
+			scope,
 			d.SecretsUpdatedAt,
 			teamID); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
@@ -4840,9 +4852,10 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
+	scope,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4870,9 +4883,10 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
+	scope,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4883,6 +4897,7 @@ INSERT INTO mdm_apple_declarations (
 )
 ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
+	scope = VALUES(scope),
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
@@ -4897,12 +4912,19 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 		tmID = *declaration.TeamID
 	}
 
+	// Guard the enum('System','User') column against an unset scope from callers
+	// that don't populate it (e.g. software-update declarations).
+	scope := declaration.Scope
+	if scope == "" {
+		scope = fleet.PayloadScopeSystem
+	}
+
 	const reloadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE name = ? AND team_id = ?`
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON,
-			declaration.SecretsUpdatedAt,
+			scope, declaration.SecretsUpdatedAt,
 			declaration.Name, tmID, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
@@ -5121,7 +5143,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	return updatedDB, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
 	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, ''))
@@ -5132,7 +5154,7 @@ FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	hmad.host_uuid = ? AND hmad.operation_type = ?`
+	hmad.host_uuid = ? AND hmad.scope = ? AND hmad.operation_type = ?`
 
 	// NOTE: the token generated as part of this query decides if the DDM session
 	// proceeds with sending the declarations - if the token differs from what
@@ -5141,16 +5163,21 @@ WHERE
 	// removed, then they will be ignored in the token generation, which will
 	// change the token and make the DDM session proceed (and declarations not
 	// sent get removed).
+	//
+	// The scope filter keeps the device and user channels independent: each
+	// channel computes its token over only its own declarations, and the Go-side
+	// token computation in handleDeclarationItems applies the same scope filter
+	// so the two stay byte-identical.
 
 	var res fleet.MDMAppleDDMDeclarationsToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, scope, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declarations token")
 	}
 
 	return &res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope fleet.PayloadScope) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	const stmt = `
 SELECT
 	HEX(mad.token) as token,
@@ -5161,17 +5188,17 @@ FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
 WHERE
-	hmad.host_uuid = ?`
+	hmad.host_uuid = ? AND hmad.scope = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, fleet.MDMOperationTypeInstall, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, fleet.MDMOperationTypeInstall, hostUUID, scope); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
 	}
 
 	return res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope fleet.PayloadScope) (*fleet.MDMAppleDeclaration, error) {
 	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
 	// declaration for the host's current team is returned. In the case where the specified
 	// identifier is not unique to the team, the cron should ensure that any conflicting
@@ -5183,10 +5210,10 @@ FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	host_uuid = ? AND identifier = ? AND operation_type = ?`
+	hmad.host_uuid = ? AND hmad.scope = ? AND identifier = ? AND operation_type = ?`
 
 	var res fleet.MDMAppleDeclaration
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, fleet.MDMOperationTypeInstall); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, scope, identifier, fleet.MDMOperationTypeInstall); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("MDMAppleDeclaration").WithName(identifier)
 		}
@@ -5196,18 +5223,39 @@ WHERE
 	return &res, nil
 }
 
-func (ds *Datastore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error) {
+func (ds *Datastore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (deviceHostUUIDs []string, userHostUUIDs []string, err error) {
 	stmt := `
-	SELECT DISTINCT host_uuid
+	SELECT DISTINCT host_uuid, scope
 	FROM host_mdm_apple_declarations
 	WHERE resync = '1'
 	`
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get resync host uuids")
+	type resyncRow struct {
+		HostUUID string             `db:"host_uuid"`
+		Scope    fleet.PayloadScope `db:"scope"`
+	}
+	var rows []resyncRow
+	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get resync host uuids")
 	}
 
-	err = common_mysql.BatchProcessSimple(hostUUIDs, 1000, func(uuids []string) error {
+	// Partition by channel so the reconciler only pokes the channel that needs a
+	// resync. A host with resync rows on both channels appears in both slices;
+	// clearing is done once per unique host UUID.
+	uniqueHostUUIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		if r.Scope == fleet.PayloadScopeUser {
+			userHostUUIDs = append(userHostUUIDs, r.HostUUID)
+		} else {
+			deviceHostUUIDs = append(deviceHostUUIDs, r.HostUUID)
+		}
+		if _, ok := seen[r.HostUUID]; !ok {
+			seen[r.HostUUID] = struct{}{}
+			uniqueHostUUIDs = append(uniqueHostUUIDs, r.HostUUID)
+		}
+	}
+
+	err = common_mysql.BatchProcessSimple(uniqueHostUUIDs, 1000, func(uuids []string) error {
 		clearStmt := `
 		UPDATE host_mdm_apple_declarations
 		SET resync = '0'
@@ -5223,7 +5271,7 @@ func (ds *Datastore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Conte
 		}
 		return nil
 	})
-	return hostUUIDs, err
+	return deviceHostUUIDs, userHostUUIDs, err
 }
 
 func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, profilesToInsert map[string]*fleet.MDMAppleHostDeclaration) error {
@@ -5299,12 +5347,16 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 	return nil
 }
 
-// MDMAppleStoreDDMStatusReport updates the status of the host's declarations.
-func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
+// MDMAppleStoreDDMStatusReport updates the status of the host's declarations
+// for a single channel. The scope filter keeps a user-channel status report
+// from touching device-channel rows (and vice versa): the report only carries
+// the declarations for the channel it arrived on, so matching/cleaning must be
+// scoped to that channel or the other channel's rows would look "removed".
+func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, scope fleet.PayloadScope, updates []*fleet.MDMAppleHostDeclaration) error {
 	getHostDeclarationsStmt := `
     SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, variables_updated_at, declaration_uuid, declaration_identifier, declaration_name
     FROM host_mdm_apple_declarations
-    WHERE host_uuid = ?
+    WHERE host_uuid = ? AND scope = ?
   `
 
 	updateHostDeclarationsStmt := `
@@ -5320,11 +5372,11 @@ ON DUPLICATE KEY UPDATE
 
 	deletePendingRemovesStmt := `
   DELETE FROM host_mdm_apple_declarations
-  WHERE host_uuid = ? AND operation_type = 'remove' AND (status = 'pending' OR status IS NULL)
+  WHERE host_uuid = ? AND scope = ? AND operation_type = 'remove' AND (status = 'pending' OR status IS NULL)
   `
 
 	var current []*fleet.MDMAppleHostDeclaration
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &current, getHostDeclarationsStmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &current, getHostDeclarationsStmt, hostUUID, scope); err != nil {
 		return ctxerr.Wrap(ctx, err, "getting current host declarations")
 	}
 
@@ -5355,7 +5407,7 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		if _, err := tx.ExecContext(ctx, deletePendingRemovesStmt, hostUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, deletePendingRemovesStmt, hostUUID, scope); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting pending removals")
 		}
 
@@ -5371,7 +5423,11 @@ func (ds *Datastore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostU
 	return ctxerr.Wrap(ctx, err, "set host declaration status")
 }
 
-func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, scope fleet.PayloadScope, status *fleet.MDMDeliveryStatus, detail string) error {
+	// The scope filter is required because a DeclarativeManagement command ack
+	// arrives on a single channel: a user-channel ack must only transition the
+	// host's user-scoped pending declarations (and vice versa), not the other
+	// channel's.
 	stmt := `
   UPDATE host_mdm_apple_declarations
   SET
@@ -5381,6 +5437,7 @@ func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostU
     operation_type = ?
     AND status = ?
     AND host_uuid = ?
+    AND scope = ?
   `
 
 	_, err := ds.writer(ctx).ExecContext(
@@ -5388,7 +5445,7 @@ func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostU
 		// SET ...
 		status, detail,
 		// WHERE ...
-		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID,
+		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID, scope,
 	)
 	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
 }
@@ -7742,4 +7799,121 @@ func (ds *Datastore) GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Con
 	}
 
 	return orgNames, nil
+}
+
+func (ds *Datastore) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	if teamID == nil {
+		teamID = new(uint(0))
+	}
+
+	assets := []*fleet.DDMAsset{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &assets, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at
+		FROM mdm_apple_declaration_assets WHERE team_id = ?`, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple ddm assets")
+	}
+	return assets, nil
+}
+
+func (ds *Datastore) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	if assetUUID == "" {
+		return nil, ctxerr.New(ctx, "asset UUID is required")
+	}
+
+	var asset fleet.DDMAsset
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at
+		FROM mdm_apple_declaration_assets WHERE asset_uuid = ?`, assetUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("Asset").WithName(assetUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting apple ddm asset")
+	}
+	return &asset, nil
+}
+
+func (ds *Datastore) GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error) {
+	if assetUUID == "" {
+		return nil, ctxerr.New(ctx, "asset UUID is required")
+	}
+
+	var asset fleet.DownloadableDDMAsset
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at, raw_json
+		FROM mdm_apple_declaration_assets WHERE asset_uuid = ?`, assetUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("Asset").WithName(assetUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting apple ddm asset")
+	}
+	return &asset, nil
+}
+
+func (ds *Datastore) CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error) {
+	if name == "" {
+		return "", ctxerr.New(ctx, "asset name is required")
+	}
+	if identifier == "" {
+		return "", ctxerr.New(ctx, "asset identifier is required")
+	}
+	if len(data) == 0 {
+		return "", ctxerr.New(ctx, "asset data is required")
+	}
+
+	assetUUID := uuid.NewString()
+	if teamID == nil {
+		teamID = new(uint(0))
+	}
+
+	now := time.Now()
+
+	_, secretsUpdatedAt, err := ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO mdm_apple_declaration_assets 
+		(asset_uuid, team_id, identifier, name, raw_json, uploaded_at, secrets_updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		assetUUID, teamID, identifier, name, data, now, secretsUpdatedAt)
+	if err != nil {
+		if IsDuplicate(err) {
+			switch {
+			case strings.Contains(err.Error(), "asset_team_name"):
+				return "", alreadyExists("asset_name", name).WithTeamID(*teamID)
+			case strings.Contains(err.Error(), "asset_team_identifier"):
+				return "", alreadyExists("asset_identifier", identifier).WithTeamID(*teamID)
+			}
+		}
+		return "", ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
+	}
+
+	return assetUUID, nil
+}
+
+func (ds *Datastore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	if assetUUID == "" {
+		return ctxerr.New(ctx, "asset UUID is required")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM mdm_apple_declaration_assets 
+		WHERE asset_uuid = ?`, assetUUID)
+	if err != nil {
+		if isMySQLForeignKey(err) {
+			return foreignKey("asset", assetUUID)
+		}
+		return ctxerr.Wrap(ctx, err, "deleting apple ddm asset")
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking rows affected for apple ddm asset deletion")
+	}
+	if rowsAffected == 0 {
+		return ctxerr.Wrap(ctx, notFound("Asset").WithName(assetUUID))
+	}
+
+	return nil
 }

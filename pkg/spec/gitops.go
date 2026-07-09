@@ -1328,7 +1328,7 @@ func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
 	if windowsConfigured {
 		windowsSettings, _ := controls.WindowsSettings.(fleet.WindowsSettings)
 		for _, profile := range windowsSettings.CustomSettings.Value {
-			contains, err := profileFileContains(profile.Path, syncml.FleetOSUpdateTargetLocURI)
+			contains, err := windowsProfileFileTargetsReservedLocURI(profile.Path, syncml.FleetOSUpdateTargetLocURI)
 			if err != nil {
 				return err
 			}
@@ -1374,6 +1374,19 @@ func profileFileContains(path, needle string) (bool, error) {
 		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
 	}
 	return bytes.Contains(fileBytes, []byte(needle)), nil
+}
+
+// windowsProfileFileTargetsReservedLocURI reports whether the Windows profile file at path targets the given Fleet-reserved
+// LocURI node.
+func windowsProfileFileTargetsReservedLocURI(path, reservedLocURI string) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
+	}
+	return fleet.ProfileTargetsReservedLocURI(fileBytes, reservedLocURI), nil
 }
 
 func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) []error {
@@ -1797,6 +1810,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	// Make sure team name is correct, and do additional validation
+	var patchSlugs []string
 	for _, item := range result.Policies {
 		if item.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
@@ -1820,6 +1834,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					),
 				)
 			}
+			if item.FleetMaintainedAppSlug != "" {
+				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -1837,6 +1854,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
+	}
+	for _, slug := range getDuplicateNames(patchSlugs, func(s string) string { return s }) {
+		multiError = multierror.Append(multiError, fmt.Errorf(`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": %q.`, slug))
 	}
 	return multiError
 }
