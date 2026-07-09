@@ -1658,6 +1658,7 @@ None.
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
+    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "macos_updates": {
@@ -2029,6 +2030,7 @@ Modifies the Fleet's configuration with the supplied information.
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
+    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
@@ -2686,6 +2688,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
+| enable_escrow_disk_encryption_key_only  | boolean | _Available in Fleet Premium._ Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. `enable_disk_encryption` must be set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
@@ -2829,6 +2832,7 @@ _Available in Fleet Premium._
     "windows_enabled_and_configured": false,
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
+    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
@@ -7086,11 +7090,12 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                   | Type    | In    | Description                                                                                 |
-| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| fleet_id                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the fleet (or "Unassigned"). |
-| windows_require_bitlocker_pin  | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| Name                                    | Type    | In    | Description                                                                                 |
+| --------------------------------------- | ------  | ----  | --------------------------------------------------------------------------------------      |
+| fleet_id                                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
+| enable_disk_encryption                  | boolean | body  | Whether disk encryption should be enforced on devices that belong to the fleet (or "Unassigned"). |
+| enable_escrow_disk_encryption_key_only  | boolean | body | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. `enable_disk_encryption` must be set to true. |
+| windows_require_bitlocker_pin           | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 #### Example
 
@@ -13680,6 +13685,7 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "enable_escrow_disk_encryption_key_only": true,
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
@@ -14052,6 +14058,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| enable_escrow_disk_encryption_key_only  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. `enable_disk_encryption` must be set to true. |
 | windows_require_bitlocker_pin | boolean | End users on Windows hosts that belong to this fleet will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
@@ -14153,6 +14160,7 @@ Returned when the requested name only differs from another fleet's name by lette
 {
   "mdm": {
     "enable_disk_encryption": true,
+    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -14323,6 +14331,7 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "enable_escrow_disk_encryption_key_only": true,
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
