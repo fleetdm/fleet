@@ -24,10 +24,11 @@ interface IAssetListItemProps {
 }
 
 const AssetDetails = ({ asset }: { asset: IMdmAsset }) => {
-  const uploadedAt = new Date(asset.uploaded_at);
-  const uploadedText = Number.isNaN(uploadedAt.getTime())
-    ? "Uploaded"
-    : `Uploaded ${timeAgo(uploadedAt, { addSuffix: true })}`;
+  const uploadedAt = asset.uploaded_at ? new Date(asset.uploaded_at) : null;
+  const uploadedText =
+    !uploadedAt || Number.isNaN(uploadedAt.getTime())
+      ? "Uploaded"
+      : `Uploaded ${timeAgo(uploadedAt, { addSuffix: true })}`;
 
   return (
     <div className={`${baseClass}__details`}>

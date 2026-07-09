@@ -200,9 +200,11 @@ const mdmService = {
 
   getAssets: (params: IGetAssetsApiParams): Promise<IListAssetsResponse> => {
     const { MDM_ASSETS } = endpoints;
-    const path = `${MDM_ASSETS}?${buildQueryStringFromParams({ ...params })}`;
-
-    return sendRequest("GET", path);
+    const queryString = buildQueryStringFromParams({ ...params });
+    return sendRequest(
+      "GET",
+      queryString ? `${MDM_ASSETS}?${queryString}` : MDM_ASSETS
+    );
   },
 
   uploadAsset: ({

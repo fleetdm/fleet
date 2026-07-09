@@ -193,10 +193,8 @@ export interface IMdmAsset {
   name: string;
   identifier: string;
   created_at: string;
-  uploaded_at: string;
+  uploaded_at: string | null;
   checksum: string;
-  // present on the single-asset GET response
-  fleet_id?: number;
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
