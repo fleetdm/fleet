@@ -13,9 +13,8 @@ import (
 )
 
 // This file implements a minimal, pure-Go writer for the xar archive format,
-// sufficient to produce macOS flat .pkg installers. It replaces the external
-// `xar --compression none` invocation (and the fleetdm/bomutils Docker image)
-// previously used by xarBom.
+// sufficient to produce macOS flat .pkg installers. It simulates macOS command
+// `xar --compression none` invocation.
 //
 // A xar archive is:
 //
@@ -28,8 +27,7 @@ import (
 // each file's contents. Files are stored uncompressed (encoding
 // application/octet-stream), matching the previous `--compression none` behavior.
 //
-// Reference: the xar on-disk format, http://bomutils.dyndns.org/tutorial.html
-// and https://github.com/mackyle/xar.
+// Reference: the xar on-disk format: https://github.com/mackyle/xar.
 
 const (
 	xarMagic        uint32 = 0x78617221 // "xar!"

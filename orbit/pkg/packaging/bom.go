@@ -10,8 +10,7 @@ import (
 )
 
 // This file implements a minimal, pure-Go writer for the macOS BOM (Bill of
-// Materials) format, replacing the external `mkbom`/`lsbom` tools (and the
-// fleetdm/bomutils Docker image) previously used by xarBom.
+// Materials) format, simulating the external `mkbom`/`lsbom` macOS tools.
 //
 // A BOM is a block store:
 //
@@ -30,9 +29,8 @@ import (
 //
 // This writer does not reproduce Apple's exact block layout byte-for-byte (its
 // block table is pre-sized with a free list); it produces a compact, valid BOM
-// that lsbom and the macOS Installer read identically. The Linux build has
-// always used a different (bomutils) layout, so byte-identical output was never
-// a requirement -- an identical lsbom manifest is.
+// that lsbom and the macOS Installer read identically. Byte-identical output was
+// never a requirement -- an identical lsbom manifest is.
 
 // bomChecksumTable is the CRC-32 table for polynomial 0x04C11DB7 (MSB-first),
 // used by the POSIX cksum algorithm.
