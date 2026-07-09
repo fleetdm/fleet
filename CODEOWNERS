@@ -143,6 +143,11 @@ go.mod @fleetdm/go
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
+# 🚀 GitHub workflows
+##############################################################################################
+/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
+
+##############################################################################################
 # 🌐 GitHub workflows
 ##############################################################################################
 /.github/workflows/markdown-link-check-config.json @eashaw
@@ -151,11 +156,6 @@ go.mod @fleetdm/go
 /.github/workflows/test-vulnerability-dashboard-changes.yml @eashaw
 /.github/workflows/docs.yml @eashaw
 /.github/workflows/deploy-fleet-website.yml @eashaw
-
-##############################################################################################
-# 🚀 GitHub workflows
-##############################################################################################
-/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
 
 ##############################################################################################
 # 🤖 Claude Code configuration (agents, skills, rules, settings).

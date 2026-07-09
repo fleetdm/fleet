@@ -3,7 +3,7 @@ services:
     name: fleet-mcp
     runtime: go
     plan: starter
-    rootDir: tools/fleet-mcp
+    rootDir: cmd/fleet-mcp
     buildCommand: go build -o fleet-mcp .
     startCommand: ./fleet-mcp
     healthCheckPath: /healthz

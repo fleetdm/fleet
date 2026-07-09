@@ -69,7 +69,7 @@ const (
 
 // The vendored copy next to this file is what //go:embed pulls into the
 // binary as the offline fallback. Refresh from the canonical Fleet monorepo
-// via `go generate ./tools/fleet-mcp/...` whenever Fleet upstream rebuilds
+// via `go generate ./cmd/fleet-mcp/...` whenever Fleet upstream rebuilds
 // the schema.
 
 //go:generate cp ../../schema/osquery_fleet_schema.json ./osquery_fleet_schema.json
