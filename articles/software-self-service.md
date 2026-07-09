@@ -58,6 +58,8 @@ End users can install every app in a category in one click from the **My device 
 1. Select a category from the dropdown above the software table.
 2. Select **Install all** to install every app in the category. The count in the button adjusts based on what's already installed on the device.
 
+> **Install all** only appears when a specific category is selected. It's hidden on the unfiltered **All** view to prevent accidentally queuing installs for the entire software catalog.
+
 Fleet queues each install as a separate operation. End users can monitor progress in the **Status** column. Software is installed in alphabetical order.
 
 ## Deploy self-service on iOS and iPadOS
