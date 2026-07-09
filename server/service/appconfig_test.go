@@ -2013,6 +2013,8 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 
 			if tc.want.wantMasked {
 				require.Equal(t, fleet.MaskedPassword, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+			} else {
+				require.Empty(t, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
 			}
 
 			require.Equal(t, tc.want.wantActivity, tr.activityFired)

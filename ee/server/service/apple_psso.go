@@ -395,11 +395,34 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 	// Reject unparseable key material up front: a bad PEM stored here would
 	// otherwise only surface as opaque verification failures at every
 	// subsequent login.
-	if _, err := pssocrypto.ParseECPublicKeyPEM([]byte(req.DeviceSigningKey)); err != nil {
+	signingPub, err := pssocrypto.ParseECPublicKeyPEM([]byte(req.DeviceSigningKey))
+	if err != nil {
 		return &fleet.BadRequestError{Message: "psso registration: signing key is not a valid P-256 public key"}
 	}
-	if _, err := pssocrypto.ParseECPublicKeyPEM([]byte(req.DeviceEncryptionKey)); err != nil {
+	encryptionPub, err := pssocrypto.ParseECPublicKeyPEM([]byte(req.DeviceEncryptionKey))
+	if err != nil {
 		return &fleet.BadRequestError{Message: "psso registration: encryption key is not a valid P-256 public key"}
+	}
+
+	// The token endpoint resolves a device's host by looking its key up by kid,
+	// so a caller free to pick an arbitrary kid could target and overwrite
+	// another device's key row. Bind each kid to its key: recompute the expected
+	// kid from the parsed public key and reject a submitted kid that doesn't
+	// match. The result is already canonical (base64url, no padding), so it's
+	// what we store below.
+	signingKID, err := pssocrypto.KIDFromRawECPoint(signingPub)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "derive psso signing key id")
+	}
+	if signingKID != pssocrypto.CanonicalizeKID(req.SigningKeyID) {
+		return &fleet.BadRequestError{Message: "psso registration: signing key id does not match signing key"}
+	}
+	encryptionKID, err := pssocrypto.KIDFromRawECPoint(encryptionPub)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "derive psso encryption key id")
+	}
+	if encryptionKID != pssocrypto.CanonicalizeKID(req.EncryptionKeyID) {
+		return &fleet.BadRequestError{Message: "psso registration: encryption key id does not match encryption key"}
 	}
 
 	// PSSO requires a matching enrolled host; the registration is keyed by the
@@ -412,17 +435,14 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 		return ctxerr.Wrap(ctx, err, "look up host by device uuid")
 	}
 
-	// Store kids in canonical form so the token endpoint's lookup (which
-	// canonicalizes the JWT's kid) matches regardless of base64 padding or
-	// alphabet differences between the extension and Apple's framework.
 	keys := []fleet.PSSOKey{
 		{
-			KID:     pssocrypto.CanonicalizeKID(req.SigningKeyID),
+			KID:     signingKID,
 			KeyType: fleet.PSSOKeyTypeSigning,
 			PEM:     req.DeviceSigningKey,
 		},
 		{
-			KID:     pssocrypto.CanonicalizeKID(req.EncryptionKeyID),
+			KID:     encryptionKID,
 			KeyType: fleet.PSSOKeyTypeEncryption,
 			PEM:     req.DeviceEncryptionKey,
 		},
