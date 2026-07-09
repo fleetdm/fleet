@@ -920,6 +920,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		t.Run(tc.name, func(t *testing.T) {
 			// create a host and software installer
 			swFilename := "file_" + tc.name + ".pkg"
+			swStorageID := "hash_" + tc.name
 			installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				Title:           "foo" + tc.name,
 				Source:          "bar" + tc.name,
@@ -927,6 +928,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				Version:         "1.11",
 				TeamID:          &teamID,
 				Filename:        swFilename,
+				StorageID:       swStorageID,
 				UserID:          user1.ID,
 				ValidatedLabels: &fleet.LabelIdentsWithScope{},
 			})
@@ -977,6 +979,9 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 			require.Equal(t, swFilename, res.SoftwarePackage)
+			// hash comes from the installer, which still exists here
+			require.NotNil(t, res.HashSHA256)
+			require.Equal(t, swStorageID, *res.HashSHA256)
 
 			// delete installer to confirm that we can still access the install record (unless pending)
 			err = ds.DeleteSoftwareInstaller(ctx, installerID)
@@ -1004,6 +1009,8 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, installUUID, res.InstallUUID)
 			require.Equal(t, tc.expectedStatus, res.Status)
 			require.Equal(t, swFilename, res.SoftwarePackage)
+			// installer was deleted, so its hash is no longer available
+			require.Nil(t, res.HashSHA256)
 			require.Equal(t, host.ID, res.HostID)
 			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
 			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)

@@ -18774,11 +18774,18 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			"install_script_exit_code": 0,
 			"install_script_output": "ok"
 		}`, *host1Team1.OrbitNodeKey, host1LastInstall.ExecutionID)), http.StatusNoContent)
+	var host1InstallerHash string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host1InstallerHash,
+			`SELECT si.storage_id FROM host_software_installs hsi JOIN software_installers si ON hsi.software_installer_id = si.id WHERE hsi.execution_id = ?`,
+			host1LastInstall.ExecutionID)
+	})
 	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
 		"host_id": %d,
 		"host_display_name": "%s",
 		"software_title": "%s",
 		"software_package": "%s",
+		"hash_sha256": "%s",
 		"self_service": false,
 		"install_uuid": "%s",
 		"status": "installed",
@@ -18786,7 +18793,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"policy_id": %d,
 		"policy_name": "%s",
 		"from_setup_experience": false
-	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
+	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1InstallerHash, host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	var activityCount int
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -18835,6 +18842,28 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	hostVanillaOsquery5Team1LastInstall, err := s.ds.GetHostLastInstallData(ctx, hostVanillaOsquery5Team1.ID, dummyInstallerPkgInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
+
+	// Disable policy automation so the installer can be deleted.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET software_installer_id = NULL WHERE software_installer_id = ?`, dummyInstallerPkgInstallerID)
+		return err
+	})
+	require.NoError(t, s.ds.DeleteSoftwareInstaller(ctx, dummyInstallerPkgInstallerID))
+
+	// The recorded activity keeps its hash even after the installer is deleted.
+	var activityHash *string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &activityHash,
+			`SELECT details->>'$.hash_sha256' FROM activity_past WHERE activity_type = 'installed_software' AND details->>'$.install_uuid' = ?`,
+			host1LastInstall.ExecutionID)
+	})
+	require.NotNil(t, activityHash)
+	require.Equal(t, host1InstallerHash, *activityHash)
+
+	// The live install results, though, lose the hash once the installer is gone.
+	resultsAfterDelete, err := s.ds.GetSoftwareInstallResults(ctx, host1LastInstall.ExecutionID)
+	require.NoError(t, err)
+	require.Nil(t, resultsAfterDelete.HashSHA256)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetries() {
