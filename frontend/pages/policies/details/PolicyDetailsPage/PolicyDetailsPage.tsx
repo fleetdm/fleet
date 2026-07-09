@@ -19,7 +19,10 @@ import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
 import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  DOCUMENT_TITLE_SUFFIX,
+} from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -321,7 +324,7 @@ const PolicyDetailsPage = ({
       <DataSet
         className={`${baseClass}__automations`}
         title="Automations"
-        value="---"
+        value={DEFAULT_EMPTY_CELL_VALUE}
       />
     );
 
@@ -491,11 +494,7 @@ const PolicyDetailsPage = ({
           includeScopeLabel={labelModalData.includeScopeLabel}
           excludeLabels={labelModalData.excludeLabels}
           excludeScopeLabel={labelModalData.excludeScopeLabel}
-          onLabelClick={
-            canEditLabels
-              ? (labelId) => router.push(PATHS.LABEL_EDIT(labelId))
-              : undefined
-          }
+          getLabelPath={canEditLabels ? PATHS.LABEL_EDIT : undefined}
           onClose={() => setShowLabelModal(false)}
         />
       )}
