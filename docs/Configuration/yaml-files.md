@@ -556,6 +556,9 @@ software:
         - "🌎 Browsers"
       self_service: true
       setup_experience: true
+    - path: ../lib/onboarding-script.sh.package.yml
+      setup_experience_platforms:
+        - macos
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "546505307"
@@ -608,6 +611,7 @@ software:
   - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `setup_experience_platforms` selects the package for the setup experience on non-native platforms. Currently only `.sh` script-only packages are cross-platform-capable, and only `macos` is accepted as a non-native target (`.sh` is stored as a Linux package but runs on macOS via `/bin/sh`). Accepts a list of platform names, e.g. `[macos]`. Omit the field to leave the cross-platform selection unchanged; use an empty list (`[]`) to clear it. This field is independent from `setup_experience`, which continues to control the installer's native platform.
 
 ### packages
 
