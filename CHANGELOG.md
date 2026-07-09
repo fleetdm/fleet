@@ -1,3 +1,12 @@
+## Fleet 4.88.1 (Jul 09, 2026)
+
+### Bug fixes
+
+- Fixed an issue where a configuration profile could be enqueued multiple times for a single host.
+- Fixed recovery lock password being enforced on personally-owned (BYOD) macOS hosts, where it would always fail because personal enrollments have device lock rights stripped. These hosts are now skipped.
+- Fixed a bug where a user's BYOD selection was not persisted through IdP authentication
+- Fixed a bug where installing App Store (VPP) or in-house apps on an iOS/iPadOS host enrolled with the manual (profile-driven) BYOD enrollment profile failed while trying to look up a VPP user. These device-channel hosts now install apps to the device, the same as company-owned manual enrollment; user-scoped licensing is reserved for Account-Driven User Enrollment.
+
 ## Fleet 4.88.0 (Jul 01, 2026)
 
 ### Bug fixes
