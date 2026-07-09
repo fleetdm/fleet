@@ -50,6 +50,7 @@ func TestVPP(t *testing.T) {
 		{"VPPAppConfigDeletedOnTeamDelete", testVPPAppConfigDeletedOnTeamDelete},
 		{"VPPInstallEnqueuesConfigurationDict", testVPPInstallEnqueuesConfigurationDict},
 		{"VPPInstallOmitsConfigurationOnMacOS", testVPPInstallOmitsConfigurationOnMacOS},
+		{"VPPInstallEnrollmentChannelRouting", testVPPInstallEnrollmentChannelRouting},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"MapAdamIDsRecentlyVerifiedInstalls", testMapAdamIDsRecentlyVerifiedInstalls},
@@ -3441,6 +3442,75 @@ func testVPPInstallOmitsConfigurationOnMacOS(t *testing.T, ds *Datastore) {
 	})
 	require.NotContains(t, commandXML, "<key>Configuration</key>", "macOS VPP install must not carry Configuration dict even when config row exists")
 	require.Contains(t, commandXML, "<key>iTunesStoreID</key>")
+}
+
+// testVPPInstallEnrollmentChannelRouting is the #48879 regression at the
+// enqueue layer. The InstallApplication command's IsUserEnrollment flag (which
+// omits ChangeManagementState, valid only on Apple's Account-Driven User
+// Enrollment channel) must be driven by the actual enrollment CHANNEL — the
+// host's primary nano_enrollments row (id = host UUID) being type
+// "User Enrollment (Device)" — NOT by host_mdm.is_personal_enrollment. A
+// manual-profile BYOD host has is_personal_enrollment=1 but is device-channel
+// (primary row type "Device"), so its command must include ChangeManagementState
+// exactly like company-owned manual.
+func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	const adamID = "77778888"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	vppApp := &fleet.VPPApp{
+		Name:             "ChannelApp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}},
+		BundleIdentifier: adamID,
+	}
+	_, err := ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	require.NoError(t, err)
+
+	enqueueAndReadCommand := func(t *testing.T, host *fleet.Host, cmdUUID string) string {
+		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, "evt-"+cmdUUID, fleet.HostSoftwareInstallOptions{}))
+		var commandXML string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &commandXML, "SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+		return commandXML
+	}
+
+	t.Run("manual-profile BYOD (personal flag, device channel) includes ChangeManagementState", func(t *testing.T) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       "byod-manual-ios",
+			UUID:           "byod-manual-uuid",
+			Platform:       string(fleet.IOSPlatform),
+			HardwareSerial: "BYOD-SERIAL",
+		})
+		require.NoError(t, err)
+		// Device-channel enrollment (primary row type "Device") ...
+		nanoEnroll(t, ds, host, false)
+		// ... but flagged personal in host_mdm, like a manual BYOD profile.
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
+
+		commandXML := enqueueAndReadCommand(t, host, "byod-manual-cmd")
+		require.Contains(t, commandXML, "<key>ChangeManagementState</key>",
+			"manual-profile BYOD is device-channel and must include ChangeManagementState despite is_personal_enrollment=1 (#48879)")
+	})
+
+	t.Run("account-driven user enrollment omits ChangeManagementState", func(t *testing.T) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       "adue-ios",
+			UUID:           "adue-uuid",
+			Platform:       string(fleet.IOSPlatform),
+			HardwareSerial: "ADUE-SERIAL",
+		})
+		require.NoError(t, err)
+		// Account-Driven User Enrollment: the primary enrollment row (id = host
+		// UUID) is type "User Enrollment (Device)".
+		nanoEnrollUserDevice(t, ds, host)
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
+
+		commandXML := enqueueAndReadCommand(t, host, "adue-cmd")
+		require.NotContains(t, commandXML, "<key>ChangeManagementState</key>",
+			"account-driven user enrollment must omit ChangeManagementState")
+	})
 }
 
 func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
