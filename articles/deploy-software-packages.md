@@ -88,11 +88,11 @@ Fleet also provides an `$UPGRADE_CODE` placeholder for MSIs. This placeholder is
 
 > Uninstall scripts do _not_ download the installer package to a host before running; if a .tar.gz archive includes an uninstall script, the contents of that script and any dependencies should be copied into the uninstall script text field rather than referred to by filename.
 
-## Add multiple packages to a software title
+## Add multiple packages to the same fleet
 
-You can add up to 10 custom packages to the same software title. This lets you support multiple architectures (for example, Arm and Intel builds) or run a staged rollout (a stable build for all hosts plus a newer build scoped to a test group) without creating separate fleets.
+You can add up to 10 custom packages of the same software to a fleet. This lets you support multiple architectures (for example, Arm and Intel builds) or run a staged rollout (a stable build for all hosts plus a newer build scoped to a test group) without creating separate fleets.
 
-To add another package to a title:
+To add another package to a software:
 
 * Navigate to the **Software** page, select a fleet, and select the **Library** tab.
 * Select the software.
@@ -105,9 +105,8 @@ Each package has its own [target labels](https://fleetdm.com/guides/managing-lab
 
 During [setup experience](https://fleetdm.com/guides/setup-experience), Fleet installs the package that was added first. Labels don't apply during setup experience.
 
-Fleet identifies packages by their contents, so you can add different builds of the same version. Uploading the exact same file again returns `Couldn't add. <file> package is already added (same SHA-256 hash).`
+Fleet identifies packages by their contents, so you can add different builds of the same version. Uploading the exact same file again is rejected.
 
-Adding an 11th package returns `Couldn't add. <title> already has 10 packages. Before adding, delete one you no longer use.`
 
 Script-only packages (`.sh` and `.ps1`) can also be added multiple times to the same title. They have no version, so Fleet tells them apart by file name, added date, labels, and hash.
 
