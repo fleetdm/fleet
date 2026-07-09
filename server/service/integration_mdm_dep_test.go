@@ -2730,9 +2730,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: scepChallenge,
-							SCEPURL:       scepURL,
-							MDMURL:        mdmURL,
+							SCEPChallenge:  scepChallenge,
+							SCEPURL:        scepURL,
+							MDMURL:         mdmURL,
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
@@ -2776,9 +2777,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: "scepcha/><llenge",
-							SCEPURL:       s.server.URL + "/mdm/apple/scep",
-							MDMURL:        s.server.URL + "/mdm/apple/mdm",
+							SCEPChallenge:  "scepcha/><llenge",
+							SCEPURL:        s.server.URL + "/mdm/apple/scep",
+							MDMURL:         s.server.URL + "/mdm/apple/mdm",
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 

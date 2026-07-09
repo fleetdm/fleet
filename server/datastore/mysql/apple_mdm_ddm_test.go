@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,8 +21,14 @@ func TestMDMDDMApple(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"ListAppleDDMAssets", testListAppleDDMAssets},
+		{"GetAppleDDMAsset", testGetAppleDDMAsset},
+		{"GetAppleDDMAssetForDownload", testGetAppleDDMAssetForDownload},
+		{"CreateAppleDDMAsset", testCreateAppleDDMAsset},
+		{"DeleteAppleDDMAsset", testDeleteAppleDDMAsset},
 		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
 		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
+		{"ChannelScopeIsolation", testDDMChannelScopeIsolation},
 	}
 
 	for _, c := range cases {
@@ -131,7 +138,7 @@ func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 	*updates[1].Status = fleet.MDMDeliveryVerified
 
 	// Call the method under test
-	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, updates)
+	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, fleet.PayloadScopeSystem, updates)
 	require.NoError(t, err)
 
 	// Assert the end state.
@@ -156,6 +163,122 @@ func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "decl-install", remaining[0].DeclarationUUID)
 	assert.Equal(t, "install", remaining[0].OperationType)
 	assert.Equal(t, "verified", remaining[0].Status)
+}
+
+// testDDMChannelScopeIsolation verifies the four DDM serving queries keep the
+// device (System) and user (User) channels independent: each channel sees only
+// its own declarations, tokens are computed per channel, and a status report on
+// one channel doesn't touch the other channel's rows.
+func testDDMChannelScopeIsolation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-ddm-scope",
+		UUID:            "test-host-uuid-ddm-scope",
+		HardwareSerial:  "ABC123-DDM-SCOPE",
+		PrimaryIP:       "192.168.1.60",
+		PrimaryMac:      "00:00:00:00:00:60",
+		OsqueryHostID:   new("test-host-uuid-ddm-scope"),
+		NodeKey:         new("test-host-uuid-ddm-scope"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	setupMDMDeviceAndEnrollment(t, ds, ctx, host.UUID, host.HardwareSerial)
+
+	devDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Name:       "DeviceDecl",
+		Identifier: "com.example.device",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.device"}`),
+		Scope:      fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	userDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Name:       "UserDecl",
+		Identifier: "com.example.user",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.user"}`),
+		Scope:      fleet.PayloadScopeUser,
+	}, nil)
+	require.NoError(t, err)
+
+	readBinaryToken := func(declUUID string) []byte {
+		var tok []byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &tok, "SELECT token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declUUID)
+		})
+		return tok
+	}
+	devToken := readBinaryToken(devDecl.DeclarationUUID)
+	userToken := readBinaryToken(userDecl.DeclarationUUID)
+
+	pending := fleet.MDMDeliveryPending
+	require.NoError(t, ds.BulkUpsertMDMAppleHostDeclarations(ctx, []*fleet.MDMAppleHostDeclaration{
+		{
+			HostUUID: host.UUID, DeclarationUUID: devDecl.DeclarationUUID, Name: devDecl.Name,
+			Identifier: devDecl.Identifier, Status: &pending, OperationType: fleet.MDMOperationTypeInstall,
+			Token: string(devToken), Scope: fleet.PayloadScopeSystem,
+		},
+		{
+			HostUUID: host.UUID, DeclarationUUID: userDecl.DeclarationUUID, Name: userDecl.Name,
+			Identifier: userDecl.Identifier, Status: &pending, OperationType: fleet.MDMOperationTypeInstall,
+			Token: string(userToken), Scope: fleet.PayloadScopeUser,
+		},
+	}))
+
+	// Tokens are computed per channel and differ.
+	sysTok, err := ds.MDMAppleDDMDeclarationsToken(ctx, host.UUID, fleet.PayloadScopeSystem)
+	require.NoError(t, err)
+	usrTok, err := ds.MDMAppleDDMDeclarationsToken(ctx, host.UUID, fleet.PayloadScopeUser)
+	require.NoError(t, err)
+	require.NotEmpty(t, sysTok.DeclarationsToken)
+	require.NotEmpty(t, usrTok.DeclarationsToken)
+	require.NotEqual(t, sysTok.DeclarationsToken, usrTok.DeclarationsToken)
+
+	// Declaration items are scoped to their channel.
+	sysItems, err := ds.MDMAppleDDMDeclarationItems(ctx, host.UUID, fleet.PayloadScopeSystem)
+	require.NoError(t, err)
+	require.Len(t, sysItems, 1)
+	require.Equal(t, "com.example.device", sysItems[0].Identifier)
+
+	usrItems, err := ds.MDMAppleDDMDeclarationItems(ctx, host.UUID, fleet.PayloadScopeUser)
+	require.NoError(t, err)
+	require.Len(t, usrItems, 1)
+	require.Equal(t, "com.example.user", usrItems[0].Identifier)
+
+	// The declaration response respects scope: the user declaration is not served
+	// on the device channel and vice versa.
+	_, err = ds.MDMAppleDDMDeclarationsResponse(ctx, "com.example.user", host.UUID, fleet.PayloadScopeSystem)
+	require.True(t, fleet.IsNotFound(err))
+	gotUser, err := ds.MDMAppleDDMDeclarationsResponse(ctx, "com.example.user", host.UUID, fleet.PayloadScopeUser)
+	require.NoError(t, err)
+	require.Equal(t, userDecl.DeclarationUUID, gotUser.DeclarationUUID)
+
+	_, err = ds.MDMAppleDDMDeclarationsResponse(ctx, "com.example.device", host.UUID, fleet.PayloadScopeUser)
+	require.True(t, fleet.IsNotFound(err))
+
+	// A status report on the user channel only transitions user-scoped rows.
+	verified := fleet.MDMDeliveryVerified
+	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, fleet.PayloadScopeUser, []*fleet.MDMAppleHostDeclaration{
+		{Token: fmt.Sprintf("%X", userToken), Status: &verified, OperationType: fleet.MDMOperationTypeInstall},
+	})
+	require.NoError(t, err)
+
+	type statusRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		Status          string `db:"status"`
+	}
+	var rows []statusRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows, `
+			SELECT declaration_uuid, COALESCE(status,'') AS status
+			FROM host_mdm_apple_declarations WHERE host_uuid = ? ORDER BY declaration_uuid`, host.UUID)
+	})
+	statusByUUID := make(map[string]string, len(rows))
+	for _, r := range rows {
+		statusByUUID[r.DeclarationUUID] = r.Status
+	}
+	require.Equal(t, "verified", statusByUUID[userDecl.DeclarationUUID], "user-scoped row should be verified by the user-channel report")
+	require.Equal(t, "pending", statusByUUID[devDecl.DeclarationUUID], "device-scoped row must be untouched by a user-channel report")
 }
 
 func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore) {
@@ -291,4 +414,205 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 			assert.True(t, d2Row.Resync, "host %s: D2 should have resync=1", h.UUID)
 		}
 	}
+}
+
+func testListAppleDDMAssets(t *testing.T, ds *Datastore) {
+	t.Run("no assets returns empty list", func(t *testing.T) {
+		ctx := t.Context()
+		assets, err := ds.ListAppleDDMAssets(ctx, nil)
+		require.NoError(t, err)
+		require.Empty(t, assets)
+	})
+
+	t.Run("returns assets for requested team", func(t *testing.T) {
+		ctx := t.Context()
+
+		// insert helper
+		_, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), new(uint(1)))
+		require.NoError(t, err)
+
+		assets, err := ds.ListAppleDDMAssets(ctx, nil)
+		require.NoError(t, err)
+		require.Empty(t, assets)
+
+		assets, err = ds.ListAppleDDMAssets(ctx, new(uint(1)))
+		require.NoError(t, err)
+		require.Len(t, assets, 1)
+	})
+}
+
+func testGetAppleDDMAsset(t *testing.T, ds *Datastore) {
+	t.Run("returns not found for missing asset", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAsset(ctx, "fake-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, asset)
+	})
+
+	t.Run("returns asset for existing asset", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		asset, err := ds.GetAppleDDMAsset(ctx, assetUUID)
+		require.NoError(t, err)
+		require.NotNil(t, asset)
+	})
+
+	t.Run("return error for empty asset uuid", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAsset(ctx, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset UUID is required")
+		require.Nil(t, asset)
+	})
+}
+
+func testGetAppleDDMAssetForDownload(t *testing.T, ds *Datastore) {
+	t.Run("returns not found for missing asset", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAssetForDownload(ctx, "fake-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, asset)
+	})
+
+	t.Run("returns asset values for existing asset", func(t *testing.T) {
+		ctx := t.Context()
+		assetName := "asset-1"
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, assetName, "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		asset, err := ds.GetAppleDDMAssetForDownload(ctx, assetUUID)
+		require.NoError(t, err)
+		require.NotNil(t, asset)
+		require.Equal(t, assetName, asset.Name)
+		require.NotNil(t, asset.Data)
+	})
+
+	t.Run("return error for empty asset uuid", func(t *testing.T) {
+		ctx := t.Context()
+		asset, err := ds.GetAppleDDMAssetForDownload(ctx, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset UUID is required")
+		require.Nil(t, asset)
+	})
+}
+
+func testDeleteAppleDDMAsset(t *testing.T, ds *Datastore) {
+	t.Run("returns not found for missing asset", func(t *testing.T) {
+		ctx := t.Context()
+		err := ds.DeleteAppleDDMAsset(ctx, "fake-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("returns error for empty asset UUID", func(t *testing.T) {
+		ctx := t.Context()
+		err := ds.DeleteAppleDDMAsset(ctx, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset UUID is required")
+	})
+
+	t.Run("deletes existing asset", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		err = ds.DeleteAppleDDMAsset(ctx, assetUUID)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns foreign key error for asset with declaration association", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		// Insert a declaration, and decl<->asset association.
+		declUUID := uuid.NewString()
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			DeclarationUUID: declUUID,
+			Identifier:      "declaration.identifier",
+			Name:            "decl-name",
+			RawJSON:         []byte(`{"foo":"bar"}`),
+		}, nil)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES (?, ?)`, decl.DeclarationUUID, assetUUID)
+			require.NoError(t, err)
+			return nil
+		})
+
+		err = ds.DeleteAppleDDMAsset(ctx, assetUUID)
+		require.Error(t, err)
+		var foreignKeyErr *foreignKeyError
+		require.ErrorAs(t, err, &foreignKeyErr)
+	})
+}
+
+func testCreateAppleDDMAsset(t *testing.T, ds *Datastore) {
+	t.Run("creates asset with valid data", func(t *testing.T) {
+		ctx := t.Context()
+		assetUUID, err := ds.CreateAppleDDMAsset(ctx, "valid-asset", "valid-asset-identifier", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, assetUUID)
+	})
+
+	t.Run("fails to create asset with empty name", func(t *testing.T) {
+		ctx := t.Context()
+		_, err := ds.CreateAppleDDMAsset(ctx, "", "asset.identifier", []byte(`{"foo":"bar"}`), nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset name is required")
+	})
+
+	t.Run("fails to create asset with empty identifier", func(t *testing.T) {
+		ctx := t.Context()
+		_, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "", []byte(`{"foo":"bar"}`), nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset identifier is required")
+	})
+
+	t.Run("fails to create asset with empty data", func(t *testing.T) {
+		ctx := t.Context()
+		_, err := ds.CreateAppleDDMAsset(ctx, "asset-1", "asset.identifier", nil, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "asset data is required")
+	})
+
+	t.Run("returns already exists error when creating asset with duplicate identifier", func(t *testing.T) {
+		ctx := t.Context()
+		assetIdentifier := "conflict.asset.identifier"
+		_, err := ds.CreateAppleDDMAsset(ctx, "conflict-asset-1", assetIdentifier, []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		_, err = ds.CreateAppleDDMAsset(ctx, "asset-2", assetIdentifier, []byte(`{"foo":"baz"}`), nil)
+		require.Error(t, err)
+		var alreadyExistsErr *existsError
+		require.ErrorAs(t, err, &alreadyExistsErr)
+	})
+
+	t.Run("returns already exists error when creating asset with duplicate name", func(t *testing.T) {
+		ctx := t.Context()
+
+		assetName := "conflict-asset-name"
+		_, err := ds.CreateAppleDDMAsset(ctx, assetName, "conflict.asset.identifier-one", []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		_, err = ds.CreateAppleDDMAsset(ctx, assetName, "conflict.asset.identifier-2", []byte(`{"foo":"baz"}`), nil)
+		require.Error(t, err)
+		var alreadyExistsErr *existsError
+		require.ErrorAs(t, err, &alreadyExistsErr)
+	})
+
+	t.Run("does not conflict across teams", func(t *testing.T) {
+		ctx := t.Context()
+		assetIdentifier := "no-conflict.asset.identifier"
+		assetName := "no-conflict.asset-1"
+		_, err := ds.CreateAppleDDMAsset(ctx, assetName, assetIdentifier, []byte(`{"foo":"bar"}`), nil)
+		require.NoError(t, err)
+
+		_, err = ds.CreateAppleDDMAsset(ctx, assetName, assetIdentifier, []byte(`{"foo":"baz"}`), new(uint(1)))
+		require.NoError(t, err)
+	})
 }

@@ -953,14 +953,18 @@ type MDMConfig struct {
 	// Deprecated: Use EnableCustomFileVault instead, as Custom OS updates is now allowed by default, and has no effect.
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
-	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
+	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
+	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
+	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
-func (m MDMConfig) IsCustomFileVaultEnabled() bool {
-	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
+// IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
+// (and deprecated) options enables the behavior.
+func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
+	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
 }
 
 // ValidateAndroidBatchSize checks that the configured batch size is non-negative.
@@ -1807,6 +1811,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2152,6 +2157,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
+			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),

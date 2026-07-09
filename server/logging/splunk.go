@@ -107,7 +107,10 @@ func (w *splunkLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 
 		// If adding this event would exceed the batch size, flush first.
 		if buf.Len() > 0 && buf.Len()+len(b) > splunkMaxBatchSize {
-			if err := w.send(ctx, buf.Bytes()); err != nil {
+			// Clone the batch: buf.Bytes() aliases buf's backing array, which we
+			// reuse below after Reset(). The HTTP transport may still be reading
+			// the request body when send() returns, so it needs its own copy.
+			if err := w.send(ctx, bytes.Clone(buf.Bytes())); err != nil {
 				return err
 			}
 			buf.Reset()
