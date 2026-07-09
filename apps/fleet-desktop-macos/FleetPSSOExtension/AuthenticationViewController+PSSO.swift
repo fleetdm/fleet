@@ -49,6 +49,15 @@ extension AuthenticationViewController:
                 signing: signKey,
                 encryption: encKey,
                 registrationToken: registrationToken)
+            // A failed key export leaves empty PEM/KID fields (see keyID /
+            // pemRepresentation). Refuse to register an incomplete payload
+            // instead of POSTing keys the server can only reject.
+            let requiredFields = ["device_signing_key", "device_encryption_key",
+                                  "signing_key_id", "encryption_key_id"]
+            guard requiredFields.allSatisfy({ !(payload[$0] ?? "").isEmpty }) else {
+                completion(.failed)
+                return
+            }
             let ok = await self.postDeviceRegistration(payload: payload)
             completion(ok ? .success : .failed)
         }

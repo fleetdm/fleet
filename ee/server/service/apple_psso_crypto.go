@@ -225,6 +225,21 @@ func (svc *Service) resolvePSSOEncryptionKey(ctx context.Context, hostUUID, apvB
 // optional padding) and re-encode as raw base64url. Both the stored kid and
 // the looked-up kid pass through this so the two encodings can't drift apart.
 // If the value doesn't decode as base64 it's returned unchanged.
+// devicePSSOKID derives the kid the extension registers a device key under:
+// base64url-nopad SHA-256 of the raw ANSI X9.63 uncompressed point. The
+// extension computes the identical value as SHA-256 of
+// SecKeyCopyExternalRepresentation, which returns that raw point for EC keys.
+// Recomputing it here lets registration verify a submitted kid actually belongs
+// to the submitted key instead of trusting the caller's label.
+func devicePSSOKID(pub *ecdsa.PublicKey) (string, error) {
+	ecdhPub, err := pub.ECDH()
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(ecdhPub.Bytes())
+	return base64.RawURLEncoding.EncodeToString(sum[:]), nil
+}
+
 func canonicalizeKID(kid string) string {
 	t := strings.TrimRight(kid, "=")
 	t = strings.ReplaceAll(t, "-", "+")

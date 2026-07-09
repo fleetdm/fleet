@@ -24,6 +24,25 @@ func (ds *Datastore) SetOrUpdatePSSODevice(ctx context.Context, hostUUID string,
 			return ctxerr.Wrap(ctx, err, "upsert psso device")
 		}
 
+		// kid is the global primary key of mdm_apple_psso_keys and the token
+		// endpoint resolves a device's host from it, so a kid must never move
+		// between hosts. Reject a registration reusing a kid another host owns
+		// instead of letting the upsert silently reassign it. FOR UPDATE gap-locks
+		// the kid so a concurrent registration can't insert it between this check
+		// and the upsert below.
+		const ownerOfKID = `SELECT host_uuid FROM mdm_apple_psso_keys WHERE kid = ? FOR UPDATE`
+		for _, k := range keys {
+			var owner string
+			switch err := sqlx.GetContext(ctx, tx, &owner, ownerOfKID, k.KID); {
+			case errors.Is(err, sql.ErrNoRows):
+				// Unclaimed kid: safe to insert.
+			case err != nil:
+				return ctxerr.Wrap(ctx, err, "check psso key owner")
+			case owner != hostUUID:
+				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "psso key id is already registered to another host"})
+			}
+		}
+
 		const upsertKey = `
 			INSERT INTO mdm_apple_psso_keys (kid, host_uuid, key_type, pem)
 			VALUES (?, ?, ?, ?)

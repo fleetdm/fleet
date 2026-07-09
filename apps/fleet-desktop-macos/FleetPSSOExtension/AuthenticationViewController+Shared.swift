@@ -29,21 +29,26 @@ extension AuthenticationViewController {
         ]
     }
 
+    // keyID and pemRepresentation return "" when the key can't be exported.
+    // Registration treats an empty field as fatal (see beginDeviceRegistration)
+    // rather than submitting a payload the server can only reject — and never
+    // hashing empty data into a KID shared by every device that hit the failure.
     func keyID(_ key: SecKey) -> String {
-        let digest = SHA256.hash(data: derRepresentation(of: key))
+        guard let der = derRepresentation(of: key) else { return "" }
+        let digest = SHA256.hash(data: der)
         return Data(digest).base64URLEncodedString()
     }
 
-    func derRepresentation(of key: SecKey) -> Data {
+    func derRepresentation(of key: SecKey) -> Data? {
         guard let pub = SecKeyCopyPublicKey(key),
               let data = SecKeyCopyExternalRepresentation(pub, nil) as Data? else {
-            return Data()
+            return nil
         }
         return data
     }
 
     func pemRepresentation(of key: SecKey) -> String {
-        let der = derRepresentation(of: key)
+        guard let der = derRepresentation(of: key) else { return "" }
         let b64 = der.base64EncodedString(options: [.lineLength64Characters,
                                                     .endLineWithLineFeed])
         return "-----BEGIN PUBLIC KEY-----\n\(b64)\n-----END PUBLIC KEY-----"
@@ -64,18 +69,20 @@ extension AuthenticationViewController {
     // https://fleet.example.com. The issuer/audience is its bare hostname,
     // matching the `iss` claim Fleet mints into login-response id_tokens.
     //
-    // It also fetches Fleet's JWKS and, if an encryption key is published,
-    // sets it as loginRequestEncryptionPublicKey. macOS then encrypts the
-    // password into the login assertion (ECDH-ES/A256GCM) so it can't be read
-    // by anything able to terminate TLS. If the server publishes no encryption
-    // key, the property is left unset.
+    // It also fetches Fleet's JWKS and sets the published encryption key as
+    // loginRequestEncryptionPublicKey, so macOS encrypts the password into the
+    // login assertion (ECDH-ES/A256GCM) and it can't be read by anything able to
+    // terminate TLS. Fleet always publishes this key, so a failure to load it
+    // fails registration rather than silently sending the password TLS-only.
+    // BaseURL must be HTTPS — every derived endpoint carries key material.
     func applyLoginConfiguration(
         _ mgr: ASAuthorizationProviderExtensionLoginManager
     ) async throws {
         let data = mgr.extensionData
         guard let baseString = data["BaseURL"] as? String,
               let base = URL(string: baseString),
-              let host = base.host
+              let host = base.host,
+              base.scheme?.lowercased() == "https"
         else { throw NSError(domain: "FleetPSSO", code: -1) }
         let cfg = ASAuthorizationProviderExtensionLoginConfiguration(
             clientID: Bundle.main.bundleIdentifier ?? "",
@@ -90,9 +97,10 @@ extension AuthenticationViewController {
         // default.
         cfg.keyEndpointURL = pssoEndpointURL(base, "token")
         self.registrationEndpointURL = pssoEndpointURL(base, "registration")
-        if let encryptionKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) {
-            cfg.loginRequestEncryptionPublicKey = encryptionKey
+        guard let encryptionKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) else {
+            throw NSError(domain: "FleetPSSO", code: -2)
         }
+        cfg.loginRequestEncryptionPublicKey = encryptionKey
         try mgr.saveLoginConfiguration(cfg)
     }
 
