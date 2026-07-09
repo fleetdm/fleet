@@ -3886,7 +3886,7 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 		// default is no team
 		decoded.TeamID = new(uint(0))
 	} else {
-		fleetID, err := strconv.ParseUint(val[0], 10, 32)
+		fleetID, err := strconv.ParseUint(val[0], 10, 32) // nolint:staticcheck // it's used...
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
