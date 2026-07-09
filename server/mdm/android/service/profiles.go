@@ -193,7 +193,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 	}
 
 	if hostCount > 0 {
-		r.Logger.InfoContext(ctx, "android profile reconciler processed hosts", "host_count", hostCount, "profile_count", len(bulkHostProfs))
+		r.Logger.DebugContext(ctx, "android profile reconciler processed hosts", "host_count", hostCount, "profile_count", len(bulkHostProfs))
 	}
 
 	if err := r.DS.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
