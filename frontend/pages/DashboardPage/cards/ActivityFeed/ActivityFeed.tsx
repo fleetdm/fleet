@@ -533,7 +533,13 @@ const ActivityFeed = ({
             if (isDeleted) {
               // no result -- likely the host was wiped and re-enrolled since.
               // Use the activity's own details, captured at click-time,
-              // instead of the (empty) fetched result.
+              // instead of the (empty) fetched result. Both fields are
+              // optional on that captured state, so guard against a leading
+              // "ran ..." with no actor and a bare "on ." with no hostname.
+              const {
+                actor_full_name: actorText,
+                host_display_name: hostText,
+              } = mdmCommandActivityDetails;
               return (
                 <>
                   <IconStatusMessage
@@ -541,15 +547,13 @@ const ActivityFeed = ({
                     iconName="warning"
                     message={
                       <span>
-                        {mdmCommandActivityDetails.actor_full_name && (
-                          <b>{mdmCommandActivityDetails.actor_full_name}</b>
-                        )}
-                        {" ran "}
+                        {actorText && <b>{actorText}</b>}
+                        {actorText ? " ran " : "Ran "}
                         {formatMdmCommandNameForActivityItem(
                           mdmCommandActivityDetails.request_type
                         )}
                         {" on "}
-                        <b>{mdmCommandActivityDetails.host_display_name}</b>
+                        {hostText ? <b>{hostText}</b> : "this host"}
                         {"."}
                       </span>
                     }
