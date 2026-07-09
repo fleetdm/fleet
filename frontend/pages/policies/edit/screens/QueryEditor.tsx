@@ -181,12 +181,12 @@ const QueryEditor = ({
             );
           }
         }
+        notify.success("Policy created.");
         router.push(
           getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
             fleet_id: policy.team_id,
           })
         );
-        notify.success("Policy created.");
       } catch (createError) {
         if (getErrorReason(createError).includes("already exists")) {
           setBackendValidators({

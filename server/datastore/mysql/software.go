@@ -687,6 +687,12 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		argsWithoutBundleIdentifier       []any
 		argsWithBundleIdentifier          []any
 		uniqueTitleStrToChecksums         = make(map[string][]string)
+		// A Windows program's title identity is its upgrade_code, not its name (names drift
+		// between versions). Look programs up by unique_identifier (= upgrade_code) as well, so
+		// a report whose name has drifted from the stored title still resolves to it instead of
+		// being treated as new and issuing an INSERT IGNORE that can never win.
+		argsProgramUpgradeCode []any
+		upgradeCodeToChecksums = make(map[string][]string)
 	)
 	bundleIDsToIncomingNames := make(map[string]string)
 	for checksum := range newSoftwareChecksums {
@@ -695,8 +701,13 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			bundleIDsToIncomingNames[sw.BundleIdentifier] = sw.Name
 			argsWithBundleIdentifier = append(argsWithBundleIdentifier, sw.BundleIdentifier)
 		} else {
-			// TODO(jacob) - consider `upgrade_code` here and below if needed for additional specificity
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.ExtensionFor)
+			// Windows programs also match by upgrade_code (their true identity). unique_identifier
+			// resolves to upgrade_code for a program, so this lookup reuses idx_unique_sw_titles.
+			if sw.Source == "programs" && sw.UpgradeCode != nil && *sw.UpgradeCode != "" {
+				argsProgramUpgradeCode = append(argsProgramUpgradeCode, *sw.UpgradeCode, sw.Source, sw.ExtensionFor)
+				upgradeCodeToChecksums[*sw.UpgradeCode] = append(upgradeCodeToChecksums[*sw.UpgradeCode], checksum)
+			}
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
 		// Note: Multiple checksums can map to the same title (e.g., when names are truncated). This should not normally happen.
@@ -751,6 +762,38 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 				for _, checksum := range checksums {
 					incomingChecksumsToTitleSummaries[checksum] = titleSummary
 				}
+			}
+		}
+	}
+
+	// Get Windows-program titles by upgrade_code (their true identity). This resolves programs
+	// whose reported name has drifted from the stored title's name but shares its upgrade_code;
+	// otherwise they miss the name lookup above, are treated as new, and their INSERT IGNORE
+	// collides on idx_unique_sw_titles forever (see #48875). Matching on unique_identifier reuses
+	// idx_unique_sw_titles (there is no standalone index on the upgrade_code column).
+	if len(argsProgramUpgradeCode) > 0 {
+		numItems := len(argsProgramUpgradeCode) / 3
+		valuePlaceholders := make([]string, 0, numItems)
+		for range numItems {
+			valuePlaceholders = append(valuePlaceholders, "(?, ?, ?)")
+		}
+		stmt := fmt.Sprintf(
+			"SELECT id, name, source, extension_for, upgrade_code FROM software_titles WHERE (unique_identifier, source, extension_for) IN (%s)",
+			strings.Join(valuePlaceholders, ", "),
+		)
+		var existingProgramTitlesByUpgradeCode []fleet.SoftwareTitleSummary
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingProgramTitlesByUpgradeCode, stmt, argsProgramUpgradeCode...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get existing program titles by upgrade_code")
+		}
+		// (unique_identifier, source, extension_for) is unique (idx_unique_sw_titles), so this maps unambiguously.
+		// It runs after the name mapping above and overwrites it, so an upgrade_code/unique_identifier match wins
+		// on a tie (matching the post-insert recovery precedence).
+		for _, titleSummary := range existingProgramTitlesByUpgradeCode {
+			if titleSummary.UpgradeCode == nil || *titleSummary.UpgradeCode == "" {
+				continue
+			}
+			for _, checksum := range upgradeCodeToChecksums[*titleSummary.UpgradeCode] {
+				incomingChecksumsToTitleSummaries[checksum] = titleSummary
 			}
 		}
 	}
@@ -4683,9 +4726,11 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 
 // hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
 // "source" is included for test determinism (used as the secondary order key in tests).
+// "name" uses COALESCE(NULLIF(...)) so that a custom display name (when set) is used
+// for sorting, falling back to the software title name (often an installer filename).
 var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"name":   "name",
-	"source": "source",
+	"name":   "COALESCE(NULLIF(stdn.display_name, ''), combined_results.name)",
+	"source": "combined_results.source",
 }
 
 // hostSoftwareTitleAssembler accumulates and de-duplicates host software title records
@@ -6522,7 +6567,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
-		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
+		stmt = fmt.Sprintf(
+			"SELECT combined_results.* FROM (%s) AS combined_results LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = combined_results.id AND stdn.team_id = ?",
+			stmt,
+		)
+		args = append(args, globalOrTeamID)
 		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
@@ -6758,17 +6807,15 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			hsi.policy_id,
 			hsi.self_service,
 			hsi.created_at,
-			si.title_id AS software_title_id,
-			si.filename AS software_package,
-			st.name AS software_title
+			hsi.software_title_id,
+			hsi.installer_filename AS software_package,
+			hsi.software_title_name AS software_title
 		FROM host_software_installs hsi
-		INNER JOIN software_installers si ON si.id = hsi.software_installer_id
-		INNER JOIN software_titles st ON st.id = si.title_id
 		WHERE hsi.execution_id = ? AND hsi.host_id = ?
 	`
 
 	var details struct {
-		SoftwareInstallerID uint      `db:"software_installer_id"`
+		SoftwareInstallerID *uint     `db:"software_installer_id"`
 		UserID              *uint     `db:"user_id"`
 		PolicyID            *uint     `db:"policy_id"`
 		SelfService         bool      `db:"self_service"`

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.616.71553",
+      "version": "26.623.141536",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.codex';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.codex' AND version_compare(bundle_short_version, '26.616.71553') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.codex' AND version_compare(bundle_short_version, '26.623.141536') < 0);"
       },
-      "installer_url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-arm64-26.616.71553.zip",
+      "installer_url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-arm64-26.623.141536.zip",
       "install_script_ref": "5e3efa57",
       "uninstall_script_ref": "a2b5ee81",
-      "sha256": "a2b2eee5d8b18f3da9cd8c4065dc9000ec938e055d52f7b2e9dc5be5e80f6570",
+      "sha256": "d948dc36b8358f5a2924b033fbf08398eea7860dc9e97cb5ab9b354490283a0a",
       "default_categories": [
         "Developer tools"
       ]

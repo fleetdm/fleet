@@ -146,22 +146,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /success-stories': {
-    skipAssets: false,
-    action: 'articles/view-articles',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },
-
-  'GET /success-stories/*': {
-    skipAssets: false,
-    action: 'articles/view-basic-article',// Meta title and description set in view action
-    locals: {
-      currentSection: 'more',
-    }
-  },// handles /success-stores/foo
-
   'GET /case-study/*': {
     skipAssets: false,
     action: 'articles/view-case-study',// Meta title and description set in view action
@@ -554,10 +538,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /gitops-workshop': {
-    action: 'view-gitops-workshop',
+  'GET /workshops': {
+    action: 'view-workshops',
     locals: {
-      pageTitleForMeta: 'GitOps workshops',
+      pageTitleForMeta: 'Workshops',
       pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
     }
   },
@@ -667,6 +651,7 @@ module.exports.routes = {
   'GET /lp/replace-jamf': {
     action: 'landing-pages/view-replace-jamf',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Replace Jamf with confidence',
       pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
     }
@@ -675,6 +660,7 @@ module.exports.routes = {
   'GET /lp/autonomous-endpoint-management': {
     action: 'landing-pages/view-autonomous-endpoint-management',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Autonomous endpoint management',
       pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
     }
@@ -683,6 +669,7 @@ module.exports.routes = {
   'GET /lp/apple-mdm': {
     action: 'landing-pages/view-apple-mdm',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
       pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
     }
@@ -691,6 +678,7 @@ module.exports.routes = {
   'GET /lp/android-mdm': {
     action: 'landing-pages/view-android-mdm',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
       pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
     }
@@ -699,6 +687,7 @@ module.exports.routes = {
   'GET /lp/windows-mdm': {
     action: 'landing-pages/view-windows-mdm',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
       pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
     }
@@ -707,6 +696,7 @@ module.exports.routes = {
   'GET /lp/on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'On-premise device management',
       pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
     }
@@ -715,9 +705,9 @@ module.exports.routes = {
   'GET /lp/open-source': {
     action: 'landing-pages/view-open-source',
     locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
       pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
-      currentSection: 'platform',
     }
   },
 
@@ -758,6 +748,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
   'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',
@@ -775,9 +766,10 @@ module.exports.routes = {
   'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications#docs',
   'GET /handbook/marketing/website-handbook/': '/handbook/company/communications#website',
   'GET /handbook/quality': '/handbook/engineering#quality',
-  'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
-  'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
-  'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
+  'GET /success-stories': '/customers',
+  'GET /device-management/fleet-user-stories-f100': '/customers',
+  'GET /device-management/fleet-user-stories-schrodinger': '/customers',
+  'GET /device-management/fleet-user-stories-wayfair': '/customers',
   'GET /handbook/security': '/handbook/it/security',
   'GET /handbook/digital-experience/security': '/handbook/it/security',
   'GET /handbook/business-operations/security-policies': '/handbook/it/security',
@@ -1012,27 +1004,7 @@ module.exports.routes = {
   'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
   'GET /guides/macos-setup-experience': '/guides/setup-experience',
   'GET /guides/install-vpp-apps-on-macos-using-fleet': '/guides/install-app-store-apps',
-  'GET /announcements/scaling-agritech-with-lake-to-plate-visibility': '/case-study/agritech-producer',
-  'GET /announcements/enterprise-AI-security-company': '/case-study/ai-security-company',
-  'GET /announcements/banking-as-a-service-platform': '/case-study/banking-platform',
-  'GET /announcements/cannabis-technology-company': '/case-study/cannabis-technology-company',
-  'GET /announcements/communications-services-sector-scaling-cross-platform-device-management-with-fleet': '/case-study/communications-platform',
-  'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
-  'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
 
-  'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
-  'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
-  'GET /announcements/all-in-one-it-platform-provider': '/case-study/it-platform-provider',
-  'GET /announcements/scaling-IT-as-a-service-with-GitOps-first-management': '/case-study/it-service-provider',
-  'GET /announcements/independent-journalism-nonprofit': '/case-study/journalism-nonprofit',
-  'GET /announcements/robotics-company': '/case-study/robotics-company',
-  'GET /announcements/modular-workspace-software-company': '/case-study/workspace-software-company',
-  'GET /announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux': '/case-study/worldwide-security-and-authentication-platform',
-  'GET /announcements/fintech-company-migrates-to-fleet': '/case-study/financial-services-company',
-  'GET /announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security': '/case-study/electric-vehicle-manufacturer',
-  'GET /announcements/cloud-based-data-leader-choosed-fleet-for-orchestration': '/case-study/cloud-data-platform',
-  'GET /announcements/large-gaming-company-enhances-server-observability-with-fleet': '/case-study/online-gaming-platform',
-  'GET /case-study/financial-data-company-scales-endpoint-visibility-with-fleet': '/case-study/financial-data-company',
   'GET /articles/fleet-management-software': '/compare/jamf-vs-intune-vs-fleet',
   'GET /articles/mdm-providers-compared': '/compare/workspace-one-vs-fleet',
   'GET /articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison': '/compare/jamf-vs-ninjaone-vs-fleet',
@@ -1169,13 +1141,15 @@ module.exports.routes = {
       return res.redirect(301, '/reports/' + req.param('slug'));
     }
   },
-  'GET /meetups': '/gitops-workshop',
+  'GET /meetups': '/workshops',
   'GET /replace-jamf': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/replace-jamf' + originalQueryString); },
   'GET /on-premise': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/on-premise' + originalQueryString); },
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
   'GET /orchestration': '/visibility-and-reporting',
+  'GET /gitops-workshop': '/workshops',
+  'GET /gitops-workshops': '/workshops',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1286,7 +1260,7 @@ module.exports.routes = {
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
   'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
-  'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
+  'GET /learn-more-about/uninstall-fleetd': '/guides/how-to-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
   'GET /learn-more-about/dep-profile': 'https://developer.apple.com/documentation/devicemanagement/define_a_profile',
   'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-ab-tokens',
@@ -1379,6 +1353,7 @@ module.exports.routes = {
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
+  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
 
   // Sitemap
   // =============================================================================================================

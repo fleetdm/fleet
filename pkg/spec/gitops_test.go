@@ -2246,6 +2246,80 @@ software:
 	assert.Equal(t, filepath.Join(basePath, "foo", "bar.png"), gitops.Software.Packages[0].Icon.Path)
 }
 
+func TestScriptOnlyPackagesWithAdvancedOptions(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/script-only.sh
+      self_service: true
+      uninstall_script:
+        path: software/uninstall.sh
+      post_install_script:
+        path: software/post-install.sh
+      pre_install_query:
+        path: software/preinstall-query.yml
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	// The .sh file's contents become the install script; the sibling scripts and
+	// query are specified inline in the team YAML for script-only packages.
+	copies := []struct{ src, dst string }{
+		{filepath.Join("testdata", "software", "script-only.sh"), filepath.Join(basePath, "software", "script-only.sh")},
+		{filepath.Join("testdata", "software", "install-app.sh"), filepath.Join(basePath, "software", "uninstall.sh")},
+		{filepath.Join("testdata", "software", "install-app.sh"), filepath.Join(basePath, "software", "post-install.sh")},
+	}
+	for _, c := range copies {
+		require.NoError(t, file.Copy(c.src, c.dst, os.FileMode(0o755)))
+	}
+	require.NoError(t, file.Copy(
+		filepath.Join("testdata", "lib", "preinstall-query.yml"),
+		filepath.Join(basePath, "software", "preinstall-query.yml"),
+		os.FileMode(0o644),
+	))
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	gitops, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, gitops.Software.Packages, 1)
+
+	pkg := gitops.Software.Packages[0]
+	assert.Equal(t, filepath.Join(basePath, "software", "script-only.sh"), pkg.InstallScript.Path)
+	assert.Equal(t, filepath.Join(basePath, "software", "uninstall.sh"), pkg.UninstallScript.Path)
+	assert.Equal(t, filepath.Join(basePath, "software", "post-install.sh"), pkg.PostInstallScript.Path)
+	assert.Equal(t, filepath.Join(basePath, "software", "preinstall-query.yml"), pkg.PreInstallQuery.Path)
+}
+
+func TestScriptOnlyPackageRejectsURLAtTeamLevel(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/script-only.sh
+      url: https://example.com/script-only.sh
+`
+
+	path, basePath := createTempFile(t, "", config)
+	require.NoError(t, file.Copy(
+		filepath.Join("testdata", "software", "script-only.sh"),
+		filepath.Join(basePath, "software", "script-only.sh"),
+		os.FileMode(0o755),
+	))
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	// The message must not claim scripts/queries are forbidden — they're allowed
+	// for script-only packages.
+	require.ErrorContains(t, err, "must not have install_script, URL, or hash specified at the team level")
+}
+
 func TestIllegalFleetSecret(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -4788,4 +4862,154 @@ func TestGitOpsFMACategoriesPresence(t *testing.T) {
 		assert.True(t, cats.Valid)
 		assert.Equal(t, []string{"somevalue"}, cats.Value)
 	})
+}
+
+func TestDuplicatePatchPolicySlug(t *testing.T) {
+	t.Parallel()
+
+	// Every slug referenced by a patch policy must be declared under software.fleet_maintained_apps.
+	fmaSoftware := `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+    - slug: 1password/darwin
+    - slug: firefox/darwin
+`
+
+	tests := []struct {
+		name     string
+		policies string
+		// wantErrs empty means the config must apply cleanly.
+		wantErrs []string
+	}{
+		{
+			// Before this check the second patch policy silently overwrote the first.
+			name: "two patch policies with the same slug",
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome up to date again
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantErrs: []string{`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`},
+		},
+		{
+			// Each duplicated slug gets its own error, driven by the slug in the config.
+			name: "two slugs each duplicated report one error per slug",
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome up to date again
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: 1Password up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: 1password/darwin
+  - name: 1Password up to date again
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: 1password/darwin
+`,
+			wantErrs: []string{
+				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`,
+				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "1password/darwin".`,
+			},
+		},
+		{
+			// A slug used by three patch policies is still reported a single time.
+			name: "slug used three times is reported once",
+			policies: `
+policies:
+  - name: Chrome A
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome B
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome C
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantErrs: []string{`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`},
+		},
+		{
+			// Duplicate names and duplicate patch slug surface together.
+			name: "duplicate names and duplicate patch slug both reported",
+			policies: `
+policies:
+  - name: Same name
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Same name
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantErrs: []string{
+				"duplicate policy names",
+				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`,
+			},
+		},
+		{
+			// A dynamic install_software policy and a patch policy may share a slug.
+			name: "dynamic install_software and patch with the same slug is allowed",
+			policies: `
+policies:
+  - name: Chrome installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome';
+    install_software:
+      fleet_maintained_app_slug: google-chrome/darwin
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+		},
+		{
+			name: "two patch policies with different slugs is allowed",
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+  - name: Firefox up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: firefox/darwin
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig([]string{"policies"}) + fmaSoftware + tc.policies
+			path, basePath := createTempFile(t, "", config)
+			_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			if len(tc.wantErrs) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, want := range tc.wantErrs {
+				assert.ErrorContains(t, err, want)
+			}
+		})
+	}
 }

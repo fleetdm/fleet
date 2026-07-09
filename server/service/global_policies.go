@@ -62,6 +62,16 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
+	if p.QueryID != nil {
+		query, err := svc.ds.Query(ctx, *p.QueryID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get query for policy")
+		}
+		if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	}
+
 	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}

@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.26.4
+go 1.26.5
 
 require (
 	cloud.google.com/go/pubsub v1.50.1
@@ -169,15 +169,15 @@ require (
 	go.step.sm/crypto v0.77.1
 	golang.org/x/crypto v0.52.0
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
-	golang.org/x/image v0.38.0
-	golang.org/x/mod v0.35.0
+	golang.org/x/image v0.42.0
+	golang.org/x/mod v0.36.0
 	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.35.0
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
-	golang.org/x/text v0.37.0
-	golang.org/x/tools v0.44.0
+	golang.org/x/text v0.38.0
+	golang.org/x/tools v0.45.0
 	google.golang.org/api v0.269.0
 	google.golang.org/grpc v1.79.3
 	gopkg.in/guregu/null.v3 v3.5.0

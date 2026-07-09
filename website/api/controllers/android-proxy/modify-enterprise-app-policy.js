@@ -37,6 +37,7 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     policyNotFound: { description: 'Specified policy not found', responseType: 'notFound' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
@@ -113,6 +114,9 @@ module.exports = {
     }).intercept({ status: 404 }, (err) => {
       return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err) => {
+      if([502, 503, 504].includes(err.status)){
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
+      }
       return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 

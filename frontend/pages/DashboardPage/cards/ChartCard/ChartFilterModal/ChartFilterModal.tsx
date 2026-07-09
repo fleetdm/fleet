@@ -31,11 +31,15 @@ const baseClass = "chart-filter-modal";
 
 export type ChartFilterTab = "hosts" | "software";
 
-const PLATFORM_OPTIONS = [
+// Exported for testing.
+export const PLATFORM_OPTIONS = [
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
   { label: "ChromeOS", value: "chrome" },
+  { label: "iOS", value: "ios" },
+  { label: "iPadOS", value: "ipados" },
+  { label: "Android", value: "android" },
 ];
 
 type HostFilterMode = "none" | "include" | "exclude";

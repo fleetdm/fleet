@@ -8,6 +8,8 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow the ins
 
 To migrate Windows hosts from your current MDM solution to Fleet, follow the [Automatic Windows MDM migration](#automatic-windows-mdm-migration) instructions.
 
+> Fleet supports two ways to enroll Windows hosts: installing Fleet's agent (fleetd), and enrolling through Microsoft Entra ID. End users authenticate through Entra during enrollment, so you can use a third-party identity provider (IdP) if it's federated with Entra. Enrolling against an IdP that isn't federated with Entra isn't currently supported.
+
 ## Turn on Windows MDM
 
 ### Step 1: Generate your certificate and key
@@ -44,6 +46,8 @@ Restart the Fleet server.
 ## Manual enrollment
 
 With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+
+Windows MDM turns on after an end user signs in to the host. Windows completes MDM enrollment in the context of a signed-in user, so a host with no interactive user session (for example, a freshly imaged, kiosk, or shared device waiting at the lock screen) reports MDM as "Off", and any pending commands, configuration profiles, and disk encryption stay queued. Fleet retries enrollment automatically and finishes within about 30 seconds of the next sign-in.
 
 > Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
 

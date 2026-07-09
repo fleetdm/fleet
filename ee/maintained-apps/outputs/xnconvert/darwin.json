@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.111.0",
+      "version": "1.112.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnConvert';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnConvert' AND version_compare(bundle_short_version, '1.111.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnConvert' AND version_compare(bundle_short_version, '1.112.0') < 0);"
       },
-      "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.111.0-mac.dmg",
+      "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.112.0-mac.dmg",
       "install_script_ref": "82bd81b7",
       "uninstall_script_ref": "adec59f6",
-      "sha256": "045ecbd9c5f1d8f91fdc4217eba668ebc634e53db23963a41f1e21fbd7a1e7b6",
+      "sha256": "65162b95a9e8a85c1aa63cea5dd0d4cd2cc94524fc2503ab8855d49cc1ec11e3",
       "default_categories": [
         "Productivity"
       ]

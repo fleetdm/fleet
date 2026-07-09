@@ -1,4 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
+import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -39,6 +40,10 @@ import {
 import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
@@ -91,7 +96,11 @@ import CertificateInstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
-import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
+import CommandResultsModal, {
+  getIconName,
+  getVerbForCommandStatus,
+} from "pages/hosts/components/CommandDetailsModal";
+import IconStatusMessage from "components/IconStatusMessage";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
@@ -283,6 +292,11 @@ const HostDetailsPage = ({
   const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
     null
   );
+  const [activityCommandDetails, setActivityCommandDetails] = useState<{
+    host_uuid: string;
+    command_uuid: string;
+    actor_full_name?: string;
+  } | null>(null);
   const [
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
@@ -722,8 +736,8 @@ const HostDetailsPage = ({
       setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
-        router.push(PATHS.MANAGE_HOSTS);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
+        router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
         notify.error(`Host "${host.display_name}" could not be deleted.`, {
@@ -887,6 +901,18 @@ const HostDetailsPage = ({
             },
           });
           break;
+        case ActivityType.RanCustomMdmCommand: {
+          const resolvedHostUuid = details?.host_uuid ?? host?.uuid;
+          if (!details?.command_uuid || !resolvedHostUuid) {
+            break;
+          }
+          setActivityCommandDetails({
+            command_uuid: details.command_uuid,
+            host_uuid: resolvedHostUuid,
+            actor_full_name,
+          });
+          break;
+        }
         default: // do nothing
       }
     },
@@ -1062,6 +1088,9 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.managed_local_account?.password_available ??
           false
         }
+        wipeAllowed={host.mdm.wipe_allowed}
+        lockAllowed={host.mdm.lock_allowed}
+        clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
   };
@@ -1286,7 +1315,8 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDeviceHost && !!hostCertificates?.certificates.length;
+    (isAppleDeviceHost || isWindowsHost) &&
+    (isErrorHostCertificates || !!hostCertificates?.certificates.length);
 
   const renderSoftwareCard = () => {
     return (
@@ -1834,6 +1864,59 @@ const HostDetailsPage = ({
             <CommandResultsModal
               command={mdmCommandDetails}
               onDone={onCancelMdmCommandDetailsModal}
+            />
+          )}
+          {!!activityCommandDetails && (
+            <CommandResultsModal
+              command={activityCommandDetails}
+              contentBody={(cls, result) => {
+                const isPending =
+                  getIconName(result.status) === "pending-outline";
+                const cmdDisplayName = getMdmCommandDisplayName(
+                  result.request_type
+                );
+                const timeAgoText = result.updated_at
+                  ? ` (${timeAgo(new Date(result.updated_at), {
+                      addSuffix: true,
+                    })})`
+                  : "";
+                return (
+                  <IconStatusMessage
+                    className={`${cls}__status-message`}
+                    iconName={getIconName(result.status)}
+                    message={
+                      isPending ? (
+                        <span>
+                          {cmdDisplayName ? (
+                            <>
+                              {"The "}
+                              <b>{cmdDisplayName}</b>
+                              {" custom MDM command"}
+                            </>
+                          ) : (
+                            "A custom MDM command"
+                          )}
+                          {" is pending on "}
+                          <b>{result.hostname}</b>
+                          {`${timeAgoText}.`}
+                        </span>
+                      ) : (
+                        <span>
+                          {activityCommandDetails.actor_full_name && (
+                            <b>{activityCommandDetails.actor_full_name}</b>
+                          )}
+                          {` ${getVerbForCommandStatus(result.status)} `}
+                          {formatMdmCommandNameForActivityItem(
+                            result.request_type
+                          )}
+                          {" on this host."}
+                        </span>
+                      )
+                    }
+                  />
+                );
+              }}
+              onDone={() => setActivityCommandDetails(null)}
             />
           )}
           {enrollmentProfileFailedDetails && (

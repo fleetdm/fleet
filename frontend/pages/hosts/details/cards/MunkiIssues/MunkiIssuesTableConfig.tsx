@@ -1,8 +1,8 @@
 import React from "react";
 import { capitalize } from "lodash";
 
-import { formatDistanceToNowStrict } from "date-fns";
 import { abbreviateTimeUnits } from "utilities/helpers";
+import { timeAgo } from "utilities/date_format";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -107,8 +107,9 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     accessor: "created_at",
     Cell: (cellProps: IStringCellProps) => {
       const time = abbreviateTimeUnits(
-        formatDistanceToNowStrict(new Date(cellProps.cell.value), {
+        timeAgo(new Date(cellProps.cell.value), {
           addSuffix: true,
+          strict: true,
         })
       );
       return <TextCell value={time} />;

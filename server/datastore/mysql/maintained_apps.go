@@ -13,8 +13,9 @@ import (
 )
 
 // maintainedAppsAllowedOrderKeys allowlists order keys for listing
-// Fleet-maintained apps. The list is a combined-by-name view, so name is the
-// only meaningful key; it's validation-only, since ORDER BY is hard-coded below.
+// Fleet-maintained apps. The list is a combined-by-app view (see
+// ListAvailableFleetMaintainedApps), so name is the only meaningful key; it's
+// validation-only, since ORDER BY is hard-coded below.
 var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"name": "fma.name",
 }
@@ -33,48 +34,12 @@ ON DUPLICATE KEY UPDATE
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-
-		// upsert the maintained app
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
-
-		// For darwin apps, update existing software_titles and software entries
-		// to use the FMA canonical name. This ensures consistency when an FMA
-		// is added for software that was previously ingested with osquery-reported names.
-		//
-		// We only run these UPDATEs when the FMA was actually inserted or modified.
-		// MySQL's ON DUPLICATE KEY UPDATE returns RowsAffected:
-		//   0 = duplicate key, no changes (existing FMA with same values)
-		//   1 = new row inserted
-		//   2 = duplicate key, values changed
-		// Skip if RowsAffected == 0 since nothing changed.
-		rowsAffected, _ := res.RowsAffected()
-		if app.Platform == "darwin" && app.UniqueIdentifier != "" && rowsAffected > 0 {
-			_, err = tx.ExecContext(ctx, `
-				UPDATE software_titles
-				SET name = ?
-				WHERE bundle_identifier = ?
-					AND name != ?
-			`, app.Name, app.UniqueIdentifier, app.Name)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "update software_titles names for FMA")
-			}
-
-			_, err = tx.ExecContext(ctx, `
-				UPDATE software
-				SET name = ?
-				WHERE bundle_identifier = ?
-					AND name != ?
-			`, app.Name, app.UniqueIdentifier, app.Name)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "update software names for FMA")
-			}
-		}
 
 		return nil
 	})
@@ -86,6 +51,72 @@ ON DUPLICATE KEY UPDATE
 	return app, nil
 }
 
+// ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software
+// rows to the canonical FMA name (e.g. "Code" -> "Microsoft Visual Studio Code").
+// Called once per sync; set-based and idempotent.
+//
+// A bundle identifier is not unique across FMAs (Firefox and Firefox ESR both use
+// org.mozilla.firefox), so renaming by identifier alone is ambiguous. It renames in
+// two passes: first by the precise installer link, then by bundle identifier but
+// only when it maps to a single FMA name.
+func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
+	// title_id -> name, for titles linked to a single FMA via their installer.
+	// GROUP BY also collapses a title's per-team installer rows to avoid fan-out.
+	const titleNameByFMA = `
+		SELECT si.title_id, MIN(fma.name) AS name
+		FROM software_installers si
+		JOIN fleet_maintained_apps fma
+			ON fma.id = si.fleet_maintained_app_id AND fma.platform = 'darwin'
+		GROUP BY si.title_id
+		HAVING COUNT(DISTINCT fma.name) = 1`
+
+	// darwin bundle identifiers mapping to exactly one FMA name; shared ones are excluded.
+	const unambiguousByIdentifier = `
+		SELECT unique_identifier, MIN(name) AS name
+		FROM fleet_maintained_apps
+		WHERE platform = 'darwin'
+		GROUP BY unique_identifier
+		HAVING COUNT(DISTINCT name) = 1`
+
+	updates := []struct {
+		label string
+		stmt  string
+	}{
+		// Pass 1: precise, via installer link.
+		{"software_titles by installer link", `
+			UPDATE software_titles st
+				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = st.id
+			SET st.name = fma.name
+			WHERE st.name <> fma.name`},
+		{"software by installer link", `
+			UPDATE software s
+				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = s.title_id
+			SET s.name = fma.name
+			WHERE s.name <> fma.name`},
+
+		// Pass 2: by bundle identifier, unambiguous only.
+		{"software_titles by bundle identifier", `
+			UPDATE software_titles st
+				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = st.bundle_identifier
+			SET st.name = fma.name
+			WHERE st.name <> fma.name`},
+		{"software by bundle identifier", `
+			UPDATE software s
+				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = s.bundle_identifier
+			SET s.name = fma.name
+			WHERE s.name <> fma.name`},
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, u := range updates {
+			if _, err := tx.ExecContext(ctx, u.stmt); err != nil {
+				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: %s", u.label)
+			}
+		}
+		return nil
+	})
+}
+
 // fleetMaintainedAppsTeamJoin is the FROM clause plus the LEFT JOIN that
 // determines, for a given team, whether each Fleet-maintained app has already
 // been added (via a software installer or VPP app). team_titles.id is non-NULL
@@ -94,7 +125,9 @@ ON DUPLICATE KEY UPDATE
 const fleetMaintainedAppsTeamJoin = `
 			FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform
+				-- COALESCE the platform so VPP-added titles (no installer row) still
+				-- carry a platform for the platform-scoped identifier fallback below.
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, COALESCE(si.platform, va.platform) AS platform, si.fleet_maintained_app_id
 				FROM software_titles st
 				LEFT JOIN
 					software_installers si
@@ -111,10 +144,21 @@ const fleetMaintainedAppsTeamJoin = `
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
 			) team_titles
-				ON team_titles.unique_identifier = fma.unique_identifier
+				-- Match the exact FMA the title was added with, so a shared bundle
+				-- identifier (Firefox vs Firefox ESR) doesn't mark the sibling added.
+				ON team_titles.fleet_maintained_app_id = fma.id
+				-- Not added via an FMA: fall back to the bundle identifier, scoped to
+				-- the same platform so a darwin title can't match a windows FMA (or
+				-- vice versa) when their identifiers happen to collide.
+				OR (
+					team_titles.fleet_maintained_app_id IS NULL
+					AND team_titles.platform = fma.platform
+					AND team_titles.unique_identifier = fma.unique_identifier
+				)
 				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
 				OR (
-					team_titles.platform = fma.platform
+					team_titles.fleet_maintained_app_id IS NULL
+					AND team_titles.platform = fma.platform
 					AND fma.platform = 'windows'
 					-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
 					AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
@@ -180,12 +224,16 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 
-	// We paginate by distinct app NAME, because the UI combines an app's macOS
-	// and Windows entries into a single row and an app must not be split across a
-	// page boundary. The count, by contrast, is the total number of apps (each
-	// platform entry is its own installable app). The team join lets us tell
-	// whether each app has already been added, which the "available only" filter
-	// needs.
+	// We paginate by distinct app token (the slug prefix, e.g. "figma" in
+	// "figma/darwin"), which identifies an app across its platform entries: the UI
+	// combines an app's macOS and Windows entries into one row, so an app must not
+	// be split across a page boundary. Keying on the token rather than the name
+	// keeps two distinct apps that share a name (e.g. gemini/darwin and
+	// google-gemini/darwin) as separate rows. The count, by contrast, is the
+	// number of installable platform entries: each is separately installable (its
+	// own Add button), so an app shipped on both platforms counts twice. The team
+	// join tells us whether each app is already added, for the "available only"
+	// filter.
 	fromClause := `FROM fleet_maintained_apps fma`
 	var fromArgs []any
 	if teamID != nil {
@@ -209,11 +257,8 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		where += ` AND team_titles.id IS NULL`
 	}
 
-	// Total count of matching apps. We count distinct rows (by primary key), not
-	// distinct names: an app's macOS and Windows entries are separate installable
-	// apps and are each counted, even though the UI combines them into one row.
-	// DISTINCT fma.id also collapses any duplicate rows from the team join's
-	// fan-out.
+	// Count the installable platform entries (each Add button); DISTINCT id also
+	// collapses the team join's fan-out.
 	countArgs := append(append([]any{}, fromArgs...), whereArgs...)
 	var filteredCount int
 	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT fma.id) `+fromClause+where, countArgs...); err != nil {
@@ -247,24 +292,26 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		direction = "DESC"
 	}
 
-	// Select the page of app names, fetching one extra to detect a next page.
+	// Select the page of app tokens, fetching one extra to detect a next page.
+	// Group by the token and order by the app's name (the token maps to a single
+	// name), with the token as a deterministic tiebreaker for same-named apps.
 	perPage := opt.GetPerPage()
-	pageNamesStmt := fmt.Sprintf(
-		`SELECT DISTINCT fma.name %s%s ORDER BY fma.name %s LIMIT %d OFFSET %d`,
-		fromClause, where, direction, perPage+1, perPage*opt.Page,
+	pageTokensStmt := fmt.Sprintf(
+		`SELECT SUBSTRING_INDEX(fma.slug, '/', 1) AS app_token %s%s GROUP BY app_token ORDER BY MIN(fma.name) %s, app_token %s LIMIT %d OFFSET %d`,
+		fromClause, where, direction, direction, perPage+1, perPage*opt.Page,
 	)
-	pageNamesArgs := append(append([]any{}, fromArgs...), whereArgs...)
-	var pageNames []string
-	if err := sqlx.SelectContext(ctx, dbReader, &pageNames, pageNamesStmt, pageNamesArgs...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained app page names")
+	pageTokensArgs := append(append([]any{}, fromArgs...), whereArgs...)
+	var pageTokens []string
+	if err := sqlx.SelectContext(ctx, dbReader, &pageTokens, pageTokensStmt, pageTokensArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained app page tokens")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
-	if uint(len(pageNames)) > perPage {                                                                    //nolint:gosec // dismiss G115
+	if uint(len(pageTokens)) > perPage {                                                                   //nolint:gosec // dismiss G115
 		meta.HasNextResults = true
-		pageNames = pageNames[:perPage]
+		pageTokens = pageTokens[:perPage]
 	}
-	if len(pageNames) == 0 {
+	if len(pageTokens) == 0 {
 		// Page is past the last result.
 		return []fleet.MaintainedApp{}, meta, nil
 	}
@@ -274,13 +321,13 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	selectStmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var rowsArgs []any
 	if teamID != nil {
-		selectStmt += teamFMATitlesJoin + ` WHERE fma.name IN (?)`
-		rowsArgs = []any{teamID, teamID, pageNames}
+		selectStmt += teamFMATitlesJoin + ` WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
+		rowsArgs = []any{teamID, teamID, pageTokens}
 	} else {
-		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE fma.name IN (?)`
-		rowsArgs = []any{pageNames}
+		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
+		rowsArgs = []any{pageTokens}
 	}
-	selectStmt += fmt.Sprintf(` ORDER BY fma.name %s, fma.platform ASC`, direction)
+	selectStmt += fmt.Sprintf(` ORDER BY fma.name %s, fma.slug ASC`, direction)
 
 	selectStmt, rowsArgs, err := sqlx.In(selectStmt, rowsArgs...)
 	if err != nil {
@@ -297,7 +344,14 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 }
 
 func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
-	query := `SELECT unique_identifier, name FROM fleet_maintained_apps WHERE platform = 'darwin'`
+	// Only identifiers mapping to one FMA name; shared ones (Firefox/ESR) have no
+	// single canonical name, so callers fall back to the osquery-reported name.
+	query := `
+		SELECT unique_identifier, MIN(name) AS name
+		FROM fleet_maintained_apps
+		WHERE platform = 'darwin'
+		GROUP BY unique_identifier
+		HAVING COUNT(DISTINCT name) = 1`
 
 	rows, err := ds.reader(ctx).QueryContext(ctx, query)
 	if err != nil {

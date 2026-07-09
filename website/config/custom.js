@@ -178,7 +178,7 @@ module.exports.custom = {
     'handbook/it': 'allenhouchins',
     'handbook/sales': 'sampfluger88',
     'handbook/customer-success': 'zayhanlon',
-    'handbook/marketing': 'akuthiala',
+    'handbook/marketing': 'ireedy',
     'handbook/ceo': 'mikermcneil',
     'handbook/README.md': 'mikermcneil',
     'handbook/company/README.md': 'mikermcneil',
@@ -244,12 +244,12 @@ module.exports.custom = {
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
-    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath', 'allenhouchins'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'allenhouchins'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
-    'website/views': ['eashaw', 'mike-j-thomas', 'johnjeremiah', 'akuthiala'],
+    'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
@@ -309,7 +309,7 @@ module.exports.custom = {
     'handbook/it': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
     'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
-    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/customer-success': ['sampfluger88', ' mikermcneil', 'zayhanlon'],
 
     // 🫧 Pricing and features and dev process
@@ -371,7 +371,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

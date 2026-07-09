@@ -23,6 +23,20 @@ import (
 // bounded context must not depend on server/fleet — arch test enforced.
 const onlineIntervalBufferSeconds = 60
 
+// mobileOnlineWindowSeconds is the window within which a mobile
+// (iOS/iPadOS/Android) host's most recent MDM activity signal must fall for it
+// to count as online. Mobile MDM devices have no osquery check-in interval
+// (distributed_interval/config_tls_refresh are 0), so instead of a per-host
+// interval we anchor the window to the iOS/iPadOS refetch cadence (1 hour; see
+// ListIOSAndIPadOSToRefetch) plus the same grace buffer used for osquery hosts.
+const mobileOnlineWindowSeconds = 3600 + onlineIntervalBufferSeconds
+
+// neverTimestamp mirrors server.NeverTimestamp, the sentinel written to
+// detail_updated_at before a host's first full detail refetch. Duplicated
+// rather than imported because the chart bounded context must not depend on the
+// server package — arch test enforced.
+const neverTimestamp = "2000-01-01 00:00:00"
+
 // Datastore is the MySQL implementation of the chart datastore.
 type Datastore struct {
 	primary *sqlx.DB
@@ -72,24 +86,56 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindOnlineHostIDs returns host IDs that are "online" at `now` per the same
-// per-host predicate used by the hosts list status=online filter
-// (filterHostsByStatus in server/datastore/mysql/hosts.go): the host has a
-// host_seen_times row whose seen_time falls within the host's own check-in
-// interval (LEAST of distributed_interval and config_tls_refresh) plus the
-// OnlineIntervalBuffer grace period.
+// FindOnlineHostIDs returns host IDs that are "online" at `now`, using a
+// platform-specific predicate:
 //
-// Because host_seen_times is updated only by osquery check-ins, MDM-only
-// mobile devices (iOS, iPadOS, Android) are currently excluded by design.
+//   - Non-mobile (osquery-capable) hosts use the same predicate as the hosts
+//     list status=online filter (filterHostsByStatus in
+//     server/datastore/mysql/hosts.go): a host_seen_times row whose seen_time
+//     falls within the host's own check-in interval (LEAST of
+//     distributed_interval and config_tls_refresh) plus the OnlineIntervalBuffer
+//     grace period.
+//   - Mobile hosts (iOS, iPadOS, Android) have no osquery check-in interval, so
+//     they use their MDM activity signal — the most recent of
+//     nano_enrollments.last_seen_at (bumped on every MDM check-in, and only
+//     considered for enabled enrollments since last_seen_at is also bumped when
+//     an enrollment is disabled on checkout) and
+//     host_seen_times.seen_time, falling back to detail_updated_at (the
+//     neverTimestamp sentinel treated as null) — within mobileOnlineWindowSeconds
+//     of `now`. There is deliberately no created_at fallback: a freshly enrolled
+//     device that never checked in is not "online".
 func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
 	query := fmt.Sprintf(`
 		SELECT h.id
 		FROM hosts h
-		JOIN host_seen_times hst ON h.id = hst.host_id
-		WHERE DATE_ADD(hst.seen_time,
-			INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
-		) > ?`, onlineIntervalBufferSeconds)
-	args := []any{now.UTC()}
+			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
+				AND ne.enabled = 1
+				AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE (
+			(
+				h.platform NOT IN ('ios', 'ipados', 'android')
+				AND hst.seen_time IS NOT NULL
+				AND DATE_ADD(hst.seen_time,
+					INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+				) > ?
+			)
+			OR
+			(
+				h.platform IN ('ios', 'ipados', 'android')
+				AND DATE_ADD(
+					COALESCE(
+						GREATEST(
+							COALESCE(hst.seen_time, ne.last_seen_at),
+							COALESCE(ne.last_seen_at, hst.seen_time)
+						),
+						NULLIF(h.detail_updated_at, ?)
+					),
+					INTERVAL %d SECOND
+				) > ?
+			)
+		)`, onlineIntervalBufferSeconds, mobileOnlineWindowSeconds)
+	args := []any{now.UTC(), neverTimestamp, now.UTC()}
 
 	if len(disabledFleetIDs) > 0 {
 		query += ` AND (h.team_id IS NULL OR h.team_id NOT IN (?))`

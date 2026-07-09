@@ -3,10 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,22 +26,6 @@ import (
 // us amortize the round-trip count without overwhelming Fleet with thousands
 // of simultaneous requests.
 const teamFanOutConcurrency = 8
-
-// tempQueryNamePrefix is the prefix used by all transient saved queries created
-// by runMultiHostQuery. Sweeping leftover queries at startup uses this prefix
-// to find them.
-const tempQueryNamePrefix = "fleet-mcp-temp-"
-
-// randomHexSuffix returns a hex-encoded random string for unique temp-query
-// names. Falls back to time.Now().UnixNano() if crypto/rand is unavailable
-// (extremely unlikely, but the fallback keeps runMultiHostQuery functional).
-func randomHexSuffix(nBytes int) string {
-	b := make([]byte, nBytes)
-	if _, err := rand.Read(b); err != nil {
-		return strconv.FormatInt(time.Now().UnixNano(), 16)
-	}
-	return hex.EncodeToString(b)
-}
 
 // FleetClient represents a client for interacting with Fleet API
 type FleetClient struct {
@@ -148,6 +130,54 @@ func isLoopbackURL(rawURL string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
+type FleetIdentity struct {
+	Email   string
+	APIOnly bool
+}
+
+// WhoAmI resolves the Fleet user behind FLEET_API_KEY.
+func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("whoami request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("whoami: %s", fleetErrMsg(resp.StatusCode, errBody))
+	}
+	var body struct {
+		User struct {
+			Email   string `json:"email"`
+			APIOnly bool   `json:"api_only"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("whoami decode: %w", err)
+	}
+	return &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}, nil
+}
+
+// fleetErrMsg renders a Fleet API error.
+// It prefers Fleet's structured "message" field and, for non-JSON bodies,
+// falls back to a bounded <120 char snippet rather than dumping the full response body
+func fleetErrMsg(status int, body []byte) string {
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+	}
+	snippet := strings.TrimSpace(string(body))
+	if snippet == "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d", status)
+	}
+	if len(snippet) > 120 {
+		snippet = snippet[:120] + "…"
+	}
+	return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, snippet)
+}
+
 // HostLabel represents a label attached to a host (Fleet returns objects, not plain strings)
 type HostLabel struct {
 	ID   uint   `json:"id"`
@@ -186,6 +216,7 @@ type Policy struct {
 	ID               uint   `json:"id"`
 	Name             string `json:"name"`
 	Description      string `json:"description"`
+	Query            string `json:"query"`
 	Platform         string `json:"platform"`
 	PassingHostCount int    `json:"passing_host_count"`
 	FailingHostCount int    `json:"failing_host_count"`
@@ -245,27 +276,7 @@ type AdHocQueryResponse struct {
 	Rows   []map[string]interface{} `json:"rows"`
 }
 
-// MultiQueryRunRequest is the body for running a saved query against multiple hosts
-type MultiQueryRunRequest struct {
-	HostIDs []uint `json:"host_ids,omitempty"`
-}
-
-// LiveQueryHostResult is a single host's result from a multi-host query run
-type LiveQueryHostResult struct {
-	HostID uint                     `json:"host_id"`
-	Rows   []map[string]interface{} `json:"rows"`
-	Error  *string                  `json:"error"`
-}
-
-// MultiQueryRunResponse is the response from POST /api/v1/fleet/queries/:id/run
-type MultiQueryRunResponse struct {
-	QueryID            uint                  `json:"query_id"`
-	TargetedHostCount  int                   `json:"targeted_host_count"`
-	RespondedHostCount int                   `json:"responded_host_count"`
-	Results            []LiveQueryHostResult `json:"results"`
-}
-
-// LiveQueryResult is a unified result returned from RunLiveQuery
+// LiveQueryResult is a unified result returned from a live query run.
 type LiveQueryResult struct {
 	TargetedHostCount  int                      `json:"targeted_host_count"`
 	RespondedHostCount int                      `json:"responded_host_count"`
@@ -472,6 +483,225 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	return &result.Host, nil
 }
 
+// UID is uint64 because Fleet sends `uid` as a JSON number, not a string.
+type HostUser struct {
+	UID       uint64 `json:"uid"`
+	Username  string `json:"username"`
+	Type      string `json:"type"`
+	GroupName string `json:"groupname"`
+	Shell     string `json:"shell"`
+}
+
+type HostWithUsers struct {
+	Endpoint
+	Users []HostUser `json:"users"`
+}
+
+type SoftwareVersion struct {
+	ID              uint     `json:"id"`
+	Version         string   `json:"version"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+}
+
+type SoftwareTitle struct {
+	ID            uint              `json:"id"`
+	Name          string            `json:"name"`
+	Source        string            `json:"source"`
+	VersionsCount int               `json:"versions_count"`
+	HostsCount    int               `json:"hosts_count"`
+	Versions      []SoftwareVersion `json:"versions,omitempty"`
+	Browser       string            `json:"browser,omitempty"`
+	ExtensionFor  string            `json:"extension_for,omitempty"`
+}
+
+type HostSoftwareInstalledVersion struct {
+	Version         string   `json:"version"`
+	LastOpenedAt    string   `json:"last_opened_at,omitempty"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+	InstalledPaths  []string `json:"installed_paths,omitempty"`
+}
+
+type HostSoftware struct {
+	ID                uint                           `json:"id"`
+	Name              string                         `json:"name"`
+	Source            string                         `json:"source"`
+	BundleIdentifier  string                         `json:"bundle_identifier,omitempty"`
+	ExtensionFor      string                         `json:"extension_for,omitempty"`
+	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions,omitempty"`
+}
+
+func (fc *FleetClient) GetHostByIDWithUsers(ctx context.Context, hostID uint) (*HostWithUsers, error) {
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID)
+	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host with users by id: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("host not found: id=%d", hostID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get host with users by id: status code %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Host HostWithUsers `json:"host"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode host with users by id response: %w", err)
+	}
+	return &result.Host, nil
+}
+
+// Bounds memory for a single software fetch. var (not const) so tests can lower it.
+var fetchSoftwareHardCap = 5000
+
+func matchesSoftwareSource(rowSource, want string) bool {
+	if want == "" {
+		return true
+	}
+	return strings.EqualFold(rowSource, want)
+}
+
+// source is filtered client-side (not a server-side param on this endpoint);
+// perPage caps the merged result.
+func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source string, perPage int) ([]HostSoftware, bool, error) {
+	const apiPerPage = 500
+	out := make([]HostSoftware, 0, perPage)
+	for page := 0; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+
+		params := url.Values{}
+		params.Set("per_page", strconv.Itoa(apiPerPage))
+		params.Set("page", strconv.Itoa(page))
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if v := strings.TrimSpace(vulnerable); v != "" {
+			params.Set("vulnerable", v)
+		}
+
+		endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/software?%s", hostID, params.Encode())
+		resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch host software: %w", err)
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("host not found: id=%d", hostID)
+		}
+		if resp.StatusCode != http.StatusOK {
+			status := resp.StatusCode
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("failed to fetch host software: status code %d", status)
+		}
+
+		var result struct {
+			Software []HostSoftware `json:"software"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode host software response: %w", decErr)
+		}
+
+		shortPage := len(result.Software) < apiPerPage
+		for _, row := range result.Software {
+			if !matchesSoftwareSource(row.Source, source) {
+				continue
+			}
+			out = append(out, row)
+			if perPage > 0 && len(out) >= perPage {
+				return out, false, nil
+			}
+			if len(out) >= fetchSoftwareHardCap {
+				logrus.Warnf("host software fetch hit hard cap %d (host_id=%d) — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap, hostID)
+				return out, true, nil
+			}
+		}
+		if shortPage {
+			break
+		}
+	}
+	return out, false, nil
+}
+
+func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, source string, perPage int) ([]SoftwareTitle, bool, error) {
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	}
+
+	const apiPerPage = 100 // titles endpoint returns expanded objects; lower page size keeps payloads small
+	out := make([]SoftwareTitle, 0, perPage)
+	for page := 0; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+
+		params := url.Values{}
+		params.Set("per_page", strconv.Itoa(apiPerPage))
+		params.Set("page", strconv.Itoa(page))
+		if teamIDStr != "" {
+			params.Set("team_id", teamIDStr)
+		}
+		if p := strings.TrimSpace(platform); p != "" {
+			params.Set("platform", p)
+		}
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if v := strings.TrimSpace(vulnerable); v != "" {
+			params.Set("vulnerable", v)
+		}
+
+		resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+params.Encode(), nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch software titles: %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			status := resp.StatusCode
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("failed to fetch software titles: status code %d", status)
+		}
+
+		var result struct {
+			SoftwareTitles []SoftwareTitle `json:"software_titles"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode software titles response: %w", decErr)
+		}
+
+		shortPage := len(result.SoftwareTitles) < apiPerPage
+		for _, row := range result.SoftwareTitles {
+			if !matchesSoftwareSource(row.Source, source) {
+				continue
+			}
+			out = append(out, row)
+			if perPage > 0 && len(out) >= perPage {
+				return out, false, nil
+			}
+			if len(out) >= fetchSoftwareHardCap {
+				logrus.Warnf("software titles fetch hit hard cap %d — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap)
+				return out, true, nil
+			}
+		}
+		if shortPage {
+			break
+		}
+	}
+	return out, false, nil
+}
+
 // GetQueries retrieves global and all team-specific queries from Fleet.
 func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/reports", nil)
@@ -586,7 +816,7 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 		go func(idx int, team Team) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team.ID), nil)
+			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/fleets/%d/policies", team.ID), nil)
 			if err != nil {
 				logrus.Warnf("team %d policies error: %v", team.ID, err)
 				return
@@ -643,25 +873,6 @@ func (fc *FleetClient) GetLabels(ctx context.Context) ([]Label, error) {
 	}
 
 	return result.Labels, nil
-}
-
-// GetFleetConfig retrieves the Fleet server configuration.
-func (fc *FleetClient) GetFleetConfig(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/config", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get fleet config: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get fleet config: status code %d", resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode fleet config: %w", err)
-	}
-	return result, nil
 }
 
 // GetEndpointsWithAggregations returns the platform breakdown for the entire
@@ -723,7 +934,7 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 
 // GetTeams retrieves all teams from Fleet
 func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
-	endpoint := "/api/v1/fleet/teams"
+	endpoint := "/api/v1/fleet/fleets"
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teams: %w", err)
@@ -765,10 +976,88 @@ func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 	return result.Count, nil
 }
 
+// GetHostCountWithFilters returns the count of hosts matching the same filter
+// scope GetEndpointsWithFilters lists, so get_endpoints' Total describes the
+// returned set rather than the global inventory.
+func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string) (int, error) {
+	if policyResponse != "" && policyID == "" {
+		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
+	}
+	if policyResponse != "" && policyResponse != "passing" && policyResponse != "failing" {
+		return 0, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResponse)
+	}
+
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return 0, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	}
+
+	labelID, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
+	if err != nil {
+		return 0, err
+	}
+
+	// Label + policy: /hosts/count ignores policy_id once label_id is set, so
+	// count the client-side label∩policy intersection GetEndpointsWithFilters
+	// builds (perPage=0 → no client-side cap).
+	if viaLabel && policyID != "" {
+		hosts, lerr := fc.GetEndpointsWithFilters(ctx, teamName, platform, status, query, labelName, policyID, policyResponse, 0)
+		if lerr != nil {
+			return 0, lerr
+		}
+		return len(hosts), nil
+	}
+
+	// Everything else: /hosts/count honors the filters server-side (label_id,
+	// team_id, status, query, and policy_id when no label is set).
+	params := url.Values{}
+	if teamIDStr != "" {
+		params.Set("team_id", teamIDStr)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		params.Set("query", q)
+	}
+	if policyID != "" {
+		params.Set("policy_id", policyID)
+	}
+	if policyResponse != "" {
+		params.Set("policy_response", policyResponse)
+	}
+	if viaLabel {
+		params.Set("label_id", fmt.Sprintf("%d", labelID))
+	}
+	path := "/api/v1/fleet/hosts/count"
+	if encoded := params.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	resp, err := fc.makeFleetRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get filtered host count: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("failed to get filtered host count: status %d", resp.StatusCode)
+	}
+	var result struct {
+		Count int `json:"count"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, fmt.Errorf("failed to decode filtered host count: %w", err)
+	}
+	return result.Count, nil
+}
+
 // resolveLabelName resolves a label name to its numeric ID using exact
 // case-insensitive matching. On failure, lists available labels so the
 // caller can retry. Mirrors resolveTeamNames — no caching, calls GetLabels()
-// each invocation. Labels lists are small on dogfood so the cost is
+// each invocation. Label lists are typically small so the cost is
 // negligible and the code stays parallel with the team resolver.
 func (fc *FleetClient) resolveLabelName(ctx context.Context, name string) (uint, error) {
 	labels, err := fc.GetLabels(ctx)
@@ -863,7 +1152,6 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 	out := make([]Endpoint, 0, perPage)
 	truncated := false
 	for page := 0; ; page++ {
-		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
 			return nil, false, err
 		}
@@ -1178,13 +1466,13 @@ func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID string)
 }
 
 // GetTeamPolicyCompliance retrieves policy compliance scoped to a single fleet
-// (team). Wraps GET /api/v1/fleet/teams/:team_id/policies/:policy_id and
+// (team). Wraps GET /api/v1/fleet/fleets/:team_id/policies/:policy_id and
 // returns the same PolicyCompliance shape as the global variant so callers
 // can treat both uniformly. Use this — not GetPolicyCompliance — when the
 // caller knows the policy belongs to a specific fleet, or when global counts
 // would be misleading because the policy is fleet-scoped.
 func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/teams/%s/policies/%s", url.PathEscape(teamID), url.PathEscape(policyID))
+	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%s/policies/%s", url.PathEscape(teamID), url.PathEscape(policyID))
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get team policy compliance: %w", err)
@@ -1321,7 +1609,6 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	}
 	titleIDs := make([]uint, 0)
 	for page := 0; ; page++ {
-		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
 			return nil, false, err
 		}
@@ -1526,7 +1813,7 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create saved query: status code %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("failed to create saved query: %s", fleetErrMsg(resp.StatusCode, bodyBytes))
 	}
 
 	var result struct {
@@ -1539,10 +1826,6 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 	return &result.Query, nil
 }
 
-// RunLiveQuery executes a live query against the specified targets using Fleet's modern REST API.
-// Uses targeted API calls per dimension to avoid fetching all hosts.
-// For single hosts: uses per-host ad hoc endpoint (POST /api/v1/fleet/hosts/:id/query).
-// For multiple hosts: creates a temp saved query → runs by ID → deletes it.
 // LiveQueryTargetSpec captures every dimension that scopes a live query.
 //
 // Filter dimensions (Fleet / Platform / Label / Status / Query / PolicyID /
@@ -1730,78 +2013,6 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 	return out
 }
 
-func (fc *FleetClient) RunLiveQuery(ctx context.Context, sql string, hostnames, labels, platforms, teams []string) (*LiveQueryResult, error) {
-	// Legacy entry point — preserved so existing callers keep working.
-	// New code should use RunLiveQueryWithSpec for full filter dimensions.
-	spec := LiveQueryTargetSpec{
-		Hostnames:       hostnames,
-		LegacyLabels:    labels,
-		LegacyPlatforms: platforms,
-		LegacyFleets:    teams,
-	}
-	return fc.RunLiveQueryWithSpec(ctx, sql, spec)
-}
-
-// RunLiveQueryWithSpec resolves the spec to an exact target host list using
-// the same intersection semantics as ResolveLiveQueryTargets, then dispatches
-// to single-host or multi-host osquery distribution.
-//
-// When spec.Fleet (or the legacy spec.LegacyFleets[0]) is set, the team is
-// resolved here and the team_id is threaded through runMultiHostQuery so the
-// transient saved query is created under that team instead of Global. The
-// host targeting itself is already team-scoped via ResolveLiveQueryTargets;
-// this additionally aligns the saved-query ownership / RBAC with the team.
-func (fc *FleetClient) RunLiveQueryWithSpec(ctx context.Context, sql string, spec LiveQueryTargetSpec) (*LiveQueryResult, error) {
-	targets, err := fc.ResolveLiveQueryTargets(ctx, spec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve target hosts: %w", err)
-	}
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("no matching hosts found for the provided targets")
-	}
-
-	teamID, err := fc.resolveLiveQueryTeamID(ctx, spec)
-	if err != nil {
-		return nil, err
-	}
-
-	hostIDs := make([]uint, 0, len(targets))
-	nameByID := make(map[uint]Endpoint, len(targets))
-	for _, t := range targets {
-		hostIDs = append(hostIDs, t.ID)
-		nameByID[t.ID] = t
-	}
-
-	if len(hostIDs) == 1 {
-		// Ad-hoc single-host path uses POST /hosts/:id/query directly — no
-		// saved query is created so team scoping does not apply.
-		return fc.runAdHocSingleHost(ctx, hostIDs[0], sql, nameByID)
-	}
-	return fc.runMultiHostQuery(ctx, hostIDs, sql, nameByID, teamID)
-}
-
-// resolveLiveQueryTeamID translates spec.Fleet (with LegacyFleets fallback)
-// into a *uint team_id suitable for CreateSavedQuery / CreateQueryRequest.
-// Returns (nil, nil) when no team is requested — that's the Global scope.
-func (fc *FleetClient) resolveLiveQueryTeamID(ctx context.Context, spec LiveQueryTargetSpec) (*uint, error) {
-	teamName := strings.TrimSpace(spec.Fleet)
-	if teamName == "" && len(spec.LegacyFleets) > 0 {
-		teamName = strings.TrimSpace(spec.LegacyFleets[0])
-	}
-	if teamName == "" {
-		return nil, nil
-	}
-	ids, err := fc.resolveTeamNames(ctx, []string{teamName})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve fleet %q for query scoping: %w", teamName, err)
-	}
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("fleet %q resolved to no team IDs", teamName)
-	}
-	id := ids[0]
-	return &id, nil
-}
-
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
@@ -1813,7 +2024,7 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ad hoc query failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("ad hoc query failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var adHoc AdHocQueryResponse
@@ -1850,103 +2061,6 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 	}, nil
 }
 
-// runMultiHostQuery creates a temporary saved query, runs it by ID, then deletes it.
-// Uses POST /api/v1/fleet/queries/:id/run (Fleet 4.43+ synchronous REST).
-//
-// The temp query name pairs a millisecond timestamp with 8 random bytes — the
-// timestamp keeps lexical order useful for log scans, the random suffix makes
-// concurrent invocations from the same MCP process collision-proof. If the
-// DELETE in the deferred cleanup fails (network blip, Fleet 5xx, MCP killed),
-// the leftover is logged at error level so an operator can run the startup
-// sweeper or clean it up by hand. SweepLeftoverTempQueries() also removes any
-// such residue at next MCP boot.
-func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sql string, endpointByID map[uint]Endpoint, teamID *uint) (*LiveQueryResult, error) {
-	tempName := fmt.Sprintf("%s%d-%s", tempQueryNamePrefix, time.Now().UnixMilli(), randomHexSuffix(8))
-	// teamID propagates from the caller's spec.Fleet — when set, the temp
-	// saved query lives under that team (Fleet) instead of Global, so RBAC,
-	// listings, and audit trail all reflect the intended scope.
-	savedQuery, err := fc.CreateSavedQuery(ctx, tempName, "Temporary MCP live query", sql, "", teamID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary query: %w", err)
-	}
-	defer func() {
-		// Detach from the request ctx — if the caller cancelled (MCP client
-		// hung up, request timeout), we still want to clean up the temp
-		// query rather than wait for the next startup sweep. Bound the
-		// detached call with a short timeout so a wedged Fleet doesn't pin
-		// the goroutine forever.
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", savedQuery.ID)
-		r, delErr := fc.makeFleetRequest(cleanupCtx, "DELETE", delEndpoint, nil)
-		if r != nil {
-			r.Body.Close()
-		}
-		if delErr != nil {
-			logrus.Errorf("failed to delete temp query %s (id=%d): %v — will be swept on next startup", tempName, savedQuery.ID, delErr)
-		} else if r != nil && r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
-			logrus.Errorf("temp query DELETE returned status %d for %s (id=%d) — will be swept on next startup", r.StatusCode, tempName, savedQuery.ID)
-		}
-	}()
-
-	logrus.Infof("Created temp query ID=%d, running against %d hosts", savedQuery.ID, len(hostIDs))
-
-	runEndpoint := fmt.Sprintf("/api/v1/fleet/reports/%d/run", savedQuery.ID)
-	resp, err := fc.makeFleetRequest(ctx, "POST", runEndpoint, MultiQueryRunRequest{HostIDs: hostIDs})
-	if err != nil {
-		return nil, fmt.Errorf("failed to run live query: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("live query run failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var runResp MultiQueryRunResponse
-	if err := json.NewDecoder(resp.Body).Decode(&runResp); err != nil {
-		return nil, fmt.Errorf("failed to decode live query run response: %w", err)
-	}
-
-	var enriched []map[string]interface{}
-	for _, r := range runResp.Results {
-		row := map[string]interface{}{
-			"host_id": r.HostID,
-			"rows":    r.Rows,
-		}
-		if ep, ok := endpointByID[r.HostID]; ok {
-			name := ep.DisplayName
-			if name == "" {
-				name = ep.Name
-			}
-			row["host_name"] = name
-		}
-		if r.Error != nil {
-			row["error"] = *r.Error
-		}
-		enriched = append(enriched, row)
-	}
-
-	return &LiveQueryResult{
-		TargetedHostCount:  runResp.TargetedHostCount,
-		RespondedHostCount: runResp.RespondedHostCount,
-		Results:            enriched,
-	}, nil
-}
-
-// isTempQueryName reports whether name marks a transient saved query
-// created by runMultiHostQuery. Tolerates the "[<team>] " prefix that
-// GetQueries prepends to team-scoped queries so team-scoped temp queries
-// are detected alongside global ones.
-func isTempQueryName(name string) bool {
-	if strings.HasPrefix(name, "[") {
-		if idx := strings.Index(name, "] "); idx > 0 {
-			name = name[idx+2:]
-		}
-	}
-	return strings.HasPrefix(name, tempQueryNamePrefix)
-}
-
 // endpointMatchesHostname reports whether ep's hostname-like fields (Name,
 // ComputerName, DisplayName) equal name case-insensitively. Used to verify
 // a singleton substring hit from Fleet's /hosts?query= actually matched on
@@ -1955,38 +2069,6 @@ func endpointMatchesHostname(ep Endpoint, name string) bool {
 	return strings.EqualFold(ep.Name, name) ||
 		strings.EqualFold(ep.ComputerName, name) ||
 		strings.EqualFold(ep.DisplayName, name)
-}
-
-// SweepLeftoverTempQueries deletes any saved queries whose name begins with
-// tempQueryNamePrefix. Called once at MCP startup to clean up residue from
-// previous runMultiHostQuery invocations whose deferred DELETE failed (process
-// killed mid-run, Fleet 5xx, network partition). Best-effort: errors are
-// logged but do not block startup.
-func (fc *FleetClient) SweepLeftoverTempQueries(ctx context.Context) {
-	queries, err := fc.GetQueries(ctx)
-	if err != nil {
-		logrus.Warnf("temp-query sweep: failed to list queries: %v", err)
-		return
-	}
-	swept := 0
-	for _, q := range queries {
-		if !isTempQueryName(q.Name) {
-			continue
-		}
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", q.ID)
-		r, err := fc.makeFleetRequest(ctx, "DELETE", delEndpoint, nil)
-		if r != nil {
-			r.Body.Close()
-		}
-		if err != nil {
-			logrus.Warnf("temp-query sweep: failed to delete %s (id=%d): %v", q.Name, q.ID, err)
-			continue
-		}
-		swept++
-	}
-	if swept > 0 {
-		logrus.Infof("temp-query sweep: deleted %d leftover %s* queries", swept, tempQueryNamePrefix)
-	}
 }
 
 // makeFleetRequest builds and executes a Fleet API request bound to ctx.
