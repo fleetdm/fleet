@@ -1,13 +1,6 @@
 .filter-pill {
   &__label {
     overflow: hidden;
-
-    .tag__label {
-      display: inline-flex;
-      align-items: center;
-      gap: $small;
-      overflow: hidden;
-    }
   }
 
   &__tooltip-text {

@@ -59,6 +59,13 @@
     }
   }
 
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+    overflow: hidden;
+  }
+
   &__dismiss {
     display: flex;
     align-items: center;
