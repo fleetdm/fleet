@@ -30,8 +30,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	"Type": "com.apple.configuration.decl%d",
 	"Identifier": "com.fleet.config%d",
 	"Payload": {
-		"ServiceType": "com.apple.bash",
-		"DataAssetReference": "com.fleet.asset.bash" %s
+		"ServiceType": "com.apple.bash" %s
 	}
 }`
 
@@ -73,7 +72,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+	require.Contains(t, errMsg, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 
 	// Two different payloads with the same name should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
