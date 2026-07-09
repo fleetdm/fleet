@@ -1,18 +1,18 @@
 # Zero trust endpoint security: beyond the corporate perimeter
 
-*Your people work from everywhere, so the network can no longer be the thing you trust. Zero trust moves the trust decision onto the device itself — here's what that takes, and where the endpoint layer quietly makes or breaks it.*
+*Your people work from everywhere, so the network can no longer be the thing you trust. Zero trust moves the trust decision onto the device itself. Here's what that takes, and where the endpoint layer quietly makes or breaks it.*
 
 ## Key takeaways
 
 - **The network stopped being a security boundary.** A laptop on café Wi-Fi faces the same threats as one at headquarters, and an attacker who compromises it inherits whatever access that network location used to grant. Zero trust replaces location-based trust with a check that travels with the device.
 
-- **"Never trust, always verify" is three principles, not a product.** Verify every request explicitly, grant the least access needed, and assume a breach has already happened — enforced at a policy decision point that sits between the user and the resource.
+- **"Never trust, always verify" is three principles, not a product.** Verify every request explicitly, grant the least access needed, and assume a breach has already happened, enforced at a policy decision point that sits between the user and the resource.
 
 - **Continuous verification produces audit evidence as a byproduct, not a certification.** The logs zero trust generates map to FedRAMP, SOC 2, HIPAA, and ISO 27001 controls and shrink the audit scramble, but they don't replace the documentation, assessments, and programs each framework still requires.
 
 - **Device posture is the signal every other layer leans on.** Identity checks, microsegmentation, and access brokers all decide based on whether the device is healthy, so a posture signal that doesn't reflect the device's real state quietly undermines the whole architecture.
 
-- **MDM and UEM are the device-side half of enforcement.** They feed live posture into the access decision and keep each device in the configured state that makes that posture trustworthy — the counterpart to the enforcement point that allows or denies the connection.
+- **MDM and UEM are the device-side half of enforcement.** They feed live posture into the access decision and keep each device in the configured state that makes that posture trustworthy, the counterpart to the enforcement point that allows or denies the connection.
 
 - **Fleet provides the posture layer across macOS, Windows, and Linux, and lets you audit the tool doing the auditing.** It evaluates devices continuously, feeds the result into Okta and Microsoft Entra ID conditional access, and, because it's open source, lets your team verify exactly how that device data is collected.
 

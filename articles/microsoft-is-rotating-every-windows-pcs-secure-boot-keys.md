@@ -8,12 +8,12 @@
 - **Microsoft's rollout is gradual and silent.** Updates arrive per hardware "bucket" based on telemetry confidence, so plenty of devices sit in limbo with no error, no progress, and no obvious signal that anything is waiting.
 - **Three failure modes stall the rollout for good.** Secure Boot turned off, an OEM that never shipped the required key update, and known blocking firmware issues each leave a device stuck in a state the automatic process can't resolve on its own.
 - **One query tells you where every device stands.** The extension returns a derived state and a needs-action flag per host, so you can triage a whole fleet with a single grouped query instead of reading registry keys and event logs by hand.
-- **You have three ways to push it through.** Microsoft Intune's Secure Boot certificate settings, a registry value, or a configuration profile (CSP) — the profile is the cleanest option for a managed fleet.
+- **You have three ways to push it through.** Microsoft Intune's Secure Boot certificate settings, a registry value, or a configuration profile (CSP). The profile is the cleanest option for a managed fleet.
 - **Looking now beats scrambling in June.** Deploy the extension today and you can count blocked devices, group them by bucket, and validate a fix on one machine before rolling it out to the rest.
 
 <a purpose="cta-button" href="/articles/deploying-custom-osquery-extensions-in-fleet">Deploy the extension</a>
 
-If you manage Windows devices, this one is going to sneak up on you. Per Microsoft's guidance, an affected device keeps starting normally, Windows keeps installing most updates, and everyday app use, networking, and browsing stay unchanged — so there's no alarm to trip.
+If you manage Windows devices, this one is going to sneak up on you. Per Microsoft's guidance, an affected device keeps starting normally, Windows keeps installing most updates, and everyday app use, networking, and browsing stay unchanged, so there's no alarm to trip.
 
 What you quietly lose is the ability to receive new signed updates, new boot manager versions, new dbx revocations of vulnerable boot components, and new Defender anti-bootkit lists. That's a security gap that widens in the background. Here's what's actually expiring.
 
@@ -21,17 +21,17 @@ What you quietly lose is the ability to receive new signed updates, new boot man
 
 Secure Boot's trust chain on a Windows PC is anchored by three certificates Microsoft issued around 2011:
 
-- **Microsoft Corporation KEK CA 2011** — the Key Exchange Key that signs updates to the firmware's allowed (`db`) and revoked (`dbx`) signature databases. Expires June 24, 2026.
-- **Microsoft Corporation UEFI CA 2011** — signs third-party UEFI components, including Linux shim binaries. Expires June 27, 2026.
-- **Windows Production PCA 2011** — signs the Windows boot manager itself. Expires October 19, 2026.
+- **Microsoft Corporation KEK CA 2011**: the Key Exchange Key that signs updates to the firmware's allowed (`db`) and revoked (`dbx`) signature databases. Expires June 24, 2026.
+- **Microsoft Corporation UEFI CA 2011**: signs third-party UEFI components, including Linux shim binaries. Expires June 27, 2026.
+- **Windows Production PCA 2011**: signs the Windows boot manager itself. Expires October 19, 2026.
 
 The replacement is a new "2023" certificate family: KEK CA 2023, Windows UEFI CA 2023, and Microsoft UEFI CA 2023. Microsoft has been delivering these via Windows Update since the January 13, 2026, cumulative update.
 
 ## How the rollout works
 
-The finer details of the mechanism aren't essential here (if you want to go deeper, message me on LinkedIn). The catch is that Microsoft hasn't turned the rollout on for every device at once. Each device reports a `BucketId` — a hash of its firmware and hardware identity — to Windows Update telemetry. Once enough devices in a given bucket have updated cleanly, all devices matching it get promoted to "high confidence" and receive the update automatically. Until then, the device sits at `Confidence: Under Observation - More Data Needed` indefinitely.
+The finer details of the mechanism aren't essential here (if you want to go deeper, message me on LinkedIn). The catch is that Microsoft hasn't turned the rollout on for every device at once. Each device reports a `BucketId`, a hash of its firmware and hardware identity, to Windows Update telemetry. Once enough devices in a given bucket have updated cleanly, all devices matching it get promoted to "high confidence" and receive the update automatically. Until then, the device sits at `Confidence: Under Observation - More Data Needed` indefinitely.
 
-For mainstream hardware this works well, and those buckets get promoted quickly. For everything else it's less predictable — it was a cheap GMKtec I had lying around that led me further down this wormhole.
+For mainstream hardware this works well, and those buckets get promoted quickly. For everything else it's less predictable. It was a cheap GMKtec I had lying around that led me further down this wormhole.
 
 There are also three failure modes that admins need to see at a glance:
 
@@ -59,7 +59,7 @@ action             -- none, wait, reboot, enable_secure_boot,
 days_until_cert_expiry
 ```
 
-Underneath that, the table preserves the raw registry and event-log signals — `uefica2023_status`, `available_updates`, `bucket_id`, `confidence`, `known_issue_id`, and more — so you can drill into forensics when the derived state isn't enough.
+Underneath that, the table preserves the raw registry and event-log signals (`uefica2023_status`, `available_updates`, `bucket_id`, `confidence`, `known_issue_id`, and more) so you can drill into forensics when the derived state isn't enough.
 
 ### Some queries worth running
 

@@ -1,10 +1,10 @@
 # SHADOW-EARTH-053: threat brief, kill chain, and validated Fleet queries
 
-*A five-year-old Exchange patch gap is still handing a China-aligned operator long-term access to government and defence networks. Here's the kill chain end to end — and a vetted, Fleet-deployable query pack that hunts the behaviour after the atomic indicators burn.*
+*A five-year-old Exchange patch gap is still handing a China-aligned operator long-term access to government and defence networks. Here's the kill chain end to end, and a vetted, Fleet-deployable query pack that hunts the behaviour after the atomic indicators burn.*
 
 ## Key takeaways
 
-- **The way in is a patch exception, not a zero-day.** SHADOW-EARTH-053 lives on the long tail of unpatched Microsoft Exchange and IIS servers, reached through the five-year-old ProxyLogon chain — so your documented patch exceptions are the campaign's primary attack surface.
+- **The way in is a patch exception, not a zero-day.** SHADOW-EARTH-053 lives on the long tail of unpatched Microsoft Exchange and IIS servers, reached through the five-year-old ProxyLogon chain, so your documented patch exceptions are the campaign's primary attack surface.
 - **Persistence is layered to survive cleanup.** Web shells, a registry-stored ShadowPad payload, and a five-minute Scheduled Task each re-establish the others, so pulling any one anchor leaves the intrusion intact.
 - **Atomic indicators expire; behaviour doesn't.** The published IPs and C2 domain rotate within weeks of disclosure, so durable coverage comes from process trees, registry placement, and scheduled-task naming that outlive infrastructure churn.
 - **The whole kill chain collapses into three detection lenses.** Web shell and Exchange/IIS abuse, ShadowPad persistence and tunnels, and credential theft and mailbox export cover the campaign without chasing every indicator.
@@ -15,7 +15,7 @@
 
 On 30 April 2026, Trend Micro disclosed **SHADOW-EARTH-053**, a China-aligned cyberespionage cluster that has been compromising internet-facing Microsoft Exchange and IIS servers since at least December 2024. The route in is not a novel exploit but the five-year-old ProxyLogon chain (CVE-2021-26855/26857/26858/27065): the operator drops GODZILLA web shells, sideloads a ShadowPad implant through legitimate signed executables, and stores the encrypted payload in a per-host registry key that a Scheduled Task re-runs every five minutes. Observed targeting spans government, defence, critical-infrastructure, and IT-consulting sectors across eight countries in Asia plus one NATO member state (Poland).
 
-The infrastructure will rotate, but the tradecraft leaves durable artefacts — registry-stored shellcode, a fixed Scheduled Task name, layered tunnelling tools, and `ExchangeExport` mailbox theft over the EWS API — that survive it. This brief maps the campaign end to end: a cluster profile, per-kill-chain-stage Diamond Models, a consolidated indicator table, a priority-ordered response playbook, and three behavioural detection lenses backed by validated Fleet queries. It starts with who the operator is and how the cluster is tracked.
+The infrastructure will rotate, but the tradecraft leaves durable artefacts (registry-stored shellcode, a fixed Scheduled Task name, layered tunnelling tools, and `ExchangeExport` mailbox theft over the EWS API) that survive it. This brief maps the campaign end to end: a cluster profile, per-kill-chain-stage Diamond Models, a consolidated indicator table, a priority-ordered response playbook, and three behavioural detection lenses backed by validated Fleet queries. It starts with who the operator is and how the cluster is tracked.
 
 ## Cluster profile
 

@@ -1,15 +1,15 @@
 # What is device attestation, and why does it matter for Apple enrollment?
 
-*Automated Device Enrollment gets a Mac onto your MDM, but it doesn't prove the device is what it claims to be. Hardware attestation closes that gap — verifying what Apple can cryptographically prove, not just what the device reports.*
+*Automated Device Enrollment gets a Mac onto your MDM, but it doesn't prove the device is what it claims to be. Hardware attestation closes that gap, verifying what Apple can cryptographically prove, not just what the device reports.*
 
 ## Key takeaways
 
 - **Enrollment isn't identity.** ADE gets a device onto your MDM, but the serial numbers and UDIDs it reports are just claims that software can misrepresent. Attestation replaces that trust with cryptographic proof.
 - **The proof is rooted in silicon.** Apple Silicon Macs generate keys inside the Secure Enclave that can never be exported, and Apple's Enterprise Attestation CA vouches for the hardware behind them.
-- **ACME replaces SCEP for qualifying devices.** Apple's ACME protocol binds the enrollment certificate to a hardware key — something the older SCEP flow can't do — which is what makes hardware-attested enrollment possible.
+- **ACME replaces SCEP for qualifying devices.** Apple's ACME protocol binds the enrollment certificate to a hardware key, something the older SCEP flow can't do, which is what makes hardware-attested enrollment possible.
 - **Attestation proves the device, not its posture.** It confirms genuine Apple hardware and accurate identifiers, but says nothing about the device's security posture, the user, or the software running on it.
 - **Fleet makes it an explicit gate.** In Fleet 4.84.0, Fleet Premium admins can require hardware attestation for ADE enrollment on Apple Silicon Macs; devices that fail the challenge don't enroll, and the setting is manageable through GitOps.
-- **It's the foundation for zero trust.** A hardware-rooted identity gives identity providers and network access controls something trustworthy to act on — with no disruptive re-enrollment for devices already managed.
+- **It's the foundation for zero trust.** A hardware-rooted identity gives identity providers and network access controls something trustworthy to act on, with no disruptive re-enrollment for devices already managed.
 
 <a purpose="cta-button" href="/device-management">See Fleet's device management</a>
 
@@ -20,7 +20,7 @@
 
 If you've set up Automated Device Enrollment (ADE) for your organization, you've already solved the "how do devices get enrolled" problem. But there's a separate question worth asking: how do you know the device that enrolled is actually the device it claims to be?
 
-That's where device attestation comes in. Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs via ADE. Here's what attestation means, how it works, and why it's worth enabling — starting with the gap it closes.
+That's where device attestation comes in. Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs via ADE. Here's what attestation means, how it works, and why it's worth enabling, starting with the gap it closes.
 
 ## The problem attestation solves
 
@@ -141,7 +141,7 @@ genuine Apple devices access certain resources. Attestation provides evidence an
 For Mac admins, attestation is most meaningful when paired with something that acts on it. That 
 could be an identity provider that gates access based on device posture. It could also be a 
 network access control system that requires proof of enrollment. Fleet now gives you the verified 
-device identity to feed those systems — and because qualifying devices upgrade to ACME on their 
+device identity to feed those systems, and because qualifying devices upgrade to ACME on their 
 next renewal cycle, you get that foundation without a disruptive re-enrollment.
 
 

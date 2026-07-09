@@ -1,21 +1,21 @@
 # ClickFix copy/paste social engineering: threat brief and Fleet detection pack
 
-*No exploit, no CVE, no patch to wait for — just a fake "verify you're human" prompt that talks the user into pasting an attacker's command into Run or Terminal. Here's the execution chain, and a vetted Fleet detection pack that catches it on Windows and macOS.*
+*No exploit, no CVE, no patch to wait for, just a fake "verify you're human" prompt that talks the user into pasting an attacker's command into Run or Terminal. Here's the execution chain, and a vetted Fleet detection pack that catches it on Windows and macOS.*
 
 ## Key takeaways
 
 - **There's no vulnerability to patch, because the attack recruits the user instead of a bug.** Every step runs on legitimate, signed binaries the user invokes deliberately, so execution-prevention controls and browser-side defences wave it through. Detection has to happen on the endpoint, after the paste.
-- **The lures borrow trust from brands users already recognise.** Counterfeit Cloudflare, Google, QuickBooks, Booking.com, and Apple verification prompts drive the paste into the Windows Run dialog or macOS Terminal — one narrow playbook shared across at least five distinct crimeware clusters.
+- **The lures borrow trust from brands users already recognise.** Counterfeit Cloudflare, Google, QuickBooks, Booking.com, and Apple verification prompts drive the paste into the Windows Run dialog or macOS Terminal, one narrow playbook shared across at least five distinct crimeware clusters.
 - **Hunt the behaviour, not the indicators.** Staging domains and staging paths rotate within days of public reporting; the durable signal is the obfuscated process tree, pipe-to-shell stagers, and plist or Run-key persistence that outlive any single domain.
 - **Three behavioural lenses cover the whole chain on both platforms.** Shell obfuscation, Run-dialog or Terminal parentage, and post-install persistence give you detection coverage on Windows and macOS from a single pack.
-- **The queries actually run against Fleet's schema.** Every query is validated against Fleet's live table reference, with the common copy-paste bugs — `file_events` on Windows, `LIKE` on `file_contents` — corrected inline.
+- **The queries actually run against Fleet's schema.** Every query is validated against Fleet's live table reference, with the common copy-paste bugs (`file_events` on Windows, `LIKE` on `file_contents`) corrected inline.
 - **Prevention comes before detection.** Disabling the Run dialog, enforcing Constrained Language Mode, and restricting Terminal remove the technique's foothold; the detection pack backs up what prevention misses.
 
 <a purpose="cta-button" href="/security-and-control">Explore Fleet security</a>
 
 ClickFix is a social-engineering technique, first observed in 2023 and adopted broadly across crimeware groups by 2026. A malicious page presents a fake verification or support prompt, silently copies an obfuscated shell command to the victim's clipboard, and instructs the victim to paste it into the Windows Run dialog or macOS Terminal. The victim runs the command themselves; no software vulnerability is exploited.
 
-That design is exactly what makes it hard to stop. Recent reporting documents at least five distinct clusters using this method to deliver NetSupport RAT, Lumma, and other infostealers on Windows, and AMOS-family / MacSync stealers plus AppleScript-based keychain theft on macOS. The cluster set is broad; the playbook is narrow. This brief treats ClickFix as a technique rather than a single actor, maps the consistent execution chain, consolidates atomic indicators, and ships a vetted Fleet detection pack for both platforms — starting with how the attack actually lands.
+That design is exactly what makes it hard to stop. Recent reporting documents at least five distinct clusters using this method to deliver NetSupport RAT, Lumma, and other infostealers on Windows, and AMOS-family / MacSync stealers plus AppleScript-based keychain theft on macOS. The cluster set is broad; the playbook is narrow. This brief treats ClickFix as a technique rather than a single actor, maps the consistent execution chain, consolidates atomic indicators, and ships a vetted Fleet detection pack for both platforms, starting with how the attack actually lands.
 
 ## At a glance
 

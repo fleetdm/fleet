@@ -1,11 +1,11 @@
 # Endpoint risk and threat hunting, in plain English: a Fleet MCP manifesto
 
-*Your fastest path from an 11pm security question to an answer you can act on isn't a better dashboard — it's asking in plain English and watching the query run.*
+*Your fastest path from an 11pm security question to an answer you can act on isn't a better dashboard. It's asking in plain English and watching the query run.*
 
 ## Key takeaways
 
 - **The bottleneck was never your data.** Fleet's API and queryable agent already hold the answer to most endpoint questions; what costs you time is the hand-built glue between asking and getting a result a person can act on. fleet-mcp removes that glue.
-- **Typed tools give an AI agent an operator's instincts.** Instead of a raw HTTP client, the agent gets purpose-built primitives — scope to a team, validate targets, fetch schema before firing a query — so it carries the situational awareness an experienced engineer would.
+- **Typed tools give an AI agent an operator's instincts.** Instead of a raw HTTP client, the agent gets purpose-built primitives (scope to a team, validate targets, fetch schema before firing a query) so it carries the situational awareness an experienced engineer would.
 - **Hunt threats before a CVE exists.** When a public exploit drops with no CVE assigned and your scanner returns empty, describe the artifacts in plain English and scan every affected host in minutes instead of waiting on a vendor advisory.
 - **Scope a CVE's blast radius without the spreadsheet.** Ask how many systems are exposed and which team they belong to; the agent chains the lookups, scopes to the team, and calls out the hosts that were offline when it scanned.
 - **The boundaries are the point.** The server shows every line of SQL, runs read-only, keeps a human in the loop for anything that changes state, and refuses to fake what its underlying API can't honestly do.
@@ -15,7 +15,7 @@
 
 ![Before and after: REST API and jq on the left, plain-English chat on the right. The same Fleet, the same data, a different surface.](../website/assets/images/articles/natural-language-endpoint-security-fleet-mcp-before-after-800x360@2x.png)
 
-Ask a question about your endpoints in plain English and get back a real query that runs across every host you own — with the SQL shown, the assumptions visible, and a decision you can actually make. That's the whole idea behind fleet-mcp, a Model Context Protocol server that puts Fleet's API behind natural language. The interface changes from *plumbing* to *language*, and the time-to-answer collapses by an order of magnitude.
+Ask a question about your endpoints in plain English and get back a real query that runs across every host you own, with the SQL shown, the assumptions visible, and a decision you can actually make. That's the whole idea behind fleet-mcp, a Model Context Protocol server that puts Fleet's API behind natural language. The interface changes from *plumbing* to *language*, and the time-to-answer collapses by an order of magnitude.
 
 Nothing underneath moves. Fleet's agent, your RBAC, and your policies stay exactly where they are; what disappears is the 15 minutes of curl-jq-pagination glue between the question and the answer. So why build another layer in front of an API that already works?
 
