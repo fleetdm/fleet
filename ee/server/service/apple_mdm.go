@@ -221,6 +221,9 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 	}
 
 	if err := svc.ds.DeleteAppleDDMAsset(ctx, assetUUID); err != nil {
+		if fleet.IsForeignKey(err) {
+			return &fleet.BadRequestError{Message: "Couldn't delete. A configuration profile is linked to this asset. Please delete the profile and try again."}
+		}
 		return ctxerr.Wrap(ctx, err, "deleting Apple DDM asset")
 	}
 

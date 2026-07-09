@@ -7881,16 +7881,12 @@ func (ds *Datastore) CreateAppleDDMAsset(ctx context.Context, name, identifier s
 		if IsDuplicate(err) {
 			switch {
 			case strings.Contains(err.Error(), "asset_team_name"):
-				{
 					return "", alreadyExists("asset_name", name).WithTeamID(*teamID)
-				}
 			case strings.Contains(err.Error(), "asset_team_identifier"):
-				{
 					return "", alreadyExists("asset_identifier", identifier).WithTeamID(*teamID)
 				}
 			}
 			return "", ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
-		}
 	}
 
 	return assetUUID, nil
@@ -7907,7 +7903,6 @@ func (ds *Datastore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) 
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return foreignKey("asset", assetUUID)
-			// SERVICE ERROR: &fleet.BadRequestError{Message: "Couldn't delete. A configuration profile is linked to this asset. Please delete the profile and try again."}
 		}
 		return ctxerr.Wrap(ctx, err, "deleting apple ddm asset")
 	}

@@ -775,7 +775,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This section handles MDM "assets", specifically for Apple DDM.
 	mdmAppleMW.GET("/api/_version_/fleet/assets", listAppleDDMAssetsEndpoint, listAppleDDMAssetsRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/assets/{asset_uuid}", getAppleDDMAssetEndpoint, getAppleDDMAssetRequest{})
-	mdmAppleMW.POST("/api/_version_/fleet/assets", createAppleDDMAssetEndpoint, createAppleDDMAssetRequest{})
+	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxMDMAssetSize).POST("/api/_version_/fleet/assets", createAppleDDMAssetEndpoint, createAppleDDMAssetRequest{})
 	mdmAppleMW.DELETE("/api/_version_/fleet/assets/{asset_uuid}", deleteAppleDDMAssetEndpoint, deleteAppleDDMAssetRequest{})
 
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())

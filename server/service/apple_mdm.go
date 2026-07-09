@@ -3788,9 +3788,9 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 		// default is no team
 		decoded.TeamID = new(uint(0))
 	} else {
-		fleetID, err := strconv.Atoi(val[0])
+		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
 		decoded.TeamID = new(uint(fleetID))
 	}
@@ -3821,11 +3821,11 @@ func createAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Ser
 	if err != nil {
 		return createAppleDDMAssetResponse{Err: err}, nil
 	}
+	defer f.Close()
 	assetData, err := io.ReadAll(f)
 	if err != nil {
 		return createAppleDDMAssetResponse{Err: err}, nil
 	}
-	f.Close()
 	assetName := strings.TrimSuffix(req.Asset.Filename, ".json")
 	assetUUID, err := svc.CreateAppleDDMAsset(ctx, req.TeamID, assetName, assetData)
 	if err != nil {
