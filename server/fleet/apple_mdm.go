@@ -1525,3 +1525,51 @@ type ADUEEnrollmentChallenge struct {
 	ExpiresAt      time.Time  `db:"expires_at"`
 	UsedAt         *time.Time `db:"used_at"`
 }
+
+// DDMAsset is the JSON representation of an asset, only excluding the raw json.
+type DDMAsset struct {
+	AssetUUID  string     `db:"asset_uuid" json:"asset_uuid"`
+	Name       string     `db:"name" json:"name"`
+	Identifier string     `db:"identifier" json:"identifier"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt *time.Time `db:"uploaded_at" json:"uploaded_at"`
+	Checksum   []byte     `db:"token" json:"checksum"`
+	TeamID     *uint      `db:"team_id" json:"-"` // Retrieve team ID for logic, but do not return it in JSON.
+}
+
+// DownloadableDDMAsset is a service struct that contains the DDMAsset for logic checks, and the raw JSON for serving back to the caller.
+type DownloadableDDMAsset struct {
+	DDMAsset
+	Data []byte `db:"raw_json" json:"-"`
+}
+
+type RawDDMAsset struct {
+	Type       string             `json:"Type"`
+	Identifier string             `json:"Identifier"`
+	Payload    RawDDMAssetPayload `json:"Payload"`
+}
+
+type RawDDMAssetPayload struct {
+	Reference      RawDDMAssetPayloadReference `json:"Reference"`
+	Authentication json.RawMessage             `json:"Authentication"` // We don't care about the inner, we use it for checking existence
+}
+
+// Struct describing the AssetData reference payload structure
+// https://developer.apple.com/documentation/devicemanagement/assetdatareferenceobject (asset data is used as an example here)
+type RawDDMAssetPayloadReference struct {
+	ContentType string `json:"ContentType,omitempty"`
+	DataURL     string `json:"DataURL"`
+	HashSHA256  string `json:"Hash-SHA-256,omitempty"`
+	Size        int64  `json:"Size,omitempty"`
+}
+
+// DDMAssetAuthz is used to check user authorization to read/write an
+// DDM asset.
+type DDMAssetAuthz struct {
+	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (d DDMAssetAuthz) AuthzType() string {
+	return "ddm_asset"
+}
