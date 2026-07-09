@@ -108,6 +108,10 @@ A patch policy's `query` automatically updates. Hosts will fail this policy if t
 
 To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
 
+By default (`only_when_closed: true`), Fleet adds a read-only pre-install condition that skips the automated install while the app is open on the host, and retries the next time the policy runs — this skip doesn't count against the software install retry limit. `fleetctl gitops` rejects a `pre_install_query` set on the referenced `fleet_maintained_apps` entry while `only_when_closed` is `true`, since Fleet manages that query. Set `only_when_closed` to `false` ("Force patch") to install the update the next time the policy fails, whether or not the app is open.
+
+`only_when_closed: true` requires `continuous_automations_enabled: true` on the same policy — `fleetctl gitops` returns an error otherwise.
+
 #### Automations
 
 ##### Install software
@@ -202,6 +206,7 @@ policies:
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
+  only_when_closed: true # default; update is skipped (and retried later) while Zoom is open
   install_software: true
 ```
 
@@ -692,7 +697,7 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables). If a [patch policy](#patch-policy) for this app has `only_when_closed: true`, Fleet manages this query itself and `fleetctl gitops` rejects a `pre_install_query.path` set here.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
