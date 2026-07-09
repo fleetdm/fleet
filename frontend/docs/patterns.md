@@ -318,84 +318,138 @@ export default PackComposerPage;
 When building a React-controlled form:
 - Use the native HTML `form` element to wrap the form.
 - Use a `Button` component with `type="submit"` for its submit button.
-- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
-React.FormEvent<HTMLFormElement>` argument and, critically:
-  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
-handler's logic.
-  - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
-- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
-- Disable the form's submit button when the form is in an invalid state. Redundancy with the submit handler returning `null` is good.
+- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and, critically:
+  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom handler's logic.
+  - runs `validate` against the full form, sets errors on every invalid field, and returns without submitting when any errors are present.
+- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`).
+- Disable the submit button only while a submission is in flight. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
 
 ### Data validation
 
+The rules below describe the target behavior. A shared validation hook is planned to encode them; until it lands, forms implement the rules directly and are migrated one at a time. New forms should follow these rules on day one.
+
 #### How to validate
 
-Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
-new and possibly former form data) and whose output is an object of formFieldName:errorMessage
-key-value pairs (`Record<string,string>`) e.g.
+Forms use a pure `validate` function whose input is the current form data and whose output is a `Record<string, string>` of `fieldName → errorMessage` pairs. Only invalid fields appear in the output.
 
 ```tsx
-const validate = (newFormData: IFormData) => {
-  const errors = {};
-  ...
-  return errors;
-}
-```
-
-The output of `validate` should be used by the calling handler to set a `formErrors`
-state.
-
-#### When to validate
-
-Form fields should *set only new errors* on blur and on save, and *set or remove* errors on change. This provides
-an "optimistic" user experience. The user is only told they have an error once they navigate
-away from a field or hit enter, actions which imply they are finished editing the field, while they are informed they have fixed
-an error as soon as possible, that is, as soon as they make the fixing change. e.g.
-
-```tsx
-const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-  const newFormData = { ...formData, [name]: value };
-  setFormData(newFormData);
-  const newErrs = validateFormData(newFormData);
-  // only set errors that are updates of existing errors
-  // new errors are only set onBlur
-  const errsToSet: Record<string, string> = {};
-  Object.keys(formErrors).forEach((k) => {
-    // @ts-ignore
-    if (newErrs[k]) {
-      // @ts-ignore
-      errsToSet[k] = newErrs[k];
-    }
-  });
-  setFormErrors(errsToSet);
-};
-
-```
-
-,
-
-```tsx
-const onInputBlur = () => {
-  setFormErrors(validateFormData(formData));
-};
-```
-
-, and
-
-```tsx
-const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-  evt.preventDefault();
-  // return null if there are errors
-  const errs = validateFormData(formData);
-  if (Object.keys(errs).length > 0) {
-    setFormErrors(errs);
-    return;
+const validate = (formData: IFormData): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  if (!formData.email.trim()) {
+    errors.email = "Enter your email";
+  } else if (!isValidEmail(formData.email)) {
+    errors.email = "Enter a valid email";
   }
-
-  ...
-  // continue with submit logic if no errors
-
+  return errors;
+};
 ```
+
+The output of `validate` is used by the calling handler to update a `formErrors` state that feeds each `InputField`'s `error` prop.
+
+#### When errors appear
+
+- Never show a field's error before the user has interacted with that field. A field becomes interacted-with when the user types into it or blurs it while it holds a value.
+- On blur of a field the user has interacted with, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
+- On submit, show inline errors on every invalid field simultaneously, then return without submitting.
+- Autofill counts as user interaction — treat autofilled fields as touched.
+- On an Edit form, pre-filled values that are invalid do not show errors until the user interacts with the field.
+
+#### When errors clear
+
+- On focus (click-in) of a field that has an error, clear that field's error immediately. Do not wait for the user to type a valid value.
+- Re-validate on blur, not on keystroke.
+- Typing in one field never clears errors on other fields. Clearing is per-field.
+- When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
+
+#### Error priority
+
+- Presence errors take priority over format errors. If a field is both empty and format-invalid, show the presence error.
+- Show one error per field at a time. Never stack multiple errors on the same field.
+- Server-set errors follow the same "one at a time" rule.
+
+#### Submit button state
+
+- The submit button is enabled by default. Empty required fields, currently-invalid values, unchanged Edit forms, and prior server errors do not disable it.
+- The only reason to disable the submit button is an in-flight submission — see [In-flight and submission lifecycle](#in-flight-and-submission-lifecycle).
+- If the user clicks submit with invalid data, the submit handler shows all inline errors and returns without submitting. The button itself stays enabled so the click can surface the errors.
+- Do not gate on `isDirty` or "form has changes." A no-op re-save is allowed.
+
+#### Server-side errors
+
+- Field-specific server errors (e.g. "email already taken") render inline on the field via the same `error` prop as client-side errors, AND fire a toast with the error message. Submit stays enabled. The toast is intentional even when the inline error is visible — forms can be long enough that the errored field is scrolled off-screen after submission.
+- Cross-field or global server errors (e.g. `formatErrorResponse` `.base`) surface as a toast only. No inline surface.
+- When the user focuses a field that has a server-set error, clear it immediately — same rule as client-side.
+- Multiple field errors returned by the server: iterate the error map and set all inline. Prefer a single summary toast when there are many.
+- Backend field key → UI field key mapping stays local to the form. Do not centralize until the API is normalized.
+
+#### Conditional / dependent validation
+
+- Cross-field checks (e.g. password + confirmation match) run on blur of either field. The error attaches to the field that is invalid, not to both.
+- Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until interacted with" rule. There is no visual indicator that a field is conditionally required.
+- When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
+- Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
+
+#### Optional and disabled fields
+
+- Empty optional fields never show an error.
+- An optional field that has a value with a format constraint (e.g. an optional email field) validates the format. On invalid, show an inline error, but do not disable submit.
+- Disabled fields skip validation entirely. A disabled field is never in an error state, regardless of its value.
+
+#### Input hygiene
+
+- Trim leading and trailing whitespace client-side before submitting. Send the trimmed value to the API.
+- Whitespace-only content in a required field counts as empty.
+- Cap free-text `maxLength` to the backend column length via `inputOptions={{ maxLength: N }}` on `InputField`. The native input silently truncates paste. See [Forms](#forms) in the top-level rules.
+- If the max length is unusual (e.g. a 48-character password), show an inline error on the field instead of relying on silent truncation.
+- Autofill counts as user interaction — treat autofilled fields as touched.
+
+#### In-flight and submission lifecycle
+
+- During submission, the submit button shows a spinner AND is disabled. Do not change the button's color/variant.
+- Form fields are disabled while a submission is in flight — the user cannot edit during the request.
+- The submit handler must guard against a second submission while one is in flight. Do not rely solely on the button being disabled.
+- The Cancel button remains enabled during submission and closes the modal immediately. It does not abort the in-flight request; the request completes in the background.
+- On success, fire the success toast BEFORE navigation (see [Notifications](../../.claude/rules/fleet-frontend.md#notifications) and #48088) and close the modal.
+- On failure, fields become editable again, the submit button re-enables immediately, and server errors surface per [Server-side errors](#server-side-errors).
+- Closing a modal with unsaved changes silently discards them. No confirmation dialog. (Exceptions like the SQL editor stay exceptions.)
+
+#### Visual affordances
+
+- There is no visual indicator for required fields. No asterisk, no `(required)` suffix. Users discover requirements through post-interaction errors.
+- On error, `FormField` renders the error text in the label slot, replacing the label text and applying the `--error` modifier (red).
+- Help text below the input is independent of error state. Do not duplicate error messages into help text.
+- The input border is red while an error is showing and returns to the default (black) when the error clears. There is no green "valid" transition.
+- No inline error icon. Text only.
+
+<!-- Design may iterate on error placement (e.g. moving the error text out of the label slot). Document any change here first. -->
+
+
+#### Error message copy register
+
+Every validation error follows a single grammar pattern:
+
+**Verb + object + constraint (if any).**
+
+- **Verb**: the action that fixes the error. `Enter`, `Choose`, `Select`, `Upload`.
+- **Object**: the thing being fixed. `your email`, `a valid URL`, `a password`.
+- **Constraint**: only when the rule isn't obvious. `with at least 8 characters`, `between 1 and 100`.
+
+Examples:
+- `Enter your email` — empty field
+- `Enter a valid email` — bad format
+- `Enter a password with at least 8 characters` — rule violation
+- `Choose an end date after the start date` — logical conflict
+- `Upload a file smaller than 5 MB` — limit
+
+Rules:
+- Second-person imperative, implied subject. Never `You must...` or `The user should...`.
+- Present tense, active voice. Not `must be completed`, not `was not provided`.
+- Article discipline: `your` for the user's own data (`your email`, `your name`); `a` for a value the user is constructing (`a valid URL`, `a password`).
+- One sentence per error. If it needs a second sentence, the constraint probably belongs in help text below the field, not in the error.
+- **No terminal periods.** The error renders in the label slot, and labels don't end with periods.
+- Use `fleet` not `team` in new copy. The codebase still uses `team_id` etc.; that stays. See [Terminology](../../.claude/rules/fleet-frontend.md#terminology).
+
+For errors the user can't fix by editing the field — server failures, timeouts, network errors — use a different register: **what happened + what to do**. Example: `Couldn't save your changes. Try again in a few minutes.` This is the one place where periods appear (two sentences).
 
 ## Tier modes
 

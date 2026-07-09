@@ -107,6 +107,70 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 ## Forms
 Cap free-text inputs' `maxLength` to the backend column length (check `server/datastore/mysql/schema.sql`, don't guess) via `inputOptions={{ maxLength: NAME_MAX_LENGTH }}` on `InputField`, using a local constant.
 
+## Validation
+
+See `frontend/docs/patterns.md#data-validation` for full rules and rationale. These describe target behavior; existing forms migrate one at a time as they're touched. A shared validation hook is planned to encode them.
+
+### Error timing
+- Never show a field's error before the user has interacted with it (typed into it, or blurred it while dirty).
+- On blur of an interacted-with field, validate that field and show its error inline. Don't modify other fields' errors.
+- On submit, show inline errors on every invalid field simultaneously, then return without submitting.
+- Autofill counts as user interaction — treat autofilled fields as touched.
+- On Edit forms, pre-filled invalid values don't show errors until interaction.
+
+### Error clearing
+- On focus (click-in) of an errored field, clear that field's error immediately — don't wait for a valid value.
+- Re-validate on blur. Never validate on keystroke.
+- Typing in one field never clears errors on other fields.
+- When a validation becomes irrelevant (e.g. conditional requirement removed by toggling a checkbox), clear the now-irrelevant error immediately.
+
+### Error priority
+Presence errors take priority over format errors. Show one error per field at a time; never stack.
+
+### Submit button state
+- Enabled by default — do not disable for empty required fields, currently-invalid values, unchanged Edit forms, or prior server errors.
+- Only disable while a submission is in flight.
+- If the user clicks submit with invalid data, the submit handler shows all inline errors and returns without submitting.
+
+### Server-side errors
+- Field-specific server errors: render inline on the field AND fire a toast. Submit stays enabled.
+- Global / cross-field server errors (e.g. `formatErrorResponse` `.base`): toast only.
+- Clear a server-set error on next focus of that field — same rule as client-side.
+- Backend field key → UI field key mapping stays local to the form until the API is normalized.
+
+### Optional and disabled fields
+- Empty optional fields: no error, submit enabled.
+- Optional fields with a format constraint (e.g. optional email): show inline error on invalid, but never disable submit.
+- Disabled fields skip validation entirely — never in an error state regardless of value.
+
+### In-flight submission
+- Submit button shows a spinner AND is disabled. Do not change the button's color/variant.
+- Disable form fields too, not just the button.
+- Guard the submit handler against double-submit; don't rely on the disabled button alone.
+- Cancel button stays enabled during submission and closes the modal. It does not abort the in-flight request.
+- Fire success toasts BEFORE navigation (see [Notifications](#notifications), #48088).
+- Closing a modal with unsaved changes silently discards them.
+
+### Input hygiene
+- Trim leading/trailing whitespace client-side before submitting; send the trimmed value.
+- Whitespace-only content in a required field counts as empty.
+- Match DB column max via `inputOptions.maxLength` on `InputField` (see [Forms](#forms) above). Native silent truncation is the default. Show an inline error only when the limit is awkward (e.g. a 48-char password).
+
+### Visual affordances
+- No visual indicator for required fields — no asterisk, no `(required)` suffix.
+- On error, `FormField` renders the error text in the field's label slot (replacing the label) with the `--error` modifier — red.
+- Input border is red while an error is showing, black (default) when clear. No green "valid" transition.
+- No inline error icon; text only.
+
+### Copy register
+- Grammar: `Verb + object + constraint`. Second-person imperative. Active voice. Present tense. One sentence per error.
+- Verb picks: `Enter`, `Choose`, `Select`, `Upload`.
+- Article discipline: `your` for the user's own data (`your email`); `a` for a value they're constructing (`a valid URL`, `a password`).
+- **No terminal periods** — the error renders where the label would be, and labels don't end in periods.
+- `Enter your email`, not `Email is required` / `Email field must be completed`.
+- Use "fleet" not "team" in error strings.
+- For non-fixable errors (server failure, timeout, network): use `<what happened>. <what to do>.` — two sentences, periods allowed. Example: `Couldn't save your changes. Try again in a few minutes.`
+
 ## Lists & rows
 User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.
 
