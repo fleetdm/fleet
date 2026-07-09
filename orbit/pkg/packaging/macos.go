@@ -18,8 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// See helful docs in http://bomutils.dyndns.org/tutorial.html
-
 // BuildPkg builds a macOS .pkg.
 //
 // Building packages works out of the box in macOS, but it's also supported on
