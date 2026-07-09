@@ -108,7 +108,7 @@ During [setup experience](https://fleetdm.com/guides/setup-experience), Fleet in
 Fleet identifies packages by their contents, so you can add different builds of the same version. Uploading the exact same file again is rejected.
 
 
-Script-only packages (`.sh` and `.ps1`) can also be added multiple times to the same software item. They have no version, so Fleet tells them apart by file name, added date, labels, and hash.
+Script-only packages (`.sh` and `.ps1`) can also be added multiple times to the same software item. Fleet uses the filename as a unique identifier to group multiple script-only packages into the same software.
 
 ## Install the package
 
