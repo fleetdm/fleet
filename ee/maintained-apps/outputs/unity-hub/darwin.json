@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.19.4') < 0);"
       },
-      "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/UnityHubSetup-arm64.dmg",
+      "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/3.19.4/UnityHubSetup-3.19.4-arm64.dmg",
       "install_script_ref": "c26804cb",
       "uninstall_script_ref": "5b95ff58",
-      "sha256": "no_check",
+      "sha256": "8314a09f37a8ca1ac089c1561df20797c7dc871074a82d7cef69dbed4b42e59d",
       "default_categories": [
         "Productivity"
       ]

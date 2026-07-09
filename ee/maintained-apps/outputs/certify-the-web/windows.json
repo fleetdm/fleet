@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.1.0",
+      "version": "7.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Certify Certificate Manager %' AND publisher = 'Webprofusion Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Certify Certificate Manager %' AND publisher = 'Webprofusion Pty Ltd' AND version_compare(version, '7.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Certify Certificate Manager %' AND publisher = 'Webprofusion Pty Ltd' AND version_compare(version, '7.1.1') < 0);"
       },
-      "installer_url": "https://downloads.certifytheweb.com/release/7.1.0.0/certify-ccm-windows-x64-7.1.0.0.exe",
+      "installer_url": "https://downloads.certifytheweb.com/release/7.1.1.0/certify-ccm-windows-x64-7.1.1.0.exe",
       "install_script_ref": "1e19d090",
       "uninstall_script_ref": "16388671",
-      "sha256": "0b1b90cde6308f3446af04f55398c56a7fc55b82a22aeb64f3543e0cb2013bce",
+      "sha256": "8df363d117b27a87582d318c13d23964ba309397e2c75bc82e14df5a9f8085d0",
       "default_categories": [
         "Developer tools"
       ]
