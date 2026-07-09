@@ -1,32 +1,31 @@
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
-$softwareName = $PACKAGE_ID
+# CPU-Z registers a versioned DisplayName in the registry
+# (e.g. "CPUID CPU-Z 2.20"), so we match on the stable prefix.
+$softwareName = "CPUID CPU-Z"
 
-# It is recommended to use exact software name here if possible to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*Okta Verify*"
+# The registry DisplayName is versioned, so match on the prefix.
+$softwareNameLike = "$softwareName*"
 
-# WiX Burn bootstrapper uses /quiet for silent uninstall
-$uninstallArgs = "/quiet /norestart"
+# Inno Setup installers require /VERYSILENT flag for silent uninstall
+$uninstallArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
 
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
+$machineKey = `
+ 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$machineKey32on64 = `
+ 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
 $exitCode = 0
 
 try {
 
 [array]$uninstallKeys = Get-ChildItem `
-    -Path $paths `
+    -Path @($machineKey, $machineKey32on64) `
     -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath }
 
 $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
-    # If needed, add -notlike to the comparison to exclude certain similar
-    # software
     if ($key.DisplayName -like $softwareNameLike) {
         $foundUninstaller = $true
         # Get the uninstall command. Some uninstallers do not include
@@ -38,17 +37,12 @@ foreach ($key in $uninstallKeys) {
         }
 
         # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" /quiet
+        # "C:\Program Files\Software\uninstall.exe" /SILENT
         # Split the command and args
         $splitArgs = $uninstallCommand.Split('"')
         if ($splitArgs.Length -gt 1) {
             if ($splitArgs.Length -eq 3) {
-                $existingArgs = $splitArgs[2].Trim()
-                if ($existingArgs -notmatch '/quiet') {
-                    $uninstallArgs = "$existingArgs /quiet /norestart".Trim()
-                } else {
-                    $uninstallArgs = $existingArgs
-                }
+                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
             } elseif ($splitArgs.Length -gt 3) {
                 Throw `
                     "Uninstall command contains multiple quoted strings. " +
@@ -56,12 +50,6 @@ foreach ($key in $uninstallKeys) {
                         "Uninstall command: $uninstallCommand"
             }
             $uninstallCommand = $splitArgs[1]
-        } else {
-            if ($uninstallCommand -notmatch '/quiet') {
-                $uninstallArgs = "/quiet /norestart"
-            } else {
-                $uninstallArgs = ""
-            }
         }
         Write-Host "Uninstall command: $uninstallCommand"
         Write-Host "Uninstall args: $uninstallArgs"
@@ -71,26 +59,31 @@ foreach ($key in $uninstallKeys) {
             PassThru = $true
             Wait = $true
         }
-
         if ($uninstallArgs -ne '') {
-            $processOptions.ArgumentList = $uninstallArgs
+            $processOptions.ArgumentList = "$uninstallArgs"
         }
 
+        # Start process and track exit code
         $process = Start-Process @processOptions
         $exitCode = $process.ExitCode
+
+        # Prints the exit code
         Write-Host "Uninstall exit code: $exitCode"
+        # Exit the loop once the software is found and uninstalled.
         break
     }
 }
 
 if (-not $foundUninstaller) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 0
+    Write-Host "Uninstaller for '$softwareName' not found."
+    # Change exit code to 0 if you don't want to fail if uninstaller is not
+    # found. This could happen if program was already uninstalled.
+    $exitCode = 1
 }
-
-Exit $exitCode
 
 } catch {
     Write-Host "Error: $_"
-    Exit 1
+    $exitCode = 1
 }
+
+Exit $exitCode

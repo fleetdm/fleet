@@ -5,10 +5,10 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# WiX Burn bootstrapper uses /quiet for silent installation
+# Add arguments to install silently (BandiView uses an NSIS-style installer)
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/quiet /norestart"
+  ArgumentList = "/S"
   PassThru = $true
   Wait = $true
 }
