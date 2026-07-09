@@ -3661,6 +3661,19 @@
         "index": false
       },
       {
+        "name": "subject2",
+        "description": "Certificate distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Linux",
+          "macOS"
+        ]
+      },
+      {
         "name": "issuer",
         "description": "Certificate issuer distinguished name (deprecated, use issuer2)",
         "type": "text",
@@ -3668,6 +3681,19 @@
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "issuer2",
+        "description": "Certificate issuer distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Linux",
+          "macOS"
+        ]
       },
       {
         "name": "ca",
@@ -3844,32 +3870,6 @@
         "index": false,
         "platforms": [
           "Windows"
-        ]
-      },
-      {
-        "name": "issuer2",
-        "description": "Certificate issuer distinguished name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
-      },
-      {
-        "name": "subject2",
-        "description": "Certificate distinguished name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
         ]
       }
     ],
@@ -23192,7 +23192,7 @@
   },
   {
     "name": "process_open_handles",
-    "description": "Enumerate open handles for a specified process. Defaults to the osquery process if no pid constraint is provided.",
+    "description": "Enumerate open handles for a specified process.",
     "url": "https://fleetdm.com/tables/process_open_handles",
     "platforms": [
       "windows"

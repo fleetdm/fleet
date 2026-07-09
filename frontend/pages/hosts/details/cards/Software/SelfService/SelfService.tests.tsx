@@ -304,7 +304,7 @@ describe("SelfService", () => {
       <SelfService
         {...TEST_PROPS}
         isMobileView
-        mdmEnrollmentStatus="On (personal)"
+        mdmEnrollmentStatus="On (manual - personal)"
       />
     );
 

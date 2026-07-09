@@ -475,7 +475,7 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -1181,9 +1181,6 @@ type Service interface {
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
 
-	// GetMDMMicrosoftSTSAuthResponse returns a valid STS auth page
-	GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error)
-
 	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
 	GetMDMWindowsPolicyResponse(ctx context.Context, authToken *HeaderBinarySecurityToken) (*GetPoliciesResponse, error)
 
@@ -1547,6 +1544,40 @@ type Service interface {
 
 	// UnenrollMDM unenrolls the host from MDM
 	UnenrollMDM(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple Platform SSO (PSSO)
+
+	// PSSONonce issues a fresh single-use nonce for the Mac extension to
+	// embed in subsequent token-request JWTs.
+	PSSONonce(ctx context.Context) (string, error)
+	// PSSORegisterDevice validates the device-key payload POSTed by the Mac
+	// extension and persists the registration.
+	PSSORegisterDevice(ctx context.Context, req PSSODeviceRegistrationRequest) error
+	// PSSOToken handles the per-sign-in protocol message: parses the inbound
+	// signed JWT, dispatches on grant_type (password login) or request_type
+	// (key_request / key_exchange), and returns the JWE response body.
+	PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error)
+	// PSSOJWKS returns the JSON web key set that publishes Fleet's PSSO
+	// signing public key.
+	PSSOJWKS(ctx context.Context) ([]byte, error)
+	// PSSOAASA returns the apple-app-site-association JSON used by Apple's
+	// framework to bind the extension's authsrv: entitlement to a Team+Bundle ID.
+	PSSOAASA(ctx context.Context) ([]byte, error)
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Apple MDM Assets
+
+	// ListAppleDDMAssets returns a list of assets used for Apple DDM belonging to the specified team, in their API representation.
+	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
+	// GetAppleDDMAsset returns the asset with the given UUID, in its API representation.
+	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
+	// DownloadAppleDDMAsset returns the filename and contents of the asset with the given UUID.
+	DownloadAppleDDMAsset(ctx context.Context, assetUUID string) (filename string, data []byte, err error)
+	// CreateAppleDDMAsset creates a new asset used for Apple DDM. It returns the UUID of the created asset.
+	CreateAppleDDMAsset(ctx context.Context, teamID *uint, name string, data []byte) (string, error)
+	// DeleteAppleDDMAsset deletes the asset with the given UUID.
+	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
 }
 
 type KeyValueStore interface {

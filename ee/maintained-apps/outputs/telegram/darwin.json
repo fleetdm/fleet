@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram' AND version_compare(bundle_short_version, '12.8') < 0);"
       },
-      "installer_url": "https://osx.telegram.org/updates/Telegram-12.8.282010.app.zip",
+      "installer_url": "https://osx.telegram.org/updates/Telegram-12.8.282011.app.zip",
       "install_script_ref": "75a03f48",
       "uninstall_script_ref": "c15d54aa",
-      "sha256": "c8ee96588adb671411e1661d02cb00c2fafe890eb218cbc922d3e3ec172543f7",
+      "sha256": "11f22de888224f89caf006c1560f892bd0ca95c12ba773062f53ce7eacf7aa74",
       "default_categories": [
         "Communication"
       ]

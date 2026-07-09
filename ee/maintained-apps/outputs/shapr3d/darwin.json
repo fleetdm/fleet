@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.112.0.11153",
+      "version": "26.120.0.11243",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.shapr3d.shapr';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.shapr3d.shapr' AND version_compare(bundle_short_version, '26.112.0.11153') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.shapr3d.shapr' AND version_compare(bundle_short_version, '26.120.0.11243') < 0);"
       },
-      "installer_url": "https://download.shapr3d.com/mac/Shapr3D-26.112.0.11153.dmg",
+      "installer_url": "https://download.shapr3d.com/mac/Shapr3D-26.120.0.11243.dmg",
       "install_script_ref": "f6e027de",
       "uninstall_script_ref": "261544b8",
-      "sha256": "835c284fc7387d12e1630dfa7d6e4706271fff897def6058bb96d03542721537",
+      "sha256": "4624e0360cf8e27ae438b3f7ff6c8290814bffa28456f2f6bf6a85080d9a85b7",
       "default_categories": [
         "Productivity"
       ]

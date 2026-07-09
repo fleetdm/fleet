@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26149.1205.4798.6437",
+      "version": "26163.405.4842.717",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation' AND version_compare(version, '26149.1205.4798.6437') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation' AND version_compare(version, '26163.405.4842.717') < 0);"
       },
-      "installer_url": "https://teamsinstaller.public.onecdn.static.microsoft/production-windows-x64/26149.1205.4798.6437/MSTeams-x64.msix",
+      "installer_url": "https://teamsinstaller.public.onecdn.static.microsoft/production-windows-x64/26163.405.4842.717/MSTeams-x64.msix",
       "install_script_ref": "d1b37440",
       "uninstall_script_ref": "c2a1ea76",
-      "sha256": "0935181e9c4c4d53d1a0b002c58c4a20cd96c4af7103d7f3640ae3722d809f7e",
+      "sha256": "be9398b1ad88b114f5a7a7da9084acf90f7f2d39d7ebe0034a0c260755c8c446",
       "default_categories": [
         "Communication"
       ]

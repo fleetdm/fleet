@@ -925,6 +925,12 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	}
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
+
+		// Google Workspace IdP is a premium-only integration, so omit it from the
+		// generated free-tier GitOps so the example stays valid on reapply.
+		if !cmd.AppConfig.License.IsPremium() {
+			delete(result, "google_workspace")
+		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
 
@@ -966,6 +972,18 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					Filename: "default.yml",
 					Key:      "integrations.zendesk.api_token",
 				})
+			}
+		}
+		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+			for _, intg := range googleWorkspace.([]any) {
+				intgMap := intg.(map[string]any)
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
+					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+						Filename: "default.yml",
+						Key:      "integrations.google_workspace.api_key_json",
+					})
+				}
 			}
 		}
 	}
@@ -1406,6 +1424,28 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
+
+			// apple_account_provisioning is a global-only MDM setting. The IdP
+			// client secret is masked/non-exportable from the API, so emit a TODO
+			// for the user to fill in (mirrors the other secret placeholders).
+			if aap := cmd.AppConfig.MDM.AppleAccountProvisioning; aap.Configured() {
+				aapT := reflect.TypeFor[fleet.AppleAccountProvisioning]()
+				controlsFile := "default.yml"
+				// This may look odd but ensures we put it in unassigned.yml if that's where
+				// we're putting the rest
+				if teamId != nil {
+					controlsFile = "fleets/" + teamName + ".yml"
+				}
+				result[jsonFieldName(mdmT, "AppleAccountProvisioning")] = map[string]any{
+					jsonFieldName(aapT, "OAuthIdPTokenURL"):     aap.OAuthIdPTokenURL.Value,
+					jsonFieldName(aapT, "OAuthIdPClientID"):     aap.OAuthIdPClientID.Value,
+					jsonFieldName(aapT, "OAuthIdPClientSecret"): cmd.AddComment(controlsFile, "TODO: Add your IdP client secret here"),
+				}
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: controlsFile,
+					Key:      "apple_account_provisioning.oauth_idp_client_secret",
+				})
+			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured

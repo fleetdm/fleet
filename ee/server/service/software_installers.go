@@ -34,6 +34,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -1657,14 +1658,28 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// makes Fleet enter the AvailableCount check on every retry and produces
 	// false-positive "no available licenses" errors when the user is just
 	// adding their Nth (≤5) device under one Managed Apple ID.
-	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	// Device-vs-user VPP licensing must key off the actual MDM enrollment
+	// channel, not host_mdm.is_personal_enrollment. is_personal_enrollment is
+	// set for BOTH Account-Driven User Enrollment (ADUE, user-scoped, backed by
+	// a Managed Apple ID) and manual-profile BYOD (device channel, no Managed
+	// Apple ID). Only ADUE gets user-scoped licensing; manual-profile BYOD
+	// installs device-scoped, exactly like company-owned manual enrollment.
+	//
+	// The host's primary nano_enrollments row (id = host UUID) tells us the
+	// channel: ADUE devices enroll as "User Enrollment (Device)", while every
+	// other device-channel enrollment (ADE, manual, manual-profile BYOD) is
+	// "Device". Note the "User" type is the separate macOS user channel and is
+	// NOT what we want here. This row exists from enrollment time, whereas the
+	// Managed Apple ID only arrives minutes later via TokenUpdate, so this is
+	// the correct, timing-robust signal. See #48879.
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "looking up host MDM info for VPP install")
+		return "", ctxerr.Wrap(ctx, err, "looking up enrollment for VPP install")
 	}
-	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
+	isUserEnrollment := nanoEnroll != nil && nanoEnroll.Type == nanomdm.EnrollType(nanomdm.UserEnrollmentDevice).String()
 
 	var clientUserID string
-	if isPersonal {
+	if isUserEnrollment {
 		// Token-selection policy (per #44009): use the team's default token —
 		// `GetVPPTokenByTeamID` already returns the first token for the team
 		// (existing behavior). Multi-location support is deferred unless a
@@ -1680,7 +1695,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	}
 
 	assignmentFilter := &vpp.AssignmentFilter{AdamID: vppApp.AdamID}
-	if isPersonal {
+	if isUserEnrollment {
 		assignmentFilter.ClientUserID = clientUserID
 	} else {
 		assignmentFilter.SerialNumber = host.HardwareSerial
@@ -1735,7 +1750,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		req := &vpp.AssociateAssetsRequest{Assets: assets}
-		if isPersonal {
+		if isUserEnrollment {
 			req.ClientUserIds = []string{clientUserID}
 		} else {
 			req.SerialNumbers = []string{host.HardwareSerial}
@@ -2091,7 +2106,6 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			return ext, nil
 		}
 		// For non-Windows zip files (e.g., macOS), let ExtractInstallerMetadata handle it
-		// (it will detect it as IPA due to shared magic bytes, but that's handled elsewhere)
 	}
 
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)

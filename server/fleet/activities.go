@@ -714,6 +714,15 @@ func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
 }
 
+// ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
+// provisioning (Platform SSO) settings actually change. It carries no details:
+// the settings are global-only and the IdP client secret must never be logged.
+type ActivityTypeEditedAccountProvisioning struct{}
+
+func (a ActivityTypeEditedAccountProvisioning) ActivityName() string {
+	return "edited_account_provisioning"
+}
+
 type ActivityTypeEnabledGitOpsException struct {
 	Exception string `json:"exception"`
 }
