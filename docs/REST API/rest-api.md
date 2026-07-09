@@ -6012,7 +6012,7 @@ The host will only return a password if its managed account password status is "
 
 _Available in Fleet Premium_
 
-Release host from Apple Business (AB) by calling Apple's Disown Device API.
+Release multiple hosts from Apple Business (AB) by calling Apple's Disown Device API.
 
 This permanently removes the host from your AB, and cannot be added back automatically. This action can't be undone.
 
@@ -6022,11 +6022,18 @@ This permanently removes the host from your AB, and cannot be added back automat
 
 | Name                          | Type    | In    | Description                                                                                        |
 | ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
-| id                            | integer | path  | The host ID to release from AB.                                                                    |
+| ids                           | array   | body  | **Required.** A list of host IDs to release from AB                                                |
 
 #### Example
 
 `POST /api/v1/fleet/hosts/123/release_ab`
+
+##### Request body
+```json
+{
+  "ids": [1, 42, 57]
+}
+```
 
 ##### Default response
 
