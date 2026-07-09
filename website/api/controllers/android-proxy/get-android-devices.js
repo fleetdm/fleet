@@ -97,6 +97,9 @@ module.exports = {
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to list devices for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
     }).intercept((err)=>{
       return new Error(`When attempting to list devices for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
