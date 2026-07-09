@@ -3098,6 +3098,63 @@ This activity contains the following fields:
 }
 ```
 
+## created_apple_asset_declaration
+
+Generated when creating an Apple asset declaration.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
+## edited_apple_asset_declaration
+
+Generated when an Apple asset declaration is edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
+## deleted_apple_asset_declaration
+
+Generated when an Apple asset declaration is deleted.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
