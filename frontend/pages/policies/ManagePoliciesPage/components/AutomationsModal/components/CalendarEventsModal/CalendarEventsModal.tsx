@@ -155,8 +155,9 @@ const CalendarEventsModal = forwardRef<
                 />
               ) : (
                 <>
-                  Connect Fleet to Google Workspace via <b>Settings</b> &gt;{" "}
-                  <b>Integrations</b> &gt; <b>Calendars</b>
+                  Admin can connect Fleet to Google Workspace via{" "}
+                  <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+                  <b>Calendars</b>
                 </>
               )}{" "}
               to use calendar automations.

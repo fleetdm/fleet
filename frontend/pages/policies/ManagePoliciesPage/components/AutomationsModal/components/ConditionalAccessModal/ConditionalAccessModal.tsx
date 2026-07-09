@@ -68,8 +68,9 @@ const ConditionalAccessModal = forwardRef<
               />
             ) : (
               <>
-                Connect Fleet to {providerText} via <b>Settings</b> &gt;{" "}
-                <b>Integrations</b> &gt; <b>Conditional access</b>
+                Admin can connect Fleet to {providerText} via{" "}
+                <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+                <b>Conditional access</b>
               </>
             )}{" "}
             to use conditional access automations.
