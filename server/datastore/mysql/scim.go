@@ -1381,7 +1381,29 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		"affected_vars":          vars,
 	}
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery} {
+	const androidUpdateStatusQuery = `
+	UPDATE
+		host_mdm_android_profiles hmap
+		JOIN hosts h
+			ON h.uuid = hmap.host_uuid
+		JOIN mdm_android_configuration_profiles macp
+			ON (macp.team_id = COALESCE(h.team_id, 0)) AND
+				 macp.profile_uuid = hmap.profile_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.android_profile_uuid = macp.profile_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmap.status = NULL,
+		hmap.detail = NULL
+	WHERE
+		h.id IN (:host_ids) AND
+		hmap.operation_type = :operation_type_install AND
+		hmap.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
 		updateStmt, args, err := sqlx.Named(query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
