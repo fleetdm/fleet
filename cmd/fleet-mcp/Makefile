@@ -1,4 +1,4 @@
-# Fleet MCP — dev/test helpers. Run from tools/fleet-mcp/.
+# Fleet MCP — dev/test helpers. Run from cmd/fleet-mcp/.
 #
 # The MCP reads these (the binary auto-loads a .env in this dir, or export them):
 #   FLEET_BASE_URL, FLEET_API_KEY, MCP_AUTH_TOKEN (>=32 chars)
