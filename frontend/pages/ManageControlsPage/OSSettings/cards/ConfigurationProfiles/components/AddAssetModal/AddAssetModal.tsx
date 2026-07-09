@@ -24,36 +24,41 @@ interface IFileChooserProps {
   onFileOpen: (files: FileList | null) => void;
 }
 
-const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
-  <div className={`${baseClass}__file-chooser`}>
-    <Graphic name="file-json" className={`${baseClass}__graphic`} />
-    <span className={`${baseClass}__file-chooser--title`}>Upload asset</span>
-    <span className={`${baseClass}__file-chooser--message`}>
-      Currently, only asset declarations (com.apple.asset) are supported. All
-      other assets must be user hosted.{" "}
-      <CustomLink newTab text="Learn more" url={LEARN_MORE_URL} />
-    </span>
-    <Button
-      className={`${baseClass}__upload-button`}
-      variant="brand-inverse-icon"
-      isLoading={isLoading}
-    >
-      <label htmlFor="upload-asset">
+const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className={`${baseClass}__file-chooser`}>
+      <Graphic name="file-json" className={`${baseClass}__graphic`} />
+      <span className={`${baseClass}__file-chooser--title`}>Upload asset</span>
+      <span className={`${baseClass}__file-chooser--message`}>
+        Currently, only asset declarations (com.apple.asset) are supported. All
+        other assets must be user hosted.{" "}
+        <CustomLink newTab text="Learn more" url={LEARN_MORE_URL} />
+      </span>
+      <Button
+        className={`${baseClass}__upload-button`}
+        variant="brand-inverse-icon"
+        isLoading={isLoading}
+        onClick={() => inputRef.current?.click()}
+      >
         <span className={`${baseClass}__file-chooser--button-wrap`}>
           Choose file <Icon name="upload" color="core-fleet-green" />
         </span>
-      </label>
-    </Button>
-    <input
-      accept=".json"
-      id="upload-asset"
-      type="file"
-      onChange={(e) => {
-        onFileOpen(e.target.files);
-      }}
-    />
-  </div>
-);
+      </Button>
+      <input
+        ref={inputRef}
+        accept=".json"
+        id="upload-asset"
+        type="file"
+        hidden
+        onChange={(e) => {
+          onFileOpen(e.target.files);
+        }}
+      />
+    </div>
+  );
+};
 
 const FileDetails = ({ name }: { name: string }) => (
   <div className={`${baseClass}__selected-file`}>
