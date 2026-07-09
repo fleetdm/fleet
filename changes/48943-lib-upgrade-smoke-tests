@@ -1,0 +1,1 @@
+- Added unit test coverage for external library upgrades: DOMPurify XSS sanitization (ClickableUrls), react-markdown rendering (FleetMarkdown), and sonner toast notification API (ToastNotification).
