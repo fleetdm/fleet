@@ -2,9 +2,11 @@ package fleet
 
 import (
 	"bytes"
+	"crypto/md5" //nolint:gosec // matches EffectiveDDMToken's DDM token hashing
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -618,6 +620,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
 	fieldsInEqualMethod++
+	items[1].AssetsUpdatedAt = items[0].AssetsUpdatedAt
+	fieldsInEqualMethod++
 	items[1].Scope = items[0].Scope
 	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
@@ -627,6 +631,50 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	items[0].Status = nil
 	items[1].Status = nil
 	assert.True(t, items[0].Equal(items[1]))
+}
+
+func TestEffectiveDDMToken(t *testing.T) {
+	t.Parallel()
+
+	const staticToken = "abc123"
+	vars := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	assets := time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC)
+
+	// md5Hex mirrors the hashing done by EffectiveDDMToken so we can assert the
+	// exact concatenation order, which MUST match the SQL token computation in
+	// MDMAppleDDMDeclarationsToken: HEX(token) + variables_updated_at + assets_updated_at.
+	md5Hex := func(parts ...string) string {
+		h := md5.New() //nolint:gosec // matches EffectiveDDMToken
+		for _, p := range parts {
+			_, _ = h.Write([]byte(p))
+		}
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	const layout = "2006-01-02 15:04:05.000000"
+
+	t.Run("no vars, no assets returns static token unchanged", func(t *testing.T) {
+		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil))
+	})
+
+	t.Run("only variables", func(t *testing.T) {
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil))
+	})
+
+	t.Run("only assets", func(t *testing.T) {
+		got := EffectiveDDMToken(staticToken, nil, &assets)
+		require.Equal(t, md5Hex(staticToken, assets.Format(layout)), got)
+		// An asset update must change the effective token away from the static one.
+		require.NotEqual(t, staticToken, got)
+	})
+
+	t.Run("both variables and assets, order is static+vars+assets", func(t *testing.T) {
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets))
+	})
+
+	t.Run("different asset timestamps yield different tokens", func(t *testing.T) {
+		later := assets.Add(time.Second)
+		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets), EffectiveDDMToken(staticToken, nil, &later))
+	})
 }
 
 func TestMDMManagedCertificateEqual(t *testing.T) {

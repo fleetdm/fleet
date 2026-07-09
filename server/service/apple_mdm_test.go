@@ -942,7 +942,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	// decl using a missing asset
 	b = declarationForTestWithAssetReference("D1", "missing-asset")
 	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
-	assert.ErrorContains(t, err, `Asset ("missing-asset") doesn't exist`)
+	require.ErrorContains(t, err, `Asset ("missing-asset") doesn't exist`)
 
 	// Good declaration
 	b = declarationForTestWithAssetReference("D1", "valid-asset")

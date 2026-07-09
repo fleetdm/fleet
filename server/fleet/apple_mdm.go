@@ -544,6 +544,14 @@ type AppleDeclarationForReconcile struct {
 	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
 	// where we extract the secrets and their last update time.
 	HasFleetVariables bool
+
+	// AssetsUpdatedAt is the most recent uploaded_at across every DDM asset this
+	// declaration references, or nil if it references no assets. The reconciler
+	// stamps it onto the host declaration row's assets_updated_at so that editing
+	// a referenced asset (which bumps its uploaded_at) changes the per-host
+	// effective token and re-syncs the host, even when the declaration's own
+	// content/token is unchanged. Mirrors HasFleetVariables/VariablesUpdatedAt.
+	AssetsUpdatedAt *time.Time
 }
 
 // AppleLabeledEntity implementation.
@@ -884,20 +892,27 @@ type MDMAppleDeclaration struct {
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+	AssetsUpdatedAt    *time.Time `db:"assets_updated_at" json:"-"`
 }
 
 // EffectiveDDMToken computes the per-declaration token that incorporates both
 // the static content hash and the host-specific variables_updated_at timestamp.
 // When variablesUpdatedAt is nil (declaration has no Fleet variables), the
 // effective token equals the static token unchanged.
-func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string {
-	if variablesUpdatedAt == nil {
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time, assetsUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil && assetsUpdatedAt == nil {
 		return staticToken
 	}
 	// Must match MySQL's DATETIME(6) string representation used in
-	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '') and IFNULL(hmad.assets_updated_at, '').
 	hasher := md5.New() // nolint:gosec // used for declarative management token
-	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	hasher.Write([]byte(staticToken))
+	if variablesUpdatedAt != nil {
+		hasher.Write([]byte(variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
+	if assetsUpdatedAt != nil {
+		hasher.Write([]byte(assetsUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
@@ -1008,6 +1023,10 @@ type MDMAppleHostDeclaration struct {
 	// were last computed. Non-null only for declarations that use Fleet variables.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 
+	// AssetsUpdatedAt tracks when the Fleet asset values for this host
+	// were last computed. Non-null only for declarations that use Fleet assets.
+	AssetsUpdatedAt *time.Time `db:"assets_updated_at" json:"-"`
+
 	// Scope is the channel this declaration is delivered on for the host,
 	// mirrored from the declaration's scope so the DDM serving queries can
 	// filter per channel. "System" (default) is the device channel, "User" the
@@ -1019,6 +1038,7 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
 	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
+	assetsEqual := p.AssetsUpdatedAt == nil && other.AssetsUpdatedAt == nil || p.AssetsUpdatedAt != nil && other.AssetsUpdatedAt != nil && p.AssetsUpdatedAt.Equal(*other.AssetsUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -1029,7 +1049,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.Token == other.Token &&
 		p.Scope == other.Scope &&
 		secretsEqual &&
-		varsEqual
+		varsEqual &&
+		assetsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -1101,6 +1122,10 @@ type MDMAppleDDMDeclarationItem struct {
 	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
 	// ServerToken field is just for the static token of the DDM.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// AssetsUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the assets'
+	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
+	// ServerToken field is just for the static token of the DDM.
+	AssetsUpdatedAt *time.Time `db:"assets_updated_at"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
