@@ -1405,6 +1405,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
+		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName); err != nil {
+			logging.WithErr(ctx, err)
+		}
+	}
+
 	if host.DiskEncryptionKeyEscrowed {
 		if err := svc.NewActivity(
 			ctx,

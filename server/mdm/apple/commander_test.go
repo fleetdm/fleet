@@ -812,6 +812,55 @@ func TestMDMAppleCommanderDeviceNameSetting(t *testing.T) {
 	require.NotContains(t, string(gotRaw), "<iPad>")
 }
 
+func TestMDMAppleCommanderDeviceNameSettingWithoutNotifications(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	deviceName := "Bob & Alice's <iPad>"
+
+	var gotRaw []byte
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "Settings", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		gotRaw = cmd.Raw
+		return nil, nil
+	}
+
+	err := cmdr.DeviceNameSettingWithoutNotifications(ctx, hostUUID, cmdUUID, deviceName)
+	require.NoError(t, err)
+	// The command is enqueued but no push is sent: the caller batches the push.
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.False(t, mdmStorage.RetrievePushInfoFuncInvoked)
+
+	// The emitted plist is identical to the notifying variant's.
+	var parsed struct {
+		CommandUUID string
+		Command     struct {
+			RequestType string
+			Settings    []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(gotRaw, &parsed))
+	require.Equal(t, cmdUUID, parsed.CommandUUID)
+	require.Len(t, parsed.Command.Settings, 1)
+	require.Equal(t, "DeviceName", parsed.Command.Settings[0].Item)
+	require.Equal(t, deviceName, parsed.Command.Settings[0].DeviceName)
+}
+
 func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}

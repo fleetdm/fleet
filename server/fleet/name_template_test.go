@@ -57,11 +57,19 @@ func TestValidateHostNameTemplate(t *testing.T) {
 		{name: "rtl override format char", tmpl: "bad\u202ename", wantErr: "control characters"},
 		{name: "zero-width joiner format char", tmpl: "bad\u200dname", wantErr: "control characters"},
 		{name: "invalid utf-8", tmpl: "bad\xff\xfename", wantErr: "valid UTF-8"},
-		{name: "too long", tmpl: strings.Repeat("a", 256), wantErr: "255 characters"},
-		{name: "max length ok", tmpl: strings.Repeat("a", 255), wantNorm: strings.Repeat("a", 255)},
-		// The limit is 255 characters, not bytes: 255 multi-byte runes must pass.
-		{name: "255 multi-byte runes ok", tmpl: strings.Repeat("é", 255), wantNorm: strings.Repeat("é", 255)},
+		// The 255-char cap is on the whole template string and counts runes, not
+		// bytes; it fires before the byte-floor check below.
+		{name: "template over 255 chars", tmpl: strings.Repeat("a", 256), wantErr: "255 characters"},
 		{name: "256 multi-byte runes too long", tmpl: strings.Repeat("é", 256), wantErr: "255 characters"},
+		// A resolved name can't exceed the device-name byte limit, so a template
+		// whose fixed text alone already exceeds it is rejected at save time.
+		{name: "literal at 63-byte limit ok", tmpl: strings.Repeat("a", 63), wantNorm: strings.Repeat("a", 63)},
+		{name: "literal over 63 bytes", tmpl: strings.Repeat("a", 64), wantErr: "63 bytes"},
+		// The floor is bytes, not runes: 32 two-byte runes is 64 bytes.
+		{name: "multi-byte literal over 63 bytes", tmpl: strings.Repeat("é", 32), wantErr: "63 bytes"},
+		// Only the fixed text counts toward the floor — a short literal plus a
+		// (longer) variable token is fine.
+		{name: "short literal with variable ok", tmpl: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", wantNorm: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"},
 	}
 
 	for _, c := range cases {
