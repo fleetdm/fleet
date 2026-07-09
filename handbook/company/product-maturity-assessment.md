@@ -180,7 +180,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Linux (SUSE) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Android | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
 | tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
-| iOS/iPadOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| iOS/iPadOS | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
 | ChromeOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
