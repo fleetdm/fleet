@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/pssocrypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/jmoiron/sqlx"
@@ -163,13 +164,19 @@ func TestPSSO_NonceIssuedAndConsumedWhenConfigured(t *testing.T) {
 	require.Error(t, err)
 }
 
-func mustECPublicKeyPEM(t *testing.T) string {
+// mustDevicePSSOKey returns a fresh P-256 public key as SPKI PEM alongside the
+// kid the extension would register it under (see pssocrypto.KIDFromRawECPoint),
+// so tests can build registration requests whose kids match their keys.
+func mustDevicePSSOKey(t *testing.T) (pemStr, kid string) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	der, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
 	require.NoError(t, err)
-	return string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+	pemStr = string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+	kid, err = pssocrypto.KIDFromRawECPoint(&key.PublicKey)
+	require.NoError(t, err)
+	return pemStr, kid
 }
 
 func mustECPrivateKeyPEM(t *testing.T, key *ecdsa.PrivateKey) []byte {
@@ -249,8 +256,8 @@ func TestPSSORegisterDevice_RequiresValidToken(t *testing.T) {
 	require.NoError(t, err)
 	fleetKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: fleetKeyDER})
 
-	devSigning := mustECPublicKeyPEM(t)
-	devEncryption := mustECPublicKeyPEM(t)
+	devSigning, signingKID := mustDevicePSSOKey(t)
+	devEncryption, encryptionKID := mustDevicePSSOKey(t)
 
 	newSvc := func(t *testing.T) (*Service, context.Context, *mock.Store) {
 		svc, ctx := newPSSOTestService(t, configuredPSSOTestConfig())
@@ -281,8 +288,8 @@ func TestPSSORegisterDevice_RequiresValidToken(t *testing.T) {
 			DeviceUUID:          hostUUID,
 			DeviceSigningKey:    devSigning,
 			DeviceEncryptionKey: devEncryption,
-			SigningKeyID:        "sign-kid",
-			EncryptionKeyID:     "enc-kid",
+			SigningKeyID:        signingKID,
+			EncryptionKeyID:     encryptionKID,
 			RegistrationToken:   token,
 		}
 	}
@@ -304,6 +311,23 @@ func TestPSSORegisterDevice_RequiresValidToken(t *testing.T) {
 		require.True(t, ds.SetOrUpdatePSSODeviceFuncInvoked)
 		require.Equal(t, hostUUID, storedUUID)
 		require.Len(t, storedKeys, 2)
+		// kids are derived from the keys, not taken from the request labels.
+		require.Equal(t, signingKID, storedKeys[0].KID)
+		require.Equal(t, encryptionKID, storedKeys[1].KID)
+	})
+
+	t.Run("key id that does not match its key is rejected", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t)
+		token, err := regtoken.Mint(fleetKey, hostUUID, time.Now())
+		require.NoError(t, err)
+
+		req := validReq(token)
+		// A valid-looking kid that belongs to a different key must be refused, so
+		// a device can't claim (and overwrite) another device's key row.
+		req.SigningKeyID = encryptionKID
+		err = svc.PSSORegisterDevice(ctx, req)
+		require.ErrorContains(t, err, "signing key id does not match")
+		require.False(t, ds.SetOrUpdatePSSODeviceFuncInvoked)
 	})
 
 	t.Run("missing token is rejected", func(t *testing.T) {

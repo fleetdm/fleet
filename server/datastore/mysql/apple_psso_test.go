@@ -17,6 +17,7 @@ func TestApplePSSO(t *testing.T) {
 	}{
 		{"SetOrUpdateAndGet", testPSSOSetOrUpdateAndGet},
 		{"ReRegistrationKeepsOldKeys", testPSSOReRegistrationKeepsOldKeys},
+		{"RejectsKIDOwnedByAnotherHost", testPSSORejectsKIDOwnedByAnotherHost},
 		{"DeleteDevice", testPSSODeleteDevice},
 	}
 	for _, c := range cases {
@@ -107,6 +108,36 @@ func testPSSOReRegistrationKeepsOldKeys(t *testing.T, ds *Datastore) {
 	listed, err := ds.ListPSSOKeys(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Len(t, listed, 4)
+}
+
+func testPSSORejectsKIDOwnedByAnotherHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostUUID1 = "ABCDEFGH-0000-0000-0000-555555555555"
+		hostUUID2 = "ABCDEFGH-0000-0000-0000-666666666666"
+	)
+
+	require.NoError(t, ds.SetOrUpdatePSSODevice(ctx, hostUUID1, []fleet.PSSOKey{
+		{KID: "kid-shared", KeyType: fleet.PSSOKeyTypeSigning, PEM: "host1-key"},
+	}))
+
+	// A second host must not be able to claim (and overwrite) a kid host1 owns.
+	err := ds.SetOrUpdatePSSODevice(ctx, hostUUID2, []fleet.PSSOKey{
+		{KID: "kid-shared", KeyType: fleet.PSSOKeyTypeSigning, PEM: "host2-key"},
+	})
+	require.Error(t, err)
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+
+	// host1's key row is untouched.
+	key, err := ds.GetPSSOKey(ctx, "kid-shared")
+	require.NoError(t, err)
+	assert.Equal(t, hostUUID1, key.HostUUID)
+	assert.Equal(t, "host1-key", key.PEM)
+
+	// The whole registration rolled back: host2 got no device row.
+	_, err = ds.GetPSSODevice(ctx, hostUUID2)
+	assert.True(t, fleet.IsNotFound(err))
 }
 
 func testPSSODeleteDevice(t *testing.T, ds *Datastore) {

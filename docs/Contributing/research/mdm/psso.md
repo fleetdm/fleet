@@ -33,47 +33,49 @@ sequenceDiagram
     participant Fleet as Fleet server
     participant IdP as IdP (Okta/Entra)
 
-    Note over macOS: com.apple.extensiblesso profile installed via MDM<br/>(PlatformSSO: Password, UseSharedDeviceKeys, EnableRegistrationDuringSetup)
+    Note over macOS: com.apple.extensiblesso profile installed via MDM (PlatformSSO: Password, UseSharedDeviceKeys, EnableRegistrationDuringSetup)
 
     rect rgb(235, 244, 255)
-        Note over User,IdP: Phase 1 — Device registration (once; after enrollment or during Setup Assistant)
+        Note over User,IdP: Phase 1 - Device registration (once, after enrollment or during Setup Assistant)
         macOS->>Ext: beginDeviceRegistration (provides Secure Enclave signing + encryption keys)
         Ext->>Ext: Build payload (registration token, device_signing_key, device_encryption_key, signing_key_id, encryption_key_id)
         Ext->>Fleet: POST /api/mdm/apple/psso/registration (direct URLSession)
-        Fleet->>Fleet: Resolve host by UUID; store device + key IDs
+        Fleet->>Fleet: Resolve host by UUID, store device + key IDs
         Fleet-->>Ext: 200 OK
         Ext-->>macOS: completion(.success)
     end
 
     rect rgb(235, 255, 240)
-        Note over User,IdP: Phase 2 — Provision the offline unlock key (PSSO 2.0)
+        Note over User,IdP: Phase 2 - Provision the offline unlock key (PSSO 2.0)
         macOS->>Fleet: POST /api/mdm/apple/psso/nonce
         Fleet-->>macOS: nonce
         macOS->>Fleet: POST /api/mdm/apple/psso/token (request_type=key_request, signed JWT)
-        Fleet->>Fleet: Generate provisioned EC keypair; seal private key into key_context
-        Fleet-->>macOS: JWE { certificate (provisioned pubkey), key_context }
+        Fleet->>Fleet: Generate provisioned EC keypair, seal private key into key_context
+        Fleet-->>macOS: JWE(certificate: provisioned pubkey, key_context)
         macOS->>Fleet: POST /api/mdm/apple/psso/token (request_type=key_exchange, other_publickey + key_context)
-        Fleet->>Fleet: Recover provisioned private key; key = ECDH(private key, other_publickey)
-        Fleet-->>macOS: JWE { key } establishes the unlock key
+        Fleet->>Fleet: Recover provisioned private key, key = ECDH(private key, other_publickey)
+        Fleet-->>macOS: JWE(key) - establishes the unlock key
     end
 
     rect rgb(255, 247, 235)
-        Note over User,IdP: Phase 3 — Password sign-in and sync (every login / unlock)
+        Note over User,IdP: Phase 3 - Password sign-in and sync (every login / unlock)
         User->>macOS: Enter IdP password
         macOS->>Fleet: POST /api/mdm/apple/psso/nonce
         Fleet-->>macOS: nonce
-        macOS->>Fleet: POST /api/mdm/apple/psso/token (grant_type=jwt-bearer)<br/>signed JWT: jwe_crypto recipe + nonce + password encrypted into the embedded assertion
-        Fleet->>Fleet: Verify JWT signature by kid -> device signing key
-        Fleet->>Fleet: Decrypt embedded assertion (ECDH-ES) with PSSO encryption key -> plaintext password
+        macOS->>Fleet: POST /api/mdm/apple/psso/token (grant_type=jwt-bearer)
+        Note over macOS,Fleet: signed JWT - jwe_crypto recipe + nonce + password encrypted into the embedded assertion
+        Fleet->>Fleet: Verify JWT signature by kid to device signing key
+        Fleet->>Fleet: Decrypt embedded assertion (ECDH-ES) with PSSO encryption key to plaintext password
         Fleet->>IdP: ROPG grant_type=password (username, password)
         alt password valid
             IdP-->>Fleet: id_token, refresh_token, expires_in
-            Fleet->>Fleet: Mint Fleet id_token (ES256); wrap as OAuth JSON;<br/>JWE-encrypt to device encryption key (apu/apv)
+            Fleet->>Fleet: Mint Fleet id_token (ES256), wrap as OAuth JSON
+            Note over Fleet: JWE-encrypt to device encryption key (apu/apv)
             Fleet-->>macOS: platformsso-login-response+jwt (JWE)
             macOS->>Fleet: GET /api/mdm/apple/psso/jwks
             Fleet-->>macOS: JWKS (Fleet signing key)
-            macOS->>macOS: Decrypt JWE; verify id_token (sig, nonce, iss, aud, exp)
-            macOS->>macOS: Sync local account password to the entered password; start SSO session
+            macOS->>macOS: Decrypt JWE, verify id_token (sig, nonce, iss, aud, exp)
+            macOS->>macOS: Sync local account password, start SSO session
             macOS-->>User: Signed in (local password now matches IdP)
         else password invalid
             IdP-->>Fleet: invalid credentials
