@@ -49,10 +49,7 @@ The first two are Fleet self-managed, for teams running Fleet in their own infra
 
 ## August is the start, not the finish
 
-The core workshops land first, and the electives follow through the year. If cross-platform, managed-as-code device work is what you already do, this is the credential that matches it.
-
----
-*Fleet certification opens in August. Keep an eye on the [Fleet workshops page](https://fleetdm.com/workshops) for dates and how to sign up.*
+The core workshops will be slowly rolling out beginning in August, and the electives follow throughout the year. Keep an eye on the [Fleet workshops page](https://fleetdm.com/workshops) for dates and how to sign up.
 
 <meta name="articleTitle" value="Make your cross-platform skills official with Fleet certification">
 <meta name="authorFullName" value="Dave Siederer">
