@@ -4,13 +4,23 @@ Keeps the "Fleet releases" Google Calendar in sync with the GitHub milestone
 due dates on `fleetdm/fleet`. For each open milestone with a `X.Y.Z` title, the
 script makes sure the calendar has:
 
-- `Release day: minor release - X.Y.Z` on the milestone's due date
+- `Release day: minor release - X.Y.Z` (or `patch release` when `Z` is not `0`)
+  on the milestone's due date
 - `Release candidate (next release - X.Y.Z)` ending on the milestone's due date
 - `Develop (next release - X.Y.Z)` ending ~2 weeks before the due date
   (skipped for out-of-band patch-like milestones)
 
+A release day is labeled **`minor release`** when the version ends in `.0` and
+**`patch release`** otherwise (e.g. `4.89.0` is minor, `4.89.1` is a patch).
+
 The script proposes changes by default (dry-run). Pass `--apply` to write
 changes back to the calendar.
+
+The script scans calendar events from 30 days ago through at least
+`--window-days` (default 200) into the future, and always extends that window
+to cover the furthest open milestone's due date. This matters: if the window
+stopped short of a milestone, the events it created there would be invisible on
+the next run and get re-created as duplicates every time.
 
 ## How matching works
 
@@ -29,6 +39,27 @@ A milestone is considered **out-of-band** if its due date is fewer than
 14 days after the previous milestone's due date (normal cadence is 21 days).
 Out-of-band milestones get a Release day + a short RC event only; they do not
 get a Develop sprint.
+
+### Duplicate events for the same version
+
+There should only ever be **one** Release day / RC / Develop event per version.
+If more than one event matches the same milestone (for example two
+`Release candidate (next release - 4.89.0)` events), the script keeps a single
+one — the oldest / pre-existing event (by the calendar's creation timestamp,
+falling back to the earliest start date) — and **deletes** the extras. RC and
+Develop events keep their existing **start** date; only their **end** date is
+adjusted to track the milestone due date. (Release day is a single all-day event
+anchored to the due date.)
+
+### Stale events when a due date moves
+
+If a milestone's due date moves further than the match tolerance (5 days) — for
+example `4.89.1` sliding from Jul 17 to Jul 24 — the old-date event no longer
+matches the milestone, so a fresh event is created on the new date. The
+leftover event on the old date is now stale, so the script **deletes** it
+(rather than leaving a duplicate on the calendar). Only *future* stale events
+are deleted; events whose date has already passed are left alone so release
+history isn't rewritten.
 
 ## Local usage (OAuth user login — easiest for testing)
 

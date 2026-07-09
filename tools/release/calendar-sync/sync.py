@@ -57,7 +57,7 @@ DEVELOP_END_TO_DUE_TARGET_DAYS = 14   # Develop_end + 14d ~= milestone due
 DEVELOP_END_TO_DUE_TOLERANCE_DAYS = 5
 DEVELOP_SPAN_DAYS = 18                 # Monday start -> Friday display-end (3-week sprint)
 
-RELEASE_DAY_RE = re.compile(r"^Release day: minor release - (\d+\.\d+\.\d+)\s*$")
+RELEASE_DAY_RE = re.compile(r"^Release day: (?:minor|patch) release - (\d+\.\d+\.\d+)\s*$")
 RC_RE = re.compile(r"^Release candidate \(next release - (\d+\.\d+\.\d+)\)\s*$")
 DEVELOP_RE = re.compile(r"^Develop \(next release - (\d+\.\d+\.\d+)\)\s*$")
 
@@ -91,7 +91,7 @@ class CalEvent:
 
 @dataclass
 class Action:
-    kind: str   # "rename", "move", "create", "noop"
+    kind: str   # "rename", "move", "create", "delete", "noop"
     description: str
     event: Optional[CalEvent] = None
     new_summary: Optional[str] = None
@@ -274,6 +274,15 @@ def match_develop_to_milestone(
     return best
 
 
+def release_kind(version: str) -> str:
+    """A version ending in .0 is a minor release; anything else is a patch."""
+    return "minor" if version.endswith(".0") else "patch"
+
+
+def release_day_summary(version: str) -> str:
+    return f"Release day: {release_kind(version)} release - {version}"
+
+
 def desired_release_day(m: Milestone) -> tuple[dt.date, dt.date]:
     """All-day event: start=due, end=due+1 (exclusive)."""
     return m.due, m.due + dt.timedelta(days=1)
@@ -308,6 +317,108 @@ def fmt_date(d: Optional[dt.date]) -> str:
     return d.isoformat() if d else "?"
 
 
+def stale_event_action(ev: CalEvent, cat: str, reason: str, today: dt.date) -> Action:
+    """A release/RC/Develop event that matches no milestone is stale — most often
+    because a milestone's due date moved further than the match tolerance (e.g.
+    4.89.1 slid from Jul 17 to Jul 24), leaving the old-date event behind while a
+    fresh one is created on the new date. Delete the leftover if it is still in
+    the future; leave past events alone so we don't rewrite release history."""
+    ref_end = ev.end or (ev.start + dt.timedelta(days=1))  # exclusive end
+    if ref_end > today:
+        return Action(
+            kind="delete",
+            description=(
+                f"  - DELETE stale {cat} event '{ev.summary}' "
+                f"({fmt_date(ev.start)}..{fmt_date(ev.end)}) — {reason}"
+            ),
+            event=ev,
+        )
+    return Action(
+        kind="noop",
+        description=(
+            f"  ! {cat} event '{ev.summary}' "
+            f"({fmt_date(ev.start)}..{fmt_date(ev.end)}) — {reason}; already past, left as-is"
+        ),
+        event=ev,
+    )
+
+
+CATEGORY_LABEL = {
+    "release_day": "Release day",
+    "rc": "RC",
+    "develop": "Develop",
+}
+
+
+def _created_ts(ev: CalEvent) -> Optional[float]:
+    """Event creation time (epoch seconds) from the Calendar API, if present."""
+    c = ev.raw.get("created")
+    if not c:
+        return None
+    try:
+        return dt.datetime.fromisoformat(c.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def pick_keeper(events: list[CalEvent]) -> CalEvent:
+    """Among events that all match the same milestone/category, choose the one to
+    keep: the oldest-created event (the pre-existing / "previous" one), falling
+    back to the earliest start date when creation timestamps are unavailable."""
+    def sort_key(ev: CalEvent):
+        ts = _created_ts(ev)
+        # Events with a known creation time sort first, oldest to newest; the
+        # rest fall back to earliest start.
+        return (0, ts) if ts is not None else (1, ev.start.toordinal())
+
+    return sorted(events, key=sort_key)[0]
+
+
+def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
+    """Build the rename/move action that brings a single kept event in line with
+    its milestone. Release day is anchored to the due date; RC and Develop keep
+    their existing start and only move their end date."""
+    if cat == "release_day":
+        new_summary = release_day_summary(m.title)
+        new_start, new_end = desired_release_day(m)
+        changes = []
+        if ev.summary != new_summary:
+            changes.append(f"title '{ev.summary}' -> '{new_summary}'")
+        if ev.start != new_start or ev.end != new_end:
+            changes.append(
+                f"dates {fmt_date(ev.start)}..{fmt_date(ev.end)} -> {fmt_date(new_start)}..{fmt_date(new_end)}"
+            )
+    elif cat == "rc":
+        new_summary = f"Release candidate (next release - {m.title})"
+        # Preserve the existing start; only the end tracks the milestone due date.
+        new_start, new_end = desired_rc(m, ev.start)
+        changes = []
+        if ev.summary != new_summary:
+            changes.append(f"title '{ev.summary}' -> '{new_summary}'")
+        if ev.end != new_end:
+            changes.append(f"end {fmt_date(ev.end)} -> {fmt_date(new_end)}")
+    else:  # develop
+        new_summary = f"Develop (next release - {m.title})"
+        # Preserve the existing start; only the end tracks the milestone due date.
+        new_start, new_end = desired_develop(ev.start, m)
+        changes = []
+        if ev.summary != new_summary:
+            changes.append(f"title '{ev.summary}' -> '{new_summary}'")
+        if ev.end != new_end:
+            changes.append(f"end {fmt_date(ev.end)} -> {fmt_date(new_end)}")
+
+    if not changes:
+        return None
+    return Action(
+        kind="rename" if changes[0].startswith("title") else "move",
+        description=f"  {CATEGORY_LABEL[cat]} {m.title}: {'; '.join(changes)}",
+        event=ev,
+        new_summary=new_summary,
+        new_start=new_start,
+        new_end=new_end,
+    )
+
+
 def plan_actions(
     milestones: list[Milestone], events: list[CalEvent], today: dt.date
 ) -> list[Action]:
@@ -318,7 +429,13 @@ def plan_actions(
         "develop": set(),
     }
 
-    # 1) Match existing events to milestones, propose rename / move actions.
+    # 1) Match existing events to milestones, grouped by (category, milestone),
+    #    so that duplicates for the same version can be collapsed to one.
+    matched_events: dict[str, dict[int, list[CalEvent]]] = {
+        "release_day": {},
+        "rc": {},
+        "develop": {},
+    }
     for ev in events:
         cat, ver = categorize(ev)
         if cat is None:
@@ -326,108 +443,52 @@ def plan_actions(
 
         if cat == "release_day":
             m = closest_milestone_by_due(milestones, ev.start, RELEASE_DAY_MATCH_TOLERANCE_DAYS)
-            if not m:
-                actions.append(
-                    Action(
-                        kind="noop",
-                        description=f"  ! Release day event '{ev.summary}' on {ev.start} has no matching milestone (within {RELEASE_DAY_MATCH_TOLERANCE_DAYS}d) — skipped",
-                        event=ev,
-                    )
-                )
-                continue
-            matched_milestone_ids["release_day"].add(m.number)
-            new_summary = f"Release day: minor release - {m.title}"
-            new_start, new_end = desired_release_day(m)
-            changes = []
-            if ev.summary != new_summary:
-                changes.append(f"title '{ev.summary}' -> '{new_summary}'")
-            if ev.start != new_start or ev.end != new_end:
-                changes.append(
-                    f"dates {fmt_date(ev.start)}..{fmt_date(ev.end)} -> {fmt_date(new_start)}..{fmt_date(new_end)}"
-                )
-            if changes:
-                actions.append(
-                    Action(
-                        kind="rename" if "title" in changes[0] else "move",
-                        description=f"  Release day {m.title}: {'; '.join(changes)}",
-                        event=ev,
-                        new_summary=new_summary,
-                        new_start=new_start,
-                        new_end=new_end,
-                    )
-                )
-
+            reason = f"no milestone due within {RELEASE_DAY_MATCH_TOLERANCE_DAYS}d"
         elif cat == "rc":
             # Match by event END date (exclusive end - 1 = display end = release day = milestone due).
             target = (ev.end - dt.timedelta(days=1)) if ev.end else ev.start
             m = closest_milestone_by_due(milestones, target, RC_END_MATCH_TOLERANCE_DAYS)
-            if not m:
-                actions.append(
-                    Action(
-                        kind="noop",
-                        description=f"  ! RC event '{ev.summary}' ending {target} has no matching milestone — skipped",
-                        event=ev,
-                    )
-                )
-                continue
-            matched_milestone_ids["rc"].add(m.number)
-            new_summary = f"Release candidate (next release - {m.title})"
-            new_start, new_end = desired_rc(m, ev.start)
-            changes = []
-            if ev.summary != new_summary:
-                changes.append(f"title '{ev.summary}' -> '{new_summary}'")
-            if ev.end != new_end:
-                changes.append(f"end {fmt_date(ev.end)} -> {fmt_date(new_end)}")
-            if ev.start != new_start:
-                changes.append(f"start {fmt_date(ev.start)} -> {fmt_date(new_start)}")
-            if changes:
-                actions.append(
-                    Action(
-                        kind="rename" if "title" in changes[0] else "move",
-                        description=f"  RC {m.title}: {'; '.join(changes)}",
-                        event=ev,
-                        new_summary=new_summary,
-                        new_start=new_start,
-                        new_end=new_end,
-                    )
-                )
-
-        elif cat == "develop":
+            reason = f"no milestone due within {RC_END_MATCH_TOLERANCE_DAYS}d of end {target}"
+        else:  # develop
             end_for_match = (ev.end - dt.timedelta(days=1)) if ev.end else ev.start
             m = match_develop_to_milestone(milestones, end_for_match)
-            if not m:
+            reason = f"no matching minor milestone (end {end_for_match})"
+
+        if not m:
+            actions.append(stale_event_action(ev, CATEGORY_LABEL[cat], reason, today))
+            continue
+        matched_events[cat].setdefault(m.number, []).append(ev)
+
+    # Resolve each (category, milestone) group: keep one event, delete the rest,
+    # and bring the kept event in line with its milestone.
+    milestone_by_number = {m.number: m for m in milestones}
+    for cat, per_ms in matched_events.items():
+        for number, evs in per_ms.items():
+            matched_milestone_ids[cat].add(number)
+            m = milestone_by_number[number]
+            keeper = pick_keeper(evs)
+            for dup in evs:
+                if dup is keeper:
+                    continue
                 actions.append(
                     Action(
-                        kind="noop",
-                        description=f"  ! Develop event '{ev.summary}' ending {end_for_match} has no matching minor milestone — skipped",
-                        event=ev,
+                        kind="delete",
+                        description=(
+                            f"  - DELETE duplicate {CATEGORY_LABEL[cat]} {m.title} event "
+                            f"'{dup.summary}' ({fmt_date(dup.start)}..{fmt_date(dup.end)}) — "
+                            f"keeping {fmt_date(keeper.start)}..{fmt_date(keeper.end)}"
+                        ),
+                        event=dup,
                     )
                 )
-                continue
-            matched_milestone_ids["develop"].add(m.number)
-            new_summary = f"Develop (next release - {m.title})"
-            new_start, new_end = desired_develop(ev.start, m)
-            changes = []
-            if ev.summary != new_summary:
-                changes.append(f"title '{ev.summary}' -> '{new_summary}'")
-            if ev.end != new_end:
-                changes.append(f"end {fmt_date(ev.end)} -> {fmt_date(new_end)}")
-            if changes:
-                actions.append(
-                    Action(
-                        kind="rename" if "title" in changes[0] else "move",
-                        description=f"  Develop {m.title}: {'; '.join(changes)}",
-                        event=ev,
-                        new_summary=new_summary,
-                        new_start=new_start,
-                        new_end=new_end,
-                    )
-                )
+            action = build_sync_action(cat, m, keeper)
+            if action is not None:
+                actions.append(action)
 
     # 2) Find milestones with no matching events and propose creates.
     for m in milestones:
         if m.number not in matched_milestone_ids["release_day"]:
-            new_summary = f"Release day: minor release - {m.title}"
+            new_summary = release_day_summary(m.title)
             new_start, new_end = desired_release_day(m)
             actions.append(
                 Action(
@@ -504,7 +565,14 @@ def apply_action(service, action: Action) -> None:
             "end": {"date": action.new_end.isoformat()},
             "transparency": "transparent",
         }
-        service.events().insert(calendarId=CALENDAR_ID, body=body).execute()
+        created = service.events().insert(calendarId=CALENDAR_ID, body=body).execute()
+        if not created.get("id"):
+            raise RuntimeError(f"insert returned no event id: {created!r}")
+    elif action.kind == "delete":
+        service.events().delete(
+            calendarId=CALENDAR_ID,
+            eventId=action.event.id,
+        ).execute()
 
 
 def render_plan(
@@ -534,10 +602,11 @@ def render_plan(
     creates = [a for a in actions if a.kind == "create"]
     renames = [a for a in actions if a.kind == "rename"]
     moves = [a for a in actions if a.kind == "move"]
+    deletes = [a for a in actions if a.kind == "delete"]
     noops = [a for a in actions if a.kind == "noop"]
-    if not (creates or renames or moves):
+    if not (creates or renames or moves or deletes):
         lines.append("  (no changes — calendar already matches milestones)")
-    for a in renames + moves + creates:
+    for a in renames + moves + creates + deletes:
         lines.append(a.description)
     if noops:
         lines.append("")
@@ -546,7 +615,8 @@ def render_plan(
             lines.append(a.description)
     lines.append("")
     lines.append(
-        f"Total: {len(renames)} rename, {len(moves)} move, {len(creates)} create, {len(noops)} warning"
+        f"Total: {len(renames)} rename, {len(moves)} move, {len(creates)} create, "
+        f"{len(deletes)} delete, {len(noops)} warning"
     )
     return "\n".join(lines)
 
@@ -558,7 +628,10 @@ def main() -> int:
         "--window-days",
         type=int,
         default=200,
-        help="how far into the future to scan calendar events (default: 200)",
+        help=(
+            "minimum days into the future to scan calendar events (default: 200). "
+            "Always extended to cover the furthest open milestone due date."
+        ),
     )
     parser.add_argument(
         "--summary-file",
@@ -596,10 +669,22 @@ def main() -> int:
         client_secret=args.client_secret,
         token_path=args.token,
     )
+    # The scan window must reach at least as far as the furthest milestone we
+    # might create events for; otherwise those events fall outside the scan on
+    # the next run, look "missing", and get created again as duplicates.
+    max_due = max(m.due for m in milestones)
+    scan_end = max(
+        today + dt.timedelta(days=args.window_days),
+        max_due + dt.timedelta(days=30),
+    )
+    print(
+        f"Scanning calendar events {today - dt.timedelta(days=30)} .. {scan_end} "
+        f"(furthest milestone due {max_due})"
+    )
     events = fetch_events(
         service,
         start=today - dt.timedelta(days=30),
-        end=today + dt.timedelta(days=args.window_days),
+        end=scan_end,
     )
 
     actions = plan_actions(milestones, events, today)
@@ -615,19 +700,38 @@ def main() -> int:
         print("Dry-run only. Re-run with --apply to make these changes.")
         return 0
 
-    mutating = [a for a in actions if a.kind in ("rename", "move", "create")]
+    mutating = [a for a in actions if a.kind in ("rename", "move", "create", "delete")]
     if not mutating:
         print("Nothing to apply.")
         return 0
 
     print(f"\nApplying {len(mutating)} change(s)...")
+    failures = 0
     for a in mutating:
         try:
             apply_action(service, a)
             print(f"  ok: {a.description.strip()}")
         except Exception as e:  # noqa: BLE001
-            print(f"  FAIL: {a.description.strip()} -- {e}", file=sys.stderr)
-            return 2
+            failures += 1
+            # Surface the full error, including the Google API response body
+            # (HttpError.content), so silent-looking failures are diagnosable.
+            print(f"  FAIL: {a.description.strip()}", file=sys.stderr)
+            print(f"        {type(e).__name__}: {e}", file=sys.stderr)
+            detail = getattr(e, "content", None)
+            if isinstance(detail, (bytes, bytearray)):
+                detail = detail.decode("utf-8", "replace")
+            if detail:
+                print(f"        response: {detail}", file=sys.stderr)
+
+    applied = len(mutating) - failures
+    if failures:
+        print(
+            f"\n{applied} of {len(mutating)} change(s) applied; {failures} failed "
+            f"(see FAIL lines above).",
+            file=sys.stderr,
+        )
+        return 2
+    print(f"\nAll {len(mutating)} change(s) applied.")
     return 0
 
 
