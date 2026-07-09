@@ -10,7 +10,6 @@
 - [Setup Experience](#setup-experience)
 - [Commands](#commands)
 - [Integrations](#integrations-1)
-- [SCIM](#scim)
 - [Policies](#policies)
 - [Reports](#reports)
 - [Schedule (deprecated)](#schedule)
@@ -1612,8 +1611,26 @@ None.
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/declaration.json",
+          "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activation.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -1628,6 +1645,9 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1648,14 +1668,16 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false,
       "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
+      "end_user_local_account_type": "admin"
     },
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
-      "manual_agent_install": false
+      "manual_agent_install": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin"
     },
     "client_url": "https://instance.fleet.com"
   },
@@ -1970,17 +1992,27 @@ Modifies the Fleet's configuration with the supplied information.
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels_exclude_any": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"]
         },
         {
-          "path": "path/to/profile2.json",
-          "labels_include_all": ["Label 3", "Label 4"]
-        },
+          "path": "path/to/declaration.json",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ],
+      "assets": [
         {
-          "path": "path/to/profile3.json",
-          "labels_include_any": ["Label 5", "Label 6"]
-        },
-      ]
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activation.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -1994,7 +2026,10 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.xml",
           "labels_exclude_any": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2018,6 +2053,8 @@ Modifies the Fleet's configuration with the supplied information.
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
@@ -2568,6 +2605,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| apple_settings         | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 
@@ -2585,9 +2623,10 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
-| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
+| minimum_version                   | string  | The minimum required macOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
+| update_new_hosts                  | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
 
@@ -2599,8 +2638,9 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
+| minimum_version                   | string  | The minimum required iOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
 
 <br/>
 
@@ -2612,8 +2652,9 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
+| minimum_version                   | string  | The minimum required iPadOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
 
 <br/>
 
@@ -2650,13 +2691,12 @@ _Available in Fleet Premium._
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication    | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication). |
-| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
-| lock_end_user_info                | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on macOS hosts that automatically enroll. |
+| Name                                 | Type    | Description   |
+| ---------------------                | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| enable_managed_local_account         | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
 <br/>
 
@@ -2664,9 +2704,22 @@ _Available in Fleet Premium._
 
 `mdm.macos_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+
+<br/>
+
+##### mdm.apple_settings
+
+`mdm.apple_settings` is an object with the following structure:
+
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
 
@@ -2674,9 +2727,11 @@ _Available in Fleet Premium._
 
 `mdm.windows_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 
 <br/>
 
@@ -2720,10 +2775,24 @@ _Available in Fleet Premium._
           "labels": ["Label 1", "Label 2"]
         },
         {
-          "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
-        },
-      ]
+          "path": "path/to/declaration.json",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activation.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -2731,7 +2800,10 @@ _Available in Fleet Premium._
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -6037,7 +6109,7 @@ Add a dynamic or manual label.
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
 | hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
-| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `"darwin"`, `"windows"`, `"linux"`, `"ubuntu"`, and `"centos"`. All platforms are included by default and this option is represented by an empty string. |
+| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
 
@@ -6552,8 +6624,17 @@ Deletes the label specified by ID.
 - [Create configuration profile](#create-configuration-profile)
 - [List configuration profiles](#list-configuration-profiles)
 - [Get or download configuration profile](#get-or-download-configuration-profile)
+- [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
+- [Create Apple asset declaration](#create-apple-asset-declaration)
+- [List Apple asset declarations](#list-apple-asset-declarations)
+- [Get or download Apple asset declaration](#get-or-download-apple-asset-declaration)
+- [Delete Apple asset declaration](#delete-apple-asset-declaration)
+- [Create Apple activation declaration](#create-apple-activation-declaration)
+- [List Apple activation declarations](#list-apple-activation-declarations)
+- [Get or download Apple activation declaration](#get-or-download-apple-activation-declaration)
+- [Delete Apple activation declaration](#delete-apple-activation-declaration)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update Recovery Lock](#update-recovery-lock)
@@ -6585,7 +6666,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
 | labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
 
 `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
@@ -6759,9 +6840,9 @@ solely on the response status code returned by this endpoint.
 ##### Example response headers
 
 ```http
-  Content-Length: 542
-  Content-Type: application/octet-stream
-  Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
 ```
 
 ###### Example response body
@@ -6785,6 +6866,59 @@ solely on the response status code returned by this endpoint.
   <integer>1</integer>
 </dict>
 </plist>
+```
+
+### Update configuration profile
+
+_Available in Fleet Premium._
+
+Update an existing configuration profile. Use this endpoint to change which hosts a profile is applied to (labels/custom targets) and/or to upload a new profile file.
+
+`PATCH /api/v1/fleet/configuration_profiles/:profile_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In   | Description                                                                                                   |
+| ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
+| profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
+| labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
+
+Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
+
+##### Uploading a new profile file
+
+You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
+
+- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** and **file name** as the existing profile.
+- **v1 .mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** and **PayloadDisplayName** as the existing profile.
+
+If the new profile does not match the required identifiers, the request will be rejected.
+
+#### Example
+
+Update a configuration profile to target hosts with specific labels.
+
+`PATCH /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
+
+##### Request body
+
+```json
+{
+  "labels_include_all": ["Label name 1", "Label name 2"]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9"
+}
 ```
 
 ### Delete configuration profile
@@ -6836,7 +6970,7 @@ For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile
 
 For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
 
-For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked “Pending,” and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
+For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked "Pending," and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
 
 For requests with 100+ profiles, requests will take 5+ seconds.
 
@@ -6860,7 +6994,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
 | display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
@@ -6888,6 +7022,374 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 
 `204`
 
+### Create Apple asset declaration
+
+Add an Apple asset declaration to reference in a configuration profile.
+
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
+`POST /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                                                                   |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| asset                   | file     | body | **Required.** The JSON asset declaration. The "Type" must be a valid Apple asset declaration type (e.g., "com.apple.asset.data"), and an "Identifier" must be defined. See [Apple's documentation](https://developer.apple.com/documentation/devicemanagement) for type-specific payload requirements. |
+| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the asset. If specified, the asset is available to only the configuration profile(s) that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/assets`
+
+##### Request body
+
+```
+fleet_id="1"
+asset="my-asset.json"
+```
+
+##### Example asset file (my-asset.json)
+```
+{
+    "Type": "com.apple.asset.data",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
+    "Payload": {
+        "Reference": {
+            "DataURL": "https://example.com/asset-data/data/test.txt",
+            "ContentType": "text/plain"
+        },
+        "Authentication": {
+            "Type": "MDM"
+        }
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
+```
+
+### List Apple asset declarations
+
+Get a list of the Apple asset declarations in Fleet.
+
+For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet assets are excluded from the results (i.e., only assets that are associated with "Unassigned" are listed).
+
+`GET /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| fleet_id                  | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.            |
+
+#### Example
+
+List all assets available for the "Unassigned" fleet.
+
+`GET /api/v1/fleet/assets`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "assets": [
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset.json",
+      "identifier": "com.example.asset1",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset2.json",
+      "identifier": "com.example.asset2",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+  ],
+}
+```
+
+### Get or download Apple asset declaration
+
+Get or download the original Apple asset declaration file that was uploaded to Fleet.
+
+`GET /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                             |
+| ------------------------- | ------- | ----- | ------------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to get.  |
+| alt                       | string  | query | If specified and set to "media", downloads the asset. |
+
+#### Example (get asset metadata)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+  "fleet_id": 0,
+  "asset": "my-asset.json",
+  "identifier": "com.example.asset1",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download an asset)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 my-asset.json"
+```
+
+###### Example response body
+
+```json
+{
+  "Type": "com.apple.asset.data",
+  "Identifier": "com.example.asset1",
+  "ServerURL": "https://example.com/assets/my-asset.json"
+}
+```
+
+### Delete Apple asset declaration
+
+Deletes an Apple asset declaration.
+
+> If an asset is referenced in a configuration profile, you must delete the configuration profile first before being able to remove the asset.
+
+`DELETE /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                       |
+| ------------------------- | ------- | ----- | ------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to delete.     |
+
+#### Example
+
+`DELETE /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 204`
+
+### Create Apple activation declaration
+
+Add an Apple activation declaration.
+
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
+`POST /api/v1/fleet/activation_declaration`
+
+#### Parameters
+
+| Name                   | Type     | In   | Description                                          |
+| -----------------------| -------- | ---- | ---------------------------------------------------- |
+| activation_declaration | file     | body | **Required.** The JSON activation declaration. The "Type" must be a valid Apple activation declaration type (e.g., "com.apple.activation.*"), and an "Identifier" must be defined. See [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/activationsimple) for activation specific payload requirements. |
+| fleet_id               | string   | body | _Available in Fleet Premium_. The fleet ID for the asset. If specified, the asset is available to only the configuration profile(s) that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/activation_declaration`
+
+##### Request body
+
+```
+fleet_id="1"
+activation_declaration="my-activation.json"
+```
+
+##### Example activation declaration file (my-activation.json) with defined predicate
+```
+{
+    "Type": "com.apple.activation.simple",
+    "Identifier": "04BECEFA-47B9-4F2E-8040-246509A52409",
+    "ServerToken": "CBE396A0-637B-438D-9F0C-EA912A5BB587",
+    "Payload": {
+        "Predicate": "@status(device.model.family) == 'AppleTV'",
+        "StandardConfigurations": [
+            "892853C1-DDD1-4562-84B9-1591A76AD42B",
+            "DCF869F1-09B7-4EC2-83B5-073F6FE94597"
+        ]
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activation_declaration_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
+```
+
+### List Apple activation declarations
+
+Get a list of the Apple activation declarations in Fleet.
+
+For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet activation declarations are excluded from the results (i.e., only activation declarations that are associated with "Unassigned" are listed).
+
+`GET /api/v1/fleet/activation_declaration`
+
+#### Parameters
+
+| Name           | Type   | In    | Description                                                      |
+| -------------- | ------ | ----- | ---------------------------------------------------------------- |
+| fleet_id       | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.   |
+
+#### Example
+
+List all activation declarations available for the "Unassigned" fleet.
+
+`GET /api/v1/fleet/activation_declaration`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activations": [
+    {
+      "activation_declaration_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "activation_declaration": "my-activation.json",
+      "identifier": "com.example.asset1",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+    {
+      "activation_declaration_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "activation_declaration": "my-activation2.json",
+      "identifier": "com.example.asset2",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo=",
+    },
+  ],
+}
+```
+
+### Get or download Apple activation declaration
+
+Get or download the original Apple activation declaration file that was uploaded to Fleet.
+
+`GET /api/v1/fleet/activation_declaration/:activation_declaration_uuid`
+
+#### Parameters
+
+| Name                         | Type    | In    | Description                                                  |
+| ---------------------------- | ------- | ----- | ------------------------------------------------------------ |
+| activation_declaraction_uuid | string  | url   | **Required** The UUID of the activation declaration to get.  |
+| alt                          | string  | query | If specified and set to "media", downloads the activation declaration.        |
+
+#### Example (get activation declaration metadata)
+
+`GET /api/v1/fleet/activation_declaration/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activation_declaration_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+  "fleet_id": 0,
+  "activation_declaration": "my-activation.json",
+  "identifier": "com.example.asset1",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download an activation declaration)
+
+`GET /api/v1/fleet/activation_declaration/954ec5ea-a334-4825-87b3-937e7e381f24?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 my-activation.json"
+```
+
+###### Example response body
+
+```json
+{
+  "Type": "com.apple.activation.simple",
+  "Identifier": "com.example.activation1",
+  "ServerURL": "https://example.com/activations/my-activation.json"
+}
+```
+
+### Delete Apple activation declaration
+
+Deletes an Apple activation declaration.
+
+`DELETE /api/v1/fleet/activation_declaration/:activation_declaration_uuid`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                              |
+| ----------------------------- | ------- | ----- | -------------------------------------------------------- |
+| activation_declaration_uuid   | string  | url   | **Required** The UUID of the activation declaration to delete.     |
+
+#### Example
+
+`DELETE /api/v1/fleet/activation_declaration/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 204`
+
 ### Resend configuration profile by Fleet Desktop token
 
 Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
@@ -6912,21 +7414,20 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 ### Batch-resend configuration profile
 
-
 `POST /api/v1/fleet/configuration_profiles/resend/batch`
 
 #### Parameters
 
-| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
-| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
-| filters | object  | body | **Required**. See [filters](#filters)  |
+| Name          | Type    | In   | Description                                                                            |
+| ------------- | ------- | ---- | -------------------------------------------------------------------------------------- |
+| profile_uuid  | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.     |
+| filters       | object  | body | **Required**. See [filters](#filters)                                                  |
 
 ##### Filters
 
-| Name                              | Type    | Description   |
+| Name                   | Type    | Description   |
 | -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile_status                | string   | Profile status. Currently, `"failed"` is supported. |
+| profile_status         | string   | Profile status. Currently, `"failed"` is supported. |
 
 #### Example
 
@@ -7266,10 +7767,10 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](http
 ##### Example response headers
 
 ```http
-  Content-Length: 542
-  Content-Type: application/x-apple-aspen-config; charset=utf-8
-  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
-  X-Content-Type-Options: nosniff
+Content-Length: 542
+Content-Type: application/x-apple-aspen-config; charset=utf-8
+Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+X-Content-Type-Options: nosniff
 ```
 
 ###### Example response body
@@ -7505,17 +8006,17 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                           | Type    | In    | Description                                                                                 |
-| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
-| lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
-| require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
-| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
-| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
-| manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| Name                                 | Type    | In    | Description                                                                                 |
+| ------------------------------       | ------  | ----  | --------------------------------------------------------------------------------------      |
+| fleet_id                             | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
+| enable_end_user_authentication       | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| lock_end_user_info                   | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
+| require_all_software_macos           | boolean | body  | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
+| require_all_software_windows         | boolean | body  | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
+| enable_release_device_manually       | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
+| manual_agent_install                 | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -7873,16 +8374,17 @@ Delete a script that will automatically run during macOS setup.
 
 _Available in Fleet Premium_
 
-Edit managed local account enforcement settings for eligible macOS hosts.
+Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
 #### Parameters
 
-| Name                         | Type    | In    | Description                                                                          |
-| ---------------------------- | ------  | ----  | -------------------------------------------------------------------------------------|
-| fleet_id                      | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
-| enable_managed_local_account | boolean | body  | Whether to enforce creating managed local accounts on eligible hosts.                |
+| Name                                 | Type    | In    | Description                                                                          |
+| ------------------------------------ | ------  | ----  | -------------------------------------------------------------------------------------|
+| fleet_id                             | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
+| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -7895,7 +8397,8 @@ Edit managed local account enforcement settings for eligible macOS hosts.
 ```json
 {
   "fleet_id": 3,
-  "enable_managed_local_account": true
+  "enable_managed_local_account": true,
+  "end_user_local_account_type": "admin"
 }
 ```
 
@@ -8091,6 +8594,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
+- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 - [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
@@ -8167,6 +8671,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_team": {
       "name": "💻 Workstations",
       "id": 1
@@ -8251,6 +8756,39 @@ None.
 ]
 ```
 
+### Get identity provider (IdP) details
+
+Get details about the most recent SCIM (System for Cross-domain Identity Management) request from your identity provider (IdP).
+
+`GET /api/v1/fleet/scim/details`
+
+
+#### Parameters
+
+None.
+
+
+#### Example
+
+`GET /api/v1/fleet/scim/details`
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "last_request": {
+    "requested_at": "2025-03-11T02:02:17Z",
+    "status": "success",
+    "details": "",
+  }
+}
+```
+
+
+
 ### Get Android Enterprise
 
 Get info about Android Enterprise that's connected to Fleet.
@@ -8274,832 +8812,6 @@ None.
 ```json
 {
   "android_enterprise_id": "LC0445szuv"
-}
-```
-
----
-
-## SCIM
-
-- [List users](#list-scim-users)
-- [Create user](#create-scim-user)
-- [Get user](#get-scim-user)
-- [Replace user](#replace-scim-user)
-- [Update user](#update-scim-user)
-- [Delete user](#delete-scim-user)
-- [List groups](#list-scim-groups)
-- [Create group](#create-scim-group)
-- [Get group](#get-scim-group)
-- [Replace group](#replace-scim-group)
-- [Update group](#update-scim-group)
-- [Delete group](#delete-scim-group)
-- [Get schemas](#get-scim-schemas)
-- [Get service provider config](#get-scim-service-provider-config)
-- [Get resource types](#get-scim-resource-types)
-- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
-
-Fleet's SCIM ([System for Cross-domain Identity Management](https://datatracker.ietf.org/doc/html/rfc7644)) API endpoints are used to [map end user's identity providers (IdPs) details](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) to their hosts and automatically delete a user's Fleet account when the user is deleted or deactivated in the IdP.
-
-SCIM resource type names (e.g. `Users`, `Groups`, `Schemas`) are defined by the [SCIM spec](https://datatracker.ietf.org/doc/html/rfc7644#section-2) and must be capitalized exactly as shown to work with identity providers. This is why they differ from Fleet's usual lowercase API naming convention.
-
-### List SCIM users
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/scim/Users`
-
-#### Parameters
-
-| Name       | Type    | In    | Description                                                                                            |
-| ---------- | ------- | ----- | ------------------------------------------------------------------------------------------------------ |
-| startIndex | integer | query | 1-based index of the first result to return. Defaults to 1.                                           |
-| count      | integer | query | Number of results per page. Maximum 100. Defaults to 100.                                             |
-| filter     | string  | query | SCIM filter expression. Only `userName eq "<value>"` and `emails[type eq "<type>"].value eq "<value>"` are supported. |
-
-#### Example
-
-`GET /api/v1/fleet/scim/Users`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
-  "totalResults": 1,
-  "startIndex": 1,
-  "itemsPerPage": 100,
-  "Resources": [
-    {
-      "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-      "id": "1",
-      "externalId": "ext-123",
-      "userName": "user@example.com",
-      "name": {
-        "givenName": "Jane",
-        "familyName": "Doe"
-      },
-      "emails": [
-        {
-          "value": "user@example.com",
-          "type": "work",
-          "primary": true
-        }
-      ],
-      "active": true,
-      "groups": [],
-      "meta": {
-        "resourceType": "User"
-      }
-    }
-  ]
-}
-```
-
----
-
-### Create SCIM user
-
-_Available in Fleet Premium_
-
-`POST /api/v1/fleet/scim/Users`
-
-#### Parameters
-
-| Name                 | Type    | In   | Description                                                                                       |
-| -------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------- |
-| schemas              | array   | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:User"`.                        |
-| userName             | string  | body | **Required**. Unique username (typically an email address).                                        |
-| name.givenName       | string  | body | **Required**. User's first name.                                                                  |
-| name.familyName      | string  | body | **Required**. User's last name.                                                                   |
-| externalId           | string  | body | Optional. External identifier from the IdP.                                                        |
-| emails               | array   | body | Optional. List of email objects with `value`, `type`, and `primary` fields.                        |
-| active               | boolean | body | Optional. Whether the user account is active.                                                      |
-| urn:ietf:params:scim:schemas:extension:enterprise:2.0:User.department | string | body | Optional. User's department. |
-
-#### Example
-
-`POST /api/v1/fleet/scim/Users`
-
-##### Request body
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "userName": "user@example.com",
-  "externalId": "ext-123",
-  "name": {
-    "givenName": "Jane",
-    "familyName": "Doe"
-  },
-  "emails": [
-    {
-      "value": "user@example.com",
-      "type": "work",
-      "primary": true
-    }
-  ],
-  "active": true
-}
-```
-
-##### Default response
-
-`Status: 201`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "id": "1",
-  "externalId": "ext-123",
-  "userName": "user@example.com",
-  "name": {
-    "givenName": "Jane",
-    "familyName": "Doe"
-  },
-  "emails": [
-    {
-      "value": "user@example.com",
-      "type": "work",
-      "primary": true
-    }
-  ],
-  "active": true,
-  "groups": [],
-  "meta": {
-    "resourceType": "User"
-  }
-}
-```
-
----
-
-### Get SCIM user
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/scim/Users/:id`
-
-#### Parameters
-
-| Name | Type   | In   | Description                  |
-| ---- | ------ | ---- | ---------------------------- |
-| id   | string | path | **Required**. The user's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/scim/Users/1`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "id": "1",
-  "externalId": "ext-123",
-  "userName": "user@example.com",
-  "name": {
-    "givenName": "Jane",
-    "familyName": "Doe"
-  },
-  "emails": [
-    {
-      "value": "user@example.com",
-      "type": "work",
-      "primary": true
-    }
-  ],
-  "active": true,
-  "groups": [
-    {
-      "value": "group-1",
-      "$ref": "Groups/group-1",
-      "display": "Engineering"
-    }
-  ],
-  "meta": {
-    "resourceType": "User"
-  }
-}
-```
-
----
-
-### Replace SCIM user
-
-_Available in Fleet Premium_
-
-Replaces all attributes of an existing user. Any attributes not included in the request body are cleared.
-
-`PUT /api/v1/fleet/scim/Users/:id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                      |
-| --------------- | ------- | ---- | -------------------------------------------------------------------------------- |
-| id              | string  | path | **Required**. The user's ID.                                                     |
-| schemas         | array   | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:User"`.       |
-| userName        | string  | body | **Required**. Unique username.                                                   |
-| name.givenName  | string  | body | **Required**. User's first name.                                                 |
-| name.familyName | string  | body | **Required**. User's last name.                                                  |
-| externalId      | string  | body | Optional. External identifier from the IdP.                                       |
-| emails          | array   | body | Optional. List of email objects with `value`, `type`, and `primary` fields.       |
-| active          | boolean | body | Optional. Whether the user account is active.                                     |
-| urn:ietf:params:scim:schemas:extension:enterprise:2.0:User.department | string | body | Optional. User's department. |
-
-#### Example
-
-`PUT /api/v1/fleet/scim/Users/1`
-
-##### Request body
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "userName": "user@example.com",
-  "name": {
-    "givenName": "Jane",
-    "familyName": "Smith"
-  },
-  "active": true
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "id": "1",
-  "userName": "user@example.com",
-  "name": {
-    "givenName": "Jane",
-    "familyName": "Smith"
-  },
-  "active": true,
-  "groups": [],
-  "meta": {
-    "resourceType": "User"
-  }
-}
-```
-
----
-
-### Update SCIM user
-
-_Available in Fleet Premium_
-
-Partially updates a user using SCIM patch operations. Supports `add`, `replace`, and `remove` operations on `userName`, `externalId`, `active`, `name.givenName`, `name.familyName`, `emails`, and `urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department`.
-
-`PATCH /api/v1/fleet/scim/Users/:id`
-
-#### Parameters
-
-| Name       | Type   | In   | Description                                                            |
-| ---------- | ------ | ---- | ---------------------------------------------------------------------- |
-| id         | string | path | **Required**. The user's ID.                                           |
-| schemas    | array  | body | **Required**. Must include `"urn:ietf:params:scim:api:messages:2.0:PatchOp"`. |
-| Operations | array  | body | **Required**. List of patch operations. Each has `op`, optional `path`, and `value`. |
-
-#### Example
-
-`PATCH /api/v1/fleet/scim/Users/1`
-
-##### Request body
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
-  "Operations": [
-    {
-      "op": "replace",
-      "path": "active",
-      "value": false
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "id": "1",
-  "userName": "user@example.com",
-  "name": {
-    "givenName": "Jane",
-    "familyName": "Doe"
-  },
-  "active": false,
-  "groups": [],
-  "meta": {
-    "resourceType": "User"
-  }
-}
-```
-
----
-
-### Delete SCIM user
-
-_Available in Fleet Premium_
-
-`DELETE /api/v1/fleet/scim/Users/:id`
-
-#### Parameters
-
-| Name | Type   | In   | Description                  |
-| ---- | ------ | ---- | ---------------------------- |
-| id   | string | path | **Required**. The user's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/scim/Users/1`
-
-##### Default response
-
-`Status: 204`
-
-No content.
-
----
-
-### List SCIM groups
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/scim/Groups`
-
-#### Parameters
-
-| Name               | Type    | In    | Description                                                                              |
-| ------------------ | ------- | ----- | ---------------------------------------------------------------------------------------- |
-| startIndex         | integer | query | 1-based index of the first result to return. Defaults to 1.                              |
-| count              | integer | query | Number of results per page. Maximum 100. Defaults to 100.                                |
-| filter             | string  | query | SCIM filter expression. Only `displayName eq "<value>"` is supported.                    |
-| excludedAttributes | string  | query | Comma-separated list of attributes to exclude. Use `members` to omit group member lists. |
-
-#### Example
-
-`GET /api/v1/fleet/scim/Groups`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
-  "totalResults": 1,
-  "startIndex": 1,
-  "itemsPerPage": 100,
-  "Resources": [
-    {
-      "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-      "id": "group-1",
-      "externalId": "ext-group-123",
-      "displayName": "Engineering",
-      "members": [
-        {
-          "value": "1",
-          "type": "User"
-        }
-      ],
-      "meta": {
-        "resourceType": "Group"
-      }
-    }
-  ]
-}
-```
-
----
-
-### Create SCIM group
-
-_Available in Fleet Premium_
-
-`POST /api/v1/fleet/scim/Groups`
-
-#### Parameters
-
-| Name        | Type   | In   | Description                                                                                |
-| ----------- | ------ | ---- | ------------------------------------------------------------------------------------------ |
-| schemas     | array  | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:Group"`.                |
-| displayName | string | body | **Required**. Human-readable group name. Must be unique.                                   |
-| externalId  | string | body | Optional. External identifier from the IdP.                                                 |
-| members     | array  | body | Optional. List of member objects with a `value` field containing a SCIM user ID.           |
-
-#### Example
-
-`POST /api/v1/fleet/scim/Groups`
-
-##### Request body
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-  "displayName": "Engineering",
-  "members": [
-    {
-      "value": "1"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 201`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-  "id": "group-1",
-  "displayName": "Engineering",
-  "members": [
-    {
-      "value": "1",
-      "type": "User"
-    }
-  ],
-  "meta": {
-    "resourceType": "Group"
-  }
-}
-```
-
----
-
-### Get SCIM group
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/scim/Groups/:id`
-
-#### Parameters
-
-| Name               | Type   | In    | Description                                                                              |
-| ------------------ | ------ | ----- | ---------------------------------------------------------------------------------------- |
-| id                 | string | path  | **Required**. The group's ID (format: `group-<number>`).                                 |
-| excludedAttributes | string | query | Comma-separated list of attributes to exclude. Use `members` to omit the member list.    |
-
-#### Example
-
-`GET /api/v1/fleet/scim/Groups/group-1`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-  "id": "group-1",
-  "externalId": "ext-group-123",
-  "displayName": "Engineering",
-  "members": [
-    {
-      "value": "1",
-      "type": "User"
-    }
-  ],
-  "meta": {
-    "resourceType": "Group"
-  }
-}
-```
-
----
-
-### Replace SCIM group
-
-_Available in Fleet Premium_
-
-Replaces all attributes of an existing group. Any attributes not included in the request body are cleared.
-
-`PUT /api/v1/fleet/scim/Groups/:id`
-
-#### Parameters
-
-| Name        | Type   | In   | Description                                                                                |
-| ----------- | ------ | ---- | ------------------------------------------------------------------------------------------ |
-| id          | string | path | **Required**. The group's ID (format: `group-<number>`).                                   |
-| schemas     | array  | body | **Required**. Must include `"urn:ietf:params:scim:schemas:core:2.0:Group"`.                |
-| displayName | string | body | **Required**. Human-readable group name. Must be unique.                                   |
-| externalId  | string | body | Optional. External identifier from the IdP.                                                 |
-| members     | array  | body | Optional. List of member objects with a `value` field containing a SCIM user ID.           |
-
-#### Example
-
-`PUT /api/v1/fleet/scim/Groups/group-1`
-
-##### Request body
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-  "displayName": "Engineering",
-  "members": [
-    {
-      "value": "1"
-    },
-    {
-      "value": "2"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-  "id": "group-1",
-  "displayName": "Engineering",
-  "members": [
-    {
-      "value": "1",
-      "type": "User"
-    },
-    {
-      "value": "2",
-      "type": "User"
-    }
-  ],
-  "meta": {
-    "resourceType": "Group"
-  }
-}
-```
-
----
-
-### Update SCIM group
-
-_Available in Fleet Premium_
-
-Partially updates a group using SCIM patch operations. Supports `add`, `replace`, and `remove` operations on `displayName`, `externalId`, and `members`.
-
-`PATCH /api/v1/fleet/scim/Groups/:id`
-
-#### Parameters
-
-| Name       | Type   | In   | Description                                                                           |
-| ---------- | ------ | ---- | ------------------------------------------------------------------------------------- |
-| id         | string | path | **Required**. The group's ID (format: `group-<number>`).                              |
-| schemas    | array  | body | **Required**. Must include `"urn:ietf:params:scim:api:messages:2.0:PatchOp"`.         |
-| Operations | array  | body | **Required**. List of patch operations. Each has `op`, optional `path`, and `value`.  |
-
-#### Example
-
-`PATCH /api/v1/fleet/scim/Groups/group-1`
-
-##### Request body
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
-  "Operations": [
-    {
-      "op": "add",
-      "path": "members",
-      "value": [
-        {
-          "value": "3"
-        }
-      ]
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
-  "id": "group-1",
-  "displayName": "Engineering",
-  "members": [
-    {
-      "value": "1",
-      "type": "User"
-    },
-    {
-      "value": "3",
-      "type": "User"
-    }
-  ],
-  "meta": {
-    "resourceType": "Group"
-  }
-}
-```
-
----
-
-### Delete SCIM group
-
-_Available in Fleet Premium_
-
-`DELETE /api/v1/fleet/scim/Groups/:id`
-
-#### Parameters
-
-| Name | Type   | In   | Description                                              |
-| ---- | ------ | ---- | -------------------------------------------------------- |
-| id   | string | path | **Required**. The group's ID (format: `group-<number>`). |
-
-#### Example
-
-`DELETE /api/v1/fleet/scim/Groups/group-1`
-
-##### Default response
-
-`Status: 204`
-
-No content.
-
----
-
-### Get SCIM schemas
-
-_Available in Fleet Premium_
-
-Returns the SCIM schemas supported by Fleet: the core User schema and Group schema.
-
-`GET /api/v1/fleet/scim/Schemas`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/scim/Schemas`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
-  "totalResults": 2,
-  "Resources": [
-    {
-      "id": "urn:ietf:params:scim:schemas:core:2.0:User",
-      "name": "User",
-      "description": "SCIM User",
-      "attributes": [...]
-    },
-    {
-      "id": "urn:ietf:params:scim:schemas:core:2.0:Group",
-      "name": "Group",
-      "description": "SCIM Group",
-      "attributes": [...]
-    }
-  ]
-}
-```
-
----
-
-### Get SCIM service provider config
-
-_Available in Fleet Premium_
-
-Returns Fleet's SCIM service provider configuration, including supported features.
-
-`GET /api/v1/fleet/scim/ServiceProviderConfig`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/scim/ServiceProviderConfig`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"],
-  "documentationUri": "https://fleetdm.com/docs/get-started/why-fleet",
-  "patch": {
-    "supported": true
-  },
-  "filter": {
-    "supported": true,
-    "maxResults": 100
-  },
-  "bulk": {
-    "supported": false
-  },
-  "changePassword": {
-    "supported": false
-  },
-  "sort": {
-    "supported": false
-  },
-  "etag": {
-    "supported": false
-  }
-}
-```
-
----
-
-### Get SCIM resource types
-
-_Available in Fleet Premium_
-
-Returns the resource types supported by Fleet's SCIM implementation (`User` and `Group`).
-
-`GET /api/v1/fleet/scim/ResourceTypes`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/scim/ResourceTypes`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
-  "totalResults": 2,
-  "Resources": [
-    {
-      "id": "User",
-      "name": "User",
-      "description": "User Account",
-      "endpoint": "/Users",
-      "schema": "urn:ietf:params:scim:schemas:core:2.0:User"
-    },
-    {
-      "id": "Group",
-      "name": "Group",
-      "description": "Group",
-      "endpoint": "/Groups",
-      "schema": "urn:ietf:params:scim:schemas:core:2.0:Group"
-    }
-  ]
-}
-```
-
----
-
-### Get identity provider (IdP) details
-
-_Available in Fleet Premium_
-
-Get details about the most recent SCIM request from your identity provider (IdP). Useful for diagnosing SCIM integration issues.
-
-`GET /api/v1/fleet/scim/details`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/scim/details`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "last_request": {
-    "requested_at": "2025-03-11T02:02:17Z",
-    "status": "success",
-    "details": ""
-  }
 }
 ```
 
@@ -9129,7 +8841,7 @@ A passing host answers "yes" to a policy if the host returns results for a polic
 
 A failing host answers "no" to a policy if the host does not return results for a policy's query.
 
-For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
+For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
 
 ### List policies
 
@@ -11583,6 +11295,24 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": [
+          {
+              "name": "Slack-4.50.128-macOS.pkg",
+              "automatic_install_policies": null,
+              "version": "4.50.128",
+              "platform": "darwin",
+              "self_service": false,
+              "package_url": ""
+          },
+          {
+              "name": "Slack-4.51.133-macOS.pkg",
+              "automatic_install_policies": null,
+              "version": "4.51.133",
+              "platform": "darwin",
+              "self_service": true,
+              "package_url": ""
+          }
+      ],
       "software_package": {
           "name": "Slack-4.50.128-macOS.pkg",
           "automatic_install_policies": null,
@@ -11614,6 +11344,7 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": null,
       "software_package": null,
       "app_store_app": null,
       "bundle_identifier": "com.raycast.macos",
@@ -11628,6 +11359,8 @@ Get a list of all software.
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+A software title can have more than one package. The `packages` array lists all packages added for the title. `software_package` is kept for backwards compatibility and contains the oldest (first added) package; it's `null` when no package is available.
 
 ### List software versions
 
@@ -11834,6 +11567,79 @@ Returns information about the specified software. By default, `versions` are sor
         }
     ],
     "counts_updated_at": "2026-06-04T17:23:45Z",
+    "packages": [
+        {
+            "team_id": 310,
+            "title_id": 2792,
+            "name": "Slack-4.50.128-macOS.pkg",
+            "icon_url": null,
+            "version": "4.50.128",
+            "platform": "darwin",
+            "uploaded_at": "2026-06-04T17:29:09.155424Z",
+            "installer_id": 36817,
+            "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+            "pre_install_query": "",
+            "post_install_script": "",
+            "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n",
+            "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+            "status": {
+                "installed": 0,
+                "pending_install": 1,
+                "failed_install": 0,
+                "pending_uninstall": 0,
+                "failed_uninstall": 0
+            },
+            "self_service": false,
+            "url": "",
+            "fleet_maintained_app_id": null,
+            "automatic_install_policies": null,
+            "labels_include_any": null,
+            "labels_exclude_any": null,
+            "labels_include_all": null,
+            "categories": null,
+            "display_name": "",
+            "patch_policy": null,
+            "fleet_id": 310
+        },
+        {
+            "team_id": 310,
+            "title_id": 2792,
+            "name": "Slack-4.51.133-macOS.pkg",
+            "icon_url": null,
+            "version": "4.51.133",
+            "platform": "darwin",
+            "uploaded_at": "2026-06-10T09:14:51.482217Z",
+            "installer_id": 36901,
+            "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+            "pre_install_query": "",
+            "post_install_script": "",
+            "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n",
+            "hash_sha256": "a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f70819203a4b5c6d7e8f9",
+            "status": {
+                "installed": 0,
+                "pending_install": 0,
+                "failed_install": 0,
+                "pending_uninstall": 0,
+                "failed_uninstall": 0
+            },
+            "self_service": true,
+            "url": "",
+            "fleet_maintained_app_id": null,
+            "automatic_install_policies": null,
+            "labels_include_any": null,
+            "labels_exclude_any": null,
+            "labels_include_all": [
+                {
+                    "id": 12,
+                    "name": "IT test team"
+                }
+            ],
+            "categories": null,
+            "display_name": "",
+            "patch_policy": null,
+            "fleet_id": 310
+        }
+    ],
     "software_package": {
         "team_id": 310,
         "title_id": 2792,
@@ -11875,6 +11681,10 @@ Returns information about the specified software. By default, `versions` are sor
 ```
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+
+> Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
 For in-house iOS apps, the `software_package` field is populated with package information.
 
@@ -12080,7 +11890,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1, .py) to run on Windows or Linux hosts.
 
 > You need to send a request of type `multipart/form-data`.
 
@@ -12092,17 +11902,17 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
+| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`. |
 | fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
-| install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh`, `.py`, and `.ps1`. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh`, `.py`, and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh`, `.py`, and `.ps1`. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh`, `.py`, and `.ps1`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
+| automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh`, `.py`, and `.ps1`. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -12179,13 +11989,13 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
+| software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
-| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh`, `.py`, and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh`, `.py`, and `.ps1`. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh`, `.py`, and `.ps1`. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
@@ -12858,7 +12668,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item "Falcon" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -13538,8 +13348,26 @@ _Available in Fleet Premium_
           {
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/declaration.json",
+            "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "activations": [
+          {
+            "path": "path/to/activations/activation.json"
+          }
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        },
+        "end_user_local_account_type": "admin"
       },
       "windows_settings": {
         "custom_settings": [
@@ -13553,7 +13381,10 @@ _Available in Fleet Premium_
             "path": "path/to/profile2.xml",
             "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        },
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -13565,6 +13396,8 @@ _Available in Fleet Premium_
       "setup_experience": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
+        "enable_managed_local_account": false,
+        "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
@@ -13917,6 +13750,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
 | windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
+| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
 
@@ -13978,32 +13812,47 @@ Returned when the requested name only differs from another fleet's name by lette
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
+<br/>
+
+
+##### mdm.apple_settings
+
+`mdm.apple_settings` is an object with the following structure:
+
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
+
 
 ##### mdm.windows_settings
 
 `mdm.windows_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 
 <br/>
+
 
 ##### mdm.setup_experience
 
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication  | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
-| lock_end_user_info  | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on eligible hosts. |
-
-<br/>
+| Name                                  | Type    | Description   |
+| ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
+| lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| enable_managed_local_account          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 
 ##### Example request body
@@ -14033,10 +13882,24 @@ Returned when the requested name only differs from another fleet's name by lette
           "labels": ["Label 1", "Label 2"]
         },
         {
-          "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
-        },
-      ]
+          "path": "path/to/declaration.json",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "activations": [
+        {
+          "path": "path/to/activations/activation.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -14050,7 +13913,10 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "setup_experience": {
       "enable_end_user_authentication": false
@@ -14179,10 +14045,28 @@ _Available in Fleet Premium_
       "apple_settings": {
         "configuration_profiles": [
           {
-           "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
+            "path": "path/to/profile1.mobileconfig",
+            "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/declaration.json",
+            "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "activations": [
+          {
+            "path": "path/to/activations/activation.json"
+          }
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        },
+        "end_user_local_account_type": "admin"
       },
       "windows_settings": {
         "custom_settings": [
@@ -14196,7 +14080,10 @@ _Available in Fleet Premium_
            "path": "path/to/profile2.xml",
            "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "macos_setup": {
         "bootstrap_package": "",
