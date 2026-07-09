@@ -59,4 +59,5 @@ The core workshops land first, and the electives follow through the year. If cro
 <meta name="authorGitHubUsername" value="ds0x">
 <meta name="publishedOn" value="2026-07-09">
 <meta name="category" value="articles">
+<meta name="articleImageUrl" value="../website/assets/images/articles/make-your-cross-platform-skills-official-with-fleet-certification-1200x627@2x.png">
 <meta name="description" value="Fleet's updated certification program launches in August: Apple, Windows, Linux, and GitOps workshops that lead to the Fleet expert credential.">
