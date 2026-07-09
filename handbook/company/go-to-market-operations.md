@@ -691,8 +691,6 @@ Here are the values for the contact source:
 | Website - Newsletter | Contact explicitly subscribed to the Fleet blog or newsletter. |
 | Website - Workshop request | Contact filled out a form on the website requesting a workshop in a city near them. |
 | Website - Swag request | Contact filled out a form specifically to request Fleet merchandise. |
-| Website - Partner sign up | Contact submitted a form to apply for or join the Fleet partner program. |
-| Website - Deal registration | Contact was tracked by an authorized partner/reseller filling out a form on the website as part of a formal deal registration. |
 | Event | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
 | Event - Webinar | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). |
 | Event - Workshop | Contact registered for or attended a workshop hosted by Fleet, such as a [GitOps workshop](https://fleetdm.com/gitops-workshop). |
@@ -707,6 +705,13 @@ Here are the values for the contact source:
 | GitHub - Stared fleetdm/fleet | Contact starred the Fleet repository. |
 | GitHub - Forked fleetdm/fleet | Contact forked the Fleet repository. |
 | GitHub - Contributed to fleetdm/fleet | Contact made a code/documentation contribution to the Fleet repository. |
+
+<!-- FUTURE:
+
+| Website - Partner sign up | Contact submitted a form to apply for or join the Fleet partner program. |
+| Website - Deal registration | Contact was tracked by an authorized partner/reseller filling out a form on the website as part of a formal deal registration. |
+
+-->
 
 
 <!--
