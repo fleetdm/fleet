@@ -73,7 +73,6 @@
   &__help-text {
     @include help-text;
     margin-top: $pad-xxsmall;
-    margin-left: calc(20px + #{$pad-small});
   }
 
   &__disabled {

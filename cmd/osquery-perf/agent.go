@@ -560,8 +560,15 @@ type agent struct {
 	// cache of this host's per-host certificates (the certs unique to this host, excluding the shared certs every host
 	// reports). Note that this requires a mutex even though only used in a.processQuery, that's because both the runLoop
 	// and the live query goroutines may call DistributedWrite (which calls processQuery).
-	certificatesMutex        sync.RWMutex
-	hostCertSpecs            []simulatedCert
+	certificatesMutex sync.RWMutex
+	hostCertSpecs     []simulatedCert
+	// scepCertSpecs holds the certs issued to this host during Windows MDM SCEP exchanges, keyed by the SCEP CSP
+	// unique ID so a re-issued cert replaces its predecessor.
+	scepCertSpecs map[string]simulatedCert
+	// withholdSCEPCert marks ~5% of hosts that never report their issued SCEP certs, exercising the server's SCEP
+	// verification backstop (test-only failure).
+	withholdSCEPCert bool
+
 	commonSoftwareNameSuffix string
 
 	entraIDDeviceID          string
@@ -592,6 +599,7 @@ type softwareEntityCount struct {
 	uniqueSoftwareUninstallProb       float64
 	duplicateBundleIdentifiersPercent int
 	softwareRenaming                  bool
+	embeddedBundlePaths               bool
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -763,6 +771,8 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
+		withholdSCEPCert: agentIndex%20 == 0,
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
@@ -1801,6 +1811,16 @@ func (a *agent) doWindowsMDMCheckIn(onDemand bool) (newPollInterval time.Duratio
 					continue
 				}
 				a.stats.IncrementMDMSCEPSuccess()
+				if res.Cert == nil {
+					continue
+				}
+				// Report the issued cert via the certificates detail query so the server observes the
+				// fleet-<profileUUID> renewal-ID marker and marks the SCEP profile verified. The withheld ~5% never
+				// report theirs, so the server's verification backstop fails those profiles.
+				if a.withholdSCEPCert {
+					continue
+				}
+				a.storeSCEPCertSpec(res.UniqueID, res.Cert)
 			}
 		}()
 	} else {
@@ -2394,7 +2414,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 		} else {
 			duplicateIdx := i - totalCommon
 			bundleIDIndex := duplicateIdx / groupSize
-			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%totalCommon)
+			parentIdx := bundleIDIndex % totalCommon
+			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", parentIdx)
 
 			var name string
 			if a.softwareCount.softwareRenaming {
@@ -2403,12 +2424,19 @@ func (a *agent) softwareMacOS() []map[string]string {
 				name = fmt.Sprintf("DuplicateBundle_%d", duplicateIdx)
 			}
 
+			var installedPath string
+			if a.softwareCount.embeddedBundlePaths {
+				installedPath = fmt.Sprintf("/some/path/Common_%d.app/Contents/Library/LoginItems/%s.app", parentIdx, name)
+			} else {
+				installedPath = fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx)
+			}
+
 			duplicateBundleSoftware = append(duplicateBundleSoftware, map[string]string{
 				"name":              name,
 				"version":           fmt.Sprintf("0.0.1%d", duplicateIdx),
 				"bundle_identifier": bundleID,
 				"source":            "apps",
-				"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx),
+				"installed_path":    installedPath,
 			})
 		}
 	}
@@ -3868,6 +3896,7 @@ func main() {
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
+		embeddedBundlePaths               = flag.Bool("embedded_bundle_paths", false, "Nest duplicate-bundle paths under their parent .app/Contents/Library/LoginItems/")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -4113,6 +4142,7 @@ func main() {
 				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 				softwareRenaming:                  *softwareRenaming,
+				embeddedBundlePaths:               *embeddedBundlePaths,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

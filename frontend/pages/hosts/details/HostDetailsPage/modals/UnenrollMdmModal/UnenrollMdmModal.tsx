@@ -88,9 +88,8 @@ const UnenrollMdmModal = ({
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
       return (
         <p>
-          To re-enroll, make sure that the host is still in Apple Business
-          Manager (ABM). The host will automatically enroll after it&apos;s
-          reset.
+          To re-enroll, make sure that the host is still in Apple Business (AB).
+          The host will automatically enroll after it&apos;s reset.
         </p>
       );
     }
