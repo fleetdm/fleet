@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -301,6 +302,28 @@ func TestFileResponseHandlePathTraversal(t *testing.T) {
 		err := fr.Handle(resp)
 		require.NoError(t, err)
 		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	// SkipMediaType is set on the Orbit signed-URL installer download path, where
+	// DestFile carries the server-supplied installer filename. Only its base name
+	// should be used when building the destination path.
+	t.Run("SkipMediaType DestFile is stripped to base filename", func(t *testing.T) {
+		root := t.TempDir()
+		destDir := filepath.Join(root, "downloads")
+		require.NoError(t, os.Mkdir(destDir, 0o700))
+
+		fr := &FileResponse{DestPath: destDir, DestFile: "../installer.pkg", SkipMediaType: true}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header:     http.Header{},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
+			"download must stay within DestPath, got %q", fr.DestFilePath)
 	})
 }
 
