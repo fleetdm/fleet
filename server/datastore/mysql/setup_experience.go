@@ -1120,3 +1120,29 @@ func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, host
 	}
 	return nil
 }
+
+// SetSetupExperienceCrossInstallers replaces the setup_experience_software_installers
+// rows for (platform, teamID) with the given installer IDs. platform must be
+// canonical (e.g. "darwin"). An empty installerIDs slice clears the pair.
+func (ds *Datastore) SetSetupExperienceCrossInstallers(ctx context.Context, platform string, teamID uint, installerIDs []uint) error {
+	const stmtClear = `DELETE FROM setup_experience_software_installers WHERE platform = ? AND global_or_team_id = ?`
+	const stmtInsertTmpl = `INSERT IGNORE INTO setup_experience_software_installers (software_installer_id, platform, global_or_team_id) VALUES %s`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmtClear, platform, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing setup experience cross-platform installers")
+		}
+		if len(installerIDs) == 0 {
+			return nil
+		}
+		rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?,?)"}, len(installerIDs)), ",")
+		args := make([]any, 0, len(installerIDs)*3)
+		for _, id := range installerIDs {
+			args = append(args, id, platform, teamID)
+		}
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmtInsertTmpl, rowPlaceholders), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting setup experience cross-platform installers")
+		}
+		return nil
+	})
+}

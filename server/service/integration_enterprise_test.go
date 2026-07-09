@@ -17117,6 +17117,102 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
 	})
 	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
+
+	// Fresh team so filename collisions from earlier assertions don't leak in.
+	crossTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "cross"})
+	require.NoError(t, err)
+
+	crossScript := "echo 'cross-platform hello'"
+	crossHash := sha256.Sum256([]byte(crossScript))
+	darwinOnly := []string{"macos"}
+	crossPkg := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:                      "script://cross-hello.sh",
+			SHA256:                   hex.EncodeToString(crossHash[:]),
+			InstallScript:            crossScript,
+			SetupExperiencePlatforms: &darwinOnly,
+		},
+	}
+
+	// [macos] on a .sh (native=linux): cross-table row for darwin, install_during_setup stays off.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+
+	var crossRows []struct {
+		SoftwareInstallerID uint   `db:"software_installer_id"`
+		Platform            string `db:"platform"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "expected exactly one cross-platform selection")
+	require.Equal(t, "darwin", crossRows[0].Platform)
+	require.NotZero(t, crossRows[0].SoftwareInstallerID)
+
+	var installDuringSetup bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
+	})
+	require.False(t, installDuringSetup, "linux not selected → install_during_setup should stay false")
+
+	// Re-apply without the field clears the row — declarative reconcile.
+	crossPkgNoField := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgNoField}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Empty(t, crossRows, "cross-table row should be cleared when field is omitted on re-apply")
+
+	// Re-apply is idempotent.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "cross-table row should be restored on re-apply")
+
+	// install_during_setup and SetupExperiencePlatforms are independent: the
+	// caller sets the native bool explicitly, list entries only feed the cross-table.
+	bothPlatforms := []string{"macos", "linux"}
+	crossPkgBoth := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:                      "script://cross-hello.sh",
+			SHA256:                   hex.EncodeToString(crossHash[:]),
+			InstallScript:            crossScript,
+			SetupExperiencePlatforms: &bothPlatforms,
+			InstallDuringSetup:       new(true),
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBoth}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
+	})
+	require.True(t, installDuringSetup, "linux in list + install_during_setup=true → native selection on")
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "darwin cross-row still present when [macos, linux] is selected")
+
+	// Extension/platform mismatch surfaces before any DB write, with the
+	// filename and allowed platforms in the error.
+	windows := []string{"windows"}
+	crossPkgBad := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &windows},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBad}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	failure := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platforms" value for a .sh package`)
 }
 
 // 1. host reports software

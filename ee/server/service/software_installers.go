@@ -2043,6 +2043,37 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 	return scriptResult, nil
 }
 
+// normalizeSetupExperiencePlatforms canonicalizes, deduplicates, and
+// validates the incoming platforms against the extension's allowlist. Returns
+// an error on the first incompatible entry; empty input is legal.
+func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]string, error) {
+	allowed := fleet.AllowedSetupExperiencePlatformsForExtension(extension)
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, a := range allowed {
+		allowedSet[a] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(platforms))
+	out := make([]string, 0, len(platforms))
+	for _, raw := range platforms {
+		canonical := fleet.CanonicalPlatform(raw)
+		if canonical == "" {
+			continue
+		}
+		if _, ok := allowedSet[canonical]; !ok {
+			return nil, fmt.Errorf(
+				`platform %q is not a valid "setup_experience_platforms" value for a .%s package (allowed: %s)`,
+				raw, extension, strings.Join(allowed, ", "),
+			)
+		}
+		if _, ok := seen[canonical]; ok {
+			continue
+		}
+		seen[canonical] = struct{}{}
+		out = append(out, canonical)
+	}
+	return out, nil
+}
+
 func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	// check if exists in the installer store
 	exists, err := svc.softwareInstallStore.Exists(ctx, payload.StorageID)
@@ -2821,24 +2852,25 @@ func (svc *Service) softwareBatchUpload(
 			// readers are collected in toBeClosedTFRs and will have their Close
 			// deferred after the join/wait of goroutines.
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:             teamID,
-				InstallScript:      p.InstallScript,
-				PreInstallQuery:    p.PreInstallQuery,
-				PostInstallScript:  p.PostInstallScript,
-				UninstallScript:    p.UninstallScript,
-				SelfService:        p.SelfService,
-				UserID:             userID,
-				URL:                p.URL,
-				InstallDuringSetup: p.InstallDuringSetup,
-				LabelsIncludeAny:   p.LabelsIncludeAny,
-				LabelsExcludeAny:   p.LabelsExcludeAny,
-				LabelsIncludeAll:   p.LabelsIncludeAll,
-				ValidatedLabels:    p.ValidatedLabels,
-				Categories:         p.Categories.Value,
-				DisplayName:        p.DisplayName,
-				RollbackVersion:    p.RollbackVersion,
-				AlwaysDownload:     p.AlwaysDownload,
-				Configuration:      p.Configuration,
+				TeamID:                   teamID,
+				InstallScript:            p.InstallScript,
+				PreInstallQuery:          p.PreInstallQuery,
+				PostInstallScript:        p.PostInstallScript,
+				UninstallScript:          p.UninstallScript,
+				SelfService:              p.SelfService,
+				UserID:                   userID,
+				URL:                      p.URL,
+				InstallDuringSetup:       p.InstallDuringSetup,
+				SetupExperiencePlatforms: p.SetupExperiencePlatforms,
+				LabelsIncludeAny:         p.LabelsIncludeAny,
+				LabelsExcludeAny:         p.LabelsExcludeAny,
+				LabelsIncludeAll:         p.LabelsIncludeAll,
+				ValidatedLabels:          p.ValidatedLabels,
+				Categories:               p.Categories.Value,
+				DisplayName:              p.DisplayName,
+				RollbackVersion:          p.RollbackVersion,
+				AlwaysDownload:           p.AlwaysDownload,
+				Configuration:            p.Configuration,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -3203,6 +3235,20 @@ func (svc *Service) softwareBatchUpload(
 				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`)
 			}
 
+			// Canonicalize and reject platforms incompatible with the
+			// installer's extension before the batch reaches the datastore.
+			if installer.SetupExperiencePlatforms != nil {
+				normalized, err := normalizeSetupExperiencePlatforms(*installer.SetupExperiencePlatforms, installer.Extension)
+				if err != nil {
+					return fmt.Errorf("Couldn't edit software. %s: %s", installer.Filename, err.Error())
+				}
+				installer.SetupExperiencePlatforms = &normalized
+
+				if slices.Contains(normalized, "darwin") && manualAgentInstall {
+					return errors.New(`Couldn't edit software. "setup_experience_platforms" cannot include "macos" if "macos_manual_agent_install" is enabled.`)
+				}
+			}
+
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
 				return fmt.Errorf("processing uninstall script: %w", err)
@@ -3351,8 +3397,89 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
+	// GitOps is declarative: replace the cross-platform setup experience
+	// selections for this team on every apply, so removing the field on
+	// re-apply clears the corresponding rows.
+	if err := svc.reconcileGitOpsSetupExperienceCrossInstallers(ctx, ptr.ValOrZero(teamID), softwareInstallers); err != nil {
+		batchErr = fmt.Errorf("reconciling cross-platform setup experience selections: %w", err)
+		return
+	}
+
 	// Note: per @noahtalerman we don't want activity items for CLI actions
 	// anymore, so that's intentionally skipped.
+}
+
+// gitOpsCrossPlatformTargets is the set of non-native platforms whose
+// cross-table selections GitOps reconciles. Extend when a new cross-platform
+// combination becomes supported (also update AllowedSetupExperiencePlatformsForExtension).
+var gitOpsCrossPlatformTargets = []string{"darwin"}
+
+// reconcileGitOpsSetupExperienceCrossInstallers replaces the
+// setup_experience_software_installers rows for the team from the incoming
+// payloads. Nil SetupExperiencePlatforms on a payload counts as no selection,
+// so a re-apply with the field removed clears the row.
+func (svc *Service) reconcileGitOpsSetupExperienceCrossInstallers(
+	ctx context.Context,
+	teamID uint,
+	payloads []*fleet.UploadSoftwareInstallerPayload,
+) error {
+	type key struct{ filename, platform string }
+	perTarget := make(map[string][]key, len(gitOpsCrossPlatformTargets))
+	var allKeys []key
+	seenKey := make(map[key]struct{})
+	for _, p := range payloads {
+		if p == nil || p.SetupExperiencePlatforms == nil {
+			continue
+		}
+		for _, target := range *p.SetupExperiencePlatforms {
+			// An installer's own native platform is expressed via
+			// install_during_setup on the software_installers row; it does
+			// not belong in the cross-table.
+			if target == p.Platform {
+				continue
+			}
+			k := key{filename: p.Filename, platform: p.Platform}
+			perTarget[target] = append(perTarget[target], k)
+			if _, ok := seenKey[k]; !ok {
+				seenKey[k] = struct{}{}
+				allKeys = append(allKeys, k)
+			}
+		}
+	}
+
+	// (filename, platform) is uniquely constrained per team, so at most one
+	// row matches each pair.
+	idByKey := make(map[key]uint, len(allKeys))
+	if len(allKeys) > 0 {
+		filenames := make([]string, 0, len(allKeys))
+		platforms := make([]string, 0, len(allKeys))
+		for _, k := range allKeys {
+			filenames = append(filenames, k.filename)
+			platforms = append(platforms, k.platform)
+		}
+		rows, err := svc.ds.GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx, teamID, filenames, platforms)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "look up installer ids for cross-platform reconcile")
+		}
+		for _, r := range rows {
+			idByKey[key{filename: r.Filename, platform: r.Platform}] = r.ID
+		}
+	}
+
+	// Call the datastore even for targets with no incoming selections so
+	// stale rows get cleared — that's what makes the apply declarative.
+	for _, target := range gitOpsCrossPlatformTargets {
+		var ids []uint
+		for _, k := range perTarget[target] {
+			if id, ok := idByKey[k]; ok {
+				ids = append(ids, id)
+			}
+		}
+		if err := svc.ds.SetSetupExperienceCrossInstallers(ctx, target, teamID, ids); err != nil {
+			return ctxerr.Wrap(ctx, err, "set cross-platform setup experience installers")
+		}
+	}
+	return nil
 }
 
 func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload, existing *fleet.ExistingSoftwareInstaller, sha256Hash string) error {
