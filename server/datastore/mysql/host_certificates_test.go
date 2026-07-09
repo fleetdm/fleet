@@ -43,6 +43,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 		{"Count matches main query", testListHostCertificatesCountMatches},
 		{"Sweep mdm certs for unenrolled hosts", testSoftDeleteMDMHostCertificatesForUnenrolledHosts},
+		{"Windows proxied SCEP profile verification", testWindowsSCEPProfileVerification},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -50,6 +51,309 @@ func TestHostCertificates(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	mkHost := func(t *testing.T, suffix string) *fleet.Host {
+		t.Helper()
+		osqueryID := "wscep-osquery-" + suffix
+		nodeKey := "wscep-node-" + suffix
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   &osqueryID,
+			NodeKey:         &nodeKey,
+			UUID:            "wscep-host-" + suffix,
+			Hostname:        "wscep-hostname-" + suffix,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	upsertWinProfile := func(t *testing.T, h *fleet.Host, profileUUID, cmdUUID string, status fleet.MDMDeliveryStatus, retries int) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+			ProfileUUID:   profileUUID,
+			ProfileName:   "p-" + profileUUID,
+			HostUUID:      h.UUID,
+			CommandUUID:   cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &status,
+			Checksum:      []byte{1},
+		}}))
+		if retries > 0 {
+			_, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_mdm_windows_profiles SET retries = ? WHERE host_uuid = ? AND profile_uuid = ?`, retries, h.UUID, profileUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	upsertHMMC := func(t *testing.T, h *fleet.Host, profileUUID string, caType fleet.CAConfigAssetType, nvb, nva *time.Time) {
+		t.Helper()
+		hmmc := &fleet.MDMManagedCertificate{HostUUID: h.UUID, ProfileUUID: profileUUID, Type: caType, CAName: "ca-" + profileUUID}
+		if nva != nil {
+			hmmc.NotValidBefore = nvb
+			hmmc.NotValidAfter = nva
+			serial := "serial-" + profileUUID
+			hmmc.Serial = &serial
+		}
+		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
+	}
+
+	getProfile := func(t *testing.T, h *fleet.Host, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
+		t.Helper()
+		var row struct {
+			Status  fleet.MDMDeliveryStatus `db:"status"`
+			Detail  string                  `db:"detail"`
+			Retries int                     `db:"retries"`
+		}
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
+			`SELECT status, detail, retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, profileUUID))
+		return row.Status, row.Detail, row.Retries
+	}
+
+	// certWithRenewalID builds an ingestable host cert whose OU carries the profile's renewal-ID marker.
+	certWithRenewalID := func(t *testing.T, h *fleet.Host, renewalProfileUUID string, serial int64) *fleet.HostCertificateRecord {
+		t.Helper()
+		tmpl := &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:         "device " + renewalProfileUUID,
+				Organization:       []string{"Org"},
+				OrganizationalUnit: []string{"fleet-" + renewalProfileUUID},
+			},
+			Issuer:                pkix.Name{CommonName: "issuer.test.example.com", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(serial),
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		return generateTestHostCertificateRecord(t, h.ID, tmpl)
+	}
+
+	ingest := func(t *testing.T, h *fleet.Host, recs ...*fleet.HostCertificateRecord) {
+		t.Helper()
+		require.NoError(t, ds.UpdateHostCertificates(ctx, h.ID, h.UUID, recs, fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	ackVerified := func(t *testing.T, h *fleet.Host, cmdUUID string) {
+		t.Helper()
+		verified := fleet.MDMDeliveryVerified
+		require.NoError(t, updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
+			[]*fleet.MDMWindowsProfilePayload{{HostUUID: h.UUID, CommandUUID: cmdUUID, Status: &verified}}))
+	}
+
+	// insertConfigProfile creates the team config profile row whose SyncML scope (./Device vs ./User) the backstop
+	// inspects when only the system store was observed.
+	insertConfigProfile := func(t *testing.T, profileUUID, name string, userScoped bool) {
+		t.Helper()
+		locURI := "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP"
+		if userScoped {
+			locURI = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP"
+		}
+		syncml := fmt.Sprintf(`<Replace><Item><Target><LocURI>%s/%s/Install/Enroll</LocURI></Target></Item></Replace>`, locURI, profileUUID)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at) VALUES (?, 0, ?, ?, NOW())`,
+			profileUUID, name, syncml)
+		require.NoError(t, err)
+	}
+
+	backdateProfile := func(t *testing.T, h *fleet.Host, profileUUID string, ago time.Duration) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND) WHERE host_uuid = ? AND profile_uuid = ?`,
+			int(ago.Seconds()), h.UUID, profileUUID)
+		require.NoError(t, err)
+	}
+
+	// plainCert builds an ingestable host cert that does NOT carry any profile's renewal-ID marker.
+	plainCert := func(t *testing.T, h *fleet.Host, cn string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
+		t.Helper()
+		sum := make([]byte, 20)
+		copy(sum, cn)
+		return &fleet.HostCertificateRecord{
+			HostID:            h.ID,
+			CommonName:        cn,
+			SubjectCommonName: cn,
+			SHA1Sum:           sum,
+			NotValidBefore:    time.Now().Add(-time.Hour),
+			NotValidAfter:     time.Now().Add(365 * 24 * time.Hour),
+			Source:            source,
+			Username:          username,
+		}
+	}
+
+	// ACK status mapping: a proxied SCEP profile moves to "verifying" on the device's 2xx ACK
+	for i, tc := range []struct {
+		name   string
+		caType fleet.CAConfigAssetType // "" means no managed-certificate row
+		want   fleet.MDMDeliveryStatus
+	}{
+		{"proxied SCEP moves to verifying", fleet.CAConfigCustomSCEPProxy, fleet.MDMDeliveryVerifying},
+		{"non-certificate profile stays verified", "", fleet.MDMDeliveryVerified},
+		{"DigiCert profile stays verified", fleet.CAConfigDigiCert, fleet.MDMDeliveryVerified},
+	} {
+		t.Run("ACK: "+tc.name, func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("ack-%d", i))
+			p, cmd := "w-ack", "cmd-ack"
+			upsertWinProfile(t, h, p, cmd, fleet.MDMDeliveryPending, 0)
+			if tc.caType != "" {
+				upsertHMMC(t, h, p, tc.caType, nil, nil)
+			}
+			ackVerified(t, h, cmd)
+			status, _, _ := getProfile(t, h, p)
+			require.Equal(t, tc.want, status)
+		})
+	}
+
+	t.Run("cert observation flips verifying to verified", func(t *testing.T) {
+		h := mkHost(t, "flip")
+		p := "w-scep-flip"
+		upsertWinProfile(t, h, p, "cmd-flip", fleet.MDMDeliveryVerifying, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+		ingest(t, h, certWithRenewalID(t, h, p, 7001))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
+	t.Run("cert observation self-heals failed to verified and clears detail", func(t *testing.T) {
+		h := mkHost(t, "heal")
+		p := "w-scep-heal"
+		upsertWinProfile(t, h, p, "cmd-heal", fleet.MDMDeliveryFailed, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			"SCEP PKIOperation failed: HTTP 500", h.UUID, p)
+		require.NoError(t, err)
+
+		ingest(t, h, certWithRenewalID(t, h, p, 7002))
+
+		status, detail, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+		require.Empty(t, detail)
+	})
+
+	t.Run("no matching cert keeps profile verifying", func(t *testing.T) {
+		h := mkHost(t, "nomatch")
+		p := "w-scep-nomatch"
+		upsertWinProfile(t, h, p, "cmd-nomatch", fleet.MDMDeliveryVerifying, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+		// A cert for an unrelated profile: exercises the ingest path but matches nothing here.
+		ingest(t, h, certWithRenewalID(t, h, "w-unrelated-profile", 7003))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status)
+	})
+
+	t.Run("DigiCert profile not flipped even with observed cert dates", func(t *testing.T) {
+		h := mkHost(t, "digicert-flip")
+		p := "w-digicert-flip"
+		upsertWinProfile(t, h, p, "cmd-digicert-flip", fleet.MDMDeliveryVerifying, 0)
+		nvb := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		nva := time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC()
+		upsertHMMC(t, h, p, fleet.CAConfigDigiCert, &nvb, &nva)
+
+		ingest(t, h, certWithRenewalID(t, h, "w-trigger-only", 7004))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status)
+	})
+
+	t.Run("SetMDMWindowsHostProfileFailed marks failed and preserves retries", func(t *testing.T) {
+		h := mkHost(t, "setfailed")
+		p := "w-fail"
+		upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, 1)
+
+		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500"))
+
+		status, detail, retries := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryFailed, status)
+		require.Equal(t, "SCEP PKIOperation failed: HTTP 500", detail)
+		require.Equal(t, 1, retries)
+	})
+
+	t.Run("SetMDMWindowsHostProfileFailed does not clobber verified", func(t *testing.T) {
+		h := mkHost(t, "setfailed-verified")
+		p := "w-fail-verified"
+		upsertWinProfile(t, h, p, "cmd-fail-verified", fleet.MDMDeliveryVerified, 0)
+
+		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP GetCACert failed: timeout"))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
+	t.Run("SetMDMWindowsHostProfileFailed no-ops for a removed profile", func(t *testing.T) {
+		h := mkHost(t, "setfailed-missing")
+		// No profile row exists for this (host, profile): must not error and must not resurrect a row.
+		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, "w-missing", "SCEP PKIOperation failed: HTTP 403"))
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, "w-missing"))
+		require.Equal(t, 0, count)
+	})
+
+	// Verification backstop: once the grace period elapses and a report proves the certificate's store was readable
+	// but the cert is absent, the profile fails. Device-scoped relies on the always-readable system store; user-scoped
+	// needs a user cert in the report (single-user assumption).
+	for i, tc := range []struct {
+		name       string
+		userScoped bool
+		backdate   time.Duration // 0 = still within the grace window
+		certSource fleet.HostCertificateSource
+		username   string
+		retries    int
+		wantStatus fleet.MDMDeliveryStatus
+		wantDetail string
+	}{
+		{"device-scoped fails past grace when cert absent", false, 2 * time.Hour, fleet.SystemHostCertificate, "", 2, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+		{"device-scoped stays verifying within grace", false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
+		{"user-scoped stays verifying when no user cert observed", true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
+		{"user-scoped fails past grace once a user cert is observed", true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+	} {
+		t.Run("backstop: "+tc.name, func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("backstop-%d", i))
+			p := fmt.Sprintf("w-backstop-%d", i)
+			upsertWinProfile(t, h, p, "cmd-backstop", fleet.MDMDeliveryVerifying, tc.retries)
+			insertConfigProfile(t, p, fmt.Sprintf("backstop-%d", i), tc.userScoped)
+			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+			if tc.backdate > 0 {
+				backdateProfile(t, h, p, tc.backdate)
+			}
+			// The ingested cert never carries this profile's renewal-ID marker; only its source (system vs user)
+			// varies, which decides whether the user store is proven readable.
+			ingest(t, h, plainCert(t, h, "some-cert", tc.certSource, tc.username))
+
+			status, detail, retries := getProfile(t, h, p)
+			require.Equal(t, tc.wantStatus, status)
+			require.Equal(t, tc.wantDetail, detail)
+			require.Equal(t, tc.retries, retries)
+		})
+	}
+
+	t.Run("observed cert wins over the backstop even past grace", func(t *testing.T) {
+		h := mkHost(t, "backstop-flipwins")
+		p := "w-backstop-flipwins"
+		upsertWinProfile(t, h, p, "cmd-bs-flipwins", fleet.MDMDeliveryVerifying, 0)
+		insertConfigProfile(t, p, "bs-flipwins", false)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		backdateProfile(t, h, p, 2*time.Hour)
+
+		// The matching cert is present, so the verified-flip must win and the backstop must not fire.
+		ingest(t, h, certWithRenewalID(t, h, p, 7101))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
 }
 
 func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {

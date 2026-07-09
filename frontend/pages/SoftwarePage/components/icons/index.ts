@@ -53,6 +53,7 @@ import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonDCV from "./AmazonDCV";
+import AmazonRedshiftOdbcDriver from "./AmazonRedshiftOdbcDriver";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import Amethyst from "./Amethyst";
 import Amie from "./Amie";
@@ -1131,6 +1132,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon corretto 8": AmazonCorretto21,
   "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
+  "amazon redshift odbc driver": AmazonRedshiftOdbcDriver,
   "amazon workspaces": AmazonWorkspaces,
   amethyst: Amethyst,
   amie: Amie,
