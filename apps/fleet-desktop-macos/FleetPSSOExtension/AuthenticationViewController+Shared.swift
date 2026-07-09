@@ -84,6 +84,11 @@ extension AuthenticationViewController {
             jwksEndpointURL: pssoEndpointURL(base, "jwks"),
             audience: host)
         cfg.nonceEndpointURL = pssoEndpointURL(base, "nonce")
+        // Fleet dispatches key_request/key_exchange (the unlock-key flow) at the
+        // token endpoint. The framework needs keyEndpointURL set explicitly to
+        // engage that plumbing — leaving it unset relies on an undocumented
+        // default.
+        cfg.keyEndpointURL = pssoEndpointURL(base, "token")
         self.registrationEndpointURL = pssoEndpointURL(base, "registration")
         if let encryptionKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) {
             cfg.loginRequestEncryptionPublicKey = encryptionKey
