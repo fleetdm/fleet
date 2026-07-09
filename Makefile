@@ -1066,7 +1066,7 @@ UPDATE_GO_MODS := \
 	./tools/fleet-mcp/go.mod \
 	./tools/dibble/go.mod
 update-go:
-	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
+	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
 		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
@@ -1079,7 +1079,7 @@ update-go:
 	@for gomod in $(UPDATE_GO_MODS) ; do \
 		go run ./tools/tuf/replace $$gomod "(?m)^go .+$$" "go $(version)" ; \
 	done
-	@echo "* Updated go to $(version)" > changes/update-go-$(version)
-	@cp changes/update-go-$(version) orbit/changes/update-go-$(version)
+	@echo "- Updated Go to $(version)." > changes/update-go-$(version)
+	@echo "* Updated Go to $(version)." > orbit/changes/update-go-$(version)
 
 include ./tools/makefile-support/helpsystem-targets
