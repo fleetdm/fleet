@@ -90,9 +90,16 @@
       color: rgba($static-white, 0.7);
       text-decoration-color: rgba($static-white, 0.7);
 
+      // Dim the whole icon as one composited unit instead of applying alpha
+      // to fill/stroke separately — the stroke overlaps the fill's edge, so
+      // per-property alpha double-blends there and mismatches the interior.
+      .external-link-icon {
+        opacity: 0.7;
+      }
+
       .external-link-icon__outline {
-        fill: #cbcdd5;
-        stroke: #cbcdd5;
+        fill: $static-white;
+        stroke: $static-white;
       }
 
       .external-link-icon__arrow {
