@@ -584,7 +584,53 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 			return getUserResponse{Err: err}, nil
 		}
 	}
+
+	// Limit the team membership disclosed about the target user to what the
+	// requester is entitled to see, so reading a user shared across teams does
+	// not leak the existence of teams outside the requester's scope.
+	if vc, ok := viewer.FromContext(ctx); ok {
+		scopedTeams, scopedAvailable := scopeUserTeamsToViewer(vc.User, user, availableTeams)
+		scopedUser := *user
+		scopedUser.Teams = scopedTeams
+		user = &scopedUser
+		availableTeams = scopedAvailable
+	}
+
 	return getUserResponse{User: user, AvailableTeams: availableTeams, Settings: userSettings}, nil
+}
+
+// scopeUserTeamsToViewer limits the team membership disclosed about a target
+// user to the teams the viewer is entitled to see. Global viewers, and a viewer
+// looking at their own record, see every team; a team-scoped viewer sees only
+// the teams they share with the target. Read authorization already requires a
+// team-scoped viewer to administer every one of the target's teams, so this does
+// not hide teams they are entitled to see; it is defense in depth against
+// disclosing membership of teams outside the viewer's scope.
+func scopeUserTeamsToViewer(vwr, target *fleet.User, availableTeams []*fleet.TeamSummary) ([]fleet.UserTeam, []*fleet.TeamSummary) {
+	if vwr == nil || vwr.GlobalRole != nil || vwr.ID == target.ID {
+		return target.Teams, availableTeams
+	}
+
+	viewerTeamIDs := make(map[uint]struct{}, len(vwr.Teams))
+	for _, t := range vwr.Teams {
+		viewerTeamIDs[t.ID] = struct{}{}
+	}
+
+	scopedTeams := make([]fleet.UserTeam, 0, len(target.Teams))
+	for _, t := range target.Teams {
+		if _, ok := viewerTeamIDs[t.ID]; ok {
+			scopedTeams = append(scopedTeams, t)
+		}
+	}
+
+	scopedAvailable := make([]*fleet.TeamSummary, 0, len(availableTeams))
+	for _, t := range availableTeams {
+		if _, ok := viewerTeamIDs[t.ID]; ok {
+			scopedAvailable = append(scopedAvailable, t)
+		}
+	}
+
+	return scopedTeams, scopedAvailable
 }
 
 func (svc *Service) GetUserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {

@@ -1907,3 +1907,47 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.Equal(t, []uint{otherSession.ID}, destroyedSessionIDs, "should only destroy the other session, not the current one")
 	})
 }
+
+func TestScopeUserTeamsToViewer(t *testing.T) {
+	target := &fleet.User{
+		ID: 10,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1, Name: "Alpha"}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 2, Name: "Beta"}, Role: fleet.RoleObserver},
+		},
+	}
+	avail := []*fleet.TeamSummary{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}
+
+	t.Run("global viewer sees all of the target's teams", func(t *testing.T) {
+		vwr := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+		teams, at := scopeUserTeamsToViewer(vwr, target, avail)
+		require.Len(t, teams, 2)
+		require.Len(t, at, 2)
+	})
+
+	t.Run("viewer looking at own record sees all teams", func(t *testing.T) {
+		vwr := &fleet.User{ID: 10, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}
+		teams, at := scopeUserTeamsToViewer(vwr, target, avail)
+		require.Len(t, teams, 2)
+		require.Len(t, at, 2)
+	})
+
+	t.Run("team-scoped viewer sees only teams they share with the target", func(t *testing.T) {
+		vwr := &fleet.User{ID: 20, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}
+		teams, at := scopeUserTeamsToViewer(vwr, target, avail)
+		require.Len(t, teams, 1)
+		require.Equal(t, uint(1), teams[0].ID)
+		require.Len(t, at, 1)
+		require.Equal(t, uint(1), at[0].ID)
+	})
+
+	t.Run("team-scoped viewer sharing every target team sees all", func(t *testing.T) {
+		vwr := &fleet.User{ID: 20, Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin},
+		}}
+		teams, at := scopeUserTeamsToViewer(vwr, target, avail)
+		require.Len(t, teams, 2)
+		require.Len(t, at, 2)
+	})
+}

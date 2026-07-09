@@ -1,0 +1,1 @@
+- Scoped the users API so that reading a user shared across teams no longer discloses teams outside the requester's team scope.
