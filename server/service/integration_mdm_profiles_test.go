@@ -5302,7 +5302,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 			{DisplayName: "N4", Profile: declarationForTestWithType("D1", dt)},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported", dt)
+		require.Contains(t, errMsg, "is a forbidden declaration", dt)
 	}
 	// and one more for the software update declaration which should succeed.
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
