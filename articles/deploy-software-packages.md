@@ -95,7 +95,7 @@ You can add up to 10 custom packages to the same software title. This lets you s
 To add another package to a title:
 
 * Navigate to the **Software** page, select a fleet, and select the **Library** tab.
-* Select the software title.
+* Select the software.
 * In the **Library** section of the **Software details** page, select **Add package**.
 * Choose a file to upload, set the **Target**, and configure any advanced options.
 
