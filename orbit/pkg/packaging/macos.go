@@ -326,12 +326,8 @@ func writeUpdateClientCertificate(opt Options, orbitRoot string) error {
 	return nil
 }
 
-// xarBom creates the actual .pkg format. It's a xar archive with a BOM (Bill of
-// materials?). See http://bomutils.dyndns.org/tutorial.html.
+// xarBom creates the actual .pkg format. It's a xar archive with a BOM (Bill of materials).
 func xarBom(rootPath string) error {
-	// Adapted from BSD licensed
-	// https://github.com/go-flutter-desktop/hover/blob/v0.46.2/cmd/packaging/darwin-pkg.go
-
 	// Copy payload/scripts
 	if err := cpio(
 		filepath.Join(rootPath, "root"),
@@ -346,9 +342,6 @@ func xarBom(rootPath string) error {
 		return fmt.Errorf("cpio Scripts: %w", err)
 	}
 
-	// Make Bill of materials (bom) with the pure-Go writer (replaces mkbom/lsbom
-	// and the fleetdm/bomutils Docker image). Ownership is fixed to root/admin
-	// (0/80) inside writeBom.
 	if err := writeBom(
 		filepath.Join(rootPath, "root"),
 		filepath.Join(rootPath, "flat", "base.pkg", "Bom"),
@@ -356,8 +349,6 @@ func xarBom(rootPath string) error {
 		return fmt.Errorf("write bom: %w", err)
 	}
 
-	// Make xar (pure Go; replaces the external `xar` and fleetdm/bomutils Docker
-	// invocation). Uncompressed, matching the previous `--compression none`.
 	if err := writeXar(filepath.Join(rootPath, "flat"), filepath.Join(rootPath, "orbit.pkg")); err != nil {
 		return fmt.Errorf("write xar: %w", err)
 	}
