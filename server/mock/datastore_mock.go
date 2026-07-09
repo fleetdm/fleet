@@ -1408,6 +1408,8 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
+type SetMDMWindowsHostProfileFailedFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+
 type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error)
 
 type GetMDMConfigProfileStatusFunc func(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error)
@@ -4232,6 +4234,9 @@ type DataStore struct {
 
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
+
+	SetMDMWindowsHostProfileFailedFunc        SetMDMWindowsHostProfileFailedFunc
+	SetMDMWindowsHostProfileFailedFuncInvoked bool
 
 	BatchResendMDMProfileToHostsFunc        BatchResendMDMProfileToHostsFunc
 	BatchResendMDMProfileToHostsFuncInvoked bool
@@ -10200,6 +10205,13 @@ func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, p
 	s.ResendHostMDMProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+	s.mu.Lock()
+	s.SetMDMWindowsHostProfileFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsHostProfileFailedFunc(ctx, hostUUID, profileUUID, detail)
 }
 
 func (s *DataStore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {

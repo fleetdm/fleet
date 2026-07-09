@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.18286.0",
+      "version": "1.19367.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC' AND version_compare(version, '1.18286.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC' AND version_compare(version, '1.19367.0') < 0);"
       },
-      "installer_url": "https://downloads.claude.ai/releases/win32/x64/1.18286.0/Claude-259c3fc2a647e4222ca15e99bba9b2649f31f051.msix",
+      "installer_url": "https://downloads.claude.ai/releases/win32/x64/1.19367.0/Claude-1a5be1fbf83d1832486e03a667557c18f0a0ec7a.msix",
       "install_script_ref": "16c020cc",
       "uninstall_script_ref": "03f72055",
-      "sha256": "7927bafc45478d87d3213d9b9afb27bba58bc32b4fe9aa58a106cbfc139d0d3c",
+      "sha256": "dd2414e9875341d931d2e2103b6d917d762efaeb5f018422f79dcfcc879da974",
       "default_categories": [
         "Productivity"
       ]

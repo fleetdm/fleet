@@ -2,11 +2,13 @@ package main
 
 import (
 	"crypto/sha1" //nolint:gosec
+	"crypto/x509"
 	"encoding/hex"
 	"fmt"
 	"maps"
 	// osquery-perf shares one global math/rand RNG seeded from the --seed flag so load-test runs are reproducible
 	"math/rand" //nolint:depguard
+	"slices"
 	"strings"
 	"time"
 
@@ -151,10 +153,57 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 		a.churnPerHostCertSpecs()
 	}
 
-	specs := make([]simulatedCert, 0, len(sharedCerts)+len(a.hostCertSpecs))
+	specs := make([]simulatedCert, 0, len(sharedCerts)+len(a.hostCertSpecs)+len(a.scepCertSpecs))
 	specs = append(specs, sharedCerts...)
 	specs = append(specs, a.hostCertSpecs...)
+	// Include the certs issued via Windows MDM SCEP exchanges (never churned; replaced only on re-issuance). Sorted
+	// by CSP unique ID so the report order is stable across refreshes.
+	for _, id := range slices.Sorted(maps.Keys(a.scepCertSpecs)) {
+		specs = append(specs, a.scepCertSpecs[id])
+	}
 	return specs
+}
+
+// storeSCEPCertSpec records a certificate issued during a Windows MDM SCEP exchange
+func (a *agent) storeSCEPCertSpec(uniqueID string, cert *x509.Certificate) {
+	a.certificatesMutex.Lock()
+	defer a.certificatesMutex.Unlock()
+	if a.scepCertSpecs == nil {
+		a.scepCertSpecs = make(map[string]simulatedCert)
+	}
+	a.scepCertSpecs[uniqueID] = scepIssuedCertSpec(cert)
+}
+
+// scepIssuedCertSpec converts a certificate issued during a Windows MDM SCEP exchange into a simulatedCert. The
+// cert's subject carries the fleet-<profileUUID> renewal-ID marker (expanded from the profile's
+// $FLEET_VAR_SCEP_RENEWAL_ID), which the server matches on ingestion to flip the SCEP profile to verified. Reported
+// machine-scoped: osquery-perf drives SCEP CSPs on the device channel, so the cert lands in the LocalMachine store.
+func scepIssuedCertSpec(cert *x509.Certificate) simulatedCert {
+	return simulatedCert{
+		commonName:        cert.Subject.CommonName,
+		subjectCommonName: cert.Subject.CommonName,
+		subjectOrg:        firstOrEmpty(cert.Subject.Organization),
+		// Join multiple OUs with "+OU=", mirroring how osquery reports multi-OU certs
+		subjectOrgUnit:     strings.Join(cert.Subject.OrganizationalUnit, "+OU="),
+		subjectCountry:     firstOrEmpty(cert.Subject.Country),
+		issuerCommonName:   cert.Issuer.CommonName,
+		issuerOrg:          firstOrEmpty(cert.Issuer.Organization),
+		issuerCountry:      firstOrEmpty(cert.Issuer.Country),
+		keyAlgorithm:       "rsaEncryption",
+		keyStrength:        "2048",
+		keyUsage:           "Key Encipherment, Digital Signature",
+		signingAlgorithm:   cert.SignatureAlgorithm.String(),
+		serial:             cert.SerialNumber.String(),
+		notValidAfterUnix:  fmt.Sprint(cert.NotAfter.Unix()),
+		notValidBeforeUnix: fmt.Sprint(cert.NotBefore.Unix()),
+	}
+}
+
+func firstOrEmpty(vals []string) string {
+	if len(vals) == 0 {
+		return ""
+	}
+	return vals[0]
 }
 
 // newPerHostCertSpecs generates 0-10 certificates unique to this host

@@ -166,6 +166,8 @@ Use the following steps to schedule an interview between a candidate and the CEO
 6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed.
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
 
+The CEO interview should be scheduled within 2 business days of the request being made. If the CEO's schedule is blocking a hire for more than 2 business days, the EA adds a "DISCUSS" item to the CEO roundup to resolve the scheduling blocker.
+
 
 ### Schedule analyst briefing
 
