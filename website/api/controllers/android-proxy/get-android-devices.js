@@ -34,6 +34,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
   },
 
