@@ -1837,6 +1837,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
+		} else if item.FleetMaintainedAppSlug != "" {
+			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName

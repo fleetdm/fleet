@@ -4994,6 +4994,30 @@ policies:
     fleet_maintained_app_slug: firefox/darwin
 `,
 		},
+		{
+			name: "dynamic policy with base fleet_maintained_app_slug is rejected",
+			policies: `
+policies:
+  - name: Install Google Chrome
+    type: dynamic
+    platform: darwin
+    query: "SELECT 1;"
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+`,
+			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies"},
+		},
+		{
+			name: "dynamic policy with install_software true and no slug is allowed (does nothing)",
+			policies: `
+policies:
+  - name: Some dynamic policy
+    type: dynamic
+    platform: darwin
+    query: "SELECT 1;"
+    install_software: true
+`,
+		},
 	}
 
 	for _, tc := range tests {
