@@ -25,7 +25,7 @@ const Tag = ({
   children,
   onClick,
   onDismiss,
-  dismissLabel,
+  dismissLabel = "Remove",
   disabled,
   className,
 }: ITagProps) => {

@@ -48,4 +48,22 @@ describe("Tag", () => {
     await userEvent.click(dismissButton);
     expect(handler).toHaveBeenCalledTimes(1);
   });
+
+  it("gives the dismiss button an accessible name even when dismissLabel is omitted", () => {
+    render(<Tag type="dismissible">Apple Silicon macOS hosts</Tag>);
+
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+  });
+
+  it("uses dismissLabel as the dismiss button's accessible name when provided", () => {
+    render(
+      <Tag type="dismissible" dismissLabel="Apple Silicon macOS hosts">
+        Apple Silicon macOS hosts
+      </Tag>
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Apple Silicon macOS hosts" })
+    ).toBeInTheDocument();
+  });
 });
