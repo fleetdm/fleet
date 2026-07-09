@@ -107,7 +107,8 @@ export const generateSoftwarePackageOptionHelpText = (
   pkg: ISoftwarePackage
 ): string => {
   const separator = pkg.version && pkg.uploaded_at ? " • " : "";
-  const added = pkg.uploaded_at ? `Added ${addedFromNow(pkg.uploaded_at)}` : "";
+  // `addedFromNow` already prepends "Added " — do not double-wrap.
+  const added = pkg.uploaded_at ? addedFromNow(pkg.uploaded_at) : "";
   return `${pkg.version ?? ""}${separator}${added}`;
 };
 

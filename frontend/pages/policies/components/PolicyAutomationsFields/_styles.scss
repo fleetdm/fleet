@@ -60,7 +60,7 @@
 
   &__row-trailing {
     text-align: right;
-    width: 50%;
+    max-width: 60%;
   }
 
   &__row-disabled-hint {
@@ -75,8 +75,8 @@
 
   &__software-pickers {
     display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall;
+    flex-direction: row;
+    gap: $pad-small;
     align-items: flex-end;
   }
 

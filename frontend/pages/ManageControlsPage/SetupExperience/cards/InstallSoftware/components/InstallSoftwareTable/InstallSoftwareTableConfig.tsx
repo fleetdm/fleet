@@ -83,7 +83,28 @@ const generateTableConfig = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
+      // Setup experience only installs the first-added package per custom
+      // multi-package title; the header tooltip surfaces the disclaimer
+      // once for the whole column rather than per-row. Copy is scoped to
+      // "custom packages" so it stays accurate even when non-custom rows
+      // (FMA, VPP, Play Store) render alongside custom ones.
+      // `id` is required whenever Header is a function — react-table
+      // otherwise falls back to `Header` as the column key and crashes.
+      id: "version",
+      Header: () => (
+        <TooltipWrapper
+          tipContent={
+            <>
+              For custom packages, the first
+              <br />
+              added version will be installed.
+            </>
+          }
+          showArrow
+        >
+          Version
+        </TooltipWrapper>
+      ),
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
         if (platform === "android") {
@@ -114,27 +135,6 @@ const generateTableConfig = (
               displayedVersion ?? DEFAULT_EMPTY_CELL_VALUE
             ).concat(` (.${packageTypeCopy})`);
           }
-        }
-
-        // Setup experience only installs the first-added package on a
-        // multi-package custom title; surface a tooltip so the admin knows
-        // the other packages aren't in scope here. Single-package titles
-        // (VPP, FMA, and any custom title with only one package) don't need
-        // the disclaimer — there's no "other" to explain away.
-        const isMultiPackageCustom = (title.packages?.length ?? 0) > 1;
-        if (isMultiPackageCustom) {
-          return (
-            <TextCell
-              value={
-                <TooltipWrapper
-                  tipContent="For custom packages, the first added version will be installed."
-                  showArrow
-                >
-                  {displayedVersion}
-                </TooltipWrapper>
-              }
-            />
-          );
         }
         return <TextCell value={displayedVersion} />;
       },

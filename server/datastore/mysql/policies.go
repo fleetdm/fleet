@@ -2893,6 +2893,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		p.id AS id,
 		p.name AS name,
 		COALESCE(si.title_id, va.title_id) AS software_title_id,
+		p.software_installer_id AS software_installer_id,
 		p.type AS type
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id
