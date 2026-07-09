@@ -895,10 +895,11 @@ type MDMAppleDeclaration struct {
 	AssetsUpdatedAt    *time.Time `db:"assets_updated_at" json:"-"`
 }
 
-// EffectiveDDMToken computes the per-declaration token that incorporates both
-// the static content hash and the host-specific variables_updated_at timestamp.
-// When variablesUpdatedAt is nil (declaration has no Fleet variables), the
-// effective token equals the static token unchanged.
+// EffectiveDDMToken computes the per-declaration token that incorporates the
+// static content hash together with the host-specific variables_updated_at
+// and/or assets_updated_at timestamps. When both are nil (the declaration
+// references no Fleet variables or DDM assets), the effective token equals
+// the static token unchanged.
 func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time, assetsUpdatedAt *time.Time) string {
 	if variablesUpdatedAt == nil && assetsUpdatedAt == nil {
 		return staticToken

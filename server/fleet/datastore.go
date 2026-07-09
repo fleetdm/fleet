@@ -3558,7 +3558,7 @@ type Datastore interface {
 
 	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
 	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
-	GetAppleDDMAssetByIdentifier(ctx context.Context, identifier string, teamID uint) (*DownloadableDDMAsset, error)
+	GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*DownloadableDDMAsset, error)
 	GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*DownloadableDDMAsset, error)
 	CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error)
 	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error

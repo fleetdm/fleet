@@ -4935,6 +4935,15 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			}
 		}
 
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			return &existsError{
+				ResourceType: "MDMAppleDeclaration.Name",
+				Identifier:   declaration.Name,
+				TeamID:       declaration.TeamID,
+			}
+		}
+
 		if len(assetReferences) > 0 {
 			assetRefStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid)
 			VALUES ` + strings.Repeat("(?, ?),", len(assetReferences)-1) + "(?, ?) " + `
@@ -4947,15 +4956,6 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 			if _, err := tx.ExecContext(ctx, assetRefStmt, assetRefArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting apple mdm declaration asset references")
-			}
-		}
-
-		aff, _ := res.RowsAffected()
-		if aff == 0 {
-			return &existsError{
-				ResourceType: "MDMAppleDeclaration.Name",
-				Identifier:   declaration.Name,
-				TeamID:       declaration.TeamID,
 			}
 		}
 
@@ -7957,19 +7957,24 @@ func (ds *Datastore) GetAppleDDMAssetsReferencedByDeclarations(ctx context.Conte
 	return assets, nil
 }
 
-// GetAppleDDMAssetByIdentifier returns the asset with the given identifier that
-// belongs to the given team. Asset identifiers are only unique per team
-// (idx_mdm_apple_decl_asset_team_identifier), so callers must scope the lookup
-// to the requesting host's team to avoid serving another team's asset. Global
-// (no-team) assets are stored with team_id = 0.
-func (ds *Datastore) GetAppleDDMAssetByIdentifier(ctx context.Context, identifier string, teamID uint) (*fleet.DownloadableDDMAsset, error) {
+// GetAppleDDMAssetForDelivery returns the asset with the given identifier that
+// belongs to the given team, and is referenced by the given host's current declarations.
+func (ds *Datastore) GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error) {
 	if identifier == "" {
 		return nil, ctxerr.New(ctx, "asset identifier is required")
 	}
 
 	var asset fleet.DownloadableDDMAsset
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, `SELECT asset_uuid, team_id, identifier, name, token, created_at, uploaded_at, raw_json
-		FROM mdm_apple_declaration_assets WHERE identifier = ? AND team_id = ?`, identifier, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, `SELECT a.asset_uuid, a.team_id, a.identifier, a.name, a.token, a.created_at, a.uploaded_at, a.raw_json
+		FROM
+			hosts h
+			JOIN host_mdm_apple_declarations hmad ON hmad.host_uuid = h.uuid
+			JOIN mdm_apple_declaration_asset_references r ON r.declaration_uuid = hmad.declaration_uuid
+			JOIN mdm_apple_declaration_assets a ON a.asset_uuid = r.asset_uuid
+			AND a.team_id = COALESCE(h.team_id, 0)
+		WHERE
+			h.uuid = ?
+			AND a.identifier = ?`, hostUUID, identifier)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("Asset").WithName(identifier)

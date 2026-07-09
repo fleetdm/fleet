@@ -998,29 +998,30 @@ func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *
 		return nil, err
 	}
 
+	if len(assetRefs) == 0 {
+		return nil, nil
+	}
+
 	// List all assets for the given team
 	assets, err := svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
 	}
 
-	assetReferenceUUIDs := []string{}
-	for _, ref := range assetRefs {
-		// Check each one exists.
-		found := false
-		for _, asset := range assets {
-			if asset.Identifier == ref {
-				found = true
-				assetReferenceUUIDs = append(assetReferenceUUIDs, asset.AssetUUID)
-				break
-			}
-		}
+	assetsByIdentifier := make(map[string]string, len(assets))
+	for _, asset := range assets {
+		assetsByIdentifier[asset.Identifier] = asset.AssetUUID
+	}
 
-		if !found {
+	assetReferenceUUIDs := make([]string, 0, len(assetRefs))
+	for _, ref := range assetRefs {
+		assetUUID, ok := assetsByIdentifier[ref]
+		if !ok {
 			return nil, &fleet.BadRequestError{
 				Message: fmt.Sprintf("Couldn't add. Asset (%q) doesn't exist. Make sure the asset is uploaded in OS Settings > Configuration profiles > Assets before referencing it in a profile.", ref),
 			}
 		}
+		assetReferenceUUIDs = append(assetReferenceUUIDs, assetUUID)
 	}
 
 	return assetReferenceUUIDs, nil
@@ -3885,7 +3886,7 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 		// default is no team
 		decoded.TeamID = new(uint(0))
 	} else {
-		fleetID, err := strconv.ParseUint(val[0], 10, 32) //nolint:staticcheck // it's used...
+		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
@@ -6664,15 +6665,7 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 func (svc *MDMAppleDDMService) handleDeclarationAsset(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
 	assetIdentifier := parts[2]
 
-	// Asset identifiers are only unique per team, so scope the lookup to the
-	// requesting host's team. Otherwise a host could be served another team's
-	// asset that happens to share the identifier.
-	checkinInfo, err := svc.ds.GetHostMDMCheckinInfo(ctx, hostUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host checkin info for asset request")
-	}
-
-	asset, err := svc.ds.GetAppleDDMAssetByIdentifier(ctx, assetIdentifier, checkinInfo.TeamID)
+	asset, err := svc.ds.GetAppleDDMAssetForDelivery(ctx, assetIdentifier, hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)

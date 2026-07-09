@@ -29,7 +29,7 @@ func TestMDMDDMApple(t *testing.T) {
 		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
 		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
 		{"ChannelScopeIsolation", testDDMChannelScopeIsolation},
-		{"GetAppleDDMAssetByIdentifier", testGetAppleDDMAssetByIdentifier},
+		{"GetAppleDDMAssetForDelivery", testGetAppleDDMAssetForDelivery},
 		{"GetAppleDDMAssetsReferencedByDeclarations", testGetAppleDDMAssetsReferencedByDeclarations},
 		{"AssetsUpdatedAtRoundTripAndToken", testDDMAssetsUpdatedAtRoundTripAndToken},
 	}
@@ -620,39 +620,136 @@ func testCreateAppleDDMAsset(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testGetAppleDDMAssetByIdentifier(t *testing.T, ds *Datastore) {
+func testGetAppleDDMAssetForDelivery(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	const identifier = "com.example.shared.asset"
 
-	// Same identifier in two different teams (0 = global, 1 = some team). The
-	// unique key is (team_id, identifier), so both can coexist.
-	globalUUID, err := ds.CreateAppleDDMAsset(ctx, "global-asset", identifier, []byte(`{"global":true}`), nil)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ddm-delivery-team"})
 	require.NoError(t, err)
-	teamUUID, err := ds.CreateAppleDDMAsset(ctx, "team-asset", identifier, []byte(`{"team":true}`), new(uint(1)))
-	require.NoError(t, err)
-	require.NotEqual(t, globalUUID, teamUUID)
 
-	t.Run("returns the asset scoped to the requested team", func(t *testing.T) {
-		got, err := ds.GetAppleDDMAssetByIdentifier(ctx, identifier, 0)
+	// Same identifier in two different teams (global vs a real team). The unique
+	// key is (team_id, identifier), so both assets can coexist.
+	globalAssetUUID, err := ds.CreateAppleDDMAsset(ctx, "global-asset", identifier, []byte(`{"global":true}`), nil)
+	require.NoError(t, err)
+	teamAssetUUID, err := ds.CreateAppleDDMAsset(ctx, "team-asset", identifier, []byte(`{"team":true}`), &team.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, globalAssetUUID, teamAssetUUID)
+
+	// A declaration in each team that references its team's asset. Delivery is
+	// now scoped through the host's installed declarations, so the asset is only
+	// reachable via a declaration that references it.
+	globalDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Name:       "GlobalDecl",
+		Identifier: "com.example.globalDecl",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.globalDecl"}`),
+	}, nil, []string{globalAssetUUID})
+	require.NoError(t, err)
+	teamDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		TeamID:     &team.ID,
+		Name:       "TeamDecl",
+		Identifier: "com.example.teamDecl",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.teamDecl"}`),
+	}, nil, []string{teamAssetUUID})
+	require.NoError(t, err)
+
+	// A global host that has the global declaration installed, and a team host
+	// that has the team declaration installed.
+	globalHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "ddm-delivery-global",
+		UUID:            "ddm-delivery-global-uuid",
+		HardwareSerial:  "DDM-DELIVERY-GLOBAL",
+		PrimaryIP:       "192.168.1.80",
+		PrimaryMac:      "00:00:00:00:00:80",
+		OsqueryHostID:   new("ddm-delivery-global-uuid"),
+		NodeKey:         new("ddm-delivery-global-uuid"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "ddm-delivery-team",
+		UUID:            "ddm-delivery-team-uuid",
+		HardwareSerial:  "DDM-DELIVERY-TEAM",
+		PrimaryIP:       "192.168.1.81",
+		PrimaryMac:      "00:00:00:00:00:81",
+		OsqueryHostID:   new("ddm-delivery-team-uuid"),
+		NodeKey:         new("ddm-delivery-team-uuid"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+
+	insertHostDeclaration(t, ds, ctx, globalHost.UUID, globalDecl.DeclarationUUID, "global-token", "verified", "install", globalDecl.Identifier)
+	insertHostDeclaration(t, ds, ctx, teamHost.UUID, teamDecl.DeclarationUUID, "team-token", "verified", "install", teamDecl.Identifier)
+
+	t.Run("returns the asset scoped to the host's team", func(t *testing.T) {
+		got, err := ds.GetAppleDDMAssetForDelivery(ctx, identifier, globalHost.UUID)
 		require.NoError(t, err)
-		require.Equal(t, globalUUID, got.AssetUUID)
+		require.Equal(t, globalAssetUUID, got.AssetUUID)
 		require.JSONEq(t, `{"global":true}`, string(got.Data))
 
-		got, err = ds.GetAppleDDMAssetByIdentifier(ctx, identifier, 1)
+		got, err = ds.GetAppleDDMAssetForDelivery(ctx, identifier, teamHost.UUID)
 		require.NoError(t, err)
-		require.Equal(t, teamUUID, got.AssetUUID)
+		require.Equal(t, teamAssetUUID, got.AssetUUID)
 		require.JSONEq(t, `{"team":true}`, string(got.Data))
 	})
 
-	t.Run("does not leak another team's asset", func(t *testing.T) {
-		_, err := ds.GetAppleDDMAssetByIdentifier(ctx, identifier, 99)
+	t.Run("does not return an asset the host does not reference", func(t *testing.T) {
+		// A host with no declaration referencing the asset gets nothing, even
+		// though an asset with this identifier exists in its team.
+		bareHost, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        "ddm-delivery-bare",
+			UUID:            "ddm-delivery-bare-uuid",
+			HardwareSerial:  "DDM-DELIVERY-BARE",
+			PrimaryIP:       "192.168.1.82",
+			PrimaryMac:      "00:00:00:00:00:82",
+			OsqueryHostID:   new("ddm-delivery-bare-uuid"),
+			NodeKey:         new("ddm-delivery-bare-uuid"),
+			DetailUpdatedAt: time.Now(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.GetAppleDDMAssetForDelivery(ctx, identifier, bareHost.UUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("does not leak an asset from another team", func(t *testing.T) {
+		// A team host that (incorrectly) references the global declaration must
+		// not receive the global asset, because the asset's team_id does not
+		// match the host's team_id.
+		mismatchHost, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        "ddm-delivery-mismatch",
+			UUID:            "ddm-delivery-mismatch-uuid",
+			HardwareSerial:  "DDM-DELIVERY-MISMATCH",
+			PrimaryIP:       "192.168.1.83",
+			PrimaryMac:      "00:00:00:00:00:83",
+			OsqueryHostID:   new("ddm-delivery-mismatch-uuid"),
+			NodeKey:         new("ddm-delivery-mismatch-uuid"),
+			DetailUpdatedAt: time.Now(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{mismatchHost.ID})))
+		insertHostDeclaration(t, ds, ctx, mismatchHost.UUID, globalDecl.DeclarationUUID, "mismatch-token", "verified", "install", globalDecl.Identifier)
+
+		_, err = ds.GetAppleDDMAssetForDelivery(ctx, identifier, mismatchHost.UUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("unknown host is not found", func(t *testing.T) {
+		_, err := ds.GetAppleDDMAssetForDelivery(ctx, identifier, "does-not-exist-uuid")
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 	})
 
 	t.Run("missing identifier is an error", func(t *testing.T) {
-		_, err := ds.GetAppleDDMAssetByIdentifier(ctx, "", 0)
+		_, err := ds.GetAppleDDMAssetForDelivery(ctx, "", globalHost.UUID)
 		require.Error(t, err)
 	})
 }

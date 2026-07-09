@@ -2152,7 +2152,7 @@ type ListAppleDDMAssetsFunc func(ctx context.Context, teamID *uint) ([]*fleet.DD
 
 type GetAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error)
 
-type GetAppleDDMAssetByIdentifierFunc func(ctx context.Context, identifier string, teamID uint) (*fleet.DownloadableDDMAsset, error)
+type GetAppleDDMAssetForDeliveryFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error)
 
 type GetAppleDDMAssetForDownloadFunc func(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error)
 
@@ -5355,8 +5355,8 @@ type DataStore struct {
 	GetAppleDDMAssetFunc        GetAppleDDMAssetFunc
 	GetAppleDDMAssetFuncInvoked bool
 
-	GetAppleDDMAssetByIdentifierFunc        GetAppleDDMAssetByIdentifierFunc
-	GetAppleDDMAssetByIdentifierFuncInvoked bool
+	GetAppleDDMAssetForDeliveryFunc        GetAppleDDMAssetForDeliveryFunc
+	GetAppleDDMAssetForDeliveryFuncInvoked bool
 
 	GetAppleDDMAssetForDownloadFunc        GetAppleDDMAssetForDownloadFunc
 	GetAppleDDMAssetForDownloadFuncInvoked bool
@@ -12821,11 +12821,11 @@ func (s *DataStore) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fl
 	return s.GetAppleDDMAssetFunc(ctx, assetUUID)
 }
 
-func (s *DataStore) GetAppleDDMAssetByIdentifier(ctx context.Context, identifier string, teamID uint) (*fleet.DownloadableDDMAsset, error) {
+func (s *DataStore) GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error) {
 	s.mu.Lock()
-	s.GetAppleDDMAssetByIdentifierFuncInvoked = true
+	s.GetAppleDDMAssetForDeliveryFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAppleDDMAssetByIdentifierFunc(ctx, identifier, teamID)
+	return s.GetAppleDDMAssetForDeliveryFunc(ctx, identifier, hostUUID)
 }
 
 func (s *DataStore) GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error) {
