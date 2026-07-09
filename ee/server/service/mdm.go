@@ -1578,6 +1578,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 		string(mdmAssets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		accessRights,
+		true, // fresh enrollment (manual profile download)
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)

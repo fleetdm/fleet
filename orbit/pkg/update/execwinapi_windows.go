@@ -11,14 +11,12 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
@@ -244,13 +242,9 @@ func TriggerWindowsMDMSync() error {
 	return nil
 }
 
-// windowsEnrollmentGUIDRe matches a standard enrollment GUID (8-4-4-4-12 hex). The matched subkey name becomes an argument to deviceenroller
-// while orbit runs as SYSTEM, so we validate its shape before using it, even though writing the Enrollments key already requires admin.
-var windowsEnrollmentGUIDRe = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
-
 // fleetMDMEnrollmentGUID returns the enrollment GUID of the active Fleet Windows MDM enrollment by scanning
-// HKLM\SOFTWARE\Microsoft\Enrollments for the subkey whose ProviderID is Fleet's and whose EnrollmentState is active. The subkey name is
-// the enrollment GUID that deviceenroller's /o argument expects.
+// HKLM\SOFTWARE\Microsoft\Enrollments for the subkey whose ProviderID is Fleet's and whose EnrollmentState is active (see
+// isActiveFleetEnrollment). The subkey name is the enrollment GUID that deviceenroller's /o argument expects.
 func fleetMDMEnrollmentGUID() (string, error) {
 	const enrollmentsPath = `SOFTWARE\Microsoft\Enrollments`
 	root, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath, registry.READ)
@@ -264,10 +258,6 @@ func fleetMDMEnrollmentGUID() (string, error) {
 		return "", fmt.Errorf("read enrollment subkeys: %w", err)
 	}
 
-	// EnrollmentState == 1 is the active state observed for Fleet's MDM enrollment on tested Windows builds; the registry DWORD under
-	// Enrollments is not authoritatively documented by Microsoft. The ProviderID == "Fleet" check in the loop below scopes the match to
-	// Fleet's own enrollment, so this never selects an unrelated (e.g. Intune) enrollment that might use a different state value.
-	const enrollmentStateActive = 1
 	for _, name := range names {
 		k, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath+`\`+name, registry.QUERY_VALUE)
 		if err != nil {
@@ -276,11 +266,8 @@ func fleetMDMEnrollmentGUID() (string, error) {
 		providerID, _, providerErr := k.GetStringValue("ProviderID")
 		state, _, stateErr := k.GetIntegerValue("EnrollmentState")
 		k.Close()
-		if providerErr == nil && stateErr == nil && providerID == syncml.DocProvisioningAppProviderID && state == enrollmentStateActive {
-			// Don't hand a malformed subkey name to deviceenroller; skip it and keep looking for a well-formed enrollment GUID.
-			if !windowsEnrollmentGUIDRe.MatchString(name) {
-				continue
-			}
+		// A malformed subkey name (not a valid GUID) makes isActiveFleetEnrollment return false, so we keep scanning for a well-formed one.
+		if providerErr == nil && stateErr == nil && isActiveFleetEnrollment(providerID, state, name) {
 			return name, nil
 		}
 	}

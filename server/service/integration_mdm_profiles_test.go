@@ -4666,7 +4666,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 		// Trigger profile sync: device should get:
-		// - 1 <Delete> for the removed AllowCortana LocURI (from batchSet edit diff)
+		// - 1 <Delete> for the removed AllowCortana LocURI (enqueued by the reconciler)
 		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
 		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
 		s.awaitTriggerProfileSchedule(t)
@@ -8481,7 +8481,9 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	scepCount := verifyCommands(1, syncml.CmdStatusOK)
 	require.Equal(t, 1, scepCount, "SCEP exchange should have run exactly once")
 
-	// Verify profile status is Verified due to successful response
+	// The device ACKed the SCEP <Exec>, but for a Fleet-proxied SCEP profile that only means the exchange was
+	// accepted, not that a certificate landed on the host. The profile stays "verifying" until Fleet observes the
+	// matching certificate.
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	foundProfile = false
@@ -8490,6 +8492,34 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			profileUUID = p.ProfileUUID
+			require.NotNil(t, p.Status)
+			assert.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+		}
+	}
+	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
+
+	// Simulate osquery reporting the issued certificate. It carries the profile's renewal-ID marker
+	// (fleet-<profile_uuid>) in its OU, which Fleet matches back to the profile's managed-certificate row.
+	sha1Sum := make([]byte, 20)
+	copy(sha1Sum, profileUUID)
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
+		HostID:                    host.ID,
+		CommonName:                "windows-scep-cert",
+		SubjectCommonName:         "windows-scep-cert",
+		SubjectOrganizationalUnit: "fleet-" + profileUUID,
+		SHA1Sum:                   sha1Sum,
+		NotValidBefore:            time.Now().Add(-time.Hour),
+		NotValidAfter:             time.Now().Add(365 * 24 * time.Hour),
+		Source:                    fleet.SystemHostCertificate,
+	}}, fleet.HostCertificateOriginOsquery, nil))
+
+	// Now that Fleet has observed the matching certificate, the profile is verified.
+	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	foundProfile = false
+	for _, p := range profiles {
+		if p.Name == "WindowsSCEPProfile" {
+			foundProfile = true
 			require.NotNil(t, p.Status)
 			assert.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
