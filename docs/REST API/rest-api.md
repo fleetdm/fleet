@@ -6623,10 +6623,10 @@ Deletes the label specified by ID.
 - [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
-- [Create asset](#create-asset)
-- [List assets](#list-assets)
-- [Get or download asset](#get-or-download-asset)
-- [Delete asset](#delete-asset)
+- [Create Apple asset declaration](#create-apple-asset-declaration)
+- [List Apple asset declarations](#list-apple-asset-declarations)
+- [Get or download Apple asset declaration](#get-or-download-apple-asset-declaration)
+- [Delete Apple asset declaration](#delete-apple-asset-declaration)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update Recovery Lock](#update-recovery-lock)
@@ -7014,9 +7014,9 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 
 `204`
 
-### Create asset
+### Create Apple asset declaration
 
-Add an asset to reference in a configuration profile.
+Add an Apple asset declaration to reference in a configuration profile.
 
 > You need to send a request of type `multipart/form-data`.
 
@@ -7070,9 +7070,9 @@ asset="my-asset.json"
 }
 ```
 
-### List assets
+### List Apple asset declarations
 
-Get a list of the assets in Fleet.
+Get a list of the Apple asset declarations in Fleet.
 
 For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet assets are excluded from the results (i.e., only assets that are associated with "Unassigned" are listed).
 
@@ -7117,7 +7117,9 @@ List all assets available for the "Unassigned" fleet.
 }
 ```
 
-### Get or download asset
+### Get or download Apple asset declaration
+
+Get or download the original Apple asset declaration file that was uploaded to Fleet.
 
 `GET /api/v1/fleet/assets/:asset_uuid`
 
@@ -7125,7 +7127,7 @@ List all assets available for the "Unassigned" fleet.
 
 | Name                      | Type    | In    | Description                                             |
 | ------------------------- | ------- | ----- | ------------------------------------------------------- |
-| asset_uuid              | string | url   | **Required** The UUID of the asset to get.  |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to get.  |
 | alt                       | string  | query | If specified and set to "media", downloads the asset. |
 
 #### Example (get asset metadata)
@@ -7176,15 +7178,19 @@ Content-Disposition: attachment;filename="2023-03-31 my-asset.json"
 }
 ```
 
-### Delete asset
+### Delete Apple asset declaration
+
+Deletes an Apple asset declaration.
+
+> If an asset is referenced in a configuration profile, you must delete the configuration profile first before being able to remove the asset.
 
 `DELETE /api/v1/fleet/assets/:asset_uuid`
 
 #### Parameters
 
-| Name                      | Type    | In    | Description                                                               |
-| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| asset_uuid              | string  | url   | **Required** The UUID of the asset to delete. |
+| Name                      | Type    | In    | Description                                       |
+| ------------------------- | ------- | ----- | ------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to delete.     |
 
 #### Example
 
@@ -7218,21 +7224,20 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 ### Batch-resend configuration profile
 
-
 `POST /api/v1/fleet/configuration_profiles/resend/batch`
 
 #### Parameters
 
-| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
-| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
-| filters | object  | body | **Required**. See [filters](#filters)  |
+| Name          | Type    | In   | Description                                                                            |
+| ------------- | ------- | ---- | -------------------------------------------------------------------------------------- |
+| profile_uuid  | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.     |
+| filters       | object  | body | **Required**. See [filters](#filters)                                                  |
 
 ##### Filters
 
-| Name                              | Type    | Description   |
+| Name                   | Type    | Description   |
 | -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile_status                | string   | Profile status. Currently, `"failed"` is supported. |
+| profile_status         | string   | Profile status. Currently, `"failed"` is supported. |
 
 #### Example
 
