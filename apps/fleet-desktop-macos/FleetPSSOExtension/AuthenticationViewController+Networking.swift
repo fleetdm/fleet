@@ -18,9 +18,10 @@ import Security
 extension AuthenticationViewController {
 
     // loginRequestEncryptionKey fetches Fleet's JWKS and returns the public key
-    // marked use:"enc" as a SecKey, or nil if the server publishes none or the
-    // request fails. macOS uses it to encrypt the password into the login
-    // assertion; a nil result leaves password encryption off.
+    // marked use:"enc" as a SecKey, or nil if the request fails or no such key
+    // is published. macOS uses it to encrypt the password into the login
+    // assertion. Fleet always publishes an encryption key, so the caller treats
+    // nil as fatal rather than proceeding with password encryption disabled.
     func loginRequestEncryptionKey(jwksURL: URL) async -> SecKey? {
         guard let (data, resp) = try? await URLSession.shared.data(from: jwksURL),
               let http = resp as? HTTPURLResponse,
