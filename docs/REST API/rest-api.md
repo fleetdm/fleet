@@ -1611,18 +1611,6 @@ None.
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
-        }
-      ],
-      "managed_local_account_settings": {
-        "enabled": true
-      },
-      "end_user_local_account_type": "admin"
-    },
-    "apple_settings": {
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/declaration.json",
@@ -1634,6 +1622,10 @@ None.
           "path": "path/to/assets/asset.json"
         }
       ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
