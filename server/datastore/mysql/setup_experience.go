@@ -1121,27 +1121,29 @@ func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, host
 	return nil
 }
 
-// SetSetupExperienceCrossInstallers replaces the setup_experience_software_installers
-// rows for (platform, teamID) with the given installer IDs. platform must be
-// canonical (e.g. "darwin"). An empty installerIDs slice clears the pair.
-func (ds *Datastore) SetSetupExperienceCrossInstallers(ctx context.Context, platform string, teamID uint, installerIDs []uint) error {
-	const stmtClear = `DELETE FROM setup_experience_software_installers WHERE platform = ? AND global_or_team_id = ?`
+// SetSetupExperienceCrossInstallersForInstaller replaces the
+// setup_experience_software_installers rows for a single installer on a team
+// with rows for the given platforms. Other installers on the same team are
+// untouched, so a batch reconcile preserves rows for installers that did not
+// opt in. An empty platforms slice clears this installer's rows.
+func (ds *Datastore) SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error {
+	const stmtClear = `DELETE FROM setup_experience_software_installers WHERE software_installer_id = ? AND global_or_team_id = ?`
 	const stmtInsertTmpl = `INSERT IGNORE INTO setup_experience_software_installers (software_installer_id, platform, global_or_team_id) VALUES %s`
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmtClear, platform, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "clearing setup experience cross-platform installers")
+		if _, err := tx.ExecContext(ctx, stmtClear, installerID, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing setup experience cross-platform installer rows")
 		}
-		if len(installerIDs) == 0 {
+		if len(platforms) == 0 {
 			return nil
 		}
-		rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?,?)"}, len(installerIDs)), ",")
-		args := make([]any, 0, len(installerIDs)*3)
-		for _, id := range installerIDs {
-			args = append(args, id, platform, teamID)
+		rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?,?)"}, len(platforms)), ",")
+		args := make([]any, 0, len(platforms)*3)
+		for _, p := range platforms {
+			args = append(args, installerID, p, teamID)
 		}
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmtInsertTmpl, rowPlaceholders), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience cross-platform installers")
+			return ctxerr.Wrap(ctx, err, "inserting setup experience cross-platform installer rows")
 		}
 		return nil
 	})

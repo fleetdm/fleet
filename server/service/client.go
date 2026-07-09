@@ -1355,10 +1355,14 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 		}
 
 		// Pointer-to-slice preserves the tri-state: nil = no change, empty =
-		// clear all cross-platform selections, non-empty = replace.
+		// clear all cross-platform selections, non-empty = replace. The slice
+		// must stay non-nil so an empty list marshals as [] rather than null —
+		// null unmarshals server-side as "no change" and would silently swallow
+		// an explicit clear.
 		var setupExperiencePlatforms *[]string
 		if si.SetupExperiencePlatforms.Set {
-			ps := append([]string(nil), si.SetupExperiencePlatforms.Value...)
+			ps := make([]string, len(si.SetupExperiencePlatforms.Value))
+			copy(ps, si.SetupExperiencePlatforms.Value)
 			setupExperiencePlatforms = &ps
 		}
 

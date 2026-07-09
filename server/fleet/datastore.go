@@ -2972,9 +2972,11 @@ type Datastore interface {
 	//
 
 	SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
-	// SetSetupExperienceCrossInstallers replaces the setup_experience_software_installers
-	// rows for (platform, teamID) with the given installer IDs.
-	SetSetupExperienceCrossInstallers(ctx context.Context, platform string, teamID uint, installerIDs []uint) error
+	// SetSetupExperienceCrossInstallersForInstaller replaces the
+	// setup_experience_software_installers rows for a single installer on a
+	// team with rows for the given platforms. Callers reconciling multiple
+	// installers should invoke this once per installer.
+	SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error
 	// GetSoftwareInstallerIDsByTeamAndFilenamePlatform resolves installer IDs
 	// from zipped (filename, platform) pairs on the given team.
 	GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx context.Context, teamID uint, filenames []string, platforms []string) ([]SoftwareInstallerLookupRow, error)

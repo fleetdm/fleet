@@ -3245,7 +3245,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.SetupExperiencePlatforms = &normalized
 
 				if slices.Contains(normalized, "darwin") && manualAgentInstall {
-					return errors.New(`Couldn't edit software. "setup_experience_platforms" cannot include "macos" if "macos_manual_agent_install" is enabled.`)
+					return errors.New(`Couldn't edit software. "setup_experience_platforms" cannot include macOS if "macos_manual_agent_install" is enabled.`)
 				}
 			}
 
@@ -3409,87 +3409,71 @@ func (svc *Service) softwareBatchUpload(
 	// anymore, so that's intentionally skipped.
 }
 
-// gitOpsCrossPlatformTargets is the set of non-native platforms whose
-// cross-table selections GitOps reconciles. Extend when a new cross-platform
-// combination becomes supported (also update AllowedSetupExperiencePlatformsForExtension).
-var gitOpsCrossPlatformTargets = []string{"darwin"}
-
-// reconcileGitOpsSetupExperienceCrossInstallers replaces the
-// setup_experience_software_installers rows for the team when the incoming
-// batch explicitly opts into cross-platform setup experience. Nil
-// SetupExperiencePlatforms across every payload means "no opinion" and the
-// cross-table is left alone — this preserves UI-set selections for callers
-// that never touch the field.
+// reconcileGitOpsSetupExperienceCrossInstallers rewrites the
+// setup_experience_software_installers rows for each installer in the batch
+// that explicitly sets SetupExperiencePlatforms. Installers with nil
+// SetupExperiencePlatforms are left alone — that preserves cross-platform
+// selections made by another caller (UI, unrelated batch) for installers that
+// this apply didn't opt into.
 func (svc *Service) reconcileGitOpsSetupExperienceCrossInstallers(
 	ctx context.Context,
 	teamID uint,
 	payloads []*fleet.UploadSoftwareInstallerPayload,
 ) error {
-	var anyOptIn bool
-	for _, p := range payloads {
-		if p != nil && p.SetupExperiencePlatforms != nil {
-			anyOptIn = true
-			break
-		}
-	}
-	if !anyOptIn {
-		return nil
-	}
-
 	type key struct{ filename, platform string }
-	perTarget := make(map[string][]key, len(gitOpsCrossPlatformTargets))
+	optedIn := make(map[key][]string)
 	var allKeys []key
 	seenKey := make(map[key]struct{})
 	for _, p := range payloads {
 		if p == nil || p.SetupExperiencePlatforms == nil {
 			continue
 		}
+		k := key{filename: p.Filename, platform: p.Platform}
+		// Filter to non-native platforms — the native platform is expressed
+		// via install_during_setup, not the cross-table.
+		var targets []string
 		for _, target := range *p.SetupExperiencePlatforms {
-			// An installer's own native platform is expressed via
-			// install_during_setup on the software_installers row; it does
-			// not belong in the cross-table.
 			if target == p.Platform {
 				continue
 			}
-			k := key{filename: p.Filename, platform: p.Platform}
-			perTarget[target] = append(perTarget[target], k)
-			if _, ok := seenKey[k]; !ok {
-				seenKey[k] = struct{}{}
-				allKeys = append(allKeys, k)
-			}
+			targets = append(targets, target)
 		}
+		optedIn[k] = targets
+		if _, ok := seenKey[k]; !ok {
+			seenKey[k] = struct{}{}
+			allKeys = append(allKeys, k)
+		}
+	}
+	if len(allKeys) == 0 {
+		return nil
 	}
 
 	// (filename, platform) is uniquely constrained per team, so at most one
 	// row matches each pair.
-	idByKey := make(map[key]uint, len(allKeys))
-	if len(allKeys) > 0 {
-		filenames := make([]string, 0, len(allKeys))
-		platforms := make([]string, 0, len(allKeys))
-		for _, k := range allKeys {
-			filenames = append(filenames, k.filename)
-			platforms = append(platforms, k.platform)
-		}
-		rows, err := svc.ds.GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx, teamID, filenames, platforms)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "look up installer ids for cross-platform reconcile")
-		}
-		for _, r := range rows {
-			idByKey[key{filename: r.Filename, platform: r.Platform}] = r.ID
-		}
+	filenames := make([]string, 0, len(allKeys))
+	platforms := make([]string, 0, len(allKeys))
+	for _, k := range allKeys {
+		filenames = append(filenames, k.filename)
+		platforms = append(platforms, k.platform)
+	}
+	rows, err := svc.ds.GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx, teamID, filenames, platforms)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up installer ids for cross-platform reconcile")
+	}
+	idByKey := make(map[key]uint, len(rows))
+	for _, r := range rows {
+		idByKey[key{filename: r.Filename, platform: r.Platform}] = r.ID
 	}
 
-	// Call the datastore even for targets with no incoming selections so
-	// stale rows get cleared — that's what makes the apply declarative.
-	for _, target := range gitOpsCrossPlatformTargets {
-		var ids []uint
-		for _, k := range perTarget[target] {
-			if id, ok := idByKey[k]; ok {
-				ids = append(ids, id)
-			}
+	for _, k := range allKeys {
+		id, ok := idByKey[k]
+		if !ok {
+			// Installer not found — batch inserts and lookups are eventually
+			// consistent; skip rather than fail the apply.
+			continue
 		}
-		if err := svc.ds.SetSetupExperienceCrossInstallers(ctx, target, teamID, ids); err != nil {
-			return ctxerr.Wrap(ctx, err, "set cross-platform setup experience installers")
+		if err := svc.ds.SetSetupExperienceCrossInstallersForInstaller(ctx, id, teamID, optedIn[k]); err != nil {
+			return ctxerr.Wrap(ctx, err, "set cross-platform setup experience installer rows")
 		}
 	}
 	return nil

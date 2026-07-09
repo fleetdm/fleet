@@ -1736,7 +1736,7 @@ type ClearVPPAppAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, vp
 
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 
-type SetSetupExperienceCrossInstallersFunc func(ctx context.Context, platform string, teamID uint, installerIDs []uint) error
+type SetSetupExperienceCrossInstallersForInstallerFunc func(ctx context.Context, installerID uint, teamID uint, platforms []string) error
 
 type GetSoftwareInstallerIDsByTeamAndFilenamePlatformFunc func(ctx context.Context, teamID uint, filenames []string, platforms []string) ([]fleet.SoftwareInstallerLookupRow, error)
 
@@ -4741,8 +4741,8 @@ type DataStore struct {
 	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
 	SetSetupExperienceSoftwareTitlesFuncInvoked bool
 
-	SetSetupExperienceCrossInstallersFunc        SetSetupExperienceCrossInstallersFunc
-	SetSetupExperienceCrossInstallersFuncInvoked bool
+	SetSetupExperienceCrossInstallersForInstallerFunc        SetSetupExperienceCrossInstallersForInstallerFunc
+	SetSetupExperienceCrossInstallersForInstallerFuncInvoked bool
 
 	GetSoftwareInstallerIDsByTeamAndFilenamePlatformFunc        GetSoftwareInstallerIDsByTeamAndFilenamePlatformFunc
 	GetSoftwareInstallerIDsByTeamAndFilenamePlatformFuncInvoked bool
@@ -11390,11 +11390,11 @@ func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, platfo
 	return s.SetSetupExperienceSoftwareTitlesFunc(ctx, platform, teamID, titleIDs)
 }
 
-func (s *DataStore) SetSetupExperienceCrossInstallers(ctx context.Context, platform string, teamID uint, installerIDs []uint) error {
+func (s *DataStore) SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error {
 	s.mu.Lock()
-	s.SetSetupExperienceCrossInstallersFuncInvoked = true
+	s.SetSetupExperienceCrossInstallersForInstallerFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetSetupExperienceCrossInstallersFunc(ctx, platform, teamID, installerIDs)
+	return s.SetSetupExperienceCrossInstallersForInstallerFunc(ctx, installerID, teamID, platforms)
 }
 
 func (s *DataStore) GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx context.Context, teamID uint, filenames []string, platforms []string) ([]fleet.SoftwareInstallerLookupRow, error) {

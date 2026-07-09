@@ -787,23 +787,16 @@ func CanonicalPlatform(p string) string {
 	return p
 }
 
-// AllowedSetupExperiencePlatformsForExtension returns the canonical platform
-// names a package with the given extension may be selected for in the setup
-// experience. Cross-platform packages get more than one entry; others are
-// restricted to their native platform.
+// AllowedSetupExperiencePlatformsForExtension returns the canonical
+// non-native platform names that may appear in a package's
+// setup_experience_platforms field. The native platform is expressed via
+// setup_experience and is deliberately excluded — allowing it here would let
+// a caller name a target the reconcile then silently drops.
 func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
 	case "sh":
-		return []string{"darwin", "linux"}
-	case "pkg":
 		return []string{"darwin"}
-	case "msi", "exe", "ps1":
-		return []string{"windows"}
-	case "deb", "rpm", "tar.gz":
-		return []string{"linux"}
-	case "ipa":
-		return []string{"ios", "ipados"}
 	default:
 		return nil
 	}
@@ -920,7 +913,7 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
-	InstallDuringSetup optjson.Bool `json:"setup_experience"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	// SetupExperiencePlatforms selects the installer for the setup experience
 	// on non-native platforms. Additive with InstallDuringSetup: the native
 	// platform is controlled by that bool, this list feeds the
@@ -980,9 +973,9 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 }
 
 type MaintainedAppSpec struct {
-	Slug               string                `json:"slug"`
-	Version            string                `json:"version"`
-	SelfService        bool                  `json:"self_service"`
+	Slug                     string                `json:"slug"`
+	Version                  string                `json:"version"`
+	SelfService              bool                  `json:"self_service"`
 	PreInstallQuery          TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript            TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript        TeamSpecSoftwareAsset `json:"post_install_script"`
