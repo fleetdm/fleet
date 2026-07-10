@@ -1496,7 +1496,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 
 	// Get the enterprise name from the DB.
 	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises LIMIT 1`); err != nil {
+	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No enterprise configured — nothing to do.
 			return nil
