@@ -2806,7 +2806,7 @@ _Available in Fleet Premium._
       "apple_setup_assistant": "path/to/config.json"
     },
     "windows_automatic_enrollment": {
-      "default_fleet": "Unassigned"
+      "default_fleet": "123"
     }
   }
 }
@@ -12999,7 +12999,7 @@ _Available in Fleet Premium_
         "manual_agent_install": false
       },
       "windows_automatic_enrollment": {
-        "default_fleet": "Unassigned"
+        "default_fleet": "123"
       }
     }
   }
@@ -13511,7 +13511,7 @@ Returned when the requested name only differs from another fleet's name by lette
       "enable_end_user_authentication": false
     },
     "windows_automatic_enrollment": {
-      "default_fleet": "Unassigned"
+      "default_fleet": "123"
     }
   }
 }
@@ -13673,7 +13673,7 @@ _Available in Fleet Premium_
         "apple_setup_assistant": "path/to/config.json"
       },
       "windows_automatic_enrollment": {
-        "default_fleet": "Unassigned"
+        "default_fleet": "123"
       }
     },
     "users": [
