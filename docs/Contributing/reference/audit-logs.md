@@ -1623,7 +1623,7 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
-- "install_skipped_when_app_open": Whether the install was skipped because the app was open, per a patch policy's `only_when_closed` condition. Only present when "status" is "failed_install" and the install was skipped for this reason; omitted otherwise. Skipped attempts don't count against the software install retry limit.
+- "install_skipped_when_app_open": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when `patch_only_when_closed` is set. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
 
 #### Example
 
