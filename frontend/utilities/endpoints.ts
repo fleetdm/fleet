@@ -103,6 +103,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
+  HOST_RESEND_NAME_TEMPLATE: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/name_template/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
