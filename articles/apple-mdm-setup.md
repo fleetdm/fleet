@@ -242,6 +242,37 @@ How automatic enrollment profiles are assigned:
 
 ![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
 
+### Release a host from AB
+
+> Available in Fleet Premium
+
+You can permanently release (disown) a host from Apple Business directly from Fleet. 
+This calls Apple's Disown Device API and removes the device from your AB account. 
+
+**This action cannot be undone.** Once released, the device can no longer be automatically 
+re-enrolled via AB. The host will remain enrolled in Fleet until an admin manually 
+unenrolls or wipes it.
+
+**Prerequisites:**
+- The host must be enrolled via AB (DEP)
+- You must be a global admin or team admin
+
+**To release a host from AB:**
+
+1. Navigate to the **Host details** page for the host.
+2. Select **Actions > Release from AB**.
+3. Confirm the action in the modal.
+
+**To release multiple hosts via API:**
+
+`POST /api/v1/fleet/hosts/release_ab`
+
+See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#release-host-from-ab) 
+for details.
+
+> **Note:** Releasing a host from AB does not unenroll it from Fleet or wipe it. 
+> Admins must manually unenroll or wipe the host after releasing.
+
 ### Re-enrolling AB hosts
 
 When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
