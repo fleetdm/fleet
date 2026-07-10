@@ -103,19 +103,23 @@ const User = ({
 
         <DataSet
           title={
-            <TooltipWrapper tipContent='This is the "givenName + familyName" from your IdP.'>
+            <TooltipWrapper
+              tipContent={`This is the "givenName + familyName" from your IdP.`}
+            >
               Full name (IdP)
             </TooltipWrapper>
           }
           value={<UserValue values={generateFullNameValues(endUsers)} />}
         />
         <DataSet
-          title={"Groups (IdP)"}
+          title="Groups (IdP)"
           value={<UserValue values={generateGroupsValues(endUsers)} />}
         />
         <DataSet
           title={
-            <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
+            <TooltipWrapper
+              tipContent={`This is the "department" collected from your IdP.`}
+            >
               Department (IdP)
             </TooltipWrapper>
           }
