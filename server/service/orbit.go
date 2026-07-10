@@ -993,7 +993,7 @@ func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json
 			for extensionName, extensionInfo := range extensionsInfo {
 				allMatch := true
 				for _, l := range extensionInfo.Labels {
-					if !memberOf[l] {
+					if _, ok := memberOf[l]; !ok {
 						allMatch = false
 						break
 					}

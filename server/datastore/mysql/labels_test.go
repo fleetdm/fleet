@@ -2147,8 +2147,8 @@ func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            name,
 			Hostname:        "foo.local" + name,
 		})
@@ -2161,14 +2161,14 @@ func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
 	h3 := newHostFunc("h3")
 
 	err = ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
+		zoobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	err = ds.RecordLabelQueryExecutions(ctx, h2, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -2176,7 +2176,7 @@ func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
 		name           string
 		hostID         uint
 		labelNames     []string
-		expectedResult map[string]bool
+		expectedResult map[string]struct{}
 	}{
 		{
 			name:           "empty label names returns nil",
@@ -2188,31 +2188,31 @@ func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
 			name:           "h1 is member of all three labels",
 			hostID:         h1.ID,
 			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: map[string]bool{allHostsLabel.Name: true, foobarLabel.Name: true, zoobarLabel.Name: true},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}, zoobarLabel.Name: {}},
 		},
 		{
 			name:           "h2 is member of some but not all labels",
 			hostID:         h2.ID,
 			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: map[string]bool{allHostsLabel.Name: true, foobarLabel.Name: true},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
 		},
 		{
 			name:           "nonexistent labels are not included",
 			hostID:         h1.ID,
 			labelNames:     []string{allHostsLabel.Name, "nonexistent-label"},
-			expectedResult: map[string]bool{allHostsLabel.Name: true},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}},
 		},
 		{
 			name:           "nonexistent host returns empty result",
 			hostID:         999,
 			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: map[string]bool{},
+			expectedResult: map[string]struct{}{},
 		},
 		{
 			name:           "h3 is member of no labels",
 			hostID:         h3.ID,
 			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: map[string]bool{},
+			expectedResult: map[string]struct{}{},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

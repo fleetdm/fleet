@@ -1745,7 +1745,7 @@ func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, lab
 
 // HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
 // Labels that do not exist are not included in the result.
-func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]bool, error) {
+func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -1765,9 +1765,9 @@ func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, l
 		return nil, ctxerr.Wrap(ctx, err, "get host label membership")
 	}
 
-	result := make(map[string]bool, len(names))
+	result := make(map[string]struct{}, len(names))
 	for _, n := range names {
-		result[n] = true
+		result[n] = struct{}{}
 	}
 	return result, nil
 }

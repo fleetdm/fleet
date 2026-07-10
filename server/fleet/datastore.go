@@ -339,7 +339,7 @@ type Datastore interface {
 
 	// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
 	// Labels that do not exist are not included in the result.
-	HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]bool, error)
+	HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
 
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
