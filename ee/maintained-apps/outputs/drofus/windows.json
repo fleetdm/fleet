@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.18.10.0",
+      "version": "2.18.11.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'dRofus %' AND publisher = 'dRofus AS';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dRofus %' AND publisher = 'dRofus AS' AND version_compare(version, '2.18.10.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dRofus %' AND publisher = 'dRofus AS' AND version_compare(version, '2.18.11.0') < 0);"
       },
-      "installer_url": "https://deploy.drofus.com/stable/drofus-setup-2.18.10.msi",
+      "installer_url": "https://deploy.drofus.com/stable/drofus-setup-2.18.11.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "72356dd1",
-      "sha256": "0bbc6cf4f50bae855c2ca3a686b5f1996d472e7c327ad01e5bf36f3ac3011cc6",
+      "sha256": "dd723ea583803fa971b2a6f0cf1fa3a3f92b0f999c39728e6b8faada1edeed22",
       "default_categories": [
         "Productivity"
       ],
