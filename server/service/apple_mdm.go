@@ -1043,7 +1043,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
-	assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d)
+	assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration asset references")
 	}
@@ -1075,7 +1075,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	return decl, nil
 }
 
-func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *fleet.MDMAppleDeclaration) ([]string, error) {
+func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *fleet.MDMAppleDeclaration, assets []*fleet.DDMAsset) ([]string, error) {
 	assetRefs, err := findAssetReferences(string(decl.RawJSON))
 	if err != nil {
 		return nil, err
@@ -1085,10 +1085,12 @@ func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *
 		return nil, nil
 	}
 
-	// List all assets for the given team
-	assets, err := svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
+	if assets == nil {
+		// List all assets for the given team
+		assets, err = svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
+		}
 	}
 
 	assetsByIdentifier := make(map[string]string, len(assets))
