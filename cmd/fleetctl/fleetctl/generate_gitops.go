@@ -2002,6 +2002,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
 	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
+	// Emitted as setup_experience_platforms so a UI-set non-native selection
+	// round-trips through generate → apply unchanged.
+	crossPlatformSelectionsByTitleID := make(map[uint][]string)
 
 	// Fill in InstallDuringSetup for software, as that information is only available
 	// from the setup experience endpoint
@@ -2021,6 +2024,26 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
 				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
 			}
+		}
+	}
+
+	// A title returned by the per-platform setup experience listing whose
+	// native platform doesn't match the queried target is a cross-selection.
+	for _, crossTarget := range []string{"macos"} {
+		crossTitles, err := cmd.Client.GetSetupExperienceSoftware(crossTarget, teamID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s setup software: %s\n", crossTarget, err)
+			return nil, err
+		}
+		for _, t := range crossTitles {
+			pkg := t.SoftwarePackage
+			if pkg == nil || pkg.Platform == "" {
+				continue
+			}
+			if pkg.Platform == fleet.CanonicalPlatform(crossTarget) {
+				continue
+			}
+			crossPlatformSelectionsByTitleID[t.ID] = append(crossPlatformSelectionsByTitleID[t.ID], crossTarget)
 		}
 	}
 
@@ -2328,6 +2351,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
+			}
+			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
+				softwareSpec["setup_experience_platforms"] = crosses
 			}
 		} else {
 			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()

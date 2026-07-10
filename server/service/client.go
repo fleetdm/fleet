@@ -1431,24 +1431,37 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		// Pointer-to-slice preserves the tri-state: nil = no change, empty =
+		// clear all cross-platform selections, non-empty = replace. The slice
+		// must stay non-nil so an empty list marshals as [] rather than null —
+		// null unmarshals server-side as "no change" and would silently swallow
+		// an explicit clear.
+		var setupExperiencePlatforms *[]string
+		if si.SetupExperiencePlatforms.Set {
+			ps := make([]string, len(si.SetupExperiencePlatforms.Value))
+			copy(ps, si.SetupExperiencePlatforms.Value)
+			setupExperiencePlatforms = &ps
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
-			URL:                urlValue,
-			SelfService:        si.SelfService,
-			PreInstallQuery:    qc,
-			InstallScript:      string(ic),
-			PostInstallScript:  string(pc),
-			UninstallScript:    string(us),
-			InstallDuringSetup: installDuringSetup,
-			LabelsIncludeAny:   si.LabelsIncludeAny,
-			LabelsExcludeAny:   si.LabelsExcludeAny,
-			LabelsIncludeAll:   si.LabelsIncludeAll,
-			SHA256:             sha256Value,
-			Categories:         si.Categories,
-			DisplayName:        si.DisplayName,
-			IconPath:           si.Icon.Path,
-			IconHash:           iconHash,
-			AlwaysDownload:     si.AlwaysDownload,
-			Configuration:      cfg,
+			URL:                      urlValue,
+			SelfService:              si.SelfService,
+			PreInstallQuery:          qc,
+			InstallScript:            string(ic),
+			PostInstallScript:        string(pc),
+			UninstallScript:          string(us),
+			InstallDuringSetup:       installDuringSetup,
+			SetupExperiencePlatforms: setupExperiencePlatforms,
+			LabelsIncludeAny:         si.LabelsIncludeAny,
+			LabelsExcludeAny:         si.LabelsExcludeAny,
+			LabelsIncludeAll:         si.LabelsIncludeAll,
+			SHA256:                   sha256Value,
+			Categories:               si.Categories,
+			DisplayName:              si.DisplayName,
+			IconPath:                 si.Icon.Path,
+			IconHash:                 iconHash,
+			AlwaysDownload:           si.AlwaysDownload,
+			Configuration:            cfg,
 		}
 
 		if si.Slug != nil {
