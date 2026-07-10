@@ -1047,8 +1047,9 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration asset references")
 	}
+	d.AssetReferenceUUIDs = assetRefs
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames, assetRefs)
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
 	}

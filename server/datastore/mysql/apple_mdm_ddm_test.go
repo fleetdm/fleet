@@ -195,14 +195,14 @@ func testDDMChannelScopeIsolation(t *testing.T, ds *Datastore) {
 		Identifier: "com.example.device",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.device"}`),
 		Scope:      fleet.PayloadScopeSystem,
-	}, nil, nil)
+	}, nil)
 	require.NoError(t, err)
 	userDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Name:       "UserDecl",
 		Identifier: "com.example.user",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.user"}`),
 		Scope:      fleet.PayloadScopeUser,
-	}, nil, nil)
+	}, nil)
 	require.NoError(t, err)
 
 	readBinaryToken := func(declUUID string) []byte {
@@ -311,7 +311,7 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 		Name:            "New Declaration",
 		Identifier:      "com.example.cleanup",
 		RawJSON:         declJSON,
-	}, nil, nil)
+	}, nil)
 	require.NoError(t, err)
 
 	// Read the raw (binary) token. BulkUpsertMDMAppleHostDeclarations writes the
@@ -540,7 +540,7 @@ func testDeleteAppleDDMAsset(t *testing.T, ds *Datastore) {
 			Identifier:      "declaration.identifier",
 			Name:            "decl-name",
 			RawJSON:         []byte(`{"foo":"bar"}`),
-		}, nil, nil)
+		}, nil)
 		require.NoError(t, err)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid) VALUES (?, ?)`, decl.DeclarationUUID, assetUUID)
@@ -632,7 +632,7 @@ func testBatchSetAppleDDMAssets(t *testing.T, ds *Datastore) {
 		Identifier: "decl.identifier",
 		Name:       "decl-name",
 		RawJSON:    []byte(`{"foo":"bar"}`),
-	}, nil, nil)
+	}, nil)
 	require.NoError(t, err)
 	referencedAsset, err := ds.GetAppleDDMAsset(ctx, assets[0].AssetUUID)
 	require.NoError(t, err)
@@ -734,17 +734,19 @@ func testGetAppleDDMAssetForDelivery(t *testing.T, ds *Datastore) {
 	// now scoped through the host's installed declarations, so the asset is only
 	// reachable via a declaration that references it.
 	globalDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Name:       "GlobalDecl",
-		Identifier: "com.example.globalDecl",
-		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.globalDecl"}`),
-	}, nil, []string{globalAssetUUID})
+		Name:                "GlobalDecl",
+		Identifier:          "com.example.globalDecl",
+		RawJSON:             []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.globalDecl"}`),
+		AssetReferenceUUIDs: []string{globalAssetUUID},
+	}, nil)
 	require.NoError(t, err)
 	teamDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		TeamID:     &team.ID,
-		Name:       "TeamDecl",
-		Identifier: "com.example.teamDecl",
-		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.teamDecl"}`),
-	}, nil, []string{teamAssetUUID})
+		TeamID:              &team.ID,
+		Name:                "TeamDecl",
+		Identifier:          "com.example.teamDecl",
+		RawJSON:             []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.teamDecl"}`),
+		AssetReferenceUUIDs: []string{teamAssetUUID},
+	}, nil)
 	require.NoError(t, err)
 
 	// A global host that has the global declaration installed, and a team host
@@ -861,16 +863,18 @@ func testGetAppleDDMAssetsReferencedByDeclarations(t *testing.T, ds *Datastore) 
 
 	// declA references both assets, declB references only asset1.
 	declA, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Name:       "DeclA",
-		Identifier: "com.example.declA",
-		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.declA"}`),
-	}, nil, []string{asset1UUID, asset2UUID})
+		Name:                "DeclA",
+		Identifier:          "com.example.declA",
+		RawJSON:             []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.declA"}`),
+		AssetReferenceUUIDs: []string{asset1UUID, asset2UUID},
+	}, nil)
 	require.NoError(t, err)
 	declB, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Name:       "DeclB",
-		Identifier: "com.example.declB",
-		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.declB"}`),
-	}, nil, []string{asset1UUID})
+		Name:                "DeclB",
+		Identifier:          "com.example.declB",
+		RawJSON:             []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.declB"}`),
+		AssetReferenceUUIDs: []string{asset1UUID},
+	}, nil)
 	require.NoError(t, err)
 
 	t.Run("empty input returns empty slice", func(t *testing.T) {
@@ -920,7 +924,7 @@ func testDDMAssetsUpdatedAtRoundTripAndToken(t *testing.T, ds *Datastore) {
 		Identifier: "com.example.assettoken",
 		RawJSON:    []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.assettoken"}`),
 		Scope:      fleet.PayloadScopeSystem,
-	}, nil, nil)
+	}, nil)
 	require.NoError(t, err)
 
 	var token []byte

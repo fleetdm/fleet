@@ -2387,7 +2387,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &profile, nil
 	}
-	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return declaration, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {

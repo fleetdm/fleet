@@ -4913,7 +4913,7 @@ func (ds *Datastore) teamIDPtrToUint(tmID *uint) uint {
 	return 0
 }
 
-func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -4941,7 +4941,7 @@ INSERT INTO mdm_apple_declarations (
 		isSoftwareUpdate = rawDecl.Type == apple_mdm.DeclarationTypeSoftwareUpdate
 	}
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate, assetReferences)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
@@ -4970,10 +4970,10 @@ ON DUPLICATE KEY UPDATE
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, false, nil)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, false)
 }
 
-func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 
 	var tmID uint
@@ -5013,7 +5013,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			}
 		}
 
-		if len(assetReferences) > 0 {
+		if assetReferences := declaration.AssetReferenceUUIDs; len(assetReferences) > 0 {
 			assetRefStmt := `INSERT INTO mdm_apple_declaration_asset_references (declaration_uuid, asset_uuid)
 			VALUES ` + strings.Repeat("(?, ?),", len(assetReferences)-1) + "(?, ?) " + `
 			ON DUPLICATE KEY UPDATE asset_uuid = VALUES(asset_uuid)`

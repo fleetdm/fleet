@@ -49,7 +49,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			TeamID:          nil,
 			RawJSON:         []byte(fmt.Sprintf(`{"Type":"com.apple.test.declaration","Identifier":"%s"}`, identifier)),
 		}
-		declaration, err := ds.NewMDMAppleDeclaration(context.Background(), declaration, nil, nil)
+		declaration, err := ds.NewMDMAppleDeclaration(context.Background(), declaration, nil)
 		require.NoError(t, err)
 		return declaration
 	}
@@ -436,7 +436,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.userscope.user"}`),
 			Scope:           fleet.PayloadScopeUser,
 		}
-		userDecl, err := ds.NewMDMAppleDeclaration(ctx, userDeclRaw, nil, nil)
+		userDecl, err := ds.NewMDMAppleDeclaration(ctx, userDeclRaw, nil)
 		require.NoError(t, err)
 
 		insertScopedHostDeclaration := func(declUUID, identifier string, scope fleet.PayloadScope) {
@@ -505,7 +505,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			Identifier:      "com.example.strip",
 			RawJSON:         []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.strip","PayloadScope":"System","Payload":{"Enabled":true}}`),
 			Scope:           fleet.PayloadScopeSystem,
-		}, nil, nil)
+		}, nil)
 		require.NoError(t, err)
 		require.Contains(t, string(decl.RawJSON), "PayloadScope", "stored raw_json keeps PayloadScope")
 
