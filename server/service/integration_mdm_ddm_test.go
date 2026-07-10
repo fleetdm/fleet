@@ -634,13 +634,13 @@ WHERE name = ?`
 	require.NoError(t, err)
 	var gotParsed fleet.MDMAppleDDMDeclarationResponse
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"ServiceType":"com.apple.bash0"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"com.apple.bash0"}`, string(gotParsed.Payload))
 
 	declarationPath = fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N1"])
 	r, err = mdmDevice.DeclarativeManagement(declarationPath)
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"ServiceType":"com.apple.bash1"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"com.apple.bash1"}`, string(gotParsed.Payload))
 
 	// Upload the same profiles again -- nothing should change
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent, "dry_run", "true")
@@ -700,13 +700,13 @@ WHERE name = ?`
 	r, err = mdmDevice.DeclarativeManagement(declarationPath)
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"ServiceType":"com.apple.bash0"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"com.apple.bash0"}`, string(gotParsed.Payload))
 
 	declarationPath = fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N1"])
 	r, err = mdmDevice.DeclarativeManagement(declarationPath)
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"ServiceType":"my.new.bash"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"my.new.bash"}`, string(gotParsed.Payload))
 
 	// Delete the profiles
 	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N0"], nil, http.StatusOK)
