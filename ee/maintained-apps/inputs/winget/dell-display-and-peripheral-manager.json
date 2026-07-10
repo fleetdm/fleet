@@ -1,0 +1,13 @@
+{
+  "name": "Dell Display and Peripheral Manager",
+  "slug": "dell-display-and-peripheral-manager/windows",
+  "package_identifier": "Dell.DisplayAndPeripheralManager",
+  "unique_identifier": "Dell Display and Peripheral Manager",
+  "program_publisher": "Dell Technologies",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dell-display-and-peripheral-manager_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dell-display-and-peripheral-manager_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
