@@ -90,9 +90,20 @@ func testAuth(t *testing.T, s *Suite) {
 	// Unauthorized (maintainer - no longer allowed)
 	resp = nil
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	// Maintainer denied on read (Schemas endpoint)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	// Maintainer denied on write (create user)
+	resp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "maintainer-attempt@example.com",
+	}, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+	// Maintainer denied on details endpoint
+	resp = nil
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &resp)
 
 	// Authorized (admin only)
 	resp = nil
