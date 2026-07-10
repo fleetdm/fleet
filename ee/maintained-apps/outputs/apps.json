@@ -2361,13 +2361,6 @@
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
-      "name": "Dell Display and Peripheral Manager",
-      "slug": "dell-display-and-peripheral-manager/windows",
-      "platform": "windows",
-      "unique_identifier": "Dell Display and Peripheral Manager",
-      "description": "Dell Display and Peripheral Manager sets up and configures Dell monitors and peripherals such as keyboards, mice, webcams, audio devices, and active pens."
-    },
-    {
       "name": "Descript",
       "slug": "descript/darwin",
       "platform": "darwin",

@@ -269,7 +269,6 @@ import DeepL from "./DeepL";
 import Deezer from "./Deezer";
 import DefaultFolderX from "./DefaultFolderX";
 import DellCommandUpdate from "./DellCommandUpdate";
-import DellDisplayAndPeripheralManager from "./DellDisplayAndPeripheralManager";
 import Descript from "./Descript";
 import Deskpad from "./Deskpad";
 import Desktime from "./Desktime";
@@ -1353,7 +1352,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   deezer: Deezer,
   "default folder x": DefaultFolderX,
   "dell command update": DellCommandUpdate,
-  "dell display and peripheral manager": DellDisplayAndPeripheralManager,
   descript: Descript,
   deskpad: Deskpad,
   desktime: Desktime,
