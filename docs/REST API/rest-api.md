@@ -6016,7 +6016,7 @@ Release multiple hosts from Apple Business (AB) by calling Apple's Disown Device
 
 This permanently removes the host from your AB, and cannot be added back automatically. This action can't be undone.
 
-`POST /api/v1/fleet/hosts/:id/release_ab`
+`POST /api/v1/fleet/hosts/release_ab`
 
 #### Parameters
 
@@ -6026,7 +6026,7 @@ This permanently removes the host from your AB, and cannot be added back automat
 
 #### Example
 
-`POST /api/v1/fleet/hosts/123/release_ab`
+`POST /api/v1/fleet/hosts/release_ab`
 
 ##### Request body
 ```json
@@ -6037,7 +6037,27 @@ This permanently removes the host from your AB, and cannot be added back automat
 
 ##### Default response
 
-`204`
+`200`
+
+```json
+{
+  "results": [
+    {
+      "host_id": 1,
+      "status": "success"
+    },
+    {
+      "host_id": 42,
+      "status": "success"
+    },
+    {
+      "host_id": 57,
+      "status": "failed",
+      "error": "Host is not enrolled in Apple Business"
+    },
+  ]
+}
+```
 
 ---
 
