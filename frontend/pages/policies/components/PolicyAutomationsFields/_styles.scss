@@ -58,9 +58,34 @@
     color: $ui-fleet-black-50;
   }
 
+  &__row-label .fleet-checkbox__label {
+    white-space: nowrap;
+  }
+
+  // Install-software row hosts two side-by-side dropdowns in the trailing
+  // cell; drop the padding between the label and trailing cells so the
+  // picker pair has a little more horizontal room to breathe.
+  #install-software-row-label {
+    padding-right: 0;
+    // Keep the "Install software" label pinned to the top of the cell so
+    // its vertical position doesn't shift when the trailing cell grows
+    // (e.g., a second dropdown surfaces on multi-package titles, or the
+    // pickers stack in the schema-open narrow-viewport layout).
+    vertical-align: top;
+
+    .fleet-checkbox {
+      height: 40px; // Match height of table cell
+    }
+  }
+
+  #install-software-row-label + &__row-trailing {
+    padding-left: 0;
+  }
+
   &__row-trailing {
     text-align: right;
     max-width: 60%; // Fits second dropdown for multi-package
+    white-space: nowrap;
   }
 
   &__row-disabled-hint {
@@ -68,7 +93,10 @@
   }
 
   &__row-picker {
-    max-width: 300px;
+    // Pin to a fixed 300px so the control doesn't wobble when the selected
+    // option's label changes length (short vs long package name).
+    width: 225px;
+    max-width: 100%; // Guard against narrow containers
     margin-left: auto;
     text-align: left;
   }
@@ -78,6 +106,15 @@
     flex-direction: row;
     gap: $pad-small;
     align-items: flex-end;
+    // The flex container fills the td (block-level), so `margin-left: auto`
+    // has nothing to push against. Right-align via `justify-content` and
+    // reset the per-picker `margin-left: auto` (from `__row-picker`, used
+    // when a row hosts a single picker) so the pair sits flush.
+    justify-content: flex-end;
+
+    > * {
+      margin-left: 0;
+    }
   }
 
   &__learn-more {

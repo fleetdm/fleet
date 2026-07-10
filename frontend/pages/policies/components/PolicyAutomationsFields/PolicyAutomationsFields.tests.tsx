@@ -228,6 +228,52 @@ describe("PolicyAutomationsFields — Install software row", () => {
       screen.queryByRole("combobox", { name: /Select package/i })
     ).not.toBeInTheDocument();
   });
+
+  it("surfaces the Select package dropdown at the exact 2-package threshold and preselects the first-added package", async () => {
+    // Pins the `packageOptions.length > 1` gate: two-package titles must
+    // show the picker, one-package titles must not. Guards against a
+    // future refactor accidentally moving the boundary to `>= 2` (same
+    // effective behavior) but also against `> 2` (which would silently
+    // hide the picker on the smallest multi-package title). Also confirms
+    // the auto-select effect preselects the first-added (smallest
+    // installer_id) — order-independent regardless of packages[] order.
+    setSoftwareTitles([
+      createMockSoftwareTitle({
+        id: 40,
+        name: "Duo App",
+        source: "apps",
+        packages: [
+          // Out of order to prove first-added is picked by installer_id,
+          // not by array position.
+          createMockSoftwarePackage({
+            installer_id: 401,
+            name: "duo-app-2.0.0.pkg",
+            version: "2.0.0",
+            uploaded_at: "2026-06-15T00:00:00Z",
+          }),
+          createMockSoftwarePackage({
+            installer_id: 400,
+            name: "duo-app-1.0.0.pkg",
+            version: "1.0.0",
+            uploaded_at: "2026-06-01T00:00:00Z",
+          }),
+        ],
+      }),
+    ]);
+    renderWithHandle({
+      install_software: {
+        name: "Duo App",
+        software_title_id: 40,
+      },
+    });
+
+    expect(
+      screen.getByRole("combobox", { name: /Select package/i })
+    ).toBeInTheDocument();
+    // Auto-select is set by a useEffect (async post-commit); wait for the
+    // preselected label to appear rather than reading state synchronously.
+    expect(await screen.findByText("duo-app-1.0.0.pkg")).toBeInTheDocument();
+  });
 });
 
 describe("PolicyAutomationsFields — payload", () => {

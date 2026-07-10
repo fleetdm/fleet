@@ -514,7 +514,14 @@ const PolicyAutomationsFields = forwardRef<
                       : ""
                   }`}
                 >
-                  <td className={`${baseClass}__row-label`}>
+                  <td
+                    id={
+                      row.key === "install_software"
+                        ? "install-software-row-label"
+                        : undefined
+                    }
+                    className={`${baseClass}__row-label`}
+                  >
                     <GitOpsModeTooltipWrapper
                       renderChildren={(disableChildren) => (
                         <Checkbox
