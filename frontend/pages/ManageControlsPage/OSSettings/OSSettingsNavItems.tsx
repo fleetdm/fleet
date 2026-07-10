@@ -24,8 +24,7 @@ type IOSSettingsCardProps = IDiskEncryptionProps | IConfigurationProfilesProps;
 // Observers and observers+ will not have access to the Controls page at all, so the only role to
 // exclude at this point is technician
 const getOSSettingsNavItems = (
-  isTechnician: boolean,
-  isNoTeam: boolean
+  isTechnician: boolean
 ): ISideNavItem<IOSSettingsCardProps>[] => {
   const items = [
     {
@@ -59,7 +58,7 @@ const getOSSettingsNavItems = (
       Card: HostNameTemplate,
       urlSection: "host-name-template",
       path: PATHS.CONTROLS_HOST_NAME_TEMPLATE,
-      exclude: isTechnician || isNoTeam,
+      exclude: isTechnician,
     },
   ];
   return items.filter((item) => !item.exclude);

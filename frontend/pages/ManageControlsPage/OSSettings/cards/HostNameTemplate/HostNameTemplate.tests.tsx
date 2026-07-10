@@ -97,6 +97,33 @@ describe("HostNameTemplate card", () => {
     });
   });
 
+  it("renders for 'No team' with the value sourced from app config", async () => {
+    // No team reads its template from the global app config, not a team query.
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              name_template: "No team iPad $FLEET_VAR_HOST_HARDWARE_SERIAL",
+            },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
+    render(<HostNameTemplate {...baseProps} currentTeamId={0} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByDisplayValue("No team iPad $FLEET_VAR_HOST_HARDWARE_SERIAL")
+      ).toBeInTheDocument();
+    });
+  });
+
   it("saves the template and fires onMutation", async () => {
     mockServer.use(teamHandler(""));
     let savedBody: unknown;

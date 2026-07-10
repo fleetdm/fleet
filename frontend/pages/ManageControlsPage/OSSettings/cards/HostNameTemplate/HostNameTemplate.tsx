@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useMutation, useQuery } from "react-query";
 
 import { AppContext } from "context/app";
@@ -13,6 +13,7 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import configAPI from "services/entities/config";
 import hostNameTemplateAPI from "services/entities/host_name_template";
 
 import PATHS from "router/paths";
@@ -37,12 +38,26 @@ const HostNameTemplate = ({
   router,
   onMutation,
 }: IOSSettingsCommonProps) => {
-  const { isPremiumTier, config } = useContext(AppContext);
+  const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const mdmEnabled = config?.mdm.enabled_and_configured;
 
+  // "No team" stores its template on the global app config (there is no team
+  // row for No team), mirroring how DiskEncryption sources its value by scope.
+  const isNoTeam = currentTeamId === API_NO_TEAM_ID;
+
   const [nameTemplate, setNameTemplate] = useState<string>();
   const [savedNameTemplate, setSavedNameTemplate] = useState<string>();
+
+  // Seed the No-team value from app config once it's available, and re-seed
+  // after a save refreshes the config. Fleets seed from the team query below.
+  useEffect(() => {
+    if (isNoTeam) {
+      const loaded = config?.mdm.name_template ?? "";
+      setNameTemplate(loaded);
+      setSavedNameTemplate(loaded);
+    }
+  }, [isNoTeam, config?.mdm.name_template]);
 
   const { isLoading: isLoadingTeam, isError: isTeamError } = useQuery<
     ILoadTeamResponse,
@@ -50,7 +65,7 @@ const HostNameTemplate = ({
     ITeamConfig
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: isPremiumTier && !!mdmEnabled && currentTeamId !== API_NO_TEAM_ID,
+    enabled: isPremiumTier && !!mdmEnabled && !isNoTeam,
     select: (res) => res.fleet,
     onSuccess: (res) => {
       const loaded = res.mdm?.name_template ?? "";
@@ -68,11 +83,23 @@ const HostNameTemplate = ({
     (tmpl: string) =>
       hostNameTemplateAPI.updateHostNameTemplate(tmpl, currentTeamId),
     {
-      onSuccess: (_data, tmpl) => {
+      onSuccess: async (_data, tmpl) => {
         // Optimistically adopt the saved value as the new baseline.
         setSavedNameTemplate(tmpl);
         notify.success("Successfully updated host name template.");
         onMutation();
+        // The No-team template lives on the global app config, so refresh the
+        // cached config to keep it in sync (mirrors DiskEncryption).
+        if (isNoTeam) {
+          try {
+            setConfig(await configAPI.loadAll());
+          } catch (err) {
+            notify.error(
+              "Could not retrieve updated app config. Please try again.",
+              { response: err }
+            );
+          }
+        }
       },
       onError: (e) => {
         // The server's 422 carries the specific invalid-variable message;

@@ -56,8 +56,8 @@ const OSSettings = ({
   const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
 
   const filteredNavItems = useMemo(() => {
-    return getOSSettingsNavItems(isTechnician, teamId === API_NO_TEAM_ID);
-  }, [isTechnician, teamId]);
+    return getOSSettingsNavItems(isTechnician);
+  }, [isTechnician]);
 
   const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 

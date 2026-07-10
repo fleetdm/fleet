@@ -8,7 +8,7 @@ const buildControlsItems = (
   derived: IDerivedContext
 ): ICommandItem[] => {
   const { canAccessControls, isPremiumTier, isTechnician, withTeamId } = ctx;
-  const { hasTeamOrUnassigned, isUnassigned } = derived;
+  const { hasTeamOrUnassigned } = derived;
 
   // Controls pages don't support "All fleets" (includeAllTeams: false),
   // so only show when a team or unassigned is selected. Also gated by
@@ -105,9 +105,9 @@ const buildControlsItems = (
               },
             ]
           : []),
-        // Host names — Premium-only, not available to technicians, and
-        // fleets-only (hidden for "No team" / Unassigned).
-        ...(isPremiumTier && !isTechnician && !isUnassigned
+        // Host names — Premium-only, not available to technicians. Supported
+        // for both fleets and "No team" / Unassigned.
+        ...(isPremiumTier && !isTechnician
           ? [
               {
                 id: "controls-host-name-template",
