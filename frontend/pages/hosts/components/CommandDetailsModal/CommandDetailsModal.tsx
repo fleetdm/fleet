@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -33,6 +33,10 @@ export const getIconName = (status: string): IconNames => {
     case "Pending":
     case "NotNow":
       return "pending-outline";
+    // sentinel used when the command results API returns a 200 with no
+    // results (e.g. the host it was sent to was wiped and re-enrolled since)
+    case "Deleted":
+      return "info-outline";
     default:
       break;
   }
@@ -63,7 +67,7 @@ export const getVerbForCommandStatus = (status: string): string => {
 
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
-    ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+    ? ` (${timeAgo(new Date(result.updated_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
@@ -113,6 +117,9 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
         </span>
       );
 
+    case "Deleted":
+      return <span>This command has been deleted.</span>;
+
     default:
       // FIXME: update for other platforms and design appropriate default handling for unknown
       // statuses; for now, just fallback to status string
@@ -128,7 +135,7 @@ const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
   />
 );
 
-const ModalContent = ({
+export const ModalContent = ({
   data,
   isLoading,
   error,
@@ -148,9 +155,29 @@ const ModalContent = ({
   }
 
   if (!data?.results?.[0]) {
-    // this should not happen, but just in case
-    console.error("No results found in MDM command results data");
-    return <DataError description="Close this modal and try again." />;
+    // a 200 with no results means the command no longer has anything to show --
+    // most commonly because the host it was sent to was wiped and re-enrolled
+    // since. Render the modal normally (via the caller's contentBody, same as a
+    // real result) rather than as an error, since nothing actually went wrong.
+    // The "Deleted" sentinel status lets the caller render its own copy for
+    // this case using the activity's own details, since there's no real
+    // result to pull hostname/request_type from.
+    const deletedCommandResult: ICommandResult = {
+      host_uuid: "",
+      command_uuid: "",
+      status: "Deleted",
+      updated_at: "",
+      request_type: "",
+      hostname: "",
+      payload: "",
+      result: "",
+      name: null,
+    };
+    return (
+      <div className={`${baseClass}__modal-content`}>
+        {contentBody(baseClass, deletedCommandResult)}
+      </div>
+    );
   }
 
   if (data.results.length > 1) {

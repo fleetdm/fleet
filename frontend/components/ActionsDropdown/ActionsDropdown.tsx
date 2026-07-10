@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -16,6 +16,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
+import TableLayoutContext from "components/TableContainer/TableLayoutContext";
 
 const baseClass = "actions-dropdown";
 
@@ -127,6 +128,13 @@ const ActionsDropdown = ({
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
+  // Portal the menu only when rendered inside a TableContainer's data-table
+  // block, where .data-table__wrapper's overflow-x: auto would otherwise clip
+  // the menu vertically. The brand-button variant nulls out react-select's
+  // Control, and MenuPortal bails when controlElement is missing — so don't
+  // use brand-button inside a table cell.
+  const { insideTable } = useContext(TableLayoutContext);
+
   // Used for brand Action button
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
@@ -135,14 +143,20 @@ const ActionsDropdown = ({
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // If click was outside wrapper, close menu
+      if (!menuIsOpen || !wrapperRef.current) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      // Trigger button (wrapper) or portaled menu both count as "inside" —
+      // since menuPortalTarget renders the menu in document.body, a contains()
+      // check on wrapperRef alone would treat option clicks as outside.
+      if (wrapperRef.current.contains(target)) return;
       if (
-        menuIsOpen &&
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
+        target instanceof Element &&
+        target.closest(`.${baseClass}-select__menu-portal`)
       ) {
-        setMenuIsOpen(false);
+        return;
       }
+      setMenuIsOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -267,6 +281,13 @@ const ActionsDropdown = ({
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
     }),
+    // zIndex 999 (document-portal tier) so the portaled menu clears
+    // .site-nav-container and Modal — ActionsDropdown can render inside a
+    // TableContainer that lives inside a modal (e.g. ScriptDetailsModal).
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 999,
+    }),
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
@@ -329,6 +350,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
+        menuPortalTarget={insideTable ? document.body : undefined}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>

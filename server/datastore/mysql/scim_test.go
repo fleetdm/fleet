@@ -30,6 +30,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ScimUserByHostID", testScimUserByHostID},
+		{"ScimUserCreateAssociatesAllMatchingHosts", testScimUserCreateAssociatesAllMatchingHosts},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"ReplaceScimUserEmails", testReplaceScimUserEmails},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
@@ -1504,6 +1505,44 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 }
 
+// testScimUserCreateAssociatesAllMatchingHosts verifies that creating a SCIM user
+// (as the IdP directory sync does) links every host whose MDM IdP account matches
+// the user.
+func testScimUserCreateAssociatesAllMatchingHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Two hosts belonging to the same person, both carrying the same MDM IdP account.
+	host1 := test.NewHost(t, ds, "multi-host-1", "1", "mh1key", "mh1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "multi-host-2", "2", "mh2key", "mh2uuid", time.Now())
+
+	const idpUUID = "multi-idp-uuid"
+	const idpUserName = "multi.user@example.com"
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?, ?, ?, ?)`,
+		idpUUID, idpUserName, "Multi User", idpUserName)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?, ?), (?, ?)`,
+		host1.UUID, idpUUID, host2.UUID, idpUUID)
+	require.NoError(t, err)
+
+	user := fleet.ScimUser{
+		UserName:   idpUserName,
+		ExternalID: new("ext-multi"),
+		Active:     new(true),
+	}
+	user.ID, err = ds.CreateScimUser(ctx, &user)
+	require.NoError(t, err)
+
+	// Both hosts must resolve to the newly-created SCIM user.
+	for _, h := range []*fleet.Host{host1, host2} {
+		got, err := ds.ScimUserByHostID(ctx, h.ID)
+		require.NoError(t, err, "host %d should be linked to the scim user", h.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, user.ID, got.ID, "host %d linked to the wrong scim user", h.ID)
+	}
+}
+
 func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	// Create test users with different attributes and emails
 	users := []fleet.ScimUser{
@@ -2765,6 +2804,24 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		return err
 	})
 
+	// --- Android configuration profile resend ---
+
+	// Create an Android config profile with a variable.
+	androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		TeamID:  new(uint), // team 0
+		Name:    "android-var-profile",
+		RawJSON: []byte(`{"screenCaptureDisabled": true, "shortSupportMessage": {"defaultMessage": "User $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+
+	// Create a host_mdm_android_profiles row in "verified" status.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, status, operation_type, checksum) VALUES (?, ?, 'android-var-profile', 'verified', 'install', 'abc123')`,
+			host.UUID, androidProfile.ProfileUUID)
+		return err
+	})
+
 	// --- Managed app config resend ---
 
 	// Create an android enterprise (required for job queuing).
@@ -2814,7 +2871,17 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, string(fleet.CertificateTemplatePending), certStatus, "cert template should be reset to pending")
 
-	// (2) Assert a software_worker job was queued for the managed app config.
+	// (2) Assert android config profile was reset to pending (status = NULL).
+	var androidProfileStatus *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&androidProfileStatus,
+			`SELECT status FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, androidProfile.ProfileUUID)
+	})
+	assert.Nil(t, androidProfileStatus, "android profile status should be reset to NULL (pending)")
+
+	// (3) Assert a software_worker job was queued for the managed app config.
 	type jobRow struct {
 		Name string          `db:"name"`
 		Args json.RawMessage `db:"args"`

@@ -1,0 +1,1 @@
+- Added `setup_experience_platforms` on software packages in GitOps yaml so `.sh` script-only installers can be selected for the macOS setup experience declaratively, matching the per-platform UI selection. The list is authoritative on every batch apply and reconciles the cross-platform selection table.
