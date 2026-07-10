@@ -27,7 +27,7 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 import requests
@@ -290,12 +290,15 @@ def desired_release_day(m: Milestone) -> tuple[dt.date, dt.date]:
 
 def desired_rc(m: Milestone, current_start: Optional[dt.date]) -> tuple[dt.date, dt.date]:
     """RC end = due+1 (exclusive, so display ends on release day).
-    For out-of-band milestones with no existing start, default to a short window
-    of PATCH_RC_DURATION_DAYS ending on the release day."""
+    For a new event (no existing start), out-of-band milestones get a short
+    window of PATCH_RC_DURATION_DAYS; normal milestones get the standard window
+    that begins when the Develop sprint ends (~DEVELOP_END_TO_DUE_TARGET_DAYS
+    before the release day)."""
     end_excl = m.due + dt.timedelta(days=1)
     if current_start is not None:
         return current_start, end_excl
-    start = m.due - dt.timedelta(days=PATCH_RC_DURATION_DAYS - 1)
+    duration = PATCH_RC_DURATION_DAYS if m.out_of_band else DEVELOP_END_TO_DUE_TARGET_DAYS
+    start = m.due - dt.timedelta(days=duration - 1)
     return start, end_excl
 
 
@@ -669,21 +672,28 @@ def main() -> int:
         client_secret=args.client_secret,
         token_path=args.token,
     )
-    # The scan window must reach at least as far as the furthest milestone we
-    # might create events for; otherwise those events fall outside the scan on
-    # the next run, look "missing", and get created again as duplicates.
+    # The scan window must span every open milestone we might create events for;
+    # otherwise those events fall outside the scan on the next run, look
+    # "missing", and get created again as duplicates. This applies on both ends:
+    # a milestone overdue by more than 30 days would otherwise start before the
+    # window, and a far-future one would end after it.
+    min_due = min(m.due for m in milestones)
     max_due = max(m.due for m in milestones)
+    scan_start = min(
+        today - dt.timedelta(days=30),
+        min_due - dt.timedelta(days=30),
+    )
     scan_end = max(
         today + dt.timedelta(days=args.window_days),
         max_due + dt.timedelta(days=30),
     )
     print(
-        f"Scanning calendar events {today - dt.timedelta(days=30)} .. {scan_end} "
-        f"(furthest milestone due {max_due})"
+        f"Scanning calendar events {scan_start} .. {scan_end} "
+        f"(open milestones due {min_due} .. {max_due})"
     )
     events = fetch_events(
         service,
-        start=today - dt.timedelta(days=30),
+        start=scan_start,
         end=scan_end,
     )
 
