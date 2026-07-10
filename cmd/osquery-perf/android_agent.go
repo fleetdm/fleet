@@ -37,6 +37,7 @@ type androidAgent struct {
 	serialNumber         string
 	deviceName           string // AMAPI resource name: enterprises/{id}/devices/{id}
 	enterpriseID         string
+	orbitNodeKey         string // obtained from orbit enrollment, used for certificate API auth
 
 	// Hardware details
 	brand    string
@@ -199,18 +200,48 @@ func newAndroidAgent(
 // runLoop is the main loop for the Android agent.
 // It registers with the mock proxy, sends enrollment to Fleet, then periodically sends status reports.
 func (a *androidAgent) runLoop() {
-	// Step 1: Register with mock AMAPI proxy
-	if err := a.registerWithProxy(); err != nil {
-		log.Printf("Android agent %d: failed to register with proxy: %v", a.agentIndex, err)
-		return
+	// Step 1: Register with mock AMAPI proxy (retry with backoff)
+	for attempt := 1; ; attempt++ {
+		if err := a.registerWithProxy(); err != nil {
+			if attempt >= 5 {
+				log.Printf("Android agent %d: failed to register with proxy after %d attempts: %v", a.agentIndex, attempt, err)
+				return
+			}
+			log.Printf("Android agent %d: register attempt %d failed, retrying: %v", a.agentIndex, attempt, err)
+			time.Sleep(time.Duration(attempt) * 5 * time.Second)
+			continue
+		}
+		break
 	}
 
-	// Step 2: Send ENROLLMENT PubSub to Fleet
-	if err := a.sendEnrollment(); err != nil {
-		log.Printf("Android agent %d: enrollment failed: %v", a.agentIndex, err)
-		return
+	// Step 2: Send ENROLLMENT PubSub to Fleet (retry with backoff)
+	for attempt := 1; ; attempt++ {
+		if err := a.sendEnrollment(); err != nil {
+			if attempt >= 5 {
+				log.Printf("Android agent %d: enrollment failed after %d attempts: %v", a.agentIndex, attempt, err)
+				return
+			}
+			log.Printf("Android agent %d: enrollment attempt %d failed, retrying: %v", a.agentIndex, attempt, err)
+			time.Sleep(time.Duration(attempt) * 5 * time.Second)
+			continue
+		}
+		break
 	}
 	a.stats.IncrementAndroidEnrollments()
+
+	// Step 2b: Orbit enrollment (retry with backoff, non-fatal)
+	for attempt := 1; ; attempt++ {
+		if err := a.orbitEnroll(); err != nil {
+			if attempt >= 3 {
+				log.Printf("Android agent %d: orbit enrollment failed after %d attempts: %v", a.agentIndex, attempt, err)
+				break // Non-fatal — certificate flow won't work but status reports will
+			}
+			log.Printf("Android agent %d: orbit enrollment attempt %d failed, retrying: %v", a.agentIndex, attempt, err)
+			time.Sleep(time.Duration(attempt) * 5 * time.Second)
+			continue
+		}
+		break
+	}
 
 	// Step 3: Periodic status reports + command ack + certificate verification loop
 	statusTicker := time.NewTicker(a.statusReportInterval)
@@ -247,35 +278,37 @@ func (a *androidAgent) runLoop() {
 		}
 
 		// Process certificate templates from the proxy state.
-		for _, certID := range state.PendingCertificates {
-			// Always GET the cert to check its current status — renewals reuse the same template ID
-			cert, err := a.getCertificateTemplate(certID)
-			if err != nil {
-				log.Printf("Android agent %d: get certificate %d failed: %v", a.agentIndex, certID, err)
-				a.stats.IncrementAndroidErrors()
-				continue
-			}
+		if a.orbitNodeKey != "" {
+			for _, certID := range state.PendingCertificates {
+				// Always GET the cert to check its current status — renewals reuse the same template ID
+				cert, err := a.getCertificateTemplate(certID)
+				if err != nil {
+					log.Printf("Android agent %d: get certificate %d failed: %v", a.agentIndex, certID, err)
+					a.stats.IncrementAndroidErrors()
+					continue
+				}
 
-			// If status went back to non-delivered (renewal in progress), clear our tracking
-			if cert.Status != "delivered" {
-				delete(verifiedCerts, certID)
-				continue
-			}
+				// If status went back to non-delivered (renewal in progress), clear our tracking
+				if cert.Status != "delivered" {
+					delete(verifiedCerts, certID)
+					continue
+				}
 
-			// Skip if we already verified this delivery
-			if _, ok := verifiedCerts[certID]; ok {
-				continue
-			}
+				// Skip if we already verified this delivery
+				if _, ok := verifiedCerts[certID]; ok {
+					continue
+				}
 
-			// PUT the certificate status as verified (simulates SCEP enrollment completion)
-			if err := a.updateCertificateStatus(certID, "verified", "install"); err != nil {
-				log.Printf("Android agent %d: update certificate %d status failed: %v", a.agentIndex, certID, err)
-				a.stats.IncrementAndroidErrors()
-				continue
-			}
+				// PUT the certificate status as verified (simulates SCEP enrollment completion)
+				if err := a.updateCertificateStatus(certID, "verified", "install"); err != nil {
+					log.Printf("Android agent %d: update certificate %d status failed: %v", a.agentIndex, certID, err)
+					a.stats.IncrementAndroidErrors()
+					continue
+				}
 
-			verifiedCerts[certID] = struct{}{}
-			a.stats.IncrementAndroidCertVerifications()
+				verifiedCerts[certID] = struct{}{}
+				a.stats.IncrementAndroidCertVerifications()
+			}
 		}
 	}
 }
@@ -430,6 +463,52 @@ func (a *androidAgent) sendCommandAck(operationName string) error {
 	return a.sendPubSubMessage(android.PubSubCommand, op)
 }
 
+func (a *androidAgent) orbitEnroll() error {
+	body := struct {
+		EnrollSecret   string `json:"enroll_secret"`
+		HardwareUUID   string `json:"hardware_uuid"`
+		HardwareSerial string `json:"hardware_serial"`
+		Platform       string `json:"platform"`
+		ComputerName   string `json:"computer_name"`
+	}{
+		EnrollSecret:   a.enrollSecret,
+		HardwareUUID:   a.enterpriseSpecificID,
+		HardwareSerial: a.serialNumber,
+		Platform:       "android",
+		ComputerName:   fmt.Sprintf("%s %s", a.brand, a.model),
+	}
+
+	data, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal orbit enroll: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/fleet/orbit/enroll", a.serverAddress)
+	resp, err := http.Post(url, "application/json", bytes.NewReader(data)) // #nosec G107 -- load testing
+	if err != nil {
+		return fmt.Errorf("orbit enroll request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("orbit enroll returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var enrollResp struct {
+		OrbitNodeKey string `json:"orbit_node_key"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&enrollResp); err != nil {
+		return fmt.Errorf("decode orbit enroll response: %w", err)
+	}
+	if enrollResp.OrbitNodeKey == "" {
+		return fmt.Errorf("empty orbit_node_key in response")
+	}
+
+	a.orbitNodeKey = enrollResp.OrbitNodeKey
+	return nil
+}
+
 // getCertificateTemplate fetches a certificate template from Fleet.
 func (a *androidAgent) getCertificateTemplate(certID uint) (*certTemplateInfo, error) {
 	url := fmt.Sprintf("%s/api/fleetd/certificates/%d", a.serverAddress, certID)
@@ -437,7 +516,7 @@ func (a *androidAgent) getCertificateTemplate(certID uint) (*certTemplateInfo, e
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Node key "+a.enterpriseSpecificID)
+	req.Header.Set("Authorization", "Node key "+a.orbitNodeKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -494,7 +573,7 @@ func (a *androidAgent) updateCertificateStatus(certID uint, status, operationTyp
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Node key "+a.enterpriseSpecificID)
+	req.Header.Set("Authorization", "Node key "+a.orbitNodeKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
