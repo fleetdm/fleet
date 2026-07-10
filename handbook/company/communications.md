@@ -214,7 +214,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 
 > **Are you scheduling time with the CEO?**
 >
-> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 
 ## Shadowing meetings
