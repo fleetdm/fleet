@@ -89,6 +89,12 @@ chmod +x gm
 
 # CSV format for spreadsheet use (outputs values per team in provided order)
 ./gm pre-sprint report mdm,soft --format csv
+
+# Engineering KPIs (reproduces website/scripts/get-bug-and-pr-report.js)
+./gm kpi eng                       # human-readable report + CSV row for the KPI sheet
+./gm kpi eng --format csv          # just the 6-column CSV row to paste into the sheet
+./gm kpi eng --format json         # machine-readable
+./gm kpi eng --no-commit-to-merge  # skip per-PR commit fetches (much faster)
 ```
 
 ## 🎮 Interactive Controls
