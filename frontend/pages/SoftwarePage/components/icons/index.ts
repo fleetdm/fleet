@@ -233,6 +233,8 @@ import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
 import CreativeForceKelvin from "./CreativeForceKelvin";
 import CreativeForceTriad from "./CreativeForceTriad";
+import CrestronAirmedia from "./CrestronAirmedia";
+import CrestronAirmediaPeripherals from "./CrestronAirmediaPeripherals";
 import CriblEdge from "./CriblEdge";
 import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
@@ -253,6 +255,7 @@ import Dash from "./Dash";
 import Dataflare from "./Dataflare";
 import DataGrip from "./DataGrip";
 import Dataspell from "./Dataspell";
+import DaxStudio from "./DaxStudio";
 import Dayflow from "./Dayflow";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
@@ -266,14 +269,18 @@ import Deckset from "./Deckset";
 import DeepL from "./DeepL";
 import Deezer from "./Deezer";
 import DefaultFolderX from "./DefaultFolderX";
+import DelineaConnectionManager from "./DelineaConnectionManager";
 import DellCommandUpdate from "./DellCommandUpdate";
 import Descript from "./Descript";
 import Deskpad from "./Deskpad";
 import Desktime from "./Desktime";
 import DevinDesktop from "./DevinDesktop";
 import Devknife from "./Devknife";
+import DevolutionsLauncher from "./DevolutionsLauncher";
+import DevolutionsWorkspace from "./DevolutionsWorkspace";
 import DevonsphereExpress from "./DevonsphereExpress";
 import Devonthink from "./Devonthink";
+import Devpod from "./Devpod";
 import Devtoys from "./Devtoys";
 import Devutils from "./Devutils";
 import DfuBlasterPro from "./DfuBlasterPro";
@@ -281,9 +288,12 @@ import Dialpad from "./Dialpad";
 import Dictionaries from "./Dictionaries";
 import Diffusionbee from "./Diffusionbee";
 import Digikam from "./Digikam";
+import DigisealReader from "./DigisealReader";
+import DirectoryOpus from "./DirectoryOpus";
 import Discord from "./Discord";
 import DiskDrill from "./DiskDrill";
 import DisplayLinkManager from "./DisplayLinkManager";
+import Dngrep from "./Dngrep";
 import Dockdoor from "./Dockdoor";
 import Docker from "./Docker";
 import Dockfix from "./Dockfix";
@@ -292,9 +302,11 @@ import Dockview from "./Dockview";
 import Dot from "./Dot";
 import Doughnut from "./Doughnut";
 import Downie from "./Downie";
+import DraftableDesktop from "./DraftableDesktop";
 import DrataAgent from "./DrataAgent";
 import Drawbot from "./Drawbot";
 import Drawio from "./DrawIo";
+import Drofus from "./Drofus";
 import Dropbox from "./Dropbox";
 import Dropdmg from "./Dropdmg";
 import Droplr from "./Droplr";
@@ -306,6 +318,7 @@ import Duet from "./Duet";
 import DuoDesktop from "./DuoDesktop";
 import Dupeguru from "./Dupeguru";
 import DymoConnect from "./DymoConnect";
+import DymoId from "./DymoId";
 import Dynalist from "./Dynalist";
 import Eaglefiler from "./Eaglefiler";
 import Easydict from "./Easydict";
@@ -1310,6 +1323,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crashplan: CrashPlan,
   "creative force kelvin": CreativeForceKelvin,
   "creative force triad": CreativeForceTriad,
+  "crestron airmedia": CrestronAirmedia,
+  "crestron airmedia peripherals": CrestronAirmediaPeripherals,
   "cribl edge": CriblEdge,
   crisisgo: Crisisgo,
   crossover: Crossover,
@@ -1330,6 +1345,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dataflare: Dataflare,
   datagrip: DataGrip,
   dataspell: Dataspell,
+  "dax studio": DaxStudio,
   dayflow: Dayflow,
   "db browser for sqlite": DbBrowserForSqLite,
   dbeaver: DBeaver,
@@ -1347,14 +1363,18 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   deepl: DeepL,
   deezer: Deezer,
   "default folder x": DefaultFolderX,
+  "delinea connection manager": DelineaConnectionManager,
   "dell command update": DellCommandUpdate,
   descript: Descript,
   deskpad: Deskpad,
   desktime: Desktime,
   "devin desktop": DevinDesktop,
   devknife: Devknife,
+  "devolutions launcher": DevolutionsLauncher,
+  "devolutions workspace": DevolutionsWorkspace,
   "devonsphere express": DevonsphereExpress,
   devonthink: Devonthink,
+  devpod: Devpod,
   devtoys: Devtoys,
   devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
@@ -1362,10 +1382,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dictionaries: Dictionaries,
   "diffusion bee": Diffusionbee,
   digikam: Digikam,
+  "digiseal reader": DigisealReader,
+  "directory opus": DirectoryOpus,
   discord: Discord,
   "disk drill": DiskDrill,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
   "dng converter": AdobeDngConverter,
+  dngrep: Dngrep,
   dockdoor: Dockdoor,
   docker: Docker,
   dockfix: Dockfix,
@@ -1374,9 +1397,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dot: Dot,
   doughnut: Doughnut,
   downie: Downie,
+  "draftable desktop": DraftableDesktop,
   "drata agent": DrataAgent,
   "draw.io": Drawio,
   drawbot: Drawbot,
+  drofus: Drofus,
   dropbox: Dropbox,
   dropdmg: Dropdmg,
   droplr: Droplr,
@@ -1388,6 +1413,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "duo desktop": DuoDesktop,
   dupeguru: Dupeguru,
   "dymo connect": DymoConnect,
+  "dymo id": DymoId,
   dynalist: Dynalist,
   eaglefiler: Eaglefiler,
   easydict: Easydict,

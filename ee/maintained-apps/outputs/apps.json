@@ -2011,6 +2011,20 @@
       "description": "Creative Force Triad enables direct printing from the Creative Force platform to Zebra label printers."
     },
     {
+      "name": "Crestron AirMedia Peripherals",
+      "slug": "crestron-airmedia-peripherals/windows",
+      "platform": "windows",
+      "unique_identifier": "Crestron AirMedia Peripherals",
+      "description": "Crestron AirMedia Peripherals enables wireless conferencing with Crestron AirMedia Series 3 receivers."
+    },
+    {
+      "name": "Crestron AirMedia",
+      "slug": "crestron-airmedia/windows",
+      "platform": "windows",
+      "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
+      "description": "Crestron AirMedia enables wireless presentation and conferencing with AirMedia receivers."
+    },
+    {
       "name": "Cribl Edge",
       "slug": "cribl-edge/windows",
       "platform": "windows",
@@ -2200,6 +2214,20 @@
       "description": "DataSpell is an IDE for Professional Data Scientists."
     },
     {
+      "name": "DataSpell",
+      "slug": "dataspell/windows",
+      "platform": "windows",
+      "unique_identifier": "DataSpell",
+      "description": "DataSpell is a JetBrains IDE for data science, with notebooks, interactive Python/R, and database tools."
+    },
+    {
+      "name": "DAX Studio",
+      "slug": "dax-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "DAX Studio",
+      "description": "DAX Studio is a tool for writing, running, and analyzing DAX queries against tabular data models."
+    },
+    {
       "name": "Dayflow",
       "slug": "dayflow/darwin",
       "platform": "darwin",
@@ -2340,6 +2368,13 @@
       "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
+      "name": "Delinea Connection Manager",
+      "slug": "delinea-connection-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Delinea Connection Manager",
+      "description": "Delinea Connection Manager provides secure RDP and SSH connections to remote servers."
+    },
+    {
       "name": "Dell Command Update",
       "slug": "dell-command-update/windows",
       "platform": "windows",
@@ -2389,6 +2424,20 @@
       "description": "DevKnife is a collection of handy developer tools."
     },
     {
+      "name": "Devolutions Launcher",
+      "slug": "devolutions-launcher/windows",
+      "platform": "windows",
+      "unique_identifier": "Devolutions Launcher",
+      "description": "Devolutions Launcher opens remote connections from Devolutions Server and Devolutions Hub."
+    },
+    {
+      "name": "Devolutions Workspace",
+      "slug": "devolutions-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Devolutions Password Manager",
+      "description": "Devolutions Password Manager (formerly Workspace) provides access to Devolutions accounts and credentials."
+    },
+    {
       "name": "DEVONsphere Express",
       "slug": "devonsphere-express/darwin",
       "platform": "darwin",
@@ -2401,6 +2450,13 @@
       "platform": "darwin",
       "unique_identifier": "com.devon-technologies.think",
       "description": "DEVONthink is a collect, organise, edit and annotate documents."
+    },
+    {
+      "name": "DevPod",
+      "slug": "devpod/windows",
+      "platform": "windows",
+      "unique_identifier": "DevPod",
+      "description": "DevPod is an open-source, client-only tool for spinning up reproducible development environments."
     },
     {
       "name": "DevToys",
@@ -2466,6 +2522,20 @@
       "description": "digiKam is a digital photo manager."
     },
     {
+      "name": "digiSeal Reader",
+      "slug": "digiseal-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "digiSeal reader",
+      "description": "digiSeal Reader verifies signed and sealed documents and time stamps."
+    },
+    {
+      "name": "Directory Opus",
+      "slug": "directory-opus/windows",
+      "platform": "windows",
+      "unique_identifier": "Directory Opus",
+      "description": "Directory Opus is an advanced file manager and Windows Explorer replacement."
+    },
+    {
       "name": "Discord",
       "slug": "discord/darwin",
       "platform": "darwin",
@@ -2492,6 +2562,13 @@
       "platform": "darwin",
       "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
       "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
+      "name": "dnGrep",
+      "slug": "dngrep/windows",
+      "platform": "windows",
+      "unique_identifier": "dnGrep",
+      "description": "dnGrep is a search tool for finding text across files with regex, XPath, and phonetic matching."
     },
     {
       "name": "DockDoor",
@@ -2557,6 +2634,13 @@
       "description": "Downie is a downloads videos from different websites."
     },
     {
+      "name": "Draftable Desktop",
+      "slug": "draftable-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Draftable Desktop",
+      "description": "Draftable Desktop compares documents (PDF, Word, PowerPoint) and highlights changes, offline."
+    },
+    {
       "name": "Drata Agent",
       "slug": "drata-agent/darwin",
       "platform": "darwin",
@@ -2583,6 +2667,13 @@
       "platform": "windows",
       "unique_identifier": "draw.io",
       "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "dRofus",
+      "slug": "drofus/windows",
+      "platform": "windows",
+      "unique_identifier": "dRofus",
+      "description": "dRofus is a planning and data-management tool for building and construction projects."
     },
     {
       "name": "Dropbox",
@@ -2688,6 +2779,13 @@
       "platform": "darwin",
       "unique_identifier": "com.dymo.DYMO-WebApi-Mac-Host",
       "description": "Dymo Connect is a software for DYMO LabelWriters."
+    },
+    {
+      "name": "DYMO ID",
+      "slug": "dymo-id/windows",
+      "platform": "windows",
+      "unique_identifier": "DYMO ID",
+      "description": "DYMO ID is label-design software for DYMO XTL and Rhino 6000+ industrial label makers."
     },
     {
       "name": "Dynalist",

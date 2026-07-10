@@ -462,6 +462,8 @@ type agent struct {
 	macMDMClient *mdmtest.TestAppleMDMClient
 	winMDMClient *mdmtest.TestWindowsMDMClient
 
+	mdmUserProb float64
+
 	// winMDMWake signals the Windows MDM loop to start an OMA-DM session on demand (in response to the server's
 	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
@@ -471,6 +473,9 @@ type agent struct {
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
 	isEnrolledToMDMMu sync.Mutex
+
+	isMDMUserEnrolled   bool
+	isMDMUserEnrolledMu sync.Mutex
 
 	// pssoDevice simulates the macOS Platform SSO extension. It is non-nil only
 	// for the subset of macOS MDM agents selected for PSSO (see pssoParams.prob)
@@ -493,6 +498,11 @@ type agent struct {
 	ddmGlobalToken string
 	// ddmDeclTokens caches per-declaration tokens (identifier → serverToken).
 	ddmDeclTokens map[string]string
+
+	// ddmUserGlobalToken is the cached global DeclarationsToken from the tokens endpoint.
+	ddmUserGlobalToken string
+	// ddmUserDeclTokens caches per-declaration tokens (identifier → serverToken).
+	ddmUserDeclTokens map[string]string
 
 	disableScriptExec   bool
 	disableFleetDesktop bool
@@ -657,6 +667,7 @@ func newAgent(
 	emptySerialProb float64,
 	defaultSerialProb float64,
 	mdmProb float64,
+	mdmUserProb float64,
 	mdmSCEPChallenge string,
 	liveQueryFailProb float64,
 	liveQueryNoResultsProb float64,
@@ -760,6 +771,7 @@ func newAgent(
 
 		macMDMClient:  macMDMClient,
 		winMDMClient:  winMDMClient,
+		mdmUserProb:   mdmUserProb,
 		ddmDeclTokens: make(map[string]string),
 
 		disableScriptExec:        disableScriptExec,
@@ -898,6 +910,17 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		}
 		a.setMDMEnrolled()
 		a.stats.IncrementMDMEnrollments()
+
+		if rand.Float64() < a.mdmUserProb {
+			if err := a.macMDMClient.UserEnroll(); err != nil {
+				log.Printf("macOS MDM user enroll failed: %s", err)
+				a.stats.IncrementMDMUserErrors()
+				return
+			}
+			a.setMDMUserEnrolled()
+			a.stats.IncrementMDMUserEnrollments()
+		}
+
 		go a.runMacosMDMLoop()
 		if a.pssoDevice != nil {
 			go a.runMacosPSSOLoop()
@@ -1321,7 +1344,33 @@ func (a *agent) runMacosMDMLoop() {
 				}
 				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				// (iff a real device does process DDM in parallel with traditional MDM commands).
-				a.doDeclarativeManagement(mdmCommandPayload)
+				a.doDeclarativeManagement(mdmCommandPayload, ddmMethods{
+					getGlobalToken: func() string {
+						return a.ddmGlobalToken
+					},
+					setGlobalToken: func(token string) {
+						a.ddmGlobalToken = token
+					},
+					getDeclTokens: func() map[string]string {
+						return a.ddmDeclTokens
+					},
+					setDeclTokens: func(tokens map[string]string) {
+						a.ddmDeclTokens = tokens
+					},
+					DeclarativeManagement:            a.macMDMClient.DeclarativeManagement,
+					IncrementTokensErrors:            a.stats.IncrementDDMTokensErrors,
+					IncrementTokensSuccess:           a.stats.IncrementDDMTokensSuccess,
+					IncrementDeclarationItemsErrors:  a.stats.IncrementDDMDeclarationItemsErrors,
+					IncrementDeclarationItemsSuccess: a.stats.IncrementDDMDeclarationItemsSuccess,
+					IncrementConfigurationErrors:     a.stats.IncrementDDMConfigurationErrors,
+					IncrementConfigurationSuccess:    a.stats.IncrementDDMConfigurationSuccess,
+					IncrementActivationErrors:        a.stats.IncrementDDMActivationErrors,
+					IncrementActivationSuccess:       a.stats.IncrementDDMActivationSuccess,
+					IncrementStatusErrors:            a.stats.IncrementDDMStatusErrors,
+					IncrementStatusSuccess:           a.stats.IncrementDDMStatusSuccess,
+					IncrementAssetErrors:             a.stats.IncrementDDMAssetErrors,
+					IncrementAssetSuccess:            a.stats.IncrementDDMAssetSuccess,
+				})
 				mdmCommandPayload = nextMdmCommandPayload
 
 			case "InstalledApplicationList":
@@ -1410,6 +1459,95 @@ func (a *agent) runMacosMDMLoop() {
 					log.Printf("MDM Acknowledge request failed: %s", err)
 					a.stats.IncrementMDMErrors()
 					break INNER_FOR_LOOP
+				}
+			}
+		}
+
+		// MDM User checkin
+		if a.mdmUserEnrolled() {
+			mdmCommandPayload, err = a.macMDMClient.UserIdle()
+			if err != nil {
+				log.Printf("MDM Idle request failed: %s", err)
+				a.stats.IncrementMDMUserErrors()
+				continue
+			}
+			a.stats.IncrementMDMUserSessions()
+
+		INNER_FOR_LOOP_USER:
+			for mdmCommandPayload != nil {
+				a.stats.IncrementMDMUserCommandsReceived()
+
+				switch mdmCommandPayload.Command.RequestType {
+				case "InstallProfile":
+					if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+						errChain := []mdm.ErrorChain{
+							{
+								ErrorCode:            89,
+								ErrorDomain:          "ErrorDomain",
+								LocalizedDescription: "The profile did not install",
+							},
+						}
+						mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, errChain)
+						if err != nil {
+							log.Printf("MDM Error request failed: %s", err)
+							a.stats.IncrementMDMUserErrors()
+							break INNER_FOR_LOOP_USER
+						}
+					} else {
+						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+						if err != nil {
+							log.Printf("MDM Acknowledge request failed: %s", err)
+							a.stats.IncrementMDMUserErrors()
+							break INNER_FOR_LOOP_USER
+						}
+					}
+
+				case "DeclarativeManagement":
+					// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+					nextMdmCommandPayload, err := a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+					if err != nil {
+						log.Printf("MDM Acknowledge request failed: %s", err)
+						a.stats.IncrementMDMUserErrors()
+						break INNER_FOR_LOOP_USER
+					}
+					// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
+					// (iff a real device does process DDM in parallel with traditional MDM commands).
+					a.doDeclarativeManagement(mdmCommandPayload, ddmMethods{
+						getGlobalToken: func() string {
+							return a.ddmUserGlobalToken
+						},
+						setGlobalToken: func(token string) {
+							a.ddmUserGlobalToken = token
+						},
+						getDeclTokens: func() map[string]string {
+							return a.ddmUserDeclTokens
+						},
+						setDeclTokens: func(tokens map[string]string) {
+							a.ddmUserDeclTokens = tokens
+						},
+						DeclarativeManagement:            a.macMDMClient.UserDeclarativeManagement,
+						IncrementTokensErrors:            a.stats.IncrementUserDDMTokensErrors,
+						IncrementTokensSuccess:           a.stats.IncrementUserDDMTokensSuccess,
+						IncrementDeclarationItemsErrors:  a.stats.IncrementUserDDMDeclarationItemsErrors,
+						IncrementDeclarationItemsSuccess: a.stats.IncrementUserDDMDeclarationItemsSuccess,
+						IncrementConfigurationErrors:     a.stats.IncrementUserDDMConfigurationErrors,
+						IncrementConfigurationSuccess:    a.stats.IncrementUserDDMConfigurationSuccess,
+						IncrementActivationErrors:        a.stats.IncrementUserDDMActivationErrors,
+						IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
+						IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
+						IncrementStatusSuccess:           a.stats.IncrementUserDDMStatusSuccess,
+						IncrementAssetErrors:             a.stats.IncrementUserDDMAssetErrors,
+						IncrementAssetSuccess:            a.stats.IncrementUserDDMAssetSuccess,
+					})
+					mdmCommandPayload = nextMdmCommandPayload
+
+				default:
+					mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+					if err != nil {
+						log.Printf("MDM Acknowledge request failed: %s", err)
+						a.stats.IncrementMDMUserErrors()
+						break INNER_FOR_LOOP_USER
+					}
 				}
 			}
 		}
@@ -1523,219 +1661,6 @@ func (a *agent) pssoKeyRequestExchange() {
 		return
 	}
 	a.stats.IncrementPSSOKeyExchanges()
-}
-
-func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
-	const maxAttempts = 3
-
-	// prevToken starts as the last-applied global token. On each iteration,
-	// a tokens fetch is compared to it: if it matches, the server has settled
-	// (or nothing changed on the first pass). If it differs, we sync
-	// declaration-items and fetch changed declarations, then loop to check
-	// again (mimicking the real device behavior, see
-	// https://github.com/fleetdm/fleet/issues/43050#issuecomment-4252241277).
-	prevToken := a.ddmGlobalToken
-	var items *fleet.MDMAppleDDMDeclarationItemsResponse
-	var currentTokens map[string]string
-	changed := false
-
-	for range maxAttempts {
-		// Fetch tokens — on the first pass this is the initial check against
-		// the cached token; on subsequent passes it is the convergence check
-		// for the previous iteration's sync.
-		globalToken, err := a.ddmFetchTokens()
-		if err != nil {
-			return
-		}
-		if globalToken == prevToken {
-			break // nothing changed, or server has settled
-		}
-
-		// Fetch declaration-items manifest
-		items, err = a.ddmFetchDeclarationItems()
-		if err != nil {
-			return
-		}
-
-		// Check each manifest item against cached tokens, fetch changed ones.
-		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations))
-		for _, d := range items.Declarations.Activations {
-			currentTokens[d.Identifier] = d.ServerToken
-			if a.ddmDeclTokens[d.Identifier] != d.ServerToken {
-				if err := a.ddmFetchDeclaration("activation", d.Identifier); err != nil {
-					return
-				}
-				changed = true
-			}
-		}
-
-		for _, d := range items.Declarations.Configurations {
-			currentTokens[d.Identifier] = d.ServerToken
-			if a.ddmDeclTokens[d.Identifier] != d.ServerToken {
-				if err := a.ddmFetchDeclaration("configuration", d.Identifier); err != nil {
-					return
-				}
-				changed = true
-			}
-		}
-
-		// Check for removed items (in cache but not in manifest) - no need to check if changes are
-		// already detected, as the whole set of declaration tokens will get replaced with the current ones.
-		// This is just to detect the case where the only change is a removal.
-		if !changed {
-			for id := range a.ddmDeclTokens {
-				if _, ok := currentTokens[id]; !ok {
-					changed = true
-					break
-				}
-			}
-		}
-
-		prevToken = globalToken
-	}
-
-	if !changed || items == nil {
-		return
-	}
-
-	// Server has settled (or max attempts exhausted) and declarations
-	// changed — send a single consolidated status report and update cache.
-	if err := a.ddmSendStatus(items); err != nil {
-		return
-	}
-	a.ddmGlobalToken = prevToken
-	a.ddmDeclTokens = currentTokens
-}
-
-func (a *agent) ddmFetchTokens() (string, error) {
-	r, err := a.macMDMClient.DeclarativeManagement("tokens")
-	if err != nil {
-		log.Printf("DDM tokens request failed: %s", err)
-		a.stats.IncrementDDMTokensErrors()
-		return "", err
-	}
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("DDM tokens read body failed: %s", err)
-		a.stats.IncrementDDMTokensErrors()
-		return "", err
-	}
-	var resp fleet.MDMAppleDDMTokensResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		log.Printf("DDM tokens unmarshal failed: %s", err)
-		a.stats.IncrementDDMTokensErrors()
-		return "", err
-	}
-	a.stats.IncrementDDMTokensSuccess()
-	return resp.SyncTokens.DeclarationsToken, nil
-}
-
-func (a *agent) ddmFetchDeclarationItems() (*fleet.MDMAppleDDMDeclarationItemsResponse, error) {
-	r, err := a.macMDMClient.DeclarativeManagement("declaration-items")
-	if err != nil {
-		log.Printf("DDM declaration-items request failed: %s", err)
-		a.stats.IncrementDDMDeclarationItemsErrors()
-		return nil, err
-	}
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("DDM declaration-items read body failed: %s", err)
-		a.stats.IncrementDDMDeclarationItemsErrors()
-		return nil, err
-	}
-	var items fleet.MDMAppleDDMDeclarationItemsResponse
-	if err := json.Unmarshal(body, &items); err != nil {
-		log.Printf("DDM declaration-items unmarshal failed: %s", err)
-		a.stats.IncrementDDMDeclarationItemsErrors()
-		return nil, err
-	}
-	a.stats.IncrementDDMDeclarationItemsSuccess()
-	return &items, nil
-}
-
-func (a *agent) ddmFetchDeclaration(kind, identifier string) error {
-	path := fmt.Sprintf("declaration/%s/%s", kind, identifier)
-	r, err := a.macMDMClient.DeclarativeManagement(path)
-	if err != nil {
-		log.Printf("DDM %s request failed: %s", path, err)
-		a.ddmIncrementDeclError(kind)
-		return err
-	}
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("DDM %s read body failed: %s", path, err)
-		a.ddmIncrementDeclError(kind)
-		return err
-	}
-	switch kind {
-	case "activation":
-		var act fleet.MDMAppleDDMActivation
-		if err := json.Unmarshal(body, &act); err != nil {
-			log.Printf("DDM %s unmarshal failed: %s", path, err)
-			a.ddmIncrementDeclError(kind)
-			return err
-		}
-		a.stats.IncrementDDMActivationSuccess()
-	case "configuration":
-		var decl fleet.MDMAppleDeclaration
-		if err := json.Unmarshal(body, &decl); err != nil {
-			log.Printf("DDM %s unmarshal failed: %s", path, err)
-			a.ddmIncrementDeclError(kind)
-			return err
-		}
-		a.stats.IncrementDDMConfigurationSuccess()
-	}
-	return nil
-}
-
-func (a *agent) ddmIncrementDeclError(kind string) {
-	switch kind {
-	case "activation":
-		a.stats.IncrementDDMActivationErrors()
-	case "configuration":
-		a.stats.IncrementDDMConfigurationErrors()
-	}
-}
-
-func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse) error {
-	report := fleet.MDMAppleDDMStatusReport{}
-	for _, d := range items.Declarations.Activations {
-		report.StatusItems.Management.Declarations.Activations = append(
-			report.StatusItems.Management.Declarations.Activations,
-			fleet.MDMAppleDDMStatusDeclaration{
-				Active: true, Valid: fleet.MDMAppleDeclarationValid,
-				Identifier: d.Identifier, ServerToken: d.ServerToken,
-			},
-		)
-	}
-	for _, d := range items.Declarations.Configurations {
-		report.StatusItems.Management.Declarations.Configurations = append(
-			report.StatusItems.Management.Declarations.Configurations,
-			fleet.MDMAppleDDMStatusDeclaration{
-				Active: true, Valid: fleet.MDMAppleDeclarationValid,
-				Identifier: d.Identifier, ServerToken: d.ServerToken,
-			},
-		)
-	}
-
-	r, err := a.macMDMClient.DeclarativeManagement("status", report)
-	if err != nil {
-		log.Printf("DDM status request failed: %s", err)
-		a.stats.IncrementDDMStatusErrors()
-		return err
-	}
-	defer r.Body.Close()
-	_, _ = io.Copy(io.Discard, r.Body)
-	if r.StatusCode != http.StatusOK {
-		log.Printf("DDM status response unexpected: %d", r.StatusCode)
-		a.stats.IncrementDDMStatusErrors()
-		return fmt.Errorf("unexpected status code: %d", r.StatusCode)
-	}
-	a.stats.IncrementDDMStatusSuccess()
-	return nil
 }
 
 func (a *agent) runWindowsMDMLoop() {
@@ -2873,6 +2798,20 @@ func (a *agent) setMDMEnrolled() {
 	a.isEnrolledToMDM = true
 }
 
+func (a *agent) setMDMUserEnrolled() {
+	a.isMDMUserEnrolledMu.Lock()
+	defer a.isMDMUserEnrolledMu.Unlock()
+
+	a.isMDMUserEnrolled = true
+}
+
+func (a *agent) mdmUserEnrolled() bool {
+	a.isMDMUserEnrolledMu.Lock()
+	defer a.isMDMUserEnrolledMu.Unlock()
+
+	return a.isMDMUserEnrolled
+}
+
 func (a *agent) mdmWindows() []map[string]string {
 	if !a.mdmEnrolled() {
 		return []map[string]string{
@@ -3928,6 +3867,7 @@ func main() {
 			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
 		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 
@@ -4165,6 +4105,7 @@ func main() {
 			*emptySerialProb,
 			*defaultSerialProb,
 			*mdmProb,
+			*mdmUserProb,
 			*mdmSCEPChallenge,
 			*liveQueryFailProb,
 			*liveQueryNoResultsProb,
