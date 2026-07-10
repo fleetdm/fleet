@@ -211,6 +211,12 @@ func ParseECPublicKeyPEM(pemBytes []byte) (*ecdsa.PublicKey, error) {
 		if !ok {
 			return nil, fmt.Errorf("pssocrypto: unexpected pubkey type %T (want *ecdsa.PublicKey)", pub)
 		}
+		// Everything downstream assumes P-256: ES256 verification fails opaquely
+		// on another curve, and go-jose's DeriveECDHES panics on a curve mismatch
+		// when building the response JWE.
+		if ec.Curve != elliptic.P256() {
+			return nil, fmt.Errorf("pssocrypto: unsupported curve %s (want P-256)", ec.Curve.Params().Name)
+		}
 		return ec, nil
 	}
 	return ParseRawECPoint(block.Bytes)
