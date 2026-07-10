@@ -14,9 +14,17 @@ import (
 // deviceNameEligibleHostsJoins and deviceNameEligibleHostsWhere express the
 // shared eligibility predicate for host-name enforcement: the host must be on an
 // Apple platform, enrolled in Fleet's own MDM (the nano_enrollments join is the
-// Fleet-server signal), and not a personal BYOD enrollment. Personal enrollments
-// are skipped because Apple rejects the DeviceName setting on them, mirroring the
-// skip in GetHostsForRecoveryLockAction.
+// Fleet-server signal), and not a BYOD enrollment. BYOD hosts are skipped because
+// Apple rejects the DeviceName setting on personal (user) enrollments.
+//
+// BYOD is excluded two ways, because either signal alone leaves a gap:
+//   - ne.type = 'Device' drops Account-Driven User Enrollment, whose device
+//     channel is recorded as 'User Enrollment (Device)'. Filtering on the type is
+//     required because such hosts enrolled before is_personal_enrollment existed
+//     default that column to 0, so the flag alone would let them through.
+//   - hm.is_personal_enrollment = 0 drops manual, profile-driven BYOD, which does
+//     carry a UDID and so is recorded as a 'Device' enrollment; only the flag
+//     distinguishes it from a company-owned device.
 const deviceNameEligibleHostsJoins = `
 	FROM hosts h
 	JOIN nano_enrollments ne ON ne.device_id = h.uuid
@@ -25,7 +33,7 @@ const deviceNameEligibleHostsJoins = `
 const deviceNameEligibleHostsWhere = `
 	h.platform IN ('darwin', 'ios', 'ipados')
 	AND ne.enabled = 1
-	AND ne.type IN ('Device', 'User Enrollment (Device)')
+	AND ne.type = 'Device'
 	AND hm.enrolled = 1
 	AND hm.is_personal_enrollment = 0`
 

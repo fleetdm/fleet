@@ -78,6 +78,16 @@ func testHostDeviceNamesEligibility(t *testing.T, ds *Datastore) {
 	byodHost := enrollAppleHostForDeviceName(t, ds, "byod", "ios", team.ID, true)
 	winHost := enrollAppleHostForDeviceName(t, ds, "win", "windows", team.ID, false)
 
+	// Account-Driven User Enrollment (BYOD): nanomdm records the enrollment type
+	// as "User Enrollment (Device)". Apple rejects the DeviceName command on user
+	// (BYOD) enrollments, so it must be excluded on the enrollment type. This host
+	// carries is_personal_enrollment = 0 (the column default) to represent a device
+	// enrolled before that flag existed, proving the type filter — not just the
+	// personal flag — is what keeps BYOD out.
+	udBYODHost := test.NewHost(t, ds, "ud-byod", "1.1.1.4", "udb-key", "udb-uuid", time.Now(),
+		test.WithPlatform("ios"), test.WithTeamID(team.ID))
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, udBYODHost)
+
 	// linux and non-enrolled darwin hosts are never eligible.
 	linuxHost := test.NewHost(t, ds, "linux", "1.1.1.2", "linux-key", "linux-uuid", time.Now(),
 		test.WithPlatform("linux"), test.WithTeamID(team.ID))
@@ -93,7 +103,7 @@ func testHostDeviceNamesEligibility(t *testing.T, ds *Datastore) {
 		require.Nil(t, row.Status, "eligible host %s should be queued (NULL status)", h.Hostname)
 	}
 
-	ineligible := []*fleet.Host{byodHost, winHost, linuxHost, notEnrolled}
+	ineligible := []*fleet.Host{byodHost, udBYODHost, winHost, linuxHost, notEnrolled}
 	for _, h := range ineligible {
 		_, err := ds.GetHostDeviceNameEnforcement(ctx, h.UUID)
 		require.True(t, fleet.IsNotFound(err), "ineligible host %s should have no row", h.Hostname)
