@@ -4,6 +4,7 @@ import (
 	"bytes"
 	cryptorand "crypto/rand"
 	"encoding/base64"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -502,7 +503,7 @@ func (a *androidAgent) orbitEnroll() error {
 		return fmt.Errorf("decode orbit enroll response: %w", err)
 	}
 	if enrollResp.OrbitNodeKey == "" {
-		return fmt.Errorf("empty orbit_node_key in response")
+		return errors.New("empty orbit_node_key in response")
 	}
 
 	a.orbitNodeKey = enrollResp.OrbitNodeKey
