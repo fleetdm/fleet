@@ -167,9 +167,9 @@ const PolicyAutomationsFields = forwardRef<
       policy.install_software?.software_title_id ?? null
     );
     // Pins the automation to a specific package on a multi-package title.
-    // Legacy policies (and any policy whose install_software payload hasn't
-    // hydrated `software_installer_id` yet — see the TODO on
-    // IPolicySoftwareToInstall) auto-resolve to first-added below.
+    // When the policy payload doesn't carry `software_installer_id` (VPP
+    // titles never do; single-package titles didn't need it), the
+    // auto-select effect below resolves to first-added.
     const [softwareInstallerId, setSoftwareInstallerId] = useState<
       number | null
     >(policy.install_software?.software_installer_id ?? null);
@@ -280,8 +280,8 @@ const PolicyAutomationsFields = forwardRef<
     //   1. Fresh title selection: installer id was reset to null in
     //      handleSelectSoftware; pick first-added.
     //   2. Legacy policy load: hydrated with software_title_id but no
-    //      software_installer_id (backend gap — see IPolicySoftwareToInstall
-    //      TODO); resolve to first-added on the title's packages.
+    //      software_installer_id (e.g., policies created before backend
+    //      surfaced the field); resolve to first-added on the title's packages.
     //   3. Stale selection: an installer id that no longer appears on the
     //      title's packages (rare — e.g., a race where the package was
     //      deleted server-side); fall back to first-added rather than saving
@@ -407,16 +407,11 @@ const PolicyAutomationsFields = forwardRef<
                   handleSelectSoftware(opt ? Number(opt.value) : null)
                 }
               />
-              {/* Second dropdown only surfaces for multi-package titles —
-                  VPP / App Store titles have no packages[] and single-package
-                  titles collapse to a one-option list where a second picker
-                  would be noise. The first-added package is auto-selected
-                  (see the effect above) so this is a pin-adjustment, not a
-                  required selection. */}
+              {/* Only surfaces for multi-package titles; first-added is
+                  auto-selected above, so this is pin-adjustment. */}
               {packageOptions.length > 1 && (
                 <DropdownWrapper
                   name="software-package"
-                  ariaLabel="Select package"
                   className={`${baseClass}__row-picker`}
                   isDisabled={gitOpsModeEnabled}
                   value={

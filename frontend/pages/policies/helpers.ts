@@ -57,10 +57,10 @@ export const getTicketOrWebhookLabel = (
   return "Send webhook or create ticket";
 };
 
-/** Help-text shown under each option in the OUTER "Select software" dropdown
+/** Help-text shown under each option in the default "Select software" dropdown
  * on the policy automations modal. Renders `platform (type) • <version>` for
  * VPP / App Store and single-package custom titles, or `platform (type) •
- * N versions` for multi-package custom titles. For the INNER "Select package"
+ * N versions` for multi-package custom titles. For the "Select package"
  * dropdown that surfaces when a multi-package title is picked, see
  * `generateSoftwarePackageOptionHelpText`. */
 export const generateSoftwareOptionHelpText = (
@@ -99,9 +99,9 @@ export const generateSoftwareOptionHelpText = (
   return `${platformString}${separator}${versionOrCount}`;
 };
 
-/** Help-text shown under each option in the INNER "Select package" dropdown
+/** Help-text shown under each option in the "Select package" dropdown
  * that appears when a multi-package title is picked. Mirrors the Library
- * row's "version • Added X ago" secondary line. For the OUTER "Select
+ * row's "version • Added X ago" secondary line. For the default "Select
  * software" dropdown that lists titles, see `generateSoftwareOptionHelpText`. */
 export const generateSoftwarePackageOptionHelpText = (
   pkg: ISoftwarePackage

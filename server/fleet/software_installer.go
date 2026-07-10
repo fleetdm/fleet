@@ -856,9 +856,7 @@ type SoftwarePackageOrApp struct {
 // SoftwarePackageListItem is the trimmed list-response package shape; it omits the
 // host-only last_install/last_uninstall fields that SoftwarePackageOrApp carries.
 type SoftwarePackageListItem struct {
-	// InstallerID is the per-package id needed by callers that pin to a
-	// specific package on a multi-package title (e.g. the policy-automations
-	// Select-package dropdown, which auto-selects first-added by smallest id).
+	// InstallerID is the per-package id used to pin a policy to a specific package.
 	InstallerID              uint                     `json:"installer_id"`
 	Name                     string                   `json:"name"`
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`

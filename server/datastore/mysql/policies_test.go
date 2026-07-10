@@ -6300,8 +6300,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
-		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, InstallerID: ptr.Uint(installer3ID), Type: fleet.PolicyTypeDynamic},
-		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, InstallerID: ptr.Uint(installer4ID), Type: fleet.PolicyTypeDynamic},
+		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, InstallerID: new(installer3ID), Type: fleet.PolicyTypeDynamic},
+		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, InstallerID: new(installer4ID), Type: fleet.PolicyTypeDynamic},
 	}
 
 	for _, got := range policies {

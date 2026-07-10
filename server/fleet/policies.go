@@ -591,6 +591,13 @@ type PolicySpec struct {
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
+	// SoftwareInstallerID is the ID of the specific package the policy pins
+	// on a multi-package title. Nil for VPP-backed policies (which pin via
+	// vpp_apps_teams_id, not an installer). The multi-package policy
+	// automation UI reads this on load to reflect the user's non-default
+	// package choice; when nil, the UI falls back to the title's first-added
+	// package.
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`

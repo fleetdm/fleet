@@ -83,13 +83,6 @@ const generateTableConfig = (
       sortType: "caseInsensitive",
     },
     {
-      // Setup experience only installs the first-added package per custom
-      // multi-package title; the header tooltip surfaces the disclaimer
-      // once for the whole column rather than per-row. Copy is scoped to
-      // "custom packages" so it stays accurate even when non-custom rows
-      // (FMA, VPP, Play Store) render alongside custom ones.
-      // `id` is required whenever Header is a function — react-table
-      // otherwise falls back to `Header` as the column key and crashes.
       id: "version",
       Header: () => (
         <TooltipWrapper

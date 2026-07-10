@@ -113,8 +113,7 @@ export const getSoftwareInstallHandlerOnlyPreInstallOutput = http.get(
   }
 );
 
-// Installed, payload includes a package SHA-256 hash — exercises the Hash
-// DataSet row in the Install-details modal.
+// Installed, with SHA-256 hash
 export const getSoftwareInstallHandlerWithHash = http.get(
   baseUrl("/software/install/:install_uuid/results"),
   ({ params }) => {

@@ -173,9 +173,10 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
-			SoftwareTitleID: *installerMetadata.TitleID,
-			Name:            installerMetadata.SoftwareTitle,
-			DisplayName:     installerMetadata.DisplayName,
+			SoftwareTitleID:     *installerMetadata.TitleID,
+			SoftwareInstallerID: new(installerMetadata.InstallerID),
+			Name:                installerMetadata.SoftwareTitle,
+			DisplayName:         installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {

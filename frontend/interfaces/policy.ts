@@ -80,11 +80,9 @@ export interface IPolicySoftwareToInstall {
   display_name?: string;
   software_title_id: number;
   icon_url?: string | null;
-  // TODO: backend `PolicySoftwareTitle` (server/fleet/policies.go:591) does not
-  // yet expose the pinned installer_id. Until it does, the automations UI
-  // re-derives first-added on every load, so a user's choice of a non-default
-  // package on a multi-package title isn't reflected on reload (persists
-  // server-side; just not visible).
+  /** Present when the policy pins a specific package on a multi-package
+   * title. Absent for VPP-backed policies. When absent the automations UI
+   * falls back to auto-selecting the title's first-added package. */
   software_installer_id?: number;
 }
 

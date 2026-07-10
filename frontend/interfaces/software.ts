@@ -548,8 +548,7 @@ export interface ISoftwareInstallResult {
   self_service: boolean;
   /** SHA-256 of the installer package. Present when the payload was
    * hydrated from a package-backed install; absent for VPP / older results
-   * whose backend join hasn't been extended. The install-details modal
-   * surfaces this as a tooltip on the filename. */
+   * whose backend join hasn't been extended. */
   hash_sha256?: string;
 }
 

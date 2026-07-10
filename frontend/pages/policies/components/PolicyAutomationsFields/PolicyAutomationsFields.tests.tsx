@@ -18,8 +18,6 @@ import PolicyAutomationsFields, {
 import useSoftwareTitles from "./hooks/useSoftwareTitles";
 import useScripts from "./hooks/useScripts";
 
-// Hook mocks — keep the tests focused on component behavior (dropdown
-// visibility, auto-select, payload shape) instead of react-query wiring.
 jest.mock("./hooks/useSoftwareTitles");
 jest.mock("./hooks/useScripts");
 jest.mock("hooks/useGitOpsMode", () => ({

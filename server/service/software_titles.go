@@ -214,10 +214,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				}
 
 				// Key policies by installer_id so each package on a multi-package
-				// title only surfaces the policies actually bound to it — not the
-				// aggregated title-level list that `titleMeta.AutomaticInstallPolicies`
-				// carries. VPP-backed policies have nil InstallerID and are
-				// dispatched via the AppStoreApp branch below.
+				// title only surfaces the ones actually bound to it. VPP-backed
+				// policies have nil InstallerID and dispatch via AppStoreApp.
 				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 				if titleMeta != nil {
 					for _, p := range titleMeta.AutomaticInstallPolicies {
