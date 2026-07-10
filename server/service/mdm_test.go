@@ -1773,6 +1773,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name     string
@@ -2831,6 +2834,9 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			Name: "team1",
 		}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 
 	type ProfileLabels struct {
 		IncludeAll bool
@@ -3191,6 +3197,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 				return &fleet.GroupedCertificateAuthorities{}, nil
 			}
 			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+			ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
 			// Tracking of OS update profiles now happens atomically inside
 			// BatchSetMDMProfiles; the service only forwards the profiles.
 			var gotAppleOSUpdate, gotWindowsOSUpdate bool

@@ -2366,17 +2366,19 @@ func (svc *Service) BatchSetMDMProfiles(
 	// declaration to the assets it references (mirroring the single-upload
 	// path). GitOps applies assets before declarations, so referenced assets
 	// already exist by this point.
-	assets, err := svc.ds.ListAppleDDMAssets(ctx, tmID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing DDM assets")
-	}
-	for _, d := range appleDeclsSlice {
-		d.TeamID = tmID
-		assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, assets)
+	if len(appleDeclsSlice) > 0 {
+		assets, err := svc.ds.ListAppleDDMAssets(ctx, tmID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "handling declaration asset references")
+			return ctxerr.Wrap(ctx, err, "listing DDM assets")
 		}
-		d.AssetReferenceUUIDs = assetRefs
+		for _, d := range appleDeclsSlice {
+			d.TeamID = tmID
+			assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, assets)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "handling declaration asset references")
+			}
+			d.AssetReferenceUUIDs = assetRefs
+		}
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
