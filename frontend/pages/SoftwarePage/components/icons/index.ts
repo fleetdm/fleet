@@ -288,7 +288,6 @@ import Diffusionbee from "./Diffusionbee";
 import Digikam from "./Digikam";
 import DigisealReader from "./DigisealReader";
 import DirectoryOpus from "./DirectoryOpus";
-import DirootsProsheets from "./DirootsProsheets";
 import Discord from "./Discord";
 import DiskDrill from "./DiskDrill";
 import DisplayLinkManager from "./DisplayLinkManager";
@@ -306,7 +305,6 @@ import DrataAgent from "./DrataAgent";
 import Drawbot from "./Drawbot";
 import Drawio from "./DrawIo";
 import Drofus from "./Drofus";
-import DroidcamClient from "./DroidcamClient";
 import Dropbox from "./Dropbox";
 import Dropdmg from "./Dropdmg";
 import Droplr from "./Droplr";
@@ -1382,7 +1380,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   digikam: Digikam,
   "digiseal reader": DigisealReader,
   "directory opus": DirectoryOpus,
-  "diroots prosheets": DirootsProsheets,
   discord: Discord,
   "disk drill": DiskDrill,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
@@ -1401,7 +1398,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "draw.io": Drawio,
   drawbot: Drawbot,
   drofus: Drofus,
-  "droidcam client": DroidcamClient,
   dropbox: Dropbox,
   dropdmg: Dropdmg,
   droplr: Droplr,

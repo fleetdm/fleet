@@ -2522,13 +2522,6 @@
       "description": "Directory Opus is an advanced file manager and Windows Explorer replacement."
     },
     {
-      "name": "DiRoots ProSheets",
-      "slug": "diroots-prosheets/windows",
-      "platform": "windows",
-      "unique_identifier": "ProSheets",
-      "description": "DiRoots ProSheets is an Autodesk Revit add-in for batch-exporting sheets and views to PDF, DWG, and more."
-    },
-    {
       "name": "Discord",
       "slug": "discord/darwin",
       "platform": "darwin",
@@ -2667,13 +2660,6 @@
       "platform": "windows",
       "unique_identifier": "dRofus",
       "description": "dRofus is a planning and data-management tool for building and construction projects."
-    },
-    {
-      "name": "DroidCam Client",
-      "slug": "droidcam-client/windows",
-      "platform": "windows",
-      "unique_identifier": "DroidCam Client",
-      "description": "DroidCam Client turns a phone into a webcam for your PC over USB or Wi-Fi."
     },
     {
       "name": "Dropbox",
