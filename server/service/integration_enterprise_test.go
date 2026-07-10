@@ -16258,6 +16258,12 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		assert.Greater(t, time.Now(), resp.Results.CreatedAt)
 	}
 
+	installHash := func(installUUID string) *string {
+		res, err := s.ds.GetSoftwareInstallResults(ctx, installUUID)
+		require.NoError(t, err)
+		return res.HashSHA256
+	}
+
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
 		json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
@@ -16283,6 +16289,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallFailed),
 		Source:          new("deb_packages"),
+		HashSHA256:      installHash(installUUIDs[0]),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16308,6 +16315,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		InstallUUID:     installUUIDs[1],
 		Status:          string(fleet.SoftwareInstallFailed),
 		Source:          new("deb_packages"),
+		HashSHA256:      installHash(installUUIDs[1]),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16339,6 +16347,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstalled),
 		Source:          new("deb_packages"),
+		HashSHA256:      installHash(installUUIDs[2]),
 	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16376,6 +16385,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstallFailed),
 		Source:          new("deb_packages"),
+		HashSHA256:      installHash(installUUIDs[2]),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -20948,6 +20958,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 		InstallUUID:     installUUID,
 		Status:          string(fleet.SoftwareInstallFailed),
 		Source:          new("rpm_packages"),
+		HashSHA256:      resp.Results.HashSHA256,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -22155,6 +22166,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	require.Equal(t, scriptExecID, listUpcomingAct.Activities[0].UUID)
 
 	// past activity is created for the software install
+	installRes, err := s.ds.GetSoftwareInstallResults(context.Background(), swInstallExecID)
+	require.NoError(t, err)
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
@@ -22163,6 +22176,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		InstallUUID:     swInstallExecID,
 		Status:          string(fleet.SoftwareInstalled),
 		Source:          new("deb_packages"),
+		HashSHA256:      installRes.HashSHA256,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
