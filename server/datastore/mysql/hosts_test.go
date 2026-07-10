@@ -950,6 +950,15 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 		hosts = append(hosts, newHost.Host)
 	}
 
+	// Add a Zorin OS host (Ubuntu-based), supported for linux disk encryption.
+	// Appended after the Android hosts (index 22) so the existing host indices
+	// used for team assignments below are unaffected. Left on "no team" and
+	// pending (no escrowed key) to exercise the supported-linux OS settings /
+	// disk-encryption filter path.
+	zorinHost := test.NewHost(t, ds, "foo.local.22", "1.1.1.1", "22", "22", time.Now(), test.WithPlatform("zorin"))
+	hosts = append(hosts, zorinHost)
+	nanoEnrollAndSetHostMDMData(t, ds, zorinHost, false)
+
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 
 	// confirm initial state
@@ -1042,19 +1051,19 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 6) // pending supported linux hosts (ubuntu 1,2; fedora 3,4,5; zorin 22)
 
-	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)
+	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", new(uint(1)))
 	require.NoError(t, err)                                                              // set host 1 to verified
 	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error")) // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 2)   // hosts[2], hosts[21]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 3)  // still-pending supported linux hosts
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 4)  // still-pending supported linux hosts (fedora 3,4,5; zorin 22)
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 1)
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 3)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 4) // fedora 3,4,5; zorin 22
 
 	// test team filter in combination with os settings disk encryptionfilter
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -1107,7 +1116,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[18]
 
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 4) // hosts[3, 4, 5, 19]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 5) // hosts[3, 4, 5, 19, 22 (zorin)]
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
@@ -1119,7 +1128,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)
+	_, err = ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", new(uint(2)))
 	require.NoError(t, err)                                                              // set host 1 to verified
 	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error")) // set host 2 to failed
 
@@ -10892,18 +10901,14 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 
-	// no change when blank key or salt attempted to save
-	keyArchived, err := ds.SaveLUKSData(ctx, host1, "", "", 0)
-	require.Error(t, err)
-	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
-	require.False(t, keyArchived)
-	keyArchived, err = ds.SaveLUKSData(ctx, host1, "foo", "", 0)
+	// no change when blank key attempted to save
+	keyArchived, err := ds.SaveLUKSData(ctx, host1, "", "", nil)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.False(t, keyArchived)
 
 	// persists with passphrase and salt set
-	keyArchived, err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", 0)
+	keyArchived, err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", new(uint(0)))
 	require.NoError(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
@@ -10911,11 +10916,19 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	checkLUKSEncryptionKey(t, ds, host2.ID, "bazqux", "fuzzmuffin")
 
 	// persists when host hasn't had anything queued
-	keyArchived, err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", 1)
+	keyArchived, err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", new(uint(1)))
 	require.NoError(t, err)
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 	require.True(t, keyArchived)
 	checkLUKSEncryptionKey(t, ds, host3.ID, "newstuff", "fuzzball")
+
+	// persists a TPM-backed FDE recovery key, which has no salt or key slot
+	// (snapd owns the LUKS key slots)
+	keyArchived, err = ds.SaveLUKSData(ctx, host1, "recoverykey", "", nil)
+	require.NoError(t, err)
+	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.True(t, keyArchived)
+	checkLUKSEncryptionKey(t, ds, host1.ID, "recoverykey", "")
 }
 
 func checkLUKSEncryptionKey(t *testing.T, ds *Datastore, hostID uint, expectedKey string, expectedSalt string) {

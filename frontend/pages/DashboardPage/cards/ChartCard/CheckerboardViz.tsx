@@ -350,14 +350,18 @@ const CheckerboardViz = ({
             {grid.map((cell) => {
               const col = is24h ? cell.hourRow : cell.dayIndex;
               const row = is24h ? 0 : cell.hourRow;
-              const level = getColorLevel(cell);
+              // The current slot and future slots have no collected data yet —
+              // their tooltip and aria-label read "No data" — so render them at
+              // the level-0 "no data" swatch even when the current slot carries
+              // a partial value. Without this the fill contradicts the tooltip.
+              const level = cell.isFuture ? 0 : getColorLevel(cell);
               // Filled cells have a bg-colored 1px stroke that visually blends
-              // away. Outlined cells (level-0 and the current-timeframe cell)
-              // use a visible colored stroke instead, so without insetting they
-              // would look 1px larger than filled cells. Inset by half the
-              // stroke so the outline's outer edge sits where the filled cell's
-              // invisible stroke does.
-              const inset = level === 0 || cell.isCurrent ? 0.5 : 0;
+              // away. Level-0 cells (no data, which now includes the current
+              // and future slots) use a visible colored stroke instead, so
+              // without insetting they would look 1px larger than filled cells.
+              // Inset by half the stroke so the outline's outer edge sits where
+              // the filled cell's invisible stroke does.
+              const inset = level === 0 ? 0.5 : 0;
               return (
                 <rect
                   key={`${cell.dayIndex}-${cell.hourRow}`}

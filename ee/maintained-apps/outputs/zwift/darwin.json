@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "1.1.16",
+      "version": "1.1.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.zwift.ZwiftLauncher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.zwift.ZwiftLauncher' AND version_compare(bundle_short_version, '1.1.16') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.zwift.ZwiftLauncher' AND version_compare(bundle_short_version, '1.1.17') < 0);"
       },
       "installer_url": "https://cdn.zwift.com/app/ZwiftOSX.dmg",
       "install_script_ref": "fe464bdd",

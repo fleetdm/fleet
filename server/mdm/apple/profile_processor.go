@@ -194,6 +194,26 @@ func preprocessProfileContents(
 			continue
 		}
 
+		// The PSSO device registration token is host-independent: it resolves to
+		// the same $FLEET_HOST_SECRET_ placeholder for every host, which is then
+		// expanded into a per-host, Fleet-signed JWT at command-delivery time
+		// (see ExpandHostSecrets). Substitute it once on the shared contents. If
+		// it is the only Fleet variable, the contents are identical for every
+		// host, so we skip the per-host profile fan-out and send a single shared
+		// command — the per-host token is injected at delivery time.
+		if slices.Contains(fleetVars, string(fleet.FleetVarPSSODeviceRegistrationToken)) {
+			contentsStr = profiles.ReplaceFleetVariableInXML(
+				fleet.FleetVarPSSODeviceRegistrationTokenRegexp, contentsStr,
+				"$"+fleet.HostSecretPrefix+fleet.HostSecretPSSODeviceRegistrationToken)
+			fleetVars = slices.DeleteFunc(fleetVars, func(v string) bool {
+				return v == string(fleet.FleetVarPSSODeviceRegistrationToken)
+			})
+			if len(fleetVars) == 0 {
+				profileContents[profUUID] = mobileconfig.Mobileconfig(contentsStr)
+				continue
+			}
+		}
+
 		var variablesUpdatedAt *time.Time
 
 		// Do common validation that applies to all hosts in the target

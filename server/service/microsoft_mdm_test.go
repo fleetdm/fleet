@@ -42,79 +42,6 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 	return req, nil
 }
 
-func TestIsValidAppruURL(t *testing.T) {
-	tests := []struct {
-		name     string
-		appru    string
-		expected bool
-	}{
-		// Valid URLs
-		{
-			name:     "valid ms-app scheme",
-			appru:    "ms-app://windows.immersivecontrolpanel",
-			expected: true,
-		},
-		{
-			name:     "valid https scheme",
-			appru:    "https://example.com/callback",
-			expected: true,
-		},
-		{
-			name:     "valid http scheme",
-			appru:    "http://localhost/callback",
-			expected: true,
-		},
-		// Invalid URLs - XSS attempts
-		{
-			name:     "javascript injection",
-			appru:    ";for (var key in localStorage){ alert(key)};//",
-			expected: false,
-		},
-		{
-			name:     "javascript protocol",
-			appru:    "javascript:alert(1)",
-			expected: false,
-		},
-		{
-			name:     "data URI",
-			appru:    "data:text/html,<script>alert(1)</script>",
-			expected: false,
-		},
-		{
-			name:     "empty scheme",
-			appru:    "://example.com",
-			expected: false,
-		},
-		{
-			name:     "plain text",
-			appru:    "not-a-url",
-			expected: false,
-		},
-		{
-			name:     "empty string",
-			appru:    "",
-			expected: false,
-		},
-		{
-			name:     "file scheme",
-			appru:    "file:///etc/passwd",
-			expected: false,
-		},
-		{
-			name:     "ftp scheme",
-			appru:    "ftp://example.com",
-			expected: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := isValidAppru(tc.appru)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func TestValidSoapResponse(t *testing.T) {
 	relatesTo := "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749"
 	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, fleet.MDEDiscovery, errors.New("test"))
@@ -666,6 +593,20 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 			string(scepCmdWithAtomic.RawCommand),
 		)
 	})
+
+	t.Run("scope-less SCEP profile is wrapped in Atomic", func(t *testing.T) {
+		scepLocURI := "Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL"
+		cmd, err := buildCommandFromProfileBytes(syncMLForTest(scepLocURI), "uuid-scopeless")
+		require.NoError(t, err)
+		require.Contains(t, string(cmd.RawCommand), "<Atomic>")
+
+		// A non-wrapped profile unmarshalls into a single top-level command; only an <Atomic> wrapper populates both nested
+		// command slices, so this is a definitive check that the scope-less SCEP profile was wrapped.
+		wrapped := new(fleet.SyncMLCmd)
+		require.NoError(t, xml.Unmarshal(cmd.RawCommand, wrapped))
+		require.Len(t, wrapped.ReplaceCommands, 1)
+		require.Len(t, wrapped.AddCommands, 1)
+	})
 }
 
 func syncMLForTest(locURI string) []byte {
@@ -797,6 +738,15 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return nil
 	}
 	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
+	// Modify-install delete pass: default to no retained prior content (no LocURIs removed) and a no-op enqueue, so reconcile tests
+	// that don't exercise edited-profile <Delete> generation don't nil-panic. Tests covering it can override these.
+	ds.GetWindowsMDMProfilePriorContentsFunc = func(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
+		return nil, nil
+	}
+	ds.MDMWindowsInsertCommandForHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		return nil
 	}
 

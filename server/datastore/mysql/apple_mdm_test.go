@@ -103,6 +103,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
+		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
 		{"GetEnrollmentIDsWithPendingMDMAppleCommands", testGetEnrollmentIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
@@ -5603,11 +5604,18 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		_, err = ds.writer(ctx).ExecContext(ctx,
 			`INSERT INTO script_upcoming_activities (upcoming_activity_id) VALUES (?)`, uaID)
 		require.NoError(t, err)
+
+		// PSSO registration (host_uuid ref - device row plus a cascading key)
+		require.NoError(t, ds.SetOrUpdatePSSODevice(ctx, h.UUID, []fleet.PSSOKey{
+			{KID: "kid-" + h.UUID, KeyType: fleet.PSSOKeyTypeSigning, PEM: "pem-" + h.UUID},
+		}))
 	}
 
 	type counts struct {
-		label    int
-		upcoming int
+		label      int
+		upcoming   int
+		pssoDevice int
+		pssoKey    int
 	}
 	countRows := func(t *testing.T, h *fleet.Host) counts {
 		var c counts
@@ -5615,9 +5623,13 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM label_membership WHERE host_id = ?`, h.ID))
 		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.upcoming,
 			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pssoDevice,
+			`SELECT COUNT(*) FROM mdm_apple_psso_devices WHERE host_uuid = ?`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pssoKey,
+			`SELECT COUNT(*) FROM mdm_apple_psso_keys WHERE host_uuid = ?`, h.UUID))
 		return c
 	}
-	seeded := counts{label: 1, upcoming: 1}
+	seeded := counts{label: 1, upcoming: 1, pssoDevice: 1, pssoKey: 1}
 
 	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
 		hostA := newHost("clear-A")
@@ -5632,7 +5644,7 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
 
 		// host A: everything cleared
-		assert.Equal(t, counts{label: 0, upcoming: 0}, countRows(t, hostA))
+		assert.Equal(t, counts{}, countRows(t, hostA))
 
 		// host B: untouched (control - proves the reset is host-scoped)
 		assert.Equal(t, seeded, countRows(t, hostB))
@@ -6227,7 +6239,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	SetTestABMAssets(t, ds, "fleet")
 
-	toks, err := ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
+	toks, err := ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists", fleet.PayloadScopeSystem)
 	require.NoError(t, err)
 	require.Empty(t, toks.DeclarationsToken)
 
@@ -6240,7 +6252,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
-	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
+	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists", fleet.PayloadScopeSystem)
 	require.NoError(t, err)
 	require.Empty(t, toks.DeclarationsToken)
 	require.NotZero(t, toks.Timestamp)
@@ -6258,7 +6270,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
-	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
+	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID, fleet.PayloadScopeSystem)
 	require.NoError(t, err)
 	require.NotEmpty(t, toks.DeclarationsToken)
 	require.NotZero(t, toks.Timestamp)
@@ -6272,7 +6284,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
-	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
+	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID, fleet.PayloadScopeSystem)
 	require.NoError(t, err)
 	require.NotEmpty(t, toks.DeclarationsToken)
 	require.NotZero(t, toks.Timestamp)
@@ -6283,7 +6295,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
-	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
+	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID, fleet.PayloadScopeSystem)
 	require.NoError(t, err)
 	require.NotEmpty(t, toks.DeclarationsToken)
 	require.NotZero(t, toks.Timestamp)
@@ -6377,7 +6389,7 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 	require.Len(t, profs, 10)
 	checkStatus(profs, fleet.MDMDeliveryPending, "")
 
-	err = ds.MDMAppleSetPendingDeclarationsAs(ctx, h.UUID, &fleet.MDMDeliveryFailed, "mock error")
+	err = ds.MDMAppleSetPendingDeclarationsAs(ctx, h.UUID, fleet.PayloadScopeSystem, &fleet.MDMDeliveryFailed, "mock error")
 	require.NoError(t, err)
 	profs, err = ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 	require.NoError(t, err)
@@ -7773,6 +7785,81 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
+}
+
+func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
+
+	// Two hosts rows that share one hardware UUID — the duplicate-enrollment
+	// state Fleet can land in (e.g. DEP re-enrollment) that the reconciler must
+	// tolerate. There is a single nano enrollment for the shared UUID.
+	const sharedUUID = "DUP-UUID-SHARED"
+	now := time.Now()
+	hLow := test.NewHost(t, ds, "dup-low", "1.1.1.1", "dup-key-low", sharedUUID, now)
+	hHigh := test.NewHost(t, ds, "dup-high", "1.1.1.2", "dup-key-high", sharedUUID, now)
+	require.Greater(t, hHigh.ID, hLow.ID)
+	nanoEnroll(t, ds, hHigh, false)
+
+	// Source dedup: the reconcile snapshot must surface the UUID exactly once,
+	// keeping the highest host id.
+	hosts, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 5000)
+	require.NoError(t, err)
+	var forUUID []*fleet.AppleHostReconcileInfo
+	for _, h := range hosts {
+		if h.UUID == sharedUUID {
+			forUUID = append(forUUID, h)
+		}
+	}
+	require.Len(t, forUUID, 1)
+	require.Equal(t, hHigh.ID, forUUID[0].HostID)
+
+	// Force the duplicate group across a batch boundary: with batchSize=1 the
+	// query returns a single row, and the h.id DESC tiebreak must make it the
+	// highest-id host rather than an arbitrary one.
+	boundaryHosts, _, _, _, err := ds.GetAppleProfileReconcileSnapshot(ctx, "", 1)
+	require.NoError(t, err)
+	require.Len(t, boundaryHosts, 1)
+	require.Equal(t, hHigh.ID, boundaryHosts[0].HostID)
+
+	// The per-host reconcile path resolves the same duplicate the same way:
+	// highest id wins, and multiple enrollment relationships don't multiply.
+	perHost, err := ds.GetAppleMDMHostForReconcile(ctx, sharedUUID)
+	require.NoError(t, err)
+	require.NotNil(t, perHost)
+	require.Equal(t, hHigh.ID, perHost.HostID)
+
+	// End to end: a global profile reconciles into a single clean enqueue. With
+	// the pre-fix behavior the duplicate host produced EnrollmentIDs=[uuid,
+	// uuid], the per-command INSERT collided on the nano_enrollment_queue PK,
+	// and the profile was reverted to a NULL status instead of Pending.
+	prof, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("dup-profile", "com.dup.profile", 0), nil)
+	require.NoError(t, err)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	mockKV := new(mock.AdvancedKVStore)
+	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return make(map[string]*string), nil
+	}
+	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0))
+
+	var hostProf struct {
+		Status      *fleet.MDMDeliveryStatus `db:"status"`
+		CommandUUID string                   `db:"command_uuid"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &hostProf,
+		`SELECT status, command_uuid FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+		sharedUUID, prof.ProfileUUID))
+	require.NotNil(t, hostProf.Status, "profile should not have been reverted to a NULL status by a failed enqueue")
+	require.Equal(t, fleet.MDMDeliveryPending, *hostProf.Status)
+	require.NotEmpty(t, hostProf.CommandUUID)
+
+	// The command enqueued to exactly one queue row for the shared UUID (not
+	// zero from a failed insert, not two from a duplicate insert).
+	var queueRowsForCmd int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &queueRowsForCmd,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, sharedUUID, hostProf.CommandUUID))
+	require.Equal(t, 1, queueRowsForCmd)
 }
 
 func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore) {

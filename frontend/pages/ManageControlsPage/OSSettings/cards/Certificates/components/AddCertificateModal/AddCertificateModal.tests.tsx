@@ -94,6 +94,15 @@ describe("AddCertModal", () => {
     expect(screen.getByPlaceholderText(SAN_PLACEHOLDER)).toBeInTheDocument();
   });
 
+  it("renders the Certificate authority field above the Name field", async () => {
+    await renderModal();
+    const caLabel = screen.getByText("Certificate authority (CA)");
+    const nameLabel = screen.getByText("Name");
+    expect(caLabel.compareDocumentPosition(nameLabel)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
   it("clicking Add with all required fields empty shows three inline errors and does not call the API", async () => {
     const { user } = await renderModal();
     await user.click(screen.getByRole("button", { name: /Add/i }));

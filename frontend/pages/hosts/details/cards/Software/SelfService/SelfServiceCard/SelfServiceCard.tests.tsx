@@ -239,7 +239,20 @@ describe("SelfServiceCard", () => {
     // satisfy toHaveBeenCalled().
     const pushSpy = jest.fn();
     const mockRouter = createMockRouter({ push: pushSpy });
-    const props = createTestProps({ router: mockRouter });
+    // Only categories with software appear, so the software must be in Browsers.
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      router: mockRouter,
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "uninstalled",
+          software_package: browserPackage,
+        },
+      ],
+    });
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
 
@@ -254,6 +267,36 @@ describe("SelfServiceCard", () => {
     expect(pushSpy).toHaveBeenCalledWith(
       expect.stringContaining("category_id=1")
     );
+  });
+
+  it("hides categories that have no self-service software", async () => {
+    // BE returns both, but only Browsers has software, so Security is hidden.
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([
+        { id: 1, name: "🌎 Browsers" },
+        { id: 2, name: "🔐 Security" },
+      ])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "uninstalled",
+          software_package: browserPackage,
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+
+    render(<SelfServiceCard {...props} />);
+
+    await user.click(await screen.findByRole("button", { expanded: false }));
+    expect(await screen.findByText("🌎 Browsers")).toBeInTheDocument();
+    expect(screen.queryByText("🔐 Security")).not.toBeInTheDocument();
   });
 
   it("renders the install-all button enabled when 'All' is selected and items are eligible", () => {

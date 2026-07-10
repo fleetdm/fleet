@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "150.2.117.2",
+      "version": "150.2.121.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.wavebox.wavebox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.wavebox.wavebox' AND version_compare(bundle_short_version, '150.2.117.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.wavebox.wavebox' AND version_compare(bundle_short_version, '150.2.121.2') < 0);"
       },
-      "installer_url": "https://download.wavebox.app/stable/macarm64/Wavebox_150.2.117.2.zip",
+      "installer_url": "https://download.wavebox.app/stable/macarm64/Wavebox_150.2.121.2.zip",
       "install_script_ref": "60a16753",
       "uninstall_script_ref": "ecfbed36",
-      "sha256": "37d4e78042bfadef684884442e0bf789ebda6571bcf14c9f513c5f398ac8f9ff",
+      "sha256": "f2e089e4ad8769551f27cb1124e0a6bf7f9ca989f668c6b0f9fe04a3c065a002",
       "default_categories": [
         "Browsers"
       ]

@@ -74,6 +74,7 @@ var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarSCEPRenewalID, fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
+	fleet.FleetVarPSSODeviceRegistrationToken,
 }
 
 // fleetVarsSupportedInDDMDeclarations is the list of Fleet variables
@@ -430,7 +431,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		})
 	}
 
-	if err := cp.ValidateUserProvided(svc.config.MDM.IsCustomFileVaultEnabled()); err != nil {
+	if err := cp.ValidateUserProvided(svc.config.MDM.IsCustomDiskEncryptionEnabled()); err != nil {
 		if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error() + ` To control these settings use disk encryption endpoint.`})
 		}
@@ -530,6 +531,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 
+	if slices.Contains(fleetVars, string(fleet.FleetVarPSSODeviceRegistrationToken)) {
+		if lic == nil || !lic.IsPremium() {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Variable %s requires a Fleet Premium license.", fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix())}
+		}
+		if err := validatePSSORegistrationTokenVariable(contents); err != nil {
+			return nil, err
+		}
+	}
+
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
 		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
@@ -538,6 +548,78 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	}
 
 	return fleetVars, nil
+}
+
+// extensibleSSOProfileContent is the subset of an Apple configuration profile
+// used to validate placement of the PSSO device registration token variable.
+type extensibleSSOProfileContent struct {
+	PayloadContent []extensibleSSOPayload `plist:"PayloadContent"`
+}
+
+type extensibleSSOPayload struct {
+	PayloadType         string `plist:"PayloadType"`
+	ExtensionIdentifier string `plist:"ExtensionIdentifier"`
+	RegistrationToken   string `plist:"RegistrationToken"`
+	PlatformSSO         struct {
+		UseSharedDeviceKeys bool `plist:"UseSharedDeviceKeys"`
+	} `plist:"PlatformSSO"`
+}
+
+// validatePSSORegistrationTokenVariable enforces that
+// $FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN appears only as the RegistrationToken
+// value of a Fleet Platform SSO v2 payload — a com.apple.extensiblesso payload
+// whose ExtensionIdentifier starts with "com.fleetdm" and whose PlatformSSO
+// dictionary sets UseSharedDeviceKeys to true — and nowhere else in the profile.
+// This stops an admin from leaking the device registration token into another
+// payload (e.g. a third-party IdP extension) or field.
+func validatePSSORegistrationTokenVariable(contents string) error {
+	re := fleet.FleetVarPSSODeviceRegistrationTokenRegexp
+	totalOccurrences := len(re.FindAllString(contents, -1))
+	if totalOccurrences == 0 {
+		return nil
+	}
+
+	// Guard against a Fleet variable inside a <data> field elsewhere in the
+	// profile breaking the plist unmarshal (mirrors the DigiCert/SCEP validators).
+	escaped := variables.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
+		return base64.StdEncoding.EncodeToString([]byte(match))
+	})
+
+	var prof extensibleSSOProfileContent
+	if err := plist.Unmarshal([]byte(escaped), &prof); err != nil {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse Platform SSO payload with Fleet variables: %s", err.Error())}
+	}
+
+	varWithPrefix := fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix()
+	varWithBraces := fleet.FleetVarPSSODeviceRegistrationToken.WithBraces()
+
+	validPlacements := 0
+	for _, p := range prof.PayloadContent {
+		if p.PayloadType != "com.apple.extensiblesso" {
+			continue
+		}
+		if p.RegistrationToken != varWithPrefix && p.RegistrationToken != varWithBraces {
+			continue
+		}
+		if !strings.HasPrefix(p.ExtensionIdentifier, "com.fleetdm") {
+			return &fleet.BadRequestError{Message: fmt.Sprintf(
+				"Variable %s is only allowed in a Fleet Platform SSO payload (the ExtensionIdentifier must start with \"com.fleetdm\").",
+				varWithPrefix)}
+		}
+		if !p.PlatformSSO.UseSharedDeviceKeys {
+			return &fleet.BadRequestError{Message: fmt.Sprintf(
+				"Variable %s requires the Platform SSO payload to set UseSharedDeviceKeys to true.",
+				varWithPrefix)}
+		}
+		validPlacements++
+	}
+
+	if validPlacements != totalOccurrences {
+		return &fleet.BadRequestError{Message: fmt.Sprintf(
+			"Variable %s is only allowed in the RegistrationToken of a Fleet Platform SSO payload.",
+			varWithPrefix)}
+	}
+	return nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
@@ -937,8 +1019,16 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		}
 	}
 
+	if err := rawDecl.ValidateScope(); err != nil {
+		return nil, err
+	}
+
 	d := fleet.NewMDMAppleDeclaration(data, &teamID, name, rawDecl.Type, rawDecl.Identifier)
 	d.SecretsUpdatedAt = secretsUpdatedAt
+	// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
+	// parsed value drives the scope column; the key stays in the stored JSON and
+	// is stripped only at delivery time so it isn't sent to the device.
+	d.Scope = rawDecl.ScopeOrDefault()
 
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
@@ -2370,6 +2460,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		hardwareSerial,
 		topic,
 		apple_mdm.MDMAccessRightAll,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
@@ -2392,6 +2483,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		apple_mdm.MDMAccessRightAll,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
@@ -2865,7 +2957,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				"invalid mobileconfig profile")
 		}
 
-		if err := mdmProf.ValidateUserProvided(svc.config.MDM.IsCustomFileVaultEnabled()); err != nil {
+		if err := mdmProf.ValidateUserProvided(svc.config.MDM.IsCustomDiskEncryptionEnabled()); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
@@ -3659,6 +3751,207 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 	return fleet.ErrMissingLicense
 }
 
+type listAppleDDMAssetsRequest struct {
+	TeamID *uint `query:"fleet_id,optional"`
+}
+
+type listAppleDDMAssetsResponse struct {
+	Assets []*fleet.DDMAsset `json:"assets"`
+	Err    error             `json:"error,omitempty"`
+}
+
+func (r listAppleDDMAssetsResponse) Error() error { return r.Err }
+
+func listAppleDDMAssetsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listAppleDDMAssetsRequest)
+	assets, err := svc.ListAppleDDMAssets(ctx, req.TeamID)
+	if err != nil {
+		return listAppleDDMAssetsResponse{Err: err}, nil
+	}
+	return listAppleDDMAssetsResponse{Assets: assets}, nil
+}
+
+func (svc *Service) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getAppleDDMAssetRequest struct {
+	AssetUUID string `url:"asset_uuid"`
+	Alt       string `query:"alt,optional"`
+}
+
+func (r getAppleDDMAssetRequest) ValidateRequest() error {
+	if r.Alt != "" && strings.ToLower(r.Alt) != "media" {
+		return &fleet.BadRequestError{Message: "Alt query param value is invalid. Supported values are empty and \"media\""}
+	}
+	return nil
+}
+
+type getAppleDDMAssetResponse struct {
+	Asset *fleet.DDMAsset `json:",omitempty"`
+	Err   error           `json:"error,omitempty"`
+}
+
+func (r getAppleDDMAssetResponse) Error() error { return r.Err }
+
+type downloadAppleDDMAssetResponse struct {
+	Name string
+	Data []byte
+	Err  error `json:"error,omitempty"`
+}
+
+func (r downloadAppleDDMAssetResponse) Error() error { return r.Err }
+
+func (r downloadAppleDDMAssetResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(r.Data)))
+	w.Header().Set("Content-Type", "application/json")                                   // We know we return JSON, if we ever serve other files we need a generic octet-stream
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename=%q`, r.Name)) // make the caller download the file
+	if n, err := w.Write(r.Data); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func getAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getAppleDDMAssetRequest)
+
+	if strings.ToLower(req.Alt) == "media" {
+		name, data, err := svc.DownloadAppleDDMAsset(ctx, req.AssetUUID)
+		if err != nil {
+			return downloadAppleDDMAssetResponse{Err: err}, nil
+		}
+		return downloadAppleDDMAssetResponse{Name: name, Data: data}, nil
+	}
+
+	asset, err := svc.GetAppleDDMAsset(ctx, req.AssetUUID)
+	if err != nil {
+		return getAppleDDMAssetResponse{Err: err}, nil
+	}
+	return getAppleDDMAssetResponse{Asset: asset}, nil
+}
+
+func (svc *Service) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+func (svc *Service) DownloadAppleDDMAsset(ctx context.Context, assetUUID string) (name string, data []byte, err error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", nil, fleet.ErrMissingLicense
+}
+
+type createAppleDDMAssetRequest struct {
+	TeamID *uint
+	Asset  *multipart.FileHeader
+}
+
+func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	decoded := new(createAppleDDMAssetRequest)
+
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	val, ok := r.MultipartForm.Value["fleet_id"]
+	if !ok || len(val) < 1 {
+		// default is no team
+		decoded.TeamID = new(uint(0))
+	} else {
+		fleetID, err := strconv.ParseUint(val[0], 10, 32)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
+		}
+		decoded.TeamID = new(uint(fleetID))
+	}
+
+	fhs, ok := r.MultipartForm.File["asset"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for asset"}
+	}
+	decoded.Asset = fhs[0]
+
+	if !strings.HasSuffix(decoded.Asset.Filename, ".json") {
+		return nil, &fleet.BadRequestError{Message: "Invalid file type for asset. Only \".json\" files are allowed"}
+	}
+
+	return decoded, nil
+}
+
+type createAppleDDMAssetResponse struct {
+	AssetUUID string `json:"asset_uuid,omitempty"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r createAppleDDMAssetResponse) Error() error { return r.Err }
+
+func createAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createAppleDDMAssetRequest)
+	f, err := req.Asset.Open()
+	if err != nil {
+		return createAppleDDMAssetResponse{Err: err}, nil
+	}
+	defer f.Close()
+	assetData, err := io.ReadAll(f)
+	if err != nil {
+		return createAppleDDMAssetResponse{Err: err}, nil
+	}
+	assetName := strings.TrimSuffix(req.Asset.Filename, ".json")
+	assetUUID, err := svc.CreateAppleDDMAsset(ctx, req.TeamID, assetName, assetData)
+	if err != nil {
+		return createAppleDDMAssetResponse{Err: err}, nil
+	}
+	return createAppleDDMAssetResponse{AssetUUID: assetUUID}, nil
+}
+
+func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name string, data []byte) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}
+
+type deleteAppleDDMAssetRequest struct {
+	AssetUUID string `url:"asset_uuid"`
+}
+
+type deleteAppleDDMAssetResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteAppleDDMAssetResponse) Error() error { return r.Err }
+
+func (r deleteAppleDDMAssetResponse) Status() int { return http.StatusNoContent }
+
+func deleteAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteAppleDDMAssetRequest)
+	if err := svc.DeleteAppleDDMAsset(ctx, req.AssetUUID); err != nil {
+		return deleteAppleDDMAssetResponse{Err: err}, nil
+	}
+	return deleteAppleDDMAssetResponse{}, nil
+}
+
+func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
@@ -3702,6 +3995,17 @@ func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType 
 	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
 
+// certIsFromNewEnrollment reports whether the device's MDM identity certificate was issued from a
+// new-enrollment profile, identified by apple_mdm.FleetEnrollmentSubjectOU in the Subject OU. Renewal
+// profiles omit this marker, so its presence means the current checkin belongs to a fresh enrollment
+// rather than a SCEP renewal.
+func certIsFromNewEnrollment(cert *x509.Certificate) bool {
+	if cert == nil {
+		return false
+	}
+	return slices.Contains(cert.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+}
+
 // Authenticate handles MDM [Authenticate][1] requests.
 //
 // This method is executed after the request has been handled by nanomdm, note
@@ -3723,6 +4027,21 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	}
 	if existingDeviceInfo != nil {
 		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress
+	}
+
+	// A pending SCEP renewal command only means "this checkin is a renewal" if the device didn't just
+	// re-enroll. New-enrollment profiles carry apple_mdm.FleetEnrollmentSubjectOU in their SCEP Subject
+	// (renewal profiles omit it), and that OU survives into the identity cert the device presents here.
+	// If it's present, treat this as a fresh enrollment: clear the stale renew_command_uuid so
+	// GetHostMDMCheckinInfo reports SCEPRenewalInProgress=false for every downstream consumer
+	// (TokenUpdate, the profile verifier, the nano_devices bootstrap logic) and the normal enrollment
+	// side effects (activity, host reset, post-enroll worker) run.
+	if scepRenewalInProgress && certIsFromNewEnrollment(r.Certificate) {
+		svc.logger.InfoContext(r.Context, "identity cert is from a new enrollment, treating as fresh enrollment despite pending SCEP renewal", "host_uuid", r.ID)
+		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {
+			return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs for fresh enrollment")
+		}
+		scepRenewalInProgress = false
 	}
 
 	// iPhones, iPads, and iPods send ProductName but not Model/ModelName,
@@ -4296,10 +4615,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 	case "DeclarativeManagement":
 		// set "pending-install" profiles to "verifying" or "failed"
-		// depending on the status of the DeviceManagement command
+		// depending on the status of the DeviceManagement command. The ack
+		// arrives on a single channel (device or user), so scope the transition
+		// to that channel — cmdResult.Identifier() is the device UDID on both
+		// channels, while r.EnrollID distinguishes them.
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
 		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
-		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), status, detail)
+		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), ddmScopeForRequest(r), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
 		// "Already installed" handling depends on enrollment type:
@@ -5820,6 +6142,7 @@ func RenewSCEPCertificates(
 					scepChallenge,
 					mdmPushCertTopic,
 					key.rights,
+					false, // renewal: must NOT carry the new-enrollment Subject marker
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
@@ -5860,6 +6183,7 @@ func RenewSCEPCertificates(
 				scepChallenge,
 				mdmPushCertTopic,
 				email,
+				false, // renewal: must NOT carry the new-enrollment Subject marker
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -5902,6 +6226,7 @@ func RenewSCEPCertificates(
 			scepChallenge,
 			mdmPushCertTopic,
 			rights,
+			false, // renewal: must NOT carry the new-enrollment Subject marker
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -5954,6 +6279,7 @@ func RenewSCEPCertificates(
 			di.HardwareSerial,
 			mdmPushCertTopic,
 			acmeRights,
+			false, // renewal: must NOT carry the new-enrollment Subject marker
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
@@ -6094,30 +6420,50 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(r.Context, "missing UDID/EnrollmentID in request"))
 	}
 
+	// A DDM check-in can arrive on the device channel or the user channel. The
+	// host UUID is the same for both (dm.Identifier() is the device UDID), but
+	// the channel determines which declarations we serve, so declarations stay
+	// scoped to their channel.
+	hostUUID := dm.Identifier()
+	scope := ddmScopeForRequest(r)
+
 	switch {
 	case dm.Endpoint == "tokens":
-		svc.logger.DebugContext(r.Context, "received tokens request")
-		return svc.handleTokens(r.Context, dm.Identifier())
+		svc.logger.DebugContext(r.Context, "received tokens request", "scope", scope)
+		return svc.handleTokens(r.Context, hostUUID, scope)
 
 	case dm.Endpoint == "declaration-items":
-		svc.logger.DebugContext(r.Context, "received declaration-items request")
-		return svc.handleDeclarationItems(r.Context, dm.Identifier())
+		svc.logger.DebugContext(r.Context, "received declaration-items request", "scope", scope)
+		return svc.handleDeclarationItems(r.Context, hostUUID, scope)
 
 	case dm.Endpoint == "status":
-		svc.logger.DebugContext(r.Context, "received status request")
-		return nil, svc.handleDeclarationStatus(r.Context, dm)
+		svc.logger.DebugContext(r.Context, "received status request", "scope", scope)
+		return nil, svc.handleDeclarationStatus(r.Context, dm, hostUUID, scope)
 
 	case strings.HasPrefix(dm.Endpoint, "declaration/"):
-		svc.logger.DebugContext(r.Context, "received declarations request")
-		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, dm.Identifier())
+		svc.logger.DebugContext(r.Context, "received declarations request", "scope", scope)
+		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, hostUUID, scope)
 
 	default:
 		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(r.Context, fmt.Sprintf("unrecognized declarations endpoint: %s", dm.Endpoint)))
 	}
 }
 
-func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string) ([]byte, error) {
-	tok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+// ddmScopeForRequest resolves the channel (scope) of a DDM check-in from the
+// request's normalized enrollment id. nanomdm populates r.EnrollID before
+// dispatching: a user-channel enrollment carries the device UUID in ParentID
+// (its ID is "<deviceUUID>:<userID>"), while a device-channel enrollment has an
+// empty ParentID. We can't tell the channels apart from dm.Identifier() alone
+// because on macOS both channels report the device UDID.
+func ddmScopeForRequest(r *mdm.Request) fleet.PayloadScope {
+	if r != nil && r.EnrollID != nil && r.ParentID != "" {
+		return fleet.PayloadScopeUser
+	}
+	return fleet.PayloadScopeSystem
+}
+
+func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
+	tok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, scope)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
@@ -6136,8 +6482,8 @@ func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string
 }
 
 // handleDeclarationItems retrieves the declaration items to send back to the client to update
-func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string) ([]byte, error) {
-	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID)
+func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
+	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID, scope)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
@@ -6257,7 +6603,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	return b, nil
 }
 
-func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, endpoint string, hostUUID string) ([]byte, error) {
+func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, endpoint string, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
 	parts := strings.Split(endpoint, "/")
 	if len(parts) != 3 {
 		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.Errorf(ctx, "unrecognized declarations endpoint: %s", endpoint))
@@ -6266,19 +6612,19 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 
 	switch parts[1] {
 	case "activation":
-		return svc.handleActivationDeclaration(ctx, parts, hostUUID)
+		return svc.handleActivationDeclaration(ctx, parts, hostUUID, scope)
 	case "configuration":
-		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID)
+		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID, scope)
 	default:
 		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, ctxerr.Errorf(ctx, "declaration type not supported: %s", parts[1]))
 	}
 }
 
-func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
 	references := strings.TrimSuffix(parts[2], ".activation")
 
 	// ensure the declaration for the requested activation still exists
-	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID)
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID, scope)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
@@ -6299,8 +6645,8 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
 	return []byte(response), nil
 }
 
-func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
-	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, parts[2], hostUUID)
+func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, parts[2], hostUUID, scope)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
@@ -6327,6 +6673,10 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
+	// PayloadScope is a Fleet extension, not part of Apple's DDM schema. It's
+	// normally stripped at delivery time since it is not a part of the Apple
+	// schema and unused by the device.
+	delete(tempd, "PayloadScope")
 	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
 
 	b, err := json.Marshal(tempd)
@@ -6336,7 +6686,7 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	return b, nil
 }
 
-func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {
+func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement, hostUUID string, scope fleet.PayloadScope) error {
 	var statusReport fleet.MDMAppleDDMStatusReport
 	if err := json.Unmarshal(dm.Data, &statusReport); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling response")
@@ -6391,7 +6741,7 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 	//
 	// The best indication I found so far, is that if the declaration is
 	// not in the report, then it's implicitly removed.
-	if err := svc.ds.MDMAppleStoreDDMStatusReport(ctx, dm.Identifier(), updates); err != nil {
+	if err := svc.ds.MDMAppleStoreDDMStatusReport(ctx, hostUUID, scope, updates); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host declaration status with reports")
 	}
 
@@ -7024,6 +7374,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		accessRights,
+		true, // fresh enrollment
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
