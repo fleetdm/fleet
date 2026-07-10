@@ -30,7 +30,7 @@ func TestNotificationDedupAndClassify(t *testing.T) {
 		notif("mention", "Issue", "https://api.github.com/repos/fleetdm/fleet/issues/42", "mention me"),
 	}
 
-	board := BuildBoard("george", myPRs, nil, nil, nil, notifications, now)
+	board := BuildBoard("george", myPRs, nil, nil, nil, notifications, nil, now)
 
 	// PR #10 appears once (in quick wins), not duplicated.
 	if got := len(board.Buckets[BucketQuickWins]); got != 1 {

@@ -20,7 +20,7 @@ const (
 // TriageEntry records why an item is hidden and the condition under which it resurfaces.
 type TriageEntry struct {
 	Status      TriageStatus `json:"status"`
-	SnoozeUntil time.Time     `json:"snooze_until,omitempty"`
+	SnoozeUntil time.Time    `json:"snooze_until,omitempty"`
 	// ItemUpdated is the item's UpdatedAt when it was dismissed/marked done; if the
 	// item is updated after this, it resurfaces (someone acted on it).
 	ItemUpdated time.Time `json:"item_updated,omitempty"`

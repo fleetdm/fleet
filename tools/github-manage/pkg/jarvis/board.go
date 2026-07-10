@@ -17,6 +17,7 @@ const (
 	KindPR Kind = iota
 	KindIssue
 	KindSession
+	KindProject // a primary-project header row in the Project View section
 )
 
 // Bucket groups items by leverage — who is blocked and how cheaply you can clear it.
@@ -29,10 +30,14 @@ const (
 	BucketReviewQueue                  // PRs awaiting a first review from you
 	BucketCold                         // waiting on others, or stale
 	BucketSessions                     // local Claude sessions waiting on your reply
+	// BucketPrimary is appended last to keep the enum values above stable (they
+	// are serialized as cache.json map keys), but sorts FIRST in BucketOrder.
+	BucketPrimary // issues assigned to you on one of your primary project boards
 )
 
 // BucketOrder is the display and priority order, highest leverage first.
 var BucketOrder = []Bucket{
+	BucketPrimary,
 	BucketWaitingOnYou,
 	BucketQuickWins,
 	BucketNeedsYourHands,
@@ -47,6 +52,7 @@ type bucketMeta struct {
 }
 
 var bucketMetas = map[Bucket]bucketMeta{
+	BucketPrimary:        {"PROJECT VIEW", "your team boards · assigned to you + Ready backlog"},
 	BucketWaitingOnYou:   {"WAITING ON YOU", "blocking others"},
 	BucketQuickWins:      {"QUICK WINS", "mergeable now"},
 	BucketNeedsYourHands: {"NEEDS YOUR HANDS", "your move"},
@@ -81,6 +87,15 @@ type Item struct {
 	Cwd        string
 	Branch     string
 	HasSession bool
+
+	// ReadyUnassigned is set on KindProject header rows: the number of unassigned
+	// issues in that project's Ready column.
+	ReadyUnassigned int
+
+	// FromNotification marks gap-filler items surfaced only from a GitHub
+	// notification (no PR/Issue data). Their underlying PR/issue state is verified
+	// after the board is built so merged/closed ones can be dropped.
+	FromNotification bool
 }
 
 // Board holds the classified items grouped by bucket.

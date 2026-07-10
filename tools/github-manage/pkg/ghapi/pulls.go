@@ -3,6 +3,8 @@ package ghapi
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -12,7 +14,7 @@ const DefaultRepo = "fleetdm/fleet"
 // prListFields is the full set of --json fields for PRs you authored, where CI
 // state and mergeability drive bucketing. statusCheckRollup is expensive — only
 // request it where it's actually used.
-const prListFields = "number,title,url,state,isDraft,mergeable,reviewDecision,author,assignees,labels,createdAt,updatedAt,headRefName,reviewRequests,latestReviews,statusCheckRollup"
+const prListFields = "number,title,url,state,isDraft,mergeable,reviewDecision,author,assignees,labels,createdAt,updatedAt,headRefName,reviewRequests,latestReviews,statusCheckRollup,body"
 
 // prReviewFields is a lighter field set for PRs awaiting your review. Their bucket
 // depends only on whether you've already reviewed (latestReviews), not on their CI
@@ -63,6 +65,7 @@ type PullRequest struct {
 	CreatedAt         string          `json:"createdAt"`
 	UpdatedAt         string          `json:"updatedAt"`
 	HeadRefName       string          `json:"headRefName"`
+	Body              string          `json:"body"`
 	ReviewRequests    []ReviewRequest `json:"reviewRequests"`
 	LatestReviews     []Review        `json:"latestReviews"`
 	StatusCheckRollup []StatusCheck   `json:"statusCheckRollup"`
@@ -151,6 +154,31 @@ func (pr PullRequest) ReviewedBy(login string) bool {
 	return false
 }
 
+// closingKeywordRe matches GitHub's closing keywords ("closes #123", "fixes #45",
+// "resolved fleetdm/fleet#678") that auto-link a PR to an issue in the Development
+// panel. Case-insensitive; captures the issue number in group 1.
+var closingKeywordRe = regexp.MustCompile(`(?i)\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b[^\n#]*#(\d+)`)
+
+// ClosesIssues returns the issue numbers this PR references with a closing keyword
+// in its body. This mirrors GitHub's own auto-linking, so it recovers the issue↔PR
+// link for PRs opened outside jarvis (jarvis-recorded links are authoritative).
+func (pr PullRequest) ClosesIssues() []int {
+	var out []int
+	seen := map[int]struct{}{}
+	for _, m := range closingKeywordRe.FindAllStringSubmatch(pr.Body, -1) {
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
+		if _, dup := seen[n]; dup {
+			continue
+		}
+		seen[n] = struct{}{}
+		out = append(out, n)
+	}
+	return out
+}
+
 // GetCurrentLogin returns the authenticated gh user's login.
 func GetCurrentLogin() (string, error) {
 	out, err := RunCommandAndReturnOutput("gh api user --jq .login")
@@ -193,6 +221,23 @@ func GetMyPullRequests(repo string, limit int) ([]PullRequest, error) {
 	return listPullRequests(repo, "author:@me", prListFields, limit)
 }
 
+// GetPullRequest fetches a single PR's full field set (for per-item refresh).
+func GetPullRequest(repo string, number int) (PullRequest, error) {
+	if repo == "" {
+		repo = DefaultRepo
+	}
+	cmd := fmt.Sprintf("gh pr view %d --repo %s --json %s", number, repo, prListFields)
+	out, err := RunCommandWithRetry(cmd, 3)
+	if err != nil {
+		return PullRequest{}, err
+	}
+	var pr PullRequest
+	if err := json.Unmarshal(out, &pr); err != nil {
+		return PullRequest{}, err
+	}
+	return pr, nil
+}
+
 // GetReviewRequestedPRs returns open PRs that request the authenticated user's review.
 func GetReviewRequestedPRs(repo string, limit int) ([]PullRequest, error) {
 	return listPullRequests(repo, "review-requested:@me", prReviewFields, limit)
@@ -227,6 +272,23 @@ func CommentIssue(repo string, number int, body string) (string, error) {
 	}
 	out, err := RunGH("issue", "comment", fmt.Sprintf("%d", number), "--repo", repo, "--body", body)
 	return strings.TrimSpace(string(out)), err
+}
+
+// GetIssue fetches a single issue's state/metadata (for per-item refresh).
+func GetIssue(repo string, number int) (Issue, error) {
+	if repo == "" {
+		repo = DefaultRepo
+	}
+	cmd := fmt.Sprintf("gh issue view %d --repo %s --json number,title,url,state,updatedAt,assignees,labels,milestone", number, repo)
+	out, err := RunCommandWithRetry(cmd, 3)
+	if err != nil {
+		return Issue{}, err
+	}
+	var iss Issue
+	if err := json.Unmarshal(out, &iss); err != nil {
+		return Issue{}, err
+	}
+	return iss, nil
 }
 
 // GetAssignedIssues returns open issues assigned to the authenticated user.

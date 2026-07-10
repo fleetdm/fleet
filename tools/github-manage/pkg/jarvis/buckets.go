@@ -28,7 +28,7 @@ func parseTime(s string) time.Time {
 //	issues    — open issues assigned to the user
 //	login     — the user's GitHub login (to tell first-review from re-review)
 //	now       — current time (injected for testability)
-func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []ghapi.Issue, sessions []Session, notifications []ghapi.Notification, now time.Time) Board {
+func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []ghapi.Issue, sessions []Session, notifications []ghapi.Notification, excludeIssues map[int]bool, now time.Time) Board {
 	b := Board{Buckets: map[Bucket][]Item{}}
 	add := func(it Item) { b.Buckets[it.Bucket] = append(b.Buckets[it.Bucket], it) }
 
@@ -48,6 +48,12 @@ func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []gha
 		present[pkey(KindPR, it.Number)] = true
 	}
 	for i := range issues {
+		// Issues surfaced in the Project View are excluded here (and marked present
+		// so a notification doesn't resurface them elsewhere).
+		if excludeIssues[issues[i].Number] {
+			present[pkey(KindIssue, issues[i].Number)] = true
+			continue
+		}
 		it := classifyIssue(issues[i], now)
 		add(it)
 		present[pkey(KindIssue, it.Number)] = true
@@ -67,13 +73,14 @@ func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []gha
 		}
 		bk, reason := classifyNotification(n)
 		add(Item{
-			Kind:    kind,
-			Bucket:  bk,
-			Number:  num,
-			Title:   n.Subject.Title,
-			URL:     n.HTMLURL(),
-			Updated: parseTime(n.UpdatedAt),
-			Reason:  reason,
+			Kind:             kind,
+			Bucket:           bk,
+			Number:           num,
+			Title:            n.Subject.Title,
+			URL:              n.HTMLURL(),
+			Updated:          parseTime(n.UpdatedAt),
+			Reason:           reason,
+			FromNotification: true,
 		})
 		present[pkey(kind, num)] = true
 	}

@@ -51,7 +51,7 @@ func TestLinkSessionsByBranch(t *testing.T) {
 		{ID: "sess-1", Branch: "gkarr-feature", Title: "linked", LastActivity: now, WaitingOnMe: true},
 		{ID: "sess-2", Branch: "orphan-branch", Title: "standalone", LastActivity: now, WaitingOnMe: true},
 	}
-	board := BuildBoard("george", myPRs, nil, nil, sessions, nil, now)
+	board := BuildBoard("george", myPRs, nil, nil, sessions, nil, nil, now)
 
 	// Linked session annotates the PR.
 	var linked bool

@@ -123,7 +123,7 @@ func TestBuildBoardSorting(t *testing.T) {
 		{Number: 1, UpdatedAt: newer},
 		{Number: 2, UpdatedAt: older},
 	}
-	board := BuildBoard("george", nil, reviewPRs, nil, nil, nil, now)
+	board := BuildBoard("george", nil, reviewPRs, nil, nil, nil, nil, now)
 	q := board.Buckets[BucketReviewQueue]
 	if len(q) != 2 {
 		t.Fatalf("expected 2 review items, got %d", len(q))
