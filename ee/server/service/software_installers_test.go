@@ -1843,3 +1843,44 @@ func TestParsePinnedVersion(t *testing.T) {
 		assert.Equalf(t, c.wantCaret, caret, "case %s", c.name)
 	}
 }
+
+func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		input     []string
+		extension string
+		want      []string
+		wantErr   string
+	}{
+		{name: "empty input", input: nil, extension: "sh", want: []string{}},
+		{name: "sh macos alias", input: []string{"macos"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh native only", input: []string{"linux"}, extension: "sh", want: []string{"linux"}},
+		{name: "sh both platforms", input: []string{"macos", "linux"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh dedupe canonical", input: []string{"macos", "darwin", "macos"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh case + whitespace", input: []string{" MacOS ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "pkg any rejected", input: []string{"macos"}, extension: "pkg", wantErr: `platform "macos" is not a valid "setup_experience_platforms" value for a .pkg package`},
+		{name: "msi any rejected", input: []string{"macos"}, extension: "msi", wantErr: `platform "macos" is not a valid "setup_experience_platforms" value for a .msi package`},
+		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platforms" value for a .sh package`},
+		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := normalizeSetupExperiencePlatforms(c.input, c.extension)
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			// nil vs empty-slice noise: compare both as normalized empty.
+			if len(c.want) == 0 {
+				assert.Empty(t, got)
+				return
+			}
+			assert.Equal(t, c.want, got)
+		})
+	}
+}
