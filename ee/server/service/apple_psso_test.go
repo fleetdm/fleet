@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/pssocrypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
@@ -134,6 +135,45 @@ func TestPSSO_EndpointsGatedOnConfiguration(t *testing.T) {
 		svc, ctx := newPSSOTestService(t, cfg)
 		_, err := svc.PSSOToken(ctx, []byte("ignored"))
 		require.ErrorIs(t, err, errPSSONotConfigured)
+	})
+}
+
+func TestPSSO_AASAAppIDs(t *testing.T) {
+	parseApps := func(t *testing.T, body []byte) []string {
+		t.Helper()
+		var doc struct {
+			AuthSrv struct {
+				Apps []string `json:"apps"`
+			} `json:"authsrv"`
+		}
+		require.NoError(t, json.Unmarshal(body, &doc))
+		return doc.AuthSrv.Apps
+	}
+
+	t.Run("default publishes Fleet's production app IDs", func(t *testing.T) {
+		svc, ctx := newPSSOTestService(t, configuredPSSOTestConfig())
+		body, err := svc.PSSOAASA(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []string{
+			"8VBZ3948LU.com.fleetdm.fleet-desktop",
+			"8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension",
+		}, parseApps(t, body))
+	})
+
+	// A contributor signing under their own team sets FLEET_DEV_PSSO_AASA_APP_IDS
+	// (honored only under --dev) so the AASA matches their binary; the override
+	// adds to the defaults and strips surrounding whitespace.
+	t.Run("dev override adds to the published app IDs", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_PSSO_AASA_APP_IDS", "5K28R5ZUK5.com.fleetdm.pssotesting, 5K28R5ZUK5.com.fleetdm.pssotesting.extension", t)
+		svc, ctx := newPSSOTestService(t, configuredPSSOTestConfig())
+		body, err := svc.PSSOAASA(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []string{
+			"5K28R5ZUK5.com.fleetdm.pssotesting",
+			"5K28R5ZUK5.com.fleetdm.pssotesting.extension",
+			"8VBZ3948LU.com.fleetdm.fleet-desktop",
+			"8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension",
+		}, parseApps(t, body))
 	})
 }
 

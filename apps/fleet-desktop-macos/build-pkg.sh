@@ -7,6 +7,10 @@ APP_DIR="$BUILD_DIR/Fleet Desktop.app"
 PKG_DIR="$BUILD_DIR/pkg"
 DIST_DIR="$BUILD_DIR/dist"
 
+# Package + app bundle identifier. Override for a dev-team build so the pkg and
+# its quit/relaunch scripts match the app's bundle ID (see build.sh).
+APP_BUNDLE_ID="${APP_BUNDLE_ID:-com.fleetdm.fleet-desktop}"
+
 # Only build if app doesn't exist or if FORCE_REBUILD is set
 if [ ! -d "$APP_DIR" ] || [ "${FORCE_REBUILD:-}" = "1" ]; then
   echo "Building Fleet Desktop app..."
@@ -120,6 +124,12 @@ POSTINSTALL_EOF
 
 chmod +x "$PKG_DIR/postinstall"
 
+# The scripts above are written from quoted heredocs (no expansion), so patch the
+# app bundle ID they quit/relaunch in place. Targets only the BUNDLE_ID line, so
+# the fleetd managed-preferences path (com.fleetdm.fleetd.config.plist) is untouched.
+sed -i '' "s|^BUNDLE_ID=\"com.fleetdm.fleet-desktop\"$|BUNDLE_ID=\"$APP_BUNDLE_ID\"|" \
+    "$PKG_DIR/preinstall" "$PKG_DIR/postinstall"
+
 # Extract version from Info.plist
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_DIR/Contents/Info.plist")
 PKG_NAME="fleet_desktop-v${VERSION}.pkg"
@@ -130,7 +140,7 @@ COMPONENT_PKG="$BUILD_DIR/fleet-desktop-component.pkg"
 pkgbuild \
     --root "$PKG_DIR/Applications" \
     --scripts "$PKG_DIR" \
-    --identifier com.fleetdm.fleet-desktop \
+    --identifier "$APP_BUNDLE_ID" \
     --version "${VERSION}" \
     --install-location /Applications \
     "$COMPONENT_PKG"
@@ -158,9 +168,9 @@ function mdm_check() {
         <line choice="default"/>
     </choices-outline>
     <choice id="default" title="Fleet Desktop">
-        <pkg-ref id="com.fleetdm.fleet-desktop"/>
+        <pkg-ref id="${APP_BUNDLE_ID}"/>
     </choice>
-    <pkg-ref id="com.fleetdm.fleet-desktop" version="${VERSION}" onConclusion="none">fleet-desktop-component.pkg</pkg-ref>
+    <pkg-ref id="${APP_BUNDLE_ID}" version="${VERSION}" onConclusion="none">fleet-desktop-component.pkg</pkg-ref>
 </installer-gui-script>
 DIST_EOF
 
@@ -172,6 +182,19 @@ productbuild \
 
 # Clean up component package
 rm -f "$COMPONENT_PKG"
+
+# --- Optional installer signing (local development) -------------------------
+# Sign the .pkg with a Developer ID Installer cert so it can be pushed through
+# Fleet / MDM like production. Leave unset to get an unsigned pkg (fine for a
+# manual `installer -pkg` on your own test Mac). CI signs in a separate step.
+if [ -n "${INSTALLER_SIGNING_IDENTITY:-}" ]; then
+    echo "Signing installer with: $INSTALLER_SIGNING_IDENTITY"
+    SIGNED_PKG="$DIST_DIR/${PKG_NAME%.pkg}-signed.pkg"
+    productsign --sign "$INSTALLER_SIGNING_IDENTITY" --timestamp \
+        "$DIST_DIR/$PKG_NAME" "$SIGNED_PKG"
+    mv "$SIGNED_PKG" "$DIST_DIR/$PKG_NAME"
+    pkgutil --check-signature "$DIST_DIR/$PKG_NAME"
+fi
 
 echo "Package created: $DIST_DIR/$PKG_NAME"
 
