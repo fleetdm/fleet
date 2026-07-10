@@ -61,4 +61,22 @@ describe("AssetListItem", () => {
       screen.getByRole("button", { name: "Download JSON Asset" })
     ).toBeInTheDocument();
   });
+
+  it("disables the delete action in GitOps mode", () => {
+    const renderGitOps = createCustomRenderer({
+      context: {
+        app: {
+          config: { gitops: { gitops_mode_enabled: true } } as any,
+        },
+      },
+    });
+
+    renderGitOps(
+      <AssetListItem asset={asset} onClickDelete={noop} isTechnician={false} />
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Delete JSON Asset" })
+    ).toBeDisabled();
+  });
 });

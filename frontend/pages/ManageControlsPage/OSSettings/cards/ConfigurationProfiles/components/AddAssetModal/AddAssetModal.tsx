@@ -60,28 +60,38 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => {
   );
 };
 
-const FileDetails = ({ name }: { name: string }) => (
-  <div className={`${baseClass}__selected-file`}>
-    <Graphic name="file-json" className={`${baseClass}__graphic`} />
-    <div className={`${baseClass}__selected-file--details`}>
-      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
-      <div className={`${baseClass}__selected-file--details--platform`}>
-        .json
+const FileDetails = ({ fileName }: { fileName: string }) => {
+  const lastDot = fileName.lastIndexOf(".");
+  const name = lastDot > 0 ? fileName.slice(0, lastDot) : fileName;
+  const ext = lastDot > 0 ? fileName.slice(lastDot + 1) : "";
+
+  return (
+    <div className={`${baseClass}__selected-file`}>
+      <Graphic name="file-json" className={`${baseClass}__graphic`} />
+      <div className={`${baseClass}__selected-file--details`}>
+        <div className={`${baseClass}__selected-file--details--name`}>
+          {name}
+        </div>
+        {ext && (
+          <div className={`${baseClass}__selected-file--details--platform`}>
+            .{ext}
+          </div>
+        )}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface IAddAssetModalProps {
   currentTeamId: number;
   onUpload: () => void;
-  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  closeModal: () => void;
 }
 
 const AddAssetModal = ({
   currentTeamId,
   onUpload,
-  setShowModal,
+  closeModal,
 }: IAddAssetModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -91,7 +101,7 @@ const AddAssetModal = ({
   const onDone = () => {
     fileRef.current = null;
     setFileName(null);
-    setShowModal(false);
+    closeModal();
   };
 
   const onFileOpen = (files: FileList | null) => {
@@ -132,7 +142,7 @@ const AddAssetModal = ({
           {!fileName ? (
             <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
           ) : (
-            <FileDetails name={fileName} />
+            <FileDetails fileName={fileName} />
           )}
         </Card>
         <div className="modal-cta-wrap">

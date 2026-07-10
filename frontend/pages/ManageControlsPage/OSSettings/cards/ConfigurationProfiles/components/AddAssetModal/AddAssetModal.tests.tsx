@@ -24,11 +24,7 @@ describe("AddAssetModal", () => {
 
   it("renders the upload copy and disables Add asset until a file is chosen", () => {
     render(
-      <AddAssetModal
-        currentTeamId={0}
-        onUpload={noop}
-        setShowModal={noop as any}
-      />
+      <AddAssetModal currentTeamId={0} onUpload={noop} closeModal={noop} />
     );
 
     expect(
@@ -41,6 +37,21 @@ describe("AddAssetModal", () => {
     expect(screen.getByRole("button", { name: "Add asset" })).toBeDisabled();
   });
 
+  it("shows the selected file name without its extension", async () => {
+    const { user, container } = render(
+      <AddAssetModal currentTeamId={0} onUpload={noop} closeModal={noop} />
+    );
+
+    const file = new File(["{}"], "my-asset.json", {
+      type: "application/json",
+    });
+    const input = container.querySelector("#upload-asset") as HTMLInputElement;
+    await user.upload(input, file);
+
+    expect(await screen.findByText("my-asset")).toBeInTheDocument();
+    expect(screen.getByText(".json")).toBeInTheDocument();
+  });
+
   it("uploads the selected file and calls onUpload", async () => {
     (mdmAPI.uploadAsset as jest.Mock).mockResolvedValue({
       asset_uuid: "abc-123",
@@ -48,11 +59,7 @@ describe("AddAssetModal", () => {
     const onUpload = jest.fn();
 
     const { user, container } = render(
-      <AddAssetModal
-        currentTeamId={2}
-        onUpload={onUpload}
-        setShowModal={noop as any}
-      />
+      <AddAssetModal currentTeamId={2} onUpload={onUpload} closeModal={noop} />
     );
 
     const file = new File(['{"Type":"com.apple.asset.data"}'], "asset.json", {
@@ -84,11 +91,7 @@ describe("AddAssetModal", () => {
     const errorSpy = jest.spyOn(notify, "error");
 
     const { user, container } = render(
-      <AddAssetModal
-        currentTeamId={2}
-        onUpload={jest.fn()}
-        setShowModal={noop as any}
-      />
+      <AddAssetModal currentTeamId={2} onUpload={jest.fn()} closeModal={noop} />
     );
 
     const file = new File(["{}"], "asset.json", { type: "application/json" });

@@ -103,7 +103,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
       return (
         <EmptyState
           variant="header-list"
-          header="Manage custom settings"
+          header="Manage assets"
           info="Supported on macOS, iOS, and iPadOS."
           primaryButton={
             <Button
@@ -180,7 +180,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
         <AddAssetModal
           currentTeamId={currentTeamId}
           onUpload={onAddAsset}
-          setShowModal={setShowAddAssetModal}
+          closeModal={() => setShowAddAssetModal(false)}
         />
       )}
       {showDeleteAssetModal && selectedAsset.current && (
