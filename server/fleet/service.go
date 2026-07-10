@@ -1239,10 +1239,9 @@ type Service interface {
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
 
 	// UpdateMDMConfigProfile updates an existing configuration profile's
-	// contents and/or label targeting in place.
-	//
-	// TODO(#48342): implemented for Apple .mobileconfig profiles; Apple DDM
-	// declarations, Windows, and Android profiles are not yet supported.
+	// contents and/or label targeting in place. Supported for Apple
+	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
+	// Android profiles.
 	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.

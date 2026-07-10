@@ -1300,6 +1300,277 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	assert.NotNil(t, d)
 }
 
+func TestUpdateMDMAppleDeclaration(t *testing.T) {
+	newExistingDeclaration := func(name, identifier string, teamID uint) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			DeclarationUUID: "d" + uuid.NewString(),
+			Name:            name,
+			Identifier:      identifier,
+			TeamID:          &teamID,
+		}
+	}
+
+	// generic Apple MDM service test scaffolding, plus the mocks common to every
+	// subtest below (team lookup, secrets expansion, label ID resolution).
+	setup := func(t *testing.T, lic *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
+		svc, ctx, ds, opts := setupAppleMDMService(t, lic)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		ds.TeamWithExtrasFunc = func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: teamID, Name: fmt.Sprintf("team-%d", teamID)}, nil
+		}
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+			return document, nil, nil
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			m := make(map[string]uint)
+			for i, label := range labels {
+				m[label] = uint(i + 1) //nolint:gosec // dismiss G115
+			}
+			return m, nil
+		}
+
+		return svc, ctx, ds, opts
+	}
+
+	t.Run("content update, matching identifier", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			require.Equal(t, existing.DeclarationUUID, duid)
+			return existing, nil
+		}
+		var updated *fleet.MDMAppleDeclaration
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			updated = d
+			return d, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		newContent := declBytesForTest("D1", "updated-content")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+
+		require.NotNil(t, updated)
+		assert.Equal(t, existing.Name, updated.Name)
+		assert.Equal(t, existing.Identifier, updated.Identifier)
+		assert.Equal(t, newContent, []byte(updated.RawJSON))
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		require.True(t, ok)
+		assert.Equal(t, existing.Name, act.ProfileName)
+		assert.Equal(t, existing.Identifier, act.ProfileIdentifier)
+		assert.Equal(t, "darwin", act.Platform)
+	})
+
+	t.Run("labels-only update, happy path", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		var updated *fleet.MDMAppleDeclaration
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			updated = d
+			return d, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		require.NoError(t, err)
+
+		require.NotNil(t, updated)
+		assert.Empty(t, updated.RawJSON)
+		assert.Equal(t, existing.Name, updated.Name)
+		assert.Equal(t, existing.Identifier, updated.Identifier)
+		require.Len(t, updated.LabelsIncludeAny, 1)
+		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		require.True(t, ok)
+		assert.Equal(t, "darwin", act.Platform)
+	})
+
+	t.Run("content and labels update atomically in one call", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		var updated *fleet.MDMAppleDeclaration
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			updated = d
+			return d, nil
+		}
+
+		newContent := declBytesForTest("D1", "updated-content")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"})
+		require.NoError(t, err)
+
+		require.NotNil(t, updated)
+		assert.Equal(t, newContent, []byte(updated.RawJSON))
+		require.Len(t, updated.LabelsIncludeAny, 1)
+		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
+		require.Len(t, updated.LabelsExcludeAny, 1)
+		assert.Equal(t, "label2", updated.LabelsExcludeAny[0].LabelName)
+	})
+
+	t.Run("content update for a team-scoped declaration", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 5)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		var updated *fleet.MDMAppleDeclaration
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			updated = d
+			return d, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		newContent := declBytesForTest("D1", "updated-content")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+
+		require.NotNil(t, updated)
+		require.NotNil(t, updated.TeamID)
+		assert.EqualValues(t, 5, *updated.TeamID)
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		require.True(t, ok)
+		require.NotNil(t, act.TeamID)
+		assert.EqualValues(t, 5, *act.TeamID)
+		require.NotNil(t, act.TeamName)
+		assert.Equal(t, "team-5", *act.TeamName)
+	})
+
+	t.Run("identifier mismatch is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		mismatchedContent := declarationForTestWithType("com.fleet.configD2", "com.apple.configuration.management.test")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, mismatchedContent, nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "Identifier must match the existing profile's")
+	})
+
+	t.Run("invalid profile content is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		invalidContent := declarationForTestWithType(existing.Identifier, "com.example.not-a-real-type")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
+	})
+
+	t.Run("label appearing in both include and exclude lists is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
+	})
+
+	t.Run("editing a Fleet-managed declaration is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration(fleetmdm.FleetMacOSUpdatesProfileName, "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "managed by Fleet")
+	})
+
+	t.Run("nonexistent declaration propagates the not-found error", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		wantErr := errors.New("simulated declaration lookup error")
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return nil, wantErr
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, "d"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, wantErr)
+	})
+
+	t.Run("a conflict from the datastore maps to a friendly conflict error", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			return nil, existsErrorForTest{}
+		}
+
+		// identifier is required to match the existing declaration's (checked
+		// earlier, before the datastore is ever called), so this exercises the
+		// generic ExistsErrorInterface -> 409 mapping rather than any specific
+		// identifier collision.
+		newContent := declarationForTestWithType(existing.Identifier, "com.apple.configuration.management.test")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Couldn't edit. A configuration profile with this identifier already exists.")
+
+		var statusCoder interface{ Status() int }
+		require.ErrorAs(t, err, &statusCoder)
+		assert.Equal(t, http.StatusConflict, statusCoder.Status())
+	})
+}
+
 func setupAppleMDMServiceWithSkipValidation(t *testing.T, license *fleet.LicenseInfo, skipValidation bool) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
