@@ -58,30 +58,41 @@ const renderVisibleRow = ({
   onClick,
 }: IRenderVisibleRowParams) => {
   const truncatedFirst = truncateString(items[0] ?? "", truncatedFirstMaxChars);
+  const firstWasTruncated = truncatedFirst !== (items[0] ?? "");
 
   const truncatedFirstContent = (
     <>
-      <TooltipWrapper
-        tipContent={items[0]}
-        showArrow
-        underline={false}
-        position={tooltipPosition}
-        tipOffset={8}
-        fixedPositionStrategy
-      >
+      {firstWasTruncated ? (
+        <TooltipWrapper
+          tipContent={items[0]}
+          showArrow
+          underline={false}
+          position={tooltipPosition}
+          tipOffset={8}
+          fixedPositionStrategy
+        >
+          <span>{truncatedFirst}</span>
+        </TooltipWrapper>
+      ) : (
         <span>{truncatedFirst}</span>
-      </TooltipWrapper>
-      {separator}
-      <TooltipWrapper
-        tipContent={renderItemsList(items.slice(1))}
-        showArrow
-        underline={false}
-        position={tooltipPosition}
-        tipOffset={8}
-        fixedPositionStrategy
-      >
-        <span className={`${baseClass}__more`}>+{items.length - 1} more</span>
-      </TooltipWrapper>
+      )}
+      {items.length > 1 && (
+        <>
+          {separator}
+          <TooltipWrapper
+            tipContent={renderItemsList(items.slice(1))}
+            showArrow
+            underline={false}
+            position={tooltipPosition}
+            tipOffset={8}
+            fixedPositionStrategy
+          >
+            <span className={`${baseClass}__more`}>
+              +{items.length - 1} more
+            </span>
+          </TooltipWrapper>
+        </>
+      )}
     </>
   );
 

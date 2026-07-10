@@ -1942,7 +1942,13 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	}
 	cp.LabelsExcludeAny = excludeLabels
 
-	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
+	foundVars := variables.Find(string(data))
+	varNames := make([]fleet.FleetVarName, 0, len(foundVars))
+	for _, v := range foundVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
+
+	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp, varNames)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -2248,7 +2254,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -2312,7 +2318,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	for _, p := range windowsProfilesSlice {
-		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		if !fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 			continue
 		}
 
@@ -2354,6 +2360,25 @@ func (svc *Service) BatchSetMDMProfiles(
 			Identifier:     identifier,
 			FleetVariables: varNames,
 		})
+	}
+
+	// Resolve DDM asset references for declarations so the batch path links each
+	// declaration to the assets it references (mirroring the single-upload
+	// path). GitOps applies assets before declarations, so referenced assets
+	// already exist by this point.
+	if len(appleDeclsSlice) > 0 {
+		assets, err := svc.ds.ListAppleDDMAssets(ctx, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing DDM assets")
+		}
+		for _, d := range appleDeclsSlice {
+			d.TeamID = tmID
+			assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, assets)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "handling declaration asset references")
+			}
+			d.AssetReferenceUUIDs = assetRefs
+		}
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
@@ -2586,8 +2611,16 @@ func getAppleProfiles(
 				}
 			}
 
+			if err := rawDecl.ValidateScope(); err != nil {
+				return nil, nil, err
+			}
+
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
+			// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
+			// parsed value drives the scope column; the key stays in the stored JSON
+			// and is stripped at delivery time so it isn't sent to the device.
+			mdmDecl.Scope = rawDecl.ScopeOrDefault()
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
@@ -2680,7 +2713,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomFileVaultEnabled()); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomDiskEncryptionEnabled()); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2733,6 +2766,7 @@ func getWindowsProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
+	mdmConfig config.MDMConfig,
 ) (map[int]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMWindowsConfigProfile, len(profiles))
 
@@ -2776,7 +2810,7 @@ func getWindowsProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomDiskEncryptionEnabled()); err != nil {
 			msg := err.Error()
 			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
