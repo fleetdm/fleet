@@ -505,10 +505,12 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	for _, d := range allDecls {
 		byUUID[d.DeclarationUUID] = d
 	}
-	require.Contains(t, byUUID, declVital.DeclarationUUID)
-	require.Contains(t, byUUID, declPlain.DeclarationUUID)
-	assert.True(t, byUUID[declVital.DeclarationUUID].HasFleetVariables,
+	vitalDecl := byUUID[declVital.DeclarationUUID]
+	plainDecl := byUUID[declPlain.DeclarationUUID]
+	require.NotNil(t, vitalDecl, "vital declaration missing from reconcile snapshot")
+	require.NotNil(t, plainDecl, "plain declaration missing from reconcile snapshot")
+	assert.True(t, vitalDecl.HasFleetVariables, //nolint:nilaway // cannot be nil due to require.NotNil above
 		"declaration referencing a custom host vital should be marked HasFleetVariables")
-	assert.False(t, byUUID[declPlain.DeclarationUUID].HasFleetVariables,
+	assert.False(t, plainDecl.HasFleetVariables, //nolint:nilaway // cannot be nil due to require.NotNil above
 		"declaration without any variables should not be marked")
 }

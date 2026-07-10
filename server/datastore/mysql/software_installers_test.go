@@ -140,7 +140,7 @@ func testGetSoftwareInstallDetailsCustomHostVitals(t *testing.T, ds *Datastore) 
 	_, err = ds.GetSoftwareInstallDetails(ctx, execID2)
 	var missing *fleet.MissingCustomHostVitalValueError
 	require.ErrorAs(t, err, &missing)
-	require.Equal(t, []uint{dept.ID}, missing.MissingIDs)
+	require.Equal(t, []uint{dept.ID}, missing.MissingIDs) //nolint:nilaway // cannot be nil due to require.ErrorAs above
 }
 
 func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {

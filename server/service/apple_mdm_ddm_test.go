@@ -51,7 +51,7 @@ func TestReplaceDeclarationFleetVariablesExpandsVitalsLast(t *testing.T) {
 	// The genuine $FLEET_VAR_HOST_HARDWARE_SERIAL reference expands to the serial,
 	// but the identical token inside the vital's value survives intact because
 	// vitals are expanded last (variables.Replace never sees it).
-	require.Equal(t, `{"vital":"tag-$FLEET_VAR_HOST_HARDWARE_SERIAL","serial":"SERIAL123"}`, out)
+	require.JSONEq(t, `{"vital":"tag-$FLEET_VAR_HOST_HARDWARE_SERIAL","serial":"SERIAL123"}`, out)
 }
 
 func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
