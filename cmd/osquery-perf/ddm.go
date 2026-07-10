@@ -264,7 +264,7 @@ func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse, 
 		)
 	}
 
-	r, err := a.macMDMClient.DeclarativeManagement("status", report)
+	r, err := methods.DeclarativeManagement("status", report)
 	if err != nil {
 		log.Printf("DDM status request failed: %s", err)
 		methods.IncrementStatusErrors()

@@ -863,7 +863,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		if rand.Float64() < a.mdmUserProb {
 			if err := a.macMDMClient.UserEnroll(); err != nil {
 				log.Printf("macOS MDM user enroll failed: %s", err)
-				a.stats.IncrementMDMErrors()
+				a.stats.IncrementMDMUserErrors()
 				return
 			}
 			a.setMDMUserEnrolled()
