@@ -1043,12 +1043,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
-	assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d)
+	assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration asset references")
 	}
+	d.AssetReferenceUUIDs = assetRefs
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames, assetRefs)
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
 	}
@@ -1074,7 +1075,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	return decl, nil
 }
 
-func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *fleet.MDMAppleDeclaration) ([]string, error) {
+func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *fleet.MDMAppleDeclaration, assets []*fleet.DDMAsset) ([]string, error) {
 	assetRefs, err := findAssetReferences(string(decl.RawJSON))
 	if err != nil {
 		return nil, err
@@ -1084,10 +1085,12 @@ func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *
 		return nil, nil
 	}
 
-	// List all assets for the given team
-	assets, err := svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
+	if assets == nil {
+		// List all assets for the given team
+		assets, err = svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
+		}
 	}
 
 	assetsByIdentifier := make(map[string]string, len(assets))
@@ -4043,6 +4046,37 @@ func deleteAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Ser
 }
 
 func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+type batchSetAppleDDMAssetsRequest struct {
+	TeamID   *uint                                `json:"-" query:"fleet_id,optional"`
+	TeamName string                               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	DryRun   bool                                 `json:"-" query:"dry_run,optional"`
+	Assets   []fleet.MDMAppleDDMAssetBatchPayload `json:"assets"`
+}
+
+type batchSetAppleDDMAssetsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetAppleDDMAssetsResponse) Error() error { return r.Err }
+
+func (r batchSetAppleDDMAssetsResponse) Status() int { return http.StatusNoContent }
+
+func batchSetAppleDDMAssetsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchSetAppleDDMAssetsRequest)
+	if err := svc.BatchSetAppleDDMAssets(ctx, req.TeamID, req.TeamName, req.Assets, req.DryRun); err != nil {
+		return batchSetAppleDDMAssetsResponse{Err: err}, nil
+	}
+	return batchSetAppleDDMAssetsResponse{}, nil
+}
+
+func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

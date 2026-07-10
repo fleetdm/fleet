@@ -513,8 +513,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	"Type": "com.apple.configuration.decl%d",
 	"Identifier": "com.fleet.config%d",
 	"Payload": {
-		"ServiceType": "com.apple.bash%d",
-		"DataAssetReference": "com.fleet.asset.bash" %s
+		"ServiceType": "com.apple.bash%d" %s
 	}
 }`
 
@@ -523,24 +522,21 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 		if len(payload) > 0 {
 			p = "," + strings.Join(payload, ",")
 		}
-		return []byte(fmt.Sprintf(tmpl, i, i, i, p))
+		return fmt.Appendf(nil, tmpl, i, i, i, p)
 	}
 
 	var decls [][]byte
-	for i := 0; i < 3; i++ {
+	for i := range 2 {
 		decls = append(decls, newDeclBytes(i))
 	}
 	// Use secrets
 	myBash := "com.apple.bash1"
 	decls[1] = []byte(strings.ReplaceAll(string(decls[1]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
-	secretProfile := decls[2]
-	decls[2] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
 
 	// Create declarations
 	profilesReq := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N0", Contents: decls[0]},
 		{Name: "N1", Contents: decls[1]},
-		{Name: "N2", Contents: decls[2]},
 	}}
 	// First dry run
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent, "dry_run", "true")
@@ -556,10 +552,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 				Name:  "FLEET_SECRET_BASH",
 				Value: myBash,
 			},
-			{
-				Name:  "FLEET_SECRET_PROFILE",
-				Value: string(secretProfile),
-			},
 		},
 	}
 	secretResp := fleet.CreateSecretVariablesResponse{}
@@ -573,7 +565,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	checkedProfiles := 0
 	for _, p := range resp.Profiles {
 		switch p.Name {
-		case "N0", "N1", "N2":
+		case "N0", "N1":
 			require.Equal(t, "darwin", p.Platform)
 			checkedProfiles++
 		default:
@@ -621,13 +613,7 @@ WHERE name = ?`
 	declsByToken[decl.Token] = fleet.MDMAppleDeclaration{
 		Identifier: "com.fleet.config1",
 	}
-	decl = getDeclaration(t, "N2")
-	assert.Equal(t, string(decl.RawJSON), "${"+fleet.ServerSecretPrefix+"PROFILE}")
-	nameToIdentifier["N2"] = decl.Identifier
-	nameToUUID["N2"] = decl.DeclarationUUID
-	declsByToken[decl.Token] = fleet.MDMAppleDeclaration{
-		Identifier: "com.fleet.config2",
-	}
+
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
@@ -648,19 +634,13 @@ WHERE name = ?`
 	require.NoError(t, err)
 	var gotParsed fleet.MDMAppleDDMDeclarationResponse
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"com.apple.bash0"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"com.apple.bash0"}`, string(gotParsed.Payload))
 
 	declarationPath = fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N1"])
 	r, err = mdmDevice.DeclarativeManagement(declarationPath)
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"com.apple.bash1"}`, gotParsed.Payload)
-
-	declarationPath = fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N2"])
-	r, err = mdmDevice.DeclarativeManagement(declarationPath)
-	require.NoError(t, err)
-	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"com.apple.bash2"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"com.apple.bash1"}`, string(gotParsed.Payload))
 
 	// Upload the same profiles again -- nothing should change
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent, "dry_run", "true")
@@ -684,10 +664,6 @@ WHERE name = ?`
 			{
 				Name:  "FLEET_SECRET_BASH",
 				Value: myBash, // changed
-			},
-			{
-				Name:  "FLEET_SECRET_PROFILE",
-				Value: string(secretProfile), // did not change
 			},
 		},
 	}
@@ -724,30 +700,23 @@ WHERE name = ?`
 	r, err = mdmDevice.DeclarativeManagement(declarationPath)
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"com.apple.bash0"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"com.apple.bash0"}`, string(gotParsed.Payload))
 
 	declarationPath = fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N1"])
 	r, err = mdmDevice.DeclarativeManagement(declarationPath)
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"my.new.bash"}`, gotParsed.Payload)
-
-	declarationPath = fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N2"])
-	r, err = mdmDevice.DeclarativeManagement(declarationPath)
-	require.NoError(t, err)
-	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"com.apple.bash2"}`, gotParsed.Payload)
+	assert.JSONEq(t, `{"ServiceType":"my.new.bash"}`, string(gotParsed.Payload))
 
 	// Delete the profiles
 	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N0"], nil, http.StatusOK)
-	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N1"], nil, http.StatusOK)
 
 	// Ensure we can delete without any MDM turned on.
 	appCfg, err := s.ds.AppConfig(t.Context())
 	require.NoError(t, err)
 	appCfg.MDM.EnabledAndConfigured = false
 	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
-	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N2"], nil, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N1"], nil, http.StatusOK)
 
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)

@@ -2516,7 +2516,7 @@ type Datastore interface {
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	// An OS-update (software update) declaration is tracked as the team's OS-update
 	// profile within the same transaction, failing if one already exists.
-	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName, assetReferences []string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
 	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
@@ -3586,6 +3586,14 @@ type Datastore interface {
 	CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error)
 	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
 	GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*DDMAsset, error)
+	// BatchSetAppleDDMAssets sets the complete desired set of Apple DDM assets
+	// for a team: it upserts the given assets (matched by identifier) and
+	// deletes any existing assets not in the set. It returns a ConflictError if
+	// an incoming asset changes the type of an existing asset with the same
+	// identifier, or if a to-be-deleted asset is still referenced by a
+	// declaration. It returns the names of the assets it created, edited, and
+	// deleted so the caller can log the corresponding activities.
+	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
 }
 
 type AndroidDatastore interface {

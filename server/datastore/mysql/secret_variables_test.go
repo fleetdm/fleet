@@ -683,7 +683,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 			Identifier: "decl-1",
 			Name:       "decl-1",
 			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
-		}, nil, nil)
+		}, nil)
 		require.NoError(t, err)
 
 		// Attempt to delete the variable, should fail.
@@ -705,7 +705,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 			Name:       "decl-1",
 			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
 			TeamID:     &foobarTeam.ID,
-		}, nil, nil)
+		}, nil)
 		require.NoError(t, err)
 
 		// Attempt to delete the variable, should fail.

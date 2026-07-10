@@ -888,6 +888,11 @@ type MDMAppleDeclaration struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
+	// AssetReferenceUUIDs are the UUIDs of the DDM assets referenced by this
+	// declaration, resolved from the declaration's asset references. Used to
+	// populate mdm_apple_declaration_asset_references in the batch-set path.
+	AssetReferenceUUIDs []string `db:"-" json:"-"`
+
 	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
@@ -1561,6 +1566,33 @@ type DDMAsset struct {
 type DownloadableDDMAsset struct {
 	DDMAsset
 	Data []byte `db:"raw_json" json:"-"`
+}
+
+// MDMAppleDDMAssetBatchPayload is a single asset in a batch-set assets request,
+// as received from the client (e.g. GitOps): the file name and its raw JSON
+// contents.
+type MDMAppleDDMAssetBatchPayload struct {
+	Name     string `json:"name"`
+	Contents []byte `json:"contents"`
+}
+
+// MDMAppleDDMAssetToSet is a fully-validated asset to upsert as part of a batch
+// set. The service resolves Identifier and Type from the asset contents before
+// handing it to the datastore.
+type MDMAppleDDMAssetToSet struct {
+	Name       string
+	Identifier string
+	Type       string
+	Data       []byte
+}
+
+// MDMAppleDDMAssetsBatchChanges reports which assets a BatchSetAppleDDMAssets
+// call created, edited, or deleted, so the caller can log the corresponding
+// activities. Each slice holds asset names.
+type MDMAppleDDMAssetsBatchChanges struct {
+	Created []string
+	Edited  []string
+	Deleted []string
 }
 
 type RawDDMAsset struct {

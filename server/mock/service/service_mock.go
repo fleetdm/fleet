@@ -962,6 +962,8 @@ type CreateAppleDDMAssetFunc func(ctx context.Context, teamID *uint, name string
 
 type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 
+type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2375,6 +2377,9 @@ type Service struct {
 
 	DeleteAppleDDMAssetFunc        DeleteAppleDDMAssetFunc
 	DeleteAppleDDMAssetFuncInvoked bool
+
+	BatchSetAppleDDMAssetsFunc        BatchSetAppleDDMAssetsFunc
+	BatchSetAppleDDMAssetsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5674,4 +5679,11 @@ func (s *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) err
 	s.DeleteAppleDDMAssetFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error {
+	s.mu.Lock()
+	s.BatchSetAppleDDMAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, teamName, assets, dryRun)
 }
