@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,4 +47,26 @@ func TestInstallerFilenameExtraction(t *testing.T) {
 	_, filename, err = DownloadInstaller(context.Background(), srv.URL+"/not_compliant", client)
 	require.NoError(t, err)
 	require.Equal(t, "not_compliant.pkg", filename)
+}
+
+func TestInstallerBrowserUserAgent(t *testing.T) {
+	// Mimic vendor hosts that 403 Go's default User-Agent: the download only
+	// succeeds if DownloadInstaller sends a browser-like User-Agent.
+	var gotUserAgent string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUserAgent = r.UserAgent()
+		if gotUserAgent == "" || strings.HasPrefix(gotUserAgent, "Go-http-client") {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Disposition", `attachment; filename="vendor.exe"`)
+		_, _ = w.Write([]byte("vendor installer"))
+	}))
+	defer srv.Close()
+
+	client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
+	_, filename, err := DownloadInstaller(context.Background(), srv.URL+"/vendor.exe", client)
+	require.NoError(t, err)
+	require.Equal(t, "vendor.exe", filename)
+	require.Equal(t, browserUserAgent, gotUserAgent)
 }

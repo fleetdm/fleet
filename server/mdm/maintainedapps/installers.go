@@ -17,6 +17,10 @@ import (
 // InstallerTimeout is the timeout duration for downloading and adding a maintained app.
 const InstallerTimeout = 15 * time.Minute
 
+// browserUserAgent is sent when downloading installers. Some vendor hosts (e.g.
+// dl.dell.com, www.crestron.com) return HTTP 403 to Go's default User-Agent.
+const browserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+
 // DownloadInstaller downloads the maintained app installer located at the given URL.
 func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) (*fleet.TempFileReader, string, error) {
 	// validate the URL before doing the request
@@ -32,6 +36,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
 	}
+	req.Header.Set("User-Agent", browserUserAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
