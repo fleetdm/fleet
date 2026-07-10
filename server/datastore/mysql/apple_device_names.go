@@ -30,10 +30,10 @@ const deviceNameEligibleHostsWhere = `
 	AND hm.is_personal_enrollment = 0`
 
 // deviceNameNoTeamTemplateExpr is a scalar SQL expression that yields the
-// "No team" host name template from the single app_config_json row, or '' when
+// "No team" host name template from the single app_config_json row, or ” when
 // unset. AppConfig.MDM.HostNameTemplate is an optjson.String that marshals to
 // JSON null when unset, and `->>` would surface that as the literal string
-// "null"; gating on JSON_TYPE = 'STRING' resolves null/absent to '' (no template),
+// "null"; gating on JSON_TYPE = 'STRING' resolves null/absent to ” (no template),
 // matching the empty-string semantics the Go optjson value uses.
 const deviceNameNoTeamTemplateExpr = `(SELECT IF(
 	JSON_TYPE(JSON_EXTRACT(json_value, '$.mdm.name_template')) = 'STRING',
