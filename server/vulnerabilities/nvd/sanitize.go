@@ -160,11 +160,11 @@ func productVariations(s *fleet.Software) []string {
 		}
 	}
 
-	// On Ubuntu/Debian/RHEL, pythonPackageFilter prepends "python3-" to python_packages names
-	// to match OVAL definitions. The CPE database uses bare package names (e.g. "geopandas"
-	// not "python3-geopandas"), so we add the stripped name as an additional variation.
-	// We keep the original name too in case a PyPI package genuinely starts with "python3-"
-	// (e.g. python3-openid, python3-saml).
+	// pythonPackageFilter (osquery.go) prepends "python3-" to python_packages names on
+	// Ubuntu/Debian/RHEL to match OVAL definitions. The CPE database uses bare package names
+	// (e.g. "geopandas" not "python3-geopandas"), so we add the stripped name as an additional
+	// variation. We keep the original name too so packages whose real PyPI name starts with
+	// "python3-" (e.g. python3-openid, python3-saml) still match on any platform.
 	if s.Source == "python_packages" {
 		stripped := strings.TrimPrefix(sn, "python3-")
 		if stripped != sn {
