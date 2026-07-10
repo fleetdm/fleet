@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -1163,4 +1164,89 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.True(t, ds.ConsumeChallengeFuncInvoked)
 		ds.ConsumeChallengeFuncInvoked = false
 	})
+}
+
+func TestClassifySCEPProxyError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"nil", nil, "unknown error"},
+		{"deadline exceeded", context.DeadlineExceeded, "timeout"},
+		{"wrapped deadline", fmt.Errorf("doing PKIOperation: %w", context.DeadlineExceeded), "timeout"},
+		{"net timeout", os.ErrDeadlineExceeded, "timeout"}, // implements net.Error with Timeout() == true
+		{"http 500", errors.New("http request failed with status 500 Internal Server Error, msg: boom"), "HTTP 500"},
+		{"http 403", errors.New("http request failed with status 403 Forbidden, msg: denied"), "HTTP 403"},
+		{"connection refused", errors.New("dial tcp 10.0.0.1:80: connect: connection refused"), "connection refused"},
+		{"dns", errors.New("dial tcp: lookup ca.invalid: no such host"), "DNS resolution error"},
+		{"generic", errors.New("something unexpected happened"), "upstream error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, classifySCEPProxyError(tc.err))
+		})
+	}
+}
+
+func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	newSvc := func(ds *mock.DataStore) *scepProxyService {
+		return &scepProxyService{ds: ds, debugLogger: logger}
+	}
+	const winID = "host-uuid,w-profile-uuid,ca,challenge"
+	upstreamErr := errors.New("http request failed with status 500 Internal Server Error, msg: boom")
+
+	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		var gotDetail string
+		ds.SetMDMWindowsHostProfileFailedFunc = func(_ context.Context, hostUUID, profileUUID, detail string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "w-profile-uuid", profileUUID)
+			gotDetail = detail
+			return nil
+		}
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
+	})
+
+	t.Run("records with a live context even when the request deadline is exceeded", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, _, _, _ string) error {
+			// The write must be detached from the expired request context (WithoutCancel), or it would fail to persist
+			// the failure we just observed. This assertion is what actually guards that detach.
+			assert.NoError(t, ctx.Err())
+			return nil
+		}
+		// Deadline already in the past (as after an upstream timeout): ctx.Err() is DeadlineExceeded, which must NOT
+		// skip recording - only true cancellation does.
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+		defer cancel()
+		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", upstreamErr)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+	})
+
+	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
+	canceledCtx, cancelFn := context.WithCancel(context.Background())
+	cancelFn()
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		id   string
+		err  error
+	}{
+		{"a canceled upstream error", context.Background(), winID, context.Canceled},
+		{"a canceled request context", canceledCtx, winID, upstreamErr},
+		{"a non-Windows profile", context.Background(), "host-uuid,a-apple-profile,ca,challenge", upstreamErr},
+		{"a malformed identifier", context.Background(), "garbage-without-commas", upstreamErr},
+	} {
+		t.Run("skips "+tc.name, func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.SetMDMWindowsHostProfileFailedFunc = func(context.Context, string, string, string) error {
+				t.Fatalf("must not record a failure for %s", tc.name)
+				return nil
+			}
+			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", tc.err)
+		})
+	}
 }

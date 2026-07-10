@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.7.423",
+      "version": "0.7.426",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'hc.hcengineering.Huly';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'hc.hcengineering.Huly' AND version_compare(bundle_short_version, '0.7.423') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'hc.hcengineering.Huly' AND version_compare(bundle_short_version, '0.7.426') < 0);"
       },
-      "installer_url": "https://dist.huly.io/Huly-macos-0.7.423-arm64.zip",
+      "installer_url": "https://dist.huly.io/Huly-macos-0.7.426-arm64.zip",
       "install_script_ref": "fc10469f",
       "uninstall_script_ref": "367bd3f8",
-      "sha256": "e3721316549ecc2f5097607eeec67d33f2e47eacbc2665db748a258ec41a2d73",
+      "sha256": "1965a7f09dff166586f3675aded9a9b53e1733096beacbc87967ab3b4f82a926",
       "default_categories": [
         "Productivity"
       ]

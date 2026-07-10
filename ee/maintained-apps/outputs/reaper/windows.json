@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.75",
+      "version": "7.77",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated' AND version_compare(version, '7.75') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated' AND version_compare(version, '7.77') < 0);"
       },
-      "installer_url": "https://www.reaper.fm/files/7.x/reaper775_x64-install.exe",
+      "installer_url": "https://www.reaper.fm/files/7.x/reaper777_x64-install.exe",
       "install_script_ref": "8fd3787f",
       "uninstall_script_ref": "c67e0453",
-      "sha256": "80ee565ec37150859dd4c0478fa2022ea1fd0251d7a04297c9b849e8932040f6",
+      "sha256": "e94f7d831ac8748651619dc5982418bb28b3de60033075081e115df452010caa",
       "default_categories": [
         "Productivity"
       ]

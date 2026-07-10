@@ -48,7 +48,8 @@ CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 
 # Check if Chrome is running (only check once)
 CHROME_WAS_RUNNING=false
-if osascript -e "application id \"com.google.Chrome\" is running" 2>/dev/null; then
+CHROME_RUNNING=$(osascript -e "application id \"com.google.Chrome\" is running" 2>/dev/null)
+if [[ "$CHROME_RUNNING" == "true" ]]; then
   CHROME_WAS_RUNNING=true
   quit_application 'com.google.Chrome' "$CONSOLE_USER"
 fi
