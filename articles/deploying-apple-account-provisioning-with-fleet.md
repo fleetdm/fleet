@@ -2,7 +2,7 @@
 
 Fleet's Apple account provisioning creates your end users' macOS local accounts during automatic enrollment (ADE) using their identity provider (IdP) credentials, and keeps the local account password in sync with the IdP afterwards. It uses Fleet's own Platform SSO extension, built into the Fleet Desktop app, which proxies authentication through your Fleet server to any IdP that supports OAuth Resource Owner Password Grant (ROPG). This guide covers setup with Okta, but any OAuth ROPG-compatible IdP works.
 
-> **Note:** This feature requires Fleet Premium.
+> This feature requires Fleet Premium.
 
 If your IdP offers its own native Platform SSO integration, such as [Okta Device Access](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) or [Microsoft Entra](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet), consider using that instead. Fleet's account provisioning is designed for cases where a native integration is unavailable or not licensed for your organization.
 
@@ -18,7 +18,7 @@ What you don't get (yet):
 
 - Single sign-on to SaaS apps and websites. Fleet's extension currently handles account creation and password sync only.
 
-> **Note:** OAuth ROPG is required because password sync needs the IdP to verify the user's actual password. Other desktop password sync products use the same class of flow for provisioning and syncing. Because ROPG sends the username and password directly to the token endpoint, it bypasses MFA, and some organizations' security policies may not allow it.
+> OAuth ROPG is required because password sync needs the IdP to verify the user's actual password. Other desktop password sync products use the same class of flow for provisioning and syncing. Because ROPG sends the username and password directly to the token endpoint, it bypasses MFA, and some organizations' security policies may not allow it.
 
 ## Prerequisites
 
@@ -28,32 +28,41 @@ What you don't get (yet):
 - Fleet's [setup experience](https://fleetdm.com/guides/setup-experience) configured for the target fleet
 - The Fleet Desktop app, which contains Fleet's Platform SSO extension, available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps)
 
-> **Note:** Account provisioning can currently only be configured for "All fleets" and only supports macOS hosts.
+> Account provisioning can currently only be configured for "All fleets" and only supports macOS hosts.
 
 ## Step 1: Create an OAuth ROPG app in Okta
 
 Okta only supports the Resource Owner Password grant on Native app integrations.
 
 1. Sign in to the Okta Admin Console and go to **Applications > Applications > Create App Integration**.
+
 2. Select **OIDC - OpenID Connect** as the sign-in method and **Native Application** as the application type, then click **Next**.
+
 3. Give the app a name, like "Fleet account provisioning."
+
 4. Under **Grant type**, check **Resource Owner Password**.
+
 5. Under **Assignments**, assign the app to the users or groups who will enroll Macs, then click **Save**.
+
 6. On the app's **General** tab, click **Edit** in the **Client Credentials** section, set **Client authentication** to **Client secret**, and click **Save**.
+
 7. Copy the **Client ID** and **Client secret**. You'll add these to Fleet in step 3.
 
 Next, confirm the app can complete a password-only sign-in:
 
 1. Go to **Applications > Applications**, open your app, and select the **Sign On** tab.
+
 2. Make sure the authentication policy assigned to the app allows sign-in with **Password** as a single factor. If the policy requires MFA, ROPG requests will fail.
 
 Finally, find your token URL. Fleet recommends the `default` custom authorization server because it supports the custom claims used for name mapping in step 2:
 
 1. Go to **Security > API > Authorization Servers** and open **default**.
+
 2. Your token URL is the **Issuer** URI plus `/v1/token`, for example `https://example.okta.com/oauth2/default/v1/token`.
+
 3. On the **Access Policies** tab, make sure a policy rule assigned to your app allows the **Resource Owner Password** grant type.
 
-> **Note:** You can also use Okta's org authorization server (`https://example.okta.com/oauth2/v1/token`), but it doesn't support custom claims, so short name mapping with `TokenToUserMapping` won't be available.
+> You can also use Okta's org authorization server (`https://example.okta.com/oauth2/v1/token`), but it doesn't support custom claims, so short name mapping with `TokenToUserMapping` won't be available.
 
 ## Step 2: Map short name and full name (optional)
 
@@ -64,12 +73,14 @@ Fleet forwards the standard `email`, `name`, and `preferred_username` claims fro
 To add the short name claim in Okta:
 
 1. Go to **Security > API > Authorization Servers** and open **default**.
+
 2. On the **Claims** tab, click **Add Claim** and enter:
    - **Name:** `accountName`
    - **Include in token type:** ID Token, Always
    - **Value type:** Expression
    - **Value:** `String.substringBefore(user.login, "@")`
    - **Include in:** Any scope
+
 3. Click **Create**.
 
 For the full name, the standard `name` claim works out of the box when the `profile` scope is granted (Fleet requests `openid profile email` by default). You can also add a custom `accountFullName` claim the same way if you want a different value.
@@ -79,6 +90,7 @@ You'll reference these claim names in the configuration profile's `TokenToUserMa
 ## Step 3: Connect Fleet to your IdP
 
 1. In Fleet, go to **Settings > Integrations > Account provisioning**.
+
 2. Enter the **Token URL**, **Client ID**, and **Client secret** from step 1, then save.
 
 Alternatively, configure it with [GitOps](https://fleetdm.com/docs/configuration/yaml-files#apple-account-provisioning) in `default.yml`:
@@ -96,6 +108,7 @@ controls:
 The Fleet Desktop app that contains the Platform SSO extension isn't installed by default. Add it as setup experience software so it's installed during Setup Assistant, before the user reaches the sign-in screen:
 
 1. In Fleet, head to the **Software** page for the target fleet, select **Add software**, open the **Fleet-maintained** tab, and add **Fleet Desktop**.
+
 2. Go to **Controls > Setup experience > Install software** and select the Fleet Desktop app so it installs during setup experience.
 
 ## Step 5: Create and upload the configuration profile
@@ -122,19 +135,22 @@ In the Extensible Single Sign-On payload:
 
 If you skipped step 2, remove the `AccountName` key (or the whole `TokenToUserMapping` dictionary) and macOS will use the IdP username as the account name.
 
-> **Note:** `$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN` is only allowed in the `RegistrationToken` key of a Fleet SSO extension payload. Fleet redacts the token when you view the delivered `InstallProfile` command, so it's never exposed in the UI or API.
+> `$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN` is only allowed in the `RegistrationToken` key of a Fleet SSO extension payload. Fleet redacts the token when you view the delivered `InstallProfile` command, so it's never exposed in the UI or API.
 
 In the Associated Domains payload, both app identifiers (`8VBZ3948LU.com.fleetdm.fleet-desktop` and `8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension`) must list `authsrv:` plus your Fleet server's domain.
 
 Upload the profile to the target fleet under **Controls > OS settings > Custom settings**.
 
-> **Note:** Don't scope this profile with labels. Labeled profiles may not be delivered in time for Setup Assistant, and if that happens the user won't be prompted to sign in.
+> Don't scope this profile with labels. Labeled profiles may not be delivered in time for Setup Assistant, and if that happens the user won't be prompted to sign in.
 
 ## End user experience
 
 1. The user powers on the Mac and it enrolls through automatic enrollment. End user authentication is optional; if it's enabled, the user signs in with their IdP first.
+
 2. Setup experience installs the Fleet Desktop app and delivers the configuration profile.
+
 3. During Setup Assistant, after Fleet's setup experience window closes, the user is prompted to sign in with their IdP username and password.
+
 4. macOS creates the local account. The password is the user's IdP password, and the account name and full name come from `TokenToUserMapping` if configured. The account creation screen will be shown, however the values are locked and the user cannot edit them at this point.
 
 After setup, password sync works like this:
@@ -144,7 +160,7 @@ After setup, password sync works like this:
 - FileVault unlock works with the synced password.
 - If the Fleet server is unreachable, users are never locked out. The existing local password keeps working until connectivity returns.
 
-> **Note:** Consider directing users to lock and then unlock their Mac using their new password after completing a password change via your IdP to immediately synchronize their Mac password, rather than relying on it happening later.
+> Consider directing users to lock and then unlock their Mac using their new password after completing a password change via your IdP to immediately synchronize their Mac password, rather than relying on it happening later.
 
 ## Troubleshoot
 
