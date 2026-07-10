@@ -241,7 +241,7 @@ describe("InputFieldWithIcon Component", () => {
     expect(mockOnClick).toHaveBeenCalledTimes(1);
   });
 
-  test("sets data-1p-ignore attribute when ignore1Password is true", () => {
+  test("sets data-1p-ignore attribute by default (1Password ignored)", () => {
     render(
       <InputFieldWithIcon
         value=""
@@ -249,13 +249,29 @@ describe("InputFieldWithIcon Component", () => {
         label="Test Input"
         placeholder="Enter text"
         name="test-input"
-        ignore1Password
       />
     );
 
     expect(screen.getByPlaceholderText(/enter text/i)).toHaveAttribute(
       "data-1p-ignore",
       "true"
+    );
+  });
+
+  test("does not set data-1p-ignore when ignore1Password is false", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        ignore1Password={false}
+      />
+    );
+
+    expect(screen.getByPlaceholderText(/enter text/i)).not.toHaveAttribute(
+      "data-1p-ignore"
     );
   });
 

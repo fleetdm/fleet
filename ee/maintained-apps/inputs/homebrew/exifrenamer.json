@@ -1,0 +1,10 @@
+{
+  "name": "ExifRenamer",
+  "unique_identifier": "de.qdev.ExifRenamer",
+  "token": "exifrenamer",
+  "installer_format": "dmg",
+  "slug": "exifrenamer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

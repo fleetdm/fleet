@@ -1,0 +1,10 @@
+{
+  "name": "Postico",
+  "unique_identifier": "at.eggerapps.Postico",
+  "token": "postico",
+  "installer_format": "dmg",
+  "slug": "postico/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

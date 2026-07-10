@@ -106,7 +106,7 @@ func BuildPkg(opt Options) (string, error) {
 	if err := writeScripts(opt, tmpDir); err != nil {
 		return "", fmt.Errorf("write postinstall: %w", err)
 	}
-	if err := writeSecret(opt, orbitRoot); err != nil {
+	if err := writeMacOSSecret(opt, orbitRoot); err != nil {
 		return "", fmt.Errorf("write enroll secret: %w", err)
 	}
 	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {

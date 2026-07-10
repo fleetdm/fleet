@@ -1,0 +1,300 @@
+{
+  "title": "Fleet HTTP errors",
+  "description": "HTTP error volume split by class: 4XX client errors and 5XX server errors, broken down by error.type. This is the 'Errors' signal of the RED method / Google SRE Golden Signals for the Fleet API.",
+  "tags": [],
+  "variables": {
+    "environment": {
+      "id": "environment",
+      "name": "environment",
+      "description": "Deployment environment to view, auto-discovered from the deployment.environment resource attribute. Fleet always emits deployment.environment (default value 'default', overridable via OTEL_RESOURCE_ATTRIBUTES) so this key exists in every SigNoz instance Fleet reports to, which makes the dynamic lookup safe. Defaults to ALL so all environments show.",
+      "type": "DYNAMIC",
+      "dynamicVariablesAttribute": "deployment.environment",
+      "dynamicVariablesSource": "Metrics",
+      "customValue": "",
+      "queryValue": "",
+      "textboxValue": "",
+      "multiSelect": true,
+      "showALLOption": true,
+      "sort": "ASC",
+      "selectedValue": "__all__",
+      "allSelected": true,
+      "order": 0
+    }
+  },
+  "layout": [
+    {
+      "i": "e597beb2-2c9f-4332-8a59-14d0700cd173",
+      "x": 0,
+      "y": 0,
+      "w": 6,
+      "h": 6
+    },
+    {
+      "i": "03714789-45d4-4f69-818e-664739417be4",
+      "x": 6,
+      "y": 0,
+      "w": 6,
+      "h": 6
+    }
+  ],
+  "widgets": [
+    {
+      "contextLinks": {
+        "linksData": []
+      },
+      "description": "",
+      "id": "e597beb2-2c9f-4332-8a59-14d0700cd173",
+      "legendPosition": "bottom",
+      "panelTypes": "bar",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregations": [
+                {
+                  "metricName": "fleet.http.client_errors",
+                  "reduceTo": "sum",
+                  "spaceAggregation": "sum",
+                  "temporality": "",
+                  "timeAggregation": "increase"
+                }
+              ],
+              "dataSource": "metrics",
+              "disabled": false,
+              "expression": "A",
+              "filter": {
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
+              },
+              "functions": [],
+              "groupBy": [
+                {
+                  "dataType": "string",
+                  "id": "error.type--string--tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "key": "error.type",
+                  "type": "tag"
+                }
+              ],
+              "having": {
+                "expression": ""
+              },
+              "legend": "",
+              "limit": null,
+              "orderBy": [],
+              "queryName": "A",
+              "source": "",
+              "stepInterval": null
+            }
+          ],
+          "queryFormulas": [],
+          "queryTraceOperator": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "770c0dbd-bf06-4228-8cd5-406716dda036",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "builder",
+        "unit": ""
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "",
+          "fieldContext": "log",
+          "fieldDataType": "",
+          "isIndexed": false,
+          "name": "timestamp",
+          "signal": "logs",
+          "type": "log"
+        },
+        {
+          "dataType": "",
+          "fieldContext": "log",
+          "fieldDataType": "",
+          "isIndexed": false,
+          "name": "body",
+          "signal": "logs",
+          "type": "log"
+        }
+      ],
+      "selectedTracesFields": [
+        {
+          "fieldContext": "resource",
+          "fieldDataType": "string",
+          "name": "service.name",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "string",
+          "name": "name",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "",
+          "name": "duration_nano",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "",
+          "name": "http_method",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "",
+          "name": "response_status_code",
+          "signal": "traces"
+        }
+      ],
+      "stackedBarChart": true,
+      "thresholds": [],
+      "title": "Client errors (4XX)",
+      "yAxisUnit": "{count}"
+    },
+    {
+      "contextLinks": {
+        "linksData": []
+      },
+      "description": "",
+      "id": "03714789-45d4-4f69-818e-664739417be4",
+      "legendPosition": "bottom",
+      "panelTypes": "bar",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregations": [
+                {
+                  "metricName": "fleet.http.server_errors",
+                  "reduceTo": "sum",
+                  "spaceAggregation": "sum",
+                  "temporality": "",
+                  "timeAggregation": "increase"
+                }
+              ],
+              "dataSource": "metrics",
+              "disabled": false,
+              "expression": "A",
+              "filter": {
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
+              },
+              "functions": [],
+              "groupBy": [
+                {
+                  "dataType": "string",
+                  "id": "error.type--string--tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "key": "error.type",
+                  "type": "tag"
+                }
+              ],
+              "having": {
+                "expression": ""
+              },
+              "legend": "",
+              "limit": null,
+              "orderBy": [],
+              "queryName": "A",
+              "source": "",
+              "stepInterval": null
+            }
+          ],
+          "queryFormulas": [],
+          "queryTraceOperator": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0477ae6c-0cd9-498e-86c9-50183cf05607",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "builder",
+        "unit": ""
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "",
+          "fieldContext": "log",
+          "fieldDataType": "",
+          "isIndexed": false,
+          "name": "timestamp",
+          "signal": "logs",
+          "type": "log"
+        },
+        {
+          "dataType": "",
+          "fieldContext": "log",
+          "fieldDataType": "",
+          "isIndexed": false,
+          "name": "body",
+          "signal": "logs",
+          "type": "log"
+        }
+      ],
+      "selectedTracesFields": [
+        {
+          "fieldContext": "resource",
+          "fieldDataType": "string",
+          "name": "service.name",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "string",
+          "name": "name",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "",
+          "name": "duration_nano",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "",
+          "name": "http_method",
+          "signal": "traces"
+        },
+        {
+          "fieldContext": "span",
+          "fieldDataType": "",
+          "name": "response_status_code",
+          "signal": "traces"
+        }
+      ],
+      "stackedBarChart": true,
+      "thresholds": [],
+      "title": "Server errors",
+      "yAxisUnit": "{count}"
+    }
+  ]
+}

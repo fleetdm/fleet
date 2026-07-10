@@ -7,7 +7,13 @@ const buildPagesItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
-  const { search, canAccessControls, canAccessSettings, withTeamId } = ctx;
+  const {
+    search,
+    canAccessControls,
+    canAccessSettings,
+    isPremiumTier,
+    withTeamId,
+  } = ctx;
   const {
     hasTeamOrUnassigned,
     switchesFromUnassigned,
@@ -45,7 +51,11 @@ const buildPagesItems = (
         "computers",
       ],
     },
-    ...(canAccessControls && hasTeamOrUnassigned
+    // Hidden on Free: /controls redirects to OS updates, which renders
+    // <PremiumFeatureMessage /> on Free. Free users still reach the
+    // tier-free Controls sub-pages via their own palette entries
+    // (OS settings, Scripts, Variables).
+    ...(canAccessControls && hasTeamOrUnassigned && isPremiumTier
       ? [
           {
             id: "controls-page",
@@ -149,7 +159,7 @@ const buildPagesItems = (
     },
 
     // Packs page — only visible when searching for "packs" or similar.
-    // The companion "Create new pack" item lives in commands.ts.
+    // The companion "Add new pack" item lives in commands.ts.
     ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
       ? [
           {

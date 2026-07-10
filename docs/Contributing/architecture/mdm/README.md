@@ -14,6 +14,7 @@ Fleet's MDM architecture is designed to manage devices across different platform
 - [End User Authentication](end-user-authentication.md) - Architecture for end user authentication
 - [Disk Encryption](disk-encryption.md) - Architecture for disk encryption
 - [Automated Device Enrollment](automated-device-enrollment.md) - Architecture for automated device enrollment
+- [Setup Experience Overview](setup-experience-overview.md) - Overview of the setup experience flow
 
 ## Related resources
 

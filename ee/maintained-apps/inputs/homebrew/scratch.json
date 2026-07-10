@@ -1,0 +1,10 @@
+{
+  "name": "Scratch",
+  "unique_identifier": "edu.mit.scratch.scratch-desktop",
+  "token": "scratch",
+  "installer_format": "dmg",
+  "slug": "scratch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

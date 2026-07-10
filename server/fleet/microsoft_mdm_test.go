@@ -580,8 +580,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				<Data>5</Data>
 			</Item>
 		</Replace>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -604,8 +604,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 			</Item>
 		</Replace>`
 		// Only MaxInactivityTimeDeviceLock is protected; DevicePasswordEnabled should still get a <Delete>
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -636,9 +636,9 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				</Item>
 			</Replace>
 		</Atomic>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/BitLocker/A": true,
-			"./Device/Vendor/MSFT/BitLocker/B": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/BitLocker/A": {},
+			"./Device/Vendor/MSFT/BitLocker/B": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -663,8 +663,8 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 				</Item>
 			</Replace>
 		</Atomic>`
-		exclude := map[string]bool{
-			"./Device/Vendor/MSFT/BitLocker/A": true,
+		exclude := map[string]struct{}{
+			"./Device/Vendor/MSFT/BitLocker/A": {},
 		}
 		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
@@ -811,6 +811,142 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
 		require.Equal(t, []string{"./Device/A"}, uris)
 	})
+
+	t.Run("surrounding whitespace trimmed", func(t *testing.T) {
+		// A formatting-only spelling change (e.g. an editor reflowing the LocURI text) must not make the same node look like a
+		// different URI: edit-diffing would otherwise emit a <Delete> for a node the new version still enforces.
+		xml := "<Replace><Item><Target><LocURI>\n\t\t./Device/A </LocURI></Target></Item></Replace><Atomic><Add><Item><Target><LocURI> ./Device/B\n</LocURI></Target></Item></Add></Atomic>"
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A", "./Device/B"}, uris)
+	})
+}
+
+func TestCanonicalLocURI(t *testing.T) {
+	t.Parallel()
+
+	// All device-scoped spellings of the same node collapse to one comparison form.
+	for _, spelling := range []string{
+		"./Device/Vendor/MSFT/Policy/Config/X",
+		"./Vendor/MSFT/Policy/Config/X",
+		"Device/Vendor/MSFT/Policy/Config/X",
+		"Vendor/MSFT/Policy/Config/X",
+		" ./Device/Vendor/MSFT/Policy/Config/X\n",
+	} {
+		require.Equal(t, "Vendor/MSFT/Policy/Config/X", CanonicalLocURI(spelling), "spelling: %q", spelling)
+	}
+	// User scope is explicit and stays distinct from device scope.
+	require.Equal(t, "User/Vendor/MSFT/X", CanonicalLocURI("./User/Vendor/MSFT/X"))
+	// Case is preserved: CSP paths are documented case-sensitive.
+	require.Equal(t, "vendor/msft/x", CanonicalLocURI("./Device/vendor/msft/x"))
+	// Only a whole "Device" segment is a scope marker, not a prefix of the first segment.
+	require.Equal(t, "DeviceLock/X", CanonicalLocURI("./DeviceLock/X"))
+}
+
+func TestLocURITargetsReservedNode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		locURI   string
+		reserved string
+		want     bool
+	}{
+		{name: "explicit device scope", locURI: "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "scope-less (regression #48752)", locURI: "Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "user scope matches via Contains, not a prefix check", locURI: "./User/Vendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "surrounding whitespace", locURI: " Vendor/MSFT/BitLocker/Foo ", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		// Boundary safety: a longer sibling segment that merely shares the reserved-node prefix must not match, on either end.
+		{name: "left boundary: node ending in Vendor is not reserved", locURI: "Custom/SomeVendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		{name: "right boundary: BitLockerCustom sibling is not reserved", locURI: "Vendor/MSFT/BitLockerCustom/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		{name: "unrelated node", locURI: "./Device/Vendor/MSFT/DMClient/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		// The reserved node itself (no descendant leaf) matches (node-inclusive).
+		{name: "bare BitLocker node matches", locURI: "./Device/Vendor/MSFT/BitLocker", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		// One positive smoke per reserved constant so a future typo/rename is caught.
+		{name: "OS update", locURI: "Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate", reserved: syncml.FleetOSUpdateTargetLocURI, want: true},
+		{name: "RemoteWipe operation", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
+		// RemoteWipe is a wipe-only subtree: the bare node matches (node-inclusive), a sibling does not (boundary).
+		{name: "bare RemoteWipe node matches (wipe-only subtree)", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
+		{name: "RemoteWipeCustom sibling is not reserved", locURI: "Vendor/MSFT/RemoteWipeCustom/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, LocURITargetsReservedNode(tt.locURI, tt.reserved))
+		})
+	}
+}
+
+func TestSyncMLCmdIsPremium(t *testing.T) {
+	t.Parallel()
+
+	newExecCmd := func(locURI string) SyncMLCmd {
+		return SyncMLCmd{
+			XMLName: xml.Name{Local: "Exec"},
+			Items:   []CmdItem{{Target: new(locURI)}},
+		}
+	}
+	tests := []struct {
+		name   string
+		locURI string
+		want   bool
+	}{
+		{name: "explicit device wipe", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", want: true},
+		{name: "scope-less wipe (regression #48752)", locURI: "Vendor/MSFT/RemoteWipe/doWipe", want: true},
+		{name: "non-wipe command", locURI: "./DevDetail/SwV", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, newExecCmd(tt.locURI).IsPremium())
+		})
+	}
+}
+
+func TestProfileTargetsReservedLocURI(t *testing.T) {
+	t.Parallel()
+
+	osUpdate := syncml.FleetOSUpdateTargetLocURI
+	tests := []struct {
+		name   string
+		syncML string
+		want   bool
+	}{
+		{
+			name:   "scoped OS update profile (fast path)",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "scope-less OS update profile (regression #48752)",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "scope-less OS update inside Atomic",
+			syncML: `<Atomic><Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI></Target></Item></Replace></Atomic>`,
+			want:   true,
+		},
+		{
+			name:   "non-OS-update profile",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+		{
+			name:   "node ending in Update is not reserved",
+			syncML: `<Replace><Item><Target><LocURI>Custom/Config/UpdatePolicy/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+		{
+			// Sibling segment sharing the reserved prefix must not be flagged (mentions the node name so the quick-reject
+			// filter passes, forcing the boundary-aware per-LocURI check to make the call).
+			name:   "UpdateExtra sibling segment is not reserved",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/UpdateExtra/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, ProfileTargetsReservedLocURI([]byte(tt.syncML), osUpdate))
+		})
+	}
 }
 
 func TestIsFleetInternalCmdID(t *testing.T) {

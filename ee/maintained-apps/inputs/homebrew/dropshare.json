@@ -1,0 +1,10 @@
+{
+  "name": "Dropshare",
+  "unique_identifier": "net.mkswap.Dropshare6",
+  "token": "dropshare",
+  "installer_format": "zip",
+  "slug": "dropshare/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

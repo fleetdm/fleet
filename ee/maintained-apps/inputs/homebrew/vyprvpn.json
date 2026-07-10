@@ -1,0 +1,10 @@
+{
+  "name": "VyprVPN",
+  "unique_identifier": "com.goldenfrog.VyprVPN",
+  "token": "vyprvpn",
+  "installer_format": "dmg",
+  "slug": "vyprvpn/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

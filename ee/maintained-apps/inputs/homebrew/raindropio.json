@@ -1,0 +1,10 @@
+{
+  "name": "Raindrop.io",
+  "unique_identifier": "io.raindrop.macapp",
+  "token": "raindropio",
+  "installer_format": "dmg",
+  "slug": "raindropio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

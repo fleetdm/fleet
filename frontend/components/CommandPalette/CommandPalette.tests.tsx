@@ -8,6 +8,37 @@ import CommandPalette from "./CommandPalette";
 // cmdk uses scrollIntoView which JSDOM doesn't implement
 Element.prototype.scrollIntoView = jest.fn();
 
+// CommandPalette branches on navigator.platform to pick the modifier
+// (Cmd on macOS, Ctrl elsewhere). jsdom's default is an empty string,
+// which would make the whole suite run as "non-Mac" and break every
+// {Meta>}…{/Meta} keyboard test. Default the suite to Mac and override
+// per-test when we specifically want to exercise the non-Mac branch.
+const setPlatform = (value: string) => {
+  Object.defineProperty(window.navigator, "platform", {
+    value,
+    configurable: true,
+  });
+};
+// Capture the original descriptor so afterEach can fully restore it —
+// not just the value. Otherwise our `configurable: true` override leaks
+// into other tests and can mask future descriptor-sensitive bugs.
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  window.navigator,
+  "platform"
+);
+beforeEach(() => setPlatform("MacIntel"));
+afterEach(() => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(
+      window.navigator,
+      "platform",
+      originalPlatformDescriptor
+    );
+  } else {
+    delete (window.navigator as { platform?: string }).platform;
+  }
+});
+
 const adminRender = createCustomRenderer({
   withBackendMock: true,
   context: {
@@ -93,6 +124,32 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
       expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+    });
+
+    it("Ctrl+K does NOT open the palette on macOS (Cmd is required)", async () => {
+      // Ctrl+K is readline kill-line on macOS — we must not hijack it.
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}k{/Control}");
+
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+    });
+
+    it("Ctrl+K opens the palette on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}k{/Control}");
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+K does NOT open the palette on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Meta>}k{/Meta}");
+
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
     });
 
     it("closes on Escape", async () => {
@@ -190,7 +247,7 @@ describe("CommandPalette", () => {
   });
 
   describe("Keyboard shortcuts", () => {
-    it("opens the switch-fleet sub-page on Cmd+Shift+F", async () => {
+    it("opens the switch-fleet picker page on Cmd+Shift+F", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
@@ -215,11 +272,42 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Escape returns to root from a sub-page instead of closing", async () => {
+    it("Ctrl+Shift+F does NOT open switch-fleet on macOS (Cmd is required)", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+
+      expect(
+        screen.queryByPlaceholderText("Search a fleet...")
+      ).not.toBeInTheDocument();
+    });
+
+    it("Ctrl+Shift+F opens switch-fleet on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+Shift+F does NOT open switch-fleet on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+
+      expect(
+        screen.queryByPlaceholderText("Search a fleet...")
+      ).not.toBeInTheDocument();
+    });
+
+    it("Escape returns to root from a picker page instead of closing", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
-      // Navigate into the switch-fleet sub-page
+      // Navigate into the switch-fleet picker page
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
       await waitFor(() => {
         expect(
@@ -236,12 +324,12 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Escape returns to root from a picker sub-page (view-host)", async () => {
+    it("Escape returns to root from a picker page (view-host)", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
       // The root page lists commands; find "View host" and activate it
-      // to reach the view-host sub-page.
+      // to reach the view-host picker page.
       const viewHost = await screen.findByText("View host");
       await user.click(viewHost);
 
@@ -272,7 +360,7 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Backspace on empty input goes back from a sub-page", async () => {
+    it("Backspace on empty input goes back from a picker page", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
@@ -333,6 +421,62 @@ describe("CommandPalette", () => {
       expect(
         osSettingsItem?.querySelector(`.command-palette__item-more`)
       ).toBeInTheDocument();
+    });
+
+    it("auto-expands sub-items when a parent is highlighted via arrow keys", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Sub-items hidden initially.
+      expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+
+      // Arrow down until OS settings is highlighted (aria-selected="true").
+      // Derive the upper bound from the number of rendered items so this
+      // doesn't silently miss if the list grows or reorders.
+      const itemCount = document.querySelectorAll(`.command-palette__item`)
+        .length;
+      const maxPresses = itemCount + 2;
+      let osSettingsItem: Element | null = null;
+      for (let i = 0; i < maxPresses; i += 1) {
+        osSettingsItem = screen
+          .getByText("OS settings")
+          .closest(`.command-palette__item`);
+        if (osSettingsItem?.getAttribute("aria-selected") === "true") {
+          break;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await user.keyboard("{ArrowDown}");
+      }
+
+      // Assert OS settings actually got selected so a failure here points
+      // at the navigation step, not at the expansion check below.
+      expect(osSettingsItem?.getAttribute("aria-selected")).toBe("true");
+
+      await waitFor(() => {
+        expect(screen.getByText("Disk encryption")).toBeInTheDocument();
+      });
+    });
+
+    it("does not auto-expand sub-items when a parent is hovered with the mouse", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      const osSettingsItem = screen
+        .getByText("OS settings")
+        .closest(`.command-palette__item`);
+      expect(osSettingsItem).toBeInTheDocument();
+
+      // Hovering moves cmdk's selected value (selection-follows-pointer)
+      // but must not pop sub-items open — that should only happen on
+      // keyboard nav. The expand/collapse bridge runs through a
+      // useEffect, so wrap the negative assertion in waitFor to make
+      // sure pending effects have flushed before we conclude that
+      // nothing expanded.
+      await user.hover(osSettingsItem!);
+
+      await waitFor(() => {
+        expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+      });
     });
 
     it("expands sub-items on chevron click", async () => {

@@ -1,0 +1,10 @@
+{
+  "name": "Rocketman Choices Packager",
+  "unique_identifier": "tech.rocketman.ChoicesPackager",
+  "token": "rocketman-choices-packager",
+  "installer_format": "pkg",
+  "slug": "rocketman-choices-packager/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

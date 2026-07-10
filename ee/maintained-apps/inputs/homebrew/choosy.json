@@ -1,0 +1,10 @@
+{
+  "name": "Choosy",
+  "unique_identifier": "com.choosyosx.Choosy",
+  "token": "choosy",
+  "installer_format": "zip",
+  "slug": "choosy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

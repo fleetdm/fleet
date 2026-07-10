@@ -1,0 +1,10 @@
+{
+  "name": "Logseq",
+  "unique_identifier": "com.electron.logseq",
+  "token": "logseq",
+  "installer_format": "dmg",
+  "slug": "logseq/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

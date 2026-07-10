@@ -1,10 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { IHostManagedAccountPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
@@ -36,7 +36,6 @@ const ManagedAccountModal = ({
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isRotating, setIsRotating] = useState(false);
   const [justRotated, setJustRotated] = useState(false);
 
@@ -64,18 +63,17 @@ const ManagedAccountModal = ({
     try {
       await hostAPI.rotateManagedLocalAccountPassword(hostId);
       setJustRotated(true);
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate managed local account password."
       );
       // Notify parent so it can refetch host details + activities.
       onRotate();
     } catch (e) {
       const msg = getErrorReason(e);
-      renderFlash(
-        "error",
+      notify.error(
         msg ||
-          "Couldn't send request to rotate managed local account password. Please try again."
+          "Couldn't send request to rotate managed local account password. Please try again.",
+        { response: e }
       );
     }
     setIsRotating(false);

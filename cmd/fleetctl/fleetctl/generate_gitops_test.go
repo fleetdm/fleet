@@ -381,6 +381,9 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label D",
 					}},
+					LabelsExcludeAll: []fleet.LabelIdent{{
+						LabelName: "Label E",
+					}},
 					Type: fleet.PolicyTypeDynamic,
 				},
 			},
@@ -661,6 +664,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
+				PinnedVersion:        new("10.0"),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -674,6 +678,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
+				PinnedVersion:        new("^123"),
 			},
 		}, nil
 	default:
@@ -1209,6 +1214,63 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 	require.True(t, foundWarning, "expected SecretWarning for integrations.google_calendar.api_key_json")
 }
 
+func TestGenerateOrgSettingsMaskedGoogleWorkspaceApiKey(t *testing.T) {
+	// This test verifies that generateOrgSettings handles the case where the
+	// Google Workspace api_key_json is masked (returned as "********" string
+	// instead of a map): it must redact the key to a comment placeholder and
+	// record a SecretWarning, never emitting the secret.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Set the Google Workspace API key to masked, which will serialize as "********".
+	require.NotEmpty(t, appConfig.Integrations.GoogleWorkspace)
+	appConfig.Integrations.GoogleWorkspace[0].ApiKey.SetMasked()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings - this should not panic.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+
+	// Verify the result can be marshaled to YAML without error.
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	// Verify api_key_json was replaced with a comment placeholder (not "********").
+	var orgSettings map[string]any
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+
+	integrations := orgSettings["integrations"].(map[string]any)
+	googleWorkspace := integrations["google_workspace"].([]any)
+	intg := googleWorkspace[0].(map[string]any)
+	apiKeyJson := intg["api_key_json"]
+
+	// Should be a comment placeholder string, not "********" or a map.
+	apiKeyJsonStr, ok := apiKeyJson.(string)
+	require.True(t, ok, "api_key_json should be a string placeholder")
+	require.Contains(t, apiKeyJsonStr, "GITOPS_COMMENT", "api_key_json should be a comment placeholder")
+
+	// Verify SecretWarning was added for google_workspace.api_key_json.
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "integrations.google_workspace.api_key_json" {
+			foundWarning = true
+			break
+		}
+	}
+	require.True(t, foundWarning, "expected SecretWarning for integrations.google_workspace.api_key_json")
+}
+
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
@@ -1628,6 +1690,46 @@ func TestGenerateControls(t *testing.T) {
 	verifyControlsHasMacosSetup(t, controlsRaw)
 }
 
+func TestGenerateGitopsAppleAccountProvisioning(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.AppleAccountProvisioning = fleet.AppleAccountProvisioning{
+		OAuthIdPTokenURL: optjson.SetString("https://idp.example.com/oauth2/v1/token"),
+		OAuthIdPClientID: optjson.SetString("client-id"),
+	}
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+	require.NoError(t, err)
+
+	aap, ok := controls["apple_account_provisioning"].(map[string]any)
+	require.True(t, ok, "apple_account_provisioning should be emitted for global controls")
+	require.Equal(t, "https://idp.example.com/oauth2/v1/token", aap["oauth_idp_token_url"])
+	require.Equal(t, "client-id", aap["oauth_idp_client_id"])
+
+	// The secret is masked/non-exportable, so it's emitted as a TODO comment
+	// registered against default.yml rather than the real value.
+	secretToken, ok := aap["oauth_idp_client_secret"].(string)
+	require.True(t, ok)
+	var found bool
+	for _, c := range cmd.Comments {
+		if c.Token == secretToken {
+			require.Equal(t, "default.yml", c.Filename)
+			require.Contains(t, c.Comment, "TODO")
+			found = true
+		}
+	}
+	require.True(t, found, "the client secret should be emitted as a registered TODO comment")
+}
+
 func TestGenerateSoftware(t *testing.T) {
 	configureFMAManifestServer(t)
 	// Get the test app config.
@@ -1808,6 +1910,19 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	require.Contains(t, regularPkg, "uninstall_script", "regular package should have uninstall_script")
 	require.Contains(t, regularPkg, "pre_install_query", "regular package should have pre_install_query")
 
+	// Only the regular package keeps a version in its generated comment.
+	commentFor := func(name string) string {
+		for _, c := range cmd.Comments {
+			if strings.Contains(c.Comment, name) {
+				return c.Comment
+			}
+		}
+		return ""
+	}
+	require.NotContains(t, commentFor("my-script.sh"), "version", ".sh script package comment should not mention version")
+	require.NotContains(t, commentFor("setup.ps1"), "version", ".ps1 script package comment should not mention version")
+	require.Contains(t, commentFor("regular-package.deb"), "version", "regular package comment should still mention version")
+
 	for filename := range cmd.FilesToWrite {
 		require.NotContains(t, filename, "my-script-linux-install", "should not write install script file for .sh script package")
 		require.NotContains(t, filename, "my-script-linux-postinstall", "should not write post-install script file for .sh script package")
@@ -1954,6 +2069,10 @@ func TestGeneratePolicies(t *testing.T) {
 			},
 			2: {
 				AppStoreId: "1234567890",
+			},
+			8: {
+				MaintainedAppID: 1,
+				Slug:            "fma1/darwin",
 			},
 		},
 		ScriptList: map[uint]string{
@@ -2575,4 +2694,33 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// The team patch policy (title ID 8) references a software installer whose
+	// fleet_maintained_app_id was nulled when the app was removed from the
+	// catalog (the FK is ON DELETE SET NULL). The installer is still present as
+	// a custom package, so it appears in the software list with a zero
+	// MaintainedAppID.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: map[uint]Software{
+			8: {
+				Hash:            "demoted-installer-hash",
+				MaintainedAppID: 0,
+			},
+		},
+	}
+
+	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Team patch policy")
 }

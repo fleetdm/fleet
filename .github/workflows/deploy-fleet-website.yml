@@ -45,6 +45,9 @@ jobs:
         egress-policy: audit
 
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      with:
+        persist-credentials: false
+        fetch-depth: 0
 
     # Configure our access credentials for the Heroku CLI
     - uses: akhileshns/heroku-deploy@e3eb99d45a8e2ec5dca08735e089607befa4bf28 # v3.14.15

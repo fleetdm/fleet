@@ -52,7 +52,7 @@ The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic cha
 
 1. In the Okta Admin Console, go to **Security** → **Device integrations**
 2. Click the **Device Access** tab (not Endpoint management)
-3. Click **Add platform**
+3. Click **Add SCEP configuration**
 4. Select **Desktop (Windows and macOS only)**, then click **Next**
 5. On the Add device management platform page, select:
    - **Certificate authority:** Use Okta as certificate authority
@@ -62,7 +62,7 @@ The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic cha
 
 #### Step 2: Add Okta as a CA in Fleet
 
-In Fleet, go to **Settings** → **Integrations** → **Certificate authorities** and click **Add CA**. Select **Okta CA or Microsoft Device Enrollment service (NDES)** and enter the values from step 7:
+In Fleet, go to **Settings** → **Integrations** → **Certificate enrollment** and click **Add CA**. Select **Okta CA or Microsoft Device Enrollment service (NDES)** and enter the values from step 7:
 
 - **SCEP URL:** The SCEP URL from Okta
 - **Admin URL:** The Challenge URL from Okta
@@ -151,7 +151,7 @@ If you prefer to use a static challenge without Fleet acting as a SCEP proxy, fo
 
 1. In the Okta Admin Console, go to **Security** → **Device integrations**
 2. Click the **Device Access** tab (not Endpoint management)
-3. Click **Add platform**
+3. Click **Add SCEP configuration**
 4. Select **Desktop (Windows and macOS only)**, then click **Next**
 5. On the Add device management platform page, select:
    - **Certificate authority:** Use Okta as certificate authority

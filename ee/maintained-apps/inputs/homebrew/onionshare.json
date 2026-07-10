@@ -1,0 +1,10 @@
+{
+  "name": "OnionShare",
+  "unique_identifier": "org.onionshare.onionshare",
+  "token": "onionshare",
+  "installer_format": "dmg",
+  "slug": "onionshare/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

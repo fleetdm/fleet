@@ -1,0 +1,10 @@
+{
+  "name": "ActiveDock",
+  "unique_identifier": "com.sergey-gerasimenko.ActiveDock-2",
+  "token": "activedock",
+  "installer_format": "zip",
+  "slug": "activedock/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

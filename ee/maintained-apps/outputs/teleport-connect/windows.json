@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "18.10.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Teleport Connect %' AND publisher = 'Gravitational, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Teleport Connect %' AND publisher = 'Gravitational, Inc.' AND version_compare(version, '18.10.0') < 0);"
+      },
+      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect%20Setup-18.10.0.exe",
+      "install_script_ref": "5203db2b",
+      "uninstall_script_ref": "df260b5b",
+      "sha256": "3aacaa6fdba9aecb6a5be0e7e9ca8efb8caa9bebd9eb90a0f9683ac2d58aeefb",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "5203db2b": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n# Teleport Connect ships an NSIS (electron-builder) installer.\n# NSIS installers require /S for silent installation.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "df260b5b": "# Uninstall Teleport Connect (NSIS / electron-builder) via its registry UninstallString.\n# DisplayName is versioned (e.g. \"Teleport Connect 18.8.3\"), so match on the stem.\n# electron-builder installers frequently register per-user, so check HKCU as well as HKLM.\n# NSIS uninstaller takes /S for a silent uninstall.\n\n$softwareNameLike = \"Teleport Connect*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike) {\n        $foundUninstaller = $true\n\n        # Prefer QuietUninstallString when present (already includes silent flags).\n        $uninstallString = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        if (-not $uninstallString) {\n            Write-Host \"No uninstall string found for $($key.DisplayName)\"\n            continue\n        }\n\n        # Parse the uninstall string defensively into command + args:\n        #   \"C:\\path\\Uninstall Teleport Connect.exe\" /S   (quoted, has spaces)\n        #   C:\\path\\Uninstall Teleport Connect.exe /S     (unquoted, has spaces)\n        #   MsiExec.exe /X{GUID}                          (bare token)\n        if ($uninstallString -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $uninstallCommand = $Matches[1]\n            $existingArgs = $Matches[2].Trim()\n        } elseif ($uninstallString -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $uninstallCommand = $Matches[1]\n            $existingArgs = $Matches[2].Trim()\n        } else {\n            $parts = $uninstallString -split '\\s+', 2\n            $uninstallCommand = $parts[0]\n            $existingArgs = if ($parts.Length -gt 1) { $parts[1].Trim() } else { \"\" }\n        }\n\n        # Ensure the silent flag is present.\n        if ($existingArgs -notmatch '(?i)(^|\\s)/S(\\s|$)') {\n            $uninstallArgs = (\"$existingArgs /S\").Trim()\n        } else {\n            $uninstallArgs = $existingArgs\n        }\n\n        Write-Host \"Uninstall command: $uninstallCommand\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $uninstallCommand\n            PassThru = $true\n            Wait = $true\n        }\n        if ($uninstallArgs -ne '') {\n            $processOptions.ArgumentList = $uninstallArgs\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

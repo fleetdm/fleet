@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.1.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider' AND version_compare(bundle_short_version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider' AND version_compare(bundle_short_version, '2026.1.4') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.1.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.1.4-aarch64.dmg",
       "install_script_ref": "b5794400",
       "uninstall_script_ref": "c52dae57",
-      "sha256": "328ea0c566ad5fac252f7b3c2e2d7d179f1c9ca66d3ad1547cdc863eb0ba0ad0",
+      "sha256": "71fc13db604dd63cca673ad91cc42a60524f1ae470b5afecaa83893a9f8f7c11",
       "default_categories": [
         "Developer tools"
       ]

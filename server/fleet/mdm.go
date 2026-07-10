@@ -3,6 +3,8 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -76,6 +78,14 @@ const (
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
+	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
+	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
+	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
+	// name at profile-send time and is expanded to a per-host, Fleet-signed JWT
+	// at command-fetch time (so the token is never stored and never visible on
+	// the /mdm/commands endpoint).
+	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
+
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
@@ -127,9 +137,10 @@ var (
 		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
 		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
 	))
-	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarHostUUIDRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -179,7 +190,9 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte    `db:"token" json:"-"`
+	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -192,11 +205,13 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
 }
 
 type ABMTokenTeam struct {
@@ -1037,6 +1052,22 @@ const (
 
 	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
 	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
+	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
+	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetPSSOCACert is the self-signed Platform SSO CA certificate Fleet uses
+	// to certify the provisioned unlock-key during key exchange. Its private key is
+	// MDMAssetPSSOSigningKey; both are minted once when the feature is first configured.
+	MDMAssetPSSOCACert MDMAssetName = "psso_ca_cert"
+	// MDMAssetPSSOEncryptionKey is the EC P-256 private key Fleet uses to decrypt
+	// the password the Mac extension encrypts "on the wire" (the embedded login
+	// assertion). It is published as an ECDH-ES encryption key in the PSSO JWKS so
+	// the extension can set it as loginRequestEncryptionPublicKey.
+	MDMAssetPSSOEncryptionKey MDMAssetName = "psso_encryption_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetAppleAccountProvisioningIdPClientSecret is the OAuth ROPG IdP client
+	// secret for the macOS account provisioning / Platform SSO feature. Stored
+	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
+	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -1397,7 +1428,7 @@ func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, custo
 				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 		}
 		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
-		if overlap := ProfileLabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
 			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
 				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
 		}
@@ -1408,18 +1439,14 @@ func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, custo
 	}
 }
 
-// ProfileLabelOverlap returns the first label name that appears in both
-// the include list and the exclude list, or an empty string if there is none.
-// include should be the union of labels_include_all and labels_include_any.
-func ProfileLabelOverlap(include, exclude []string) string {
-	seen := make(map[string]struct{}, len(include))
-	for _, n := range include {
-		seen[n] = struct{}{}
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
+func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, fmt.Errorf("generating 32-byte token: %w", err)
 	}
-	for _, n := range exclude {
-		if _, overlapExists := seen[n]; overlapExists {
-			return n
-		}
-	}
-	return ""
+	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
+	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
+	return urlEncodedToken, nil
 }

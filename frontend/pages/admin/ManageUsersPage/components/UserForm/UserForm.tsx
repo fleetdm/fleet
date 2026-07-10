@@ -3,7 +3,6 @@ import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
@@ -15,6 +14,7 @@ import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import ModalFooter from "components/ModalFooter";
+import { notify } from "components/ToastNotification";
 import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
@@ -150,7 +150,6 @@ const UserForm = ({
   ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const priMode = config?.partnerships?.enable_primo;
 
@@ -319,10 +318,10 @@ const UserForm = ({
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
 
-    // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
-    // `validate` function
+    // separate from `validate` function as it renders a toast notification, incompatible with
+    // pure `validate` function
     if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one fleet for this user.`);
+      notify.error(`Please select at least one fleet for this user.`);
       return;
     }
     const errs = validate(
@@ -449,7 +448,7 @@ const UserForm = ({
           <div className="form-field__label">Account</div>
           <Radio
             className={`${baseClass}__radio-input`}
-            label="Create user"
+            label="Add user"
             id="create-user"
             checked={formData.newUserType !== NewUserType.AdminInvited}
             value={NewUserType.AdminCreated}
@@ -505,7 +504,6 @@ const UserForm = ({
         inputOptions={{
           maxLength: 80,
         }}
-        ignore1password
         parseTarget
       />
       <InputField

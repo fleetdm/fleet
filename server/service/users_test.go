@@ -1854,7 +1854,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
 	})
 
-	t.Run("PerformRequiredPasswordReset clears reset tokens but not sessions", func(t *testing.T) {
+	t.Run("PerformRequiredPasswordReset clears other sessions but keeps current", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1866,10 +1866,13 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
 		require.NoError(t, err)
 
+		currentSession := &fleet.Session{ID: 1, UserID: targetUser.ID}
+		otherSession := &fleet.Session{ID: 2, UserID: targetUser.ID}
+
 		// CanPerformPasswordReset requires a session to be present.
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
 			User:    targetUser,
-			Session: &fleet.Session{ID: 1, UserID: targetUser.ID},
+			Session: currentSession,
 		})
 
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
@@ -1882,7 +1885,13 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 			return nil
 		}
 
-		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+		ds.ListSessionsForUserFunc = func(ctx context.Context, userID uint) ([]*fleet.Session, error) {
+			return []*fleet.Session{currentSession, otherSession}, nil
+		}
+
+		var destroyedSessionIDs []uint
+		ds.DestroySessionFunc = func(ctx context.Context, s *fleet.Session) error {
+			destroyedSessionIDs = append(destroyedSessionIDs, s.ID)
 			return nil
 		}
 
@@ -1892,6 +1901,80 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
 		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
 
-		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called for required password reset")
+		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called")
+		assert.True(t, ds.ListSessionsForUserFuncInvoked, "ListSessionsForUser should be called")
+		assert.True(t, ds.DestroySessionFuncInvoked, "DestroySession should be called")
+		assert.Equal(t, []uint{otherSession.ID}, destroyedSessionIDs, "should only destroy the other session, not the current one")
 	})
+}
+
+// TestListUsersFiltersTeamsToRequesterScope verifies that a team-scoped admin
+// listing users does not receive team memberships (IDs/names/roles) for teams
+// the requester has no role in. Regression test for the cross-team data
+// exposure on GET /api/latest/fleet/users for shared multi-team users.
+func TestListUsersFiltersTeamsToRequesterScope(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// A user shared across team 1 and team 2, as returned by the datastore
+	// (ds.ListUsers always loads the user's full team list).
+	sharedUserTeams := []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1, Name: "Team 1"}, Role: fleet.RoleObserver},
+		{Team: fleet.Team{ID: 2, Name: "Team 2"}, Role: fleet.RoleObserver},
+	}
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{
+			ID:    10,
+			Teams: append([]fleet.UserTeam{}, sharedUserTeams...),
+		}}, nil
+	}
+
+	// Requester is an admin of team 1 only, listing users of team 1.
+	teamOneAdmin := &fleet.User{
+		ID:    1,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamOneAdmin})
+
+	resp, err := listUsersEndpoint(ctx, &listUsersRequest{
+		ListOptions: fleet.UserListOptions{TeamID: 1},
+	}, svc)
+	require.NoError(t, err)
+
+	lr, ok := resp.(listUsersResponse)
+	require.True(t, ok)
+	require.NoError(t, lr.Err)
+	require.Len(t, lr.Users, 1)
+
+	// The requester must only see team 1 (in scope), never team 2.
+	require.Len(t, lr.Users[0].Teams, 1)
+	require.Equal(t, uint(1), lr.Users[0].Teams[0].ID)
+}
+
+// TestListUsersGlobalRequesterSeesAllTeams verifies the filter does not strip
+// teams for a global-role requester, who is authorized to see all teams.
+func TestListUsersGlobalRequesterSeesAllTeams(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{
+			ID: 10,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: 1, Name: "Team 1"}, Role: fleet.RoleObserver},
+				{Team: fleet.Team{ID: 2, Name: "Team 2"}, Role: fleet.RoleObserver},
+			},
+		}}, nil
+	}
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
+
+	resp, err := listUsersEndpoint(ctx, &listUsersRequest{}, svc)
+	require.NoError(t, err)
+
+	lr, ok := resp.(listUsersResponse)
+	require.True(t, ok)
+	require.NoError(t, lr.Err)
+	require.Len(t, lr.Users, 1)
+	require.Len(t, lr.Users[0].Teams, 2)
 }

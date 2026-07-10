@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	WINDOWS_SCEP_LOC_URI_PART = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
+	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
+	scepInstallLocURINode     = "Vendor/MSFT/ClientCertificateInstall/SCEP"
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
@@ -880,9 +881,13 @@ type MDMWindowsEnrolledDevice struct {
 	PollScheduleRelaxed bool `db:"poll_schedule_relaxed"`
 	// FleetdSyncCapable is the last-observed CapabilityWindowsMDMSync value for this enrollment, persisted by the orbit-config endpoint. The
 	// management session has no capability header, so it gates poll relaxation on this persisted flag rather than re-deriving the capability.
-	FleetdSyncCapable bool      `db:"fleetd_sync_capable"`
-	CreatedAt         time.Time `db:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at"`
+	FleetdSyncCapable bool `db:"fleetd_sync_capable"`
+	// HasPendingCommands is the denormalized pending-commands flag as loaded at session start. The management session uses it to gate the
+	// per-session refresh: when it is already false and the pending fetch is empty, the refresh is skipped so idle check-ins do zero
+	// writer-side statements.
+	HasPendingCommands bool      `db:"has_pending_commands"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
@@ -1157,7 +1162,9 @@ const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe co
 func (cmd SyncMLCmd) IsPremium() bool {
 	// NOTE: if this implementation changes, make sure to also update the error
 	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
-	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+	//
+	// LocURITargetsReservedNode canonicalizes the target so the premium gate matches every LocURI form Windows accepts.
+	return LocURITargetsReservedNode(cmd.GetTargetURI(), syncml.FleetRemoteWipeTargetLocURI)
 }
 
 // DataType returns the SyncMLDataType corresponding to the command's format.
@@ -1812,11 +1819,11 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // was atomic. Removal is best-effort: individual deletions may fail (e.g., the
 // CSP node doesn't support deletion).
 //
-// locURIsInUseByOtherProfiles is an optional set of LocURIs that are still
-// targeted by other active profiles in the same team. These LocURIs will be
-// skipped when generating <Delete> commands, so that deleting one profile
-// does not undo settings enforced by a different profile.
-func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]bool) (*MDMWindowsCommand, error) {
+// locURIsInUseByOtherProfiles is an optional set of LocURIs that are still targeted by other active profiles in the same team.
+// These LocURIs will be skipped when generating <Delete> commands, so that deleting one profile does not undo settings enforced
+// by a different profile. Both sides are compared in CanonicalLocURI form, so the set may hold any spelling and still protects a
+// node the deleted profile spells differently.
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]struct{}) (*MDMWindowsCommand, error) {
 	// Substitute $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID with the profile UUID.
 	// This is the only Fleet variable that appears in LocURIs (enforced by
 	// upload validation). The install path replaces it with the profile UUID
@@ -1825,24 +1832,24 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 	normalized := FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(profileBytes, []byte(profileUUID))
 
 	// Mirror the install-side behavior: SCEP profiles are wrapped in <Atomic> if not already.
-	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
-		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
-	}
+	normalized = WrapSCEPProfileInAtomic(normalized)
 
 	allURIs := ExtractLocURIsFromProfileBytes(normalized)
 	if len(allURIs) == 0 {
 		return nil, nil
 	}
 
-	// Filter out LocURIs that are still targeted by other active profiles.
-	inUse := make(map[string]bool)
-	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
-		inUse = locURIsInUseByOtherProfiles[0]
+	// Filter out LocURIs that are still targeted by other active profiles, comparing canonical forms.
+	inUse := make(map[string]struct{})
+	if len(locURIsInUseByOtherProfiles) > 0 {
+		for uri := range locURIsInUseByOtherProfiles[0] {
+			inUse[CanonicalLocURI(uri)] = struct{}{}
+		}
 	}
 
 	var safeURIs []string
 	for _, uri := range allURIs {
-		if !inUse[uri] {
+		if _, ok := inUse[CanonicalLocURI(uri)]; !ok {
 			safeURIs = append(safeURIs, uri)
 		}
 	}
@@ -1905,40 +1912,85 @@ func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error)
 	return root.Commands, nil
 }
 
+// CanonicalLocURI returns the comparison form of an OMA-DM LocURI: surrounding whitespace trimmed, the optional "./" prefix
+// dropped, and an explicit leading "Device/" scope segment dropped. Windows treats "./Device/Vendor/X", "./Vendor/X",
+// "Device/Vendor/X" and "Vendor/X" as the same device-scoped node (see validateLocURIFormat's empirically-verified notes; user
+// scope must be explicit, so "./User/..." stays distinct).
+func CanonicalLocURI(locURI string) string {
+	s := strings.TrimSpace(locURI)
+	s = strings.TrimPrefix(s, "./")
+	s = strings.TrimPrefix(s, "Device/")
+	return s
+}
+
+// WrapSCEPProfileInAtomic wraps profileBytes in <Atomic> when the profile targets the Windows SCEP ClientCertificateInstall
+// node and isn't already wrapped.
+func WrapSCEPProfileInAtomic(profileBytes []byte) []byte {
+	if bytes.Contains(profileBytes, []byte(scepInstallLocURINode)) && !bytes.Contains(profileBytes, []byte("<Atomic>")) {
+		return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", profileBytes)
+	}
+	return profileBytes
+}
+
 // ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the
 // profile's Replace and Add commands. Exec commands are excluded (they
 // trigger one-time actions, not persistent settings). For Atomic profiles,
 // nested commands are inspected.
 func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 	// Mirror the install-side SCEP normalization.
-	normalized := profileBytes
-	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
-		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
-	}
+	normalized := WrapSCEPProfileInAtomic(profileBytes)
 
 	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
 	if err != nil || len(cmds) == 0 {
 		return nil
 	}
 
+	// The returned URIs are compared across profile versions and across profiles (edit-diffing, shared-LocURI protection) and become
+	// <Delete> targets. Trim surrounding whitespace so a formatting-only change to a LocURI's spelling is not treated as a different
+	// node, which would generate a <Delete> for a node the new version still enforces.
 	var uris []string
 	for _, cmd := range cmds {
 		if cmd.XMLName.Local == CmdAtomic {
 			for _, nested := range cmd.ReplaceCommands {
-				if uri := nested.GetTargetURI(); uri != "" {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
 					uris = append(uris, uri)
 				}
 			}
 			for _, nested := range cmd.AddCommands {
-				if uri := nested.GetTargetURI(); uri != "" {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
 					uris = append(uris, uri)
 				}
 			}
 		} else if cmd.XMLName.Local == CmdReplace || cmd.XMLName.Local == CmdAdd {
-			if uri := cmd.GetTargetURI(); uri != "" {
+			if uri := strings.TrimSpace(cmd.GetTargetURI()); uri != "" {
 				uris = append(uris, uri)
 			}
 		}
 	}
 	return uris
+}
+
+// LocURITargetsReservedNode reports whether locURI targets the given Fleet-reserved node, or any descendant of it, matching
+// at path-segment boundaries.
+func LocURITargetsReservedNode(locURI, reservedLocURI string) bool {
+	node := strings.Trim(reservedLocURI, "/")
+	// Frame both the canonicalized LocURI and the node with "/" so the substring match is boundary-safe on both ends.
+	return strings.Contains("/"+CanonicalLocURI(locURI)+"/", "/"+node+"/")
+}
+
+// ProfileTargetsReservedLocURI reports whether any Target LocURI in the profile targets the given Fleet-reserved node.
+func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bool {
+	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
+	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
+	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
+		return false
+	}
+	// Confirm a real Add/Replace Target LocURI targets the node
+	for _, uri := range ExtractLocURIsFromProfileBytes(profileBytes) {
+		if LocURITargetsReservedNode(uri, reservedLocURI) {
+			return true
+		}
+	}
+	return false
 }
