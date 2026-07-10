@@ -503,6 +503,10 @@ spec:
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
       enable_disk_encryption: true
+      assets:
+        - path: '/path/to/asset.json'
+      activations:
+        - path: '/path/to/activation.json'
     windows_settings:
       configuration_profiles:
         - path: '/path/to/profile4.xml'
