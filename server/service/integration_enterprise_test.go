@@ -17195,44 +17195,53 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	})
 	require.Len(t, crossRows, 1, "cross-table row should be restored on re-apply")
 
-	// install_during_setup and SetupExperiencePlatforms are independent: the
-	// caller sets the native bool explicitly, the list only feeds the
-	// cross-table. Native platform in the list is invalid (would be a
-	// silent no-op after the reconcile skips native).
-	justMacos := []string{"macos"}
-	crossPkgWithNative := []*fleet.SoftwareInstallerPayload{
+	// Both platforms in the list: install_during_setup flips on from the list
+	// alone (native "linux" is present), and the darwin cross-row is
+	// preserved. When SetupExperiencePlatforms is set it's authoritative for
+	// both the native flag and the cross-table.
+	bothPlatforms := []string{"macos", "linux"}
+	crossPkgBoth := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:                      "script://cross-hello.sh",
 			SHA256:                   hex.EncodeToString(crossHash[:]),
 			InstallScript:            crossScript,
-			SetupExperiencePlatforms: &justMacos,
-			InstallDuringSetup:       new(true),
+			SetupExperiencePlatforms: &bothPlatforms,
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgWithNative}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBoth}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installDuringSetup,
 			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
 	})
-	require.True(t, installDuringSetup, "install_during_setup=true was requested explicitly")
+	require.True(t, installDuringSetup, "native in list should set install_during_setup=1 without a separate setup_experience bool")
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &crossRows,
 			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
 	})
-	require.Len(t, crossRows, 1, "darwin cross-row still present alongside native install_during_setup")
+	require.Len(t, crossRows, 1, "darwin cross-row still present when [macos, linux] is set")
 
-	// Native platform ("linux") in setup_experience_platforms is rejected up
-	// front — the field is for non-native cross-selections only.
-	linuxNative := []string{"linux"}
+	// Native-only in the list is equivalent to setup_experience: true:
+	// install_during_setup=1, cross-table cleared for this installer.
+	linuxOnly := []string{"linux"}
 	crossPkgNative := []*fleet.SoftwareInstallerPayload{
-		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &linuxNative},
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &linuxOnly},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgNative}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
-	failure := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
-	require.Contains(t, failure, `platform "linux" is not a valid "setup_experience_platforms" value for a .sh package`)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
+	})
+	require.True(t, installDuringSetup, "native-only list keeps install_during_setup=1")
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Empty(t, crossRows, "native-only list clears the cross-table for this installer")
 
 	// Extension/platform mismatch: windows on a .sh.
+	var failure string
 	windows := []string{"windows"}
 	crossPkgBad := []*fleet.SoftwareInstallerPayload{
 		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &windows},

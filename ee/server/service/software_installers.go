@@ -3237,6 +3237,9 @@ func (svc *Service) softwareBatchUpload(
 
 			// Canonicalize and reject platforms incompatible with the
 			// installer's extension before the batch reaches the datastore.
+			// When set, this field is authoritative for the installer's setup
+			// experience state — including the native platform, which
+			// overrides whatever setup_experience said on the same payload.
 			if installer.SetupExperiencePlatforms != nil {
 				normalized, err := normalizeSetupExperiencePlatforms(*installer.SetupExperiencePlatforms, installer.Extension)
 				if err != nil {
@@ -3247,6 +3250,9 @@ func (svc *Service) softwareBatchUpload(
 				if slices.Contains(normalized, "darwin") && manualAgentInstall {
 					return errors.New(`Couldn't edit software. "setup_experience_platforms" cannot include macOS if "macos_manual_agent_install" is enabled.`)
 				}
+
+				nativeSelected := slices.Contains(normalized, installer.Platform)
+				installer.InstallDuringSetup = &nativeSelected
 			}
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script

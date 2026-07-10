@@ -787,16 +787,16 @@ func CanonicalPlatform(p string) string {
 	return p
 }
 
-// AllowedSetupExperiencePlatformsForExtension returns the canonical
-// non-native platform names that may appear in a package's
-// setup_experience_platforms field. The native platform is expressed via
-// setup_experience and is deliberately excluded — allowing it here would let
-// a caller name a target the reconcile then silently drops.
+// AllowedSetupExperiencePlatformsForExtension returns the canonical platform
+// names that may appear in a package's setup_experience_platforms field. Both
+// the native platform and any supported non-native targets are allowed —
+// listing the native platform is the declarative equivalent of
+// setup_experience: true.
 func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
 	case "sh":
-		return []string{"darwin"}
+		return []string{"darwin", "linux"}
 	default:
 		return nil
 	}
