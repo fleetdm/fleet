@@ -5,11 +5,13 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Dell's InstallShield setup installs silently with /Silent (per the winget
-# manifest InstallerSwitches). Run as SYSTEM it installs machine-wide.
+# Dell's InstallShield (InstallScript) setup installs silently with /S — the
+# InstallScript silent switch documented for managed/SYSTEM deployment (SCCM,
+# Endpoint Central). The winget manifest's /Silent is an unverified default and
+# aborts headless (exit 0x80042000). Run as SYSTEM this installs machine-wide.
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/Silent"
+  ArgumentList = "/S"
   PassThru = $true
   Wait = $true
 }
