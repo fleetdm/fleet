@@ -197,7 +197,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "get software packages")
 			}
 			if len(pkgs) > 0 {
-				// Display name, icon, and policies are title-level; fetch once from the first-added package.
+				// Display name and icon are title-level; fetch once from the first-added package.
 				titleMeta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
 				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
@@ -213,6 +213,19 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get categories for software packages")
 				}
 
+				// Key policies by installer_id so each package on a multi-package
+				// title only surfaces the ones actually bound to it. VPP-backed
+				// policies have nil InstallerID and dispatch via AppStoreApp.
+				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+				if titleMeta != nil {
+					for _, p := range titleMeta.AutomaticInstallPolicies {
+						if p.InstallerID == nil {
+							continue
+						}
+						policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+					}
+				}
+
 				for _, pkg := range pkgs {
 					summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, pkg.InstallerID)
 					if err != nil {
@@ -224,9 +237,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					if titleMeta != nil {
 						pkg.DisplayName = titleMeta.DisplayName
 						pkg.IconUrl = titleMeta.IconUrl
-						// Automatic install policies are title-level for now.
-						pkg.AutomaticInstallPolicies = titleMeta.AutomaticInstallPolicies
 					}
+					pkg.AutomaticInstallPolicies = policiesByInstaller[pkg.InstallerID]
 
 					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
 					// An FMA title has a single active package, so this runs on it.

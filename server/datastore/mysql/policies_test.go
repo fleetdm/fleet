@@ -5021,6 +5021,9 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, automaticPolicies, 1)
+	// VPP-backed policies dispatch to `AppStoreApp.AutomaticInstallPolicies`
+	// at the title level, not via InstallerID — the field stays nil.
+	require.Nil(t, automaticPolicies[0].InstallerID)
 
 	policyWithVPP, err := ds.Policy(ctx, automaticPolicies[0].ID)
 	require.NoError(t, err)
@@ -6212,6 +6215,11 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.Equal(t, policy1.ID, policies[0].ID)
 	require.Equal(t, policy1.Name, policies[0].Name)
+	// InstallerID is the join key used by the software-titles list to
+	// dispatch policies to the specific package on a multi-package title;
+	// verify it's populated so per-package attribution works.
+	require.NotNil(t, policies[0].InstallerID)
+	require.Equal(t, installer1ID, *policies[0].InstallerID)
 
 	// software title 1 should not have any policies when filtering by team 2
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, team2.ID)
@@ -6224,6 +6232,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.Equal(t, policy2.ID, policies[0].ID)
 	require.Equal(t, policy2.Name, policies[0].Name)
+	require.NotNil(t, policies[0].InstallerID)
+	require.Equal(t, installer2ID, *policies[0].InstallerID)
 
 	// software title 2 should not have any policies when filtering by team 1
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, team1.ID)
@@ -6290,8 +6300,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
-		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, Type: fleet.PolicyTypeDynamic},
-		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, Type: fleet.PolicyTypeDynamic},
+		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, InstallerID: new(installer3ID), Type: fleet.PolicyTypeDynamic},
+		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, InstallerID: new(installer4ID), Type: fleet.PolicyTypeDynamic},
 	}
 
 	for _, got := range policies {

@@ -46,6 +46,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
+		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -939,6 +940,63 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
 	require.NoError(t, err)
 	require.Equal(t, 2, title.SoftwareInstallersCount)
+}
+
+// Regression guard for the per-installer policy dispatch loop in
+// ListSoftwareTitles: a policy pinned to one specific package on a
+// multi-package title must only surface on that package's
+// AutomaticInstallPolicies, not on every package (title-level aggregate).
+func testListSoftwareTitlesPolicyDispatchPerInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Dispatch", "dispatch@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "policy-dispatch-team"})
+	require.NoError(t, err)
+
+	mk := func(storage, filename string) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Dispatch App",
+			Source:           "apps",
+			BundleIdentifier: "com.example.dispatch",
+			Platform:         "darwin",
+			Extension:        "pkg",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			Filename:         filename,
+			StorageID:        storage,
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team.ID,
+		}
+	}
+
+	installer1ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("dispatch-a", "a.pkg"))
+	require.NoError(t, err)
+	installer2ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("dispatch-b", "b.pkg"))
+	require.NoError(t, err)
+
+	// Pin a policy to installer 1 only. Installer 2 must NOT see it.
+	pol, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:  "dispatch-policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	pol.SoftwareInstallerID = new(installer1ID)
+	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Len(t, titles[0].Packages, 2)
+
+	// packages[] is ordered by installer_id ASC — package[0] is installer 1
+	// (pinned), package[1] is installer 2 (not pinned).
+	require.Equal(t, installer1ID, titles[0].Packages[0].InstallerID)
+	require.Len(t, titles[0].Packages[0].AutomaticInstallPolicies, 1, "installer 1 should carry the pinned policy")
+	assert.Equal(t, pol.ID, titles[0].Packages[0].AutomaticInstallPolicies[0].ID)
+
+	require.Equal(t, installer2ID, titles[0].Packages[1].InstallerID)
+	assert.Empty(t, titles[0].Packages[1].AutomaticInstallPolicies, "installer 2 should NOT carry any policies (regression: aggregate title-level list)")
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {

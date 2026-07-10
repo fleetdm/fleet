@@ -173,9 +173,10 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
-			SoftwareTitleID: *installerMetadata.TitleID,
-			Name:            installerMetadata.SoftwareTitle,
-			DisplayName:     installerMetadata.DisplayName,
+			SoftwareTitleID:     *installerMetadata.TitleID,
+			SoftwareInstallerID: new(installerMetadata.InstallerID),
+			Name:                installerMetadata.SoftwareTitle,
+			DisplayName:         installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {
@@ -207,6 +208,8 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
 		}
+		// SoftwareInstallerID intentionally omitted — patch policies target FMA
+		// titles (single installer per title) so per-package pinning doesn't apply.
 		p.PatchSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,

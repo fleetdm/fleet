@@ -489,10 +489,17 @@ func (ds *Datastore) processSoftwareTitleResults(
 		if err != nil {
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get packages for software titles")
 		}
-		// Automatic install policies are title-level for now, so attach the same set to every package.
-		policiesByTitle := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
+		// Key policies by installer_id so each package on a multi-package
+		// title only shows the policies actually bound to it — not the
+		// aggregated title-level list. Custom-package-backed policies
+		// always carry a non-nil InstallerID; VPP-backed policies do not
+		// (they're already attached above via softwareList[i].AppStoreApp).
+		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
-			policiesByTitle[p.TitleID] = append(policiesByTitle[p.TitleID], p)
+			if p.InstallerID == nil {
+				continue
+			}
+			policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
 		}
 		for titleID, pkgs := range packagesByTitle {
 			i, ok := titleIndex[titleID]
@@ -500,7 +507,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 				continue
 			}
 			for j := range pkgs {
-				pkgs[j].AutomaticInstallPolicies = policiesByTitle[titleID]
+				pkgs[j].AutomaticInstallPolicies = policiesByInstaller[pkgs[j].InstallerID]
 			}
 			softwareList[i].Packages = pkgs
 		}
@@ -588,11 +595,13 @@ func (ds *Datastore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *u
 	const stmt = `
 SELECT
 	si.title_id,
+	si.id AS installer_id,
 	si.filename AS name,
 	si.version,
 	si.platform,
 	si.self_service,
-	si.url AS package_url
+	si.url AS package_url,
+	si.uploaded_at
 FROM
 	software_installers si
 WHERE
@@ -600,12 +609,14 @@ WHERE
 ORDER BY si.id ASC`
 
 	type packageRow struct {
-		TitleID     uint    `db:"title_id"`
-		Name        string  `db:"name"`
-		Version     string  `db:"version"`
-		Platform    string  `db:"platform"`
-		SelfService bool    `db:"self_service"`
-		PackageURL  *string `db:"package_url"`
+		TitleID     uint      `db:"title_id"`
+		InstallerID uint      `db:"installer_id"`
+		Name        string    `db:"name"`
+		Version     string    `db:"version"`
+		Platform    string    `db:"platform"`
+		SelfService bool      `db:"self_service"`
+		PackageURL  *string   `db:"package_url"`
+		UploadedAt  time.Time `db:"uploaded_at"`
 	}
 
 	ret := make(map[uint][]fleet.SoftwarePackageListItem)
@@ -622,11 +633,13 @@ ORDER BY si.id ASC`
 		for _, r := range rows {
 			selfService := r.SelfService
 			ret[r.TitleID] = append(ret[r.TitleID], fleet.SoftwarePackageListItem{
+				InstallerID: r.InstallerID,
 				Name:        r.Name,
 				Version:     r.Version,
 				Platform:    r.Platform,
 				SelfService: &selfService,
 				PackageURL:  r.PackageURL,
+				UploadedAt:  r.UploadedAt,
 			})
 		}
 		return nil

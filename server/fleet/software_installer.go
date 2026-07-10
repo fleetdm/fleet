@@ -813,10 +813,17 @@ func (h *HostSoftwareWithInstaller) ForMyDevicePage(token string) {
 }
 
 type AutomaticInstallPolicy struct {
-	ID      uint   `json:"id" db:"id"`
-	Name    string `json:"name" db:"name"`
-	TitleID uint   `json:"-" db:"software_title_id"`
-	Type    string `json:"type" db:"type"`
+	ID   uint   `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+	// TitleID and InstallerID are join keys used to dispatch a policy to
+	// the right software title / specific package on the list response.
+	// Neither is exposed on the wire.
+	TitleID uint `json:"-" db:"software_title_id"`
+	// InstallerID is nil for VPP-app-backed policies (they carry
+	// vpp_apps_teams_id instead). For custom-package-backed policies it
+	// points at the specific package the policy triggers install on.
+	InstallerID *uint  `json:"-" db:"software_installer_id"`
+	Type        string `json:"type" db:"type"`
 }
 
 type PatchPolicyData struct {
@@ -852,12 +859,15 @@ type SoftwarePackageOrApp struct {
 // SoftwarePackageListItem is the trimmed list-response package shape; it omits the
 // host-only last_install/last_uninstall fields that SoftwarePackageOrApp carries.
 type SoftwarePackageListItem struct {
+	// InstallerID is the per-package id used to pin a policy to a specific package.
+	InstallerID              uint                     `json:"installer_id"`
 	Name                     string                   `json:"name"`
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 	Version                  string                   `json:"version"`
 	Platform                 string                   `json:"platform"`
 	SelfService              *bool                    `json:"self_service,omitempty"`
 	PackageURL               *string                  `json:"package_url"`
+	UploadedAt               time.Time                `json:"uploaded_at"`
 }
 
 func (s *SoftwarePackageOrApp) GetPlatform() string {

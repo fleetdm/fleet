@@ -573,11 +573,17 @@ const LibraryItemAccordion = ({
     </Button>
   );
 
-  // Only FMA and App Store / Play Store rows are GitOps-locked (those
-  // installer types can't be managed via YAML); custom packages stay
-  // deletable. The `software` entity exception is honored via the wrapper.
+  // GitOps-lock the trash button for installer types whose mutations should
+  // flow through YAML rather than the UI:
+  //   - FMA and App Store / Play Store: can't be managed via YAML in the
+  //     ordinary sense, so UI mutations would just be reverted on next run.
+  //   - Custom multi-package titles: the Edit modal is already visible-but-
+  //     disabled for these in GitOps mode; delete follows the same lock so
+  //     the row's mutation affordances stay consistent.
+  // Single-package custom titles keep the shipped behavior — deletable via
+  // UI with a GitOps banner in the delete modal.
   const isAppStore = installerType === "app-store";
-  const lockedByGitOpsMode = isFma || isAppStore;
+  const lockedByGitOpsMode = isFma || isAppStore || canActivateMultiplePackages;
 
   const renderTrashButton = () =>
     lockedByGitOpsMode ? (
