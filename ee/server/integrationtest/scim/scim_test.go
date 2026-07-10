@@ -93,10 +93,10 @@ func testAuth(t *testing.T, s *Suite) {
 	// Maintainer denied on read (Schemas endpoint)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
-	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, []any{"urn:ietf:params:scim:api:messages:2.0:Error"}, resp["schemas"])
 	// Maintainer denied on write (create user)
 	resp = nil
-	s.DoJSON(t, "POST", scimPath("/Users"), map[string]interface{}{
+	s.DoJSON(t, "POST", scimPath("/Users"), map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "maintainer-attempt@example.com",
 	}, http.StatusForbidden, &resp)
