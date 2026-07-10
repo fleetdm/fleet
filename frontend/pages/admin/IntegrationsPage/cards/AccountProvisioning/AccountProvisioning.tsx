@@ -177,7 +177,6 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
           />
           <InputField
             type="password"
-            enableShowSecret
             label="Client secret"
             name="clientSecret"
             value={formData.clientSecret}
