@@ -1,16 +1,15 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
@@ -49,35 +48,50 @@ const HostNameTemplate = ({
   const [nameTemplate, setNameTemplate] = useState<string>();
   const [savedNameTemplate, setSavedNameTemplate] = useState<string>();
 
-  // Seed the No-team value from app config once it's available, and re-seed
-  // after a save refreshes the config. Fleets seed from the team query below.
-  useEffect(() => {
-    if (isNoTeam) {
-      const loaded = config?.mdm.name_template ?? "";
-      setNameTemplate(loaded);
-      setSavedNameTemplate(loaded);
+  const {
+    data: teamData,
+    isLoading: isLoadingTeam,
+    isError: isTeamError,
+  } = useQuery<ILoadTeamResponse, Error>(
+    ["team", currentTeamId],
+    () => teamsAPI.load(currentTeamId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier && !!mdmEnabled && !isNoTeam,
+      onError: (err) => {
+        notify.error("Couldn't load fleet settings. Please try again.", {
+          response: err,
+        });
+      },
     }
-  }, [isNoTeam, config?.mdm.name_template]);
+  );
 
-  const { isLoading: isLoadingTeam, isError: isTeamError } = useQuery<
-    ILoadTeamResponse,
-    Error,
-    ITeamConfig
-  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: isPremiumTier && !!mdmEnabled && !isNoTeam,
-    select: (res) => res.fleet,
-    onSuccess: (res) => {
-      const loaded = res.mdm?.name_template ?? "";
+  // Seed the form once per scope (team) from whichever source owns the
+  // template — the global app config for "No team", or the team query for a
+  // fleet. An effect keeps state seeding in one place (react-query deprecates
+  // useQuery's onSuccess in newer versions). Guarding on the scope prevents a
+  // post-save config refresh (No team) or a background team refetch from
+  // clobbering in-progress edits; switching teams re-seeds for the new scope.
+  const seededTeamRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (seededTeamRef.current === currentTeamId) {
+      return;
+    }
+    if (isNoTeam) {
+      if (!config) {
+        return; // wait until app config is available
+      }
+      const loaded = config.mdm.name_template ?? "";
       setNameTemplate(loaded);
       setSavedNameTemplate(loaded);
-    },
-    onError: (err) => {
-      notify.error("Couldn't load fleet settings. Please try again.", {
-        response: err,
-      });
-    },
-  });
+      seededTeamRef.current = currentTeamId;
+    } else if (teamData) {
+      const loaded = teamData.fleet?.mdm?.name_template ?? "";
+      setNameTemplate(loaded);
+      setSavedNameTemplate(loaded);
+      seededTeamRef.current = currentTeamId;
+    }
+  }, [currentTeamId, isNoTeam, config, teamData]);
 
   const { mutate: saveNameTemplate, isLoading: updating } = useMutation(
     (tmpl: string) =>
@@ -184,19 +198,12 @@ const HostNameTemplate = ({
         variant="right-panel"
         content={
           <>
-            Set a naming convention for all macOS, iOS, or iPadOS hosts in this
-            fleet. Use{" "}
+            Set a naming convention for all macOS, iOS, or iPadOS hosts{" "}
+            {isNoTeam ? "with no fleet" : "in this fleet"}. Use{" "}
             <CustomLink
               text="built-in"
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/built-in-variables`}
               newTab
-            />{" "}
-            or{" "}
-            <CustomLink
-              text="custom"
-              url={getPathWithQueryParams(PATHS.CONTROLS_VARIABLES, {
-                fleet_id: currentTeamId,
-              })}
             />{" "}
             variables to differentiate between hosts.
           </>

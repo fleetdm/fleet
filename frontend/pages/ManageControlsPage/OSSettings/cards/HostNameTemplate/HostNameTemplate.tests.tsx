@@ -124,6 +124,106 @@ describe("HostNameTemplate card", () => {
     });
   });
 
+  it("saves the No-team template with fleet_id 0 and refreshes app config", async () => {
+    let savedBody: unknown;
+    let configRefetched = false;
+    mockServer.use(
+      http.post(baseUrl("/host_name_template"), async ({ request }) => {
+        savedBody = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+      // onSuccess refreshes the global app config for the No-team scope.
+      http.get(baseUrl("/config"), () => {
+        configRefetched = true;
+        return HttpResponse.json({
+          mdm: {
+            enabled_and_configured: true,
+            name_template: "No team $FLEET_VAR_HOST_HARDWARE_SERIAL",
+          },
+        });
+      })
+    );
+    const successSpy = jest.spyOn(notify, "success");
+    const errorSpy = jest.spyOn(notify, "error");
+
+    const onMutation = jest.fn();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          setConfig: jest.fn(),
+          config: {
+            mdm: { enabled_and_configured: true, name_template: "" },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
+    const { user } = render(
+      <HostNameTemplate
+        {...baseProps}
+        currentTeamId={0}
+        onMutation={onMutation}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toBeInTheDocument();
+    });
+
+    await user.type(
+      screen.getByRole("textbox"),
+      "No team $FLEET_VAR_HOST_HARDWARE_SERIAL"
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onMutation).toHaveBeenCalled();
+    });
+    expect(savedBody).toEqual({
+      fleet_id: 0,
+      name_template: "No team $FLEET_VAR_HOST_HARDWARE_SERIAL",
+    });
+    expect(successSpy).toHaveBeenCalledWith(
+      "Successfully updated host name template."
+    );
+    await waitFor(() => {
+      expect(configRefetched).toBe(true);
+    });
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("disables the input in GitOps mode for 'No team'", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              name_template: "No team iPad $FLEET_VAR_HOST_HARDWARE_SERIAL",
+            },
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "https://github.com/example/repo",
+            },
+          },
+        },
+      },
+    });
+
+    render(<HostNameTemplate {...baseProps} currentTeamId={0} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByDisplayValue("No team iPad $FLEET_VAR_HOST_HARDWARE_SERIAL")
+      ).toBeDisabled();
+    });
+  });
+
   it("saves the template and fires onMutation", async () => {
     mockServer.use(teamHandler(""));
     let savedBody: unknown;

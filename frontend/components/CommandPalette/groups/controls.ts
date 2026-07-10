@@ -7,7 +7,12 @@ const buildControlsItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
-  const { canAccessControls, isPremiumTier, isTechnician, withTeamId } = ctx;
+  const {
+    canAccessControls,
+    isPremiumTier,
+    isAdminOrMaintainer,
+    withTeamId,
+  } = ctx;
   const { hasTeamOrUnassigned } = derived;
 
   // Controls pages don't support "All fleets" (includeAllTeams: false),
@@ -79,9 +84,8 @@ const buildControlsItems = (
             "windows csp",
           ],
         },
-        // Certificates and Passwords — Premium-only, and not
-        // available to technicians.
-        ...(isPremiumTier && !isTechnician
+        // Certificates and Passwords — Premium-only, admin/maintainer only.
+        ...(isPremiumTier && isAdminOrMaintainer
           ? [
               {
                 id: "controls-certificates",
@@ -105,9 +109,9 @@ const buildControlsItems = (
               },
             ]
           : []),
-        // Host names — Premium-only, not available to technicians. Supported
-        // for both fleets and "No team" / Unassigned.
-        ...(isPremiumTier && !isTechnician
+        // Host names — Premium-only, admin/maintainer only. Supported for
+        // both fleets and "No team" / Unassigned.
+        ...(isPremiumTier && isAdminOrMaintainer
           ? [
               {
                 id: "controls-host-name-template",
