@@ -3050,6 +3050,40 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_escrow_disk_encryption_key_only
+
+Generated when a user turns on escrow only for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that escrow only applies to, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that escrow applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## disabled_escrow_disk_encryption_key_only
+
+Generated when a user turns off escrow only for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that escrow only applies to, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that escrow applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
