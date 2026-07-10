@@ -5,13 +5,15 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Dell's InstallShield (InstallScript) setup installs silently with /S — the
-# InstallScript silent switch documented for managed/SYSTEM deployment (SCCM,
-# Endpoint Central). The winget manifest's /Silent is an unverified default and
-# aborts headless (exit 0x80042000). Run as SYSTEM this installs machine-wide.
+# DDPM's installer aborts (exit 0x80042000) in a non-interactive SYSTEM session
+# unless told it is headless. Dell's documented managed-deployment switches:
+#   /Silent            - no UI
+#   /HeadlessMode=true - required for SYSTEM/session-0 (no desktop) installs
+#   /TelemetryConsent=false - decline telemetry (no consent prompt)
+#   /TurnOffCA         - disable the app's own auto-update (Fleet manages updates)
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "/Silent /HeadlessMode=true /TelemetryConsent=false /TurnOffCA"
   PassThru = $true
   Wait = $true
 }
