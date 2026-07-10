@@ -108,7 +108,7 @@ A patch policy's `query` automatically updates. Hosts will fail this policy if t
 
 To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
 
-By default (`only_when_closed: true`), Fleet adds a read-only pre-install condition that skips the automated install while the app is open on the host, and retries the next time the policy runs — this skip doesn't count against the software install retry limit. `fleetctl gitops` rejects a `pre_install_query` set on the referenced `fleet_maintained_apps` entry while `only_when_closed` is `true`, since Fleet manages that query. Set `only_when_closed` to `false` ("Force patch") to install the update the next time the policy fails, whether or not the app is open.
+When `patch_only_when_closed: true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open on the host, and retries the next time the policy runs. `pre_install_query` set on the referenced `fleet_maintained_apps` entry while `patch_only_when_closed` is `true` is rejected, since Fleet manages that query. Set `patch_only_when_closed` to `false` to install the update the next time the policy fails, whether or not the app is open.
 
 When `patch_only_when_closed` is set to `true`, the `continuous_automations_enabled` is automatically set to `true`.```
 
