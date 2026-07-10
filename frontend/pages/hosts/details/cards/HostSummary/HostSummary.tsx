@@ -68,6 +68,10 @@ const HostSummary = ({
 
   const { status, platform, os_version, mdm } = summaryData;
 
+  // Derive a local copy so we can append the synthetic disk-encryption,
+  // recovery-lock, and host-name rows without mutating the hostSettings prop.
+  let derivedHostSettings = hostSettings;
+
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
 
@@ -150,8 +154,8 @@ const HostSummary = ({
       osSettings.disk_encryption.status,
       osSettings.disk_encryption.detail
     );
-    hostSettings = hostSettings
-      ? [...hostSettings, winDiskEncryptionSetting]
+    derivedHostSettings = derivedHostSettings
+      ? [...derivedHostSettings, winDiskEncryptionSetting]
       : [winDiskEncryptionSetting];
   }
 
@@ -164,8 +168,8 @@ const HostSummary = ({
       osSettings.disk_encryption.status,
       osSettings.disk_encryption.detail
     );
-    hostSettings = hostSettings
-      ? [...hostSettings, linuxDiskEncryptionSetting]
+    derivedHostSettings = derivedHostSettings
+      ? [...derivedHostSettings, linuxDiskEncryptionSetting]
       : [linuxDiskEncryptionSetting];
   }
 
@@ -178,8 +182,8 @@ const HostSummary = ({
       osSettings.recovery_lock_password.status,
       osSettings.recovery_lock_password.detail
     );
-    hostSettings = hostSettings
-      ? [...hostSettings, recoveryLockSetting]
+    derivedHostSettings = derivedHostSettings
+      ? [...derivedHostSettings, recoveryLockSetting]
       : [recoveryLockSetting];
   }
 
@@ -193,8 +197,8 @@ const HostSummary = ({
     osSettings
   );
   if (hostNameSetting) {
-    hostSettings = hostSettings
-      ? [...hostSettings, hostNameSetting]
+    derivedHostSettings = derivedHostSettings
+      ? [...derivedHostSettings, hostNameSetting]
       : [hostNameSetting];
   }
 
@@ -222,14 +226,14 @@ const HostSummary = ({
       )}
       {isPremiumTier && renderHostTeam()}
       {isOsSettingsDisplayPlatform(platform, os_version) &&
-        hostSettings &&
-        hostSettings.length > 0 && (
+        derivedHostSettings &&
+        derivedHostSettings.length > 0 && (
           <DataSet
             className={`${baseClass}__os-settings`}
             title="OS settings"
             value={
               <OSSettingsIndicator
-                profiles={hostSettings}
+                profiles={derivedHostSettings}
                 onClick={toggleOSSettingsModal}
               />
             }

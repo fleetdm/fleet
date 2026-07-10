@@ -1,4 +1,4 @@
-import { IHostMdmData } from "interfaces/host";
+import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
 import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
 import { generateTableData } from "./OSSettingsTableConfig";
@@ -20,8 +20,8 @@ const createMockHostMdmData = (
 });
 
 describe("generateTableData - host name row", () => {
-  const hostNameSetting = {
-    status: "pending" as const,
+  const hostNameSetting: IHostMdmHostNameSetting = {
+    status: "pending",
     detail: "",
   };
 
@@ -128,4 +128,31 @@ describe("generateTableData - host name row", () => {
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.name)).toEqual(["Wi-Fi", "Host name"]);
   });
+
+  // The row is driven purely by the presence of os_settings.host_name and is
+  // team-agnostic: a host in "No team" (Unassigned) under a No-team template
+  // gets the object from the backend and therefore renders the row identically
+  // to a fleet host. The row generator cannot key on team — IHostMdmData
+  // carries no team field.
+  it.each(["darwin", "ios", "ipados"])(
+    "appends the host name row for No-team (Unassigned) %s hosts when os_settings.host_name is present",
+    (platform) => {
+      const mdmData = createMockHostMdmData({
+        os_settings: {
+          disk_encryption: { status: null, detail: "" },
+          certificates: [],
+          host_name: hostNameSetting,
+        },
+      });
+
+      const rows = generateTableData(mdmData, platform) ?? [];
+
+      const hostNameRow = rows.find(
+        (r) => r.profile_uuid === HOST_NAME_SYNTHETIC_PROFILE_UUID
+      );
+      expect(hostNameRow).toBeDefined();
+      expect(hostNameRow?.name).toBe("Host name");
+      expect(hostNameRow?.status).toBe("pending");
+    }
+  );
 });
