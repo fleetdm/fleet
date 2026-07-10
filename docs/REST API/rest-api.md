@@ -9303,7 +9303,7 @@ _Available in Fleet Premium_
       "install_software": {
         "name": "Adobe Acrobat",
         "software_title_id": 1234
-        "patch_only_when_closed": true,
+        "patch_only_when_closed": true
       }
     }
   ],
