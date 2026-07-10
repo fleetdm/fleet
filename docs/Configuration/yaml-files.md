@@ -422,7 +422,7 @@ controls:
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
   windows_automatic_enrollment:
-    default_fleet: Unassigned
+    default_fleet: Windows Workstations
 ```
 
 ### macos_updates
@@ -529,7 +529,7 @@ Can only be configured for "All fleets" (`default.yml`).
 
 The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
 
-- `default_fleet` specifies the name of the fleet all Windows hosts go in.
+- `default_fleet` specifies the name of the fleet all Windows hosts go in (default: `""`).
 
 ## software
 
