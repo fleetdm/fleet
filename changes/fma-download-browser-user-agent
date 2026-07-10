@@ -1,1 +1,0 @@
-- Fixed Fleet-maintained app installer downloads failing with HTTP 403 on vendor hosts (such as dl.dell.com and www.crestron.com) that reject non-browser User-Agents, by sending a browser-like User-Agent when downloading installers.
