@@ -1999,6 +1999,7 @@ SELECT
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
 	hsi.software_title_id,
 	hsi.software_installer_id,
+	si.storage_id AS hash_sha256,
 	COALESCE(hsi.execution_status, '') AS status,
 	hsi.installer_filename AS software_package,
 	hsi.user_id AS user_id,
@@ -2014,6 +2015,7 @@ SELECT
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
+	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND
@@ -2030,6 +2032,7 @@ SELECT
 	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
 	siua.software_title_id,
 	siua.software_installer_id,
+	si.storage_id AS hash_sha256,
 	'pending_install' AS status,
 	ua.payload->>'$.installer_filename' AS software_package,
 	ua.user_id AS user_id,
@@ -2048,6 +2051,8 @@ FROM
 		ON ua.id = siua.upcoming_activity_id
 	LEFT JOIN software_titles st
 		ON siua.software_title_id = st.id
+	LEFT JOIN software_installers si
+		ON siua.software_installer_id = si.id
 WHERE
 	ua.execution_id = :execution_id AND
 	ua.activity_type = 'software_install' AND

@@ -449,6 +449,9 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// HashSHA256 is the SHA256 hash of the software installer package. It is
+	// nil when the installer has been deleted from the server.
+	HashSHA256 *string `json:"hash_sha256" db:"hash_sha256"`
 	// Source is the osquery source for this software (e.g., "sh_packages", "ps1_packages").
 	Source *string `json:"source" db:"source"`
 	// HostID is the ID of the host.
