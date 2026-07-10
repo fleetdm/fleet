@@ -86,6 +86,32 @@ describe("AddCertModal", () => {
     mockServer.resetHandlers();
   });
 
+  it("lists only custom SCEP CAs in the CA dropdown", async () => {
+    // Return a mix of CA types; only the custom SCEP CA should be selectable.
+    mockServer.use(
+      http.get(baseUrl("/certificate_authorities"), () => {
+        return HttpResponse.json({
+          certificate_authorities: [
+            { id: 1, name: "TEST_SCEP_CA", type: "custom_scep_proxy" },
+            { id: 2, name: "TEST_DIGICERT_CA", type: "digicert" },
+            { id: 3, name: "TEST_NDES_CA", type: "ndes_scep_proxy" },
+            { id: 4, name: "TEST_HYDRANT_CA", type: "hydrant" },
+          ],
+        });
+      })
+    );
+
+    const { user } = await renderModal();
+
+    await user.click(screen.getByText("Select certificate authority"));
+    await waitFor(() => {
+      expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("TEST_DIGICERT_CA")).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST_NDES_CA")).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST_HYDRANT_CA")).not.toBeInTheDocument();
+  });
+
   it("renders the SAN field alongside the existing fields", async () => {
     await renderModal();
     expect(
