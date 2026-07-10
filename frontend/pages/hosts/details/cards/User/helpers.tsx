@@ -1,5 +1,3 @@
-import React from "react";
-
 import { IHostEndUser } from "interfaces/host";
 
 export const generateUsernameValues = (endUsers: IHostEndUser[]) => {
@@ -69,40 +67,4 @@ export const generateOtherEmailsValues = (endUsers: IHostEndUser[]) => {
     }
     return acc;
   }, []);
-};
-
-export const generateFullNameTipContent = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0) return null;
-
-  if (endUsers[0].idp_info_updated_at === null) {
-    return (
-      <>
-        Connect your identity provider to Fleet on the{" "}
-        <b>
-          Settings {">"} Integrations {">"} IdP
-        </b>{" "}
-        page.
-      </>
-    );
-  }
-
-  return <>This is the {'"givenName + familyName"'} from your IdP.</>;
-};
-
-export const generateGroupsTipContent = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0) return null;
-
-  if (endUsers[0].idp_info_updated_at === null) {
-    return (
-      <>
-        Connect your identity provider to Fleet on the{" "}
-        <b>
-          Settings {">"} Integrations {">"} IdP
-        </b>{" "}
-        page.
-      </>
-    );
-  }
-
-  return null;
 };

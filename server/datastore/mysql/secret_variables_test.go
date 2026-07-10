@@ -1,14 +1,20 @@
 package mysql
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -372,6 +378,48 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, expected, expanded)
 	})
+
+	t.Run("psso device registration token minting", func(t *testing.T) {
+		hostPSSO, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new("host-psso-regtoken-test"),
+			NodeKey:         new("host-psso-regtoken-test-key"),
+			UUID:            "host-psso-regtoken-test-uuid",
+			Hostname:        "host-psso-regtoken-test-hostname",
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+
+		doc := `<string>$FLEET_HOST_SECRET_PSSO_DEVICE_REGISTRATION_TOKEN</string>`
+
+		// Without the PSSO signing key asset configured, minting must fail rather
+		// than emit an empty/garbage token.
+		_, err = ds.ExpandHostSecrets(ctx, doc, hostPSSO.UUID)
+		require.Error(t, err)
+
+		signingKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		der, err := x509.MarshalECPrivateKey(signingKey)
+		require.NoError(t, err)
+		keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der})
+		err = ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetPSSOSigningKey, Value: keyPEM},
+		}, nil)
+		require.NoError(t, err)
+
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostPSSO.UUID)
+		require.NoError(t, err)
+		require.NotContains(t, expanded, "FLEET_HOST_SECRET")
+
+		// The expanded value is a Fleet-signed JWT bound to this host's UUID.
+		token := strings.TrimSuffix(strings.TrimPrefix(expanded, "<string>"), "</string>")
+		sub, err := regtoken.Validate(token, &signingKey.PublicKey, time.Now())
+		require.NoError(t, err)
+		require.Equal(t, hostPSSO.UUID, sub)
+	})
 }
 
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {
@@ -635,7 +683,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 			Identifier: "decl-1",
 			Name:       "decl-1",
 			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 
 		// Attempt to delete the variable, should fail.
@@ -657,7 +705,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 			Name:       "decl-1",
 			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
 			TeamID:     &foobarTeam.ID,
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 
 		// Attempt to delete the variable, should fail.

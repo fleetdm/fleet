@@ -571,29 +571,12 @@ module.exports = {
               }//ﬁ
 
               // Get last modified timestamp using git, and represent it as a JS timestamp.
-              let lastModifiedAt;
-              if(!githubAccessToken) {
-                lastModifiedAt = Date.now();
-              } else if(process.env.GITHUB_REF_NAME && process.env.GITHUB_REF_NAME === 'main') {// Only add lastModifiedAt timestamps if this test is running on the main branch
-                let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
-                  url: 'https://api.github.com/repos/fleetdm/fleet/commits',
-                  data: {
-                    path: path.join(sectionRepoPath, pageRelSourcePath),
-                    page: 1,
-                    per_page: 1,//eslint-disable-line camelcase
-                  },
-                  headers: baseHeadersForGithubRequests,
-                }).intercept((err)=>{
-                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
-                });
-                // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
-                let mostRecentCommitToThisFile = responseData[0];
-                if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
-                  // Throw an error if the the response from GitHub is missing a commit or commiter.
-                  throw new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
-                }
-                lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
-              }
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
+                dir: topLvlRepoPath,
+              })).stdout)).getTime();
+
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
@@ -854,30 +837,12 @@ module.exports = {
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
         // Get last modified timestamp using git, and represent it as a JS timestamp.
-        let lastModifiedAt;
-        if(!githubAccessToken) {
-          lastModifiedAt = Date.now();
-        } else {
-          // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
-          let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
-            url: 'https://api.github.com/repos/fleetdm/fleet/commits',
-            data: {
-              path: RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO,
-              page: 1,
-              per_page: 1,//eslint-disable-line camelcase
-            },
-            headers: baseHeadersForGithubRequests,
-          }).intercept((err)=>{
-            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
-          });
-          // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
-          let mostRecentCommitToThisFile = responseData[0];
-          if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
-            // Throw an error if the the response from GitHub is missing a commit or commiter.
-            throw new Error(`When trying to get a lastModifiedAt timestamp for the open positions YAML, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
-          }
-          lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
-        }
+        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});

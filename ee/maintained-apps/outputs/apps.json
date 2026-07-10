@@ -226,6 +226,13 @@
       "description": "Adobe DNG Conver is a DNG file converter."
     },
     {
+      "name": "Advanced Installer",
+      "slug": "advanced-installer/windows",
+      "platform": "windows",
+      "unique_identifier": "Advanced Installer",
+      "description": "Advanced Installer is a Windows Installer packaging tool for building MSI, MSIX, and App-V packages."
+    },
+    {
       "name": "Advanced Renamer",
       "slug": "advanced-renamer/darwin",
       "platform": "darwin",
@@ -1500,6 +1507,13 @@
       "description": "CellProfiler is an open-source application for biological image analysis."
     },
     {
+      "name": "Certify The Web",
+      "slug": "certify-the-web/windows",
+      "platform": "windows",
+      "unique_identifier": "Certify Certificate Manager",
+      "description": "Certify The Web is a certificate manager for requesting and auto-renewing free SSL/TLS certificates on Windows servers."
+    },
+    {
       "name": "Chalk",
       "slug": "chalk/darwin",
       "platform": "darwin",
@@ -1519,6 +1533,13 @@
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.CharmstonePro",
       "description": "Charmstone is an app launcher and switcher."
+    },
+    {
+      "name": "Chatbox",
+      "slug": "chatbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Chatbox",
+      "description": "Chatbox is a desktop client for working with multiple AI models."
     },
     {
       "name": "ChatGPT Atlas",
@@ -1619,6 +1640,13 @@
       "description": "Cisco Jabber is a collaboration and communication app."
     },
     {
+      "name": "Cisco Webex Recorder and Player",
+      "slug": "cisco-webex-recorder-and-player/windows",
+      "platform": "windows",
+      "unique_identifier": "Webex Recorder and Player",
+      "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
@@ -1703,6 +1731,13 @@
       "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
+      "name": "ClipboardFusion",
+      "slug": "clipboardfusion/windows",
+      "platform": "windows",
+      "unique_identifier": "ClipboardFusion",
+      "description": "ClipboardFusion is a clipboard manager for scrubbing, transforming, and syncing clipboard text."
+    },
+    {
       "name": "ClipBook",
       "slug": "clipbook/darwin",
       "platform": "darwin",
@@ -1722,6 +1757,13 @@
       "platform": "darwin",
       "unique_identifier": "com.clipy-app.Clipy",
       "description": "Clipy is a clipboard extension app."
+    },
+    {
+      "name": "ClockAssist",
+      "slug": "clockassist/windows",
+      "platform": "windows",
+      "unique_identifier": "ClockAssist",
+      "description": "ClockAssist is an AI-powered time tracking assistant."
     },
     {
       "name": "Clocker",
@@ -1806,6 +1848,13 @@
       "platform": "darwin",
       "unique_identifier": "app.codeedit.CodeEdit",
       "description": "CodeEdit is a code editor."
+    },
+    {
+      "name": "CodeMeter Runtime Kit",
+      "slug": "codemeter-runtime-kit/windows",
+      "platform": "windows",
+      "unique_identifier": "CodeMeter Runtime Kit",
+      "description": "CodeMeter Runtime Kit is WIBU-SYSTEMS software licensing runtime required by CodeMeter-protected applications."
     },
     {
       "name": "CodeRunner",
@@ -1927,6 +1976,13 @@
       "description": "CotEditor is a plain-text editor for web pages, program source codes, and more."
     },
     {
+      "name": "CPU-Z",
+      "slug": "cpu-z/windows",
+      "platform": "windows",
+      "unique_identifier": "CPUID CPU-Z",
+      "description": "CPU-Z is a system information utility reporting CPU, memory, and mainboard details."
+    },
+    {
       "name": "CrashPlan",
       "slug": "crashplan/darwin",
       "platform": "darwin",
@@ -1941,11 +1997,32 @@
       "description": "CrashPlan is backup and recovery software."
     },
     {
+      "name": "Creative Force Kelvin",
+      "slug": "creative-force-kelvin/windows",
+      "platform": "windows",
+      "unique_identifier": "Kelvin",
+      "description": "Creative Force Kelvin is a capture and transfer app for studio photography workflows, with optional Capture One integration."
+    },
+    {
+      "name": "Creative Force Triad",
+      "slug": "creative-force-triad/windows",
+      "platform": "windows",
+      "unique_identifier": "Creative Force Triad",
+      "description": "Creative Force Triad enables direct printing from the Creative Force platform to Zebra label printers."
+    },
+    {
       "name": "Cribl Edge",
       "slug": "cribl-edge/windows",
       "platform": "windows",
       "unique_identifier": "Cribl Edge",
       "description": "Cribl Edge is an observability agent for collecting and processing logs, metrics, and other telemetry at the edge."
+    },
+    {
+      "name": "CrisisGo",
+      "slug": "crisisgo/windows",
+      "platform": "windows",
+      "unique_identifier": "CrisisGo",
+      "description": "CrisisGo is a safety communication platform for emergency alerts and response."
     },
     {
       "name": "CrossOver",
@@ -1974,6 +2051,13 @@
       "platform": "darwin",
       "unique_identifier": "llc.turing.CrystalFetch",
       "description": "Crystalfetch is an UI for creating Windows installer ISO from UUPDump."
+    },
+    {
+      "name": "Cube Browser",
+      "slug": "cube-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Cube Browser (64 bit)",
+      "description": "Cube Browser is Rystad Energy’s client for querying and analyzing its energy data cubes."
     },
     {
       "name": "Cursor",
@@ -2009,6 +2093,13 @@
       "platform": "darwin",
       "unique_identifier": "com.houdah.CustomShortcuts",
       "description": "CustomShortcuts is a tool to customise menu item keyboard shortcuts."
+    },
+    {
+      "name": "Cyberduck CLI",
+      "slug": "cyberduck-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Cyberduck CLI",
+      "description": "Cyberduck CLI (duck) is a command-line file transfer tool for cloud storage and servers."
     },
     {
       "name": "Cyberduck",
@@ -2107,6 +2198,20 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.dataspell",
       "description": "DataSpell is an IDE for Professional Data Scientists."
+    },
+    {
+      "name": "DataSpell",
+      "slug": "dataspell/windows",
+      "platform": "windows",
+      "unique_identifier": "DataSpell",
+      "description": "DataSpell is a JetBrains IDE for data science, with notebooks, interactive Python/R, and database tools."
+    },
+    {
+      "name": "DAX Studio",
+      "slug": "dax-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "DAX Studio",
+      "description": "DAX Studio is a tool for writing, running, and analyzing DAX queries against tabular data models."
     },
     {
       "name": "Dayflow",
@@ -2249,6 +2354,13 @@
       "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
+      "name": "Delinea Connection Manager",
+      "slug": "delinea-connection-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Delinea Connection Manager",
+      "description": "Delinea Connection Manager provides secure RDP and SSH connections to remote servers."
+    },
+    {
       "name": "Dell Command Update",
       "slug": "dell-command-update/windows",
       "platform": "windows",
@@ -2298,6 +2410,20 @@
       "description": "DevKnife is a collection of handy developer tools."
     },
     {
+      "name": "Devolutions Launcher",
+      "slug": "devolutions-launcher/windows",
+      "platform": "windows",
+      "unique_identifier": "Devolutions Launcher",
+      "description": "Devolutions Launcher opens remote connections from Devolutions Server and Devolutions Hub."
+    },
+    {
+      "name": "Devolutions Workspace",
+      "slug": "devolutions-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Devolutions Password Manager",
+      "description": "Devolutions Password Manager (formerly Workspace) provides access to Devolutions accounts and credentials."
+    },
+    {
       "name": "DEVONsphere Express",
       "slug": "devonsphere-express/darwin",
       "platform": "darwin",
@@ -2310,6 +2436,13 @@
       "platform": "darwin",
       "unique_identifier": "com.devon-technologies.think",
       "description": "DEVONthink is a collect, organise, edit and annotate documents."
+    },
+    {
+      "name": "DevPod",
+      "slug": "devpod/windows",
+      "platform": "windows",
+      "unique_identifier": "DevPod",
+      "description": "DevPod is an open-source, client-only tool for spinning up reproducible development environments."
     },
     {
       "name": "DevToys",
@@ -2375,6 +2508,20 @@
       "description": "digiKam is a digital photo manager."
     },
     {
+      "name": "digiSeal Reader",
+      "slug": "digiseal-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "digiSeal reader",
+      "description": "digiSeal Reader verifies signed and sealed documents and time stamps."
+    },
+    {
+      "name": "Directory Opus",
+      "slug": "directory-opus/windows",
+      "platform": "windows",
+      "unique_identifier": "Directory Opus",
+      "description": "Directory Opus is an advanced file manager and Windows Explorer replacement."
+    },
+    {
       "name": "Discord",
       "slug": "discord/darwin",
       "platform": "darwin",
@@ -2401,6 +2548,13 @@
       "platform": "darwin",
       "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
       "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
+      "name": "dnGrep",
+      "slug": "dngrep/windows",
+      "platform": "windows",
+      "unique_identifier": "dnGrep",
+      "description": "dnGrep is a search tool for finding text across files with regex, XPath, and phonetic matching."
     },
     {
       "name": "DockDoor",
@@ -2466,6 +2620,13 @@
       "description": "Downie is a downloads videos from different websites."
     },
     {
+      "name": "Draftable Desktop",
+      "slug": "draftable-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Draftable Desktop",
+      "description": "Draftable Desktop compares documents (PDF, Word, PowerPoint) and highlights changes, offline."
+    },
+    {
       "name": "Drata Agent",
       "slug": "drata-agent/darwin",
       "platform": "darwin",
@@ -2492,6 +2653,13 @@
       "platform": "windows",
       "unique_identifier": "draw.io",
       "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "dRofus",
+      "slug": "drofus/windows",
+      "platform": "windows",
+      "unique_identifier": "dRofus",
+      "description": "dRofus is a planning and data-management tool for building and construction projects."
     },
     {
       "name": "Dropbox",
@@ -2597,6 +2765,13 @@
       "platform": "darwin",
       "unique_identifier": "com.dymo.DYMO-WebApi-Mac-Host",
       "description": "Dymo Connect is a software for DYMO LabelWriters."
+    },
+    {
+      "name": "DYMO ID",
+      "slug": "dymo-id/windows",
+      "platform": "windows",
+      "unique_identifier": "DYMO ID",
+      "description": "DYMO ID is label-design software for DYMO XTL and Rhino 6000+ industrial label makers."
     },
     {
       "name": "Dynalist",

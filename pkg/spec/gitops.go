@@ -178,6 +178,8 @@ type GitOpsControls struct {
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration any               `json:"macos_migration"`
 
+	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
+
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
 	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
@@ -207,7 +209,8 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
+		c.AppleAccountProvisioning != nil
 }
 
 type Policy struct {
@@ -1134,6 +1137,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	// Validate unknown keys in controls section.
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
+
+	// apple_account_provisioning is a global-only MDM setting (it maps to global
+	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
+	// global configuration (or the no-team/unassigned file).
+	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		multiError = multierror.Append(multiError, fmt.Errorf(
+			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename))
+	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
 
@@ -1837,6 +1848,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
+		} else if item.FleetMaintainedAppSlug != "" {
+			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
