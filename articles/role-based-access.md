@@ -10,7 +10,7 @@ Users with the admin role receive all permissions.
 
 ### Maintainer
 
-Maintainers can manage most entities in Fleet, like queries, policies, and labels.
+Maintainers can manage most entities in Fleet, like reports, policies, and labels.
 
 Unlike admins, maintainers cannot edit higher level settings like application configuration, fleets or users.
 
@@ -22,7 +22,7 @@ Technicians have the ability to run scripts, view their results, and install/uni
 
 ### Observer
 
-The observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, fleets, etc.
+The observer role is a read-only role. It can access most entities in Fleet, like reports, policies, labels, application configuration, fleets, etc.
 
 They can also run reports configured with the `observer_can_run` flag set to `true`.
 
@@ -63,11 +63,11 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Filter software by fleet\*                                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |            |            |            | ✅    | ✅      |
-| Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅         | ✅    |         |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅         | ✅    |         |
-| Create, edit, and delete queries                                                                                                           |          |            |            | ✅         | ✅    | ✅      |
-| View all queries and their reports                                                                                                         | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
-| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            |            | ✅         | ✅    | ✅      |
+| Run reports designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅         | ✅    |         |
+| Run any report as [live report](https://fleetdm.com/guides/reports#run-a-report) against all hosts                                |          | ✅         | ✅         | ✅         | ✅    |         |
+| Create, edit, and delete reports                                                                                                           |          |            |            | ✅         | ✅    | ✅      |
+| View all reports and their results                                                                                                         | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
+| Manage [report automations](https://fleetdm.com/guides/reports#schedule-a-report)                                                |          |            |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Run all policies                                                                                                                           |          | ✅         | ✅         | ✅         | ✅    |         |
@@ -122,8 +122,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Turn off MDM for specific hosts                                                                                                            |          |            |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |            |            | ✅    |         |
 | Add Microsoft Entra tenant                                                                                                                 |          |            |            |            | ✅    |         |
-| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
-| Create, edit, and delete custom variables                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
+| Create, edit, and delete custom variables                                                                                                  |          |            |            | ✅         | ✅    | ✅      |
 
 \* Applies only to Fleet Premium
 
@@ -161,12 +161,12 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅              | ✅         |             |
-| Create, edit, and delete self-authored queries                                                                                   |               |                |                 | ✅              | ✅         | ✅          |
-| View the fleet's queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| View global (inherited) queries and their reports\**                                                                             | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                |                 | ✅              | ✅         | ✅          |
+| Run reports designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Run any report as [live report](https://fleetdm.com/guides/reports#run-a-report)                                        |               | ✅             | ✅              | ✅              | ✅         |             |
+| Create, edit, and delete self-authored reports                                                                                   |               |                |                 | ✅              | ✅         | ✅          |
+| View the fleet's reports and their results                                                                                              | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| View global (inherited) reports and their results\**                                                                             | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Manage [report automations](https://fleetdm.com/guides/reports#schedule-a-report)                                      |               |                |                 | ✅              | ✅         | ✅          |
 | View the fleet's policies                                                                                                               | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Run the fleet's policies as a live policy                                                                                               |               | ✅             | ✅              | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅              | ✅         |             |

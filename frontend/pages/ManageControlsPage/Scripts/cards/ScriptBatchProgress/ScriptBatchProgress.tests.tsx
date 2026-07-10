@@ -246,4 +246,59 @@ describe("ScriptBatchProgress", () => {
       expect(screen.getByText(/20\s+\/\s+50/m)).toBeInTheDocument();
     });
   });
+
+  // Regression coverage for #47019: the auto-correction effect for an
+  // invalid/missing ?status must use router.replace, not router.push, so the
+  // browser Back button isn't trapped.
+  it("Replaces (does not push) the URL with ?status=started when status is invalid", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <ScriptBatchProgress
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/progress",
+          query: { status: "bogus" },
+          search: "?status=bogus",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/scripts/progress?status=started"
+      );
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("Replaces (does not push) the URL with ?status=started when status is missing", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <ScriptBatchProgress
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/progress",
+          query: {},
+          search: "",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/scripts/progress?status=started"
+      );
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
 });

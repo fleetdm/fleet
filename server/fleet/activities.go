@@ -714,6 +714,15 @@ func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
 }
 
+// ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
+// provisioning (Platform SSO) settings actually change. It carries no details:
+// the settings are global-only and the IdP client secret must never be logged.
+type ActivityTypeEditedAccountProvisioning struct{}
+
+func (a ActivityTypeEditedAccountProvisioning) ActivityName() string {
+	return "edited_account_provisioning"
+}
+
 type ActivityTypeEnabledGitOpsException struct {
 	Exception string `json:"exception"`
 }
@@ -1092,6 +1101,36 @@ func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
 	return "edited_declaration_profile"
 }
 
+type ActivityTypeCreatedDeclarationAsset struct {
+	AssetName string  `json:"asset_name"`
+	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeCreatedDeclarationAsset) ActivityName() string {
+	return "created_apple_asset_declaration"
+}
+
+type ActivityTypeDeletedDeclarationAsset struct {
+	AssetName string  `json:"asset_name"`
+	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDeletedDeclarationAsset) ActivityName() string {
+	return "deleted_apple_asset_declaration"
+}
+
+type ActivityTypeEditedDeclarationAsset struct {
+	AssetName string  `json:"asset_name"`
+	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEditedDeclarationAsset) ActivityName() string {
+	return "edited_apple_asset_declaration"
+}
+
 type ActivityTypeResentConfigurationProfile struct {
 	HostID          *uint   `json:"host_id"`
 	HostDisplayName *string `json:"host_display_name"`
@@ -1218,6 +1257,7 @@ type ActivityTypeEditedSoftware struct {
 	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
+	PinnedVersion       *string                 `json:"pinned_version"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1720,6 +1760,30 @@ type ActivityTypeDeletedConditionalAccessOkta struct{}
 
 func (a ActivityTypeDeletedConditionalAccessOkta) ActivityName() string {
 	return "deleted_conditional_access_okta"
+}
+
+type ActivityTypeAddedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeAddedGoogleWorkspaceIntegration) ActivityName() string {
+	return "added_google_workspace_integration"
+}
+
+type ActivityTypeEditedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeEditedGoogleWorkspaceIntegration) ActivityName() string {
+	return "edited_google_workspace_integration"
+}
+
+type ActivityTypeDeletedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeDeletedGoogleWorkspaceIntegration) ActivityName() string {
+	return "deleted_google_workspace_integration"
 }
 
 type ActivityTypeEnabledConditionalAccessAutomations struct {

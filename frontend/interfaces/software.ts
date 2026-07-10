@@ -116,9 +116,11 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
-interface IFleetMaintainedVersion {
+export interface IFleetMaintainedVersion {
   id: number;
   version: string;
+  filename: string;
+  uploaded_at: string;
 }
 
 export interface ISoftwarePackage {
@@ -148,6 +150,9 @@ export interface ISoftwarePackage {
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
+  /** Version pin: null/absent = Latest, exact version = exact pin, caret
+   * ("^149") = major-version pin. */
+  pinned_version?: string | null;
   hash_sha256?: string | null;
   /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
   configuration?: string;
@@ -886,6 +891,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
+  slug: string; // "<app-token>/<platform>", e.g. "figma/darwin"; the token uniquely identifies an app across its platform entries
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
@@ -920,6 +926,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(

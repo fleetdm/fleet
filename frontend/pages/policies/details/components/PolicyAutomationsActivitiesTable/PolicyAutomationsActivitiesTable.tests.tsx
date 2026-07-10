@@ -43,6 +43,8 @@ const mockActivity = (
   host_display_name: "Anna's MacBook Pro",
   status: "success",
   output: null,
+  pre_install_output: null,
+  post_install_output: null,
   ...overrides,
 });
 

@@ -244,8 +244,8 @@ module.exports.custom = {
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
-    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath', 'allenhouchins'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'allenhouchins'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
@@ -371,7 +371,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

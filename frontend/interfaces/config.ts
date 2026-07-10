@@ -274,6 +274,7 @@ export type LogDestination =
   | "pubsub"
   | "kafka"
   | "nats"
+  | "splunk"
   | "stdout"
   | "webhook"
   | "";

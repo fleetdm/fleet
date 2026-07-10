@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.3.3562.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Agent Ransack' AND publisher = 'Mythicsoft Ltd';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Agent Ransack' AND publisher = 'Mythicsoft Ltd' AND version_compare(version, '9.3.3562.1') < 0);"
+      },
+      "installer_url": "https://download.mythicsoft.com/flp/3562/X4aef2vyu.bzx/agentransack_x64_msi_3562.zip",
+      "install_script_ref": "84fc806b",
+      "uninstall_script_ref": "c5bcb449",
+      "sha256": "0d79d8509500ee3144a87b374c962506fe3535479e072dde895a038e92bfadf7",
+      "default_categories": [
+        "Utilities"
+      ]
+    }
+  ],
+  "refs": {
+    "84fc806b": "# Agent Ransack ships as a zip containing the x64 MSI (agentransack_x64_<build>.msi).\n# Fleet downloads the zip to INSTALLER_PATH; this script extracts it and installs\n# the MSI per-machine and silently. The MSI sets ALLUSERS=1, so it always\n# installs machine-wide.\n\n$zipFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    $extractPath = Join-Path $env:TEMP \"AgentRansackInstall\"\n\n    if (Test-Path $extractPath) {\n        Remove-Item -Path $extractPath -Recurse -Force\n    }\n\n    Expand-Archive -Path $zipFilePath -DestinationPath $extractPath -Force\n\n    $msi = Get-ChildItem -Path $extractPath -Filter \"*.msi\" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1\n    if (-not $msi) {\n        Write-Host \"Error: MSI not found under $extractPath\"\n        Exit 1\n    }\n\n    $logFile = Join-Path $env:TEMP \"AgentRansackInstall.log\"\n    $process = Start-Process -FilePath \"msiexec.exe\" `\n        -ArgumentList \"/i `\"$($msi.FullName)`\" /quiet /norestart /l*v `\"$logFile`\"\" `\n        -PassThru -Wait\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code (msiexec): $exitCode\"\n\n    Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue\n\n    # 3010 = success, reboot required; 1641 = success, reboot initiated.\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n        Exit 0\n    }\n\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "c5bcb449": "# Uninstalls Agent Ransack (MSI installed from a zip-wrapped installer).\n# The MSI ProductCode changes per release, so we look the product up in the\n# registry by its exact DisplayName and uninstall via msiexec.\n\n$softwareName = \"Agent Ransack\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $productCode = $key.PSChildName\n        if ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n            Write-Host \"Unexpected uninstall key name (not a ProductCode GUID): $productCode\"\n            continue\n        }\n        Write-Host \"Uninstalling product code: $productCode\"\n        $process = Start-Process -FilePath \"msiexec.exe\" `\n            -ArgumentList \"/x $productCode /qn /norestart\" `\n            -NoNewWindow -PassThru -Wait\n        $exitCode = $process.ExitCode\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

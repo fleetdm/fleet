@@ -1,7 +1,6 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
 import { dateAgo } from "utilities/date_format";
 import { internationalTimeFormat } from "utilities/helpers";
 import {
@@ -15,7 +14,6 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import PageDescription from "components/PageDescription";
 import EmptyState from "components/EmptyState";
 
@@ -109,21 +107,16 @@ const FailedEndUserInfoCard = ({
 };
 
 const IdentityProviderSection = () => {
-  const { isPremiumTier } = useContext(AppContext);
-
+  // Premium gating is handled by the parent IdentityProviders component, so this
+  // section only renders for premium tiers.
   const { data: scimIdPDetails, isLoading, isError } = useQuery(
     ["scim_details"],
     () => idpAPI.getSCIMDetails(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
     }
   );
   const renderContent = () => {
-    if (!isPremiumTier) {
-      return <PremiumFeatureMessage />;
-    }
-
     if (isError) {
       return <DataError />;
     }
@@ -155,17 +148,15 @@ const IdentityProviderSection = () => {
   };
   return (
     <SettingsSection title="User mapping">
-      {isPremiumTier && (
-        <PageDescription
-          content={
-            <>
-              Connect Fleet to your IdP to sync end user information (e.g.
-              groups) to hosts.
-            </>
-          }
-          variant="right-panel"
-        />
-      )}
+      <PageDescription
+        content={
+          <>
+            Connect Fleet to your IdP to sync end user information (e.g. groups)
+            to hosts.
+          </>
+        }
+        variant="right-panel"
+      />
       {renderContent()}
     </SettingsSection>
   );

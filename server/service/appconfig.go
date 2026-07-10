@@ -474,6 +474,57 @@ func applyAndValidateConditionalAccessOktaFields(
 	return nil
 }
 
+// persistAppleAccountProvisioningSecret stores, preserves, or soft-deletes the
+// Apple account provisioning IdP client secret in mdm_config_assets so it
+// matches the (already-validated) incoming config. It reports whether the
+// stored secret actually changed, so re-applying a GitOps config that resends an
+// identical secret is a no-op and emits no activity.
+//   - configured + a new secret provided: store it (replacing any existing
+//     value), reporting changed only when the value actually differs.
+//   - configured + no new secret: preserve the existing secret (unchanged).
+//   - feature cleared (was configured, now isn't): soft-delete the secret.
+func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) (changed bool, err error) {
+	switch {
+	case configured && newSecretProvided:
+		current, err := svc.appleAccountProvisioningSecret(ctx)
+		if err != nil {
+			return false, err
+		}
+		if current == secret {
+			return false, nil
+		}
+		if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+			Value: []byte(secret),
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
+		}
+		return true, nil
+	case !configured && wasConfigured:
+		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// appleAccountProvisioningSecret returns the stored Apple account provisioning
+// IdP client secret, or "" if none is stored.
+func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, nil)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get apple account provisioning idp client secret")
+	}
+	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -640,6 +691,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Google Workspace IdP is a premium-only feature.
+	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
+		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Handle Google Workspace API key preservation/replacement (same masking
+	// semantics as Google Calendar): a masked or omitted api_key_json means
+	// "keep the existing service account credentials".
+	if newAppConfig.Integrations.GoogleWorkspace != nil {
+		for i, newGW := range newAppConfig.Integrations.GoogleWorkspace {
+			if i < len(appConfig.Integrations.GoogleWorkspace) {
+				if newGW.ApiKey.IsEmpty() || newGW.ApiKey.IsMasked() {
+					if len(oldAppConfig.Integrations.GoogleWorkspace) > i {
+						appConfig.Integrations.GoogleWorkspace[i].ApiKey = oldAppConfig.Integrations.GoogleWorkspace[i].ApiKey
+					}
+				} else {
+					appConfig.Integrations.GoogleWorkspace[i].ApiKey = newGW.ApiKey
+				}
+			}
+		}
+	}
+
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
 	// to true, return an error that it can't be done when MDM is off, this is
@@ -696,6 +770,61 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
+	// Apple account provisioning (Platform SSO): the IdP client secret is never
+	// persisted in the AppConfig JSON — it's stored encrypted in
+	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
+	// strip it from the config that gets saved.
+	oldAAP := oldAppConfig.MDM.AppleAccountProvisioning
+	incomingAAP := newAppConfig.MDM.AppleAccountProvisioning
+
+	if applyOpts.Overwrite {
+		appConfig.MDM.AppleAccountProvisioning = incomingAAP
+	}
+
+	incomingSecret := incomingAAP.OAuthIdPClientSecret
+	newAAPSecretProvided := incomingSecret.Valid && incomingSecret.Value != "" && incomingSecret.Value != fleet.MaskedPassword
+	newAAPSecret := incomingSecret.Value
+
+	mergedAAP := appConfig.MDM.AppleAccountProvisioning
+	appConfig.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.String{}
+
+	// Apple account provisioning is all-or-nothing: the token URL, client ID, and
+	// client secret are only meaningful together, so the config must have all three
+	// set or all three empty — never a partial state that reports as "configured"
+	// but can't run the sign-in flow.
+	tokenURLSet := mergedAAP.OAuthIdPTokenURL.Value != ""
+	clientIDSet := mergedAAP.OAuthIdPClientID.Value != ""
+	switch {
+	case mergedAAP.Configured(): // both public fields set
+		aapProvided := incomingAAP.OAuthIdPTokenURL.Set || incomingAAP.OAuthIdPClientID.Set || incomingAAP.OAuthIdPClientSecret.Set
+		if aapProvided && !lic.IsPremium() {
+			invalid.Append("mdm.apple_account_provisioning", ErrMissingLicense.Error())
+		}
+		if newAAPSecretProvided && svc.config.Server.PrivateKey == "" {
+			invalid.Append("mdm.apple_account_provisioning",
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+		if u, err := url.Parse(mergedAAP.OAuthIdPTokenURL.Value); err != nil || u.Host == "" || u.Scheme != "https" {
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_token_url", "must be a valid https URL")
+		}
+		switch {
+		case !newAAPSecretProvided && (applyOpts.Overwrite || !oldAAP.Configured()):
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be set together with oauth_idp_token_url and oauth_idp_client_id")
+		case !newAAPSecretProvided && mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value:
+			// Reusing a stored secret while repointing the IdP token endpoint would
+			// leak it to the new (possibly hostile) URL, so require it be provided.
+			// Similar to CAs and their secrets.
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be provided when changing oauth_idp_token_url")
+		}
+	case tokenURLSet || clientIDSet || newAAPSecretProvided:
+		// Not fully configured, but a field was supplied (one public field without
+		// the other, or a secret on its own) — a partial config.
+		invalid.Append("mdm.apple_account_provisioning",
+			"oauth_idp_token_url, oauth_idp_client_id, and oauth_idp_client_secret must all be set together, or all be empty")
 	}
 
 	// this is to handle the case where `apple_enable_release_device_manually: null` is
@@ -840,6 +969,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
+	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -967,6 +1097,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
+	// If google_workspace is null, we keep the existing setting.
+	if newAppConfig.Integrations.GoogleWorkspace == nil {
+		appConfig.Integrations.GoogleWorkspace = oldAppConfig.Integrations.GoogleWorkspace
+	}
 
 	gitopsModeEnabled, gitopsRepoURL := appConfig.GitOpsConfig.GitopsModeEnabled, appConfig.GitOpsConfig.RepositoryURL
 	if gitopsModeEnabled {
@@ -1005,8 +1139,34 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
 	}
 
+	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
+	if err != nil {
+		return nil, err
+	}
+	// The IdP client secret never reaches the AppConfig JSON, so a secret-only
+	// change isn't visible in the saved config diff — track it separately.
+	aapChanged := aapSecretChanged ||
+		mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value ||
+		mergedAAP.OAuthIdPClientID.Value != oldAAP.OAuthIdPClientID.Value
+
+	// Mint the PSSO signing key and CA the first time the feature is configured.
+	// Idempotent: existing assets are preserved (never recreated on reconfigure),
+	// and they are deliberately kept when the feature is disabled so a later
+	// re-enable reuses the same JWKS key and unlock-key CA.
+	if mergedAAP.Configured() {
+		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
+		}
+	}
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	if aapChanged {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())
+		}
 	}
 
 	// Best-effort: drop orphan blobs whose URL was just replaced with an
@@ -1091,6 +1251,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		act := fleet.ActivityTypeDeletedMicrosoftEntraTenant{TenantID: tenantID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra tenant")
+		}
+	}
+
+	// Emit an activity when the Google Workspace IdP integration is added, edited,
+	// or removed.
+	if act := googleWorkspaceActivity(oldAppConfig.Integrations.GoogleWorkspace, appConfig.Integrations.GoogleWorkspace); act != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for google workspace integration change")
 		}
 	}
 
@@ -1350,6 +1518,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		}
+	}
+
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
@@ -1605,6 +1785,25 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 // client IDs are both validated against this so the two checks cannot drift.
 var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
 
+// googleWorkspaceActivity returns the activity to record when the Google
+// Workspace IdP integration is added, edited, or removed, or nil when it is
+// unchanged. Only the (non-secret) domain is compared/recorded.
+func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) fleet.ActivityDetails {
+	oldConfigured := len(old) > 0
+	newConfigured := len(current) > 0
+	switch {
+	case !oldConfigured && newConfigured:
+		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+	case oldConfigured && !newConfigured:
+		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: old[0].Domain}
+	case oldConfigured && newConfigured:
+		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail {
+			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+		}
+	}
+	return nil
+}
+
 // diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
 // current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
 // the incoming payload repeats an entry.
@@ -1699,6 +1898,11 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
+			invalid.Append("setup_experience.enable_managed_local_account",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}

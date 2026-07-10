@@ -1,0 +1,13 @@
+{
+  "name": "Certify The Web",
+  "slug": "certify-the-web/windows",
+  "package_identifier": "CertifyTheWeb.CertifySSLManager",
+  "unique_identifier": "Certify Certificate Manager",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/certify-the-web_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/certify-the-web_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

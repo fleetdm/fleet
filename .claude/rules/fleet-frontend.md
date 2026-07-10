@@ -66,6 +66,7 @@ Use the `useTeamIdParam` hook for team-scoped pages:
 Use react-router, not `window.location` / `window.history`. Direct window mutation desyncs react-router's location state.
 - Read query params from `location.query`, not `URLSearchParams(window.location.search)`.
 - Mutate the URL with `router.replace`/`router.push` or `browserHistory.replace`/`.push`, not `window.history.replaceState`.
+- Auto-correcting a missing/invalid query param inside a `useEffect` MUST use `router.replace`, not `router.push`, so browser Back isn't trapped.
 - Internal `<CustomLink>` (and any `router.push` / `<Link>`) to a fleet-scoped route MUST preserve the current fleet via `getPathWithQueryParams(PATHS.X, { fleet_id: teamId })`. Linking to the bare path drops fleet context and lands the user on the wrong fleet. Applies to any path that reads `fleet_id` from the query string (most `/software`, `/hosts`, `/policies`, `/queries`, `/controls` routes). `getPathWithQueryParams` filters undefined/null, so pass `teamId` directly — `fleet_id=0` (No team) is a valid, intentional value and must be preserved.
 
 ## Notifications

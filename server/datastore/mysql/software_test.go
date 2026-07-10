@@ -137,6 +137,7 @@ func TestSoftware(t *testing.T) {
 		{"GetSoftwareCategoryNameToIDMap", testGetSoftwareCategoryNameToIDMap},
 		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 		{"CreateIntermediateInstallFailureRecordAfterDeletion", testCreateIntermediateInstallFailureRecordAfterDeletion},
+		{"ListHostSoftwareSortByDisplayName", testListHostSoftwareSortByDisplayName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4065,6 +4066,66 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, software[i], got)
 	}
+}
+
+// TestSoftwareTitleUpgradeCodeDriftMatch verifies the #48875 fix: a Windows program whose
+// reported name has drifted from the stored title's name but shares its upgrade_code is
+// resolved to that existing title by the pre-insert lookup — so it is NOT treated as a new
+// title and does not issue a doomed INSERT IGNORE on every ingest.
+func TestSoftwareTitleUpgradeCodeDriftMatch(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	const upgradeCode = "{55ac7218-24cb-4b99-9449-f28d9c59cc7e}"
+
+	// Host 1 reports "7-Zip 24.08 (x64)" — this creates the title, keyed by upgrade_code.
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: "7-Zip 24.08 (x64)", Version: "24.08", Source: "programs", UpgradeCode: new(upgradeCode)},
+	})
+	require.NoError(t, err)
+
+	var stored struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stored,
+			`SELECT id, name, upgrade_code FROM software_titles WHERE source='programs' AND upgrade_code=?`, upgradeCode)
+	})
+	require.Equal(t, "7-Zip 24.08 (x64)", stored.Name)
+
+	// A different host reports the SAME program at a drifted name but the SAME upgrade_code.
+	drift := fleet.Software{Name: "7-Zip 24.09 (x64 edition)", Version: "24.09", Source: "programs", UpgradeCode: new(upgradeCode)}
+	cs, err := drift.ComputeRawChecksum()
+	require.NoError(t, err)
+	csKey := string(cs)
+
+	got, _, err := ds.getIncomingSoftwareChecksumsToExistingTitles(ctx,
+		map[string]struct{}{csKey: {}},
+		map[string]fleet.Software{csKey: drift},
+	)
+	require.NoError(t, err)
+
+	// The drift-named program must resolve to the existing title via its upgrade_code.
+	// Before the fix this map is empty (name lookup misses), so the program is treated as new.
+	summary, ok := got[csKey]
+	require.True(t, ok, "drift-named program should resolve to the existing title by upgrade_code")
+	require.Equal(t, stored.ID, summary.ID)
+
+	// Negative control: a program with an unknown upgrade_code is not matched (correctly new).
+	other := fleet.Software{Name: "Nonexistent 1.0", Version: "1.0", Source: "programs", UpgradeCode: new("{00000000-0000-0000-0000-000000000000}")}
+	ocs, err := other.ComputeRawChecksum()
+	require.NoError(t, err)
+	ocsKey := string(ocs)
+	gotOther, _, err := ds.getIncomingSoftwareChecksumsToExistingTitles(ctx,
+		map[string]struct{}{ocsKey: {}},
+		map[string]fleet.Software{ocsKey: other},
+	)
+	require.NoError(t, err)
+	_, matched := gotOther[ocsKey]
+	require.False(t, matched, "program with unknown upgrade_code should not match any title")
 }
 
 func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
@@ -13025,6 +13086,84 @@ func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
 	got, err = ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
 	require.NoError(t, err)
 	assert.Empty(t, got)
+}
+
+func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Display Name Sort Team"})
+	require.NoError(t, err)
+
+	// Create a host on the team.
+	host := test.NewHost(t, ds, "sorthost", "", "sorthostkey", "sorthostuuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	// Reload host to get TeamID set.
+	host, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Install software on the host.
+	sw := []fleet.Software{
+		{Name: "alpha", Version: "1.0", Source: "apps"},
+		{Name: "bravo", Version: "1.0", Source: "apps"},
+		{Name: "zzz-installer", Version: "1.0", Source: "apps"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Look up the title IDs via ListSoftwareTitles.
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+
+	titleByName := func(name string) uint {
+		for _, tt := range titles {
+			if tt.Name == name {
+				return tt.ID
+			}
+		}
+		t.Fatalf("title %q not found", name)
+		return 0
+	}
+
+	alphaID := titleByName("alpha")
+	scriptID := titleByName("zzz-installer")
+
+	bravoID := titleByName("bravo")
+
+	// Set display names that reorder the titles:
+	//   alpha         -> "Zulu"        (should sort last)
+	//   bravo         -> ""            (empty string, NULLIF falls back to "bravo")
+	//   zzz-installer -> "AAA Script"  (should sort first despite filename)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, alphaID, "Zulu"); err != nil {
+			return err
+		}
+		// Explicitly set empty display name to exercise the NULLIF(display_name, '') fallback.
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, bravoID, ""); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, scriptID, "AAA Script")
+	})
+
+	// List host software sorted by name ASC.
+	// Expected order: AAA Script (zzz-installer), bravo, Zulu (alpha).
+	hostSw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+	})
+	require.NoError(t, err)
+	require.Len(t, hostSw, 3)
+	assert.Equal(t, "zzz-installer", hostSw[0].Name, "AAA Script (zzz-installer) should sort first")
+	assert.Equal(t, "bravo", hostSw[1].Name, "bravo (no display name) should sort second")
+	assert.Equal(t, "alpha", hostSw[2].Name, "Zulu (alpha) should sort last")
 }
 
 func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {

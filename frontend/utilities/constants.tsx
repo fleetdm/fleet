@@ -338,13 +338,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 ] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search name, user email, hostname, UUID, serial number, or private IP address";
+  "Search name, user email, hostname, UUID, serial number, or IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP = (
   <>
     Search hosts by name, user email, hostname,
     <br />
-    UUID, serial number, or private IP address.
+    UUID, serial number, or IP address.
   </>
 );
 
@@ -370,15 +370,14 @@ export const MDM_STATUS_TOOLTIP: Record<
   ),
   "On (manual)": (
     <span>
-      On Apple hosts, the enrollment profile was installed manually. Windows
-      hosts were enrolled without Autopilot. End users can turn MDM off.
+      Enrolled with a manual enrollment profile as a company-owned device. IT
+      admins can wipe this device and enforce all MDM restrictions.
     </span>
   ),
-  "On (personal)": (
+  "On (manual - personal)": (
     <span>
-      MDM was turned on by signing in with a Managed Apple Account on
-      iOS/iPadOS, or by adding a work profile on Android. End users can turn MDM
-      off.
+      Enrolled with a manual enrollment profile as a personal (BYOD) device. IT
+      admins cannot wipe this device or lock the end user out.
     </span>
   ),
   "On (company-owned)": null,

@@ -1169,7 +1169,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1183,7 +1183,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1427,7 +1427,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), [`splunk`](#splunk), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -2527,6 +2527,106 @@ Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
     timeout: 1m
   ```
 
+## Splunk
+
+Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
+
+### splunk_url
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The base URL of the Splunk HEC endpoint (e.g. `https://splunk.example.com:8088`).
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_URL`
+- Config file format:
+  ```yaml
+  splunk:
+    url: https://splunk.example.com:8088
+  ```
+
+### splunk_token
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The HEC authentication token.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_TOKEN`
+- Config file format:
+  ```yaml
+  splunk:
+    token: your-hec-token
+  ```
+
+### splunk_index
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The Splunk index to send events to. If empty, the HEC token's default index is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_INDEX`
+- Config file format:
+  ```yaml
+  splunk:
+    index: main
+  ```
+
+### splunk_source
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The source value for events sent to Splunk. If empty, the HEC token's default source is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE`
+- Config file format:
+  ```yaml
+  splunk:
+    source: fleet
+  ```
+
+### splunk_source_type
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The sourcetype value for events sent to Splunk. If empty, the HEC token's default sourcetype is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE_TYPE`
+- Config file format:
+  ```yaml
+  splunk:
+    source_type: fleet:json
+  ```
+
+### splunk_insecure_skip_verify
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+Skip TLS certificate verification when connecting to the Splunk HEC endpoint. Useful for development environments with self-signed certificates.
+
+- Default value: `false`
+- Environment variable: `FLEET_SPLUNK_INSECURE_SKIP_VERIFY`
+- Config file format:
+  ```yaml
+  splunk:
+    insecure_skip_verify: true
+  ```
+
 ## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
@@ -2973,6 +3073,51 @@ On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identi
   ```yaml
   s3:
      carves_force_s3_path_style: false
+  ```
+
+### s3_carves_cleanup_disabled
+
+When `true`, the S3 carve store skips the periodic reconciliation that marks carves whose S3
+object no longer exists as expired. Set this if you rely solely on the bucket lifecycle policy
+to remove carve objects and do not need the `expired` flag reconciled. This applies only to the
+S3 carve store; it has no effect when carves are stored in MySQL.
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_DISABLED`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_disabled: true
+  ```
+
+### s3_carves_cleanup_max_per_run
+
+The maximum number of carves the S3 cleanup reconciles per run, which also bounds
+the number of S3 `HeadObject` requests a single run makes. A larger carve backlog
+is drained across subsequent runs. Raise this to drain a large backlog faster, at
+the cost of more work per run; lower it to reduce each run's impact on the shared
+cleanup schedule.
+
+- Default value: 1000
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_MAX_PER_RUN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_max_per_run: 1000
+  ```
+
+### s3_carves_cleanup_concurrency
+
+The number of concurrent S3 `HeadObject` probes the carve cleanup performs. Kept
+modest by default to stay well under S3's per-prefix request rate; lower it if you
+observe throttling, or raise it to speed up a backlog's probe phase.
+
+- Default value: 32
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_CONCURRENCY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_concurrency: 32
   ```
 
 ### s3_carves_region
@@ -3547,23 +3692,9 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_os_updates_and_filevault
+### mdm.enable_custom_filevault
 
 > `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
-
-*Available in Fleet Premium.*
-
-Allows users to add custom Apple MDM profiles for both OS updates and FileVault management.
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
-- Config file format:
-  ```yaml
-  mdm:
-    enable_custom_os_updates_and_filevault: true
-  ```
-
-### mdm.enable_custom_filevault
 
 *Available in Fleet Premium.*
 

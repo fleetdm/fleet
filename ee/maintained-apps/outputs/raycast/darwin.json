@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.104.20",
+      "version": "1.104.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.raycast.macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.raycast.macos' AND version_compare(bundle_short_version, '1.104.20') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.raycast.macos' AND version_compare(bundle_short_version, '1.104.22') < 0);"
       },
-      "installer_url": "https://releases.raycast.com/releases/1.104.20/download?build=arm",
+      "installer_url": "https://releases.raycast.com/releases/1.104.22/download?build=arm",
       "install_script_ref": "ee3bb800",
       "uninstall_script_ref": "cb893329",
-      "sha256": "294091342c42a007ad1035c83c1b0370c067baba411f71a74b4319fb8aca09f0",
+      "sha256": "d8dcb34d5a214374c5a70e65c78b3508d2d0626d208ab8324175748d597f8662",
       "default_categories": [
         "Productivity"
       ]

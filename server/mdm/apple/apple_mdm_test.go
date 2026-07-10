@@ -242,7 +242,7 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar")
+			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar", MDMAccessRightAll, true)
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
@@ -271,6 +271,40 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The new-enrollment Subject OU marker must be present on fresh-enrollment profiles and absent on
+// renewal profiles, otherwise the checkin handler would misclassify renewals as fresh enrollments.
+func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
+	t.Run("standard enrollment", func(t *testing.T) {
+		fresh, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		require.Contains(t, string(fresh), FleetEnrollmentSubjectOU)
+
+		renewal, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", MDMAccessRightAll, false)
+		require.NoError(t, err)
+		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+	})
+
+	t.Run("account-driven enrollment", func(t *testing.T) {
+		fresh, err := GenerateAccountDrivenEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", "user@example.com", true)
+		require.NoError(t, err)
+		require.Contains(t, string(fresh), FleetEnrollmentSubjectOU)
+
+		renewal, err := GenerateAccountDrivenEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", "user@example.com", false)
+		require.NoError(t, err)
+		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+	})
+
+	t.Run("ACME enrollment", func(t *testing.T) {
+		fresh, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		require.Contains(t, string(fresh), FleetEnrollmentSubjectOU)
+
+		renewal, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, false)
+		require.NoError(t, err)
+		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+	})
 }
 
 func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {

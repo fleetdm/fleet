@@ -34,6 +34,7 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
+	WithAssets       bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -180,6 +181,29 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
+}
+
+func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if !c.WithAssets {
+		return nil, nil
+	}
+	if teamID == nil {
+		return []*fleet.DDMAsset{{AssetUUID: "global-asset-uuid", Name: "Global Asset", Identifier: "com.example.global-asset"}}, nil
+	}
+	if *teamID == 1 {
+		return []*fleet.DDMAsset{{AssetUUID: "team-asset-uuid", Name: "Team Asset", Identifier: "com.example.team-asset"}}, nil
+	}
+	return nil, nil
+}
+
+func (MockClient) DownloadDDMAsset(assetUUID string) ([]byte, error) {
+	switch assetUUID {
+	case "global-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.global-asset","Payload":{"Reference":{"DataURL":"https://example.com/global"}}}`), nil
+	case "team-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.team-asset","Payload":{"Reference":{"DataURL":"https://example.com/team"}}}`), nil
+	}
+	return nil, errors.New("asset not found")
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
@@ -664,6 +688,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
+				PinnedVersion:        new("10.0"),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -677,6 +702,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
+				PinnedVersion:        new("^123"),
 			},
 		}, nil
 	default:
@@ -1033,6 +1059,47 @@ func TestGenerateGitops(t *testing.T) {
 	})
 }
 
+func TestGenerateGitopsWithAssets(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{WithAssets: true}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	var sawAssetsSection, sawAssetFile bool
+	require.NoError(t, filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // reading files under a temp dir created by this test
+		if err != nil {
+			return err
+		}
+		content := string(b)
+		if strings.Contains(filepath.ToSlash(path), "/assets/") && strings.HasSuffix(path, ".json") {
+			sawAssetFile = true
+			require.Contains(t, content, "com.apple.asset.data")
+		}
+		if strings.Contains(content, "assets:") && strings.Contains(content, "/assets/") {
+			sawAssetsSection = true
+		}
+		return nil
+	}))
+	require.True(t, sawAssetsSection, "expected an assets: section referencing an assets/ path")
+	require.True(t, sawAssetFile, "expected a DDM asset json file to be written")
+}
+
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
 	configureFMAManifestServer(t)
 	fleetClient := &MockClient{WithoutMDM: true}
@@ -1210,6 +1277,63 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 		}
 	}
 	require.True(t, foundWarning, "expected SecretWarning for integrations.google_calendar.api_key_json")
+}
+
+func TestGenerateOrgSettingsMaskedGoogleWorkspaceApiKey(t *testing.T) {
+	// This test verifies that generateOrgSettings handles the case where the
+	// Google Workspace api_key_json is masked (returned as "********" string
+	// instead of a map): it must redact the key to a comment placeholder and
+	// record a SecretWarning, never emitting the secret.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Set the Google Workspace API key to masked, which will serialize as "********".
+	require.NotEmpty(t, appConfig.Integrations.GoogleWorkspace)
+	appConfig.Integrations.GoogleWorkspace[0].ApiKey.SetMasked()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings - this should not panic.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+
+	// Verify the result can be marshaled to YAML without error.
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	// Verify api_key_json was replaced with a comment placeholder (not "********").
+	var orgSettings map[string]any
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+
+	integrations := orgSettings["integrations"].(map[string]any)
+	googleWorkspace := integrations["google_workspace"].([]any)
+	intg := googleWorkspace[0].(map[string]any)
+	apiKeyJson := intg["api_key_json"]
+
+	// Should be a comment placeholder string, not "********" or a map.
+	apiKeyJsonStr, ok := apiKeyJson.(string)
+	require.True(t, ok, "api_key_json should be a string placeholder")
+	require.Contains(t, apiKeyJsonStr, "GITOPS_COMMENT", "api_key_json should be a comment placeholder")
+
+	// Verify SecretWarning was added for google_workspace.api_key_json.
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "integrations.google_workspace.api_key_json" {
+			foundWarning = true
+			break
+		}
+	}
+	require.True(t, foundWarning, "expected SecretWarning for integrations.google_workspace.api_key_json")
 }
 
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
@@ -1631,6 +1755,46 @@ func TestGenerateControls(t *testing.T) {
 	verifyControlsHasMacosSetup(t, controlsRaw)
 }
 
+func TestGenerateGitopsAppleAccountProvisioning(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.AppleAccountProvisioning = fleet.AppleAccountProvisioning{
+		OAuthIdPTokenURL: optjson.SetString("https://idp.example.com/oauth2/v1/token"),
+		OAuthIdPClientID: optjson.SetString("client-id"),
+	}
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+	require.NoError(t, err)
+
+	aap, ok := controls["apple_account_provisioning"].(map[string]any)
+	require.True(t, ok, "apple_account_provisioning should be emitted for global controls")
+	require.Equal(t, "https://idp.example.com/oauth2/v1/token", aap["oauth_idp_token_url"])
+	require.Equal(t, "client-id", aap["oauth_idp_client_id"])
+
+	// The secret is masked/non-exportable, so it's emitted as a TODO comment
+	// registered against default.yml rather than the real value.
+	secretToken, ok := aap["oauth_idp_client_secret"].(string)
+	require.True(t, ok)
+	var found bool
+	for _, c := range cmd.Comments {
+		if c.Token == secretToken {
+			require.Equal(t, "default.yml", c.Filename)
+			require.Contains(t, c.Comment, "TODO")
+			found = true
+		}
+	}
+	require.True(t, found, "the client secret should be emitted as a registered TODO comment")
+}
+
 func TestGenerateSoftware(t *testing.T) {
 	configureFMAManifestServer(t)
 	// Get the test app config.
@@ -1810,6 +1974,19 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	require.Contains(t, regularPkg, "post_install_script", "regular package should have post_install_script")
 	require.Contains(t, regularPkg, "uninstall_script", "regular package should have uninstall_script")
 	require.Contains(t, regularPkg, "pre_install_query", "regular package should have pre_install_query")
+
+	// Only the regular package keeps a version in its generated comment.
+	commentFor := func(name string) string {
+		for _, c := range cmd.Comments {
+			if strings.Contains(c.Comment, name) {
+				return c.Comment
+			}
+		}
+		return ""
+	}
+	require.NotContains(t, commentFor("my-script.sh"), "version", ".sh script package comment should not mention version")
+	require.NotContains(t, commentFor("setup.ps1"), "version", ".ps1 script package comment should not mention version")
+	require.Contains(t, commentFor("regular-package.deb"), "version", "regular package comment should still mention version")
 
 	for filename := range cmd.FilesToWrite {
 		require.NotContains(t, filename, "my-script-linux-install", "should not write install script file for .sh script package")
