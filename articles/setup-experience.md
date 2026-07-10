@@ -16,7 +16,7 @@ Below is the end user experience for macOS. Check out the separate videos for [i
    <iframe src="https://www.youtube.com/embed/BU0Q_8cQXuw?si=2N6abC9y1mEpFlzI" frameborder="0" allowfullscreen></iframe>
 </div>
 
-## Require IdP authentication
+## End user authentication
 
 You can require IdP authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. IdP authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
@@ -30,7 +30,7 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [GitOps](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable end user authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > Users > End user authentication > Require IdP authentication**. Alternatively, you can use [GitOps](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable end user authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
