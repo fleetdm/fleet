@@ -3086,6 +3086,26 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 	return nil
 }
 
+// updateAppConfigMDMHostNameTemplate saves the "No team" host name template on
+// the global AppConfig.MDM struct and reconciles enforcement.
+func (svc *Service) updateAppConfigMDMHostNameTemplate(ctx context.Context, nameTemplate string) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	if ac.MDM.HostNameTemplate.Value == nameTemplate {
+		return nil
+	}
+
+	ac.MDM.HostNameTemplate = optjson.SetString(nameTemplate)
+	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+		return ctxerr.Wrap(ctx, err, "save app config for host name template")
+	}
+
+	return svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, nameTemplate)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a bootstrap package
 ////////////////////////////////////////////////////////////////////////////////

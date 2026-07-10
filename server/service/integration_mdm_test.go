@@ -25368,8 +25368,8 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	}
 
 	// --- endpoint validation ---
-	s.Do("POST", "/api/latest/fleet/host_name_template",
-		updateHostNameTemplateRequest{HostNameTemplate: "WS-1"}, http.StatusUnprocessableEntity)
+	// (An omitted fleet_id targets "No team", covered by
+	// TestHostNameTemplateNoTeamEndToEnd; this test drives the team scope.)
 	res := s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
@@ -25603,4 +25603,271 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	unchangedMac, err := s.ds.Host(ctx, macHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, "WS-"+macHost.HardwareSerial, unchangedMac.ComputerName)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint, personal bool) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", personal))
+	}
+
+	// The host stays in "No team" (we never call AddHostsToTeam). BYOD exclusion
+	// for the No-team scope is covered deterministically by the datastore test
+	// (testHostDeviceNamesNoTeam); here we focus on the cron/ack/verify/host-detail
+	// /resend pipeline resolving the template from the global app config.
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(macHost.ID, false)
+
+	require.Nil(t, macHost.TeamID)
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	requireNoRow := func(hostUUID string) {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+
+	// --- set the No-team template (nil fleet_id) ---
+	// An invalid variable is still rejected on the No-team path.
+	res := s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
+
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: tmpl}, http.StatusNoContent)
+	// the activity carries a null fleet_id/fleet_name for No team
+	activityID := s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "name_template": %q}`, tmpl), 0)
+
+	// the global app config now carries the template
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, tmpl, ac.MDM.HostNameTemplate.Value)
+
+	// eligible No-team host queued
+	requireRowStatus(macHost.UUID, nil)
+
+	// re-saving the identical template is a no-op (no duplicate activity)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: tmpl}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template", "", activityID)
+
+	// --- cron resolves the No-team template from app config and enqueues ---
+	runDeviceNameCron()
+	macRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, macRow.CommandUUID)
+	require.True(t, strings.HasPrefix(*macRow.CommandUUID, fleet.DeviceNameCommandUUIDPrefix))
+	require.Equal(t, "WS-"+macHost.HardwareSerial, *macRow.ExpectedDeviceName)
+
+	// device receives the Settings command and acknowledges → rename + verifying
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	renamedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.ComputerName)
+
+	submitSystemInfo := func(computerName string) {
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: *macHost.NodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_system_info": {{
+					"computer_name":      computerName,
+					"hostname":           computerName,
+					"uuid":               macHost.UUID,
+					"hardware_serial":    macHost.HardwareSerial,
+					"hardware_model":     "MacBookPro16,1",
+					"physical_memory":    "16000000000",
+					"cpu_physical_cores": "8",
+					"cpu_logical_cores":  "8",
+				}},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0},
+		}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &submitDistributedQueryResultsResponse{})
+	}
+
+	// osquery reports the matching name → verified
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// end user renames the device off-template → drift → failed
+	submitSystemInfo("Renamed by user")
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+
+	// --- host detail exposes the host_name object for the No-team host ---
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
+	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+
+	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
+	requireRowStatus(macHost.UUID, nil) // reset to queued
+
+	// --- aggregate: the No-team OS-settings summary folds the rename in ---
+	// (exact bucket counts are asserted in the datastore test; here we confirm the
+	// No-team host list filter surfaces the queued host under the No-team scope.)
+	noTeam := uint(0)
+	pendingHosts, err := s.ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin},
+		fleet.HostListOptions{TeamFilter: &noTeam, OSSettingsFilter: fleet.OSSettingsPending})
+	require.NoError(t, err)
+	pendingIDs := make([]uint, 0, len(pendingHosts))
+	for _, h := range pendingHosts {
+		pendingIDs = append(pendingIDs, h.ID)
+	}
+	require.Contains(t, pendingIDs, macHost.ID)
+
+	// --- clearing deletes the row and emits a null activity (nil fleet_id) ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: ""}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template",
+		`{"fleet_id": null, "fleet_name": null, "name_template": null}`, 0)
+	requireNoRow(macHost.UUID)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateTransferTeamToNoTeam() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, macHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+
+	requireRowStatus := func(want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, macHost.UUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+	// drainSettingsCommand acks the pending Settings command and returns the
+	// DeviceName the server told the device to apply.
+	drainSettingsCommand := func() string {
+		cmd, err := macDevice.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		var settingsCmd struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &settingsCmd))
+		require.Len(t, settingsCmd.Command.Settings, 1)
+		_, err = macDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		return settingsCmd.Command.Settings[0].DeviceName
+	}
+
+	// --- both scopes carry a (distinct) template ---
+	const teamTmpl = "TEAM-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	const noTeamTmpl = "NOTEAM-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: teamTmpl}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: noTeamTmpl}, http.StatusNoContent)
+
+	// --- host on the fleet: its team template governs ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireRowStatus(nil) // queued by the transfer reconcile (team has a template)
+
+	runDeviceNameCron()
+	requireRowStatus(&fleet.MDMDeliveryPending)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, drainSettingsCommand())
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+	renamed, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, renamed.ComputerName)
+
+	// --- transfer into "No team": the row is re-queued (No team has a template) ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	movedHost, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Nil(t, movedHost.TeamID, "host is now in No team")
+	requireRowStatus(nil) // re-queued, not deleted (was: always deleted pre-#10)
+
+	// --- cron now resolves the host name from the global No-team template ---
+	runDeviceNameCron()
+	requireRowStatus(&fleet.MDMDeliveryPending)
+	require.Equal(t, "NOTEAM-"+macHost.HardwareSerial, drainSettingsCommand(),
+		"after transfer to No team the cron must resolve the No-team template")
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+	renamed, err = s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "NOTEAM-"+macHost.HardwareSerial, renamed.ComputerName)
+
+	requireNoRow := func() {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, macHost.UUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+
+	// --- reverse direction: No team -> fleet re-queues under the team template ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireRowStatus(nil) // re-queued on the way back to the fleet
+	runDeviceNameCron()
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, drainSettingsCommand(),
+		"back on the fleet the cron must resolve the team template again")
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+
+	// --- transfer to a template-less fleet deletes the row (stops enforcement) ---
+	emptyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-empty"})
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &emptyTeam.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireNoRow()
+	// no command is enqueued and the host keeps its last name
+	runDeviceNameCron()
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	kept, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, kept.ComputerName, "transfer must not rename")
+
+	// --- transfer into No team while No team has no template: not enforced ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: ""}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireNoRow()
+	runDeviceNameCron()
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 }

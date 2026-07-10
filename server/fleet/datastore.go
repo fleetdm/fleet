@@ -1788,16 +1788,18 @@ type Datastore interface {
 	// Apple host name enforcement
 
 	// BulkUpsertHostDeviceNameEnforcement creates (or resets to queued) host-name
-	// enforcement rows for every host in the given team that is eligible for the
+	// enforcement rows for every host in the given scope that is eligible for the
 	// host-name template (Apple platform, enrolled in Fleet's MDM, not a personal
-	// BYOD enrollment). Existing rows are reset to a NULL status so the cron
-	// re-enqueues the command. Called when a team's template is set or changed.
-	BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID uint) error
+	// BYOD enrollment). A nil (or 0) teamID scopes to "No team" (team_id IS NULL);
+	// a non-nil teamID scopes to that fleet. Existing rows are reset to a NULL
+	// status so the cron re-enqueues the command. Called when a template is set or
+	// changed.
+	BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error
 
 	// DeleteHostDeviceNameEnforcementForTeam removes all host-name enforcement
-	// rows for hosts in the given team. Called when a team's template is cleared;
-	// no rename command is sent.
-	DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID uint) error
+	// rows for hosts in the given scope (nil/0 teamID = "No team"). Called when a
+	// template is cleared; no rename command is sent.
+	DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID *uint) error
 
 	// ListHostsPendingDeviceNameCommand returns up to limit hosts whose
 	// enforcement row is queued (status IS NULL), joined with the host details the

@@ -1152,9 +1152,9 @@ type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRota
 
 type SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
 
-type BulkUpsertHostDeviceNameEnforcementFunc func(ctx context.Context, teamID uint) error
+type BulkUpsertHostDeviceNameEnforcementFunc func(ctx context.Context, teamID *uint) error
 
-type DeleteHostDeviceNameEnforcementForTeamFunc func(ctx context.Context, teamID uint) error
+type DeleteHostDeviceNameEnforcementForTeamFunc func(ctx context.Context, teamID *uint) error
 
 type ListHostsPendingDeviceNameCommandFunc func(ctx context.Context, limit int) ([]fleet.HostDeviceNamePending, error)
 
@@ -9311,14 +9311,14 @@ func (s *DataStore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx contex
 	return s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc(ctx)
 }
 
-func (s *DataStore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID uint) error {
+func (s *DataStore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error {
 	s.mu.Lock()
 	s.BulkUpsertHostDeviceNameEnforcementFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkUpsertHostDeviceNameEnforcementFunc(ctx, teamID)
 }
 
-func (s *DataStore) DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID uint) error {
+func (s *DataStore) DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID *uint) error {
 	s.mu.Lock()
 	s.DeleteHostDeviceNameEnforcementForTeamFuncInvoked = true
 	s.mu.Unlock()

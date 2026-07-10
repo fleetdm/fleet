@@ -2837,35 +2837,31 @@ func TestResendHostNameTemplate(t *testing.T) {
 		require.NoError(t, svc.ResendHostNameTemplate(gitopsCtx, 1))
 	})
 
-	t.Run("no-team host is explicitly rejected as fleets-only", func(t *testing.T) {
+	t.Run("no-team host resend works for a global admin", func(t *testing.T) {
 		ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: hid, UUID: "no-team-uuid", Platform: "darwin", TeamID: nil}, nil
 		}
-		ds.ResendHostDeviceNameFuncInvoked = false
-		ds.GetHostDeviceNameEnforcementFuncInvoked = false
+		failed := fleet.MDMDeliveryFailed
 		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
-			return nil, errors.New("should not be reached for a No-team host")
+			return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID, Status: &failed}, nil
 		}
+		ds.ResendHostDeviceNameFuncInvoked = false
+		ds.ResendHostDeviceNameFunc = func(ctx context.Context, hostUUID string) error { return nil }
 
-		// A No-team host is rejected with a fleets-only 422 before the enforcement
-		// row is ever looked up. Only callers who pass the team-scoped authz (a
-		// global role, since the host has no team) reach the guard.
-		err := svc.ResendHostNameTemplate(adminCtx, 1)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "only enforced for hosts that belong to a fleet")
-		require.False(t, ds.GetHostDeviceNameEnforcementFuncInvoked)
-		require.False(t, ds.ResendHostDeviceNameFuncInvoked)
+		require.NoError(t, svc.ResendHostNameTemplate(adminCtx, 1))
+		require.True(t, ds.ResendHostDeviceNameFuncInvoked)
 
-		// A team-scoped user gets a uniform forbidden error instead of the
-		// fleets-only message, so the response can't be used as an oracle to
-		// distinguish No-team hosts from hosts in other teams.
+		// A team-scoped user is still forbidden on a No-team host: its team-scoped
+		// authz targets the global scope (host.TeamID == nil), which a team role
+		// can't write, and the uniform forbidden error can't be used as an oracle
+		// to distinguish No-team hosts from hosts in other teams.
+		ds.GetHostDeviceNameEnforcementFuncInvoked = false
 		teamMaintainerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}},
 		}})
-		err = svc.ResendHostNameTemplate(teamMaintainerCtx, 1)
+		err := svc.ResendHostNameTemplate(teamMaintainerCtx, 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
-		require.NotContains(t, err.Error(), "only enforced for hosts that belong to a fleet")
 		require.False(t, ds.GetHostDeviceNameEnforcementFuncInvoked)
 	})
 

@@ -45,33 +45,35 @@ func ReconcileHostDeviceNames(
 		return nil
 	}
 
+	noTeamTemplate := appConfig.MDM.HostNameTemplate.Value
 	templates := make(map[uint]string) // team ID → name template
 	var notify []string                // hosts with a freshly-enqueued command to push
 	for _, host := range pending {
+		var tmpl string
 		if host.TeamID == nil {
-			// Enforcement rows are only created for hosts on a team with a
-			// template; the host moved to "no team" between cron runs and its
-			// row is reconciled by the transfer path. Leave it queued.
-			continue
-		}
-		tmpl, ok := templates[*host.TeamID]
-		if !ok {
-			mdmConfig, err := ds.TeamMDMConfig(ctx, *host.TeamID)
-			if err != nil {
-				if fleet.IsNotFound(err) {
-					// team deleted between cron runs
-					templates[*host.TeamID] = ""
-					continue
+			tmpl = noTeamTemplate
+		} else {
+			var ok bool
+			tmpl, ok = templates[*host.TeamID]
+			if !ok {
+				mdmConfig, err := ds.TeamMDMConfig(ctx, *host.TeamID)
+				if err != nil {
+					if fleet.IsNotFound(err) {
+						// team deleted between cron runs
+						templates[*host.TeamID] = ""
+						continue
+					}
+					return ctxerr.Wrap(ctx, err, "get team mdm config for device name")
 				}
-				return ctxerr.Wrap(ctx, err, "get team mdm config for device name")
+				tmpl = mdmConfig.HostNameTemplate
+				templates[*host.TeamID] = tmpl
 			}
-			tmpl = mdmConfig.HostNameTemplate
-			templates[*host.TeamID] = tmpl
 		}
 		if tmpl == "" {
 			// Template cleared between cron runs, or the team was deleted (cached
-			// as "" above). Either way the clear/delete path removes the rows, so
-			// there's nothing to enforce here.
+			// as "" above), or a No-team template was cleared. Either way the
+			// clear/delete/transfer path removes the rows, so there's nothing to
+			// enforce here.
 			continue
 		}
 

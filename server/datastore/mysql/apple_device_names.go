@@ -29,28 +29,49 @@ const deviceNameEligibleHostsWhere = `
 	AND hm.enrolled = 1
 	AND hm.is_personal_enrollment = 0`
 
-func (ds *Datastore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID uint) error {
+// deviceNameNoTeamTemplateExpr is a scalar SQL expression that yields the
+// "No team" host name template from the single app_config_json row, or '' when
+// unset. AppConfig.MDM.HostNameTemplate is an optjson.String that marshals to
+// JSON null when unset, and `->>` would surface that as the literal string
+// "null"; gating on JSON_TYPE = 'STRING' resolves null/absent to '' (no template),
+// matching the empty-string semantics the Go optjson value uses.
+const deviceNameNoTeamTemplateExpr = `(SELECT IF(
+	JSON_TYPE(JSON_EXTRACT(json_value, '$.mdm.name_template')) = 'STRING',
+	json_value->>'$.mdm.name_template', '') FROM app_config_json LIMIT 1)`
+
+func deviceNameTeamScope(teamID *uint) (filter string, args []any) {
+	if teamID != nil && *teamID > 0 {
+		return "h.team_id = ?", []any{*teamID}
+	}
+	return "h.team_id IS NULL", nil
+}
+
+func (ds *Datastore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error {
+	teamFilter, args := deviceNameTeamScope(teamID)
+
 	stmt := `
 		INSERT INTO host_mdm_apple_device_names (host_uuid, status)
 		SELECT h.uuid, NULL` + deviceNameEligibleHostsJoins + `
 		WHERE ` + deviceNameEligibleHostsWhere + `
-			AND h.team_id = ?
+			AND ` + teamFilter + `
 		ON DUPLICATE KEY UPDATE status = NULL`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk upsert host device name enforcement")
 	}
 	return nil
 }
 
-func (ds *Datastore) DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID uint) error {
-	const stmt = `
+func (ds *Datastore) DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID *uint) error {
+	teamFilter, args := deviceNameTeamScope(teamID)
+
+	stmt := `
 		DELETE hmadn
 		FROM host_mdm_apple_device_names hmadn
 		JOIN hosts h ON h.uuid = hmadn.host_uuid
-		WHERE h.team_id = ?`
+		WHERE ` + teamFilter
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host device name enforcement for team")
 	}
 	return nil
@@ -256,19 +277,10 @@ func (ds *Datastore) ReconcileHostDeviceNamesForHosts(ctx context.Context, hostI
 	})
 }
 
-// reconcileHostDeviceNamesForHostsDB upserts or deletes host-name enforcement
-// rows for the given hosts based on each host's current team template.
-//
-// A host should have a queued enforcement row when it is eligible and its team
-// carries a non-empty name template; otherwise any existing row is removed. The
-// template lives in teams.config JSON at $.mdm.name_template (empty string when
-// unset, NULL for teams whose config predates the feature).
-func reconcileHostDeviceNamesForHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	deleteStmt, deleteArgs, err := sqlx.In(`
+// deleteHostDeviceNameRowsForHostsDB removes enforcement rows for the given
+// hosts.
+func deleteHostDeviceNameRowsForHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	stmt, args, err := sqlx.In(`
 		DELETE hmadn
 		FROM host_mdm_apple_device_names hmadn
 		JOIN hosts h ON h.uuid = hmadn.host_uuid
@@ -276,18 +288,21 @@ func reconcileHostDeviceNamesForHostsDB(ctx context.Context, tx sqlx.ExtContext,
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build reconcile device name delete")
 	}
-	if _, err := tx.ExecContext(ctx, deleteStmt, deleteArgs...); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "reconcile device name delete")
 	}
+	return nil
+}
 
+// deviceNameQueueEligibleRows queues (status NULL) an enforcement row for every
+// eligible host in hostIDs. It does not resolve a template — callers gate on the
+// template themselves — so it only applies the eligibility predicate.
+func deviceNameQueueEligibleRows(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, extraWhere string) error {
 	insertStmt, insertArgs, err := sqlx.In(`
 		INSERT INTO host_mdm_apple_device_names (host_uuid, status)
 		SELECT h.uuid, NULL`+deviceNameEligibleHostsJoins+`
-		JOIN teams t ON t.id = h.team_id
 		WHERE h.id IN (?)
-			AND `+deviceNameEligibleHostsWhere+`
-			AND t.config->>'$.mdm.name_template' IS NOT NULL
-			AND t.config->>'$.mdm.name_template' != ''`, hostIDs)
+			AND `+deviceNameEligibleHostsWhere+extraWhere, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build reconcile device name insert")
 	}
@@ -295,4 +310,65 @@ func reconcileHostDeviceNamesForHostsDB(ctx context.Context, tx sqlx.ExtContext,
 		return ctxerr.Wrap(ctx, err, "reconcile device name insert")
 	}
 	return nil
+}
+
+// reconcileHostDeviceNamesForHostsDB upserts or deletes host-name enforcement
+// rows for the given hosts based on each host's current host name template.
+//
+// A host should have a queued enforcement row when it is eligible and the
+// template that governs it is non-empty; otherwise any existing row is removed.
+// The governing template is the host's team template (teams.config JSON at
+// $.mdm.name_template) for a fleet host, or the global "No team" template
+// (app_config_json at $.mdm.name_template) for a host in "No team"
+// (team_id IS NULL). In both stores empty string means "unset"; either way
+// an empty/NULL template means no row. This keys entirely on each host, so
+// transfer-into-No-team and No-team enrollment queue rows automatically.
+func reconcileHostDeviceNamesForHostsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	if err := deleteHostDeviceNameRowsForHostsDB(ctx, tx, hostIDs); err != nil {
+		return err
+	}
+
+	return deviceNameQueueEligibleRows(ctx, tx, hostIDs, `
+		AND COALESCE(
+			CASE WHEN h.team_id IS NULL
+				THEN `+deviceNameNoTeamTemplateExpr+`
+				ELSE (SELECT t.config->>'$.mdm.name_template' FROM teams t WHERE t.id = h.team_id)
+			END, '') != ''`)
+}
+
+func reconcileHostDeviceNamesForTeamDB(ctx context.Context, tx sqlx.ExtContext, teamID *uint, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Always clear the batch's rows first: a host moving to a template-less scope
+	// (or one that became ineligible) must lose its row regardless of the template.
+	if err := deleteHostDeviceNameRowsForHostsDB(ctx, tx, hostIDs); err != nil {
+		return err
+	}
+
+	// Resolve the destination scope's template once.
+	var tmpl string
+	if teamID != nil && *teamID > 0 {
+		if err := sqlx.GetContext(ctx, tx, &tmpl,
+			`SELECT COALESCE(config->>'$.mdm.name_template', '') FROM teams WHERE id = ?`, *teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resolve team name template")
+		}
+	} else if err := sqlx.GetContext(ctx, tx, &tmpl,
+		`SELECT `+deviceNameNoTeamTemplateExpr); err != nil {
+		return ctxerr.Wrap(ctx, err, "resolve no-team name template")
+	}
+
+	// No template ⇒ nothing to enforce; the delete above already removed any rows.
+	if tmpl == "" {
+		return nil
+	}
+
+	// The template is known non-empty for the whole (homogeneous) batch, so queue
+	// eligible hosts with no per-row template resolution and no teams join.
+	return deviceNameQueueEligibleRows(ctx, tx, hostIDs, "")
 }

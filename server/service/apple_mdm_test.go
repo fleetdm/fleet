@@ -3834,8 +3834,22 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 		savedTeam = tm
 		return tm, nil
 	}
-	ds.BulkUpsertHostDeviceNameEnforcementFunc = func(ctx context.Context, teamID uint) error { return nil }
-	ds.DeleteHostDeviceNameEnforcementForTeamFunc = func(ctx context.Context, teamID uint) error { return nil }
+	// currentAppConfigTemplate is the "No team" template loaded from app config;
+	// No-team subtests adjust it to exercise idempotency and clear paths.
+	currentAppConfigTemplate := ""
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ac := &fleet.AppConfig{}
+		ac.MDM.EnabledAndConfigured = true
+		ac.MDM.HostNameTemplate = optjson.SetString(currentAppConfigTemplate)
+		return ac, nil
+	}
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, ac *fleet.AppConfig) error {
+		savedAppConfig = ac
+		return nil
+	}
+	ds.BulkUpsertHostDeviceNameEnforcementFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.DeleteHostDeviceNameEnforcementForTeamFunc = func(ctx context.Context, teamID *uint) error { return nil }
 
 	var lastActivity activity_api.ActivityDetails
 	svcOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
@@ -3845,8 +3859,10 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 
 	resetInvoked := func() {
 		savedTeam = nil
+		savedAppConfig = nil
 		lastActivity = nil
 		ds.SaveTeamFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
 		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
 		ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked = false
 		svcOpts.ActivityMock.NewActivityFuncInvoked = false
@@ -3859,6 +3875,7 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 
 	t.Run("license and authz matrix", func(t *testing.T) {
 		teamOne := new(uint(1))
+		teamZero := new(uint(0))
 		testCases := []struct {
 			name    string
 			user    *fleet.User
@@ -3867,7 +3884,12 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 			wantErr string
 		}{
 			{"free tier", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, teamOne, fleet.ErrMissingLicense.Error()},
-			{"missing fleet_id", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, nil, "this setting is only available for fleets"},
+			{"no fleet_id targets No team, global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, nil, ""},
+			{"No team is a global-scope write, team admin denied", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, nil, authz.ForbiddenErrorMessage},
+			{"fleet_id 0 targets No team, global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, teamZero, ""},
+			// fleet_id 0 is No team (global scope), so a team admin can't write it —
+			// the team-scoped authz never matches the virtual team 0.
+			{"fleet_id 0 is a global-scope write, team admin denied", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, teamZero, authz.ForbiddenErrorMessage},
 			{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, teamOne, ""},
 			{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true, teamOne, ""},
 			{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true, teamOne, authz.ForbiddenErrorMessage},
@@ -3964,6 +3986,64 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 
 		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
 		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.Nil(t, act.HostNameTemplate)
+	})
+
+	t.Run("No team: setting saves to app config, queues rows, emits activity with nil fleet_id", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = ""
+		// nil fleet_id targets No team; whitespace is normalized like the team path.
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), nil, "  WS-$FLEET_VAR_HOST_HARDWARE_SERIAL ")
+		require.NoError(t, err)
+		require.False(t, ds.SaveTeamFuncInvoked, "No team must not touch a team row")
+		require.NotNil(t, savedAppConfig)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", savedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.False(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
+		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.Nil(t, act.FleetID, "No team activity carries a nil fleet_id")
+		require.Nil(t, act.FleetName)
+		require.NotNil(t, act.HostNameTemplate)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", *act.HostNameTemplate)
+	})
+
+	t.Run("No team: fleet_id 0 is treated as No team", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = ""
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(0)), "WS-$FLEET_VAR_HOST_UUID")
+		require.NoError(t, err)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, savedAppConfig)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_UUID", savedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+	})
+
+	t.Run("No team: saving the identical template is a no-op", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), nil, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+		require.NoError(t, err)
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+		require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.False(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+	})
+
+	t.Run("No team: clearing deletes rows and logs a null template", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), nil, "")
+		require.NoError(t, err)
+		require.NotNil(t, savedAppConfig)
+		require.Empty(t, savedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
+		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.Nil(t, act.FleetID)
 		require.Nil(t, act.HostNameTemplate)
 	})
 }
