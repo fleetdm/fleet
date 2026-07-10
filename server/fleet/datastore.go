@@ -454,9 +454,9 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-Windows-profile content once no host_mdm_windows_profiles
-	// row still references the profile (reference-counted).
-	CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error
+	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
+	// deleted and edited profiles) once no host still has the prior version installed.
+	CleanupWindowsMDMProfilePriorContent(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
 	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
 	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
@@ -478,10 +478,12 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
-	// soft-deletes existing rows whose origin matches, so osquery and MDM
-	// ingestion don't clobber each other's view.
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only soft-deletes existing rows whose origin
+	// matches, so osquery and MDM ingestion don't clobber each other's view. observedScopes further limits
+	// reconciliation to the (source, username) scopes the agent could authoritatively enumerate this run; a nil slice
+	// means every scope was observed (macOS keychains and the MDM path), while a non-nil slice (Windows) preserves
+	// certificates for scopes it could not see, e.g. a logged-off user.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin, observedScopes []HostCertificateScope) error
 
 	// SoftDeleteMDMHostCertificatesForUnenrolledHosts soft-deletes MDM-origin
 	// cert rows for hosts reporting host_mdm.enrolled=0 — the cron complement to
@@ -960,11 +962,11 @@ type Datastore interface {
 	// and resets automation retry attempts, identical to a query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 
-	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
+	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -1063,8 +1065,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string, platform string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -1224,7 +1226,13 @@ type Datastore interface {
 	// If newlyPassingPolicyIDs is non-nil, it contains the IDs of policies that flipped from failing to passing
 	// and is used directly instead of calling FlippingPoliciesForHost internally. This allows callers that have
 	// already computed flipping policies to avoid a redundant database query.
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
+	//
+	// It returns the host's stale policy IDs: policies with a stored policy_membership row but
+	// no incoming result. It does NOT delete those rows; whether they can be deleted is the
+	// caller's decision, since only the caller knows whether `results` is the host's complete
+	// set of in-scope policy results (e.g. hosts in setup experience are sent a filtered
+	// subset of policy queries).
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) (stalePolicyIDs []uint, err error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
@@ -1256,10 +1264,13 @@ type Datastore interface {
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host, returns whether the current key was archived or not due to the current one being updated/replaced.
 	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *Host, encryptedBase64Key, clientError string, decryptable *bool) (bool, error)
-	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
-	// escrowed LUKS data, returns whether the current key was archived or not due to the current one being
-	// updated/replaced.
-	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
+	// SaveLUKSData sets base64'd encrypted LUKS passphrase (or TPM-backed FDE
+	// recovery key), key slot, and salt data for a host that has successfully
+	// escrowed disk encryption data, returns whether the current key was
+	// archived or not due to the current one being updated/replaced. keySlot
+	// and salt are empty/nil for recovery-key escrow, where snapd owns the LUKS
+	// key slots.
+	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot *uint) (bool, error)
 	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
 	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
@@ -1989,31 +2000,42 @@ type Datastore interface {
 	InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType string, rawJSON json.RawMessage) error
 
 	// MDMAppleDDMDeclarationsToken returns the token used to synchronize declarations for the
-	// specified host UUID.
-	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*MDMAppleDDMDeclarationsToken, error)
-	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
-	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
+	// specified host UUID on the given channel (scope). Each channel computes its
+	// token over only its own declarations.
+	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string, scope PayloadScope) (*MDMAppleDDMDeclarationsToken, error)
+	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID
+	// on the given channel (scope).
+	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string, scope PayloadScope) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
-	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
+	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string, scope PayloadScope) (*MDMAppleDeclaration, error)
 
-	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
-	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
-	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
+	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync,
+	// partitioned by channel (device vs user) so the reconciler only pokes the
+	// channel that needs to re-sync. This is used to cover special cases where
+	// we're not 100% certain of the declarations on the device.
+	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (deviceHostUUIDs []string, userHostUUIDs []string, err error)
 	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
 	// of declarations, and updates the tracked host declaration status for
 	// matching declarations.
 	//
 	// It also takes care of cleaning up all host declarations that are
 	// pending removal.
-	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
+	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, scope PayloadScope, updates []*MDMAppleHostDeclaration) error
+	// BulkDeleteMDMAppleHostDeclarations removes the given host declaration rows
+	// by (host_uuid, declaration_uuid). Used to clean up user-scoped declarations
+	// that can't be delivered because the host has no user channel, so they don't
+	// linger as permanent "pending" rows.
+	BulkDeleteMDMAppleHostDeclarations(ctx context.Context, rows []*MDMAppleHostDeclaration) error
 	// SetHostMDMAppleDeclarationStatus updates the status and detail of a
 	// single declaration for a host. If variablesUpdatedAt is non-nil, it also
 	// sets the variables_updated_at timestamp.
 	SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error
 	// MDMAppleSetPendingDeclarationsAs updates all ("pending", "install")
-	// declarations for a host to be ("verifying", status), where status is
-	// the provided value.
-	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
+	// declarations for a host on the given channel (scope) to be
+	// ("verifying", status), where status is the provided value. The scope
+	// filter ensures a DeclarativeManagement ack on one channel doesn't
+	// transition the other channel's pending declarations.
+	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, scope PayloadScope, status *MDMDeliveryStatus, detail string) error
 	MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
 	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
@@ -2198,6 +2220,9 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandForHostUUIDs is a fire-and-forget enqueue of a single command to multiple hosts identified by UUID.
+	MDMWindowsInsertCommandForHostUUIDs(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
+
 	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
 	// (identified by host UUID or MDM device ID). All commands succeed or none do, in one transaction. Used by
 	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
@@ -2271,6 +2296,10 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
+	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
+	// "failed" with the provided detail.
+	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to
 	// be resent upon the next cron run.
@@ -2331,6 +2360,9 @@ type Datastore interface {
 	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
 	// host UUID.
 	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
+
+	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
+	GetWindowsMDMProfilePriorContents(ctx context.Context, keys []MDMWindowsProfileVersionKey) ([]MDMWindowsProfilePriorContent, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.
@@ -2958,6 +2990,14 @@ type Datastore interface {
 	//
 
 	SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
+	// SetSetupExperienceCrossInstallersForInstaller replaces the
+	// setup_experience_software_installers rows for a single installer on a
+	// team with rows for the given platforms. Callers reconciling multiple
+	// installers should invoke this once per installer.
+	SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error
+	// GetSoftwareInstallerIDsByTeamAndFilenamePlatform resolves installer IDs
+	// from zipped (filename, platform) pairs on the given team.
+	GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx context.Context, teamID uint, filenames []string, platforms []string) ([]SoftwareInstallerLookupRow, error)
 	ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 
 	// SetHostAwaitingConfiguration sets a boolean indicating whether or not the given host is
@@ -3154,7 +3194,7 @@ type Datastore interface {
 	AndroidDatastore
 
 	// NewMDMAndroidConfigProfile creates a new Android MDM config profile.
-	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile, usesFleetVars []FleetVarName) (*MDMAndroidConfigProfile, error)
 
 	// GetMDMAndroidConfigProfile returns the Android MDM profile corresponding
 	// to the specified profile uuid.
@@ -3515,6 +3555,29 @@ type Datastore interface {
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple Platform SSO (PSSO)
+
+	// SetOrUpdatePSSODevice persists a Mac's PSSO registration: the device row
+	// plus the given key rows in a single transaction. Keys are upserted by
+	// kid; existing keys for the host are left in place so they keep working
+	// after a re-registration.
+	SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []PSSOKey) error
+
+	// GetPSSODevice returns the PSSO registration record for the given host
+	// UUID, or a notFound error if the host isn't registered.
+	GetPSSODevice(ctx context.Context, hostUUID string) (*PSSODevice, error)
+
+	// GetPSSOKey looks up a registered device key by its kid.
+	GetPSSOKey(ctx context.Context, kid string) (*PSSOKey, error)
+
+	// ListPSSOKeys returns all keys registered for the given host UUID.
+	ListPSSOKeys(ctx context.Context, hostUUID string) ([]*PSSOKey, error)
+
+	// DeletePSSODevice removes a host's PSSO registration and, via cascade,
+	// all of its registered keys. Deleting an unregistered host is a no-op.
+	DeletePSSODevice(ctx context.Context, hostUUID string) error
+
 	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
 	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
 
@@ -3541,6 +3604,22 @@ type Datastore interface {
 	ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
 	// CleanupExpiredADUEEnrollmentChallenges deletes enrollment challenges expired more than 1 day ago.
 	CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error
+
+	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
+	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
+	GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*DownloadableDDMAsset, error)
+	GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*DownloadableDDMAsset, error)
+	CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error)
+	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
+	GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*DDMAsset, error)
+	// BatchSetAppleDDMAssets sets the complete desired set of Apple DDM assets
+	// for a team: it upserts the given assets (matched by identifier) and
+	// deletes any existing assets not in the set. It returns a ConflictError if
+	// an incoming asset changes the type of an existing asset with the same
+	// identifier, or if a to-be-deleted asset is still referenced by a
+	// declaration. It returns the names of the assets it created, edited, and
+	// deleted so the caller can log the corresponding activities.
+	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
 }
 
 type AndroidDatastore interface {

@@ -34,6 +34,7 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
+	WithAssets       bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -180,6 +181,29 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
+}
+
+func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if !c.WithAssets {
+		return nil, nil
+	}
+	if teamID == nil {
+		return []*fleet.DDMAsset{{AssetUUID: "global-asset-uuid", Name: "Global Asset", Identifier: "com.example.global-asset"}}, nil
+	}
+	if *teamID == 1 {
+		return []*fleet.DDMAsset{{AssetUUID: "team-asset-uuid", Name: "Team Asset", Identifier: "com.example.team-asset"}}, nil
+	}
+	return nil, nil
+}
+
+func (MockClient) DownloadDDMAsset(assetUUID string) ([]byte, error) {
+	switch assetUUID {
+	case "global-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.global-asset","Payload":{"Reference":{"DataURL":"https://example.com/global"}}}`), nil
+	case "team-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.team-asset","Payload":{"Reference":{"DataURL":"https://example.com/team"}}}`), nil
+	}
+	return nil, errors.New("asset not found")
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
@@ -1035,6 +1059,47 @@ func TestGenerateGitops(t *testing.T) {
 	})
 }
 
+func TestGenerateGitopsWithAssets(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{WithAssets: true}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	var sawAssetsSection, sawAssetFile bool
+	require.NoError(t, filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // reading files under a temp dir created by this test
+		if err != nil {
+			return err
+		}
+		content := string(b)
+		if strings.Contains(filepath.ToSlash(path), "/assets/") && strings.HasSuffix(path, ".json") {
+			sawAssetFile = true
+			require.Contains(t, content, "com.apple.asset.data")
+		}
+		if strings.Contains(content, "assets:") && strings.Contains(content, "/assets/") {
+			sawAssetsSection = true
+		}
+		return nil
+	}))
+	require.True(t, sawAssetsSection, "expected an assets: section referencing an assets/ path")
+	require.True(t, sawAssetFile, "expected a DDM asset json file to be written")
+}
+
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
 	configureFMAManifestServer(t)
 	fleetClient := &MockClient{WithoutMDM: true}
@@ -1688,6 +1753,46 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err = cmd.generateControls(ptr.Uint(5), "some_team", nil)
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
+}
+
+func TestGenerateGitopsAppleAccountProvisioning(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.AppleAccountProvisioning = fleet.AppleAccountProvisioning{
+		OAuthIdPTokenURL: optjson.SetString("https://idp.example.com/oauth2/v1/token"),
+		OAuthIdPClientID: optjson.SetString("client-id"),
+	}
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+	require.NoError(t, err)
+
+	aap, ok := controls["apple_account_provisioning"].(map[string]any)
+	require.True(t, ok, "apple_account_provisioning should be emitted for global controls")
+	require.Equal(t, "https://idp.example.com/oauth2/v1/token", aap["oauth_idp_token_url"])
+	require.Equal(t, "client-id", aap["oauth_idp_client_id"])
+
+	// The secret is masked/non-exportable, so it's emitted as a TODO comment
+	// registered against default.yml rather than the real value.
+	secretToken, ok := aap["oauth_idp_client_secret"].(string)
+	require.True(t, ok)
+	var found bool
+	for _, c := range cmd.Comments {
+		if c.Token == secretToken {
+			require.Equal(t, "default.yml", c.Filename)
+			require.Contains(t, c.Comment, "TODO")
+			found = true
+		}
+	}
+	require.True(t, found, "the client secret should be emitted as a registered TODO comment")
 }
 
 func TestGenerateSoftware(t *testing.T) {

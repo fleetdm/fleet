@@ -1251,6 +1251,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 		hostDetailQueryPrefix + "disk_space_darwin":                       {},
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
+		hostDetailQueryPrefix + "certificates_windows":                    {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -3396,10 +3397,10 @@ func TestPolicyQueries(t *testing.T) {
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
-	) error {
+	) ([]uint, error) {
 		recordedResults = results
 		host = gotHost
-		return nil
+		return nil, nil
 	}
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
@@ -3557,6 +3558,93 @@ func TestPolicyQueries(t *testing.T) {
 	noPolicyResults(queries)
 }
 
+func TestPolicyMembershipOutOfScopeCleanup(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	host := &fleet.Host{ID: 42, Platform: "darwin"}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	inSetupExperience := false
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return inSetupExperience, nil
+	}
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, []uint, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
+	}
+	stalePolicyIDs := []uint{7, 9}
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool, newlyPassingPolicyIDs []uint,
+	) ([]uint, error) {
+		return stalePolicyIDs, nil
+	}
+	var clearedPolicyIDs []uint
+	ds.ClearHostPolicyMembershipForPoliciesFunc = func(ctx context.Context, hostID uint, policyIDs []uint) error {
+		require.Equal(t, host.ID, hostID)
+		clearedPolicyIDs = policyIDs
+		return nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+
+	ctx = hostctx.NewContext(ctx, host)
+
+	submit := func(results map[string][]map[string]string) {
+		err := svc.SubmitDistributedQueryResults(
+			ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{},
+		)
+		require.NoError(t, err)
+	}
+	resetInvoked := func() {
+		clearedPolicyIDs = nil
+		ds.ClearHostPolicyMembershipForPoliciesFuncInvoked = false
+		ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked = false
+		ds.GetHostAwaitingConfigurationFuncInvoked = false
+	}
+	policyResults := map[string][]map[string]string{
+		hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+	}
+
+	// Stale policies reported by RecordPolicyQueryExecutions are deleted and
+	// the host's failing policies count is refreshed.
+	submit(policyResults)
+	require.Equal(t, []uint{7, 9}, clearedPolicyIDs)
+	require.True(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+
+	// Hosts in setup experience are sent a filtered subset of policy queries,
+	// so their stale set is not meaningful and nothing is deleted.
+	resetInvoked()
+	inSetupExperience = true
+	submit(policyResults)
+	require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
+	require.False(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+
+	// No stale policies: nothing is deleted and the setup experience gate is
+	// not even checked.
+	resetInvoked()
+	inSetupExperience = false
+	stalePolicyIDs = nil
+	submit(policyResults)
+	require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
+	require.False(t, ds.GetHostAwaitingConfigurationFuncInvoked)
+
+	// The "no policies in scope" wildcard also cleans up stale rows.
+	resetInvoked()
+	stalePolicyIDs = []uint{7}
+	submit(map[string][]map[string]string{
+		hostNoPoliciesWildcard: {{"1": "1"}},
+	})
+	require.Equal(t, []uint{7}, clearedPolicyIDs)
+	require.True(t, ds.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked)
+}
+
 func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
 	ds := new(mock.Store)
 	lq := live_query_mock.New(t)
@@ -3712,10 +3800,10 @@ func TestPolicyWebhooks(t *testing.T) {
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
-	) error {
+	) ([]uint, error) {
 		recordedResults = results
 		host = gotHost
-		return nil
+		return nil, nil
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -3762,11 +3850,11 @@ func TestPolicyWebhooks(t *testing.T) {
 	var recordedNewlyPassing []uint
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
 		deferred bool, newlyPassingPolicyIDs []uint,
-	) error {
+	) ([]uint, error) {
 		recordedResults = results
 		recordedNewlyPassing = newlyPassingPolicyIDs
 		host = gotHost
-		return nil
+		return nil, nil
 	}
 
 	flippingCallCount = 0

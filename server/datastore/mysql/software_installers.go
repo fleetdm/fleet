@@ -1138,6 +1138,42 @@ func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, h
 	return true, nil
 }
 
+// GetSoftwareInstallerIDsByTeamAndFilenamePlatform resolves installer IDs
+// from zipped (filename, platform) pairs on the given team. Only active
+// installers are returned; missing pairs are omitted rather than erroring,
+// so callers must handle a short result set.
+func (ds *Datastore) GetSoftwareInstallerIDsByTeamAndFilenamePlatform(
+	ctx context.Context, teamID uint, filenames []string, platforms []string,
+) ([]fleet.SoftwareInstallerLookupRow, error) {
+	if len(filenames) != len(platforms) {
+		return nil, ctxerr.New(ctx, "filenames and platforms slices must have the same length")
+	}
+	if len(filenames) == 0 {
+		return nil, nil
+	}
+	// sqlx.In can't expand tuple IN, so build the placeholders manually.
+	rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?)"}, len(filenames)), ",")
+	args := make([]any, 0, len(filenames)*2+1)
+	args = append(args, teamID)
+	for i := range filenames {
+		args = append(args, filenames[i], platforms[i])
+	}
+	stmt := fmt.Sprintf(`
+SELECT
+	id,
+	filename,
+	platform
+FROM software_installers
+WHERE global_or_team_id = ?
+	AND is_active = 1
+	AND (filename, platform) IN (%s)`, rowPlaceholders)
+	var rows []fleet.SoftwareInstallerLookupRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "look up installer ids by team and filename+platform")
+	}
+	return rows, nil
+}
+
 func (ds *Datastore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT

@@ -324,6 +324,7 @@ const SoftwareTitleDetailsPage = ({
     // one row each. With multi-package titles we run this per `pkg` so each
     // top-level entry stays addressable by its own `installer_id`.
     const renderPackageRows = (pkg: ISoftwarePackage) => {
+      if (!pkg) return null;
       const { labels, kind } = pickLabels(pkg);
       const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
       const isLatestFmaVersion =
@@ -372,7 +373,7 @@ const SoftwareTitleDetailsPage = ({
           pendingPath={statusPath("pending")}
           failedPath={statusPath("failed")}
           hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
-          downloadUrl={row.isActive ? pkg.url : undefined}
+          canDownload={row.isActive}
           onBadgeClick={
             isFma && canEditSoftware
               ? () => setShowVersionsModal(true)

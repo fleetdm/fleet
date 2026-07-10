@@ -916,6 +916,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
+  slug: string; // "<app-token>/<platform>", e.g. "figma/darwin"; the token uniquely identifies an app across its platform entries
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
@@ -950,6 +951,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(

@@ -373,6 +373,7 @@ const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
   name: "test app",
   version: "1.2.3",
   platform: "darwin",
+  slug: "test-app/darwin",
 };
 
 export const createMockFleetMaintainedApp = (

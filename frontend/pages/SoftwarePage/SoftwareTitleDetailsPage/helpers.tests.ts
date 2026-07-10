@@ -10,7 +10,9 @@ const v = (id: number, version: string) => ({
 
 describe("SoftwareTitleDetailsPage helpers", () => {
   describe("buildLibraryVersionRows", () => {
-    it("renders a single active 'Latest' row when there is no cached-version list", () => {
+    it("renders a single active un-badged row when there is no cached-version list", () => {
+      // Custom packages have no FMA-style version history to pin against, so
+      // no badge is emitted for the fallback row.
       expect(
         buildLibraryVersionRows({
           fleetMaintainedVersions: null,
@@ -24,7 +26,6 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           version: "1.2.3",
           uploaded_at: "2026-02-02T00:00:00Z",
           isActive: true,
-          badgeState: "latest",
         },
       ]);
     });

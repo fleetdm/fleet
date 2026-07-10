@@ -44,8 +44,10 @@ export interface ILibraryVersionRow {
 
 /** Builds the Library accordion rows for a title: one row per cached
  * Fleet-maintained version (the active row badged from the pin, the rest dimmed
- * rollback candidates), or a single active "Latest" row for installer types
- * that have no cached-version list. */
+ * rollback candidates), or a single active un-badged row for installer types
+ * that have no cached-version list. The `latest`/`pinned`/`majorVersion` badges
+ * are FMA-semantics — custom packages have no version history to pin against,
+ * so no badge is rendered. */
 export const buildLibraryVersionRows = ({
   fleetMaintainedVersions,
   activeVersion,
@@ -73,7 +75,6 @@ export const buildLibraryVersionRows = ({
       version: activeVersion ?? "",
       uploaded_at: addedTimestamp,
       isActive: true,
-      badgeState: "latest",
     },
   ];
 };

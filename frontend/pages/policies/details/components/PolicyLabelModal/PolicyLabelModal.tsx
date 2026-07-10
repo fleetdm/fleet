@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import React from "react";
+import { Link } from "react-router";
 
 import { ILabelPolicy } from "interfaces/label";
 import Modal from "components/Modal";
@@ -12,8 +13,11 @@ export interface IPolicyLabelModalProps {
   includeScopeLabel?: string;
   excludeLabels?: ILabelPolicy[];
   excludeScopeLabel?: string;
-  /** When provided, labels render as clickable links; otherwise as plain text. */
-  onLabelClick?: (labelId: number) => void;
+  /**
+   * When provided, labels render as links to this path; otherwise as plain
+   * text.
+   * */
+  getLabelPath?: (labelId: number) => string;
   onClose: () => void;
 }
 
@@ -22,7 +26,7 @@ const PolicyLabelModal = ({
   includeScopeLabel,
   excludeLabels,
   excludeScopeLabel,
-  onLabelClick,
+  getLabelPath,
   onClose,
 }: IPolicyLabelModalProps): JSX.Element => {
   return (
@@ -38,7 +42,7 @@ const PolicyLabelModal = ({
             labels={includeLabels}
             scopeLabel={includeScopeLabel}
             description="Policy targets hosts that"
-            onLabelClick={onLabelClick}
+            getLabelPath={getLabelPath}
           />
         )}
         {excludeLabels && excludeScopeLabel && (
@@ -46,7 +50,7 @@ const PolicyLabelModal = ({
             labels={excludeLabels}
             scopeLabel={excludeScopeLabel}
             description="Policy excludes hosts that"
-            onLabelClick={onLabelClick}
+            getLabelPath={getLabelPath}
           />
         )}
         <div className="modal-cta-wrap">
@@ -61,14 +65,14 @@ interface ILabelListProps {
   labels: ILabelPolicy[];
   scopeLabel: string;
   description: string;
-  onLabelClick?: (labelId: number) => void;
+  getLabelPath?: (labelId: number) => string;
 }
 
 const LabelList = ({
   labels,
   scopeLabel,
   description,
-  onLabelClick,
+  getLabelPath,
 }: ILabelListProps): JSX.Element => (
   <div className={`${baseClass}__section`}>
     <span>
@@ -77,10 +81,8 @@ const LabelList = ({
     <ul className={`${baseClass}__label-list`}>
       {labels.map((label) => (
         <li key={label.id} className={`${baseClass}__label-item`}>
-          {onLabelClick ? (
-            <Button variant="link" onClick={() => onLabelClick(label.id)}>
-              {label.name}
-            </Button>
+          {getLabelPath ? (
+            <Link to={getLabelPath(label.id)}>{label.name}</Link>
           ) : (
             <span>{label.name}</span>
           )}
