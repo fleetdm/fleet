@@ -1,25 +1,10 @@
 package seed
 
 import (
-	"embed"
 	"fmt"
-	"io/fs"
-	"path"
 	"sort"
 	"strings"
 )
-
-// installerFiles bundles a curated set of installer fixtures into the dibble
-// binary so `dibble software custom` can upload real package files without
-// the user pointing at a checkout. Most fixtures come from
-// server/service/testdata/software-installers/ — the same ones Fleet's own
-// tests use. The .msi and .exe entries use upstream-signed installers
-// (python-manager, 7-Zip) so we exercise the Windows code paths without
-// surfacing the Fleet agent itself as a custom software item. vim.deb is
-// excluded for size.
-//
-//go:embed data/installers/*
-var installerFiles embed.FS
 
 // extensionInstallers lists the curated 2-3 installer fixtures per
 // extension. Order matters for display; the first entry per extension is
@@ -69,12 +54,6 @@ type SoftwareOptions struct {
 	MaintainedAppCount int
 }
 
-// loadInstaller reads a single embedded fixture by name.
-func loadInstaller(name string) ([]byte, error) {
-	full := path.Join("data/installers", name)
-	return fs.ReadFile(installerFiles, full)
-}
-
 // sortedExtensions returns the supported extensions in a deterministic
 // order so seeded output is stable across runs.
 func sortedExtensions() []string {
@@ -105,7 +84,7 @@ func SoftwareCustom(c Client, log Logger, opt SoftwareOptions) Result {
 
 	for _, ext := range sortedExtensions() {
 		for _, fixture := range extensionInstallers[ext] {
-			content, err := loadInstaller(fixture)
+			content, err := loadInstaller(log, fixture)
 			if err != nil {
 				res.Errors = append(res.Errors,
 					fmt.Errorf("load %s: %w", fixture, err))
