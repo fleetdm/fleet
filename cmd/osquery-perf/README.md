@@ -116,6 +116,10 @@ Example of running the agent with MDM. Note that `enroll_secret` is not needed f
 go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep_challenge 0d53306e-6d7a-9d14-a372-f9e53f9d62db
 ```
 
+`mdm_prob` determines the probability of MDM enrollment for each host. The default is 0.5 (50%). You can set it to 1.0 to ensure all hosts enroll in MDM.
+
+`mdm_user_prob` determines the probability of MDM user enrollment for each host. The default is 0.5 (50%). You can set it to 1.0 to ensure all hosts enroll in MDM user enrollment. This probability stacks with `mdm_prob`. So this probability is based on the hosts who end up MDM enrolling.
+
 ## Installing software
 
 The agent can install software for "macos", "ubuntu", and "windows" OSs when running with orbit agent. The following options control the installation behavior:
