@@ -3591,8 +3591,9 @@ type Datastore interface {
 	// deletes any existing assets not in the set. It returns a ConflictError if
 	// an incoming asset changes the type of an existing asset with the same
 	// identifier, or if a to-be-deleted asset is still referenced by a
-	// declaration.
-	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) error
+	// declaration. It returns the names of the assets it created, edited, and
+	// deleted so the caller can log the corresponding activities.
+	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
 }
 
 type AndroidDatastore interface {

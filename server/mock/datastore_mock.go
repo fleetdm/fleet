@@ -2172,7 +2172,7 @@ type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 
 type GetAppleDDMAssetsReferencedByDeclarationsFunc func(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error)
 
-type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) error
+type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error)
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -12921,7 +12921,7 @@ func (s *DataStore) GetAppleDDMAssetsReferencedByDeclarations(ctx context.Contex
 	return s.GetAppleDDMAssetsReferencedByDeclarationsFunc(ctx, declarationUUIDs)
 }
 
-func (s *DataStore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) error {
+func (s *DataStore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
 	s.mu.Lock()
 	s.BatchSetAppleDDMAssetsFuncInvoked = true
 	s.mu.Unlock()

@@ -571,39 +571,56 @@ func testBatchSetAppleDDMAssets(t *testing.T, ds *Datastore) {
 	}
 
 	// Create two new assets.
-	require.NoError(t, ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
+	changes, err := ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
 		{Name: "a", Identifier: "id.a", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.a", "https://example.com/a")},
 		{Name: "b", Identifier: "id.b", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.b", "https://example.com/b")},
-	}))
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"a", "b"}, changes.Created)
+	require.Empty(t, changes.Edited)
+	require.Empty(t, changes.Deleted)
 	assets, err := ds.ListAppleDDMAssets(ctx, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 2)
 	firstUploaded := uploadedAt("id.a")
 
-	// Re-applying the same content is a no-op: uploaded_at must not change.
-	require.NoError(t, ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
+	// Re-applying the same content is a no-op: uploaded_at must not change and
+	// no changes are reported.
+	changes, err = ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
 		{Name: "a", Identifier: "id.a", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.a", "https://example.com/a")},
 		{Name: "b", Identifier: "id.b", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.b", "https://example.com/b")},
-	}))
+	})
+	require.NoError(t, err)
+	require.Empty(t, changes.Created)
+	require.Empty(t, changes.Edited)
+	require.Empty(t, changes.Deleted)
 	require.True(t, uploadedAt("id.a").Equal(firstUploaded))
 
-	// Editing an asset's payload bumps uploaded_at.
-	require.NoError(t, ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
+	// Editing an asset's payload bumps uploaded_at and is reported as edited.
+	changes, err = ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
 		{Name: "a", Identifier: "id.a", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.a", "https://example.com/a-edited")},
 		{Name: "b", Identifier: "id.b", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.b", "https://example.com/b")},
-	}))
+	})
+	require.NoError(t, err)
+	require.Empty(t, changes.Created)
+	require.ElementsMatch(t, []string{"a"}, changes.Edited)
+	require.Empty(t, changes.Deleted)
 	require.True(t, uploadedAt("id.a").After(firstUploaded))
 
-	// Omitting an asset deletes it.
-	require.NoError(t, ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
+	// Omitting an asset deletes it and is reported as deleted.
+	changes, err = ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
 		{Name: "a", Identifier: "id.a", Type: "com.apple.asset.data", Data: assetData("com.apple.asset.data", "id.a", "https://example.com/a-edited")},
-	}))
+	})
+	require.NoError(t, err)
+	require.Empty(t, changes.Created)
+	require.Empty(t, changes.Edited)
+	require.ElementsMatch(t, []string{"b"}, changes.Deleted)
 	assets, err = ds.ListAppleDDMAssets(ctx, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 1)
 
 	// Changing an existing asset's type (same identifier) is rejected.
-	err = ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
+	_, err = ds.BatchSetAppleDDMAssets(ctx, nil, []*fleet.MDMAppleDDMAssetToSet{
 		{Name: "a", Identifier: "id.a", Type: "com.apple.asset.other", Data: assetData("com.apple.asset.other", "id.a", "https://example.com/a-edited")},
 	})
 	require.Error(t, err)
@@ -625,7 +642,7 @@ func testBatchSetAppleDDMAssets(t *testing.T, ds *Datastore) {
 			decl.DeclarationUUID, referencedAsset.AssetUUID)
 		return err
 	})
-	err = ds.BatchSetAppleDDMAssets(ctx, nil, nil)
+	_, err = ds.BatchSetAppleDDMAssets(ctx, nil, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &conflictErr)
 	require.Contains(t, err.Error(), referencedAsset.Identifier)

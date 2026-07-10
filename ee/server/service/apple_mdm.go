@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -158,7 +159,32 @@ func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name 
 		return "", ctxerr.Wrap(ctx, err, "creating Apple DDM asset")
 	}
 
+	actTeamID, actTeamName, err := svc.assetActivityTeam(ctx, teamID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "resolving team for asset activity")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCreatedDeclarationAsset{
+		AssetName: name,
+		TeamID:    actTeamID,
+		TeamName:  actTeamName,
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "logging activity for created declaration asset")
+	}
+
 	return assetUUID, nil
+}
+
+// assetActivityTeam resolves the team id/name pointers to include in a DDM
+// asset activity. Both are nil for the "no team" case (team 0 or nil).
+func (svc *Service) assetActivityTeam(ctx context.Context, teamID *uint) (*uint, *string, error) {
+	if teamID == nil || *teamID == 0 {
+		return nil, nil, nil
+	}
+	tm, err := svc.ds.TeamLite(ctx, *teamID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "loading team for asset activity")
+	}
+	return teamID, &tm.Name, nil
 }
 
 func (svc *Service) validateAppleDDMAsset(ctx context.Context, data []byte) (identifier, assetType string, err error) {
@@ -227,6 +253,18 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 		return ctxerr.Wrap(ctx, err, "deleting Apple DDM asset")
 	}
 
+	actTeamID, actTeamName, err := svc.assetActivityTeam(ctx, asset.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolving team for asset activity")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedDeclarationAsset{
+		AssetName: asset.Name,
+		TeamID:    actTeamID,
+		TeamName:  actTeamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for deleted declaration asset")
+	}
+
 	return nil
 }
 
@@ -240,6 +278,7 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
 	}
 
+	var resolvedTeamName string
 	if teamID != nil || tmName != nil {
 		tm, err := svc.teamByIDOrName(ctx, teamID, tmName)
 		if err != nil {
@@ -249,6 +288,7 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 			return ctxerr.Wrap(ctx, common_mysql.NotFound("Team"))
 		}
 		teamID = &tm.ID
+		resolvedTeamName = tm.Name
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.DDMAssetAuthz{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -295,8 +335,45 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 		return nil
 	}
 
-	if err := svc.ds.BatchSetAppleDDMAssets(ctx, teamID, toSet); err != nil {
+	changes, err := svc.ds.BatchSetAppleDDMAssets(ctx, teamID, toSet)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "batch setting apple ddm assets")
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID != nil && *teamID > 0 {
+		actTeamID = teamID
+		actTeamName = &resolvedTeamName
+	}
+	for _, name := range changes.Created {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCreatedDeclarationAsset{
+			AssetName: name,
+			TeamID:    actTeamID,
+			TeamName:  actTeamName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for created declaration asset")
+		}
+	}
+	for _, name := range changes.Edited {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDeclarationAsset{
+			AssetName: name,
+			TeamID:    actTeamID,
+			TeamName:  actTeamName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited declaration asset")
+		}
+	}
+	for _, name := range changes.Deleted {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedDeclarationAsset{
+			AssetName: name,
+			TeamID:    actTeamID,
+			TeamName:  actTeamName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for deleted declaration asset")
+		}
 	}
 
 	return nil

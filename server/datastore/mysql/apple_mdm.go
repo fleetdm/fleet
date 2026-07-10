@@ -8009,7 +8009,7 @@ func (ds *Datastore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) 
 	return nil
 }
 
-func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) error {
+func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
 	tid := uint(0)
 	if teamID != nil {
 		tid = *teamID
@@ -8021,22 +8021,27 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 	for i, a := range assets {
 		_, updatedAt, err := ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(a.Data))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets")
 		}
 		secretsUpdatedAt[i] = updatedAt
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	changes := &fleet.MDMAppleDDMAssetsBatchChanges{}
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Reset accumulated changes so a transaction retry doesn't duplicate them.
+		created, edited, deleted := make([]string, 0), make([]string, 0), make([]string, 0)
+
 		// Load existing assets for the team, including their type (parsed from the
 		// stored JSON) so we can reject in-place type changes.
 		type existingAsset struct {
 			AssetUUID  string `db:"asset_uuid"`
+			Name       string `db:"name"`
 			Identifier string `db:"identifier"`
 			Type       string `db:"type"`
 		}
 		var existing []existingAsset
 		if err := sqlx.SelectContext(ctx, tx, &existing, `
-			SELECT asset_uuid, identifier, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.Type')), '') AS type
+			SELECT asset_uuid, name, identifier, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.Type')), '') AS type
 			FROM mdm_apple_declaration_assets WHERE team_id = ?`, tid); err != nil {
 			return ctxerr.Wrap(ctx, err, "loading existing apple ddm assets")
 		}
@@ -8067,13 +8072,19 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 					return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 						"Couldn't edit asset %q. Changing an existing asset's type isn't supported; use a new identifier to create a new asset.", a.Identifier)})
 				}
-				if _, err := tx.ExecContext(ctx, updateStmt,
+				res, err := tx.ExecContext(ctx, updateStmt,
 					a.Data, a.Name, secretsUpdatedAt[i],
-					a.Name, a.Data, secretsUpdatedAt[i], e.AssetUUID); err != nil {
+					a.Name, a.Data, secretsUpdatedAt[i], e.AssetUUID)
+				if err != nil {
 					if IsDuplicate(err) {
 						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this team", a.Name)})
 					}
 					return ctxerr.Wrap(ctx, err, "updating apple ddm asset")
+				}
+				// Only log an edit activity when the row actually changed, so a
+				// no-op GitOps apply doesn't emit spurious activities.
+				if aff, _ := res.RowsAffected(); aff > 0 {
+					edited = append(edited, a.Name)
 				}
 			} else {
 				if _, err := tx.ExecContext(ctx, insertStmt,
@@ -8083,6 +8094,7 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 					}
 					return ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
 				}
+				created = append(created, a.Name)
 			}
 		}
 
@@ -8092,6 +8104,7 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 		for _, e := range existing {
 			if _, ok := incomingIdentifiers[e.Identifier]; !ok {
 				toDelete = append(toDelete, e.AssetUUID)
+				deleted = append(deleted, e.Name)
 			}
 		}
 		if len(toDelete) > 0 {
@@ -8121,8 +8134,14 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 			}
 		}
 
+		changes.Created, changes.Edited, changes.Deleted = created, edited, deleted
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return changes, nil
 }
 
 func (ds *Datastore) GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error) {

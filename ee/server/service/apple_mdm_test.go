@@ -515,8 +515,8 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) error {
-		return nil
+	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
+		return &fleet.MDMAppleDDMAssetsBatchChanges{}, nil
 	}
 	reset := func() { ds.BatchSetAppleDDMAssetsFuncInvoked = false }
 

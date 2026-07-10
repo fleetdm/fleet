@@ -1586,6 +1586,15 @@ type MDMAppleDDMAssetToSet struct {
 	Data       []byte
 }
 
+// MDMAppleDDMAssetsBatchChanges reports which assets a BatchSetAppleDDMAssets
+// call created, edited, or deleted, so the caller can log the corresponding
+// activities. Each slice holds asset names.
+type MDMAppleDDMAssetsBatchChanges struct {
+	Created []string
+	Edited  []string
+	Deleted []string
+}
+
 type RawDDMAsset struct {
 	Type       string             `json:"Type"`
 	Identifier string             `json:"Identifier"`
