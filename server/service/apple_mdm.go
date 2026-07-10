@@ -1016,12 +1016,9 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 
 // updateMDMAppleDeclaration implements the Apple DDM declaration branch of
 // UpdateMDMConfigProfile: it loads the existing declaration, re-validates a
-// new upload (when provided) the same way NewMDMAppleDeclaration does, then
-// upserts it and logs the edit activity.
-//
-// Unlike a .mobileconfig profile, a declaration's Identifier is allowed to
-// change on update: SetOrUpdateMDMAppleDeclaration matches the existing row
-// by (name, team_id), not by identifier, so only Name needs to stay fixed.
+// new upload (when provided) the same way NewMDMAppleDeclaration does, checks
+// that the uploaded declaration's identifier matches the existing
+// declaration's, then upserts it and logs the edit activity.
 //
 // No explicit "mark pending" call is needed here: mdm_apple_declarations.token
 // is a MySQL generated column derived from raw_json, so updating the content
@@ -1070,6 +1067,10 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		decl, varNames, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 		if err != nil {
 			return err
+		}
+		if decl.Identifier != existing.Identifier {
+			return fleet.NewInvalidArgumentError("profile",
+				"The new profile's Identifier must match the existing profile's.").WithStatus(http.StatusBadRequest)
 		}
 	} else {
 		// no new content -- only labels are being changed.
