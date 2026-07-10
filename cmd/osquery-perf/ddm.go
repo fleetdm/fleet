@@ -26,6 +26,9 @@ type ddmMethods struct {
 	IncrementActivationErrors  func()
 	IncrementActivationSuccess func()
 
+	IncrementAssetErrors  func()
+	IncrementAssetSuccess func()
+
 	IncrementStatusErrors  func()
 	IncrementStatusSuccess func()
 
@@ -69,11 +72,21 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command, methods ddmMethods) {
 		}
 
 		// Check each manifest item against cached tokens, fetch changed ones.
-		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations))
+		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations)+len(items.Declarations.Assets))
 		for _, d := range items.Declarations.Activations {
 			currentTokens[d.Identifier] = d.ServerToken
 			if methods.getDeclTokens()[d.Identifier] != d.ServerToken {
 				if err := a.ddmFetchDeclaration("activation", d.Identifier, methods); err != nil {
+					return
+				}
+				changed = true
+			}
+		}
+
+		for _, d := range items.Declarations.Assets {
+			currentTokens[d.Identifier] = d.ServerToken
+			if methods.getDeclTokens()[d.Identifier] != d.ServerToken {
+				if err := a.ddmFetchDeclaration("asset", d.Identifier, methods); err != nil {
 					return
 				}
 				changed = true
@@ -198,6 +211,14 @@ func (a *agent) ddmFetchDeclaration(kind, identifier string, methods ddmMethods)
 			return err
 		}
 		methods.IncrementConfigurationSuccess()
+	case "asset":
+		var asset fleet.RawDDMAsset
+		if err := json.Unmarshal(body, &asset); err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.ddmIncrementDeclError(kind, methods)
+			return err
+		}
+		methods.IncrementAssetSuccess()
 	}
 	return nil
 }
@@ -208,6 +229,8 @@ func (a *agent) ddmIncrementDeclError(kind string, methods ddmMethods) {
 		methods.IncrementActivationErrors()
 	case "configuration":
 		methods.IncrementConfigurationErrors()
+	case "asset":
+		methods.IncrementAssetErrors()
 	}
 }
 
@@ -216,6 +239,15 @@ func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse, 
 	for _, d := range items.Declarations.Activations {
 		report.StatusItems.Management.Declarations.Activations = append(
 			report.StatusItems.Management.Declarations.Activations,
+			fleet.MDMAppleDDMStatusDeclaration{
+				Active: true, Valid: fleet.MDMAppleDeclarationValid,
+				Identifier: d.Identifier, ServerToken: d.ServerToken,
+			},
+		)
+	}
+	for _, d := range items.Declarations.Assets {
+		report.StatusItems.Management.Declarations.Assets = append(
+			report.StatusItems.Management.Declarations.Assets,
 			fleet.MDMAppleDDMStatusDeclaration{
 				Active: true, Valid: fleet.MDMAppleDeclarationValid,
 				Identifier: d.Identifier, ServerToken: d.ServerToken,

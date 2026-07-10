@@ -1300,6 +1300,8 @@ func (a *agent) runMacosMDMLoop() {
 					IncrementActivationSuccess:       a.stats.IncrementDDMActivationSuccess,
 					IncrementStatusErrors:            a.stats.IncrementDDMStatusErrors,
 					IncrementStatusSuccess:           a.stats.IncrementDDMStatusSuccess,
+					IncrementAssetErrors:             a.stats.IncrementDDMAssetErrors,
+					IncrementAssetSuccess:            a.stats.IncrementDDMAssetSuccess,
 				})
 				mdmCommandPayload = nextMdmCommandPayload
 
@@ -1466,6 +1468,8 @@ func (a *agent) runMacosMDMLoop() {
 						IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
 						IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
 						IncrementStatusSuccess:           a.stats.IncrementUserDDMStatusSuccess,
+						IncrementAssetErrors:             a.stats.IncrementUserDDMAssetErrors,
+						IncrementAssetSuccess:            a.stats.IncrementUserDDMAssetSuccess,
 					})
 					mdmCommandPayload = nextMdmCommandPayload
 
