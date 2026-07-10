@@ -1743,6 +1743,35 @@ func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, lab
 	return ok, nil
 }
 
+// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
+// Labels that do not exist are not included in the result.
+func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]bool, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	sqlStatement := `
+		SELECT l.name FROM labels l
+		JOIN label_membership lm ON l.id = lm.label_id
+		WHERE lm.host_id = ? AND l.name IN (?)
+	`
+	sql, args, err := sqlx.In(sqlStatement, hostID, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for host label membership")
+	}
+
+	var names []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label membership")
+	}
+
+	result := make(map[string]bool, len(names))
+	for _, n := range names {
+		result[n] = true
+	}
+	return result, nil
+}
+
 // AddLabelsToHost skips auth as it's only used in tests, and where label teams have already been validated.
 func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
 	if len(labelIDs) == 0 {

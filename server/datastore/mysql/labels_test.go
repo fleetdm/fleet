@@ -96,6 +96,7 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
+		{"HostMembershipForLabels", testHostMembershipForLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
@@ -2102,6 +2103,126 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 			v, err := ds.HostMemberOfAllLabels(ctx, tc.hostID, tc.labelNames)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedResult, v)
+		})
+	}
+}
+
+func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	//
+	// Setup test
+	// - h1 member of 'All hosts', 'Foobar' and 'Zoobar'
+	// - h2 member of 'All hosts' and 'Foobar'
+	// - h3 member of no labels
+	//
+
+	allHostsLabel, err := ds.NewLabel(ctx,
+		&fleet.Label{
+			Name:                "All hosts",
+			Query:               "SELECT 1",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	)
+	require.NoError(t, err)
+	foobarLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "Foobar",
+		Query:               "SELECT 1;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	zoobarLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "Zoobar",
+		Query:               "SELECT 2;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	newHostFunc := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(name),
+			NodeKey:         ptr.String(name),
+			UUID:            name,
+			Hostname:        "foo.local" + name,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	h1 := newHostFunc("h1")
+	h2 := newHostFunc("h2")
+	h3 := newHostFunc("h3")
+
+	err = ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		foobarLabel.ID:   ptr.Bool(true),
+		zoobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.RecordLabelQueryExecutions(ctx, h2, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		foobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name           string
+		hostID         uint
+		labelNames     []string
+		expectedResult map[string]bool
+	}{
+		{
+			name:           "empty label names returns nil",
+			hostID:         h1.ID,
+			labelNames:     nil,
+			expectedResult: nil,
+		},
+		{
+			name:           "h1 is member of all three labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]bool{allHostsLabel.Name: true, foobarLabel.Name: true, zoobarLabel.Name: true},
+		},
+		{
+			name:           "h2 is member of some but not all labels",
+			hostID:         h2.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]bool{allHostsLabel.Name: true, foobarLabel.Name: true},
+		},
+		{
+			name:           "nonexistent labels are not included",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, "nonexistent-label"},
+			expectedResult: map[string]bool{allHostsLabel.Name: true},
+		},
+		{
+			name:           "nonexistent host returns empty result",
+			hostID:         999,
+			labelNames:     []string{allHostsLabel.Name},
+			expectedResult: map[string]bool{},
+		},
+		{
+			name:           "h3 is member of no labels",
+			hostID:         h3.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]bool{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ds.HostMembershipForLabels(ctx, tc.hostID, tc.labelNames)
+			require.NoError(t, err)
+			if tc.expectedResult == nil {
+				require.Nil(t, result)
+			} else {
+				require.Equal(t, tc.expectedResult, result)
+			}
 		})
 	}
 }

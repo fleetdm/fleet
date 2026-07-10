@@ -971,17 +971,39 @@ func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json
 
 	// Filter the extensions by labels (premium only feature).
 	if license, _ := license.FromContext(ctx); license != nil && license.IsPremium() {
-		for extensionName, extensionInfo := range extensionsInfo {
-			hostIsMemberOfAllLabels, err := svc.ds.HostMemberOfAllLabels(ctx, host.ID, extensionInfo.Labels)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "check host labels")
+		// Collect all unique label names across all extensions.
+		allLabels := make(map[string]struct{})
+		for _, extInfo := range extensionsInfo {
+			for _, l := range extInfo.Labels {
+				allLabels[l] = struct{}{}
 			}
-			if hostIsMemberOfAllLabels {
-				// Do not filter out, but there's no need to send the label names to the devices.
-				extensionInfo.Labels = nil
-				extensionsInfo[extensionName] = extensionInfo
-			} else {
-				delete(extensionsInfo, extensionName)
+		}
+
+		if len(allLabels) > 0 {
+			labelNames := make([]string, 0, len(allLabels))
+			for l := range allLabels {
+				labelNames = append(labelNames, l)
+			}
+
+			memberOf, err := svc.ds.HostMembershipForLabels(ctx, host.ID, labelNames)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check host label membership")
+			}
+
+			for extensionName, extensionInfo := range extensionsInfo {
+				allMatch := true
+				for _, l := range extensionInfo.Labels {
+					if !memberOf[l] {
+						allMatch = false
+						break
+					}
+				}
+				if allMatch {
+					extensionInfo.Labels = nil
+					extensionsInfo[extensionName] = extensionInfo
+				} else {
+					delete(extensionsInfo, extensionName)
+				}
 			}
 		}
 	}
