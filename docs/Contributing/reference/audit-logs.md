@@ -3058,6 +3058,7 @@ Generated when a host has been released from AB.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
+- "host_display_name": Display name of the host.
 - "host_serial": Hardware serial number of the host being released.
 
 #### Example
@@ -3065,6 +3066,7 @@ This activity contains the following fields:
 ```json
 {
   "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
   "host_serial": "ABC123"
 }
 ```
