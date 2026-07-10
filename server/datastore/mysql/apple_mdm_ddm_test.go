@@ -559,7 +559,7 @@ func testBatchSetAppleDDMAssets(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	assetData := func(typ, identifier, dataURL string) []byte {
-		return []byte(fmt.Sprintf(`{"Type":%q,"Identifier":%q,"Payload":{"Reference":{"DataURL":%q}}}`, typ, identifier, dataURL))
+		return fmt.Appendf(nil, `{"Type":%q,"Identifier":%q,"Payload":{"Reference":{"DataURL":%q}}}`, typ, identifier, dataURL)
 	}
 	uploadedAt := func(identifier string) time.Time {
 		var ts time.Time

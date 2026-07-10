@@ -247,7 +247,7 @@ func TestDownloadAppleDDMAsset(t *testing.T) {
 
 func TestDeleteAppleDDMAsset(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds)
+	svc, mockSvc := newTestServiceWithMock(t, ds)
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	t.Run("Observer cannot delete DDM asset", func(t *testing.T) {
@@ -277,6 +277,9 @@ func TestDeleteAppleDDMAsset(t *testing.T) {
 	})
 
 	t.Run("Global admin can delete DDM asset", func(t *testing.T) {
+		mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
 		ds.GetAppleDDMAssetFunc = func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
 			return &fleet.DDMAsset{AssetUUID: assetUUID}, nil
 		}
@@ -294,11 +297,17 @@ func TestDeleteAppleDDMAsset(t *testing.T) {
 	})
 
 	t.Run("Team admin can delete DDM asset for their team", func(t *testing.T) {
+		mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
 		ds.GetAppleDDMAssetFunc = func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
 			return &fleet.DDMAsset{AssetUUID: assetUUID, TeamID: new(uint(1))}, nil
 		}
 		ds.DeleteAppleDDMAssetFunc = func(ctx context.Context, assetUUID string) error {
 			return nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid, Name: "team"}, nil
 		}
 		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: nil, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}})
 
@@ -351,7 +360,7 @@ func TestDeleteAppleDDMAsset(t *testing.T) {
 
 func TestCreateAppleDDMAsset(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds)
+	svc, mockSvc := newTestServiceWithMock(t, ds)
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	validData := []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.asset","Payload":{"Reference":{"DataURL":"https://example.com/data"}}}`)
@@ -381,6 +390,9 @@ func TestCreateAppleDDMAsset(t *testing.T) {
 	})
 
 	t.Run("Global admin can create DDM asset", func(t *testing.T) {
+		mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
 		defer reset()
 		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", validData)
 		require.NoError(t, err)
@@ -390,6 +402,12 @@ func TestCreateAppleDDMAsset(t *testing.T) {
 	})
 
 	t.Run("Team admin can create DDM asset for their team", func(t *testing.T) {
+		mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid, Name: "team"}, nil
+		}
 		defer reset()
 		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: nil, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}})
 		_, err := svc.CreateAppleDDMAsset(ctx, new(uint(1)), "asset", validData)

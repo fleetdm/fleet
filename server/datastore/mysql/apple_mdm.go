@@ -8034,14 +8034,15 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 		// Load existing assets for the team, including their type (parsed from the
 		// stored JSON) so we can reject in-place type changes.
 		type existingAsset struct {
-			AssetUUID  string `db:"asset_uuid"`
-			Name       string `db:"name"`
-			Identifier string `db:"identifier"`
-			Type       string `db:"type"`
+			AssetUUID  string    `db:"asset_uuid"`
+			Name       string    `db:"name"`
+			Identifier string    `db:"identifier"`
+			Type       string    `db:"type"`
+			UploadedAt time.Time `db:"uploaded_at"`
 		}
 		var existing []existingAsset
 		if err := sqlx.SelectContext(ctx, tx, &existing, `
-			SELECT asset_uuid, name, identifier, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.Type')), '') AS type
+			SELECT asset_uuid, name, identifier, uploaded_at, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.Type')), '') AS type
 			FROM mdm_apple_declaration_assets WHERE team_id = ?`, tid); err != nil {
 			return ctxerr.Wrap(ctx, err, "loading existing apple ddm assets")
 		}
@@ -8053,7 +8054,8 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 		// uploaded_at only changes when the content actually changes, so that a
 		// no-op GitOps apply does not trigger unnecessary resyncs. The uploaded_at
 		// assignment is evaluated first (left to right) so it sees the pre-update
-		// column values.
+		// column values. It is also our single source of truth for whether an asset
+		// was edited: a bumped uploaded_at means the row changed (see below).
 		const updateStmt = `
 			UPDATE mdm_apple_declaration_assets
 			SET uploaded_at = IF(raw_json = ? AND name = ? AND IFNULL(secrets_updated_at = ?, TRUE), uploaded_at, NOW(6)),
@@ -8064,6 +8066,16 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 			(asset_uuid, team_id, identifier, name, raw_json, uploaded_at, secrets_updated_at)
 			VALUES (?, ?, ?, ?, ?, NOW(6), ?)`
 
+		// Assets we ran an UPDATE against, tracked in input order. After the loop we
+		// re-read their uploaded_at and treat a bumped value as an edit — keying off
+		// uploaded_at keeps the edit signal identical to the resync signal.
+		type updatedAsset struct {
+			name           string
+			assetUUID      string
+			prevUploadedAt time.Time
+		}
+		var updated []updatedAsset
+
 		incomingIdentifiers := make(map[string]struct{}, len(assets))
 		for i, a := range assets {
 			incomingIdentifiers[a.Identifier] = struct{}{}
@@ -8072,20 +8084,15 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 					return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 						"Couldn't edit asset %q. Changing an existing asset's type isn't supported; use a new identifier to create a new asset.", a.Identifier)})
 				}
-				res, err := tx.ExecContext(ctx, updateStmt,
+				if _, err := tx.ExecContext(ctx, updateStmt,
 					a.Data, a.Name, secretsUpdatedAt[i],
-					a.Name, a.Data, secretsUpdatedAt[i], e.AssetUUID)
-				if err != nil {
+					a.Name, a.Data, secretsUpdatedAt[i], e.AssetUUID); err != nil {
 					if IsDuplicate(err) {
 						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this team", a.Name)})
 					}
 					return ctxerr.Wrap(ctx, err, "updating apple ddm asset")
 				}
-				// Only log an edit activity when the row actually changed, so a
-				// no-op GitOps apply doesn't emit spurious activities.
-				if aff, _ := res.RowsAffected(); aff > 0 {
-					edited = append(edited, a.Name)
-				}
+				updated = append(updated, updatedAsset{name: a.Name, assetUUID: e.AssetUUID, prevUploadedAt: e.UploadedAt})
 			} else {
 				if _, err := tx.ExecContext(ctx, insertStmt,
 					uuid.NewString(), tid, a.Identifier, a.Name, a.Data, secretsUpdatedAt[i]); err != nil {
@@ -8095,6 +8102,37 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 					return ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
 				}
 				created = append(created, a.Name)
+			}
+		}
+
+		// An asset was edited only if its uploaded_at advanced. Re-read the current
+		// values for the rows we updated and compare against the pre-update value,
+		// so a no-op apply (uploaded_at unchanged) reports no edit.
+		if len(updated) > 0 {
+			uuidsToReload := make([]string, 0, len(updated))
+			for _, u := range updated {
+				uuidsToReload = append(uuidsToReload, u.assetUUID)
+			}
+			reloadStmt, reloadArgs, err := sqlx.In(
+				`SELECT asset_uuid, uploaded_at FROM mdm_apple_declaration_assets WHERE asset_uuid IN (?)`, uuidsToReload)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building reload uploaded_at query")
+			}
+			var reloaded []struct {
+				AssetUUID  string    `db:"asset_uuid"`
+				UploadedAt time.Time `db:"uploaded_at"`
+			}
+			if err := sqlx.SelectContext(ctx, tx, &reloaded, reloadStmt, reloadArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "reloading apple ddm assets uploaded_at")
+			}
+			uploadedByUUID := make(map[string]time.Time, len(reloaded))
+			for _, r := range reloaded {
+				uploadedByUUID[r.AssetUUID] = r.UploadedAt
+			}
+			for _, u := range updated {
+				if uploadedByUUID[u.assetUUID].After(u.prevUploadedAt) {
+					edited = append(edited, u.name)
+				}
 			}
 		}
 
