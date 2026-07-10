@@ -2011,6 +2011,20 @@
       "description": "Creative Force Triad enables direct printing from the Creative Force platform to Zebra label printers."
     },
     {
+      "name": "Crestron AirMedia Peripherals",
+      "slug": "crestron-airmedia-peripherals/windows",
+      "platform": "windows",
+      "unique_identifier": "Crestron AirMedia Peripherals",
+      "description": "Crestron AirMedia Peripherals enables wireless conferencing with Crestron AirMedia Series 3 receivers."
+    },
+    {
+      "name": "Crestron AirMedia",
+      "slug": "crestron-airmedia/windows",
+      "platform": "windows",
+      "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
+      "description": "Crestron AirMedia enables wireless presentation and conferencing with AirMedia receivers."
+    },
+    {
       "name": "Cribl Edge",
       "slug": "cribl-edge/windows",
       "platform": "windows",

@@ -233,6 +233,8 @@ import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
 import CreativeForceKelvin from "./CreativeForceKelvin";
 import CreativeForceTriad from "./CreativeForceTriad";
+import CrestronAirmedia from "./CrestronAirmedia";
+import CrestronAirmediaPeripherals from "./CrestronAirmediaPeripherals";
 import CriblEdge from "./CriblEdge";
 import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
@@ -1321,6 +1323,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crashplan: CrashPlan,
   "creative force kelvin": CreativeForceKelvin,
   "creative force triad": CreativeForceTriad,
+  "crestron airmedia": CrestronAirmedia,
+  "crestron airmedia peripherals": CrestronAirmediaPeripherals,
   "cribl edge": CriblEdge,
   crisisgo: Crisisgo,
   crossover: Crossover,
