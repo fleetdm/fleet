@@ -624,7 +624,7 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	testDecl := declForTest("D1", "D1", "{}")
-	dbDecl, err := ds.NewMDMAppleDeclaration(ctx, testDecl, nil)
+	dbDecl, err := ds.NewMDMAppleDeclaration(ctx, testDecl, nil, nil)
 	require.NoError(t, err)
 
 	// delete for a non-existing team does nothing
@@ -5604,11 +5604,18 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		_, err = ds.writer(ctx).ExecContext(ctx,
 			`INSERT INTO script_upcoming_activities (upcoming_activity_id) VALUES (?)`, uaID)
 		require.NoError(t, err)
+
+		// PSSO registration (host_uuid ref - device row plus a cascading key)
+		require.NoError(t, ds.SetOrUpdatePSSODevice(ctx, h.UUID, []fleet.PSSOKey{
+			{KID: "kid-" + h.UUID, KeyType: fleet.PSSOKeyTypeSigning, PEM: "pem-" + h.UUID},
+		}))
 	}
 
 	type counts struct {
-		label    int
-		upcoming int
+		label      int
+		upcoming   int
+		pssoDevice int
+		pssoKey    int
 	}
 	countRows := func(t *testing.T, h *fleet.Host) counts {
 		var c counts
@@ -5616,9 +5623,13 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM label_membership WHERE host_id = ?`, h.ID))
 		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.upcoming,
 			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pssoDevice,
+			`SELECT COUNT(*) FROM mdm_apple_psso_devices WHERE host_uuid = ?`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pssoKey,
+			`SELECT COUNT(*) FROM mdm_apple_psso_keys WHERE host_uuid = ?`, h.UUID))
 		return c
 	}
-	seeded := counts{label: 1, upcoming: 1}
+	seeded := counts{label: 1, upcoming: 1, pssoDevice: 1, pssoKey: 1}
 
 	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
 		hostA := newHost("clear-A")
@@ -5633,7 +5644,7 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
 
 		// host A: everything cleared
-		assert.Equal(t, counts{label: 0, upcoming: 0}, countRows(t, hostA))
+		assert.Equal(t, counts{}, countRows(t, hostA))
 
 		// host B: untouched (control - proves the reset is host-scoped)
 		assert.Equal(t, seeded, countRows(t, hostB))
@@ -6236,7 +6247,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Identifier: "decl-1",
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
@@ -6269,7 +6280,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Identifier: "decl-2",
 		Name:       "decl-2",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-2"}`),
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
@@ -6307,7 +6318,7 @@ func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastor
 	}
 
 	// The first OS-update declaration is created and tracked.
-	_, err := ds.NewMDMAppleDeclaration(ctx, suDecl("su1", "com.fleet.su1"), nil)
+	_, err := ds.NewMDMAppleDeclaration(ctx, suDecl("su1", "com.fleet.su1"), nil, nil)
 	require.NoError(t, err)
 
 	configured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
@@ -6315,7 +6326,7 @@ func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastor
 	require.True(t, configured)
 
 	// A second OS-update declaration for the same team is allowed.
-	_, err = ds.NewMDMAppleDeclaration(ctx, suDecl("su2", "com.fleet.su2"), nil)
+	_, err = ds.NewMDMAppleDeclaration(ctx, suDecl("su2", "com.fleet.su2"), nil, nil)
 	require.NoError(t, err)
 
 	// The allowed declaration must have been persisted.
@@ -6327,7 +6338,7 @@ func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastor
 	require.Equal(t, 1, persistedCount)
 
 	// A non OS-update declaration is unaffected by the existing tracked one.
-	_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("other", "other", ""), nil)
+	_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("other", "other", ""), nil, nil)
 	require.NoError(t, err)
 }
 
@@ -6339,7 +6350,7 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 			Identifier: fmt.Sprintf("decl-%d", i),
 			Name:       fmt.Sprintf("decl-%d", i),
 			RawJSON:    json.RawMessage(fmt.Sprintf(`{"Identifier": "decl-%d"}`, i)),
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 	}
 
@@ -6398,7 +6409,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1",
 		Name:       "d1",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// try to create same name, different identifier fails
@@ -6406,7 +6417,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1b",
 		Name:       "d1",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1b"}`),
-	}, nil)
+	}, nil, nil)
 	require.Error(t, err)
 	var existsErr *existsError
 	require.ErrorAs(t, err, &existsErr)
@@ -6416,7 +6427,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1",
 		Name:       "d1b",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	}, nil)
+	}, nil, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
@@ -6502,7 +6513,7 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 		Identifier: "decl-1",
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{

@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "5.0.9.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors' AND version_compare(version, '5.0.9.0') < 0);"
+      },
+      "installer_url": "https://github.com/dnGrep/dnGrep/releases/download/v5.0.9.0/dnGREP.5.0.9.x64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "63930700",
+      "sha256": "e83a9610c2766fe3c67688ea9b5b5486b5862f57a8d4a2734e367992ca75e19d",
+      "default_categories": [
+        "Utilities"
+      ],
+      "upgrade_code": "{4CF55558-B642-482E-9FBF-06EA5AEC8276}"
+    }
+  ],
+  "refs": {
+    "63930700": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{4CF55558-B642-482E-9FBF-06EA5AEC8276}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

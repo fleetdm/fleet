@@ -876,7 +876,7 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error)
 
-type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
+type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot *uint) (bool, error)
 
 type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
@@ -1408,6 +1408,8 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
+type SetMDMWindowsHostProfileFailedFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+
 type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error)
 
 type GetMDMConfigProfileStatusFunc func(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error)
@@ -1476,7 +1478,7 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
-type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
+type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error)
 
 type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
@@ -1900,7 +1902,7 @@ type MarkAllPendingAndroidVPPInstallsAsFailedFunc func(ctx context.Context) erro
 
 type MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc func(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
 
-type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
+type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error)
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
 
@@ -2130,6 +2132,16 @@ type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, 
 
 type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
 
+type SetOrUpdatePSSODeviceFunc func(ctx context.Context, hostUUID string, keys []fleet.PSSOKey) error
+
+type GetPSSODeviceFunc func(ctx context.Context, hostUUID string) (*fleet.PSSODevice, error)
+
+type GetPSSOKeyFunc func(ctx context.Context, kid string) (*fleet.PSSOKey, error)
+
+type ListPSSOKeysFunc func(ctx context.Context, hostUUID string) ([]*fleet.PSSOKey, error)
+
+type DeletePSSODeviceFunc func(ctx context.Context, hostUUID string) error
+
 type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
@@ -2145,6 +2157,20 @@ type GetADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) 
 type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
 
 type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
+
+type ListAppleDDMAssetsFunc func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error)
+
+type GetAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error)
+
+type GetAppleDDMAssetForDeliveryFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error)
+
+type GetAppleDDMAssetForDownloadFunc func(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error)
+
+type CreateAppleDDMAssetFunc func(ctx context.Context, name string, identifier string, data []byte, teamID *uint) (string, error)
+
+type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
+
+type GetAppleDDMAssetsReferencedByDeclarationsFunc func(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error)
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -4223,6 +4249,9 @@ type DataStore struct {
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
 
+	SetMDMWindowsHostProfileFailedFunc        SetMDMWindowsHostProfileFailedFunc
+	SetMDMWindowsHostProfileFailedFuncInvoked bool
+
 	BatchResendMDMProfileToHostsFunc        BatchResendMDMProfileToHostsFunc
 	BatchResendMDMProfileToHostsFuncInvoked bool
 
@@ -5306,6 +5335,21 @@ type DataStore struct {
 	VerifyAppleConfigProfileScopesDoNotConflictFunc        VerifyAppleConfigProfileScopesDoNotConflictFunc
 	VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked bool
 
+	SetOrUpdatePSSODeviceFunc        SetOrUpdatePSSODeviceFunc
+	SetOrUpdatePSSODeviceFuncInvoked bool
+
+	GetPSSODeviceFunc        GetPSSODeviceFunc
+	GetPSSODeviceFuncInvoked bool
+
+	GetPSSOKeyFunc        GetPSSOKeyFunc
+	GetPSSOKeyFuncInvoked bool
+
+	ListPSSOKeysFunc        ListPSSOKeysFunc
+	ListPSSOKeysFuncInvoked bool
+
+	DeletePSSODeviceFunc        DeletePSSODeviceFunc
+	DeletePSSODeviceFuncInvoked bool
+
 	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
 	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
 
@@ -5329,6 +5373,27 @@ type DataStore struct {
 
 	CleanupExpiredADUEEnrollmentChallengesFunc        CleanupExpiredADUEEnrollmentChallengesFunc
 	CleanupExpiredADUEEnrollmentChallengesFuncInvoked bool
+
+	ListAppleDDMAssetsFunc        ListAppleDDMAssetsFunc
+	ListAppleDDMAssetsFuncInvoked bool
+
+	GetAppleDDMAssetFunc        GetAppleDDMAssetFunc
+	GetAppleDDMAssetFuncInvoked bool
+
+	GetAppleDDMAssetForDeliveryFunc        GetAppleDDMAssetForDeliveryFunc
+	GetAppleDDMAssetForDeliveryFuncInvoked bool
+
+	GetAppleDDMAssetForDownloadFunc        GetAppleDDMAssetForDownloadFunc
+	GetAppleDDMAssetForDownloadFuncInvoked bool
+
+	CreateAppleDDMAssetFunc        CreateAppleDDMAssetFunc
+	CreateAppleDDMAssetFuncInvoked bool
+
+	DeleteAppleDDMAssetFunc        DeleteAppleDDMAssetFunc
+	DeleteAppleDDMAssetFuncInvoked bool
+
+	GetAppleDDMAssetsReferencedByDeclarationsFunc        GetAppleDDMAssetsReferencedByDeclarationsFunc
+	GetAppleDDMAssetsReferencedByDeclarationsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8315,7 +8380,7 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, host, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error) {
+func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot *uint) (bool, error) {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
@@ -10177,6 +10242,13 @@ func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, p
 	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
 }
 
+func (s *DataStore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+	s.mu.Lock()
+	s.SetMDMWindowsHostProfileFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsHostProfileFailedFunc(ctx, hostUUID, profileUUID, detail)
+}
+
 func (s *DataStore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
 	s.mu.Lock()
 	s.BatchResendMDMProfileToHostsFuncInvoked = true
@@ -10415,11 +10487,11 @@ func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProf
 	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, androidProfiles, profilesVariables)
 }
 
-func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
+	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars, assetReferences)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
@@ -11899,11 +11971,11 @@ func (s *DataStore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.
 	return s.MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc(ctx, hostID)
 }
 
-func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAndroidConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAndroidConfigProfileFunc(ctx, cp)
+	return s.NewMDMAndroidConfigProfileFunc(ctx, cp, usesFleetVars)
 }
 
 func (s *DataStore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
@@ -12704,6 +12776,41 @@ func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Cont
 	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
 }
 
+func (s *DataStore) SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []fleet.PSSOKey) error {
+	s.mu.Lock()
+	s.SetOrUpdatePSSODeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdatePSSODeviceFunc(ctx, hostUUID, keys)
+}
+
+func (s *DataStore) GetPSSODevice(ctx context.Context, hostUUID string) (*fleet.PSSODevice, error) {
+	s.mu.Lock()
+	s.GetPSSODeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPSSODeviceFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetPSSOKey(ctx context.Context, kid string) (*fleet.PSSOKey, error) {
+	s.mu.Lock()
+	s.GetPSSOKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPSSOKeyFunc(ctx, kid)
+}
+
+func (s *DataStore) ListPSSOKeys(ctx context.Context, hostUUID string) ([]*fleet.PSSOKey, error) {
+	s.mu.Lock()
+	s.ListPSSOKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPSSOKeysFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) DeletePSSODevice(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeletePSSODeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePSSODeviceFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
 	s.mu.Lock()
 	s.HasAppleUpdateConfigProfileConfiguredFuncInvoked = true
@@ -12758,4 +12865,53 @@ func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) 
 	s.CleanupExpiredADUEEnrollmentChallengesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupExpiredADUEEnrollmentChallengesFunc(ctx)
+}
+
+func (s *DataStore) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.ListAppleDDMAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleDDMAssetsFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *DataStore) GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetForDeliveryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetForDeliveryFunc(ctx, identifier, hostUUID)
+}
+
+func (s *DataStore) GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetForDownloadFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetForDownloadFunc(ctx, assetUUID)
+}
+
+func (s *DataStore) CreateAppleDDMAsset(ctx context.Context, name string, identifier string, data []byte, teamID *uint) (string, error) {
+	s.mu.Lock()
+	s.CreateAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAppleDDMAssetFunc(ctx, name, identifier, data, teamID)
+}
+
+func (s *DataStore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	s.mu.Lock()
+	s.DeleteAppleDDMAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *DataStore) GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetsReferencedByDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetsReferencedByDeclarationsFunc(ctx, declarationUUIDs)
 }

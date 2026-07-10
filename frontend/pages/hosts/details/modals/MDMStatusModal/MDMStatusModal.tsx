@@ -76,7 +76,7 @@ const PROFILE_STATUS_UI_MAP: Record<
     label: "Assigned",
     tooltip: (
       <>
-        Profile is assigned in ABM, and ABM <br />
+        Profile is assigned in AB, and AB <br />
         is preparing to push it to the host.
       </>
     ),

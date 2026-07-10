@@ -172,8 +172,9 @@ const (
 )
 
 const (
-	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+	FleetBitLockerTargetLocURI  = "/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI   = "/Vendor/MSFT/Policy/Config/Update"
+	FleetRemoteWipeTargetLocURI = "/Vendor/MSFT/RemoteWipe"
 
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
