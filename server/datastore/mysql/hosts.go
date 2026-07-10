@@ -3646,9 +3646,11 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 
 				// Reconcile host-name template enforcement against the destination
 				// team: eligible hosts moving into a template team get queued rows,
-				// and hosts moving to a template-less team or "No team" have their rows deleted .
-				// This runs after the team_id update above so the eligibility query sees the new team.
-				if err := reconcileHostDeviceNamesForHostsDB(ctx, tx, hostIDsBatch); err != nil {
+				// and hosts moving to a template-less team or "No team" have their rows deleted.
+				// This runs after the team_id update above; teamID is the authoritative
+				// destination for the whole batch, so the template is resolved once
+				// rather than per row.
+				if err := reconcileHostDeviceNamesForTeamDB(ctx, tx, teamID, hostIDsBatch); err != nil {
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam reconcile host device names")
 				}
 

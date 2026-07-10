@@ -3069,11 +3069,6 @@ func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if fleetID == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_id",
-			"this setting is only available for fleets"))
-	}
-
 	if nameTemplate != "" {
 		validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
 		if err != nil {
@@ -3082,11 +3077,14 @@ func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint
 		nameTemplate = validated
 	}
 
-	tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
-	if err != nil {
-		return err
+	if fleetID != nil && *fleetID > 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.EnterpriseOverrides.UpdateTeamMDMHostNameTemplate(ctx, tm, nameTemplate)
 	}
-	return svc.EnterpriseOverrides.UpdateTeamMDMHostNameTemplate(ctx, tm, nameTemplate)
+	return svc.updateAppConfigMDMHostNameTemplate(ctx, nameTemplate)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3139,11 +3137,9 @@ func (svc *Service) ResendHostNameTemplate(ctx context.Context, hostID uint) err
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if host.TeamID == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
-			"Host names are only enforced for hosts that belong to a fleet.").WithStatus(http.StatusUnprocessableEntity))
-	}
-
+	// Host names are enforced for both fleets and "No team", so a nil TeamID is
+	// valid here; whether the host is actually enforced is decided by the presence
+	// of an enforcement row below (404 when absent).
 	enforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {

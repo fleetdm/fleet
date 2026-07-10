@@ -1358,6 +1358,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.HostNameTemplate.Value != appConfig.MDM.HostNameTemplate.Value {
+		if err := svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, appConfig.MDM.HostNameTemplate.Value); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
+		}
+	}
+
 	if appConfig.MDM.EnableRecoveryLockPassword.Valid &&
 		oldAppConfig.MDM.EnableRecoveryLockPassword.Value != appConfig.MDM.EnableRecoveryLockPassword.Value {
 		if oldAppConfig.MDM.EnabledAndConfigured {
@@ -1744,6 +1750,16 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
+	}
+
+	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
+		if !lic.IsPremium() {
+			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
+		} else if validated, err := fleet.ValidateHostNameTemplate(mdm.HostNameTemplate.Value); err != nil {
+			invalid.Append("mdm.name_template", err.Error())
+		} else {
+			mdm.HostNameTemplate = optjson.SetString(validated)
+		}
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet

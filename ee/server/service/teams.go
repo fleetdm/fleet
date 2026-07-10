@@ -627,7 +627,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if nameTemplateUpdated {
-		if err := svc.applyHostNameTemplateChange(ctx, team.ID, team.Name, team.Config.MDM.HostNameTemplate); err != nil {
+		if err := svc.applyHostNameTemplateChange(ctx, team, team.Config.MDM.HostNameTemplate); err != nil {
 			return nil, err
 		}
 	}
@@ -1676,7 +1676,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if nameTemplate != "" {
-		if err := svc.applyHostNameTemplateChange(ctx, tm.ID, tm.Name, nameTemplate); err != nil {
+		if err := svc.applyHostNameTemplateChange(ctx, tm, nameTemplate); err != nil {
 			return nil, err
 		}
 	}
@@ -2087,7 +2087,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateHostNameTemplate {
-		if err := svc.applyHostNameTemplateChange(ctx, team.ID, team.Name, team.Config.MDM.HostNameTemplate); err != nil {
+		if err := svc.applyHostNameTemplateChange(ctx, team, team.Config.MDM.HostNameTemplate); err != nil {
 			return err
 		}
 	}
@@ -2339,10 +2339,18 @@ func (svc *Service) updateTeamMDMHostNameTemplate(ctx context.Context, tm *fleet
 		return err
 	}
 
-	return svc.applyHostNameTemplateChange(ctx, tm.ID, tm.Name, nameTemplate)
+	return svc.applyHostNameTemplateChange(ctx, tm, nameTemplate)
 }
 
-func (svc *Service) applyHostNameTemplateChange(ctx context.Context, fleetID uint, fleetName, nameTemplate string) error {
+// applyHostNameTemplateChange reconciles host-name enforcement rows and emits
+// the edited_host_name_template activity for a template change.
+func (svc *Service) applyHostNameTemplateChange(ctx context.Context, team *fleet.Team, nameTemplate string) error {
+	var fleetID *uint
+	var fleetName *string
+	if team != nil {
+		fleetID, fleetName = &team.ID, &team.Name
+	}
+
 	if nameTemplate == "" {
 		if err := svc.ds.DeleteHostDeviceNameEnforcementForTeam(ctx, fleetID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete host name enforcement for team")
@@ -2359,8 +2367,8 @@ func (svc *Service) applyHostNameTemplateChange(ctx context.Context, fleetID uin
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedHostNameTemplate{
-			FleetID:          &fleetID,
-			FleetName:        &fleetName,
+			FleetID:          fleetID,
+			FleetName:        fleetName,
 			HostNameTemplate: tmpl,
 		},
 	); err != nil {

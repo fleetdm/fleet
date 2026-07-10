@@ -19,6 +19,7 @@ func TestHostDeviceNames(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"Eligibility", testHostDeviceNamesEligibility},
+		{"NoTeam", testHostDeviceNamesNoTeam},
 		{"CommandLifecycle", testHostDeviceNamesCommandLifecycle},
 		{"Verify", testHostDeviceNamesVerify},
 		{"Resend", testHostDeviceNamesResend},
@@ -26,6 +27,7 @@ func TestHostDeviceNames(t *testing.T) {
 		{"TransferViaAddHostsToTeam", testHostDeviceNamesTransferViaAddHostsToTeam},
 		{"TransferBatched", testHostDeviceNamesTransferBatched},
 		{"SummaryAndFilter", testHostDeviceNamesSummaryAndFilter},
+		{"NoTeamSummaryAndFilter", testHostDeviceNamesNoTeamSummaryAndFilter},
 		{"SummaryFilterLabel", testHostDeviceNamesSummaryFilterLabel},
 		{"TeamDeletionCleanup", testHostDeviceNamesTeamDeletionCleanup},
 		{"HostDeletionCleanup", testHostDeviceNamesHostDeletionCleanup},
@@ -76,13 +78,23 @@ func testHostDeviceNamesEligibility(t *testing.T, ds *Datastore) {
 	byodHost := enrollAppleHostForDeviceName(t, ds, "byod", "ios", team.ID, true)
 	winHost := enrollAppleHostForDeviceName(t, ds, "win", "windows", team.ID, false)
 
+	// Account-Driven User Enrollment (BYOD): nanomdm records the enrollment type
+	// as "User Enrollment (Device)". Apple rejects the DeviceName command on user
+	// (BYOD) enrollments, so it must be excluded on the enrollment type. This host
+	// carries is_personal_enrollment = 0 (the column default) to represent a device
+	// enrolled before that flag existed, proving the type filter — not just the
+	// personal flag — is what keeps BYOD out.
+	udBYODHost := test.NewHost(t, ds, "ud-byod", "1.1.1.4", "udb-key", "udb-uuid", time.Now(),
+		test.WithPlatform("ios"), test.WithTeamID(team.ID))
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, udBYODHost)
+
 	// linux and non-enrolled darwin hosts are never eligible.
 	linuxHost := test.NewHost(t, ds, "linux", "1.1.1.2", "linux-key", "linux-uuid", time.Now(),
 		test.WithPlatform("linux"), test.WithTeamID(team.ID))
 	notEnrolled := test.NewHost(t, ds, "not-enrolled", "1.1.1.3", "ne-key", "ne-uuid", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(team.ID))
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 
 	// Only Apple, Fleet-MDM enrolled, non-personal hosts get a row.
 	eligible := []*fleet.Host{macHost, iosHost, ipadHost}
@@ -91,7 +103,7 @@ func testHostDeviceNamesEligibility(t *testing.T, ds *Datastore) {
 		require.Nil(t, row.Status, "eligible host %s should be queued (NULL status)", h.Hostname)
 	}
 
-	ineligible := []*fleet.Host{byodHost, winHost, linuxHost, notEnrolled}
+	ineligible := []*fleet.Host{byodHost, udBYODHost, winHost, linuxHost, notEnrolled}
 	for _, h := range ineligible {
 		_, err := ds.GetHostDeviceNameEnforcement(ctx, h.UUID)
 		require.True(t, fleet.IsNotFound(err), "ineligible host %s should have no row", h.Hostname)
@@ -102,17 +114,17 @@ func testHostDeviceNamesEligibility(t *testing.T, ds *Datastore) {
 	// UPDATE branch).
 	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, fleet.MDMDeliveryVerified, macHost.UUID)
 	require.NoError(t, err)
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.Nil(t, getDeviceNameRow(t, ds, macHost.UUID).Status, "re-save should reset a verified host back to queued")
 
 	// A second eligible host in another team, to prove delete is team-scoped.
 	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "eligibility-other-team"})
 	require.NoError(t, err)
 	otherHost := enrollAppleHostForDeviceName(t, ds, "other-mac", "darwin", otherTeam.ID, false)
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, otherTeam.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &otherTeam.ID))
 
 	// Clearing the team removes every row for that team and leaves other teams' rows.
-	require.NoError(t, ds.DeleteHostDeviceNameEnforcementForTeam(ctx, team.ID))
+	require.NoError(t, ds.DeleteHostDeviceNameEnforcementForTeam(ctx, &team.ID))
 	for _, h := range eligible {
 		_, err := ds.GetHostDeviceNameEnforcement(ctx, h.UUID)
 		require.True(t, fleet.IsNotFound(err), "row for %s should be deleted", h.Hostname)
@@ -131,7 +143,7 @@ func testHostDeviceNamesCommandLifecycle(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET hardware_serial = ?, computer_name = ? WHERE id = ?`, "SERIAL123", "old-name", host.ID)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 
 	// The queued host shows up in the pending list with its host details.
 	pending, err := ds.ListHostsPendingDeviceNameCommand(ctx, 10)
@@ -193,7 +205,7 @@ func testHostDeviceNamesVerify(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", team.ID, false)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd"), "WS-1", ""))
 
 	// A NULL/pending row is left untouched by verification.
@@ -237,7 +249,7 @@ func testHostDeviceNamesResend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", team.ID, false)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd"), "WS-1", ""))
 	err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", false, "boom")
 	require.NoError(t, err)
@@ -264,8 +276,6 @@ func testHostDeviceNamesResend(t *testing.T, ds *Datastore) {
 func testHostDeviceNamesReconcile(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// setTemplate writes name_template into the team's config JSON directly so
-	// this test does not depend on the TeamMDM struct field (sub-issue #48621).
 	setTemplate := func(teamID uint, tmpl string) {
 		_, err := ds.writer(ctx).ExecContext(ctx,
 			`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`, tmpl, teamID)
@@ -310,6 +320,71 @@ func testHostDeviceNamesReconcile(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileHostDeviceNamesForHosts(ctx, nil))
 }
 
+func testHostDeviceNamesNoTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// setNoTeamTemplate writes name_template into the global app config JSON, the
+	// storage location for the No-team template, mirroring the team helper.
+	setNoTeamTemplate := func(tmpl string) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`, tmpl)
+		require.NoError(t, err)
+	}
+
+	// A team host proves the No-team writers never touch team-scoped rows.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "no-team-scope-control"})
+	require.NoError(t, err)
+	teamHost := enrollAppleHostForDeviceName(t, ds, "team-mac", "darwin", team.ID, false)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
+
+	// A No-team eligible Apple host and a No-team BYOD host (enrolled into a temp
+	// team, then moved to No team so team_id IS NULL).
+	noTeamMac := enrollAppleHostForDeviceName(t, ds, "noteam-mac", "darwin", team.ID, false)
+	noTeamByod := enrollAppleHostForDeviceName(t, ds, "noteam-byod", "ios", team.ID, true)
+	for _, h := range []*fleet.Host{noTeamMac, noTeamByod} {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = NULL WHERE id = ?`, h.ID)
+		require.NoError(t, err)
+	}
+
+	// BulkUpsert with a nil team scopes to team_id IS NULL: only the eligible
+	// No-team host is queued; BYOD stays rowless and the team row is untouched.
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, nil))
+	require.Nil(t, getDeviceNameRow(t, ds, noTeamMac.UUID).Status)
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, noTeamByod.UUID)
+	require.True(t, fleet.IsNotFound(err), "No-team BYOD host must not get a row")
+	require.Nil(t, getDeviceNameRow(t, ds, teamHost.UUID).Status, "team host row must survive a No-team upsert")
+
+	// Delete with a nil team removes only No-team rows.
+	require.NoError(t, ds.DeleteHostDeviceNameEnforcementForTeam(ctx, nil))
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, noTeamMac.UUID)
+	require.True(t, fleet.IsNotFound(err), "No-team row should be deleted")
+	require.Nil(t, getDeviceNameRow(t, ds, teamHost.UUID).Status, "team host row must survive a No-team delete")
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', CAST('null' AS JSON))`)
+	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileHostDeviceNamesForHosts(ctx, []uint{noTeamMac.ID}))
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, noTeamMac.UUID)
+	require.True(t, fleet.IsNotFound(err), "enrollment reconcile: JSON-null No-team template must not enforce")
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{noTeamMac.ID})))
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, noTeamMac.UUID)
+	require.True(t, fleet.IsNotFound(err), "team-scoped reconcile: JSON-null No-team template must not enforce")
+
+	// Reconcile resolves the No-team template from app config: with a template set
+	// the eligible No-team host is queued and BYOD stays rowless.
+	setNoTeamTemplate("WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	require.NoError(t, ds.ReconcileHostDeviceNamesForHosts(ctx, []uint{noTeamMac.ID, noTeamByod.ID}))
+	require.Nil(t, getDeviceNameRow(t, ds, noTeamMac.UUID).Status)
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, noTeamByod.UUID)
+	require.True(t, fleet.IsNotFound(err), "No-team BYOD host must not be reconciled into a row")
+
+	// Clearing the No-team template makes reconcile delete the orphaned row.
+	setNoTeamTemplate("")
+	require.NoError(t, ds.ReconcileHostDeviceNamesForHosts(ctx, []uint{noTeamMac.ID}))
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, noTeamMac.UUID)
+	require.True(t, fleet.IsNotFound(err), "No-team row should be deleted after the template is cleared")
+}
+
 // setDeviceNameTemplate writes name_template into a team's config JSON directly,
 // so the eligibility/reconcile SQL sees a non-empty template without depending on
 // the TeamMDM struct field.
@@ -334,7 +409,7 @@ func testHostDeviceNamesTransferViaAddHostsToTeam(t *testing.T, ds *Datastore) {
 
 	// A host starts in the template team with a queued row.
 	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", withTemplate.ID, false)
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, withTemplate.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &withTemplate.ID))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Give the host a name so we can assert the transfer never renames it.
@@ -366,10 +441,19 @@ func testHostDeviceNamesTransferViaAddHostsToTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&otherTemplate.ID, []uint{host.ID})))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "transfer between template teams should reset the row to queued")
 
-	// template -> No team: the row is deleted (No team never enforces).
+	// template -> No team (No team has no template): the row is deleted.
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
 	_, err = ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
-	require.True(t, fleet.IsNotFound(err), "transfer to No team should delete the enforcement row")
+	require.True(t, fleet.IsNotFound(err), "transfer to a template-less No team should delete the enforcement row")
+
+	// No team WITH a template: transferring the host into No team now queues a row,
+	// resolving the template from the global app config (the team-scoped reconcile's
+	// No-team branch).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`, "NoTeam-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "transfer into No team with a template should queue a row")
 }
 
 // testHostDeviceNamesTransferBatched moves several hosts at once with a batch
@@ -430,7 +514,7 @@ func testHostDeviceNamesSummaryAndFilter(t *testing.T, ds *Datastore) {
 	comboHost := enrollAppleHostForDeviceName(t, ds, "combo", "darwin", team.ID, false)
 	byodHost := enrollAppleHostForDeviceName(t, ds, "byod", "ios", team.ID, true)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	// The BYOD host is ineligible, so it never got a row.
 	_, err = ds.GetHostDeviceNameEnforcement(ctx, byodHost.UUID)
 	require.True(t, fleet.IsNotFound(err))
@@ -486,6 +570,75 @@ func testHostDeviceNamesSummaryAndFilter(t *testing.T, ds *Datastore) {
 	assertFilter(fleet.OSSettingsPending, queuedHost)
 }
 
+func testHostDeviceNamesNoTeamSummaryAndFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// The No-team template lives on the global app config.
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	require.NoError(t, err)
+
+	// Hosts are enrolled into a temp team then moved to No team (team_id IS NULL).
+	tmpTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "noteam-summary-tmp"})
+	require.NoError(t, err)
+	failedHost := enrollAppleHostForDeviceName(t, ds, "nt-failed", "darwin", tmpTeam.ID, false)
+	verifiedHost := enrollAppleHostForDeviceName(t, ds, "nt-verified", "ios", tmpTeam.ID, false)
+	verifyingHost := enrollAppleHostForDeviceName(t, ds, "nt-verifying", "ios", tmpTeam.ID, false)
+	queuedHost := enrollAppleHostForDeviceName(t, ds, "nt-queued", "ipados", tmpTeam.ID, false)
+	byodHost := enrollAppleHostForDeviceName(t, ds, "nt-byod", "ios", tmpTeam.ID, true)
+	for _, h := range []*fleet.Host{failedHost, verifiedHost, verifyingHost, queuedHost, byodHost} {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = NULL WHERE id = ?`, h.ID)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, nil))
+	// The BYOD host is ineligible, so it never got a row (and host-detail omits it).
+	_, err = ds.GetHostDeviceNameEnforcement(ctx, byodHost.UUID)
+	require.True(t, fleet.IsNotFound(err))
+
+	setStatus := func(hostUUID string, status fleet.MDMDeliveryStatus) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, status, hostUUID)
+		require.NoError(t, err)
+	}
+	setStatus(failedHost.UUID, fleet.MDMDeliveryFailed)
+	setStatus(verifiedHost.UUID, fleet.MDMDeliveryVerified)
+	setStatus(verifyingHost.UUID, fleet.MDMDeliveryVerifying)
+	// queuedHost keeps its NULL status from the bulk upsert, which renders as pending.
+
+	// The host-detail row lookup returns the queued/failed rows (host-keyed).
+	require.Equal(t, fleet.MDMDeliveryFailed, *getDeviceNameRow(t, ds, failedHost.UUID).Status)
+
+	// Aggregate summary for No team (nil team) folds the rename statuses in.
+	summary, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), summary.Failed)
+	require.Equal(t, uint(1), summary.Verified)
+	require.Equal(t, uint(1), summary.Verifying)
+	require.Equal(t, uint(1), summary.Pending)
+
+	// The os_settings host-list filter scoped to No team (TeamFilter == 0) returns
+	// the matching No-team hosts per bucket.
+	noTeam := uint(0)
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+	assertFilter := func(status fleet.OSSettingsStatus, want ...*fleet.Host) {
+		hosts, err := ds.ListHosts(ctx, userFilter, fleet.HostListOptions{TeamFilter: &noTeam, OSSettingsFilter: status})
+		require.NoError(t, err)
+		gotIDs := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		wantIDs := make([]uint, 0, len(want))
+		for _, h := range want {
+			wantIDs = append(wantIDs, h.ID)
+		}
+		require.ElementsMatch(t, wantIDs, gotIDs)
+	}
+	assertFilter(fleet.OSSettingsFailed, failedHost)
+	assertFilter(fleet.OSSettingsVerified, verifiedHost)
+	assertFilter(fleet.OSSettingsVerifying, verifyingHost)
+	assertFilter(fleet.OSSettingsPending, queuedHost)
+}
+
 // testHostDeviceNamesSummaryFilterLabel covers the os_settings host-list filter
 // on the label-hosts path (ListHostsInLabel), which folds in the same
 // device-name status join as the main list path.
@@ -498,7 +651,7 @@ func testHostDeviceNamesSummaryFilterLabel(t *testing.T, ds *Datastore) {
 
 	failedHost := enrollAppleHostForDeviceName(t, ds, "label-failed", "darwin", team.ID, false)
 	verifiedHost := enrollAppleHostForDeviceName(t, ds, "label-verified", "ios", team.ID, false)
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, fleet.MDMDeliveryFailed, failedHost.UUID)
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm_apple_device_names SET status = ? WHERE host_uuid = ?`, fleet.MDMDeliveryVerified, verifiedHost.UUID)
@@ -534,8 +687,8 @@ func testHostDeviceNamesTeamDeletionCleanup(t *testing.T, ds *Datastore) {
 	setDeviceNameTemplate(t, ds, otherTeam.ID, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
 	otherHost := enrollAppleHostForDeviceName(t, ds, "keep", "darwin", otherTeam.ID, false)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, otherTeam.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &otherTeam.ID))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 	require.Nil(t, getDeviceNameRow(t, ds, otherHost.UUID).Status)
 
@@ -560,7 +713,7 @@ func testHostDeviceNamesHostDeletionCleanup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", team.ID, false)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Deleting the host must remove its enforcement row (no FK cascades it).
@@ -576,7 +729,7 @@ func testHostDeviceNamesResolveResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", team.ID, false)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 
 	// A too-long resolution fails the row without sending a command; the row
 	// leaves the pending list so the cron does not retry it.
@@ -621,7 +774,7 @@ func testHostDeviceNamesVerifyGracePeriod(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host := enrollAppleHostForDeviceName(t, ds, "mac", "darwin", team.ID, false)
 
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd"), "WS-1", ""))
 	err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "")
 	require.NoError(t, err)
@@ -673,7 +826,7 @@ func testHostDeviceNamesFullLifecycle(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// 1. Admin saves a template -> the host is queued (status NULL).
-	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, team.ID))
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// 2. Cron picks up the queued row and enqueues a command.

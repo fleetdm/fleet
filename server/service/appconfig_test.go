@@ -1120,6 +1120,7 @@ func TestMDMConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:     optjson.String{Set: true},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				MacOSSetup: fleet.MacOSSetup{
 					BootstrapPackage:            optjson.String{Set: true},
@@ -1175,6 +1176,7 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:             optjson.String{Set: true},
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
 				MacOSSetup: fleet.MacOSSetup{
@@ -1213,6 +1215,7 @@ func TestMDMConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:             optjson.String{Set: true},
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
 				MacOSSetup: fleet.MacOSSetup{
@@ -1258,6 +1261,7 @@ func TestMDMConfig(t *testing.T) {
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:      optjson.String{Set: true},
 				AppleBusinessManager:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup: fleet.MacOSSetup{
@@ -1299,6 +1303,7 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:     optjson.String{Set: true},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
@@ -1344,6 +1349,7 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:     optjson.String{Set: true},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "f",
@@ -1418,6 +1424,7 @@ func TestMDMConfig(t *testing.T) {
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate:     optjson.String{Set: true},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
 				MacOSSetup: fleet.MacOSSetup{

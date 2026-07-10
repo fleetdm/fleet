@@ -2409,7 +2409,10 @@ func (c *Client) DoGitOps(
 		mdmAppConfig = team["mdm"].(map[string]interface{})
 	}
 
-	// name_template (host name template) is a fleets-only control.
+	// name_template (host name template) applies to fleets and to the global
+	// config for "No team": for "No team" the controls are merged onto the global
+	// config upstream (extractControlsForNoTeam), so it rides the global/team
+	// apply block below.
 	nameTemplate := ""
 	if incoming.Controls.NameTemplate != nil {
 		var ok bool
@@ -2418,13 +2421,9 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("controls.name_template must be a string")
 		}
 	}
-	if incoming.TeamName != nil && !incoming.IsNoTeam() {
-		mdmAppConfig["name_template"] = nameTemplate
-	} else if nameTemplate != "" {
-		return nil, errors.New(`name_template is only supported for fleets (teams); remove it from org-level and "No team" controls`)
-	}
 
 	if !incoming.IsNoTeam() {
+		mdmAppConfig["name_template"] = nameTemplate
 
 		// Common controls settings between org and team settings
 		// Put in default values for macos_settings
