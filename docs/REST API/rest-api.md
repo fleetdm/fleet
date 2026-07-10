@@ -9898,7 +9898,7 @@ _Available in Fleet Premium_
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
-| only_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
+| patch_only_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
@@ -12205,7 +12205,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
-> If this software title has a patch policy with `patch_only_when_closed` set to `true` (see [Update fleet-level policy](#update-fleet-level-policy)), `pre_install_query` is managed by Fleet and can't be set directly. Requests that include `pre_install_query` for this title return an error until `only_when_closed` is turned off.
+> If this software title has a patch policy with `patch_only_when_closed` set to `true` (see [Update fleet-level policy](#update-fleet-level-policy)), `pre_install_query` is managed by Fleet and can't be set directly.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -12855,7 +12855,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
 | ----            | ------- | ---- | --------------------------------------------     |
 | install_uuid | string | path | **Required**. The software installation UUID.|
 
-`install_skipped` is `true` when this attempt was skipped by a patch policy's `only_when_closed` condition (the app was open) rather than a real install failure. `status` remains `failed_install` in this case, but the attempt doesn't count against the software install retry limit.
+When install attempt was skipped because a patch policy has `patch_only_when_closed` enabled (the app was open). `status` will be `failed_install`, and `pre_install_query_output` will be `"Query dind't return result\nThe app was open."`. Fleet won't retry when 3 times in this case. It will try again on next policy run.
 
 #### Example
 
@@ -12874,30 +12874,9 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "install_skipped": false,
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
- }
-```
-
-##### Skipped because the app was open
-
-`Status: 200`
-
-```json
- {
-   "install_uuid": "d3b7f0d1-6e5e-4b2b-9b1f-2e6a2c8a1a11",
-   "software_title": "zoom.us.app",
-   "software_title_id": 8412,
-   "software_package": "Zoom.pkg",
-   "host_id": 123,
-   "host_display_name": "Marko's MacBook Pro",
-   "status": "failed_install",
-   "install_skipped": true,
-   "output": "The app was open. It will update once the user closes it and policy runs again, or update via self service.",
-   "pre_install_query_output": "",
-   "post_install_script_output": ""
  }
 ```
 
