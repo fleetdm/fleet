@@ -25,6 +25,7 @@ func TestSCIM(t *testing.T) {
 		fn   func(t *testing.T, s *Suite)
 	}{
 		{"Auth", testAuth},
+		{"AuthMaintainerToAdminMigration", testAuthMaintainerToAdminMigration},
 		{"BaseEndpoints", testBaseEndpoints},
 		{"Users", testUsersBasicCRUD},
 		{"Groups", testGroupsBasicCRUD},
@@ -110,6 +111,80 @@ func testAuth(t *testing.T, s *Suite) {
 	s.Token = s.GetTestAdminToken(t)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+}
+
+// testAuthMaintainerToAdminMigration tests the upgrade path for customers
+// migrating their SCIM API token from a global maintainer to a global admin.
+// Verifies that SCIM operations fail with a maintainer token, and succeed
+// after the user's role is upgraded to admin (same user, same token).
+func testAuthMaintainerToAdminMigration(t *testing.T, s *Suite) {
+	t.Cleanup(func() {
+		// Restore the maintainer user's original role
+		maintainer := s.Users[service.TestMaintainerUserEmail]
+		maintainer.GlobalRole = new("maintainer")
+		err := s.DS.SaveUser(t.Context(), &maintainer)
+		require.NoError(t, err)
+		s.Users[service.TestMaintainerUserEmail] = maintainer
+		s.Token = s.GetTestAdminToken(t)
+	})
+
+	// Step 1: Maintainer tries SCIM operations and gets denied
+	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+
+	var resp map[string]any
+	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+
+	resp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "migration-test@example.com",
+		"name":     map[string]any{"givenName": "Migration", "familyName": "Test"},
+		"emails":   []map[string]any{{"value": "migration-test@example.com", "type": "work", "primary": true}},
+		"active":   true,
+	}, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+
+	// Step 2: Upgrade the maintainer's role to admin (simulates the customer
+	// changing the API-only user's role in Fleet before upgrading)
+	maintainer := s.Users[service.TestMaintainerUserEmail]
+	maintainer.GlobalRole = new("admin")
+	err := s.DS.SaveUser(t.Context(), &maintainer)
+	require.NoError(t, err)
+	s.Users[service.TestMaintainerUserEmail] = maintainer
+
+	// Step 3: Same user can now access SCIM (re-auth to pick up new role)
+	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+
+	resp = nil
+	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
+	assert.EqualValues(t, []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"}, resp["schemas"])
+
+	// SCIM user CRUD works after migration
+	var createResp map[string]any
+	s.DoJSON(t, "POST", scimPath("/Users"), map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "migration-test@example.com",
+		"name":     map[string]any{"givenName": "Migration", "familyName": "Test"},
+		"emails":   []map[string]any{{"value": "migration-test@example.com", "type": "work", "primary": true}},
+		"active":   true,
+	}, http.StatusCreated, &createResp)
+	assert.Equal(t, "migration-test@example.com", createResp["userName"])
+
+	userID := createResp["id"].(string)
+	assert.NotEmpty(t, userID)
+
+	// Read
+	var getResp map[string]any
+	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, "migration-test@example.com", getResp["userName"])
+
+	// Delete
+	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+
+	// Confirm deleted
+	var errResp map[string]any
+	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusNotFound, &errResp)
 }
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
