@@ -1402,7 +1402,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 		Identifier: "com.example.decl-test",
 		Name:       "test-decl",
 		RawJSON:    json.RawMessage(`{"Identifier": "com.example.decl-test"}`),
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {

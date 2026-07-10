@@ -30,8 +30,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	"Type": "com.apple.configuration.decl%d",
 	"Identifier": "com.fleet.config%d",
 	"Payload": {
-		"ServiceType": "com.apple.bash",
-		"DataAssetReference": "com.fleet.asset.bash" %s
+		"ServiceType": "com.apple.bash" %s
 	}
 }`
 
@@ -64,7 +63,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		}}, http.StatusUnprocessableEntity)
 
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported.")
+		require.Contains(t, errMsg, "is a forbidden declaration")
 	}
 
 	// "com.apple.configuration.management.status-subscriptions" type should fail
@@ -73,7 +72,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+	require.Contains(t, errMsg, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 
 	// Two different payloads with the same name should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -974,6 +973,126 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkDDMSync(deviceThree)
 }
 
+// TestAppleDDMAssetReconciliation asserts that editing a DDM asset referenced by
+// a declaration re-syncs the host even when the declaration's own content is
+// unchanged, and that the per-host declarations token changes accordingly. This
+// is the assets_updated_at path mirroring variables_updated_at.
+func (s *integrationMDMTestSuite) TestAppleDDMAssetReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+
+	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+		cmd, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+
+	// Read the current declarations token for the device (System channel).
+	currentToken := func(d *mdmtest.TestAppleMDMClient) string {
+		r, err := d.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+		return parseTokensResp(t, r).SyncTokens.DeclarationsToken
+	}
+
+	// Read the manifest's Assets entry (identifier -> ServerToken) for the device.
+	assetServerToken := func(d *mdmtest.TestAppleMDMClient, identifier string) string {
+		r, err := d.DeclarativeManagement("declaration-items")
+		require.NoError(t, err)
+		items := parseDeclarationItemsResp(t, r)
+		for _, a := range items.Declarations.Assets {
+			if a.Identifier == identifier {
+				return a.ServerToken
+			}
+		}
+		return ""
+	}
+
+	// Enroll a macOS host.
+	_, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Create a DDM asset (global team) that a declaration will reference.
+	const assetIdentifier = "com.fleet.asset.reconcile"
+	_, err := s.ds.CreateAppleDDMAsset(ctx, "reconcile-asset", assetIdentifier, []byte(`{"Type":"com.apple.asset.data","Identifier":"com.fleet.asset.reconcile","Payload":{"Reference":{"DataURL":"https://example.com/a"}}}`), nil)
+	require.NoError(t, err)
+
+	// Upload a declaration that references the asset. This links the reference via
+	// handleDeclarationAssetReferences.
+	declIdentifier := "com.fleet.decl.withasset"
+	body, headers := generateNewProfileMultipartRequest(
+		t, declIdentifier+".json", declarationForTestWithAssetReference(declIdentifier, assetIdentifier), s.token, nil,
+	)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	var newProfResp newMDMConfigProfileResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&newProfResp))
+	require.NotEmpty(t, newProfResp.ProfileUUID)
+
+	// First reconcile installs the declaration and stamps assets_updated_at.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	checkDDMSync(device)
+
+	// Second reconcile is a no-op: nothing changed.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	checkNoCommands(device)
+
+	tokenBefore := currentToken(device)
+	require.NotEmpty(t, tokenBefore)
+
+	// The manifest advertises the asset with a hex-encoded ServerToken, and the
+	// served asset declaration reports the same ServerToken.
+	manifestTokBefore := assetServerToken(device, assetIdentifier)
+	require.NotEmpty(t, manifestTokBefore)
+	r, err := device.DeclarativeManagement(fmt.Sprintf("declaration/asset/%s", assetIdentifier))
+	require.NoError(t, err)
+	var servedAsset map[string]any
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&servedAsset))
+	require.Equal(t, manifestTokBefore, servedAsset["ServerToken"])
+
+	// Simulate an asset edit: change its content and bump uploaded_at (as a future
+	// GitOps/asset-edit path would). The token column is generated from raw_json,
+	// so this also changes the asset's own token.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			UPDATE mdm_apple_declaration_assets
+			SET raw_json = ?, uploaded_at = DATE_ADD(uploaded_at, INTERVAL 1 HOUR)
+			WHERE identifier = ? AND team_id = 0`,
+			`{"Type":"com.apple.asset.data","Identifier":"com.fleet.asset.reconcile","Payload":{"Reference":{"DataURL":"https://example.com/CHANGED"}}}`,
+			assetIdentifier)
+		return err
+	})
+
+	// Reconcile: even though the declaration itself is unchanged, the referenced
+	// asset moved forward, so the host must be poked.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	checkDDMSync(device)
+
+	// The declarations token changed because assets_updated_at advanced.
+	tokenAfter := currentToken(device)
+	require.NotEmpty(t, tokenAfter)
+	require.NotEqual(t, tokenBefore, tokenAfter, "declarations token must change on an asset-only update")
+
+	// The asset's advertised ServerToken changed too, and the served declaration matches.
+	manifestTokAfter := assetServerToken(device, assetIdentifier)
+	require.NotEmpty(t, manifestTokAfter)
+	require.NotEqual(t, manifestTokBefore, manifestTokAfter)
+	r, err = device.DeclarativeManagement(fmt.Sprintf("declaration/asset/%s", assetIdentifier))
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&servedAsset))
+	require.Equal(t, manifestTokAfter, servedAsset["ServerToken"])
+
+	// A final reconcile is idempotent again.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	checkNoCommands(device)
+}
+
 func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	t := s.T()
 	ctx := context.Background()
@@ -1737,8 +1856,8 @@ WHERE name = ?`
 
 	// Build expected declaration-items map with effective tokens (incorporating variables_updated_at)
 	declsByToken := map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
@@ -1780,8 +1899,8 @@ WHERE name = ?`
 	require.NotEmpty(t, lastSyncDeclToken)
 
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 		dbNewDecl.Token:   {Identifier: "com.fleet.new"},
 	}
@@ -1812,8 +1931,8 @@ WHERE name = ?`
 	checkNoCommands(mdmDevice2)
 
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
@@ -2004,8 +2123,8 @@ WHERE name = ?`
 	// in the DeclarationsToken computation so that the token matches the
 	// SQL-computed token from the tokens endpoint.
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
-		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID, nil):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial, nil): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
@@ -2117,6 +2236,17 @@ func declarationForTest(identifier string) []byte {
     },
     "Identifier": "%s"
 }`, identifier))
+}
+
+func declarationForTestWithAssetReference(identifier string, assetReference string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "com.apple.configuration.management.test",
+    "Payload": {
+        "EchoAssetReference": "%s"
+    },
+    "Identifier": "%s"
+}`, assetReference, identifier))
 }
 
 func declarationForTestWithScope(identifier string, scope fleet.PayloadScope) []byte {

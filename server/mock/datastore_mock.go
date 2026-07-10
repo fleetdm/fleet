@@ -1478,7 +1478,7 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
-type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
+type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error)
 
 type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
@@ -2162,11 +2162,15 @@ type ListAppleDDMAssetsFunc func(ctx context.Context, teamID *uint) ([]*fleet.DD
 
 type GetAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error)
 
+type GetAppleDDMAssetForDeliveryFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error)
+
 type GetAppleDDMAssetForDownloadFunc func(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error)
 
 type CreateAppleDDMAssetFunc func(ctx context.Context, name string, identifier string, data []byte, teamID *uint) (string, error)
 
 type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
+
+type GetAppleDDMAssetsReferencedByDeclarationsFunc func(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error)
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -5376,6 +5380,9 @@ type DataStore struct {
 	GetAppleDDMAssetFunc        GetAppleDDMAssetFunc
 	GetAppleDDMAssetFuncInvoked bool
 
+	GetAppleDDMAssetForDeliveryFunc        GetAppleDDMAssetForDeliveryFunc
+	GetAppleDDMAssetForDeliveryFuncInvoked bool
+
 	GetAppleDDMAssetForDownloadFunc        GetAppleDDMAssetForDownloadFunc
 	GetAppleDDMAssetForDownloadFuncInvoked bool
 
@@ -5384,6 +5391,9 @@ type DataStore struct {
 
 	DeleteAppleDDMAssetFunc        DeleteAppleDDMAssetFunc
 	DeleteAppleDDMAssetFuncInvoked bool
+
+	GetAppleDDMAssetsReferencedByDeclarationsFunc        GetAppleDDMAssetsReferencedByDeclarationsFunc
+	GetAppleDDMAssetsReferencedByDeclarationsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -10477,11 +10487,11 @@ func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProf
 	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, androidProfiles, profilesVariables)
 }
 
-func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, assetReferences []string) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
+	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars, assetReferences)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
@@ -12871,6 +12881,13 @@ func (s *DataStore) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fl
 	return s.GetAppleDDMAssetFunc(ctx, assetUUID)
 }
 
+func (s *DataStore) GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*fleet.DownloadableDDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetForDeliveryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetForDeliveryFunc(ctx, identifier, hostUUID)
+}
+
 func (s *DataStore) GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*fleet.DownloadableDDMAsset, error) {
 	s.mu.Lock()
 	s.GetAppleDDMAssetForDownloadFuncInvoked = true
@@ -12890,4 +12907,11 @@ func (s *DataStore) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 	s.DeleteAppleDDMAssetFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *DataStore) GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*fleet.DDMAsset, error) {
+	s.mu.Lock()
+	s.GetAppleDDMAssetsReferencedByDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDDMAssetsReferencedByDeclarationsFunc(ctx, declarationUUIDs)
 }
