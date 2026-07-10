@@ -4,8 +4,6 @@
  * dismiss, and response detail resolution.
  */
 
-// Mock sonner before any imports that pull it in.
-// jest.fn() is safe here because jest.mock is hoisted.
 jest.mock("sonner", () => ({
   toast: {
     custom: jest.fn(),
@@ -16,10 +14,9 @@ jest.mock("sonner", () => ({
 
 import { notify } from "./ToastNotification";
 
-// Access the mocked functions after the mock is established
-const sonner = jest.requireMock("sonner") as {
+const sonner = jest.requireMock<{
   toast: { custom: jest.Mock; dismiss: jest.Mock };
-};
+}>("sonner");
 
 describe("notify - sonner toast API", () => {
   beforeEach(() => {
@@ -32,21 +29,26 @@ describe("notify - sonner toast API", () => {
     jest.useRealTimers();
   });
 
-  it("notify.success returns a toast id and calls toast.custom", () => {
+  it("notify.success returns a toast id and calls toast.custom with correct options", () => {
     const id = notify.success("Saved!");
     expect(typeof id).toBe("string");
     expect(id).toMatch(/^fleet-toast-/);
 
-    // toast.custom is deferred by one tick
     jest.runAllTimers();
     expect(sonner.toast.custom).toHaveBeenCalledTimes(1);
+
+    const [, options] = sonner.toast.custom.mock.calls[0];
+    expect(options).toMatchObject({ duration: 5000, id });
   });
 
-  it("notify.error returns a toast id and calls toast.custom", () => {
+  it("notify.error returns a toast id and calls toast.custom with infinite duration", () => {
     const id = notify.error("Something failed");
     jest.runAllTimers();
     expect(typeof id).toBe("string");
     expect(sonner.toast.custom).toHaveBeenCalledTimes(1);
+
+    const [, options] = sonner.toast.custom.mock.calls[0];
+    expect(options).toMatchObject({ duration: Infinity, id });
   });
 
   it("notify.error with empty message uses generic fallback", () => {
@@ -74,6 +76,10 @@ describe("notify - sonner toast API", () => {
   it("notify.success with custom id reuses that id", () => {
     const id = notify.success("Updated", { id: "my-custom-id" });
     expect(id).toBe("my-custom-id");
+
+    jest.runAllTimers();
+    const [, options] = sonner.toast.custom.mock.calls[0];
+    expect(options.id).toBe("my-custom-id");
   });
 
   it("notify.dismiss calls toast.dismiss", () => {
@@ -110,7 +116,7 @@ describe("notify - sonner toast API", () => {
     expect(element.props.detail).toEqual({ error: "bad input" });
   });
 
-  it("notify.error with nested axios response unwraps correctly", () => {
+  it("notify.error with nested response unwraps correctly", () => {
     notify.error("Request failed", {
       response: {
         response: { status: 500, data: { message: "internal" } },

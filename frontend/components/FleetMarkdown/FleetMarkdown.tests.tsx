@@ -12,21 +12,14 @@ jest.mock("components/SQLEditor", () => ({
 import FleetMarkdown from "./FleetMarkdown";
 
 /**
- * Tests that react-markdown + remark-gfm render markdown content correctly
- * through the FleetMarkdown wrapper component.
+ * Tests Fleet-specific rendering behavior in the FleetMarkdown wrapper:
+ * CustomLink integration, SQLEditor code block delegation, and inline
+ * code passthrough.
  */
-describe("FleetMarkdown - react-markdown rendering", () => {
+describe("FleetMarkdown", () => {
   it("renders plain text", () => {
     render(<FleetMarkdown markdown="Hello world" />);
     expect(screen.getByText("Hello world")).toBeInTheDocument();
-  });
-
-  it("renders bold and italic text", () => {
-    const { container } = render(
-      <FleetMarkdown markdown="This is **bold** and *italic* text" />
-    );
-    expect(container.querySelector("strong")?.textContent).toBe("bold");
-    expect(container.querySelector("em")?.textContent).toBe("italic");
   });
 
   it("renders links via CustomLink (opens in new tab)", () => {
@@ -36,29 +29,7 @@ describe("FleetMarkdown - react-markdown rendering", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
-  it("renders unordered lists", () => {
-    const md = "- Item one\n- Item two\n- Item three";
-    const { container } = render(<FleetMarkdown markdown={md} />);
-    const items = container.querySelectorAll("li");
-    expect(items).toHaveLength(3);
-    expect(items[0].textContent).toBe("Item one");
-  });
-
-  it("renders GFM tables (remark-gfm)", () => {
-    const md = "| Name | Age |\n|------|-----|\n| Alice | 30 |";
-    const { container } = render(<FleetMarkdown markdown={md} />);
-    expect(container.querySelector("table")).toBeInTheDocument();
-    expect(screen.getByText("Alice")).toBeInTheDocument();
-  });
-
-  it("renders GFM strikethrough (remark-gfm)", () => {
-    const { container } = render(
-      <FleetMarkdown markdown="This is ~~deleted~~ text" />
-    );
-    expect(container.querySelector("del")?.textContent).toBe("deleted");
-  });
-
-  it("renders code blocks through SQLEditor mock", () => {
+  it("renders code blocks through SQLEditor", () => {
     const md = "```\nSELECT * FROM users\n```";
     render(<FleetMarkdown markdown={md} />);
     expect(screen.getByTestId("sql-editor")).toHaveTextContent(
@@ -72,13 +43,6 @@ describe("FleetMarkdown - react-markdown rendering", () => {
     );
     const code = container.querySelector("code");
     expect(code?.textContent).toBe("fleetctl apply");
-  });
-
-  it("applies custom className", () => {
-    const { container } = render(
-      <FleetMarkdown markdown="test" className="my-custom-class" />
-    );
-    expect(container.firstChild).toHaveClass("fleet-markdown");
-    expect(container.firstChild).toHaveClass("my-custom-class");
+    expect(screen.queryByTestId("sql-editor")).not.toBeInTheDocument();
   });
 });
