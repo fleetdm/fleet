@@ -1,0 +1,10 @@
+{
+  "name": "Spyder",
+  "unique_identifier": "org.spyder-ide.Spyder-6",
+  "token": "spyder",
+  "installer_format": "pkg",
+  "slug": "spyder/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

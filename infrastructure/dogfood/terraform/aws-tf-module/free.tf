@@ -63,7 +63,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.27.1"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.31.0"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id

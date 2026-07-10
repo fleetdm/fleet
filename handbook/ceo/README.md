@@ -140,8 +140,8 @@ The CEO's calendar should reflect the following schedule for travel:
   - No calendar event to get water and bags, if CEO is going home.
 - Travel time from the airport to the CEO's next destination,
  - Time varies, you will need to google directions from the airport to the address the CEO needs to go to. Make sure to match the time they will need to leave the airport.
- - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, resturaunt, etc.
- - Calendar event: Travel to NAME_OF_DESTINATION (e.g. Travel to NAME_OF_HOTEL, NAME_OF_VENUE, NAME_OF_RESTURUANT, etc.)
+ - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, restaurant, etc.
+ - Calendar event: Travel to NAME_OF_DESTINATION (e.g. Travel to NAME_OF_HOTEL, NAME_OF_VENUE, NAME_OF_RESTAURANT, etc.)
  - Location: Address to destination
  - Calendar event name if CEO is going home: Travel home
 - If the CEO is checking into a hotel, they need a time block to check-in,
@@ -165,6 +165,8 @@ Use the following steps to schedule an interview between a candidate and the CEO
 5. Schedule a 30-minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
 6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed.
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
+
+The CEO interview should be scheduled within 2 business days of the request being made. If the CEO's schedule is blocking a hire for more than 2 business days, the EA adds a "DISCUSS" item to the CEO roundup to resolve the scheduling blocker.
 
 
 ### Schedule analyst briefing

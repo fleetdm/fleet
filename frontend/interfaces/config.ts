@@ -7,6 +7,7 @@ import {
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
+import { IVulnExposureFilterDefaults } from "./charts";
 
 export interface ILicense {
   tier: string;
@@ -130,6 +131,9 @@ export interface IConfigFeatures {
     uptime: boolean;
     vulnerabilities: boolean;
   };
+  // GitOps-managed default filter state for the Vulnerability exposure chart.
+  // Optional/sparse: absent fields fall back to the chart's built-in defaults.
+  vulnerability_exposure_historical_reporting?: IVulnExposureFilterDefaults;
 }
 
 export interface IConfigServerSettings {
@@ -263,6 +267,7 @@ export type LogDestination =
   | "pubsub"
   | "kafka"
   | "nats"
+  | "splunk"
   | "stdout"
   | "webhook"
   | "";

@@ -1,0 +1,10 @@
+{
+  "name": "Cheetah3D",
+  "unique_identifier": "de.wengenmayer.Cheetah3D",
+  "token": "cheetah3d",
+  "installer_format": "dmg",
+  "slug": "cheetah3d/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

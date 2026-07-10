@@ -1,0 +1,10 @@
+{
+  "name": "Captin",
+  "unique_identifier": "com.100hps.captin",
+  "token": "captin",
+  "installer_format": "zip",
+  "slug": "captin/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

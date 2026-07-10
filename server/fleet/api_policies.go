@@ -12,9 +12,10 @@ type GlobalPolicyRequest struct {
 	Resolution       string   `json:"resolution"`
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
+	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 }
 
 type GlobalPolicyResponse struct {
@@ -101,6 +102,20 @@ type ModifyGlobalPolicyResponse struct {
 func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Reset policy
+/////////////////////////////////////////////////////////////////////////////////
+
+type ResetPolicyRequest struct {
+	PolicyID uint `url:"policy_id"`
+}
+
+type ResetPolicyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r ResetPolicyResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
 // Reset automation
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -161,9 +176,10 @@ type TeamPolicyRequest struct {
 	CalendarEventsEnabled        bool     `json:"calendar_events_enabled"`
 	SoftwareTitleID              *uint    `json:"software_title_id"`
 	ScriptID                     *uint    `json:"script_id"`
-	LabelsIncludeAny             []string `json:"labels_include_any"`
+	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny             []string `json:"labels_exclude_any"`
+	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
+	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`
@@ -267,3 +283,49 @@ type ModifyTeamPolicyResponse struct {
 }
 
 func (r ModifyTeamPolicyResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Policy Automation Activities - List
+/////////////////////////////////////////////////////////////////////////////////
+
+// PolicyAutomationActivity is a fleet.Activity enriched with the host it
+// belongs to, as recorded in activity_host_past.
+type PolicyAutomationActivity struct {
+	Activity
+	HostID          uint   `json:"host_id" db:"host_id"`
+	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
+	// Status is the outcome of the activity: "error" or "success". It is set for
+	// every activity, including the named automations (webhook/ticket/calendar/CA)
+	// whose outcome is otherwise only encoded in the activity type.
+	Status string `json:"status" db:"status"`
+	// Output is the combined script output for ran_script activities and the
+	// install-script output for installed_software activities. It is null for
+	// named automation and VPP (installed_app_store_app) activities, which carry
+	// no script output.
+	Output *string `json:"output" db:"output"`
+	// PreInstallOutput and PostInstallOutput are the pre-install query output and
+	// post-install script output for installed_software activities (a software
+	// install can fail at any of the three stages). They are null for every other
+	// activity type.
+	PreInstallOutput  *string `json:"pre_install_output" db:"pre_install_output"`
+	PostInstallOutput *string `json:"post_install_output" db:"post_install_output"`
+}
+
+// ListPolicyAutomationActivitiesRequest is the request type for
+// GET /api/_version_/fleet/policies/{policy_id}/automation_activities.
+type ListPolicyAutomationActivitiesRequest struct {
+	PolicyID uint        `url:"policy_id"`
+	Opts     ListOptions `url:"list_options"`
+	// Status filters by outcome: "error" (failed_* types), "success" (positive
+	// types), or empty (all types). Any other value returns HTTP 422.
+	Status string `query:"status,optional"`
+}
+
+type ListPolicyAutomationActivitiesResponse struct {
+	Activities []*PolicyAutomationActivity `json:"activities"`
+	Meta       *PaginationMetadata         `json:"meta"`
+	Count      uint                        `json:"count"`
+	Err        error                       `json:"error,omitempty"`
+}
+
+func (r ListPolicyAutomationActivitiesResponse) Error() error { return r.Err }

@@ -1,0 +1,10 @@
+{
+  "name": "Godspeed",
+  "unique_identifier": "com.godspeedapp.Godspeed",
+  "token": "godspeed",
+  "installer_format": "zip",
+  "slug": "godspeed/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Angry IP Scanner",
+  "unique_identifier": "net.azib.ipscan",
+  "token": "angry-ip-scanner",
+  "installer_format": "zip",
+  "slug": "angry-ip-scanner/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

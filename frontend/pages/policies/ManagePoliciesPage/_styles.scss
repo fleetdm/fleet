@@ -23,12 +23,6 @@
     min-width: 277px;
   }
 
-  &__automations-button {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
-  }
-
   &__header {
     display: flex;
     align-items: center;
@@ -136,7 +130,7 @@
 
   &__inherited-policies-table {
     th {
-      border-right: 1px solid #e2e4ea !important;
+      border-right: 1px solid $ui-fleet-black-10 !important;
     }
 
     .table-container__header {

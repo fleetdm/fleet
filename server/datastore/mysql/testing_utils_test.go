@@ -460,6 +460,9 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"osquery_options":                  true,
 		"software_categories":              true,
 	}
+	_, err := ds.writer(context.Background()).ExecContext(context.Background(),
+		"DELETE FROM software_categories WHERE team_id != 0")
+	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
@@ -955,3 +958,7 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 	require.NoError(t, err)
 	return activities
 }
+
+// errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
+// for assertions that only care about the error.
+func errOnly(_ []uint, err error) error { return err }

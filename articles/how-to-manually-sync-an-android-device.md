@@ -1,10 +1,8 @@
 # How to manually sync an Android device
 
-Android hosts sync data automatically when they change, but changes may not appear immediately due to Google rate limiting.
+For Android hosts, there's no **Refetch** button on the **Host details** page in Fleet because Android hosts sync data automatically when they change. 
 
-There is a way to manually sync an Android device, which can be useful for testing purposes.
-
-## Sync policies
+Sometimes changes don't appear immediately due to Google rate limiting. For testing, if you have physical access to the Android host, you can sync manually to speed things up:
 
 1. Go to your Work Profile in **Settings**:
    1. Google devices: select your name at the top of **Settings**, then select your Work Profile.
@@ -13,9 +11,7 @@ There is a way to manually sync an Android device, which can be useful for testi
 3. Select the three dots in the upper right corner, then select **Sync policies**.
    - The message at the top of the screen should change to "Synced now".
 
-## Developer options
-
-On some devices, you may need to enable Developer options first.
+On some devices, you may need to enable developer options first.
 
 1. Go to **Settings > About phone**, and select **Build number** seven times.
    - A message will display during this period: "You are now _x_ steps away from being a developer."

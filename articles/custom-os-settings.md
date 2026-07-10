@@ -92,9 +92,7 @@ How to deliver user-scoped configuration profiles:
 
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
 
-2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`.
-
-Here's an example `.mobileconfig` snippet:
+2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
 
 ```
 <?xml version="1.0" encoding="UTF-8"?>
@@ -154,7 +152,9 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 To see the status of a specific setting, hover over the setting's row in the **Configuration profiles** table and select the information (**i**) icon.
 
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
+When editing a profile via Fleet's GitOps workflow, the profile's status will begin updating to "Pending" within 30 seconds. In larger installations, it may take a few minutes for the status to apply to all hosts.
+
+Editing a profile's labels sets the status to "Pending" for newly targeted hosts.
 
 ### Verified
 
@@ -162,7 +162,7 @@ Hosts that applied all OS settings.
 
 For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
-macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
+macOS declarations (DDM) profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
 All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 

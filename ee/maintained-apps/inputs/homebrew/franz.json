@@ -1,0 +1,10 @@
+{
+  "name": "Franz",
+  "unique_identifier": "com.meetfranz.franz",
+  "token": "franz",
+  "installer_format": "dmg",
+  "slug": "franz/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

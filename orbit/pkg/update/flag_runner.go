@@ -45,9 +45,26 @@ func NewFlagReceiver(triggerOrbitRestart func(reason string), opt FlagUpdateOpti
 // It gets the flags from the Fleet server, and compares them to locally stored flagfile (if it exists)
 // If the flag comparison from disk and server are not equal, it writes the flags to disk, and returns true
 func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
+	// When command_line_flags is not set in the agent settings, the server omits
+	// the field and config.Flags is nil/empty. In that case Orbit leaves the
+	// osquery.flags file untouched, preserving any flags that were pre-packaged
+	// with fleetd or otherwise provided by the user.
+	//
+	// Explicitly setting command_line_flags to an empty document ({}) or "null" is
+	// distinct: those arrive as a non-empty payload that parses to an empty flag
+	// map, which reconciles (clears) the osquery.flags file below.
+	if len(config.Flags) == 0 {
+		return nil
+	}
+
+	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
+	if err != nil {
+		return fmt.Errorf("error parsing flags: %w", err)
+	}
+
 	flagFileExists := true
 
-	// first off try and read osquery.flags from disk
+	// try and read osquery.flags from disk
 	osqueryFlagMapFromFile, err := readFlagFile(r.opt.RootDir)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -57,16 +74,7 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		flagFileExists = false
 	}
 
-	// Nil/empty Flags is a valid state we must be able to reconcile TO
-	// (admin cleared command_line_flags, or server-side debug merge turned off).
-	osqueryFlagMapFromFleet := map[string]string{}
-	if len(config.Flags) > 0 {
-		osqueryFlagMapFromFleet, err = getFlagsFromJSON(config.Flags)
-		if err != nil {
-			return fmt.Errorf("error parsing flags: %w", err)
-		}
-	}
-
+	// nothing on disk and nothing to write (e.g. {} with no existing file): no-op
 	if !flagFileExists && len(osqueryFlagMapFromFleet) == 0 {
 		return nil
 	}

@@ -1,0 +1,1 @@
+* Fixed "Select all matching hosts" to display the actual total host count instead of "50+" in both the hosts table header and the delete hosts modal.

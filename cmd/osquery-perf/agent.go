@@ -10,7 +10,6 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -463,6 +462,11 @@ type agent struct {
 	macMDMClient *mdmtest.TestAppleMDMClient
 	winMDMClient *mdmtest.TestWindowsMDMClient
 
+	// winMDMWake signals the Windows MDM loop to start an OMA-DM session on demand (in response to the server's
+	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
+	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
+	winMDMWake chan struct{}
+
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -540,12 +544,18 @@ type agent struct {
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
 
-	// cache of certificates returned by this agent. Note that this requires
-	// a mutex even though only used in a.processQuery, that's because both
-	// the runLoop and the live query goroutines may call DistributedWrite
-	// (which calls processQuery).
-	certificatesMutex        sync.RWMutex
-	certificatesCache        []map[string]string
+	// cache of this host's per-host certificates (the certs unique to this host, excluding the shared certs every host
+	// reports). Note that this requires a mutex even though only used in a.processQuery, that's because both the runLoop
+	// and the live query goroutines may call DistributedWrite (which calls processQuery).
+	certificatesMutex sync.RWMutex
+	hostCertSpecs     []simulatedCert
+	// scepCertSpecs holds the certs issued to this host during Windows MDM SCEP exchanges, keyed by the SCEP CSP
+	// unique ID so a re-issued cert replaces its predecessor.
+	scepCertSpecs map[string]simulatedCert
+	// withholdSCEPCert marks ~5% of hosts that never report their issued SCEP certs, exercising the server's SCEP
+	// verification backstop (test-only failure).
+	withholdSCEPCert bool
+
 	commonSoftwareNameSuffix string
 
 	entraIDDeviceID          string
@@ -576,6 +586,7 @@ type softwareEntityCount struct {
 	uniqueSoftwareUninstallProb       float64
 	duplicateBundleIdentifiersPercent int
 	softwareRenaming                  bool
+	embeddedBundlePaths               bool
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -724,9 +735,16 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
+		withholdSCEPCert: agentIndex%20 == 0,
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+	}
+
+	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
+	if winMDMClient != nil {
+		agent.winMDMWake = make(chan struct{}, 1)
 	}
 
 	// Initialize host identity client
@@ -1013,6 +1031,16 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
+	// Simulated Windows MDM hosts advertise CapabilityWindowsMDMSync, like real Windows fleetd, so the server relaxes
+	// their DMClient poll schedule (via a Replace on the poll node) and wakes them on demand via WindowsMDMSyncRequest
+	// instead of relying on frequent polling. Real fleetd adds this at construction (GetOrbitClientCapabilities gates it
+	// on GOOS=windows); osquery-perf simulates Windows on a non-Windows GOOS, so we add it here. Mutating the map directly
+	// is safe: GetOrbitClientCapabilities returns a fresh per-client map (not shared), and this runs during setup before
+	// the first request or any concurrent goroutine, so there is no copy needed.
+	if a.winMDMClient != nil {
+		orbitClient.ClientCapabilities[fleet.CapabilityWindowsMDMSync] = struct{}{}
+	}
+
 	deviceClient, err := fleetclient.NewDeviceClient(a.serverAddress, true, "", nil, "")
 	if err != nil {
 		log.Fatal("creating device client: ", err)
@@ -1119,6 +1147,14 @@ func (a *agent) runOrbitLoop() {
 					a.setMDMEnrolled()
 					a.stats.IncrementMDMEnrollments()
 					go a.runWindowsMDMLoop()
+				}
+			}
+			if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
+				// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
+				// session now.
+				select {
+				case a.winMDMWake <- struct{}{}:
+				default:
 				}
 			}
 		case <-orbitTokenRemoteCheckTicker:
@@ -1526,81 +1562,136 @@ func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse) 
 }
 
 func (a *agent) runWindowsMDMLoop() {
-	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+	pollInterval := a.MDMCheckInInterval
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
 
-	for range mdmCheckInTicker {
-		cmds, err := a.winMDMClient.StartManagementSession()
-		if err != nil {
-			log.Printf("MDM check-in start session request failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			continue
-		}
-		a.stats.IncrementMDMSessions()
-
-		// send a successful ack for each command
-		msgID, err := a.winMDMClient.GetCurrentMsgID()
-		if err != nil {
-			log.Printf("MDM get current MsgID failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			continue
-		}
-
-		// Detect SCEP CertificateInstall CSPs and ACK them now while kicking off the SCEP exchange in the background.
-		scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
-		handled, scepResults, hasWork := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
-		if hasWork {
-			go func() {
-				defer cancelSCEP()
-				// One SCEPResult is emitted per CSP; increment per-result so the request counter
-				// matches the per-CSP success/error counters even when multiple CSPs ride one SyncML.
-				for res := range scepResults {
-					a.stats.IncrementMDMSCEPRequests()
-					if res.Err != nil {
-						log.Printf("MDM SCEP exchange failed: %s", res.Err)
-						a.stats.IncrementMDMSCEPErrors()
-						continue
-					}
-					a.stats.IncrementMDMSCEPSuccess()
-				}
-			}()
-		} else {
-			cancelSCEP()
-		}
-
-		for _, c := range cmds {
-			// Skip the server's own <Status> entries. MS-MDM's "Status on a Status" is only for auth-renegotiation edge cases (see
-			// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
-			// "While this case is not usually encountered"); real Windows does not emit Status-on-Status during normal check-ins.
-			if c.Verb == fleet.CmdStatus {
-				continue
+	for {
+		onDemand := false
+		select {
+		case <-a.winMDMWake:
+			// The server asked us (via WindowsMDMSyncRequest) to start a session now, without waiting for the poll.
+			onDemand = true
+		case <-ticker.C:
+			// A wake may have arrived at almost the same time as this tick; select picks at random when both are ready,
+			// which could miscount a wake-triggered session as poll-triggered. Drain any buffered wake first so the
+			// on-demand metric is deterministic (and a coincident tick+wake collapses into a single on-demand session).
+			select {
+			case <-a.winMDMWake:
+				onDemand = true
+			default:
 			}
-			if _, ok := handled[c.Cmd.CmdID.Value]; ok {
-				// Already ACKed by AppendSCEPInstallResponses.
-				a.stats.IncrementMDMCommandsReceived()
-				continue
-			}
-			a.stats.IncrementMDMCommandsReceived()
-
-			status := syncml.CmdStatusOK
-			if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
-				status = syncml.CmdStatusBadRequest
-			}
-			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &c.Cmd.CmdID.Value,
-				Cmd:     ptr.String(c.Verb),
-				Data:    &status,
-				Items:   nil,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
 		}
-		if _, err := a.winMDMClient.SendResponse(); err != nil {
-			log.Printf("MDM send response request failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			continue
+
+		// If the server relaxed (or restored) our DMClient poll schedule via a Replace on the poll node, match it so our
+		// scheduled polling slows down. Steady-state command delivery is then driven by the on-demand wake rather than
+		// frequent polling, which is the behavior this load test exercises.
+		if relaxedInterval := a.doWindowsMDMCheckIn(onDemand); relaxedInterval > 0 && relaxedInterval != pollInterval {
+			pollInterval = relaxedInterval
+			ticker.Reset(pollInterval)
+			log.Printf("host %d: Windows MDM poll schedule set to %s", a.agentIndex, pollInterval)
 		}
 	}
+}
+
+// doWindowsMDMCheckIn runs a single OMA-DM management session: it starts the session, acknowledges every command the
+// server sends, and returns the new scheduled poll interval if the server sent a Replace on the DMClient poll node
+// (0 otherwise). onDemand reports whether the session was triggered by a WindowsMDMSyncRequest wake instead of the poll
+// ticker, for stats purposes.
+func (a *agent) doWindowsMDMCheckIn(onDemand bool) (newPollInterval time.Duration) {
+	cmds, err := a.winMDMClient.StartManagementSession()
+	if err != nil {
+		log.Printf("MDM check-in start session request failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return 0
+	}
+	a.stats.IncrementMDMSessions()
+	if onDemand {
+		a.stats.IncrementMDMOnDemandSyncs()
+	}
+
+	// send a successful ack for each command
+	msgID, err := a.winMDMClient.GetCurrentMsgID()
+	if err != nil {
+		log.Printf("MDM get current MsgID failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return 0
+	}
+
+	// Detect SCEP CertificateInstall CSPs and ACK them now while kicking off the SCEP exchange in the background.
+	scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
+	handled, scepResults, hasWork := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+	if hasWork {
+		go func() {
+			defer cancelSCEP()
+			// One SCEPResult is emitted per CSP; increment per-result so the request counter
+			// matches the per-CSP success/error counters even when multiple CSPs ride one SyncML.
+			for res := range scepResults {
+				a.stats.IncrementMDMSCEPRequests()
+				if res.Err != nil {
+					log.Printf("MDM SCEP exchange failed: %s", res.Err)
+					a.stats.IncrementMDMSCEPErrors()
+					continue
+				}
+				a.stats.IncrementMDMSCEPSuccess()
+				if res.Cert == nil {
+					continue
+				}
+				// Report the issued cert via the certificates detail query so the server observes the
+				// fleet-<profileUUID> renewal-ID marker and marks the SCEP profile verified. The withheld ~5% never
+				// report theirs, so the server's verification backstop fails those profiles.
+				if a.withholdSCEPCert {
+					continue
+				}
+				a.storeSCEPCertSpec(res.UniqueID, res.Cert)
+			}
+		}()
+	} else {
+		cancelSCEP()
+	}
+
+	for _, c := range cmds {
+		// Skip the server's own <Status> entries. MS-MDM's "Status on a Status" is only for auth-renegotiation edge cases (see
+		// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
+		// "While this case is not usually encountered"); real Windows does not emit Status-on-Status during normal check-ins.
+		if c.Verb == fleet.CmdStatus {
+			continue
+		}
+		// When the server relaxes (or restores) our poll schedule it sends a Replace on the DMClient poll node. Honor it
+		// by adjusting our scheduled poll interval, mirroring how the real Windows DMClient applies the Replace. We still
+		// ACK it below like any other command.
+		if c.Verb == fleet.CmdReplace && c.Cmd.GetTargetURI() == syncml.DMClientPollIntervalLocURI {
+			if mins, err := strconv.Atoi(strings.TrimSpace(c.Cmd.GetTargetData())); err == nil && mins > 0 {
+				newPollInterval = time.Duration(mins) * time.Minute
+			}
+		}
+		if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+			// Already ACKed by AppendSCEPInstallResponses.
+			a.stats.IncrementMDMCommandsReceived()
+			continue
+		}
+		a.stats.IncrementMDMCommandsReceived()
+
+		status := syncml.CmdStatusOK
+		if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+			status = syncml.CmdStatusBadRequest
+		}
+		a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &c.Cmd.CmdID.Value,
+			Cmd:     ptr.String(c.Verb),
+			Data:    &status,
+			Items:   nil,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	if _, err := a.winMDMClient.SendResponse(); err != nil {
+		log.Printf("MDM send response request failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return 0
+	}
+	return newPollInterval
 }
 
 func (a *agent) execScripts(execIDs []string, orbitClient *fleetclient.OrbitClient) {
@@ -2146,7 +2237,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 		} else {
 			duplicateIdx := i - totalCommon
 			bundleIDIndex := duplicateIdx / groupSize
-			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%totalCommon)
+			parentIdx := bundleIDIndex % totalCommon
+			bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", parentIdx)
 
 			var name string
 			if a.softwareCount.softwareRenaming {
@@ -2155,12 +2247,19 @@ func (a *agent) softwareMacOS() []map[string]string {
 				name = fmt.Sprintf("DuplicateBundle_%d", duplicateIdx)
 			}
 
+			var installedPath string
+			if a.softwareCount.embeddedBundlePaths {
+				installedPath = fmt.Sprintf("/some/path/Common_%d.app/Contents/Library/LoginItems/%s.app", parentIdx, name)
+			} else {
+				installedPath = fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx)
+			}
+
 			duplicateBundleSoftware = append(duplicateBundleSoftware, map[string]string{
 				"name":              name,
 				"version":           fmt.Sprintf("0.0.1%d", duplicateIdx),
 				"bundle_identifier": bundleID,
 				"source":            "apps",
-				"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", duplicateIdx),
+				"installed_path":    installedPath,
 			})
 		}
 	}
@@ -2740,156 +2839,6 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 		{"path": "/etc", "encrypted": "0"},
 		{"path": "/tmp", "encrypted": "0"},
 	}
-}
-
-func (a *agent) certificatesDarwin() []map[string]string {
-	a.certificatesMutex.RLock()
-	cache := a.certificatesCache
-	a.certificatesMutex.RUnlock()
-
-	// 90% of the time certificates do not change
-	if rand.Intn(100) < 90 && len(cache) > 0 {
-		return cache
-	}
-
-	// between 2 and 10 certificates (probably impossible to have 0, quick check
-	// on dogfood gives between 4-7)
-	count := rand.Intn(9) + 2
-
-	sources := []string{"system", "user"}
-	users := a.hostUsers()
-	const day = 24 * time.Hour
-
-	results := make([]map[string]string, count)
-	for i := range count {
-		m := make(map[string]string, 12)
-		m["ca"] = fmt.Sprint(rand.Intn(2))
-		m["common_name"] = uuid.NewString()
-		m["issuer"] = fmt.Sprintf("/C=US/O=Issuer %d Inc./CN=Issuer %d Common Name", i, i)
-		m["subject"] = fmt.Sprintf("/C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name", i, i, i)
-		m["key_algorithm"] = "rsaEncryption"
-		m["key_strength"] = "2048"
-		m["key_usage"] = "Data Encipherment, Key Encipherment, Digital Signature"
-		m["serial"] = uuid.NewString()
-		m["signing_algorithm"] = "sha256WithRSAEncryption"
-		// generate so that it may be expired
-		m["not_valid_after"] = fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix())
-		// notBefore is always in the past (1-10 days in the past)
-		m["not_valid_before"] = fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix())
-		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
-		hash := hex.EncodeToString(rawHash[:])
-		m["sha1"] = hash
-		m["source"] = sources[rand.Intn(2)]
-
-		if m["source"] == "user" {
-			// Set username for user keychain certificates
-			user := users[rand.Intn(len(users))]
-			m["path"] = fmt.Sprintf(`/Users/%s/Library/Keychains/login.keychain-db`, user["username"])
-		}
-
-		results[i] = m
-	}
-
-	a.certificatesMutex.Lock()
-	a.certificatesCache = results
-	a.certificatesMutex.Unlock()
-	return results
-}
-
-func (a *agent) certificatesWindows() []map[string]string {
-	a.certificatesMutex.RLock()
-	cache := a.certificatesCache
-	a.certificatesMutex.RUnlock()
-
-	// 90% of the time certificates do not change
-	if rand.Intn(100) < 90 && len(cache) > 0 {
-		return cache
-	}
-
-	const day = 24 * time.Hour
-
-	// custom SCEP profile ID used for certs issued via custom SCEP profiles (inserted by
-	// FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID)
-	//
-	// TODO: make this configurable as a loadtest agent parameter? for now, just hardcode it and try
-	// manipulating it in loadtest DB directly if needed.
-	profileIDCustomSCEP := "w2a6fd2c4-0018-4bdc-8046-c7342962b576"
-
-	// when windows hosts enroll to Fleet MDM, we issue them a unique cert during the WSTEP/SCEP process
-	uuidFleetSCEP := uuid.NewString()
-
-	// uuids that we'll use in serials and hashes to ensure uniqueness
-	serial1 := uuid.NewString()
-	s1 := sha1.Sum([]byte(serial1)) //nolint: gosec
-
-	serial2 := uuid.NewString()
-	s2 := sha1.Sum([]byte(serial2)) //nolint: gosec
-
-	// Fleet SCEP cert example based on data from a real Windows host
-	c1 := map[string]string{
-		"ca":                "-1",
-		"common_name":       uuidFleetSCEP,
-		"subject":           "Fleet, " + uuidFleetSCEP,
-		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
-		"key_algorithm":     "RSA",
-		"key_strength":      "2160",
-		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		// generate so that it may be expired
-		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
-		// notBefore is always in the past (1-10 days in the past)
-		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
-		"serial":           serial1,
-		"sha1":             hex.EncodeToString(s1[:]),
-		"username":         "Admin",
-		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
-	}
-	// Custom SCEP cert example based on data from a real Windows host
-	c2 := map[string]string{
-		"ca":                "-1",
-		"common_name":       fmt.Sprintf("%s User\n            CN", profileIDCustomSCEP),
-		"subject":           fmt.Sprintf("fleet-%s, \"%s User\n            CN\"", profileIDCustomSCEP, profileIDCustomSCEP),
-		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
-		"key_algorithm":     "RSA",
-		"key_strength":      "1120",
-		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		// generate so that it may be expired
-		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
-		// notBefore is always in the past (1-10 days in the past)
-		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
-		"serial":           serial2,
-		"sha1":             hex.EncodeToString(s2[:]),
-		"username":         "Admin",
-		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
-	}
-
-	// We'll use the examples above to create rows with minor variations, similar to what
-	// we would get from a real Windows host.
-	c3 := maps.Clone(c1)
-	c3["username"] = "SYSTEM"
-	c3["path"] = "Users\\S-1-5-18\\Personal"
-
-	c4 := maps.Clone(c1)
-	c4["username"] = "SYSTEM"
-	c4["path"] = "CurrentUser\\Personal"
-
-	c5 := maps.Clone(c1)
-	c5["username"] = "SYSTEM"
-	c5["path"] = "Users\\S-1-5-18\\Personal"
-
-	c6 := maps.Clone(c1)
-	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	c7 := maps.Clone(c2)
-	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
-
-	a.certificatesMutex.Lock()
-	a.certificatesCache = rows
-	a.certificatesMutex.Unlock()
-	return rows
 }
 
 func (a *agent) orbitInfo() []map[string]string {
@@ -3770,6 +3719,7 @@ func main() {
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
+		embeddedBundlePaths               = flag.Bool("embedded_bundle_paths", false, "Nest duplicate-bundle paths under their parent .app/Contents/Library/LoginItems/")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -4007,6 +3957,7 @@ func main() {
 				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 				softwareRenaming:                  *softwareRenaming,
+				embeddedBundlePaths:               *embeddedBundlePaths,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

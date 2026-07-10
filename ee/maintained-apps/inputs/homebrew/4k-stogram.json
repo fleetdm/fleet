@@ -1,0 +1,10 @@
+{
+  "name": "4K Stogram",
+  "unique_identifier": "com.openmedia.4kstogram",
+  "token": "4k-stogram",
+  "installer_format": "dmg",
+  "slug": "4k-stogram/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

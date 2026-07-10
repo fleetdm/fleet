@@ -1,0 +1,10 @@
+{
+  "name": "SigmaOS",
+  "unique_identifier": "com.sigmaos.sigmaos.macos",
+  "token": "sigmaos",
+  "installer_format": "dmg",
+  "slug": "sigmaos/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

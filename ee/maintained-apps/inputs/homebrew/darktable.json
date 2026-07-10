@@ -1,0 +1,10 @@
+{
+  "name": "darktable",
+  "unique_identifier": "org.darktable",
+  "token": "darktable",
+  "installer_format": "dmg",
+  "slug": "darktable/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -10,8 +10,9 @@ on:
   push:
     branches: [ "main" ]
 
-# Declare default permissions as read only.
-permissions: read-all
+# Declare least-privilege default permissions; the analysis job grants what it needs at the job level.
+permissions:
+  contents: read
 
 jobs:
   gradle-wrapper-validation:
@@ -36,6 +37,8 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
+      # Needed to check out the repository (explicit, for clarity)
+      contents: read
       # Needed to upload the results to code-scanning dashboard.
       security-events: write
       # Needed to publish results and get a badge (see publish_results below).

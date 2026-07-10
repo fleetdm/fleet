@@ -2,16 +2,19 @@
 
 import React, {
   forwardRef,
+  useContext,
   useImperativeHandle,
   useMemo,
   useState,
 } from "react";
 import { SingleValue } from "react-select-5";
 
+import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
 import { IPolicy } from "interfaces/policy";
 import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
 
+import permissions from "utilities/permissions";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import Checkbox from "components/forms/fields/Checkbox";
@@ -23,9 +26,11 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import {
+  generateSoftwareOptionHelpText,
   getTicketOrWebhookInfo,
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 
@@ -95,12 +100,23 @@ const PolicyAutomationsFields = forwardRef<
     ref
   ) => {
     const { gitOpsModeEnabled } = useGitOpsMode();
+    const { currentUser, isGlobalAdmin } = useContext(AppContext);
 
     const {
       state: ticketOrWebhookState,
       policyIds: webhookOrTicketPolicyIds,
     } = getTicketOrWebhookInfo(automationsConfig);
     const isTicketWebhookEnabled = ticketOrWebhookState !== "disabled";
+
+    // Only admins (global, or fleet-level admin of this policy's fleet) may
+    // manage the webhook/ticket automation. For "All fleets" and "Unassigned"
+    // policies there is no team-level admin, so it's global-admin only.
+    const canEditWebhookOrTicket =
+      !!isGlobalAdmin ||
+      (teamIdForApi !== undefined &&
+        teamIdForApi !== API_NO_TEAM_ID &&
+        !!currentUser &&
+        permissions.isTeamAdmin(currentUser, teamIdForApi));
 
     // Calendar events are a team/fleet-only feature: they're never available for
     // global ("All fleets") or "No team"/"Unassigned" policies.
@@ -203,8 +219,9 @@ const PolicyAutomationsFields = forwardRef<
     const softwareOptions: CustomOptionType[] = useMemo(
       () =>
         (softwareTitlesData?.software_titles ?? []).map((t) => ({
-          label: t.name,
+          label: getDisplayedSoftwareName(t.name, t.display_name),
           value: String(t.id),
+          helpText: generateSoftwareOptionHelpText(t),
         })),
       [softwareTitlesData]
     );
@@ -273,6 +290,9 @@ const PolicyAutomationsFields = forwardRef<
         checked: webhookOrTicketEnabled && isTicketWebhookEnabled,
         onToggle: setWebhookOrTicketEnabled,
         isDisabled: !isTicketWebhookEnabled,
+        // Webhook/ticket config requires admin (it writes app/team config, not
+        // the policy itself). Lock for non-admins with no explanation.
+        isLocked: !canEditWebhookOrTicket,
       },
     ];
     if (!isGlobalPolicy) {
@@ -387,7 +407,9 @@ const PolicyAutomationsFields = forwardRef<
                 <tr
                   key={row.key}
                   className={`${baseClass}__row${
-                    row.isDisabled ? ` ${baseClass}__row--disabled` : ""
+                    row.isDisabled || row.isLocked
+                      ? ` ${baseClass}__row--disabled`
+                      : ""
                   }`}
                 >
                   <td className={`${baseClass}__row-label`}>
@@ -396,7 +418,9 @@ const PolicyAutomationsFields = forwardRef<
                         <Checkbox
                           name={row.key}
                           value={row.checked}
-                          disabled={row.isDisabled || disableChildren}
+                          disabled={
+                            row.isDisabled || row.isLocked || disableChildren
+                          }
                           onChange={row.onToggle}
                         >
                           {row.tooltip ? (

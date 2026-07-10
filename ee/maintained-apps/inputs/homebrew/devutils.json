@@ -1,0 +1,10 @@
+{
+  "name": "DevUtils",
+  "unique_identifier": "tonyapp.devutils",
+  "token": "devutils",
+  "installer_format": "dmg",
+  "slug": "devutils/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Nocturnal",
+  "unique_identifier": "com.harshilshah.nocturnal",
+  "token": "nocturnal",
+  "installer_format": "zip",
+  "slug": "nocturnal/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

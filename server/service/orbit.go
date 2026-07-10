@@ -270,8 +270,19 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
 				default:
-					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-					return "", fleet.NewOrbitIDPAuthRequiredError()
+					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
+					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+					if err != nil {
+						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
+					}
+					if !previouslyEnrolled {
+						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						return "", fleet.NewOrbitIDPAuthRequiredError()
+					}
+					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+						"host_uuid", hostInfo.HardwareUUID)
 				}
 			}
 		}
@@ -480,15 +491,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
-	if err != nil {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
-	}
-
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !fleet.IsNotFound(err) {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
 	}
+
+	// Derive the Fleet-MDM connection state from the host_mdm data fetched above rather than issuing a separate
+	// IsHostConnectedToFleetMDM query.
+	isConnectedToFleetMDM := mdmInfo != nil && mdmInfo.ConnectedToFleet
 
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
@@ -1382,13 +1392,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.OrbitPostLUKSRequest)
-	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError); err != nil {
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError, req.KeyType); err != nil {
 		return fleet.OrbitPostLUKSResponse{Err: err}, nil
 	}
 	return fleet.OrbitPostLUKSResponse{}, nil
 }
 
-func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1410,7 +1420,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return nil
 	}
 
-	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot)
+	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot, keyType)
 	if err != nil {
 		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
@@ -1444,24 +1454,47 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	return nil
 }
 
-func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
-	if passphrase == "" || salt == "" || keySlot == nil {
-		return "", "", 0, badRequest("passphrase, salt, and key_slot must be provided to escrow LUKS data")
+// validateAndEncrypt validates the escrowed disk encryption secret and returns
+// the encrypted passphrase, encrypted salt, and validated key slot to persist.
+//
+// For recovery-key escrow (keyType == LUKSKeyTypeRecoveryKey, used by
+// TPM-backed FDE hosts such as Ubuntu 26) snapd owns the LUKS key slots, so
+// there is no salt or numeric key slot to escrow: only the recovery key itself
+// is required and the returned salt is empty and key slot is nil. For the
+// legacy passphrase path, passphrase, salt, and key slot are all required.
+func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint, keyType string) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot *uint, err error) {
+	recoveryKey := keyType == fleet.LUKSKeyTypeRecoveryKey
+	switch {
+	case recoveryKey && passphrase == "":
+		return "", "", nil, badRequest("recovery key must be provided to escrow LUKS data")
+	case recoveryKey && (salt != "" || keySlot != nil):
+		// snapd owns the LUKS key slots on TPM-backed FDE hosts; salt and key
+		// slot are meaningless on this path. Reject stray values instead of
+		// silently discarding them so a client bug is loud, not hidden.
+		return "", "", nil, badRequest("salt and key_slot must not be provided when escrowing a recovery key")
+	case !recoveryKey && (passphrase == "" || salt == "" || keySlot == nil):
+		return "", "", nil, badRequest("passphrase, salt, and key_slot must be provided to escrow LUKS data")
 	}
 	if svc.config.Server.PrivateKey == "" {
-		return "", "", 0, newOsqueryError("internal error: missing server private key")
+		return "", "", nil, newOsqueryError("internal error: missing server private key")
 	}
 
 	encryptedPassphrase, err = mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
 	if err != nil {
-		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
-	}
-	encryptedSalt, err = mdm.EncryptAndEncode(salt, svc.config.Server.PrivateKey)
-	if err != nil {
-		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
+		return "", "", nil, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
 
-	return encryptedPassphrase, encryptedSalt, *keySlot, nil
+	if recoveryKey {
+		// No salt or numeric key slot for snapd-managed recovery keys.
+		return encryptedPassphrase, "", nil, nil
+	}
+
+	encryptedSalt, err = mdm.EncryptAndEncode(salt, svc.config.Server.PrivateKey)
+	if err != nil {
+		return "", "", nil, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
+	}
+
+	return encryptedPassphrase, encryptedSalt, keySlot, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

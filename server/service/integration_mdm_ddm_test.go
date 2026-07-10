@@ -179,6 +179,32 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, lbl2.Name, resp.Profiles[0].LabelsIncludeAll[1].LabelName)
 	require.Len(t, resp.Profiles[1].LabelsIncludeAll, 1)
 	require.Equal(t, lbl1.Name, resp.Profiles[1].LabelsIncludeAll[0].LabelName)
+
+	// PayloadScope handling via the batch/GitOps path: the top-level PayloadScope
+	// drives the scope column. The key is intentionally kept in the stored
+	// raw_json (it's stripped only at delivery), so the declaration round-trips.
+	// A declaration with no PayloadScope defaults to the device channel.
+	userScoped := []byte(`{"Type":"com.apple.configuration.foo","Identifier":"com.fleet.userscoped","PayloadScope":"User","Payload":{"Enabled":true}}`)
+	deviceScoped := []byte(`{"Type":"com.apple.configuration.bar","Identifier":"com.fleet.devicescoped","Payload":{"Enabled":true}}`)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "UserScoped", Contents: userScoped},
+		{Name: "DeviceScoped", Contents: deviceScoped},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	require.Len(t, resp.Profiles, 2)
+	uuidByName := make(map[string]string, len(resp.Profiles))
+	for _, p := range resp.Profiles {
+		uuidByName[p.Name] = p.ProfileUUID
+	}
+
+	userDeclDB, err := s.ds.GetMDMAppleDeclaration(context.Background(), uuidByName["UserScoped"])
+	require.NoError(t, err)
+	require.Equal(t, fleet.PayloadScopeUser, userDeclDB.Scope)
+
+	deviceDeclDB, err := s.ds.GetMDMAppleDeclaration(context.Background(), uuidByName["DeviceScoped"])
+	require.NoError(t, err)
+	require.Equal(t, fleet.PayloadScopeSystem, deviceDeclDB.Scope)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
@@ -972,7 +998,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// declarations are ("install", "pending") after the cron run
@@ -1067,7 +1093,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
@@ -1096,6 +1122,237 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	})
 }
 
+// TestAppleUserScopedDDMEndToEnd drives the full user-channel DDM flow through
+// the simulated MDM client: a device enrolls, then a user channel enrolls, a
+// user-scoped and a device-scoped declaration are uploaded, and the client
+// exercises each channel independently (idle → ack → declaration-items →
+// declaration content → status report). It verifies the two channels stay
+// isolated, PayloadScope is stripped from the delivered content, and a
+// user-channel status report only transitions the user-scoped declaration.
+func (s *integrationMDMTestSuite) TestAppleUserScopedDDMEndToEnd() {
+	t := s.T()
+	ctx := context.Background()
+
+	assertHostDeclarations := func(hostUUID string, want []*fleet.MDMAppleHostDeclaration) {
+		var got []*fleet.MDMAppleHostDeclaration
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got,
+				`SELECT declaration_identifier, status, operation_type, scope FROM host_mdm_apple_declarations WHERE host_uuid = ?`, hostUUID)
+		})
+		require.ElementsMatch(t, want, got)
+	}
+
+	// Enroll a device, then add a user-channel enrollment for the same device.
+	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, device.UserEnroll())
+
+	// One device-scoped and one user-scoped declaration.
+	declarations := []fleet.MDMProfileBatchPayload{
+		{Name: "Device.json", Contents: declarationForTest("com.fleet.device")},
+		{Name: "User.json", Contents: declarationForTestWithScope("com.fleet.user", fleet.PayloadScopeUser)},
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+
+	// After reconcile each declaration is pending on its own channel.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "com.fleet.device", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeSystem},
+		{Identifier: "com.fleet.user", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeUser},
+	})
+
+	// The device channel gets its own DeclarativeManagement command...
+	deviceCmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, deviceCmd)
+	require.Equal(t, "DeclarativeManagement", deviceCmd.Command.RequestType)
+	_, err = device.Acknowledge(deviceCmd.CommandUUID)
+	require.NoError(t, err)
+
+	// ...and the user channel gets its own, independent one.
+	userCmd, err := device.UserIdle()
+	require.NoError(t, err)
+	require.NotNil(t, userCmd)
+	require.Equal(t, "DeclarativeManagement", userCmd.Command.RequestType)
+	require.NotEqual(t, deviceCmd.CommandUUID, userCmd.CommandUUID)
+	_, err = device.UserAcknowledge(userCmd.CommandUUID)
+	require.NoError(t, err)
+
+	// After the acks, each channel's declaration transitions to verifying.
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "com.fleet.device", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeSystem},
+		{Identifier: "com.fleet.user", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeUser},
+	})
+
+	configsFor := func(r *http.Response) []fleet.MDMAppleDDMManifest {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		var items fleet.MDMAppleDDMDeclarationItemsResponse
+		require.NoError(t, json.Unmarshal(body, &items))
+		return items.Declarations.Configurations
+	}
+
+	// The user channel's declaration-items contains ONLY the user-scoped declaration.
+	ur, err := device.UserDeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	userConfigs := configsFor(ur)
+	require.Len(t, userConfigs, 1)
+	require.Equal(t, "com.fleet.user", userConfigs[0].Identifier)
+	userServerToken := userConfigs[0].ServerToken
+
+	// The device channel's declaration-items contains ONLY the device-scoped declaration.
+	dr, err := device.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	deviceConfigs := configsFor(dr)
+	require.Len(t, deviceConfigs, 1)
+	require.Equal(t, "com.fleet.device", deviceConfigs[0].Identifier)
+
+	// The user-scoped declaration content is served on the user channel with the
+	// Fleet-only PayloadScope key stripped.
+	cr, err := device.UserDeclarativeManagement("declaration/configuration/com.fleet.user")
+	require.NoError(t, err)
+	cbody, err := io.ReadAll(cr.Body)
+	require.NoError(t, err)
+	var served map[string]any
+	require.NoError(t, json.Unmarshal(cbody, &served))
+	require.Equal(t, "com.fleet.user", served["Identifier"])
+	require.NotContains(t, served, "PayloadScope", "PayloadScope must be stripped from the declaration served to the device")
+
+	// The user channel reports the declaration as valid+active.
+	report := fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "com.fleet.user", ServerToken: userServerToken},
+	}
+	_, err = device.UserDeclarativeManagement("status", report)
+	require.NoError(t, err)
+
+	// The user-scoped declaration is verified; the device-scoped one is untouched
+	// by the user-channel report (still verifying — its own status report hasn't
+	// arrived).
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "com.fleet.device", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeSystem},
+		{Identifier: "com.fleet.user", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeUser},
+	})
+
+	// --- Delete the user-scoped declaration only (device-scoped remains) ---
+	// Re-apply the batch without the user-scoped declaration.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "Device.json", Contents: declarationForTest("com.fleet.device")},
+	}}, http.StatusNoContent)
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// The user-scoped declaration becomes a pending remove on the user channel;
+	// the device-scoped one is untouched.
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "com.fleet.device", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeSystem},
+		{Identifier: "com.fleet.user", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, Scope: fleet.PayloadScopeUser},
+	})
+
+	// Only the user channel was poked: the device channel has no new command.
+	deviceCmd, err = device.Idle()
+	require.NoError(t, err)
+	require.Nil(t, deviceCmd, "device channel must not be poked by a user-scoped removal")
+
+	// The user channel syncs the removal: its declaration-items is now empty.
+	userCmd, err = device.UserIdle()
+	require.NoError(t, err)
+	require.NotNil(t, userCmd)
+	require.Equal(t, "DeclarativeManagement", userCmd.Command.RequestType)
+	_, err = device.UserAcknowledge(userCmd.CommandUUID)
+	require.NoError(t, err)
+	ur, err = device.UserDeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	require.Empty(t, configsFor(ur))
+
+	// The user channel reports the (now empty) set, clearing the pending remove.
+	// The device-scoped declaration is still present and untouched.
+	_, err = device.UserDeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "com.fleet.device", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Scope: fleet.PayloadScopeSystem},
+	})
+
+	// --- Delete the device-scoped declaration too (nothing remains) ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}}, http.StatusNoContent)
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// The device-scoped declaration becomes a pending remove on the device channel.
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "com.fleet.device", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, Scope: fleet.PayloadScopeSystem},
+	})
+
+	// This time only the device channel is poked; the user channel has no command.
+	userCmd, err = device.UserIdle()
+	require.NoError(t, err)
+	require.Nil(t, userCmd, "user channel must not be poked by a device-scoped removal")
+
+	deviceCmd, err = device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, deviceCmd)
+	require.Equal(t, "DeclarativeManagement", deviceCmd.Command.RequestType)
+	_, err = device.Acknowledge(deviceCmd.CommandUUID)
+	require.NoError(t, err)
+	dr, err = device.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	require.Empty(t, configsFor(dr))
+
+	// The device channel reports the empty set, clearing the last pending remove.
+	_, err = device.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, nil)
+}
+
+// TestAppleDDMResyncPokesWithoutDeltas is a regression test: a host that
+// requested a resync (the resync flag on host_mdm_apple_declarations, set by the
+// remove+install-same-token cleanup) must get a DeclarativeManagement command on
+// the next reconcile even when there are no declaration deltas that tick.
+// Previously the reconciler early-returned on empty deltas, stranding the resync
+// flag set forever.
+func (s *integrationMDMTestSuite) TestAppleDDMResyncPokesWithoutDeltas() {
+	t := s.T()
+	ctx := context.Background()
+
+	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// One declaration, reconciled so it's installed and no longer changing.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("com.fleet.resync")},
+	}}, http.StatusNoContent)
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// Drain the channel so it is idle with no pending deltas.
+	for {
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		_, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// Flag the host declaration for resync, as cleanUpDuplicateRemoveInstall does.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_declarations SET resync = 1 WHERE host_uuid = ?`, mdmHost.UUID)
+		return err
+	})
+
+	// A reconcile with no declaration deltas must still poke the host because of
+	// the resync flag.
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger))
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "resync-only host must be poked even when there are no declaration deltas")
+	require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+
+	// The resync flag was cleared.
+	var resync bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &resync, `SELECT resync FROM host_mdm_apple_declarations WHERE host_uuid = ?`, mdmHost.UUID)
+	})
+	require.False(t, resync)
+}
+
 func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -1122,7 +1379,7 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// declaration is pending
@@ -1215,7 +1472,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1246,7 +1503,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 
 	// a second device requests tokens
 	_, mdmDeviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	_, err = mdmDeviceTwo.DeclarativeManagement("tokens")
@@ -1860,6 +2117,18 @@ func declarationForTest(identifier string) []byte {
     },
     "Identifier": "%s"
 }`, identifier))
+}
+
+func declarationForTestWithScope(identifier string, scope fleet.PayloadScope) []byte {
+	return fmt.Appendf(nil, `
+{
+    "Type": "com.apple.configuration.management.test",
+    "PayloadScope": "%s",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, scope, identifier)
 }
 
 func declarationForTestWithType(identifier string, dType string) []byte {

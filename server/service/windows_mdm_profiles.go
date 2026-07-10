@@ -32,9 +32,13 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 	}
 
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
 	var teamName string
 	if teamID > 0 {
-		lic, _ := license.FromContext(ctx)
 		if lic == nil || !lic.IsPremium() {
 			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 		}
@@ -45,12 +49,18 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		teamName = tm.Name
 	}
 
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+		}
+	}
+
 	cp := fleet.MDMWindowsConfigProfile{
 		TeamID: &teamID,
 		Name:   profileName,
 		SyncML: data,
 	}
-	if err := cp.ValidateUserProvided(); err != nil {
+	if err := cp.ValidateUserProvided(svc.config.MDM.IsCustomDiskEncryptionEnabled()); err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 			return nil, ctxerr.Wrap(ctx,
@@ -66,7 +76,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
 	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
@@ -84,12 +94,6 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
-	}
-
-	// Get license for validation
-	lic, err := svc.License(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
 	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -122,10 +126,6 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
-
 	var (
 		actTeamID   *uint
 		actTeamName *string
@@ -155,7 +155,7 @@ func (svc *Service) handleWindowsProfileSoftwareUpdate(
 	syncML []byte,
 	teamID uint,
 ) error {
-	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+	if !fleet.ProfileTargetsReservedLocURI(syncML, syncml.FleetOSUpdateTargetLocURI) {
 		return nil
 	}
 
