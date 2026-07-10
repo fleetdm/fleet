@@ -3,6 +3,9 @@
  * Covers: success/error creation, empty-message fallback, batch,
  * dismiss, and response detail resolution.
  */
+import { toast } from "sonner";
+
+import { notify } from "./ToastNotification";
 
 jest.mock("sonner", () => ({
   toast: {
@@ -12,17 +15,14 @@ jest.mock("sonner", () => ({
   Toaster: () => null,
 }));
 
-import { notify } from "./ToastNotification";
-
-const sonner = jest.requireMock<{
-  toast: { custom: jest.Mock; dismiss: jest.Mock };
-}>("sonner");
+const mockCustom = jest.mocked(toast.custom);
+const mockDismiss = jest.mocked(toast.dismiss);
 
 describe("notify - sonner toast API", () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    sonner.toast.custom.mockClear();
-    sonner.toast.dismiss.mockClear();
+    mockCustom.mockClear();
+    mockDismiss.mockClear();
   });
 
   afterEach(() => {
@@ -35,9 +35,9 @@ describe("notify - sonner toast API", () => {
     expect(id).toMatch(/^fleet-toast-/);
 
     jest.runAllTimers();
-    expect(sonner.toast.custom).toHaveBeenCalledTimes(1);
+    expect(mockCustom).toHaveBeenCalledTimes(1);
 
-    const [, options] = sonner.toast.custom.mock.calls[0];
+    const [, options] = mockCustom.mock.calls[0];
     expect(options).toMatchObject({ duration: 5000, id });
   });
 
@@ -45,9 +45,9 @@ describe("notify - sonner toast API", () => {
     const id = notify.error("Something failed");
     jest.runAllTimers();
     expect(typeof id).toBe("string");
-    expect(sonner.toast.custom).toHaveBeenCalledTimes(1);
+    expect(mockCustom).toHaveBeenCalledTimes(1);
 
-    const [, options] = sonner.toast.custom.mock.calls[0];
+    const [, options] = mockCustom.mock.calls[0];
     expect(options).toMatchObject({ duration: Infinity, id });
   });
 
@@ -55,7 +55,7 @@ describe("notify - sonner toast API", () => {
     notify.error("");
     jest.runAllTimers();
 
-    const renderFn = sonner.toast.custom.mock.calls[0][0];
+    const renderFn = mockCustom.mock.calls[0][0];
     const element = renderFn("test-id");
     expect(element.props.message).toBe(
       "Something went wrong. Please try again."
@@ -66,7 +66,7 @@ describe("notify - sonner toast API", () => {
     notify.error(null);
     jest.runAllTimers();
 
-    const renderFn = sonner.toast.custom.mock.calls[0][0];
+    const renderFn = mockCustom.mock.calls[0][0];
     const element = renderFn("test-id");
     expect(element.props.message).toBe(
       "Something went wrong. Please try again."
@@ -78,14 +78,14 @@ describe("notify - sonner toast API", () => {
     expect(id).toBe("my-custom-id");
 
     jest.runAllTimers();
-    const [, options] = sonner.toast.custom.mock.calls[0];
+    const [, options] = mockCustom.mock.calls[0];
     expect(options.id).toBe("my-custom-id");
   });
 
   it("notify.dismiss calls toast.dismiss", () => {
     const id = notify.success("temp");
     notify.dismiss(id);
-    expect(sonner.toast.dismiss).toHaveBeenCalledWith(id);
+    expect(mockDismiss).toHaveBeenCalledWith(id);
   });
 
   it("notify.batch creates multiple toasts and returns ids", () => {
@@ -99,7 +99,7 @@ describe("notify - sonner toast API", () => {
     ids.forEach((id) => expect(typeof id).toBe("string"));
 
     jest.runAllTimers();
-    expect(sonner.toast.custom).toHaveBeenCalledTimes(3);
+    expect(mockCustom).toHaveBeenCalledTimes(3);
   });
 
   it("notify.error with response auto-derives status label", () => {
@@ -108,7 +108,7 @@ describe("notify - sonner toast API", () => {
     });
     jest.runAllTimers();
 
-    const renderFn = sonner.toast.custom.mock.calls[0][0];
+    const renderFn = mockCustom.mock.calls[0][0];
     const element = renderFn("test-id");
     expect(element.props.detailLabel).toBe(
       "Status: 422 Unprocessable Entity"
@@ -124,7 +124,7 @@ describe("notify - sonner toast API", () => {
     });
     jest.runAllTimers();
 
-    const renderFn = sonner.toast.custom.mock.calls[0][0];
+    const renderFn = mockCustom.mock.calls[0][0];
     const element = renderFn("test-id");
     expect(element.props.detail).toEqual({ message: "internal" });
   });
