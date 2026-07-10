@@ -207,6 +207,15 @@ func TestParseECPublicKey(t *testing.T) {
 
 	_, err = ParseECPublicKeyPEM([]byte("not a pem block"))
 	require.Error(t, err)
+
+	// A valid SPKI key on the wrong curve must be rejected, not passed through
+	// to fail (or panic) later in the ES256/ECDH-ES paths.
+	p384, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+	p384DER, err := x509.MarshalPKIXPublicKey(&p384.PublicKey)
+	require.NoError(t, err)
+	_, err = ParseECPublicKeyPEM(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: p384DER}))
+	require.ErrorContains(t, err, "unsupported curve")
 }
 
 // TestParseRawECPointPEM covers the form the macOS extension actually sends: a

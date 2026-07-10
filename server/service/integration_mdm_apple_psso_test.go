@@ -257,8 +257,10 @@ func (s *integrationMDMTestSuite) TestApplePlatformSSO() {
 // feature: it points the IdP at the mock token URL, stores the client secret,
 // and bootstraps Fleet's PSSO signing/CA/encryption assets. The config is set
 // directly (not via the API) so the mock IdP can use a plain-http URL — the
-// API's https validation is covered by the appconfig tests. State is restored on
-// cleanup so the shared suite isn't left with the feature enabled.
+// API's https validation is covered by the appconfig tests. Cleanup restores
+// the AppConfig and deletes the inserted config assets so the shared suite
+// isn't left with the feature enabled or stale assets (a leftover secret would
+// make a second call here fail on the mdm_config_assets unique key).
 func (s *integrationMDMTestSuite) enableApplePSSO(t *testing.T, tokenURL, clientID, secret string) {
 	ctx := context.Background()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -276,12 +278,19 @@ func (s *integrationMDMTestSuite) enableApplePSSO(t *testing.T, tokenURL, client
 	require.NoError(t, bootstrapPSSOAssets(ctx, s.ds))
 
 	t.Cleanup(func() {
-		appCfg, err := s.ds.AppConfig(context.Background())
+		ctx := context.Background()
+		_ = s.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+			fleet.MDMAssetPSSOSigningKey,
+			fleet.MDMAssetPSSOCACert,
+			fleet.MDMAssetPSSOEncryptionKey,
+		})
+		appCfg, err := s.ds.AppConfig(ctx)
 		if err != nil {
 			return
 		}
 		appCfg.MDM.AppleAccountProvisioning = orig
-		_ = s.ds.SaveAppConfig(context.Background(), appCfg)
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
 	})
 }
 
