@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.0.6",
+      "version": "7.0.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor' AND version_compare(bundle_short_version, '7.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor' AND version_compare(bundle_short_version, '7.0.7') < 0);"
       },
-      "installer_url": "https://github.com/coteditor/CotEditor/releases/download/7.0.6/CotEditor_7.0.6.dmg",
+      "installer_url": "https://github.com/coteditor/CotEditor/releases/download/7.0.7/CotEditor_7.0.7.dmg",
       "install_script_ref": "555e683c",
       "uninstall_script_ref": "b4411f31",
-      "sha256": "4deab704c3ab128512c82a715d41ecc8d8d88c15fe2191846915a57498e13cd2",
+      "sha256": "353997fdf989085a7a02e67fe5e3517c2b594c44c9a93102d4c017fcfc4b84b0",
       "default_categories": [
         "Developer tools"
       ]
