@@ -229,6 +229,7 @@ export const generateCustomDropdownStyles = (
         display: "flex",
         flexDirection: "row",
         width: "100%",
+        minHeight: "36px", // react-select-5 defaults control minHeight to 38px
         backgroundColor: COLORS["core-fleet-white"],
         paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
         paddingRight: "8px",

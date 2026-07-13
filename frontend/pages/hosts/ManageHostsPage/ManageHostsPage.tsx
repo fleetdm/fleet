@@ -1761,26 +1761,9 @@ const ManageHostsPage = ({
   // No hosts enrolled at all, no filters active
   const isTrulyEmpty = maybeEmptyHosts && !includesFilterQueryParam;
 
-  const renderHostCountAndExport = useCallback(() => {
-    return (
-      <>
-        <TableCount name="hosts" count={totalFilteredHostsCount} />
-        {(!!totalFilteredHostsCount || isTrulyEmpty) && (
-          <Button
-            className={`${baseClass}__export-btn`}
-            onClick={onExportHostsResults}
-            variant="inverse"
-            disabled={isTrulyEmpty}
-          >
-            <>
-              Export hosts
-              <Icon name="download" size="small" />
-            </>
-          </Button>
-        )}
-      </>
-    );
-  }, [totalFilteredHostsCount, isTrulyEmpty, onExportHostsResults]);
+  const renderHostCount = useCallback(() => {
+    return <TableCount name="hosts" count={totalFilteredHostsCount} />;
+  }, [totalFilteredHostsCount]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
@@ -1792,27 +1775,55 @@ const ManageHostsPage = ({
         : undefined;
 
     return (
-      <div className={`${baseClass}__filter-dropdowns`}>
-        <DropdownWrapper
-          name="status-filter"
-          value={status || mdmEnrollmentStatus || ""}
-          className={`${baseClass}__status-filter`}
-          options={hostSelectStatuses(isPremiumTier || false)}
-          onChange={handleStatusDropdownChange}
-          variant="table-filter"
-          isDisabled={isTrulyEmpty}
-        />
-        <LabelFilterSelect
-          className={`${baseClass}__label-filter-dropdown`}
-          labels={labels ?? []}
-          canAddNewLabels={canAddNewLabels}
-          selectedLabel={selectedDropdownLabel ?? null}
-          onChange={handleLabelChange}
-          onAddLabel={onAddLabelClick}
-          isLoading={isLoadingLabels}
-          isDisabled={isTrulyEmpty}
-        />
-      </div>
+      <>
+        <div className={`${baseClass}__table-actions`}>
+          {(!!totalFilteredHostsCount || isTrulyEmpty) && (
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportHostsResults}
+              variant="secondary"
+              disabled={isTrulyEmpty}
+            >
+              <>
+                <Icon name="download" size="small" />
+                Export hosts
+              </>
+            </Button>
+          )}
+          <Button
+            className={`${baseClass}__edit-columns-btn`}
+            onClick={toggleEditColumnsModal}
+            variant="secondary"
+            disabled={isTrulyEmpty}
+          >
+            <>
+              <Icon name="columns" color="ui-fleet-black-75" />
+              Edit columns
+            </>
+          </Button>
+        </div>
+        <div className={`${baseClass}__filter-dropdowns`}>
+          <DropdownWrapper
+            name="status-filter"
+            value={status || mdmEnrollmentStatus || ""}
+            className={`${baseClass}__status-filter`}
+            options={hostSelectStatuses(isPremiumTier || false)}
+            onChange={handleStatusDropdownChange}
+            variant="table-filter"
+            isDisabled={isTrulyEmpty}
+          />
+          <LabelFilterSelect
+            className={`${baseClass}__label-filter-dropdown`}
+            labels={labels ?? []}
+            canAddNewLabels={canAddNewLabels}
+            selectedLabel={selectedDropdownLabel ?? null}
+            onChange={handleLabelChange}
+            onAddLabel={onAddLabelClick}
+            isLoading={isLoadingLabels}
+            isDisabled={isTrulyEmpty}
+          />
+        </div>
+      </>
     );
   };
 
@@ -1861,7 +1872,7 @@ const ManageHostsPage = ({
         name: "run-script",
         onClick: onClickRunScriptBatchAction,
         buttonText: "Run script",
-        variant: "inverse",
+        variant: "secondary",
         iconSvg: "run",
         iconStroke: true,
         hideButton: !canRunScriptBatch,
@@ -1872,7 +1883,7 @@ const ManageHostsPage = ({
         name: "transfer",
         onClick: onTransferToTeamClick,
         buttonText: "Transfer",
-        variant: "inverse",
+        variant: "secondary",
         iconSvg: "transfer",
         hideButton:
           !isPremiumTier ||
@@ -1977,13 +1988,6 @@ const ManageHostsPage = ({
         pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedLabels)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-        actionButton={{
-          name: "edit columns",
-          buttonText: "Edit columns",
-          iconSvg: "columns",
-          variant: "inverse",
-          onClick: toggleEditColumnsModal,
-        }}
         primarySelectAction={
           // Global technicians cannot delete hosts, so hide the bulk Delete
           // action while still allowing them to select hosts for transfer.
@@ -1993,7 +1997,7 @@ const ManageHostsPage = ({
                 name: "delete host",
                 buttonText: "Delete",
                 iconSvg: "trash",
-                variant: "inverse",
+                variant: "secondary",
                 onClick: onDeleteHostsClick,
               }
         }
@@ -2003,9 +2007,8 @@ const ManageHostsPage = ({
         totalCount={totalFilteredHostsCount}
         searchable
         disableSearch={isTrulyEmpty}
-        renderCount={renderHostCountAndExport}
+        renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
-        disableActionButton={isTrulyEmpty}
         emptyComponent={() => (
           <EmptyState
             header={emptyState().header}
@@ -2068,9 +2071,9 @@ const ManageHostsPage = ({
               <Button
                 onClick={() => setShowEnrollSecretModal(true)}
                 className={`${baseClass}__enroll-hosts button`}
-                variant="inverse"
+                variant="secondary"
               >
-                Manage enroll secret
+                Manage enroll secrets
               </Button>
             )}
             {showAddHostsButton && (

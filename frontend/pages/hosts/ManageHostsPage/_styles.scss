@@ -96,15 +96,25 @@
   }
 
   .table-container {
+    &__header {
+      gap: $pad-small;
+    }
+
     &__header-left {
       .controls {
         display: flex;
         align-items: center;
 
+        .manage-hosts__table-actions {
+          display: flex;
+          align-items: center;
+          gap: $pad-small; // grouping secondary buttons
+        }
+
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
-          margin-left: $gap-table-elements;
+          margin-left: $pad-small;
           align-items: center;
 
           // Dropdown height matches search bar height
@@ -237,7 +247,7 @@
   }
 
   &__label-filter-dropdown {
-    margin-left: $gap-table-elements;
+    margin-left: $pad-small;
   }
 
   &__info-banners {
