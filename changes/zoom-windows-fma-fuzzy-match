@@ -1,1 +1,0 @@
-- Fixed the Windows Zoom Fleet-maintained app's `exists`/`patched` queries only matching hosts with the exact `Zoom Workplace (X64)` program name, causing installs registered under other names (e.g. Zoom's self-updating per-user client, or ARM64 builds) to be silently invisible to the patch policy. The exists query now fuzzy-matches on `Zoom Workplace%`.
