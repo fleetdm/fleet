@@ -88,10 +88,15 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 				return scim.Resource{}, err
 			}
 			user.ID = existingUser.ID
-			err = u.ds.ReplaceScimUser(ctx, user)
+			resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
 			if err != nil {
 				u.logger.ErrorContext(ctx, "failed to reactivate user", userNameAttr, userName, "err", err)
 				return scim.Resource{}, err
+			}
+			for _, cert := range resentCerts {
+				if err := u.newActivity(ctx, nil, cert); err != nil {
+					u.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+				}
 			}
 			return createUserResource(user), nil
 		}
@@ -484,7 +489,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		previousActive = existingUser.Active
 	}
 
-	err = u.ds.ReplaceScimUser(ctx, user)
+	resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
 	switch {
 	case fleet.IsNotFound(err):
 		u.logger.InfoContext(ctx, "failed to find user to replace", "id", id)
@@ -496,6 +501,12 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		}
 		u.logger.ErrorContext(ctx, "failed to replace user", "id", id, "err", err)
 		return scim.Resource{}, err
+	}
+
+	for _, cert := range resentCerts {
+		if err := u.newActivity(ctx, nil, cert); err != nil {
+			u.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+		}
 	}
 
 	// Check if user was deactivated and delete matching Fleet user if so
@@ -536,7 +547,7 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 		}
 	}
 
-	err = u.ds.DeleteScimUser(ctx, idUint)
+	resentCerts, err := u.ds.DeleteScimUser(ctx, idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		u.logger.InfoContext(ctx, "failed to find user to delete", "id", id)
@@ -544,6 +555,12 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 	case err != nil:
 		u.logger.ErrorContext(ctx, "failed to delete user", "id", id, "err", err)
 		return err
+	}
+
+	for _, cert := range resentCerts {
+		if err := u.newActivity(ctx, nil, cert); err != nil {
+			u.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+		}
 	}
 
 	return nil
@@ -751,7 +768,7 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	if !allUnknown {
-		err = u.ds.ReplaceScimUser(ctx, user)
+		resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
 		switch {
 		case fleet.IsNotFound(err):
 			u.logger.InfoContext(ctx, "failed to find user to patch", "id", id)
@@ -763,6 +780,12 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			}
 			u.logger.ErrorContext(ctx, "failed to patch user", "id", id, "err", err)
 			return scim.Resource{}, err
+		}
+
+		for _, cert := range resentCerts {
+			if err := u.newActivity(ctx, nil, cert); err != nil {
+				u.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+			}
 		}
 
 		// Check if user was deactivated and delete matching Fleet user if so.

@@ -386,7 +386,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 	}
 
 	// Replace the user
-	err = ds.ReplaceScimUser(t.Context(), &updatedUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &updatedUser)
 	require.Nil(t, err)
 
 	// Verify the user was updated correctly
@@ -433,7 +433,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 	}
 
-	err = ds.ReplaceScimUser(t.Context(), &nonExistentUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &nonExistentUser)
 	assert.True(t, fleet.IsNotFound(err))
 }
 
@@ -475,7 +475,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// Replace the user
-	err = ds.ReplaceScimUser(t.Context(), &sameEmailsUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &sameEmailsUser)
 	require.NoError(t, err)
 
 	// Verify the user was updated correctly but emails remain the same
@@ -518,7 +518,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// This should fail with a validation error
-	err = ds.ReplaceScimUser(t.Context(), &multiPrimaryUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &multiPrimaryUser)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "only one email can be marked as primary")
 
@@ -540,7 +540,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	err = ds.ReplaceScimUser(t.Context(), &userWithAllFields)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithAllFields)
 	require.NoError(t, err)
 
 	// Now create a user with the same email but with nil Primary field
@@ -561,7 +561,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// This should update the emails since the Primary field changed
-	err = ds.ReplaceScimUser(t.Context(), &userWithNilPrimary)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithNilPrimary)
 	require.NoError(t, err)
 
 	// Verify the email was updated
@@ -590,7 +590,7 @@ func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
 	}
 
 	// This should update the emails since the Type field changed
-	err = ds.ReplaceScimUser(t.Context(), &userWithNilType)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithNilType)
 	require.NoError(t, err)
 
 	// Verify the email was updated
@@ -629,7 +629,7 @@ func testDeleteScimUser(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user.UserName, createdUser.UserName)
 
 	// Delete the user
-	err = ds.DeleteScimUser(t.Context(), user.ID)
+	_, err = ds.DeleteScimUser(t.Context(), user.ID)
 	require.NoError(t, err)
 
 	// Verify the user was deleted
@@ -637,7 +637,7 @@ func testDeleteScimUser(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Test deleting a non-existent user
-	err = ds.DeleteScimUser(t.Context(), 99999) // Non-existent ID
+	_, err = ds.DeleteScimUser(t.Context(), 99999) // Non-existent ID
 	assert.True(t, fleet.IsNotFound(err))
 }
 
@@ -1652,7 +1652,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongExternalID)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongExternalID)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "external_id exceeds maximum length")
 
@@ -1666,7 +1666,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongUserName)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongUserName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "user_name exceeds maximum length")
 
@@ -1680,7 +1680,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongGivenName)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongGivenName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "given_name exceeds maximum length")
 
@@ -1694,7 +1694,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongFamilyName)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongFamilyName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "family_name exceeds maximum length")
 
@@ -1708,7 +1708,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String(longString),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &userWithLongDepartment)
+	_, err = ds.ReplaceScimUser(t.Context(), &userWithLongDepartment)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "department exceeds maximum length")
 
@@ -1722,7 +1722,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		Active:     ptr.Bool(true),
 		Department: ptr.String("Customer support updated"),
 	}
-	err = ds.ReplaceScimUser(t.Context(), &validUser)
+	_, err = ds.ReplaceScimUser(t.Context(), &validUser)
 	assert.NoError(t, err)
 
 	updated, err := ds.ScimUserByID(t.Context(), user.ID)
@@ -1924,7 +1924,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// change username of scim user 1
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
 	require.NoError(t, err)
 
 	// this triggered a resend of profUsername and profAll on host1 and hostW1
@@ -2015,7 +2015,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: new("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2223,7 +2223,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// delete user3, affects only host3 (not the official IdP user for host1)
-	err = ds.DeleteScimUser(ctx, scimUser3)
+	_, err = ds.DeleteScimUser(ctx, scimUser3)
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2266,7 +2266,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// delete user1
-	err = ds.DeleteScimUser(ctx, scimUser1)
+	_, err = ds.DeleteScimUser(ctx, scimUser1)
 	require.NoError(t, err)
 	// add user2 as new user for host1
 	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
@@ -2315,7 +2315,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// update name of user2, will affect host1 and host2, but NOT the
 	// profUsername of host1 because it is not installed (it is removed)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser2, UserName: "B@example.com", GivenName: ptr.String("B")})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser2, UserName: "B@example.com", GivenName: new("B")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2819,8 +2819,15 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	})
 
 	// Change the SCIM user's username — this should trigger resends.
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "new-user@example.com"})
+	activities, err := ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "new-user@example.com"})
 	require.NoError(t, err)
+
+	// Assert that resent_certificate activities were returned.
+	require.Len(t, activities, 1)
+	assert.Equal(t, host.ID, activities[0].HostID)
+	assert.Equal(t, certResp.ID, activities[0].CertificateTemplateID)
+	assert.Equal(t, "wifi-cert", activities[0].CertificateName)
+	assert.NotEmpty(t, activities[0].HostDisplayName)
 
 	// (1) Assert certificate template was reset to pending.
 	var certStatus string
