@@ -1320,10 +1320,10 @@ allow {
 ##
 # SCIM (System for Cross-domain Identity Management)
 ##
-# Global admins and maintainers can access SCIM.
+# Only global admins can access SCIM.
 allow {
   object.type == "scim_user"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == admin
   action == [read, write][_]
 }
 

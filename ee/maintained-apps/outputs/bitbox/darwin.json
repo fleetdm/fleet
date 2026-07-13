@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.51.2",
+      "version": "4.51.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.shiftcrypto.BitBoxApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.shiftcrypto.BitBoxApp' AND version_compare(bundle_short_version, '4.51.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.shiftcrypto.BitBoxApp' AND version_compare(bundle_short_version, '4.51.3') < 0);"
       },
-      "installer_url": "https://github.com/BitBoxSwiss/bitbox-wallet-app/releases/download/v4.51.2/BitBox-4.51.2-macOS.dmg",
+      "installer_url": "https://github.com/BitBoxSwiss/bitbox-wallet-app/releases/download/v4.51.3/BitBox-4.51.3-macOS.dmg",
       "install_script_ref": "6628ceeb",
       "uninstall_script_ref": "dbaaa80d",
-      "sha256": "3c1aeda74248ba58c6631a9b03c350863909b696a6fa27e2e2ee992961d796b3",
+      "sha256": "cbc6c336a20a91d01fe530a966a130e6c1452ac01269134917d0d1d207044f30",
       "default_categories": [
         "Productivity"
       ]

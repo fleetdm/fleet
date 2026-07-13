@@ -3821,6 +3821,49 @@ unknown_policy_pkg_field: bad
 	})
 }
 
+// TestControlsAppleSettingsAssets verifies that controls.apple_settings.assets
+// are parsed like profiles: paths are resolved and any Fleet secrets referenced
+// in the asset files are collected.
+func TestControlsAppleSettingsAssets(t *testing.T) {
+	t.Setenv("FLEET_SECRET_WALLPAPER", "s3cret")
+
+	dir := t.TempDir()
+	assetsDir := filepath.Join(dir, "lib", "assets")
+	require.NoError(t, os.MkdirAll(assetsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetsDir, "wallpaper.json"),
+		[]byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.wallpaper","Payload":{"Reference":{"DataURL":"https://example.com/$FLEET_SECRET_WALLPAPER"}}}`), 0o644))
+
+	config := `
+controls:
+  apple_settings:
+    assets:
+      - path: ./lib/assets/wallpaper.json
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+
+	macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+	require.True(t, ok, "apple_settings not parsed")
+	require.Len(t, macSettings.Assets, 1)
+	require.True(t, filepath.IsAbs(macSettings.Assets[0].Path), "asset path should be resolved to absolute")
+	require.Contains(t, gitops.FleetSecrets, "FLEET_SECRET_WALLPAPER")
+}
+
 // TestControlsNewKeyNames verifies that the new multi-platform key names
 // (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant,
 // macos_bootstrap_package, apple_enable_release_device_manually, macos_script, macos_manual_agent_install)

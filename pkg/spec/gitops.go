@@ -312,6 +312,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	packageLevel.SetupExperiencePlatforms = spec.SetupExperiencePlatforms
 	packageLevel.SelfService = spec.SelfService
 	packageLevel.Configuration = spec.Configuration
 
@@ -1218,6 +1219,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				return multierror.Append(multiError, err)
 			}
 		}
+
+		// Apple DDM assets follow the same path/paths + secret handling as
+		// profiles, so reuse the same expansion and resolution helpers.
+		macOSSettings.Assets, errs = expandBaseItems(macOSSettings.Assets, controlsDir, "asset", GlobExpandOptions{
+			AllowedExtensions: map[string]bool{".json": true},
+			LogFn:             logFn,
+		})
+		multiError = multierror.Append(multiError, errs...)
+		for i := range macOSSettings.Assets {
+			err := resolveAndUpdateProfilePath(&macOSSettings.Assets[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}

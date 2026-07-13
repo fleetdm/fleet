@@ -1,0 +1,10 @@
+{
+  "name": "Crestron AirMedia",
+  "slug": "crestron-airmedia/windows",
+  "package_identifier": "Crestron.AirMedia",
+  "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}
