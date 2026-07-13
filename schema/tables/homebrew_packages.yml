@@ -13,7 +13,7 @@ columns:
     type: text
     required: false
   - name: path
-    description: 	Package install path
+    description: Package install path
     type: test
     required: false
   - name: app_name
@@ -21,23 +21,23 @@ columns:
     type: text
     required: false
   - name: type
-    description: 	Package type ('formula' or 'cask')
+    description: Package type ('formula' or 'cask')
     type: text
     required: false
   - name: version
-    description: 	Current 'linked' version
+    description: Current 'linked' version
     type: text
     required: false
   - name: version
-    description: 	Current 'linked' version
+    description: Current 'linked' version
     type: text
     required: false
   - name: current_version
-    description: 	Latest available version from Homebrew (not the installed version). Empty if unavailable.
+    description: Latest available version from Homebrew (not the installed version). Empty if unavailable.
     type: text
     required: false
   - name: is_latest
-    description: 	"yes" if the installed version matches the latest available version, "no" otherwise. Empty if latest_version is unavailable.
+    description: "yes" if the installed version matches the latest available version, "no" otherwise. Empty if latest_version is unavailable.
     type: text
     required: false
 examples: |-
