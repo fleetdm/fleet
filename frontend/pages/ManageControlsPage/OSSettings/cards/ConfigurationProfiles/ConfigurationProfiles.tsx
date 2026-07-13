@@ -26,7 +26,7 @@ import UploadList from "../../../../../components/UploadList";
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
-import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
+import EditProfileModal from "./components/EditProfileModal";
 import ProfileListItem from "./components/ProfileListItem";
 import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
@@ -62,10 +62,7 @@ const ConfigurationProfiles = ({
     config?.mdm.android_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
-  const [
-    profileLabelsModalData,
-    setProfileLabelsModalData,
-  ] = useState<IMdmProfile | null>(null);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
   const [
     showConfigProfileStatusModal,
@@ -118,6 +115,18 @@ const ConfigurationProfiles = ({
     setShowConfigProfileStatusModal(false);
   };
 
+  const onCancelEdit = () => {
+    selectedProfile.current = null;
+    setShowEditProfileModal(false);
+  };
+
+  const onUpdateProfile = () => {
+    selectedProfile.current = null;
+    setShowEditProfileModal(false);
+    refetchProfiles();
+    onMutation();
+  };
+
   const onCancelDelete = () => {
     selectedProfile.current = null;
     setShowDeleteProfileModal(false);
@@ -154,6 +163,11 @@ const ConfigurationProfiles = ({
   const onClickInfo = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
     setShowConfigProfileStatusModal(true);
+  };
+
+  const onClickEdit = (profile: IMdmProfile) => {
+    selectedProfile.current = profile;
+    setShowEditProfileModal(true);
   };
 
   const onClickDelete = (profile: IMdmProfile) => {
@@ -199,8 +213,8 @@ const ConfigurationProfiles = ({
             <ProfileListItem
               isPremium={!!isPremiumTier}
               profile={listItem}
-              setProfileLabelsModalData={setProfileLabelsModalData}
               onClickInfo={onClickInfo}
+              onClickEdit={onClickEdit}
               onClickDelete={onClickDelete}
               isTechnician={isTechnician}
             />
@@ -218,11 +232,6 @@ const ConfigurationProfiles = ({
       </>
     );
   };
-
-  const hasLabels =
-    !!profileLabelsModalData?.labels_include_all?.length ||
-    !!profileLabelsModalData?.labels_include_any?.length ||
-    !!profileLabelsModalData?.labels_exclude_any?.length;
 
   return (
     <div className={baseClass}>
@@ -264,6 +273,15 @@ const ConfigurationProfiles = ({
           setShowModal={setShowAddProfileModal}
         />
       )}
+      {showEditProfileModal && selectedProfile.current && (
+        <EditProfileModal
+          profile={selectedProfile.current}
+          currentTeamId={currentTeamId}
+          isPremiumTier={!!isPremiumTier}
+          onUpdate={onUpdateProfile}
+          onExit={onCancelEdit}
+        />
+      )}
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current.name}
@@ -271,12 +289,6 @@ const ConfigurationProfiles = ({
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
           isDeleting={isDeleting}
-        />
-      )}
-      {isPremiumTier && hasLabels && (
-        <ProfileLabelsModal
-          profile={profileLabelsModalData}
-          setModalData={setProfileLabelsModalData}
         />
       )}
       {showConfigProfileStatusModal && selectedProfile.current && (

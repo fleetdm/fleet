@@ -871,6 +871,31 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedConfigurationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    const rawPlatform = activity.details?.platform;
+    const platform = (rawPlatform === "darwin" ? "apple" : rawPlatform) as
+      | "apple"
+      | "windows"
+      | "android";
+    // details may arrive with either the renamed or the legacy key
+    const teamName =
+      activity.details?.fleet_name ?? activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        edited{" "}
+        {profileName ? (
+          <>
+            the configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        for {getProfileMessageSuffix(isPremiumTier, platform, teamName)}.
+      </>
+    );
+  },
   enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <> enforced disk encryption for hosts {suffix}.</>;
@@ -2352,6 +2377,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedConfigurationProfile: {
+      return TAGGED_TEMPLATES.editedConfigurationProfile(
+        activity,
+        isPremiumTier
+      );
     }
     // Note: This activity is generated for all platforms.
     case ActivityType.EnabledMacDiskEncryption: {

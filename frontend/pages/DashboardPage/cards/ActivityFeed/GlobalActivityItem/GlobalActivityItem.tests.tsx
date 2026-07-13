@@ -875,6 +875,69 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an 'edited_configuration_profile' type activity for an Apple profile on a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedConfigurationProfile,
+      details: {
+        profile_name: "Test Profile",
+        profile_identifier: "com.example.test",
+        platform: "darwin",
+        fleet_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_configuration_profile' type activity for a Windows profile on free tier", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedConfigurationProfile,
+      details: {
+        profile_name: "Test Profile",
+        platform: "windows",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for all Windows hosts."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_configuration_profile' type activity reading the legacy team_name detail", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedConfigurationProfile,
+      details: {
+        profile_name: "Test Profile",
+        platform: "android",
+        team_name: "Mobile",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for Android hosts assigned to the <b>Mobile</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'added_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,

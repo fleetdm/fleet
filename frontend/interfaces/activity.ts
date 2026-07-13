@@ -124,6 +124,10 @@ export enum ActivityType {
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
+  /** Single-profile edit via the edit profile endpoint, generated for all
+   * platforms (distinct from the per-platform GitOps batch activities like
+   * edited_macos_profile). */
+  EditedConfigurationProfile = "edited_configuration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   ResentConfigurationProfileBatch = "resent_configuration_profile_batch",
   AddedSoftware = "added_software",
@@ -455,6 +459,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_agent_options: "Edited agent options",
   edited_app_store_app: "Edited App Store app", // Includes VPP and Android Playstore apps
   edited_conditional_access_microsoft: "Edited conditional access: Microsoft",
+  edited_configuration_profile: "Edited configuration profile",
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",

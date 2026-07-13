@@ -48,6 +48,16 @@ export interface IUploadProfileApiParams {
   labelsExcludeAny?: string[];
 }
 
+export interface IUpdateProfileApiParams {
+  profileUuid: string;
+  /** replacement profile contents. Omit to keep the current contents and only
+   * update label targeting. */
+  file?: File;
+  labelsIncludeAll?: string[];
+  labelsIncludeAny?: string[];
+  labelsExcludeAny?: string[];
+}
+
 export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
   return profile.profile_uuid.startsWith("d");
 };
@@ -165,6 +175,39 @@ const mdmService = {
     });
 
     return sendRequest("POST", MDM_PROFILES, formData);
+  },
+
+  /** Updates an existing profile's contents and/or label targeting. Labels
+   * use replace semantics: omitting all label fields clears label targeting
+   * (the profile targets all hosts). */
+  updateProfile: ({
+    profileUuid,
+    file,
+    labelsIncludeAll,
+    labelsIncludeAny,
+    labelsExcludeAny,
+  }: IUpdateProfileApiParams) => {
+    const { CONFIG_PROFILE } = endpoints;
+
+    const formData = new FormData();
+
+    if (file) {
+      formData.append("profile", file);
+    }
+
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
+
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
+
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
+
+    return sendRequest("PATCH", CONFIG_PROFILE(profileUuid), formData);
   },
 
   downloadProfile: (profileId: string) => {
