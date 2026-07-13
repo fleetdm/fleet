@@ -6,6 +6,8 @@ In Fleet, you can deploy your own custom Android apps ([APK](https://w.wiki/9bMs
 
 To deploy custom Android apps, you'll publish them as private apps in the Google Play Console, making them available only to your organization through Android Enterprise.
 
+> Google is removing support for `.apk` packages in the Googe Play Console. As of 2026-07-13 the Fleet team was still able to upload `.apk` packages. To prepare, learn how to [build an Android App Bundle (`.aab`)](https://developer.android.com/guide/app-bundle/test).
+
 ## Prerequisites
 
 Before deploying custom Android apps, you must first [turn on Android MDM](https://fleetdm.com/guides/android-mdm-setup). Once you've completed that setup, you can follow the directions below.
@@ -45,7 +47,7 @@ If you don't already have a Google Play Console account, you'll need to create o
 
 1. First, find your Android Enterprise ID in Fleet. Navigate to **Settings > Integrations > MDM > Android MDM > Edit** and copy the Android Enterprise ID (e.g., LC04yu8c9).
 
-2. In the left navigation, go to **Test and release > Advanced settings**.
+2. In the [Google Play Console](https://play.google.com/console), go to **Test and release > Advanced settings**.
 
 3. Select **Managed Google Play**, tab on the top, and select **Turn on**.
 
@@ -57,17 +59,17 @@ If you don't already have a Google Play Console account, you'll need to create o
 
 ### Upload your custom app package
 
-1. In the left navigation, go to **Test and release > Production**.
+1. In the [Google Play Console](https://play.google.com/console), go to **Test and release > Production**.
 
 2. Select **Create new release**.
 
 3. Upload your package (`.apk` or `.aab`).
 
-4. The release name will be automatically populated after the package is uploaded.
+5. The release name will be automatically populated after the package is uploaded.
 
-5. Select **Save** and then select **Save** on the next screen.
+6. Select **Save** and then select **Save** on the next screen.
 
-6. Select **Go to overview** and then select **Send 1 change for review**. To confirm, select **Send changes for review**.
+7. Select **Go to overview** and then select **Send 1 change for review**. To confirm, select **Send changes for review**.
 
 > The Google Play Console displays messages about app review that can take up to 7 days. However, private apps are typically available for deployment within 10 minutes, and they don't go through the regular Google Play Store review.
 
