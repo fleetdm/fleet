@@ -1,0 +1,1 @@
+- Added a new `ai_tools` table to the fleetd tables extension, giving hosts running plain osquery a single table that inventories AI software (desktop apps, IDE plugins, agent CLIs, MCP servers, live AI/MCP sockets, agent instruction files, and browser extensions) with a `type` discriminator and per-row `risk_flags`, `sha256`, and JSON `detail` columns.
