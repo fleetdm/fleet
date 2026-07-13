@@ -1288,6 +1288,10 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 }
 
 func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vars []any) ([]fleet.ActivityTypeResentCertificate, error) {
+	if len(hostIDs) == 0 || len(vars) == 0 {
+		return nil, nil
+	}
+
 	const query = `
 	SELECT DISTINCT
 		h.id AS host_id,
