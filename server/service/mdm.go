@@ -1478,7 +1478,7 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1529,7 +1529,7 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1539,14 +1539,9 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *prof.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, prof.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we delete the profile
@@ -1586,7 +1581,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 }
 
 func (svc *Service) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1606,7 +1601,7 @@ func (svc *Service) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID 
 }
 
 func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1616,14 +1611,9 @@ func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *prof.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, prof.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we delete the profile
@@ -1994,6 +1984,49 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
+// resolveProfileTeam returns the id and name of the team a profile belongs
+// to (zero and empty string for no team). Team-scoped profile operations
+// require a premium license: svc.EnterpriseOverrides is only populated on
+// premium servers, so calling it unguarded would panic on Fleet Free (teams
+// can still exist there after a license downgrade).
+func (svc *Service) resolveProfileTeam(ctx context.Context, teamID *uint) (uint, string, error) {
+	tmID := ptr.ValOrZero(teamID)
+	if tmID == 0 {
+		return 0, "", nil
+	}
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return 0, "", ctxerr.Wrap(ctx, err, "checking license")
+	}
+	if lic == nil || !lic.IsPremium() {
+		return 0, "", ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+	}
+	tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &tmID, nil)
+	if err != nil {
+		return 0, "", ctxerr.Wrap(ctx, err)
+	}
+	return tmID, tm.Name, nil
+}
+
+// checkLabelsOnlyProfileUpdate runs the license and overlap validation shared
+// by the labels-only branches of the profile update paths (label scoping is a
+// premium feature, matching the create paths).
+func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsInclude, labelsExcludeAny []string) error {
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking license")
+		}
+		if lic == nil || !lic.IsPremium() {
+			return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+		}
+	}
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	return nil
+}
+
 // UpdateMDMConfigProfile updates an existing configuration profile's contents
 // and/or label targeting in place, dispatching by profile UUID to the
 // platform-specific implementation.
@@ -2033,8 +2066,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, *cp, varNames)
 	if err != nil {
-		var existsErr endpointer.ExistsErrorInterface
-		if errors.As(err, &existsErr) {
+		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)
 		}
@@ -2151,14 +2183,9 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *existing.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, existing.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we update it
@@ -2176,24 +2203,19 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	}
 
 	var cp *fleet.MDMAndroidConfigProfile
+	var varNames []fleet.FleetVarName
 	if len(profile) > 0 {
 		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 		if err != nil {
 			return err
 		}
+		for _, v := range variables.Find(string(profile)) {
+			varNames = append(varNames, fleet.FleetVarName(v))
+		}
 	} else {
 		// no new content -- only labels are being changed.
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking license")
-		}
-		if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
-			if lic == nil || !lic.IsPremium() {
-				return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
-			}
-		}
-		if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+		if err := svc.checkLabelsOnlyProfileUpdate(ctx, labelsInclude, labelsExcludeAny); err != nil {
+			return err
 		}
 		includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 		if err != nil {
@@ -2213,7 +2235,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	}
 	cp.ProfileUUID = profileUUID
 
-	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp); err != nil {
+	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp, varNames); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
@@ -3355,7 +3377,7 @@ func resendHostMDMProfileEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error {
-	// first we perform a perform basic authz check, we use selective list action to include gitops users
+	// first we perform a basic authz check, we use selective list action to include gitops users
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
