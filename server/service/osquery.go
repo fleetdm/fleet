@@ -518,7 +518,6 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	return raw, nil
 }
 
-
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
