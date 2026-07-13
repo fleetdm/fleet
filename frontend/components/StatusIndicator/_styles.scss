@@ -60,10 +60,14 @@
       background-color: $ui-success;
     }
   }
-  &--no-access,
-  &--inactive {
+  &--no-access {
     &:before {
       background-color: $ui-offline;
+    }
+  }
+  &--inactive {
+    &:before {
+      background-color: $ui-warning;
     }
   }
   &--invite-pending {
