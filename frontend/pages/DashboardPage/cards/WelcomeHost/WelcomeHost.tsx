@@ -7,6 +7,10 @@ import { notify } from "components/ToastNotification";
 import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import hostAPI from "services/entities/hosts";
+import {
+  getRefetchGiveUpDelayMs,
+  getRefetchGiveUpReason,
+} from "utilities/host_refetch_helpers";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
@@ -23,6 +27,7 @@ interface IWelcomeHostCardProps {
 
 const baseClass = "welcome-host";
 const HOST_ID = 1;
+const REFETCH_TIMEOUT_FALLBACK_MS = 60000; // 60 seconds
 const POLICY_PASS = "pass";
 const POLICY_FAIL = "fail";
 
@@ -70,7 +75,10 @@ const WelcomeHost = ({
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            if (
+              totalElapsedTime <
+              getRefetchGiveUpDelayMs(returnedHost, REFETCH_TIMEOUT_FALLBACK_MS)
+            ) {
               if (returnedHost.status === "online") {
                 setTimeout(() => {
                   fullyReloadHost();
@@ -81,9 +89,17 @@ const WelcomeHost = ({
                 );
                 setShowRefetchLoadingSpinner(false);
               }
+            } else if (
+              getRefetchGiveUpReason(returnedHost, refetchStartTime) ===
+              "refetch_stalled"
+            ) {
+              notify.error(
+                `This host checked in, but we're having trouble refreshing its vitals. Please try again later.`
+              );
+              setShowRefetchLoadingSpinner(false);
             } else {
               notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `This host hasn't checked in yet, so its vitals couldn't be refreshed. They'll update automatically once it checks in again.`
               );
               setShowRefetchLoadingSpinner(false);
             }

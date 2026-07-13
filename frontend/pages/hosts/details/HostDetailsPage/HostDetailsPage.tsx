@@ -45,6 +45,10 @@ import {
   getMdmCommandDisplayName,
 } from "utilities/activityHelpers";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  getRefetchGiveUpDelayMs,
+  getRefetchGiveUpReason,
+} from "utilities/host_refetch_helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
@@ -158,6 +162,7 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
+const REFETCH_TIMEOUT_FALLBACK_MS = 60000; // 60 seconds
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
@@ -443,7 +448,10 @@ const HostDetailsPage = ({
               } else {
                 resetHostRefetchStates();
               }
-            } else if (totalElapsedTime < 60000) {
+            } else if (
+              totalElapsedTime <
+              getRefetchGiveUpDelayMs(returnedHost, REFETCH_TIMEOUT_FALLBACK_MS)
+            ) {
               // Timer running, still inside poll window
               if (
                 returnedHost.status === "online" ||
@@ -459,10 +467,20 @@ const HostDetailsPage = ({
                 );
                 resetHostRefetchStates();
               }
-            } else {
-              // Total elapsed poll window exceeded (60s), stop and alert
+            } else if (
+              getRefetchGiveUpReason(returnedHost, refetchStartTime) ===
+              "refetch_stalled"
+            ) {
+              // Host checked in during the wait, but refetch_requested never
+              // cleared — the check-in itself succeeded, so this is a real
+              // anomaly rather than an offline/slow host.
               notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `This host checked in, but we're having trouble refreshing its vitals. Please try again later.`
+              );
+              resetHostRefetchStates();
+            } else {
+              notify.error(
+                `This host hasn't checked in yet, so its vitals couldn't be refreshed. They'll update automatically once it checks in again.`
               );
               resetHostRefetchStates();
             }

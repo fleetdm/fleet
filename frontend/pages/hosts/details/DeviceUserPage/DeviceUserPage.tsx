@@ -44,6 +44,10 @@ import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
+import {
+  getRefetchGiveUpDelayMs,
+  getRefetchGiveUpReason,
+} from "utilities/host_refetch_helpers";
 import { isDarkMode } from "utilities/theme";
 import PATHS from "router/paths";
 import {
@@ -93,6 +97,8 @@ import BypassModal from "./BypassModal";
 const baseClass = "device-user";
 
 const fullWidthCardClass = `${baseClass}__card--full-width`;
+
+const REFETCH_TIMEOUT_FALLBACK_MS = 180000; // 3 minutes
 
 const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
@@ -317,7 +323,10 @@ const DeviceUserPage = ({
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 180000) {
+            if (
+              totalElapsedTime <
+              getRefetchGiveUpDelayMs(responseHost, REFETCH_TIMEOUT_FALLBACK_MS)
+            ) {
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
@@ -337,15 +346,24 @@ const DeviceUserPage = ({
                 );
               }
             } else {
-              // Timeout reached (3 minutes)
+              // Timeout reached
               resetHostRefetchStates();
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
-                notify.error(
-                  "We're having trouble fetching fresh vitals for this host. Please try again later."
-                );
+                if (
+                  getRefetchGiveUpReason(responseHost, refetchStartTime) ===
+                  "refetch_stalled"
+                ) {
+                  notify.error(
+                    "This host checked in, but we're having trouble refreshing its vitals. Please try again later."
+                  );
+                } else {
+                  notify.error(
+                    "This host hasn't checked in yet, so its vitals couldn't be refreshed. They'll update automatically once it checks in again."
+                  );
+                }
               }
             }
           }
@@ -878,12 +896,12 @@ const DeviceUserPage = ({
             isDeviceUser
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
-              globalConfig.features?.enable_conditional_access_bypass &&
-              !hasAnyCriticalFailingCAPolicy
+                globalConfig.features?.enable_conditional_access_bypass &&
+                !hasAnyCriticalFailingCAPolicy
                 ? () => {
-                    onCancelPolicyDetailsModal();
-                    setShowBypassModal(true);
-                  }
+                  onCancelPolicyDetailsModal();
+                  setShowBypassModal(true);
+                }
                 : undefined
             }
           />
