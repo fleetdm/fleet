@@ -312,7 +312,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
-	packageLevel.SetupExperiencePlatforms = spec.SetupExperiencePlatforms
+	packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
 	packageLevel.SelfService = spec.SelfService
 	packageLevel.Configuration = spec.Configuration
 
