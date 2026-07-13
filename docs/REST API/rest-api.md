@@ -2136,6 +2136,9 @@ Modifies the Fleet's configuration with the supplied information.
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
+    "windows_automatic_enrollment": {
+      "default_fleet": "123"
+    },
     "apple_server_url": "https://instance.fleet.com"
   },
   "agent_options": {
@@ -2686,6 +2689,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_settings         | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
+| windows_automatic_enrollment         | object  | See [`mdm.windows_automatic_enrollment`](#mdm-windows-automatic-enrollment). |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
@@ -2813,6 +2817,16 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### mdm.windows_automatic_enrollment
+
+`mdm.windows_automatic_enrollment` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| default_fleet                     | string  | The id of the fleet that Windows automatically enrolled hosts will be placed in.
+
+<br/>
+
 ##### mdm.end_user_authentication
 
 `mdm.end_user_authentication` is an object with the following structure:
@@ -2893,6 +2907,9 @@ _Available in Fleet Premium._
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
+    },
+    "windows_automatic_enrollment": {
+      "default_fleet": "123"
     }
   }
 }
@@ -14083,6 +14100,9 @@ _Available in Fleet Premium_
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
+      },
+      "windows_automatic_enrollment": {
+        "default_fleet": "123"
       }
     }
   }
@@ -14435,6 +14455,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
+| windows_automatic_enrollment         | object  | See [`mdm.windows_automatic_enrollment`](#mdm-windows-automatic-enrollment2). |
 
 <br/>
 
@@ -14599,6 +14620,9 @@ Returned when the requested name only differs from another fleet's name by lette
     },
     "setup_experience": {
       "enable_end_user_authentication": false
+    },
+    "windows_automatic_enrollment": {
+      "default_fleet": "123"
     }
   }
 }
@@ -14770,6 +14794,9 @@ _Available in Fleet Premium_
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
         "apple_setup_assistant": "path/to/config.json"
+      },
+      "windows_automatic_enrollment": {
+        "default_fleet": "123"
       }
     },
     "users": [
