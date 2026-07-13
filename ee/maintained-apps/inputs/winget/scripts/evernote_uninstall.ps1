@@ -1,11 +1,12 @@
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
-# Evernote (electron-builder NSIS) registers DisplayName "Evernote" in HKLM
-# when installed with /allusers. Its QuietUninstallString runs
-# "Uninstall Evernote.exe" /allusers /S, which also closes the running tray app.
+# Evernote (electron-builder NSIS) registers a versioned, All-Users-suffixed
+# DisplayName in HKLM when installed with /allusers, e.g.
+# "Evernote 11.24.3 (All Users)". Match on that shape. Its QuietUninstallString
+# runs "Uninstall Evernote.exe" /allusers /S, which also closes the tray app.
 $softwareName = "Evernote"
 
-$softwareNameLike = "Evernote"
+$softwareNameLike = "Evernote* (All Users)"
 
 # electron-builder NSIS uninstaller; /allusers matches the machine-wide install
 $uninstallArgs = "/allusers /S"

@@ -3,6 +3,7 @@
   "slug": "evernote/windows",
   "package_identifier": "Evernote.Evernote",
   "unique_identifier": "Evernote",
+  "fuzzy_match_name": "Evernote% (All Users)",
   "program_publisher": "Evernote Corporation",
   "installer_arch": "x64",
   "installer_type": "exe",
