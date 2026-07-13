@@ -87,9 +87,6 @@ func setupPackConfigCacheTest(t *testing.T) (
 	}
 
 	fleetSvc, _ := newTestService(t, ds, nil, nil)
-	// newTestService returns a validationMiddleware that embeds the core
-	// *Service. Unwrap it so we can access packConfigCache and
-	// InvalidatePackConfigCache directly.
 	svc = fleetSvc.(validationMiddleware).Service.(*Service)
 	return svc, ds, callCounter
 }
@@ -123,140 +120,9 @@ func TestPackConfigCacheHit(t *testing.T) {
 	)
 }
 
-// TestPackConfigCacheInvalidationOnQueryCreate verifies that after
-// InvalidatePackConfigCache is called (simulating a new query being created),
-// the next GetClientConfig rebuilds the config from the DB.
-func TestPackConfigCacheInvalidationOnQueryCreate(t *testing.T) {
-	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	host := &fleet.Host{ID: 1}
-	ctx := hostctx.NewContext(t.Context(), host)
-
-	// Warm the cache.
-	_, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	callsAfterWarm := callCounter.Load()
-
-	// "Create" a new scheduled query by changing the mock and invalidating cache.
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
-		callCounter.Add(1)
-		if teamID == nil {
-			return []*fleet.Query{
-				{Name: "global_query", Query: "SELECT 1", Interval: 60, Logging: "snapshot"},
-				{Name: "new_query", Query: "SELECT 'new'", Interval: 120, Logging: "snapshot"},
-			}, nil
-		}
-		return nil, nil
-	}
-	svc.InvalidatePackConfigCache()
-
-	// Next call should hit DB and include the new query.
-	conf, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	assert.Greater(t, callCounter.Load(), callsAfterWarm, "expected DB call after cache invalidation")
-
-	packJSON := string(conf["packs"].(json.RawMessage))
-	assert.Contains(t, packJSON, "new_query")
-	assert.Contains(t, packJSON, "SELECT 'new'")
-}
-
-// TestPackConfigCacheInvalidationOnQueryModify verifies that modifying a
-// query's SQL and invalidating the cache causes the config to reflect the
-// updated SQL.
-func TestPackConfigCacheInvalidationOnQueryModify(t *testing.T) {
-	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	host := &fleet.Host{ID: 1}
-	ctx := hostctx.NewContext(t.Context(), host)
-
-	// Warm the cache.
-	conf1, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	assert.Contains(t, string(conf1["packs"].(json.RawMessage)), "SELECT 1")
-
-	// "Modify" the query SQL.
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
-		callCounter.Add(1)
-		if teamID == nil {
-			return []*fleet.Query{
-				{Name: "global_query", Query: "SELECT 'modified'", Interval: 60, Logging: "snapshot"},
-			}, nil
-		}
-		return nil, nil
-	}
-	svc.InvalidatePackConfigCache()
-
-	conf2, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	packJSON := string(conf2["packs"].(json.RawMessage))
-	assert.Contains(t, packJSON, "SELECT 'modified'")
-	assert.NotContains(t, packJSON, `"SELECT 1"`)
-}
-
-// TestPackConfigCacheInvalidationOnQueryDelete verifies that deleting a query
-// and invalidating the cache removes it from the config.
-func TestPackConfigCacheInvalidationOnQueryDelete(t *testing.T) {
-	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	host := &fleet.Host{ID: 1}
-	ctx := hostctx.NewContext(t.Context(), host)
-
-	// Warm the cache -- global_query should be present.
-	conf1, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	assert.Contains(t, string(conf1["packs"].(json.RawMessage)), "global_query")
-
-	// "Delete" the query -- return empty list.
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
-		callCounter.Add(1)
-		return nil, nil
-	}
-	svc.InvalidatePackConfigCache()
-
-	conf2, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	// With no queries, packs should be absent from the config.
-	_, hasPacks := conf2["packs"]
-	assert.False(t, hasPacks, "expected no packs after all queries deleted")
-}
-
-// TestPackConfigCacheInvalidationOnApplyQuerySpecs verifies that after a
-// GitOps-style ApplyQuerySpecs (simulated by changing the mock and
-// invalidating), the config reflects the new spec.
-func TestPackConfigCacheInvalidationOnApplyQuerySpecs(t *testing.T) {
-	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	host := &fleet.Host{ID: 1}
-	ctx := hostctx.NewContext(t.Context(), host)
-
-	// Warm the cache.
-	conf1, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	assert.Contains(t, string(conf1["packs"].(json.RawMessage)), "global_query")
-
-	// Simulate ApplyQuerySpecs updating queries.
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
-		callCounter.Add(1)
-		if teamID == nil {
-			return []*fleet.Query{
-				{Name: "spec_query_a", Query: "SELECT 'a'", Interval: 10, Logging: "snapshot"},
-				{Name: "spec_query_b", Query: "SELECT 'b'", Interval: 20, Logging: "snapshot"},
-			}, nil
-		}
-		return nil, nil
-	}
-	svc.InvalidatePackConfigCache()
-
-	conf2, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	packJSON := string(conf2["packs"].(json.RawMessage))
-	assert.Contains(t, packJSON, "spec_query_a")
-	assert.Contains(t, packJSON, "spec_query_b")
-	assert.NotContains(t, packJSON, "global_query")
-}
-
 // TestPackConfigCacheTTLExpiration verifies that after the cache TTL expires,
-// a fresh config is built from the DB.
+// a fresh config is built from the DB. This is the primary mechanism for
+// picking up query changes (no explicit invalidation).
 func TestPackConfigCacheTTLExpiration(t *testing.T) {
 	svc, ds, callCounter := setupPackConfigCacheTest(t)
 
@@ -294,6 +160,51 @@ func TestPackConfigCacheTTLExpiration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, callCounter.Load(), callsAfterWarm, "expected DB call after TTL expiry")
 	assert.Contains(t, string(conf["packs"].(json.RawMessage)), "refreshed_query")
+}
+
+// TestPackConfigCacheQueryChangesPickedUpAfterTTL verifies that when queries
+// are created, modified, or deleted, the changes are picked up after the cache
+// TTL expires (no explicit invalidation needed).
+func TestPackConfigCacheQueryChangesPickedUpAfterTTL(t *testing.T) {
+	svc, ds, callCounter := setupPackConfigCacheTest(t)
+
+	svc.packConfigCache = gocache.New(50*time.Millisecond, 25*time.Millisecond)
+
+	host := &fleet.Host{ID: 1}
+	ctx := hostctx.NewContext(t.Context(), host)
+
+	// Warm the cache with the original query.
+	conf1, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, string(conf1["packs"].(json.RawMessage)), "global_query")
+
+	// Simulate a query being created + modified.
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+		callCounter.Add(1)
+		if teamID == nil {
+			return []*fleet.Query{
+				{Name: "global_query", Query: "SELECT 'modified'", Interval: 60, Logging: "snapshot"},
+				{Name: "new_query", Query: "SELECT 'new'", Interval: 120, Logging: "snapshot"},
+			}, nil
+		}
+		return nil, nil
+	}
+
+	// Still within TTL -- should serve stale cache.
+	conf2, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, string(conf2["packs"].(json.RawMessage)), "SELECT 1")
+	assert.NotContains(t, string(conf2["packs"].(json.RawMessage)), "new_query")
+
+	// Wait for TTL to expire.
+	time.Sleep(100 * time.Millisecond)
+
+	// Now the changes should be picked up.
+	conf3, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	packJSON := string(conf3["packs"].(json.RawMessage))
+	assert.Contains(t, packJSON, "SELECT 'modified'")
+	assert.Contains(t, packJSON, "new_query")
 }
 
 // TestPackConfigCacheTeamIsolation verifies that hosts in different teams get
@@ -388,8 +299,8 @@ func TestPackConfigCacheLegacyPacksBypass(t *testing.T) {
 }
 
 // TestPackConfigCachePerformance measures the speedup from cache hits by
-// comparing 1000 GetClientConfig calls against the warm cache versus the
-// number of DB calls that would have occurred without it.
+// comparing 1000 GetClientConfig calls against the warm cache versus
+// uncached calls (using short TTL that expires each iteration).
 func TestPackConfigCachePerformance(t *testing.T) {
 	svc, _, callCounter := setupPackConfigCacheTest(t)
 
@@ -414,13 +325,12 @@ func TestPackConfigCachePerformance(t *testing.T) {
 	assert.Equal(t, int64(0), dbCallsDuringCached,
 		"expected zero DB calls for ListScheduledQueriesForAgents during cached iterations")
 
-	// Measure uncached: invalidate cache on every call.
-	svc.InvalidatePackConfigCache()
+	// Measure uncached: disable caching by setting packConfigCache to nil.
+	svc.packConfigCache = nil
 	callsBefore := callCounter.Load()
 
 	start = time.Now()
 	for range iterations {
-		svc.InvalidatePackConfigCache()
 		_, err := svc.GetClientConfig(ctx)
 		require.NoError(t, err)
 	}
@@ -428,7 +338,7 @@ func TestPackConfigCachePerformance(t *testing.T) {
 
 	dbCallsDuringUncached := callCounter.Load() - callsBefore
 	assert.Equal(t, int64(iterations), dbCallsDuringUncached,
-		"expected exactly %d DB calls when cache is invalidated each time", iterations)
+		"expected exactly %d DB calls when cache is disabled", iterations)
 
 	t.Logf("Performance: cached=%v, uncached=%v, speedup=%.1fx",
 		cachedDuration, uncachedDuration,

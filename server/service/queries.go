@@ -297,7 +297,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
-	svc.InvalidatePackConfigCache()
+
 
 	var teamID int64
 	var teamName *string
@@ -438,7 +438,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
-	svc.InvalidatePackConfigCache()
+
 
 	// If the query was modified in a way that requires discarding results,
 	// reset the Redis count as well.
@@ -526,7 +526,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
-	svc.InvalidatePackConfigCache()
+
 
 	// Delete the Redis counter for query results
 	if svc.liveQueryStore != nil {
@@ -596,7 +596,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
-	svc.InvalidatePackConfigCache()
+
 
 	// Delete the Redis counter for query results
 	if svc.liveQueryStore != nil {
@@ -682,7 +682,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		return n, err
 	}
 
-	svc.InvalidatePackConfigCache()
+
 
 	// Delete the Redis counters for query results
 	if svc.liveQueryStore != nil {
@@ -796,7 +796,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
 
-	svc.InvalidatePackConfigCache()
+
 
 	// Reset the Redis counters for queries whose results were discarded
 	if svc.liveQueryStore != nil {

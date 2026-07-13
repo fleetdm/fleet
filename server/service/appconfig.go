@@ -1163,12 +1163,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	// Flush the pack config cache because QueryReportsDisabled (which is
-	// part of the cache key) may have changed.
-	// NOTE: In multi-instance deployments, this only invalidates the cache on
-	// this instance. Other instances rely on the 1-minute TTL to pick up changes.
-	svc.InvalidatePackConfigCache()
-
 	if aapChanged {
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())

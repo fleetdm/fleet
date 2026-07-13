@@ -518,15 +518,6 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	return raw, nil
 }
 
-// InvalidatePackConfigCache clears the cached pack config JSON.
-// Call this when queries, packs, or query reports settings change.
-// NOTE: In multi-instance deployments, this only invalidates the local
-// instance's cache. Other instances rely on the 1-minute TTL.
-func (svc *Service) InvalidatePackConfigCache() {
-	if svc.packConfigCache != nil {
-		svc.packConfigCache.Flush()
-	}
-}
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
