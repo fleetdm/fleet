@@ -509,6 +509,148 @@ func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.Empty(t, storedCP.LabelsIncludeAny)
 	require.Empty(t, storedCP.LabelsExcludeAny)
 	require.Equal(t, checksumBeforeLabelChanges, storedCP.Checksum)
+
+	// a labels-only edit (no new content) must NOT touch variable associations:
+	// the content didn't change, so its variables didn't either, and wiping
+	// them would break variable-driven redelivery (e.g. IdP email changes).
+	// A content edit, in contrast, rebuilds them (cleared here by passing nil).
+	varNamesStmt := `
+		SELECT fv.name
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.apple_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	varProfile, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "Labels-Only Fleet Vars Profile",
+		Identifier:   "com.fleetdm.labels-only-vars",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("VarsMobileconfigBytes $FLEET_VAR_HOST_UUID")),
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+	varLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "apple-labels-only-vars-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Identifier:  varProfile.Identifier,
+		TeamID:      varProfile.TeamID,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: varLabel.Name, LabelID: varLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	var varNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames,
+		"a labels-only edit must preserve the profile's variable associations")
+
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  varProfile.ProfileUUID,
+		Identifier:   varProfile.Identifier,
+		Name:         varProfile.Name,
+		TeamID:       varProfile.TeamID,
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("VarsMobileconfigBytes no vars anymore")),
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "a content edit that drops the last Fleet variable must clear the stale association")
+
+	// a content edit that changes the PayloadScope is rejected the same way the
+	// create/GitOps paths reject it, before anything is written -- the scope
+	// column and stored XML must not diverge
+	mcWithScope := func(name, identifier, uuid string, scope fleet.PayloadScope) []byte {
+		return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadScope</key>
+	<string>%s</string>
+</dict>
+</plist>
+`, name, identifier, uuid, scope)
+	}
+	systemMC := mcWithScope("Scoped Profile", "com.fleetdm.scoped", "u-scoped", fleet.PayloadScopeSystem)
+	scopedProfile, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "Scoped Profile",
+		Identifier:   "com.fleetdm.scoped",
+		Mobileconfig: mobileconfig.Mobileconfig(systemMC),
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  scopedProfile.ProfileUUID,
+		Identifier:   scopedProfile.Identifier,
+		Name:         scopedProfile.Name,
+		TeamID:       scopedProfile.TeamID,
+		Mobileconfig: mobileconfig.Mobileconfig(mcWithScope("Scoped Profile", "com.fleetdm.scoped", "u-scoped", fleet.PayloadScopeUser)),
+		Scope:        fleet.PayloadScopeUser,
+	}, nil)
+	require.ErrorContains(t, err, "PayloadScope")
+	storedScoped, err := ds.GetMDMAppleConfigProfile(ctx, scopedProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.PayloadScopeSystem, storedScoped.Scope)
+	require.Equal(t, systemMC, []byte(storedScoped.Mobileconfig), "a rejected scope change must leave the stored content untouched")
+
+	// an omitted PayloadScope means System, matching the create path -- editing
+	// a System profile with content that has no explicit PayloadScope key is
+	// not a scope change
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  scopedProfile.ProfileUUID,
+		Identifier:   scopedProfile.Identifier,
+		Name:         scopedProfile.Name,
+		TeamID:       scopedProfile.TeamID,
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("NoExplicitScopeBytes")),
+	}, nil)
+	require.NoError(t, err)
+
+	// renaming via a content edit must respect the same cross-platform name
+	// uniqueness the create path enforces via its NOT EXISTS guards -- an
+	// Apple rename that collides with a Windows/Android/DDM profile name in
+	// the same team is rejected, in a different team it is allowed
+	winProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Taken By Windows",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/CrossPlatform</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  varProfile.ProfileUUID,
+		Identifier:   varProfile.Identifier,
+		Name:         winProfile.Name,
+		TeamID:       varProfile.TeamID,
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("CrossPlatformRenameBytes")),
+	}, nil)
+	crossPlatformErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadDisplayName", Identifier: winProfile.Name, TeamID: varProfile.TeamID}
+	require.ErrorContains(t, err, crossPlatformErr.Error())
+
+	otherPlatformTeamID := uint(99)
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Taken By Windows Elsewhere",
+		TeamID: &otherPlatformTeamID,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/CrossPlatformOtherTeam</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	renamedCrossPlatform, err := ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  varProfile.ProfileUUID,
+		Identifier:   varProfile.Identifier,
+		Name:         "Taken By Windows Elsewhere",
+		TeamID:       varProfile.TeamID,
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("CrossPlatformRenameBytes")),
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "Taken By Windows Elsewhere", renamedCrossPlatform.Name)
 }
 
 func testVerifyAppleConfigProfileScopesDoNotConflict(t *testing.T, ds *Datastore) {

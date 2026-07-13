@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -293,9 +294,10 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Identifier string `db:"identifier"`
+			Name       string `db:"name"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT identifier FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT identifier, name FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
@@ -309,8 +311,48 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 		}
 
 		if len(cp.Mobileconfig) > 0 {
+			// a changed PayloadScope is rejected the same way the create/GitOps
+			// paths reject it -- the scope column is never updated on this path,
+			// so letting a scope change through would leave the stored XML and
+			// the scope column (which drives the delivery channel) disagreeing.
+			// Like the create path, an absent PayloadScope means System.
+			if cp.Scope == "" {
+				cp.Scope = fleet.PayloadScopeSystem
+			}
+			if err := ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp}); err != nil {
+				return ctxerr.Wrap(ctx, err, "verifying payload scope on update")
+			}
+
 			// name is allowed to change along with the content, matching the
-			// same identifier-keyed upsert convention GitOps uses.
+			// same identifier-keyed upsert convention GitOps uses. The create
+			// path enforces name uniqueness across all platforms' profiles in
+			// the team, so a rename must too -- the UPDATE below can only rely
+			// on this table's unique index.
+			if cp.Name != existing.Name {
+				var teamID uint
+				if cp.TeamID != nil {
+					teamID = *cp.TeamID
+				}
+				var collides bool
+				err := sqlx.GetContext(ctx, tx, &collides, `SELECT EXISTS (
+	SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
+) OR EXISTS (
+	SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
+) OR EXISTS (
+	SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?
+)`, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking cross-platform profile name collision")
+				}
+				if collides {
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				}
+			}
+
 			stmt := `
 UPDATE mdm_apple_configuration_profiles
 SET mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, uploaded_at = CURRENT_TIMESTAMP(), secrets_updated_at = ?
@@ -355,10 +397,20 @@ WHERE profile_uuid = ? AND identifier = ?`
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating darwin profile label associations")
 		}
-		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
-			{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
-		}, "darwin", false); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating darwin profile variable associations")
+
+		// variable associations are only touched when new content was uploaded:
+		// within a content update the call must be unconditional so an edit that
+		// removes the profile's last Fleet variable still clears the stale
+		// association (batchSetProfileVariableAssociationsDB always deletes
+		// before optionally re-inserting), but on a labels-only update the
+		// content -- and thus its variables -- didn't change, and clearing them
+		// here would break variable-driven resends (e.g. IdP email changes).
+		if len(cp.Mobileconfig) > 0 {
+			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
+			}, "darwin", false); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating darwin profile variable associations")
+			}
 		}
 
 		return nil
@@ -367,7 +419,7 @@ WHERE profile_uuid = ? AND identifier = ?`
 		return nil, err
 	}
 
-	updated, err := ds.GetMDMAppleConfigProfile(ctx, cp.ProfileUUID)
+	updated, err := ds.GetMDMAppleConfigProfile(ctxdb.RequirePrimary(ctx, true), cp.ProfileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get updated apple config profile")
 	}

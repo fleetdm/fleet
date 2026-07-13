@@ -1690,6 +1690,45 @@ func newUpdateMDMConfigProfileRequest(t *testing.T, profileUUID string, fields m
 	return mux.SetURLVars(req, vars)
 }
 
+func TestDeleteMDMConfigProfileFreeLicenseTeam(t *testing.T) {
+	// team profiles can survive a premium-to-free downgrade; deletes must
+	// fail with a license error, not panic on the nil EnterpriseOverrides
+	// that free servers never populate.
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	teamID := uint(5)
+
+	ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+		return &fleet.MDMWindowsConfigProfile{ProfileUUID: puid, Name: "Test Profile", TeamID: &teamID}, nil
+	}
+	err := svc.DeleteMDMWindowsConfigProfile(ctx, "w"+uuid.NewString())
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
+		return &fleet.MDMAndroidConfigProfile{ProfileUUID: puid, Name: "Test Profile", TeamID: &teamID}, nil
+	}
+	err = svc.DeleteMDMAndroidConfigProfile(ctx, "g"+uuid.NewString())
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
+		return &fleet.MDMAppleConfigProfile{ProfileUUID: puid, Identifier: "com.fleetdm.test", Name: "Test Profile", TeamID: &teamID}, nil
+	}
+	err = svc.DeleteMDMAppleConfigProfile(ctx, "a"+uuid.NewString())
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{
+			DeclarationUUID: duid,
+			Identifier:      "com.fleet.configD1",
+			Name:            "Test Declaration",
+			TeamID:          &teamID,
+			RawJSON:         declBytesForTest("D1", "d1content"),
+		}, nil
+	}
+	err = svc.DeleteMDMAppleDeclaration(ctx, "d"+uuid.NewString())
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+}
+
 func TestUpdateMDMConfigProfileDecodeRequest(t *testing.T) {
 	t.Parallel()
 
@@ -3950,6 +3989,29 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
 		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
+	})
+
+	t.Run("team-scoped update on a free license returns a license error", func(t *testing.T) {
+		// team profiles can survive a premium-to-free downgrade; the update
+		// must fail with a license error, not panic on the nil
+		// EnterpriseOverrides that free servers never populate.
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		existing := newExistingProfile("Test Profile", 5)
+
+		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		newContent := []byte(`{"screenCaptureDisabled": false}`)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {

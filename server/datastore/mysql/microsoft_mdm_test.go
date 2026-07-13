@@ -2604,6 +2604,29 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, varNames, "the last Fleet variable must be cleared, not left stale, when an edit removes it")
 
+	// a labels-only edit (no new content) must NOT touch variable associations:
+	// the content didn't change, so its variables didn't either, and wiping
+	// them would break variable-driven redelivery (e.g. IdP email changes).
+	labelsOnlyVarProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Labels-Only Fleet Vars Profile",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+	labelsOnlyVarLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-labels-only-vars-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: labelsOnlyVarProfile.ProfileUUID,
+		Name:        labelsOnlyVarProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: labelsOnlyVarLabel.Name, LabelID: labelsOnlyVarLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, labelsOnlyVarProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames,
+		"a labels-only edit must preserve the profile's variable associations")
+
 	// content, labels, and Fleet variables can all be updated atomically in a
 	// single call -- the above blocks already prove each dimension works on
 	// its own, but nothing so far proves the three transactional steps

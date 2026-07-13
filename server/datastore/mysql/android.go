@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -793,7 +794,7 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 		return nil, err
 	}
 
-	updated, err := ds.GetMDMAndroidConfigProfile(ctx, cp.ProfileUUID)
+	updated, err := ds.GetMDMAndroidConfigProfile(ctxdb.RequirePrimary(ctx, true), cp.ProfileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get updated android config profile")
 	}

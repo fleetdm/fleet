@@ -33,8 +33,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, *cp, usesFleetVars)
 	if err != nil {
-		var existsErr endpointer.ExistsErrorInterface
-		if errors.As(err, &existsErr) {
+		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)
 		}
@@ -175,7 +174,7 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 // unrelated one (this mirrors how GitOps itself treats a Windows profile
 // rename: as a delete-then-insert, not an in-place update).
 func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -185,14 +184,9 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *existing.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, existing.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we update it
@@ -218,17 +212,8 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		}
 	} else {
 		// no new content -- only labels are being changed.
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking license")
-		}
-		if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
-			if lic == nil || !lic.IsPremium() {
-				return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
-			}
-		}
-		if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+		if err := svc.checkLabelsOnlyProfileUpdate(ctx, labelsInclude, labelsExcludeAny); err != nil {
+			return err
 		}
 		includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 		if err != nil {
