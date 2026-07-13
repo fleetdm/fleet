@@ -179,6 +179,44 @@ func TestCollectChromiumProfile(t *testing.T) {
 
 func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }
 
+// TestChromiumRefusesOutOfHomePath verifies that a Chromium Preferences "path"
+// pointing outside the owning home is not hashed: the row is still recovered,
+// but its SHA256 is empty so the root scanner is never steered at an arbitrary
+// absolute path from the user-writable Preferences file.
+func TestChromiumRefusesOutOfHomePath(t *testing.T) {
+	home := t.TempDir()
+	profile := t.TempDir()
+	outside := t.TempDir() // NOT under home
+	writeFile(t, filepath.Join(outside, "manifest.json"),
+		`{"name":"Claude Dev","version":"1.0","manifest_version":3}`)
+
+	id := "cccccccccccccccccccccccccccccccc"
+	prefs := map[string]any{
+		"extensions": map[string]any{
+			"settings": map[string]any{
+				id: map[string]any{"location": 4, "path": outside, "manifest": map[string]any{"name": "Claude Dev", "version": "1.0"}},
+			},
+		},
+	}
+	pb, _ := json.Marshal(prefs)
+	writeFile(t, filepath.Join(profile, "Secure Preferences"), string(pb))
+
+	got := collectChromiumProfile(profile, "chrome", "Default", homes.Home{UID: "501", Username: "tester", Dir: home})
+
+	var ext *Extension
+	for i := range got {
+		if got[i].ID == id {
+			ext = &got[i]
+		}
+	}
+	if ext == nil {
+		t.Fatal("out-of-home extension should still be recovered from Preferences")
+	}
+	if ext.SHA256 != "" {
+		t.Errorf("SHA256 = %q, want empty (out-of-home path must not be hashed)", ext.SHA256)
+	}
+}
+
 // TestGeckoRejectsTraversalID verifies an addon id from the user-writable
 // extensions.json that contains path-traversal characters is dropped, so the
 // root scanner cannot be steered outside the profile's extensions dir.

@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"maps"
 	"net"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,10 +96,10 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 		snap = proc.Take(ctx)
 	}
 
-	// MCP config scan is shared by the mcp_server rows and the sockets egress
-	// host set, so do it at most once.
+	// MCP config scan feeds only the mcp_server rows (the sockets collector no
+	// longer consumes MCP hostnames — it attributes egress by owning process).
 	var servers []mcp.Server
-	if has("mcp_server") || has("sockets") {
+	if has("mcp_server") {
 		for _, h := range hs {
 			if err := ctx.Err(); err != nil {
 				return nil, err
@@ -112,7 +111,7 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 	rows := make([]map[string]string, 0, 128)
 
 	if has("sockets") {
-		for _, s := range netsock.Collect(ctx, snap, remoteHosts(servers)) {
+		for _, s := range netsock.Collect(snap) {
 			rows = append(rows, socketRow(s))
 		}
 	}
@@ -443,18 +442,6 @@ func compactJSON(m map[string]string) string {
 		return ""
 	}
 	return string(b)
-}
-
-func remoteHosts(servers []mcp.Server) map[string]string {
-	out := map[string]string{}
-	for _, s := range servers {
-		if s.Location == "remote" && s.URL != "" {
-			if u, err := url.Parse(s.URL); err == nil && u.Hostname() != "" {
-				out[u.Hostname()] = s.ServerName
-			}
-		}
-	}
-	return out
 }
 
 func itoa(i int) string { return strconv.Itoa(i) }

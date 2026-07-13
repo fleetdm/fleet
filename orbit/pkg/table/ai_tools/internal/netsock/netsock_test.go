@@ -1,7 +1,6 @@
 package netsock
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
@@ -24,7 +23,7 @@ func TestCollect(t *testing.T) {
 		},
 	}
 
-	socks := Collect(context.Background(), snap, nil)
+	socks := Collect(snap)
 
 	var listen, egress *Socket
 	for i := range socks {

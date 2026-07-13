@@ -30,19 +30,36 @@ const maxReadFileBytes = 64 << 20 // 64 MiB
 // OpenRegular opens path read-only for scanning, refusing anything that is not
 // a regular file. Because this scanner runs as root over paths writable by
 // unprivileged users, it must never follow a symlink (which could point at a
-// root-only file) nor block on a FIFO/device. os.Lstat rejects symlinks and
-// non-regular files up front; O_NONBLOCK closes the stat→open race so a file
-// swapped for a FIFO between the check and the open still cannot block. Callers
-// that stream (rather than read the whole file) use this directly.
+// root-only file) nor block on a FIFO/device. Callers that stream (rather than
+// read the whole file) use this directly.
+//
+// Three guards, defending against a hostile local user racing the scanner:
+//   - os.Lstat up front rejects symlinks and non-regular files (fast path);
+//   - O_NONBLOCK on the open, so a file swapped for a FIFO in the Lstat→open
+//     window still returns immediately instead of blocking the root daemon;
+//   - a post-open fstat that re-checks IsRegular AND confirms (via os.SameFile)
+//     that the opened file is the same inode Lstat saw. This closes the
+//     stat→open TOCTOU race: if the path was swapped for a symlink (which the
+//     open would follow) or any other file after the Lstat, the fstat identity
+//     no longer matches and the open is refused.
 func OpenRegular(path string) (*os.File, error) {
-	fi, err := os.Lstat(path)
+	lfi, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
 	}
-	if !fi.Mode().IsRegular() {
+	if !lfi.Mode().IsRegular() {
 		return nil, os.ErrInvalid
 	}
-	return os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0) // #nosec G304 -- path discovered by a curated collector; opened non-following, non-blocking, regular-only
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0) // #nosec G304 -- path discovered by a curated collector; opened non-blocking, regular-only, with a post-open identity re-check
+	if err != nil {
+		return nil, err
+	}
+	ffi, err := f.Stat()
+	if err != nil || !ffi.Mode().IsRegular() || !os.SameFile(lfi, ffi) {
+		_ = f.Close()
+		return nil, os.ErrInvalid
+	}
+	return f, nil
 }
 
 // SHA256 returns the lowercase hex SHA-256 of the file at path, or "" if the
@@ -76,6 +93,11 @@ func SHA256(path string) string {
 // and non-regular files and never blocks on a FIFO/device (see
 // OpenRegular), so a hostile file planted in a scanned home directory
 // cannot leak a root-only target or hang the root daemon.
+//
+// A file larger than maxReadFileBytes is silently truncated (partial content,
+// nil error). Every caller parses the result as JSON/plist/TOML/XML, so a
+// truncated blob simply fails to parse and the entry is dropped; a future
+// caller that needs the whole file must not treat a bounded read as complete.
 func ReadFileBounded(path string) ([]byte, error) {
 	f, err := OpenRegular(path)
 	if err != nil {
