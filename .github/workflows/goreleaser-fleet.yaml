@@ -330,6 +330,8 @@ jobs:
         run: |
           curl -fSL -o wix314-binaries.zip \
             https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
+          # Pin the known-good WiX release bytes (wix3141rtm publishes no signed checksum).
+          echo "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31  wix314-binaries.zip" | sha256sum --check --strict -
           mkdir -p "$RUNNER_TEMP/wix"
           unzip -q wix314-binaries.zip -d "$RUNNER_TEMP/wix"
           echo "$RUNNER_TEMP/wix" >> $GITHUB_PATH

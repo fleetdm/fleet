@@ -25,6 +25,14 @@ defaults:
 
 env:
   OSQUERY_VERSION: 5.23.1
+  # SHA256 checksums of the pinned osquery release assets downloaded below. osquery does
+  # not publish signed checksums, so these pin the known-good bytes to detect tampering or
+  # MITM of the GitHub release download before the binary is attested and shipped via TUF.
+  # These MUST be updated whenever OSQUERY_VERSION changes.
+  OSQUERY_SHA256_LINUX_AMD64: 1431a9a6394657eba3cdd3476a462a6fe9721fc3664a70f23efcf7e37816787a
+  OSQUERY_SHA256_LINUX_ARM64: 062df9b6432ca1b374e80b24b54f027e224f1300d8bf6338182ec40f41b7975d
+  OSQUERY_SHA256_WINDOWS_X64_MSI: bb3adc9f32f257147855404d24bceebcd8baf6e65f4d4ca43e186f4a85fa6ed3
+  OSQUERY_SHA256_WINDOWS_ARM64_ZIP: 0913d05cc3fc92dd9253c945caacde10a776408f267cc1cc853a05de24dba900
 
 # Least-privilege default; each build job grants id-token/attestations at the job level.
 permissions:
@@ -94,6 +102,7 @@ jobs:
       - name: Download and extract osqueryd for linux
         run: |
           curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery_${{ env.OSQUERY_VERSION }}-1.linux_amd64.deb --output osquery.deb
+          echo "${OSQUERY_SHA256_LINUX_AMD64}  osquery.deb" | sha256sum --check --strict -
           ar x osquery.deb
           tar xf data.tar.gz
           chmod +x ./opt/osquery/bin/osqueryd
@@ -135,6 +144,7 @@ jobs:
       - name: Download and extract osqueryd for linux-arm64
         run: |
           curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery_${{ env.OSQUERY_VERSION }}-1.linux_arm64.deb --output osquery.deb
+          echo "${OSQUERY_SHA256_LINUX_ARM64}  osquery.deb" | sha256sum --check --strict -
           ar x osquery.deb
           tar xf data.tar.gz
           chmod +x ./opt/osquery/bin/osqueryd
@@ -172,6 +182,7 @@ jobs:
       - name: Download osquery msi for Windows
         run: |
           curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
+          echo "${OSQUERY_SHA256_WINDOWS_X64_MSI}  osquery-${{ env.OSQUERY_VERSION }}.msi" | sha256sum --check --strict -
 
       - name: Extract osqueryd.exe for Windows
         shell: cmd
@@ -211,6 +222,7 @@ jobs:
       - name: Download osquery msi for Windows
         run: |
           curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery-${{ env.OSQUERY_VERSION }}.windows_arm64.zip --output osquery-${{ env.OSQUERY_VERSION }}.windows_arm64.zip
+          echo "${OSQUERY_SHA256_WINDOWS_ARM64_ZIP}  osquery-${{ env.OSQUERY_VERSION }}.windows_arm64.zip" | sha256sum --check --strict -
 
       - name: Install file
         run: |
