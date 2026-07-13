@@ -8682,7 +8682,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	// we trigger a resend before the acknowledgement comes back
 
 	// 1. Trigger an IDP variable change by updating SCIM user
-	err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "newuser@example.com"})
+	_, err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "newuser@example.com"})
 	require.NoError(t, err)
 
 	// 2. At this point, the profile should be marked for resend (status = NULL)

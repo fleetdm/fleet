@@ -25672,7 +25672,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 
 	createdUserID, err := s.ds.CreateScimUser(ctx, scimUser)
 	require.NoError(t, err)
-	defer func() { _ = s.ds.DeleteScimUser(ctx, createdUserID) }()
+	defer func() { _, _ = s.ds.DeleteScimUser(ctx, createdUserID) }()
 
 	// Test IDP device mapping with premium license and valid SCIM user
 	var putResp putHostDeviceMappingResponse
