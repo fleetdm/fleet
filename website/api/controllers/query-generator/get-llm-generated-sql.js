@@ -175,7 +175,7 @@ module.exports = {
 
     // Effort is set to "low" because the schema was already narrowed down to relevant tables by the
     // schema-filtration step above -- the model doesn't need to spend much effort re-deriving that context.
-    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'claude-sonnet-5', expectJson: true, systemPromptForQueryGeneration, effort: 'low'})
+    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'claude-sonnet-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration, effort: 'low'})
     .intercept((err)=>{
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
