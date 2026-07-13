@@ -8,7 +8,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-42306](https://nvd.nist.gov/vuln/detail/CVE-2026-42306)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:17
@@ -16,7 +16,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-41568](https://nvd.nist.gov/vuln/detail/CVE-2026-41568)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:17
@@ -24,7 +24,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-41567](https://nvd.nist.gov/vuln/detail/CVE-2026-41567)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:17
@@ -48,7 +48,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-33997](https://nvd.nist.gov/vuln/detail/CVE-2026-33997)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Status notes:** github.com/docker/docker is only imported in tools/upgrade/fleet_test.go and is never compiled into the fleet binary.
 - **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 15:38:16
