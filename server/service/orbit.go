@@ -344,12 +344,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				svc.logger.ErrorContext(ctx, "failed to find SCIM user for EUA token enrollment",
 					"err", err, "host_id", host.ID)
 			} else if err == nil && scimUser != nil {
-				if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+				if _, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
 					svc.logger.ErrorContext(ctx, "failed to set SCIM user mapping for EUA token enrollment",
 						"err", err, "host_id", host.ID)
 				}
 			} else {
-				if err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+				if _, err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
 					svc.logger.ErrorContext(ctx, "failed to delete SCIM user mapping for EUA token enrollment",
 						"err", err, "host_id", host.ID)
 				}
