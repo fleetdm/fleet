@@ -92,6 +92,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -125,7 +126,10 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ ab_tokens }) => {
         ab_tokens.length &&
           setABMExpiry({
@@ -163,7 +167,10 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ vpp_tokens }) => {
         vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
       },

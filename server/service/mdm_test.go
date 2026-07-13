@@ -1773,6 +1773,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name     string
@@ -2831,6 +2834,9 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			Name: "team1",
 		}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 
 	type ProfileLabels struct {
 		IncludeAll bool
@@ -3191,6 +3197,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 				return &fleet.GroupedCertificateAuthorities{}, nil
 			}
 			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+			ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
 			// Tracking of OS update profiles now happens atomically inside
 			// BatchSetMDMProfiles; the service only forwards the profiles.
 			var gotAppleOSUpdate, gotWindowsOSUpdate bool
@@ -3409,7 +3416,8 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
-	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+		require.Empty(t, usesFleetVars)
 		return &fleet.MDMAndroidConfigProfile{}, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
@@ -3523,7 +3531,8 @@ func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{}, nil
 		}
-		ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+			require.Empty(t, usesFleetVars)
 			return &cp, nil
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {

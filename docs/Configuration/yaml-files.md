@@ -522,8 +522,6 @@ The `apple_account_provisioning` section can only be configured for "All fleets"
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
-> **Experimental feature.** The `macos_manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
@@ -562,8 +560,6 @@ The `macos_migration` section lets you control the [end user migration workflow]
 Can only be configured for "All fleets" (`default.yml`).
 
 ## software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
 

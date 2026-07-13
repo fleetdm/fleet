@@ -195,8 +195,6 @@ form,
       &__no-wrap {
         // adjust for multi-line custom links
         .icon {
-          padding-left: 4px;
-          position: relative;
           top: 2px;
         }
       }
@@ -319,6 +317,15 @@ body.dark-mode .card .button--icon:hover {
   background-color: $core-fleet-white;
 }
 
+// A modal inside a card inherits the .card hover above, which matches the
+// modal surface and hides it. Restore the normal inverse hover.
+body.dark-mode .modal__modal_container .button--inverse:hover,
+body.dark-mode .modal__modal_container .button--inverse-alert:hover,
+body.dark-mode .modal__modal_container .button--text-icon:hover,
+body.dark-mode .modal__modal_container .button--icon:hover {
+  background-color: $ui-fleet-black-5;
+}
+
 body.dark-mode .checkbox-unchecked-state {
   fill: $core-fleet-white;
   stroke: $ui-fleet-black-25;
@@ -328,6 +335,14 @@ body.dark-mode .checkbox-unchecked-state {
 // so !important is needed to override them in dark mode.
 body.dark-mode .react-select__control {
   background-color: $ui-fleet-black-5 !important;
+}
+
+// Button-style dropdowns hardcode their hover to $ui-fleet-black-5, which
+// matches the card surface. Darken to $core-fleet-white on cards, like the
+// .card button rule above. One selector per dropdown component.
+body.dark-mode .card .dropdown-wrapper__button .react-select__control:hover,
+body.dark-mode .card .actions-dropdown-select__control:hover {
+  background-color: $core-fleet-white !important;
 }
 
 // Legacy react-select v1 (Dropdown) uses SCSS-applied backgrounds.

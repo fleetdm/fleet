@@ -249,9 +249,9 @@ func getScimUserLiteByHostID(ctx context.Context, q sqlx.QueryerContext, hostID 
 }
 
 // ReplaceScimUser replaces an existing SCIM user in the database
-func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
+func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 	if err := validateScimUserFields(user); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate that at most one email is marked as primary
@@ -262,17 +262,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 	}
 	if primaryCount > 1 {
-		return ctxerr.New(ctx, "only one email can be marked as primary")
+		return nil, ctxerr.New(ctx, "only one email can be marked as primary")
 	}
 
 	// Get current emails and check if they need to be updated
 	currentEmails, err := ds.getScimUserEmails(ctx, user.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	emailsNeedUpdate := emailsRequireUpdate(currentEmails, user.Emails)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
 		// load the username and department before updating the user, to check if it changed
 		old := struct {
 			UserName   string  `db:"user_name"`
@@ -356,14 +358,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 
 		// resend profiles that depend on this username if it changed
 		if usernameChanged || departmentChanged || nameChanged {
-			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
+			certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
 			}
+			resentCerts = append(resentCerts, certs...)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser) error {
@@ -400,14 +407,18 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 }
 
 // DeleteScimUser deletes a SCIM user from the database
-func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+
 		// trigger resend of profiles that depend on this SCIM user (must be done
 		// _before_ deleting the scim user so that we can find the affected hosts)
-		err := triggerResendProfilesForIDPUserDeleted(ctx, tx, id)
+		certs, err := triggerResendProfilesForIDPUserDeleted(ctx, tx, id)
 		if err != nil {
 			return err
 		}
+		resentCerts = append(resentCerts, certs...)
 
 		// Delete the user
 		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ?`
@@ -427,6 +438,10 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 // ListScimUsers retrieves a list of SCIM users with optional filtering
@@ -1176,33 +1191,47 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) error {
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedScimUserID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
-func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) error {
+func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, deletedScimUserID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, updatedScimGroupID uint) error {
@@ -1256,6 +1285,87 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPFullname,
 		})
+}
+
+func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vars []any) ([]fleet.ActivityTypeResentCertificate, error) {
+	if len(hostIDs) == 0 || len(vars) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+	SELECT DISTINCT
+		h.id AS host_id,
+		COALESCE(h.computer_name, '') AS computer_name,
+		COALESCE(h.hostname, '') AS hostname,
+		COALESCE(h.hardware_model, '') AS hardware_model,
+		COALESCE(h.hardware_serial, '') AS hardware_serial,
+		ct.id AS certificate_template_id,
+		ct.name AS certificate_name
+	FROM
+		host_certificate_templates hct
+		JOIN hosts h
+			ON h.uuid = hct.host_uuid
+		JOIN certificate_templates ct
+			ON ct.id = hct.certificate_template_id AND
+			   ct.team_id = COALESCE(h.team_id, 0)
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.certificate_template_id = ct.id
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	WHERE
+		h.id IN (:host_ids) AND
+		hct.operation_type = :operation_type_install AND
+		hct.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
+	namedParams := map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+	}
+
+	stmt, args, err := sqlx.Named(query, namedParams)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select cert templates to resend names")
+	}
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select cert templates to resend arguments")
+	}
+
+	type row struct {
+		HostID                uint   `db:"host_id"`
+		ComputerName          string `db:"computer_name"`
+		Hostname              string `db:"hostname"`
+		HardwareModel         string `db:"hardware_model"`
+		HardwareSerial        string `db:"hardware_serial"`
+		CertificateTemplateID uint   `db:"certificate_template_id"`
+		CertificateName       string `db:"certificate_name"`
+	}
+	var rows []row
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select cert templates to resend")
+	}
+
+	activities := make([]fleet.ActivityTypeResentCertificate, 0, len(rows))
+	for _, r := range rows {
+		activities = append(activities, fleet.ActivityTypeResentCertificate{
+			HostID:                r.HostID,
+			HostDisplayName:       fleet.HostDisplayName(r.ComputerName, r.Hostname, r.HardwareModel, r.HardwareSerial),
+			CertificateTemplateID: r.CertificateTemplateID,
+			CertificateName:       r.CertificateName,
+		})
+	}
+	return activities, nil
+}
+
+func fleetVarNamesToDBVars(vars []fleet.FleetVarName) []any {
+	result := make([]any, len(vars))
+	for i, v := range vars {
+		result[i] = "FLEET_VAR_" + string(v)
+	}
+	return result
 }
 
 func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
@@ -1381,7 +1491,29 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		"affected_vars":          vars,
 	}
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery} {
+	const androidUpdateStatusQuery = `
+	UPDATE
+		host_mdm_android_profiles hmap
+		JOIN hosts h
+			ON h.uuid = hmap.host_uuid
+		JOIN mdm_android_configuration_profiles macp
+			ON (macp.team_id = COALESCE(h.team_id, 0)) AND
+				 macp.profile_uuid = hmap.profile_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.android_profile_uuid = macp.profile_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmap.status = NULL,
+		hmap.detail = NULL
+	WHERE
+		h.id IN (:host_ids) AND
+		hmap.operation_type = :operation_type_install AND
+		hmap.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
 		updateStmt, args, err := sqlx.Named(query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
@@ -1474,7 +1606,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 
 	// Get the enterprise name from the DB.
 	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises LIMIT 1`); err != nil {
+	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No enterprise configured — nothing to do.
 			return nil
@@ -1485,8 +1617,8 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 
 	// Insert a job for each affected app config.
 	const insertJob = `
-	INSERT INTO jobs (name, args, state)
-	VALUES (?, ?, 'queued')
+	INSERT INTO jobs (name, args, state, error)
+	VALUES (?, ?, 'queued', '')
 `
 	for _, app := range apps {
 		args, err := json.Marshal(map[string]any{

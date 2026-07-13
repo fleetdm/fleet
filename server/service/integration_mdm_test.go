@@ -6846,6 +6846,101 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.True(t, q.Has("error"))
 }
 
+// TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for
+// https://github.com/fleetdm/fleet/issues/47626.
+//
+// In the Orbit Setup Experience SSO flow (Linux/Windows) the device's host UUID
+// is provided in the SSO request data. Previously mdmSSOHandleCallbackAuth keyed
+// the mdm_idp_accounts row on that host UUID, so a device re-enrolling and
+// signing in with a *different* IdP email collided on the primary key. The
+// ON DUPLICATE KEY UPDATE clause did not touch the email, so the row kept the
+// old email and the immediate GetMDMIdPAccountByEmail read-back returned
+// not-found, surfacing as "retrieving new account data from IdP" and a failed
+// SSO login. The account UUID is now DB-generated (matching the Apple flow), so
+// the second login find-or-creates the account by email and succeeds.
+//
+// Note: the pre-existing TestSSO also re-enrolls a second user, but via the
+// Apple initiator with no host UUID, where the account UUID was always
+// generated — which is exactly why it never caught this bug.
+func (s *integrationMDMTestSuite) TestMDMSSOReenrollWithDifferentIdPEmail() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Configure MDM end-user authentication SSO against the test IdP.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"server_settings": { "server_url": "https://localhost:8080" },
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "mdm.test.com",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "%s"
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
+		}
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+
+	// TearDownTest clears the SSO provider settings but not
+	// macos_setup.enable_end_user_authentication, so disable end-user auth here
+	// (via t.Cleanup, so it runs even if the test fails) to avoid leaking the
+	// enabled-without-IdP state into subsequent suite tests.
+	t.Cleanup(func() {
+		var cleanupResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &cleanupResp)
+	})
+
+	// A single device (identified by a stable host UUID) enrolls, is deleted and
+	// re-enrolls under the same host UUID, signing in as two different IdP users.
+	hostUUID := uuid.NewString()
+
+	// First enrollment: sign in as sso_user (sso_user@example.com).
+	res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	loc, err := url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	require.False(t, loc.Query().Has("error"), "first setup-experience SSO login should succeed")
+
+	acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acct)
+	require.Equal(t, "sso_user@example.com", acct.Email)
+	// The account UUID must not be the host UUID — that coupling was the root
+	// cause of #47626.
+	require.NotEqual(t, hostUUID, acct.UUID)
+	firstAcctUUID := acct.UUID
+
+	// Re-enrollment: SAME host UUID, but a DIFFERENT IdP user, sso_user2
+	// (sso_user2@example.com). This is the scenario that previously failed with
+	// "retrieving new account data from IdP".
+	res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	loc, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	require.False(t, loc.Query().Has("error"),
+		"re-enrollment SSO with a different IdP email must not fail (#47626)")
+
+	// The host is now linked to the new user's account.
+	acct, err = s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acct)
+	require.Equal(t, "sso_user2@example.com", acct.Email)
+	require.NotEqual(t, firstAcctUUID, acct.UUID, "host should be re-pointed to the new account")
+}
+
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
 	acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 	require.NoError(t, err)
