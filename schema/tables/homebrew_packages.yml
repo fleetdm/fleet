@@ -8,10 +8,6 @@ columns:
     description: 1 if the cask auto-updates otherwise 0
     type: integer
     required: false
-    description: # (required) string - The column's description
-    type: # (required) string - the column's data type
-    required: # (required) boolean - whether or not this column is required to query this table.
-    platforms: # (optional) array - List of supported platforms, used to clarify when a column isn't available on every platform its table supports (any of: `darwin`, `windows`, `linux`, `chrome`)
   - name: name
     description: Package name
     type: text
