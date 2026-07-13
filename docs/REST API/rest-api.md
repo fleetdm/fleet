@@ -3119,7 +3119,7 @@ None.
 - [Run live report on host by identifier (ad hoc)](#run-live-report-on-host-by-identifier-ad-hoc)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 - [Get host's managed account password](#get-hosts-managed-account-password)
-- [Release host from AB](#release-host-from-ab)
+- [Release host from Apple Business](#release-host-from-apple-business)
 
 
 #### About host timestamps
