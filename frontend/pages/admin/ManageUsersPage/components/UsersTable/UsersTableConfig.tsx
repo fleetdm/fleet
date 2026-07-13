@@ -102,7 +102,7 @@ const isInactive = (user: IUser): boolean => {
     return false;
   }
   const msSinceSeen = Date.now() - new Date(lastSeen).getTime();
-  return msSinceSeen > INACTIVE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+  return msSinceSeen >= INACTIVE_AFTER_DAYS * 24 * 60 * 60 * 1000;
 };
 
 const hasNoAccess = (data: IUser | IInvite): boolean =>
