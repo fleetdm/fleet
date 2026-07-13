@@ -49,8 +49,8 @@ func TestMissingCustomHostVitalValueError(t *testing.T) {
 	single := MissingCustomHostVitalValueError{MissingIDs: []uint{5}}
 	require.Contains(t, single.Error(), `"$FLEET_HOST_VITAL_5"`)
 	require.Contains(t, single.Error(), "no value set for this host")
-	// Distinct from the upload-time "missing from database" wording.
-	require.NotContains(t, single.Error(), "missing from database")
+	// Distinct from the upload-time "is not defined" wording.
+	require.NotContains(t, single.Error(), "is not defined")
 
 	multi := MissingCustomHostVitalValueError{MissingIDs: []uint{5, 9}}
 	require.Contains(t, multi.Error(), "custom host vitals")

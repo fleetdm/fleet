@@ -30,6 +30,7 @@ func TestCustomHostVitals(t *testing.T) {
 		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
 		{"SetHostValueResendsReferencingProfiles", testSetHostCustomHostVitalValueResendsProfiles},
 		{"ReconcileSnapshotMarksVitalDeclarations", testReconcileSnapshotMarksVitalDeclarations},
+		{"ValidateReferencedCustomHostVitalsRejectsMalformed", testValidateReferencedCustomHostVitalsRejectsMalformed},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -268,7 +269,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
 		require.Equal(t, "apple_profile", useErr.Entity.Type)
 		require.Equal(t, "Name0", useErr.Entity.Name)
-		require.Equal(t, "No team", useErr.Entity.FleetName)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
 
 		// Deleting an unreferenced vital is allowed.
 		_, err = ds.DeleteCustomHostVital(ctx, id2)
@@ -316,7 +317,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
 		require.Equal(t, "windows_profile", useErr.Entity.Type)
 		require.Equal(t, "zoo", useErr.Entity.Name)
-		require.Equal(t, "No team", useErr.Entity.FleetName)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
 
 		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, winProfile.ProfileUUID))
 	})
@@ -513,4 +514,35 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 		"declaration referencing a custom host vital should be marked HasFleetVariables")
 	assert.False(t, plainDecl.HasFleetVariables, //nolint:nilaway // cannot be nil due to require.NotNil above
 		"declaration without any variables should not be marked")
+}
+
+// A $FLEET_HOST_VITAL_ token whose suffix isn't a valid vital ID must be rejected on upload
+func testValidateReferencedCustomHostVitalsRejectsMalformed(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	vitalID := createCustomHostVital(t, ds, "Function")
+
+	// Valid numeric reference to an existing vital passes.
+	require.NoError(t, ds.ValidateReferencedCustomHostVitals(ctx,
+		[]string{fmt.Sprintf("echo $%s%d", fleet.CustomHostVitalPrefix, vitalID)}))
+
+	// Non-numeric suffix is a malformed reference -> InvalidCustomHostVitalRefError.
+	var invalidErr *fleet.InvalidCustomHostVitalRefError
+	err := ds.ValidateReferencedCustomHostVitals(ctx,
+		[]string{fmt.Sprintf("echo $%sasset_tag", fleet.CustomHostVitalPrefix)})
+	require.ErrorAs(t, err, &invalidErr)
+
+	// Braced malformed form -> also InvalidCustomHostVitalRefError.
+	invalidErr = nil
+	err = ds.ValidateReferencedCustomHostVitals(ctx,
+		[]string{fmt.Sprintf("echo ${%sFOOBAR}", fleet.CustomHostVitalPrefix)})
+	require.ErrorAs(t, err, &invalidErr)
+
+	// Numeric-but-nonexistent id -> MissingCustomHostVitalsError (distinct from malformed).
+	var missingErr *fleet.MissingCustomHostVitalsError
+	err = ds.ValidateReferencedCustomHostVitals(ctx,
+		[]string{fmt.Sprintf("echo $%s999999", fleet.CustomHostVitalPrefix)})
+	require.ErrorAs(t, err, &missingErr)
+
+	// No token at all -> no error.
+	require.NoError(t, ds.ValidateReferencedCustomHostVitals(ctx, []string{"echo hello"}))
 }

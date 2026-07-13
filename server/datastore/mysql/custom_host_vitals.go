@@ -118,10 +118,10 @@ func (ds *Datastore) DeleteCustomHostVital(ctx context.Context, id uint) (name s
 		}
 
 		// Refuse to delete a definition still referenced by a script/profile.
-		if useErr, err := customHostVitalUsedBy(ctx, tx, id, name); err != nil {
+		if usedByInfo, err := customHostVitalUsedBy(ctx, tx, id, name); err != nil {
 			return ctxerr.Wrap(ctx, err, "checking custom host vital references")
-		} else if useErr != nil {
-			return ctxerr.Wrap(ctx, useErr, "found custom host vital in use")
+		} else if usedByInfo != nil {
+			return ctxerr.Wrap(ctx, &fleet.CustomHostVitalUsedError{CustomHostVitalUsedInfo: *usedByInfo}, "found custom host vital in use")
 		}
 
 		if _, err := tx.ExecContext(ctx, `DELETE FROM custom_host_vitals WHERE id = ?`, id); err != nil {
@@ -151,10 +151,10 @@ type customHostVitalRefEntity struct {
 // customHostVitalUsedBy scans script_contents, Apple configuration profiles,
 // Apple declarations, and Windows configuration profiles for a
 // $FLEET_HOST_VITAL_<id> (or ${FLEET_HOST_VITAL_<id>}) reference to the given
-// vital id. It returns a *fleet.CustomHostVitalUsedError describing the first
+// vital id. It returns a *fleet.CustomHostVitalUsedInfo describing the first
 // referencing entity found, or nil if unreferenced. Mirrors the scan structure
 // of DeleteSecretVariable. The second return is a real DB error.
-func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, name string) (*fleet.CustomHostVitalUsedError, error) {
+func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, name string) (*fleet.CustomHostVitalUsedInfo, error) {
 	// The token embeds the numeric id (survives renames), so match by id, not name.
 	token := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, id)
 
@@ -168,7 +168,7 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 		{
 			desc: "get script contents",
 			stmt: `SELECT 'script' AS entity, s.name,
-				COALESCE(t.name, 'No team') AS team_name, sc.contents
+				COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 				FROM script_contents sc
 				JOIN scripts s ON s.script_content_id = sc.id
 				LEFT JOIN teams t ON t.id = s.team_id;`,
@@ -176,21 +176,21 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 		{
 			desc: "get apple profile contents",
 			stmt: `SELECT 'apple_profile' AS entity, p.name,
-				COALESCE(t.name, 'No team') AS team_name, p.mobileconfig AS contents
+				COALESCE(t.name, 'Unassigned') AS team_name, p.mobileconfig AS contents
 				FROM mdm_apple_configuration_profiles p
 				LEFT JOIN teams t ON t.id = p.team_id;`,
 		},
 		{
 			desc: "get apple declaration contents",
 			stmt: `SELECT 'apple_declaration' AS entity, d.name,
-				COALESCE(t.name, 'No team') AS team_name, d.raw_json AS contents
+				COALESCE(t.name, 'Unassigned') AS team_name, d.raw_json AS contents
 				FROM mdm_apple_declarations d
 				LEFT JOIN teams t ON t.id = d.team_id;`,
 		},
 		{
 			desc: "get windows profile contents",
 			stmt: `SELECT 'windows_profile' AS entity, p.name,
-				COALESCE(t.name, 'No team') AS team_name, p.syncml AS contents
+				COALESCE(t.name, 'Unassigned') AS team_name, p.syncml AS contents
 				FROM mdm_windows_configuration_profiles p
 				LEFT JOIN teams t ON t.id = p.team_id;`,
 		},
@@ -200,7 +200,7 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 		{
 			desc: "get software installer script contents",
 			stmt: `SELECT 'software_installer' AS entity, COALESCE(st.name, si.filename) AS name,
-				COALESCE(t.name, 'No team') AS team_name, sc.contents
+				COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 				FROM software_installers si
 				JOIN script_contents sc ON sc.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
 				LEFT JOIN software_titles st ON st.id = si.title_id
@@ -209,7 +209,7 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 		{
 			desc: "get setup experience script contents",
 			stmt: `SELECT 'setup_experience_script' AS entity, ses.name,
-				COALESCE(t.name, 'No team') AS team_name, sc.contents
+				COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 				FROM setup_experience_scripts ses
 				JOIN script_contents sc ON sc.id = ses.script_content_id
 				LEFT JOIN teams t ON t.id = ses.team_id;`,
@@ -223,7 +223,7 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 		}
 		for _, e := range entities {
 			if fleet.ContainsVar(e.Contents, token) {
-				return &fleet.CustomHostVitalUsedError{
+				return &fleet.CustomHostVitalUsedInfo{
 					CustomHostVitalID:   id,
 					CustomHostVitalName: name,
 					Entity: fleet.EntityUsingCustomHostVital{
@@ -261,28 +261,6 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 	})
 }
 
-// The resend SELECTs below filter on host_uuid first, which is the leftmost
-// column of each host-profile table's PRIMARY KEY (host_uuid, {profile,declaration}_uuid).
-// The INSTR content match therefore only evaluates the rows for a single host
-// (the profiles/declarations assigned to it), not the whole table — so cost is
-// independent of fleet size.
-const (
-	customHostVitalResendAppleProfilesSelectStmt = `SELECT hmap.profile_uuid AS uuid, macp.mobileconfig AS contents
-		FROM host_mdm_apple_profiles hmap
-		JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
-		WHERE hmap.host_uuid = ? AND hmap.operation_type = ? AND hmap.status IS NOT NULL AND INSTR(macp.mobileconfig, ?) > 0`
-
-	customHostVitalResendWindowsProfilesSelectStmt = `SELECT hmwp.profile_uuid AS uuid, mwcp.syncml AS contents
-		FROM host_mdm_windows_profiles hmwp
-		JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
-		WHERE hmwp.host_uuid = ? AND hmwp.operation_type = ? AND hmwp.status IS NOT NULL AND INSTR(mwcp.syncml, ?) > 0`
-
-	customHostVitalResendAppleDeclarationsSelectStmt = `SELECT hmad.declaration_uuid AS uuid, mad.raw_json AS contents
-		FROM host_mdm_apple_declarations hmad
-		JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
-		WHERE hmad.host_uuid = ? AND hmad.operation_type = ? AND hmad.status IS NOT NULL AND INSTR(mad.raw_json, ?) > 0`
-)
-
 // resendMDMProfilesForCustomHostVital resets the status of the Apple/Windows
 // configuration profiles and Apple DDM declarations already delivered to the
 // host that reference $FLEET_HOST_VITAL_<vitalID>, so the reconcilers resend
@@ -309,6 +287,27 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 	// narrows candidates; it deliberately over-matches (ignores the id) so the
 	// Go pass does the authoritative match.
 	varName := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)
+
+	// These SELECTs filter on host_uuid first — the leftmost column of each
+	// host-profile table's PRIMARY KEY (host_uuid, {profile,declaration}_uuid) —
+	// so the INSTR content match only evaluates this one host's rows, not the
+	// whole table; cost is independent of fleet size.
+	const (
+		customHostVitalResendAppleProfilesSelectStmt = `SELECT hmap.profile_uuid AS uuid, macp.mobileconfig AS contents
+			FROM host_mdm_apple_profiles hmap
+			JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
+			WHERE hmap.host_uuid = ? AND hmap.operation_type = ? AND hmap.status IS NOT NULL AND INSTR(macp.mobileconfig, ?) > 0`
+
+		customHostVitalResendWindowsProfilesSelectStmt = `SELECT hmwp.profile_uuid AS uuid, mwcp.syncml AS contents
+			FROM host_mdm_windows_profiles hmwp
+			JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
+			WHERE hmwp.host_uuid = ? AND hmwp.operation_type = ? AND hmwp.status IS NOT NULL AND INSTR(mwcp.syncml, ?) > 0`
+
+		customHostVitalResendAppleDeclarationsSelectStmt = `SELECT hmad.declaration_uuid AS uuid, mad.raw_json AS contents
+			FROM host_mdm_apple_declarations hmad
+			JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+			WHERE hmad.host_uuid = ? AND hmad.operation_type = ? AND hmad.status IS NOT NULL AND INSTR(mad.raw_json, ?) > 0`
+	)
 
 	targets := []struct {
 		desc       string
@@ -443,10 +442,25 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 // any unknown ids.
 func (ds *Datastore) ValidateReferencedCustomHostVitals(ctx context.Context, documents []string) error {
 	wantIDs := make(map[uint]struct{})
+	var malformed []string
+	seenMalformed := make(map[string]struct{})
 	for _, document := range documents {
+		// A $FLEET_HOST_VITAL_<x> token whose <x> isn't a valid ID (e.g. a typo like
+		// $FLEET_HOST_VITAL_asset_tag) is rejected rather than silently delivered as
+		// a literal token, matching how $FLEET_VAR_*/$FLEET_SECRET_* reject unknowns.
+		for _, ref := range fleet.ContainsMalformedCustomHostVitalRefs(document) {
+			if _, ok := seenMalformed[ref]; ok {
+				continue
+			}
+			seenMalformed[ref] = struct{}{}
+			malformed = append(malformed, ref)
+		}
 		for _, id := range fleet.ContainsCustomHostVitalIDs(document) {
 			wantIDs[id] = struct{}{}
 		}
+	}
+	if len(malformed) > 0 {
+		return &fleet.InvalidCustomHostVitalRefError{Refs: malformed}
 	}
 	if len(wantIDs) == 0 {
 		return nil

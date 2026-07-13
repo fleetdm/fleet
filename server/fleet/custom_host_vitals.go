@@ -51,7 +51,30 @@ func (e MissingCustomHostVitalsError) Error() string {
 	if len(tokens) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't add. Custom host vital%s %s missing from database", plural, strings.Join(tokens, ", "))
+	return fmt.Sprintf("Couldn't add. Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
+}
+
+// InvalidCustomHostVitalRefError is returned on upload when a document contains a
+// $FLEET_HOST_VITAL_<x> token whose <x> is not a valid custom host vital ID
+// (a positive integer) — e.g. a typo like $FLEET_HOST_VITAL_asset_tag.
+type InvalidCustomHostVitalRefError struct {
+	// Refs are the offending tokens without the leading '$', e.g. "FLEET_HOST_VITAL_asset_tag".
+	Refs []string
+}
+
+func (e InvalidCustomHostVitalRefError) Error() string {
+	tokens := make([]string, 0, len(e.Refs))
+	for _, r := range e.Refs {
+		tokens = append(tokens, fmt.Sprintf("\"$%s\"", r))
+	}
+	plural := ""
+	if len(tokens) > 1 {
+		plural = "s"
+	}
+	return fmt.Sprintf(
+		"Couldn't add. Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
+		plural, strings.Join(tokens, ", "), CustomHostVitalPrefix,
+	)
 }
 
 // MissingCustomHostVitalValueError is returned when expanding $FLEET_HOST_VITAL_<id>
@@ -85,16 +108,17 @@ type EntityUsingCustomHostVital struct {
 	FleetName string
 }
 
-type CustomHostVitalUsedError struct {
+// CustomHostVitalUsedInfo describes a script/profile/declaration that references a custom host vital.
+type CustomHostVitalUsedInfo struct {
 	CustomHostVitalID   uint
 	CustomHostVitalName string
 	Entity              EntityUsingCustomHostVital
 }
 
-// Error implements the error interface.
-func (e *CustomHostVitalUsedError) Error() string {
+// Message returns the human-readable "X is used by Y" explanation.
+func (i CustomHostVitalUsedInfo) Message() string {
 	noun, action := "configuration profile", "Please delete the configuration profile and try again."
-	switch e.Entity.Type {
+	switch i.Entity.Type {
 	case "script":
 		noun, action = "script", "Please edit or delete the script and try again."
 	case "software_installer":
@@ -103,9 +127,19 @@ func (e *CustomHostVitalUsedError) Error() string {
 		noun, action = "setup experience script", "Please edit or delete the setup experience script and try again."
 	}
 	return fmt.Sprintf(
-		"Custom host vital %q (used as $%s%d) is used by the %q %s in the %q team. %s",
-		e.CustomHostVitalName, CustomHostVitalPrefix, e.CustomHostVitalID, e.Entity.Name, noun, e.Entity.FleetName, action,
+		"Custom host vital %q (used as $%s%d) is used by the %q %s in the %q fleet. %s",
+		i.CustomHostVitalName, CustomHostVitalPrefix, i.CustomHostVitalID, i.Entity.Name, noun, i.Entity.FleetName, action,
 	)
+}
+
+// CustomHostVitalUsedError wraps CustomHostVitalUsedInfo as an error, returned when
+// a custom host vital can't be deleted because it is still referenced.
+type CustomHostVitalUsedError struct {
+	CustomHostVitalUsedInfo
+}
+
+func (e *CustomHostVitalUsedError) Error() string {
+	return e.Message()
 }
 
 func ValidateCustomHostVitalName(name string) error {
@@ -140,4 +174,18 @@ func ContainsCustomHostVitalIDs(text string) []uint {
 		ids = append(ids, uint(id))
 	}
 	return ids
+}
+
+// ContainsMalformedCustomHostVitalRefs returns the $FLEET_HOST_VITAL_<x> tokens in
+// text whose <x> is not a valid custom host vital ID (a positive integer), e.g. a
+// typo like $FLEET_HOST_VITAL_asset_tag.
+// Returned tokens omit the leading '$' (e.g. "FLEET_HOST_VITAL_asset_tag").
+func ContainsMalformedCustomHostVitalRefs(text string) []string {
+	var malformed []string
+	for _, s := range ContainsPrefixVars(text, CustomHostVitalPrefix) {
+		if id, err := strconv.ParseUint(s, 10, 64); err != nil || id == 0 {
+			malformed = append(malformed, CustomHostVitalPrefix+s)
+		}
+	}
+	return malformed
 }
