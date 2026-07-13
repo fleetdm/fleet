@@ -367,7 +367,6 @@ import Fantastical from "./Fantastical";
 import Far2L from "./Far2L";
 import Farrago from "./Farrago";
 import Fastmail from "./Fastmail";
-import FastpictureviewerProfessional from "./FastpictureviewerProfessional";
 import Fastscripts from "./Fastscripts";
 import FaststoneCapture from "./FaststoneCapture";
 import FaststoneImageViewer from "./FaststoneImageViewer";
@@ -1482,7 +1481,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   far2l: Far2L,
   farrago: Farrago,
   fastmail: Fastmail,
-  "fastpictureviewer professional": FastpictureviewerProfessional,
   fastscripts: Fastscripts,
   "faststone capture": FaststoneCapture,
   "faststone image viewer": FaststoneImageViewer,

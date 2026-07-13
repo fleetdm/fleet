@@ -14,7 +14,7 @@ try {
 
     $processOptions = @{
         FilePath = "$exeFilePath"
-        ArgumentList = "/quiet /norestart"
+        ArgumentList = "/quiet"
         PassThru = $true
         Wait = $true
         NoNewWindow = $true

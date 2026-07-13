@@ -3152,13 +3152,6 @@
       "description": "Fastmail is an email client."
     },
     {
-      "name": "FastPictureViewer Professional",
-      "slug": "fastpictureviewer-professional/windows",
-      "platform": "windows",
-      "unique_identifier": "FastPictureViewer Professional",
-      "description": "FastPictureViewer Professional is a fast RAW image viewer for digital photographers."
-    },
-    {
       "name": "FastScripts",
       "slug": "fastscripts/darwin",
       "platform": "darwin",
