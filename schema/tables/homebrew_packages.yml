@@ -1,4 +1,49 @@
 name: homebrew_packages
+columns:
+  - name: app_name
+    description: Name of the installed App (for Casks)
+    type: text
+    required: false
+  - name: auto_updates
+    description: 1 if the cask auto-updates otherwise 0
+    type: integer
+    required: false
+    description: # (required) string - The column's description
+    type: # (required) string - the column's data type
+    required: # (required) boolean - whether or not this column is required to query this table.
+    platforms: # (optional) array - List of supported platforms, used to clarify when a column isn't available on every platform its table supports (any of: `darwin`, `windows`, `linux`, `chrome`)
+  - name: name
+    description: Package name
+    type: text
+    required: false
+  - name: path
+    description: 	Package install path
+    type: test
+    required: false
+  - name: app_name
+    description: Homebrew install prefix
+    type: text
+    required: false
+  - name: type
+    description: 	Package type ('formula' or 'cask')
+    type: text
+    required: false
+  - name: version
+    description: 	Current 'linked' version
+    type: text
+    required: false
+  - name: version
+    description: 	Current 'linked' version
+    type: text
+    required: false
+  - name: current_version
+    description: 	Latest available version from Homebrew (not the installed version). Empty if unavailable.
+    type: text
+    required: false
+  - name: is_latest
+    description: 	"yes" if the installed version matches the latest available version, "no" otherwise. Empty if latest_version is unavailable.
+    type: text
+    required: false
 examples: |-
   Check the version of a package installed via homebrew. This example checks the
   version of ffmeg, which should be replaced by the actual package you want to
