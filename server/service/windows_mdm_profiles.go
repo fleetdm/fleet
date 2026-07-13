@@ -103,7 +103,7 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		Name:   profileName,
 		SyncML: data,
 	}
-	if err := cp.ValidateUserProvided(); err != nil {
+	if err := cp.ValidateUserProvided(svc.config.MDM.IsCustomDiskEncryptionEnabled()); err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 			return nil, nil, "", ctxerr.Wrap(ctx,
@@ -267,7 +267,7 @@ func (svc *Service) handleWindowsProfileSoftwareUpdate(
 	syncML []byte,
 	teamID uint,
 ) error {
-	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+	if !fleet.ProfileTargetsReservedLocURI(syncML, syncml.FleetOSUpdateTargetLocURI) {
 		return nil
 	}
 

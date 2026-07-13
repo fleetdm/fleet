@@ -2804,6 +2804,24 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		return err
 	})
 
+	// --- Android configuration profile resend ---
+
+	// Create an Android config profile with a variable.
+	androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		TeamID:  new(uint), // team 0
+		Name:    "android-var-profile",
+		RawJSON: []byte(`{"screenCaptureDisabled": true, "shortSupportMessage": {"defaultMessage": "User $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+
+	// Create a host_mdm_android_profiles row in "verified" status.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, status, operation_type, checksum) VALUES (?, ?, 'android-var-profile', 'verified', 'install', 'abc123')`,
+			host.UUID, androidProfile.ProfileUUID)
+		return err
+	})
+
 	// --- Managed app config resend ---
 
 	// Create an android enterprise (required for job queuing).
@@ -2853,7 +2871,17 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, string(fleet.CertificateTemplatePending), certStatus, "cert template should be reset to pending")
 
-	// (2) Assert a software_worker job was queued for the managed app config.
+	// (2) Assert android config profile was reset to pending (status = NULL).
+	var androidProfileStatus *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&androidProfileStatus,
+			`SELECT status FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, androidProfile.ProfileUUID)
+	})
+	assert.Nil(t, androidProfileStatus, "android profile status should be reset to NULL (pending)")
+
+	// (3) Assert a software_worker job was queued for the managed app config.
 	type jobRow struct {
 		Name string          `db:"name"`
 		Args json.RawMessage `db:"args"`

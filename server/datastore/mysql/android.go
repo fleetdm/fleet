@@ -607,7 +607,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
 
-func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
@@ -676,6 +676,11 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "android"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting android profile label associations")
+		}
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: profileUUID, FleetVariables: usesFleetVars},
+		}, "android", false); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting android profile variable associations")
 		}
 
 		return nil
@@ -1800,6 +1805,7 @@ func (ds *Datastore) batchSetMDMAndroidProfiles(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAndroidConfigProfile,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	if len(profiles) == 0 {
 		rowsAffected, err := ds.deleteAllAndroidProfiles(ctx, tx, tmID)
@@ -1934,7 +1940,7 @@ WHERE
 		})
 	}
 
-	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, nil)
+	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, profilesVariablesByIdentifier)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
 	}

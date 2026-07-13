@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "22.0.28.91",
+      "version": "23.0.32.91",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitrixsoft.bitrix24desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitrixsoft.bitrix24desktop' AND version_compare(bundle_short_version, '22.0.28.91') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitrixsoft.bitrix24desktop' AND version_compare(bundle_short_version, '23.0.32.91') < 0);"
       },
       "installer_url": "https://dl.bitrix24.com/b24/bitrix24_desktop_arm.dmg",
       "install_script_ref": "75d7824e",

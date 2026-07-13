@@ -1,5 +1,5 @@
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import endpoints from "utilities/endpoints";
 import { IEulaMetadataResponse } from "services/entities/mdm";
@@ -30,9 +30,9 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
             {eulaData.name}
           </span>
           <span className={`${baseClass}__list-item-uploaded`}>
-            {`Uploaded ${formatDistanceToNow(
-              new Date(eulaData.created_at)
-            )} ago`}
+            {`Uploaded ${timeAgo(new Date(eulaData.created_at), {
+              addSuffix: true,
+            })}`}
           </span>
         </div>
       </div>

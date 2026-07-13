@@ -7,7 +7,10 @@ import { createCustomRenderer, baseUrl } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 
-import ChartCard, { buildInitialChartFilters } from "./ChartCard";
+import ChartCard, {
+  buildInitialChartFilters,
+  hostFilterLines,
+} from "./ChartCard";
 
 // Mock ResizeObserver for CheckerboardViz
 const MOCK_WIDTH = 600;
@@ -200,7 +203,7 @@ describe("ChartCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("excludes mobile platforms by default and shows the Filtered badge", async () => {
+  it("includes mobile platforms by default and does not show the Filtered badge", async () => {
     let requestedPlatforms: string | null = null;
     mockServer.use(
       http.get(baseUrl("/charts/:metric"), ({ params, request }) => {
@@ -213,15 +216,14 @@ describe("ChartCard", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<ChartCard />);
 
-    // The default platform filter is the four non-mobile platforms, which both
-    // excludes iOS/iPadOS/Android and surfaces the "Filtered" badge on load.
+    // No platform filter is active by default, so all platforms (including
+    // iOS/iPadOS/Android) are included and the "Filtered" badge is absent.
     await waitFor(() => {
-      expect(screen.getByText("Filtered")).toBeInTheDocument();
+      const rects = document.querySelectorAll("rect");
+      expect(rects.length).toBeGreaterThan(0);
     });
-    await waitFor(() => {
-      expect(requestedPlatforms).toBe("darwin,windows,linux,chrome");
-    });
-    expect(requestedPlatforms).not.toMatch(/ios|ipados|android/);
+    expect(requestedPlatforms).toBeNull();
+    expect(screen.queryByText("Filtered")).not.toBeInTheDocument();
   });
 });
 
@@ -265,5 +267,44 @@ describe("buildInitialChartFilters", () => {
       exclude_vulnerabilities: ["CVE-2025-50897"],
     });
     expect(filters.excludeCVEs).toEqual(["CVE-2025-50897"]);
+  });
+});
+
+describe("hostFilterLines", () => {
+  const filtersWithPlatforms = (platforms: string[]) => ({
+    ...buildInitialChartFilters(undefined),
+    platforms,
+  });
+
+  it("preserves branded platform casing (macOS, iOS, iPadOS)", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms(["darwin", "ios", "ipados"])
+    );
+    expect(line).toBe("macOS, iOS, and iPadOS");
+    // Guards the reported bug: no word-capitalized variants.
+    expect(line).not.toMatch(/MacOS|Ios|Ipados/);
+  });
+
+  it("renders a single platform without mangling its casing", () => {
+    expect(hostFilterLines(filtersWithPlatforms(["darwin"]))).toEqual([
+      "macOS",
+    ]);
+  });
+
+  it("maps every filterable platform to its correct display name", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms([
+        "darwin",
+        "windows",
+        "linux",
+        "chrome",
+        "ios",
+        "ipados",
+        "android",
+      ])
+    );
+    expect(line).toBe(
+      "macOS, Windows, Linux, ChromeOS, iOS, iPadOS, and Android"
+    );
   });
 });

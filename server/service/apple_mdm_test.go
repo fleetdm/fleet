@@ -1318,9 +1318,21 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return []*fleet.DDMAsset{
+			{
+				Identifier: "valid-asset",
+			},
+		}, nil
+	}
+
+	// decl using a missing asset
+	b = declarationForTestWithAssetReference("D1", "missing-asset")
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
+	require.ErrorContains(t, err, `Asset ("missing-asset") doesn't exist`)
 
 	// Good declaration
-	b = declBytesForTest("D1", "d1content")
+	b = declarationForTestWithAssetReference("D1", "valid-asset")
 	d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, d)
@@ -1699,7 +1711,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Status subscription declarations are forbidden
 		b := []byte(`{
 			"Type": "com.apple.configuration.management.status-subscriptions",
-			"Identifier": "test-status-sub"
+			"Identifier": "test-status-sub",
+			"Payload": {}
 		}`)
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
@@ -1724,7 +1737,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Status subscription declarations are forbidden but should be allowed when skip is enabled
 		b := []byte(`{
 			"Type": "com.apple.configuration.management.status-subscriptions",
-			"Identifier": "test-status-sub"
+			"Identifier": "test-status-sub",
+			"Payload": {}
 		}`)
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
@@ -1742,7 +1756,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Non com.apple.configuration.* types are invalid
 		b := []byte(`{
 			"Type": "com.example.invalid",
-			"Identifier": "test-invalid"
+			"Identifier": "test-invalid",
+			"Payload": {}
 		}`)
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
@@ -1767,7 +1782,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Invalid type should be allowed when skip is enabled
 		b := []byte(`{
 			"Type": "com.example.invalid",
-			"Identifier": "test-invalid"
+			"Identifier": "test-invalid",
+			"Payload": {}
 		}`)
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
@@ -1784,11 +1800,13 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 	const (
 		osUpdateDecl = `{
 			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
-			"Identifier": "test-os-update"
+			"Identifier": "test-os-update",
+			"Payload": {}
 		}`
 		otherDecl = `{
 			"Type": "com.apple.configuration.passcode.settings",
-			"Identifier": "test-passcode"
+			"Identifier": "test-passcode",
+			"Payload": {}
 		}`
 	)
 
@@ -2425,6 +2443,76 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	// Permissions must NOT be rewritten during SCEP renewal — doing so would
 	// widen a personal enrollment's bitmask back to MDMAccessRightAll.
 	require.False(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+}
+
+// When a device re-enrolls (fresh) presenting a new-enrollment identity cert, a stale pending SCEP
+// renewal must NOT short-circuit the enrollment. Authenticate detects the FleetEnrollmentSubjectOU
+// marker in the cert Subject, clears the renew refs, and runs the checkin as a fresh enrollment
+// (host upsert + non-renewal reset + permissions written).
+func TestMDMAuthenticateSCEPRenewalWithNewEnrollmentCert(t *testing.T) {
+	ds := new(mock.Store)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		return nil
+	})
+
+	svc := MDMAppleCheckinAndCommandService{
+		ds:           ds,
+		mdmLifecycle: mdmLifecycle,
+		logger:       slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:        serial,
+			DisplayName:           fmt.Sprintf("%s (%s)", model, serial),
+			SCEPRenewalInProgress: true,
+		}, nil
+	}
+	ds.CleanSCEPRenewRefsFunc = func(ctx context.Context, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		return nil
+	}
+	// The new-enrollment cert marker overrides the stale renewal, so the reset runs as a fresh
+	// enrollment (scepRenewalInProgress == false) and the host is upserted.
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+		require.Equal(t, uuid, hostUUID)
+		require.False(t, scepRenewalInProgress)
+		return nil
+	}
+	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
+		require.Equal(t, uuid, mdmHost.UUID)
+		return nil
+	}
+	ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{
+			Context:     ctx,
+			EnrollID:    &mdm.EnrollID{ID: uuid},
+			Certificate: &x509.Certificate{Subject: pkix.Name{OrganizationalUnit: []string{apple_mdm.FleetEnrollmentSubjectOU}}},
+		},
+		&mdm.Authenticate{
+			Enrollment:   mdm.Enrollment{UDID: uuid},
+			SerialNumber: serial,
+			Model:        model,
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.CleanSCEPRenewRefsFuncInvoked)
+	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
+	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
+	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+}
+
+func TestCertIsFromNewEnrollment(t *testing.T) {
+	require.False(t, certIsFromNewEnrollment(nil))
+	require.False(t, certIsFromNewEnrollment(&x509.Certificate{Subject: pkix.Name{OrganizationalUnit: []string{"Some Other OU"}}}))
+	require.True(t, certIsFromNewEnrollment(&x509.Certificate{Subject: pkix.Name{OrganizationalUnit: []string{apple_mdm.FleetEnrollmentSubjectOU}}}))
 }
 
 func TestAppleMDMUnenrollment(t *testing.T) {
@@ -4666,7 +4754,7 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic", apple_mdm.MDMAccessRightAll)
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic", apple_mdm.MDMAccessRightAll, true)
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
 }
@@ -7338,6 +7426,119 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	vars, err = validateConfigProfileFleetVariables(profileNoVars, freeLic, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
 	require.Empty(t, vars)
+}
+
+// pssoProfileForValidation builds a com.apple.extensiblesso profile for the
+// PSSO device-registration-token placement tests. extraPayload, when non-empty,
+// is inserted as a second payload dict in PayloadContent (used to test the
+// variable leaking outside the SSO payload).
+func pssoProfileForValidation(extensionID, registrationToken string, useSharedDeviceKeys bool, extraPayload string) string {
+	usdk := "<false/>"
+	if useSharedDeviceKeys {
+		usdk = "<true/>"
+	}
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ExtensionIdentifier</key>
+			<string>%s</string>
+			<key>PayloadType</key>
+			<string>com.apple.extensiblesso</string>
+			<key>RegistrationToken</key>
+			<string>%s</string>
+			<key>PlatformSSO</key>
+			<dict>
+				<key>AuthenticationMethod</key>
+				<string>Password</string>
+				<key>UseSharedDeviceKeys</key>
+				%s
+			</dict>
+			<key>Type</key>
+			<string>Redirect</string>
+		</dict>%s
+	</array>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+</dict>
+</plist>`, extensionID, registrationToken, usdk, extraPayload)
+}
+
+func TestValidatePSSORegistrationTokenVariable(t *testing.T) {
+	t.Parallel()
+
+	const fleetExt = "com.fleetdm.fleet-desktop.pssoextension"
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	cases := []struct {
+		name    string
+		profile string
+		errMsg  string
+	}{
+		{
+			name:    "happy path with prefix form",
+			profile: pssoProfileForValidation(fleetExt, "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", true, ""),
+		},
+		{
+			name:    "happy path with braces form",
+			profile: pssoProfileForValidation(fleetExt, "${FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN}", true, ""),
+		},
+		{
+			name:    "non-fleet extension identifier",
+			profile: pssoProfileForValidation("com.okta.mobile.auth-service-extension", "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", true, ""),
+			errMsg:  "must start with \"com.fleetdm\"",
+		},
+		{
+			name:    "UseSharedDeviceKeys not set",
+			profile: pssoProfileForValidation(fleetExt, "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", false, ""),
+			errMsg:  "UseSharedDeviceKeys to true",
+		},
+		{
+			name: "variable also leaks into another payload",
+			profile: pssoProfileForValidation(fleetExt, "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", true, `
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.dock</string>
+			<key>SomeField</key>
+			<string>$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN</string>
+		</dict>`),
+			errMsg: "only allowed in the RegistrationToken of a Fleet Platform SSO payload",
+		},
+		{
+			name: "variable only outside the registration token field",
+			profile: pssoProfileForValidation(fleetExt, "static-token", true, `
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.dock</string>
+			<key>SomeField</key>
+			<string>$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN</string>
+		</dict>`),
+			errMsg: "only allowed in the RegistrationToken of a Fleet Platform SSO payload",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			vars, err := validateConfigProfileFleetVariables(tc.profile, premiumLic, &fleet.GroupedCertificateAuthorities{})
+			if tc.errMsg != "" {
+				require.ErrorContains(t, err, tc.errMsg)
+				assert.Empty(t, vars)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+
+	t.Run("requires premium license", func(t *testing.T) {
+		freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+		_, err := validateConfigProfileFleetVariables(
+			pssoProfileForValidation(fleetExt, "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", true, ""),
+			freeLic, &fleet.GroupedCertificateAuthorities{})
+		assert.ErrorContains(t, err, "requires a Fleet Premium license")
+	})
 }
 
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
