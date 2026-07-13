@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "8.5",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'FastStone Image Viewer%' AND publisher = 'FastStone Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'FastStone Image Viewer%' AND publisher = 'FastStone Corporation' AND version_compare(version, '8.5') < 0);"
+      },
+      "installer_url": "https://www.faststonesoft.net/DN/FSViewerSetup85.exe",
+      "install_script_ref": "896c86a4",
+      "uninstall_script_ref": "5cf76328",
+      "sha256": "5679d7b5cbc5bf6e222230eba6f38f52798de830a89de9aaea409ac55f5f6c38",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "5cf76328": "# Uninstalls FreeCAD.\n#\n# FastStone Image Viewer (NSIS) registers a versioned DisplayName (\"FastStone Image Viewer <ver>\") under HKLM,\n# so match on the \"FastStone Image Viewer\" prefix. Its uninst.exe supports /S for a silent\n# uninstall.\n\n$softwareNameLike = \"FastStone Image Viewer*\"\n$publisherLike = \"FastStone Corporation*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike -and $_.Publisher -like $publisherLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\n\n# Parse exe + args (quoted / unquoted / bare).\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\n\n# NSIS uninstallers require /S for a silent uninstall.\nif ($exeArgs -notmatch '(?i)(^|\\s)/S(\\s|$)') { $exeArgs = \"$exeArgs /S\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "896c86a4": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# FastStone Image Viewer ships as an NSIS installer (machine-wide, HKLM + Program Files (x86)).\n# /S runs it silently.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

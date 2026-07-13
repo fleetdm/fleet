@@ -3152,11 +3152,32 @@
       "description": "Fastmail is an email client."
     },
     {
+      "name": "FastPictureViewer Professional",
+      "slug": "fastpictureviewer-professional/windows",
+      "platform": "windows",
+      "unique_identifier": "FastPictureViewer Professional",
+      "description": "FastPictureViewer Professional is a fast RAW image viewer for digital photographers."
+    },
+    {
       "name": "FastScripts",
       "slug": "fastscripts/darwin",
       "platform": "darwin",
       "unique_identifier": "com.red-sweater.fastscripts3",
       "description": "FastScripts is a tool for running time-saving scripts."
+    },
+    {
+      "name": "FastStone Capture",
+      "slug": "faststone-capture/windows",
+      "platform": "windows",
+      "unique_identifier": "FastStone Capture",
+      "description": "FastStone Capture is a lightweight screen-capture tool and screen recorder."
+    },
+    {
+      "name": "FastStone Image Viewer",
+      "slug": "faststone-image-viewer/windows",
+      "platform": "windows",
+      "unique_identifier": "FastStone Image Viewer",
+      "description": "FastStone Image Viewer is a fast image browser, converter, and editor."
     },
     {
       "name": "Fellow",
@@ -3313,6 +3334,13 @@
       "description": "FLEXOPTIX App is a connect to your FLEXBOX without cables and configure transceivers."
     },
     {
+      "name": "FlexWhere for Desktop",
+      "slug": "flexwhere/windows",
+      "platform": "windows",
+      "unique_identifier": "Flexwhere for Desktop",
+      "description": "FlexWhere for Desktop shows real-time workplace and colleague availability from FlexWhere."
+    },
+    {
       "name": "Fluid",
       "slug": "fluid/darwin",
       "platform": "darwin",
@@ -3383,6 +3411,27 @@
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
+      "name": "Fortify",
+      "slug": "fortify/windows",
+      "platform": "windows",
+      "unique_identifier": "Fortify",
+      "description": "Fortify enables cross-browser use of local certificates and smart cards."
+    },
+    {
+      "name": "Foxit PDF Editor",
+      "slug": "foxit-pdf-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Foxit PDF Editor",
+      "description": "Foxit PDF Editor is a desktop application for creating and editing PDF documents."
+    },
+    {
+      "name": "Foxit PDF Reader",
+      "slug": "foxit-pdf-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Foxit PDF Reader",
+      "description": "Foxit PDF Reader is a desktop application for viewing and annotating PDF documents."
+    },
+    {
       "name": "Framer",
       "slug": "framer/darwin",
       "platform": "darwin",
@@ -3409,6 +3458,13 @@
       "platform": "darwin",
       "unique_identifier": "org.freedownloadmanager.fdm6",
       "description": "Free Download Manager is a download accelerator and organizer."
+    },
+    {
+      "name": "FreeCAD",
+      "slug": "freecad/windows",
+      "platform": "windows",
+      "unique_identifier": "FreeCAD",
+      "description": "FreeCAD is a general-purpose, open-source parametric 3D CAD modeler."
     },
     {
       "name": "FreeFileSync",
