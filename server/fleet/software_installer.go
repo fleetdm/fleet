@@ -921,8 +921,8 @@ type SoftwarePackageSpec struct {
 	// non-native entries feed the setup_experience_software_installers
 	// cross-table. Only meaningful for packages whose file can run on more than
 	// one platform (today: .sh).
-	SetupExperiencePlatform optjson.String `json:"setup_experience_platform,omitzero"`
-	Icon                     TeamSpecSoftwareAsset `json:"icon"`
+	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
+	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
 	Configuration TeamSpecSoftwareAsset `json:"configuration"`
 
@@ -975,38 +975,38 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 }
 
 type MaintainedAppSpec struct {
-	Slug                     string                `json:"slug"`
-	Version                  string                `json:"version"`
-	SelfService              bool                  `json:"self_service"`
-	PreInstallQuery          TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
-	InstallScript            TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript        TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript          TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny         []string              `json:"labels_include_any"`
-	LabelsExcludeAny         []string              `json:"labels_exclude_any"`
-	LabelsIncludeAll         []string              `json:"labels_include_all"`
-	Categories               optjson.Slice[string] `json:"categories,omitzero"`
-	InstallDuringSetup       optjson.Bool          `json:"setup_experience"`
-	SetupExperiencePlatform  optjson.String        `json:"setup_experience_platform,omitzero"`
-	Icon                     TeamSpecSoftwareAsset `json:"icon"`
+	Slug                    string                `json:"slug"`
+	Version                 string                `json:"version"`
+	SelfService             bool                  `json:"self_service"`
+	PreInstallQuery         TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
+	InstallScript           TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript       TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript         TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny        []string              `json:"labels_include_any"`
+	LabelsExcludeAny        []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll        []string              `json:"labels_include_all"`
+	Categories              optjson.Slice[string] `json:"categories,omitzero"`
+	InstallDuringSetup      optjson.Bool          `json:"setup_experience"`
+	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
+	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
-		Slug:                     &spec.Slug,
-		Version:                  spec.Version,
-		PreInstallQuery:          spec.PreInstallQuery,
-		InstallScript:            spec.InstallScript,
-		PostInstallScript:        spec.PostInstallScript,
-		UninstallScript:          spec.UninstallScript,
-		SelfService:              spec.SelfService,
-		SetupExperiencePlatform:  spec.SetupExperiencePlatform,
-		LabelsIncludeAny:         spec.LabelsIncludeAny,
-		LabelsExcludeAny:         spec.LabelsExcludeAny,
-		LabelsIncludeAll:         spec.LabelsIncludeAll,
-		InstallDuringSetup:       spec.InstallDuringSetup,
-		Icon:                     spec.Icon,
-		Categories:               spec.Categories,
+		Slug:                    &spec.Slug,
+		Version:                 spec.Version,
+		PreInstallQuery:         spec.PreInstallQuery,
+		InstallScript:           spec.InstallScript,
+		PostInstallScript:       spec.PostInstallScript,
+		UninstallScript:         spec.UninstallScript,
+		SelfService:             spec.SelfService,
+		SetupExperiencePlatform: spec.SetupExperiencePlatform,
+		LabelsIncludeAny:        spec.LabelsIncludeAny,
+		LabelsExcludeAny:        spec.LabelsExcludeAny,
+		LabelsIncludeAll:        spec.LabelsIncludeAll,
+		InstallDuringSetup:      spec.InstallDuringSetup,
+		Icon:                    spec.Icon,
+		Categories:              spec.Categories,
 	}
 }
 
