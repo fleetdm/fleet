@@ -1604,6 +1604,51 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		"refresh should run when no non-poll commands are pending, even with a poll-schedule command still queued")
 }
 
+// TestHandleResendingAlreadyExistsCommands verifies the 418 ("Already Exists") -> Replace rewrite converts
+// leaf-value Adds (profiles, DMClient settings) but skips container-node Adds (format=node), which have no value to
+// Replace. The ESP release path persists two such container Adds for its dropped-response retry, so without the skip
+// every successful finalization would re-queue undefined container Replaces post-ESP (issue #49134).
+func TestHandleResendingAlreadyExistsCommands(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+
+	const deviceID = "test-device-id"
+
+	rawOf := func(c *fleet.SyncMLCmd) []byte {
+		b, err := xml.Marshal(c)
+		require.NoError(t, err)
+		return b
+	}
+
+	leafAdd := newSyncMLCmdBool(fleet.CmdAdd, "./Vendor/MSFT/Policy/Config/Foo/Bar", "true")
+	nodeAdd := newSyncMLCmdNode(fleet.CmdAdd, "./User/Vendor/MSFT/DMClient/Provider/Fleet")
+	replaceCmd := newSyncMLCmdBool(fleet.CmdReplace, "./Vendor/MSFT/Policy/Config/Foo/Baz", "false")
+
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, gotDeviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+		require.Equal(t, deviceID, gotDeviceID)
+		return []*fleet.MDMWindowsCommand{
+			{CommandUUID: "leaf-add-uuid", TargetLocURI: leafAdd.GetTargetURI(), RawCommand: rawOf(leafAdd)},
+			{CommandUUID: "node-add-uuid", TargetLocURI: nodeAdd.GetTargetURI(), RawCommand: rawOf(nodeAdd)},
+			{CommandUUID: "replace-uuid", TargetLocURI: replaceCmd.GetTargetURI(), RawCommand: rawOf(replaceCmd)},
+		}, nil
+	}
+
+	var resent []string
+	ds.ResendWindowsMDMCommandFunc = func(ctx context.Context, mdmDeviceID string, newCmd, oldCmd *fleet.MDMWindowsCommand) error {
+		resent = append(resent, oldCmd.TargetLocURI)
+		return nil
+	}
+
+	topLevel, err := handleResendingAlreadyExistsCommands(t.Context(), svc,
+		[]string{"leaf-add-uuid", "node-add-uuid", "replace-uuid"}, deviceID)
+	require.NoError(t, err)
+
+	// Only the leaf Add is rewritten to a Replace; the container-node Add (format=node) and the plain Replace are
+	// skipped, so the finalize does not emit spurious container Replaces.
+	require.Equal(t, []string{leafAdd.GetTargetURI()}, resent)
+	require.Len(t, topLevel, 1)
+}
+
 func hashMDMCredentials(username, password, nonce string) []byte {
 	credsHash := md5.Sum([]byte(username + ":" + password)) //nolint:gosec // Windows MDM Auth uses MD5
 	encodedCreds := base64.StdEncoding.EncodeToString(credsHash[:])

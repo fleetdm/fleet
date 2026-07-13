@@ -9413,14 +9413,27 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	cmds, err = d.StartManagementSession()
 	require.NoError(t, err)
 
-	var foundRelease bool
+	// This test links host_uuid (UpdateMDMWindowsEnrollmentsHostUUID above) BEFORE the first management session, so
+	// handleESPHoldOrTransition transitioned straight Pending -> Active without ever sending the hold-phase Adds that
+	// create the user-scope DMClient Provider node. The release must therefore recreate that node inline (its
+	// ordering before the user-scope ServerHasFinishedProvisioning Replace is asserted deterministically in
+	// TestPBT_HandleESPRelease), or the Replace lands on a nonexistent node and returns SyncML 405 -- hanging the
+	// device on the ESP "Account setup" screen (issue #49134).
+	var foundUserRelease, foundProviderAdd, foundFirstSyncAdd bool
 	for _, c := range cmds {
-		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
-			foundRelease = true
-			break
+		uri := c.Cmd.GetTargetURI()
+		switch {
+		case c.Verb == fleet.CmdReplace && strings.Contains(uri, "/User/") && strings.Contains(uri, "ServerHasFinishedProvisioning"):
+			foundUserRelease = true
+		case c.Verb == fleet.CmdAdd && strings.HasSuffix(uri, "/DMClient/Provider/"+syncml.DocProvisioningAppProviderID):
+			foundProviderAdd = true
+		case c.Verb == fleet.CmdAdd && strings.HasSuffix(uri, "/DMClient/Provider/"+syncml.DocProvisioningAppProviderID+"/FirstSyncStatus") && strings.Contains(uri, "/User/"):
+			foundFirstSyncAdd = true
 		}
 	}
-	require.True(t, foundRelease, "should release device with ServerHasFinishedProvisioning")
+	require.True(t, foundUserRelease, "should release device with user-scope ServerHasFinishedProvisioning")
+	require.True(t, foundProviderAdd, "release must recreate the user-scope Provider node (issue #49134)")
+	require.True(t, foundFirstSyncAdd, "release must recreate the user-scope FirstSyncStatus node (issue #49134)")
 
 	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
 	require.NoError(t, err)

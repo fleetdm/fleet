@@ -1885,6 +1885,16 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 			continue
 		}
 
+		// Container-node Adds (format=node, no <Data>) create an interior tree node that has no value. A 418 on one
+		// just means the node already exists, and there is nothing to Replace -- rewriting it to a Replace on the
+		// container URI produces an undefined command the device rejects. Leaf Adds (profiles, DMClient settings)
+		// carry <Data> and a value format, so their 418 -> Replace conversion still runs. The ESP release path
+		// (buildESPReleaseCommands) persists two such container Adds for the dropped-response retry, so without this
+		// guard every successful finalization would emit spurious failing container Replaces post-ESP.
+		if strings.Contains(string(cmd.RawCommand), "node</Format>") {
+			continue
+		}
+
 		// Copy value, and avoid referencing the old values
 		newCmd := &fleet.MDMWindowsCommand{
 			CommandUUID:  cmd.CommandUUID,
@@ -2751,8 +2761,10 @@ func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 // CmdIDs as the inline commands: when the device acks the inline send,
 // MDMWindowsSaveResponse will match those CmdRefs against the persisted
 // rows and clear them, so the backup is only resent if delivery actually
-// failed. All commands are idempotent Replaces, so even a duplicate delivery
-// is safe.
+// failed. The commands are idempotent Replaces plus the two user-scope
+// container-node Adds from buildESPReleaseCommands, so even a duplicate
+// delivery is safe: the Replaces re-write the same value and the Adds return
+// a harmless 418 (Already Exists) when the node already exists.
 func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string, cmds []*mdm_types.SyncMLCmd) error {
 	persistCmds := make([]*fleet.MDMWindowsCommand, 0, len(cmds))
 	for _, cmd := range cmds {
