@@ -314,7 +314,7 @@
       },
       {
         "name": "risk_flags",
-        "description": "Comma-separated security risk tokens (empty string = none). Possible values:`remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `bypass_permissions`, `injection_markers`, `hidden_unicode`.",
+        "description": "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `bypass_permissions`, `injection_markers`, `hidden_unicode`.",
         "type": "text",
         "required": false
       },
