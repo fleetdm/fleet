@@ -120,6 +120,38 @@ func TestPackConfigCacheHit(t *testing.T) {
 	)
 }
 
+// TestPackConfigCacheNegativeCache verifies that when no scheduled queries
+// exist for a team, the empty result is cached (negative cache) so subsequent
+// requests don't hit the DB.
+func TestPackConfigCacheNegativeCache(t *testing.T) {
+	svc, ds, callCounter := setupPackConfigCacheTest(t)
+
+	// Override: no scheduled queries at all.
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+		callCounter.Add(1)
+		return nil, nil
+	}
+
+	host := &fleet.Host{ID: 1}
+	ctx := hostctx.NewContext(t.Context(), host)
+
+	// First call -- cache miss, hits DB, finds no queries.
+	conf1, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	_, hasPacks := conf1["packs"]
+	assert.False(t, hasPacks, "expected no packs when no queries are configured")
+	callsAfterFirst := callCounter.Load()
+	require.Positive(t, callsAfterFirst, "expected at least one DB call on first request")
+
+	// Second call -- should be a cache hit (negative cache), no additional DB calls.
+	conf2, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	_, hasPacks = conf2["packs"]
+	assert.False(t, hasPacks, "expected no packs on cached empty result")
+	assert.Equal(t, callsAfterFirst, callCounter.Load(),
+		"expected no additional DB calls -- empty result should be cached")
+}
+
 // TestPackConfigCacheTTLExpiration verifies that after the cache TTL expires,
 // a fresh config is built from the DB. This is the primary mechanism for
 // picking up query changes (no explicit invalidation).
