@@ -4936,7 +4936,7 @@ func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID
 		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
 	}
 
-	_, err = triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID},
+	return triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID},
 		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
@@ -4944,7 +4944,6 @@ func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID
 			fleet.FleetVarHostEndUserIDPDepartment,
 			fleet.FleetVarHostEndUserIDPFullname,
 		})
-	return err
 }
 
 func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {

@@ -1196,13 +1196,20 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 	if err != nil {
 		return nil, err
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
@@ -1210,14 +1217,21 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 	if err != nil {
 		return nil, err
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, updatedScimGroupID uint) error {
@@ -1235,9 +1249,8 @@ func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtCont
 	if err != nil {
 		return err
 	}
-	_, err = triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
 		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
-	return err
 }
 
 func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, scimUserIDs []uint) error {
@@ -1249,9 +1262,8 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 	if err != nil {
 		return err
 	}
-	_, err = triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
 		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
-	return err
 }
 
 func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
@@ -1265,7 +1277,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		// host is not impacted, updated user is not its IdP user
 		return nil
 	}
-	_, err = triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
+	return triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
 		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
@@ -1273,7 +1285,6 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPFullname,
 		})
-	return err
 }
 
 func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vars []any) ([]fleet.ActivityTypeResentCertificate, error) {
@@ -1345,9 +1356,17 @@ func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostID
 	return activities, nil
 }
 
-func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) ([]fleet.ActivityTypeResentCertificate, error) {
+func fleetVarNamesToDBVars(vars []fleet.FleetVarName) []any {
+	result := make([]any, len(vars))
+	for i, v := range vars {
+		result[i] = "FLEET_VAR_" + string(v)
+	}
+	return result
+}
+
+func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
 	if len(hostIDs) == 0 || len(affectedVars) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	// NOTE: this cannot reuse bulkSetPendingMDMAppleHostProfilesDB, as this
@@ -1493,24 +1512,18 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
 		updateStmt, args, err := sqlx.Named(query, namedParams)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
+			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
 		}
 
 		updateStmt, args, err = sqlx.In(updateStmt, args...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
+			return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
 		}
 
 		_, err = tx.ExecContext(ctx, updateStmt, args...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "execute resend profiles")
+			return ctxerr.Wrap(ctx, err, "execute resend profiles")
 		}
-	}
-
-	// Select certificate templates that will be resent, before the UPDATE.
-	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, vars)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select cert templates to resend")
 	}
 
 	// Resend certificate templates that use affected variables.
@@ -1522,23 +1535,23 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	}
 	certStmt, certArgs, err := sqlx.Named(certTemplateUpdateStatusQuery, certParams)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare resend certificate templates replace names")
+		return ctxerr.Wrap(ctx, err, "prepare resend certificate templates replace names")
 	}
 	certStmt, certArgs, err = sqlx.In(certStmt, certArgs...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare resend certificate templates arguments")
+		return ctxerr.Wrap(ctx, err, "prepare resend certificate templates arguments")
 	}
 	if _, err = tx.ExecContext(ctx, certStmt, certArgs...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute resend certificate templates")
+		return ctxerr.Wrap(ctx, err, "execute resend certificate templates")
 	}
 
 	// Queue make_android_app_available jobs for managed app configs that use affected variables,
 	// scoped to the teams of the affected hosts.
 	if err := queueManagedConfigResendJobs(ctx, tx, hostIDs, vars); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "queue managed config resend jobs")
+		return ctxerr.Wrap(ctx, err, "queue managed config resend jobs")
 	}
 
-	return resentCerts, nil
+	return nil
 }
 
 // queueManagedConfigResendJobs finds android app configs that reference any of
