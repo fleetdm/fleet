@@ -124,8 +124,6 @@
   }
 
   &__action-button {
-    @include bordered-icon-button;
-
     .fleeticon {
       width: 16px;
       height: 16px;

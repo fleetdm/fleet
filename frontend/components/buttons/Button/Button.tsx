@@ -55,6 +55,7 @@ export interface IButtonProps {
     | "dialog";
   ariaExpanded?: boolean;
   ariaLabel?: string;
+  ariaPressed?: boolean;
   /** Small: 1/2 the padding, Wide: 200px */
   size?: "small" | "wide" | "default";
 }
@@ -131,6 +132,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       ariaHasPopup,
       ariaExpanded,
       ariaLabel,
+      ariaPressed,
       size,
     } = this.props;
     // The bordered "secondary" and borderless "subdued" variants render as a
@@ -178,6 +180,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         aria-haspopup={ariaHasPopup}
         aria-expanded={ariaExpanded}
         aria-label={ariaLabel}
+        aria-pressed={ariaPressed}
       >
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}
