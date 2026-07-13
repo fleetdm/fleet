@@ -36,6 +36,7 @@ export interface IMdmAbToken {
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
+  byod_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {
@@ -60,7 +61,7 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
 export type MdmEnrollmentStatus =
   | "On (manual)"
   | "On (automatic)"
-  | "On (personal)"
+  | "On (manual - personal)"
   | "On (company-owned)"
   | "Off"
   | "Pending";
@@ -95,8 +96,8 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     displayName: "On (company-owned)",
     filterValue: "automatic",
   },
-  "On (personal)": {
-    displayName: "On (personal)",
+  "On (manual - personal)": {
+    displayName: "On (manual - personal)",
     filterValue: "personal",
   },
   Off: {
@@ -180,6 +181,20 @@ export interface IMdmProfile {
   labels_include_all?: IProfileLabel[];
   labels_include_any?: IProfileLabel[];
   labels_exclude_any?: IProfileLabel[];
+  // Apple DDM PayloadScope: "User" for user-scoped declarations, "System"
+  // otherwise. Note this differs from the host details endpoint, which reports
+  // the derived channel as lowercase "user"/"device" (see ProfileScope).
+  scope?: PayloadScope | null;
+}
+
+/** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */
+export interface IMdmAsset {
+  asset_uuid: string;
+  name: string;
+  identifier: string;
+  created_at: string;
+  uploaded_at: string | null;
+  checksum: string;
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
@@ -191,6 +206,8 @@ export type MdmDDMProfileStatus =
 
 export type ProfileOperationType = "remove" | "install";
 export type ProfileScope = "device" | "user";
+/** Apple DDM declaration PayloadScope as returned by the profiles list endpoint. */
+export type PayloadScope = "System" | "User";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
@@ -301,7 +318,7 @@ export const isEnrolledInMdm = (
   return [
     "On (automatic)",
     "On (manual)",
-    "On (personal)",
+    "On (manual - personal)",
     "On (company-owned)",
   ].includes(hostMdmEnrollmentStatus);
 };
@@ -313,11 +330,13 @@ export const isBYODManualEnrollment = (
 };
 
 /** This checks if the device is enrolled via an Apple ID user enrollment.
- * We refer to that as "account driven user enrollment" */
+ * We refer to that as "account driven user enrollment". Note that this same
+ * status now also covers manual BYOD enrollments (Apple) and Android BYO
+ * (work profile); see issue #23242. */
 export const isBYODAccountDrivenUserEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
-  return enrollmentStatus === "On (personal)";
+  return enrollmentStatus === "On (manual - personal)";
 };
 
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
@@ -334,7 +353,7 @@ export const isAutomaticDeviceEnrollment = (
 
 /** Android BYO (work profile, personally-owned) enrollment. */
 export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
-  return enrollmentStatus === "On (personal)";
+  return enrollmentStatus === "On (manual - personal)";
 };
 
 /** Android COBO (company-owned, fully managed) enrollment. */

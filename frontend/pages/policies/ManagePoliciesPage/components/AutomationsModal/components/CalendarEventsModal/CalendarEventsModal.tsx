@@ -146,20 +146,20 @@ const CalendarEventsModal = forwardRef<
           </div>
           {!configured && (
             <InfoBanner className={baseClass}>
-              To use calendar automations, connect Fleet to Google Workspace in{" "}
               {isGlobalAdmin ? (
                 // Only global admins can access the Calendar settings page.
                 <CustomLink
                   url={paths.ADMIN_INTEGRATIONS_CALENDARS}
-                  text="Settings &gt; Integrations &gt; Calendars"
-                  multiline
+                  text="Connect Fleet to Google Workspace"
+                  emphasized
                 />
               ) : (
                 <>
+                  Admin can connect Fleet to Google Workspace via{" "}
                   <b>Settings</b> &gt; <b>Integrations</b> &gt; <b>Calendars</b>
                 </>
-              )}
-              .
+              )}{" "}
+              to use calendar automations.
             </InfoBanner>
           )}
           {configured && (
@@ -187,17 +187,16 @@ const CalendarEventsModal = forwardRef<
                   helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
                   disabled={!formData.enabled || gitOpsModeEnabled}
                 />
-                <RevealButton
-                  isShowing={showExamplePayload}
-                  className={`${baseClass}__show-example-payload-toggle`}
-                  hideText="Hide example payload"
-                  showText="Show example payload"
-                  caretPosition="after"
-                  onClick={() => setShowExamplePayload(!showExamplePayload)}
-                  disabled={!formData.enabled}
-                />
-                {showExamplePayload && renderExamplePayload()}
               </div>
+              <RevealButton
+                isShowing={showExamplePayload}
+                className={`${baseClass}__show-example-payload-toggle`}
+                hideText="Example payload"
+                showText="Example payload"
+                caretPosition="after"
+                onClick={() => setShowExamplePayload(!showExamplePayload)}
+              />
+              {showExamplePayload && renderExamplePayload()}
             </>
           )}
         </div>

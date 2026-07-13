@@ -27,13 +27,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
-  task: "🦢🪲🔨💥 Bug bash"
-  startedOn: "2025-10-22" 
-  frequency: "Weekly" 
-  description: "Contributors bring bug fixes to review. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Focused time to triage new bugs: https://fleetdm.com/handbook/product-design#triage-new-bugs" 
-  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#bug-bash" 
-  dri: "noahtalerman"
--
   task: "🦢📨 Unpacking the 'why'"
   startedOn: "2024-09-30" 
   frequency: "Daily" 
@@ -101,13 +94,6 @@
   description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#update-a-company-brand-front"
   dri: "mike-j-thomas"
--
-  task: "🦢⏮️ Product design sprint retro"
-  startedOn: "2025-10-17" 
-  frequency: "Triweekly" 
-  description: "Retro: What went well? What could go better? What to remember for next time? Pick one improvement to implement next sprint." 
-  moreInfoUrl:  
-  dri: "noahtalerman"
 -
   task: "✅ 🎉 Confirm and celebrate"
   startedOn: "2026-01-20" 

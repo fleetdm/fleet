@@ -1,0 +1,10 @@
+{
+  "name": "Chalk",
+  "unique_identifier": "fr.chachatelier.pierre.Chalk",
+  "token": "chalk",
+  "installer_format": "dmg",
+  "slug": "chalk/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

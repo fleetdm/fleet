@@ -202,6 +202,14 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	-- policy_gated: true when the installer has at least one policy whose install-software automation points at it (a gating policy
+	-- used as a gate during setup experience). A policy's software_installer_id already uniquely identifies the installer (and its
+	-- team), so no team check is needed; only gate on Windows/Linux. The specific policy ids are derived from the installer at
+	-- decision time, so only this marker is stored.
+	EXISTS (SELECT 1
+		FROM policies p
+		WHERE p.software_installer_id = si.id
+		AND ? IN ('windows', 'linux')) AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
 INNER JOIN software_titles st
@@ -241,9 +249,47 @@ AND %s`
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
-		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		// Placeholder order: host_uuid, policy_gated subquery (fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
+		// deb-distro check, rpm-distro check.
+		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
 			softwareArgs = append(softwareArgs, hostUUID)
+		}
+
+		// .sh installers are stored with platform='linux' but can run on darwin too,
+		// so include any cross-selected for macOS setup experience.
+		if fleetPlatform == "darwin" {
+			crossInstallerSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	si.id AS software_installer_id,
+	NULL AS vpp_app_team_id,
+	FALSE AS policy_gated,
+	COALESCE(stdn.display_name, st.name) AS sort_name
+FROM software_installers si
+INNER JOIN software_titles st
+	ON si.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
+INNER JOIN setup_experience_software_installers seti
+	ON seti.software_installer_id = si.id AND seti.platform = 'darwin' AND seti.global_or_team_id = ?
+WHERE si.is_active = TRUE
+AND si.platform = 'linux'
+AND si.extension = 'sh'
+AND %s`
+			if resetFailedSetupSteps {
+				crossInstallerSelect = fmt.Sprintf(crossInstallerSelect, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+			} else {
+				crossInstallerSelect = fmt.Sprintf(crossInstallerSelect, "TRUE")
+			}
+			softwareUnionParts = append(softwareUnionParts, crossInstallerSelect)
+			// Placeholder order: host_uuid, stdn.team_id, seti.global_or_team_id.
+			softwareArgs = append(softwareArgs, hostUUID, teamID, teamID)
+			if resetFailedSetupSteps {
+				softwareArgs = append(softwareArgs, hostUUID)
+			}
 		}
 	}
 
@@ -255,6 +301,7 @@ SELECT
 	'pending' AS status,
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
+	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
@@ -288,9 +335,10 @@ INSERT INTO setup_experience_status_results (
 	name,
 	status,
 	software_installer_id,
-	vpp_app_team_id
+	vpp_app_team_id,
+	policy_gated
 )
-SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id FROM (
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
 	%s
 ) AS combined
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
@@ -383,7 +431,8 @@ SELECT
 	st.id AS title_id,
 	si.id,
 	st.name,
-	si.platform
+	si.platform,
+	si.extension
 FROM
 	software_titles st
 LEFT JOIN
@@ -438,9 +487,21 @@ UPDATE vpp_apps_teams
 SET install_during_setup = true
 WHERE id IN (%s)`
 
+	// Cross-platform selections (e.g. linux .sh chosen for darwin) live in their own
+	// table so they don't share install_during_setup with the installer's native platform.
+	stmtUnsetCrossInstallers := `
+DELETE FROM setup_experience_software_installers
+WHERE platform = ? AND global_or_team_id = ?`
+
+	stmtSetCrossInstallers := `
+INSERT IGNORE INTO setup_experience_software_installers
+	(software_installer_id, platform, global_or_team_id)
+VALUES %s`
+
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var softwareIDPlatforms []idPlatformTuple
-		var softwareIDs []any
+		var nativeSoftwareIDs []any
+		var crossSoftwareIDs []any
 		var vppIDPlatforms []idPlatformTuple
 		var vppAppTeamIDs []any
 		// List of title IDs that were sent but aren't in the
@@ -465,12 +526,17 @@ WHERE id IN (%s)`
 			// Validate software titles match the expected platform.
 			for _, tuple := range softwareIDPlatforms {
 				delete(missingTitleIDs, tuple.TitleID)
-				if tuple.Platform != platform {
+				switch {
+				case tuple.Platform == platform:
+					nativeSoftwareIDs = append(nativeSoftwareIDs, tuple.ID)
+				case platform == string(fleet.MacOSPlatform) && tuple.Platform == "linux" && tuple.Extension == "sh":
+					// .sh scripts can run on macOS; track the selection in the cross-platform table.
+					crossSoftwareIDs = append(crossSoftwareIDs, tuple.ID)
+				default:
 					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 						Message: fmt.Sprintf("invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
 					})
 				}
-				softwareIDs = append(softwareIDs, tuple.ID)
 			}
 		}
 
@@ -512,6 +578,12 @@ WHERE id IN (%s)`
 			return ctxerr.Wrap(ctx, err, "unsetting software installers")
 		}
 
+		if platform == string(fleet.MacOSPlatform) {
+			if _, err := tx.ExecContext(ctx, stmtUnsetCrossInstallers, platform, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unsetting cross-platform software installers")
+			}
+		}
+
 		// Unset all vpp apps
 		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
 			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform) {
@@ -520,10 +592,21 @@ WHERE id IN (%s)`
 			}
 		}
 
-		if len(softwareIDs) > 0 {
-			stmtSetInstallersLoop := fmt.Sprintf(stmtSetInstallers, questionMarks(len(softwareIDs)))
-			if _, err := tx.ExecContext(ctx, stmtSetInstallersLoop, softwareIDs...); err != nil {
+		if len(nativeSoftwareIDs) > 0 {
+			stmtSetInstallersLoop := fmt.Sprintf(stmtSetInstallers, questionMarks(len(nativeSoftwareIDs)))
+			if _, err := tx.ExecContext(ctx, stmtSetInstallersLoop, nativeSoftwareIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting software installers")
+			}
+		}
+
+		if len(crossSoftwareIDs) > 0 {
+			rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?,?)"}, len(crossSoftwareIDs)), ",")
+			crossArgs := make([]any, 0, len(crossSoftwareIDs)*3)
+			for _, id := range crossSoftwareIDs {
+				crossArgs = append(crossArgs, id, platform, teamID)
+			}
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmtSetCrossInstallers, rowPlaceholders), crossArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting cross-platform software installers")
 			}
 		}
 
@@ -547,31 +630,42 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 	stmt := `
 		SELECT
 		(
-			SELECT COUNT(*)
+			(SELECT COUNT(*)
 			FROM software_installers
-			WHERE team_id = ?
+			WHERE global_or_team_id = ?
 			AND install_during_setup = 1
-			AND platform = ?
+			AND platform = ?)
+			+
+			(SELECT COUNT(*)
+			FROM setup_experience_software_installers
+			WHERE global_or_team_id = ?
+			AND platform = ?)
 		) AS installers,
 		(
 			SELECT COUNT(*)
 			FROM vpp_apps_teams
-			WHERE team_id = ?
+			WHERE global_or_team_id = ?
 			AND platform = ?
 			AND install_during_setup = 1
 		) AS vpp,
 		(
 			SELECT COUNT(*)
 			FROM setup_experience_scripts
-			WHERE team_id = ?
+			WHERE global_or_team_id = ?
 		) AS scripts`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
 
 	sec := &fleet.SetupExperienceCount{}
 	if err := sqlx.GetContext(
 		ctx, ds.reader(ctx), sec, stmt,
-		teamID, platform,
-		teamID, platform,
-		teamID,
+		globalOrTeamID, platform,
+		globalOrTeamID, platform,
+		globalOrTeamID, platform,
+		globalOrTeamID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting setup experience counts")
 	}
@@ -622,10 +716,11 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 }
 
 type idPlatformTuple struct {
-	ID       uint   `db:"id"`
-	TitleID  uint   `db:"title_id"`
-	Name     string `db:"name"`
-	Platform string `db:"platform"`
+	ID        uint   `db:"id"`
+	TitleID   uint   `db:"title_id"`
+	Name      string `db:"name"`
+	Platform  string `db:"platform"`
+	Extension string `db:"extension"`
 }
 
 func questionMarks(number int) string {
@@ -645,6 +740,7 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
+	sesr.policy_gated,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
@@ -714,6 +810,39 @@ ORDER BY sesr.id
 	}
 
 	return results, nil
+}
+
+// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's setup-experience software items that are
+// still awaiting their policy result: non-terminal (pending/running) AND with no install enqueued yet
+// (host_software_installs_execution_id IS NULL). Returns an empty slice when the host has no awaiting policy-gated items.
+func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
+	const stmt = `
+SELECT DISTINCT p.id
+FROM setup_experience_status_results sesr
+JOIN policies p ON p.software_installer_id = sesr.software_installer_id
+WHERE sesr.host_uuid = ?
+	AND sesr.policy_gated = 1
+	AND sesr.status IN ('pending', 'running')
+	AND sesr.host_software_installs_execution_id IS NULL`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+	}
+	return ids, nil
+}
+
+// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the given
+// software installer.
+func (ds *Datastore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
+	const stmt = `
+SELECT p.id
+FROM policies p
+WHERE p.software_installer_id = ?`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, softwareInstallerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for installer")
+	}
+	return ids, nil
 }
 
 func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
@@ -990,4 +1119,32 @@ func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, host
 		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
 	}
 	return nil
+}
+
+// SetSetupExperienceCrossInstallersForInstaller replaces the
+// setup_experience_software_installers rows for a single installer on a team
+// with rows for the given platforms. Other installers on the same team are
+// untouched, so a batch reconcile preserves rows for installers that did not
+// opt in. An empty platforms slice clears this installer's rows.
+func (ds *Datastore) SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error {
+	const stmtClear = `DELETE FROM setup_experience_software_installers WHERE software_installer_id = ? AND global_or_team_id = ?`
+	const stmtInsertTmpl = `INSERT IGNORE INTO setup_experience_software_installers (software_installer_id, platform, global_or_team_id) VALUES %s`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmtClear, installerID, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing setup experience cross-platform installer rows")
+		}
+		if len(platforms) == 0 {
+			return nil
+		}
+		rowPlaceholders := strings.Join(slices.Repeat([]string{"(?,?,?)"}, len(platforms)), ",")
+		args := make([]any, 0, len(platforms)*3)
+		for _, p := range platforms {
+			args = append(args, installerID, p, teamID)
+		}
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmtInsertTmpl, rowPlaceholders), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting setup experience cross-platform installer rows")
+		}
+		return nil
+	})
 }

@@ -1,23 +1,31 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { getPathWithQueryParams } from "utilities/url";
-import { SingleValue } from "react-select-5";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { getPathWithQueryParams } from "utilities/url";
 
 import Card from "components/Card";
-import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import SelfServiceTable from "../components/SelfServiceTable";
-import SelfServiceHeader from "../components/SelfServiceHeader";
+import InstallAllInCategoryButton from "../components/InstallAllInCategoryButton";
 import SelfServiceFilters from "../components/SelfServiceFilters";
+import SelfServiceHeader from "../components/SelfServiceHeader";
+import SelfServiceTable from "../components/SelfServiceTable";
 import SelfServiceTiles from "../components/SelfServiceTiles";
-import { filterSoftwareByCategory } from "../helpers";
+import {
+  countUninstalledForInstallAll,
+  filterCategoriesWithSoftware,
+  filterSoftwareByCustomCategory,
+  hasInProgressInstallAllItems,
+} from "../helpers";
 
 const baseClass = "software-self-service";
 
@@ -32,6 +40,7 @@ export interface SelfServiceQueryParams {
 
 export interface ISelfServiceCardProps {
   contactUrl: string;
+  deviceToken: string;
   queryParams: SelfServiceQueryParams;
   enhancedSoftware: IDeviceSoftwareWithUiStatus[];
   selfServiceData?: IGetDeviceSoftwareResponse;
@@ -40,15 +49,16 @@ export interface ISelfServiceCardProps {
   isError: boolean;
   isFetching: boolean;
   isEmpty: boolean;
-  isEmptySearch: boolean;
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
-  onClickInstallAction?: any;
+  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  onInstallAllSuccess?: () => void;
 }
 
 const SelfServiceCard = ({
   contactUrl,
+  deviceToken,
   queryParams,
   enhancedSoftware,
   selfServiceData,
@@ -57,14 +67,60 @@ const SelfServiceCard = ({
   isError,
   isFetching,
   isEmpty,
-  isEmptySearch,
   router,
   pathname,
   isMobileView,
   onClickInstallAction,
+  onInstallAllSuccess,
 }: ISelfServiceCardProps) => {
   const initialSortHeader = queryParams.order_key || "name";
   const initialSortDirection = queryParams.order_direction || "asc";
+
+  // Device-token-scoped categories: the BE derives the fleet from the token
+  // so the dropdown reflects this host's fleet, not the global fleet_id=0 set.
+  // The queryKey's second element must match the queryFn arg to avoid
+  // cross-device cache bleed.
+  const { data: categoriesData, isSuccess: isCategoriesSuccess } = useQuery<
+    ISelfServiceCategoriesResponse,
+    Error,
+    ISelfServiceCategory[]
+  >(
+    ["device_self_service_categories", deviceToken],
+    () => selfServiceCategoriesAPI.getDeviceCategories(deviceToken),
+    {
+      select: (response) => response.self_service_categories,
+      staleTime: 60_000,
+    }
+  );
+
+  const categories = useMemo(() => categoriesData ?? [], [categoriesData]);
+
+  // Hide categories with no software. enhancedSoftware is the host's full
+  // self-service list (unpaginated), so everything downstream keys off this.
+  const visibleCategories = useMemo(
+    () => filterCategoriesWithSoftware(categories, enhancedSoftware),
+    [categories, enhancedSoftware]
+  );
+
+  const softwareInSelectedCategory = useMemo(
+    () =>
+      filterSoftwareByCustomCategory(
+        enhancedSoftware,
+        visibleCategories,
+        queryParams.category_id
+      ),
+    [enhancedSoftware, visibleCategories, queryParams.category_id]
+  );
+
+  const uninstalledCount = useMemo(
+    () => countUninstalledForInstallAll(softwareInSelectedCategory),
+    [softwareInSelectedCategory]
+  );
+
+  const hasInProgress = useMemo(
+    () => hasInProgressInstallAllItems(softwareInSelectedCategory),
+    [softwareInSelectedCategory]
+  );
 
   const onClientSidePaginationChange = useCallback(
     (page: number) => {
@@ -95,7 +151,7 @@ const SelfServiceCard = ({
         category_id: queryParams.category_id,
         order_key: initialSortHeader,
         order_direction: initialSortDirection,
-        page: 0, // Always reset to page 0 when searching
+        page: 0,
       })
     );
   };
@@ -111,24 +167,59 @@ const SelfServiceCard = ({
           queryParams.category_id !== undefined
             ? queryParams.category_id
             : undefined,
-        page: 0, // Always reset to page 0 when sorting
+        page: 0,
       })
     );
   };
 
-  const onCategoriesDropdownChange = (
-    option: SingleValue<CustomOptionType>
-  ) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        category_id: option?.value !== "undefined" ? option?.value : undefined,
-        query: queryParams.query,
-        order_key: initialSortHeader,
-        order_direction: initialSortDirection,
-        page: 0, // Always reset to page 0 when searching
-      })
+  const onCategoryChange = useCallback(
+    (categoryId: number | undefined) => {
+      router.push(
+        getPathWithQueryParams(pathname, {
+          category_id: categoryId,
+          query: queryParams.query,
+          order_key: initialSortHeader,
+          order_direction: initialSortDirection,
+          page: 0,
+        })
+      );
+    },
+    [
+      pathname,
+      queryParams.query,
+      initialSortHeader,
+      initialSortDirection,
+      router,
+    ]
+  );
+
+  // Recover from stale links: if the URL has a category_id that doesn't match
+  // any visible category (admin deleted it, the list resolved empty, or the
+  // category no longer has any self-service software), the trigger label would
+  // fall through to "All" while filterSoftwareByCustomCategory returns [] —
+  // contradicting what the label promises. Drop the param so the user lands
+  // back on a real "All" view.
+  useEffect(() => {
+    // Wait for software too, else a valid category_id is cleared mid-load.
+    if (
+      !isCategoriesSuccess ||
+      !selfServiceData ||
+      queryParams.category_id === undefined
+    )
+      return;
+    const idIsKnown = visibleCategories.some(
+      (c) => c.id === queryParams.category_id
     );
-  };
+    if (!idIsKnown) {
+      onCategoryChange(undefined);
+    }
+  }, [
+    isCategoriesSuccess,
+    selfServiceData,
+    visibleCategories,
+    queryParams.category_id,
+    onCategoryChange,
+  ]);
 
   if (isLoading)
     return <Spinner {...(isMobileView && { variant: "mobile" })} />;
@@ -140,7 +231,6 @@ const SelfServiceCard = ({
       />
     );
 
-  // Empty state
   if ((isEmpty || !selfServiceData) && !isFetching) {
     return (
       <EmptyState
@@ -151,19 +241,30 @@ const SelfServiceCard = ({
     );
   }
 
-  const filteredSoftwareByCategory: IDeviceSoftwareWithUiStatus[] = filterSoftwareByCategory(
-    enhancedSoftware || [],
-    queryParams.category_id
-  );
-
   // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
   const filteredSoftware = isMobileView
-    ? filteredSoftwareByCategory.filter((software) => {
+    ? softwareInSelectedCategory.filter((software) => {
         const query = queryParams.query?.toLowerCase().trim() ?? "";
         if (!query) return true;
         return software.name.toLowerCase().includes(query);
       })
-    : filteredSoftwareByCategory;
+    : softwareInSelectedCategory;
+
+  // The button is shown on desktop ONLY when a specific category is selected
+  // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
+  // single click can't queue an install of the entire catalog — see #48485.
+  // Visibility beyond this (count / in-progress / disabled state) is owned by
+  // InstallAllInCategoryButton — see #47855 for the full rules.
+  const installAllButton =
+    !isMobileView && queryParams.category_id !== undefined ? (
+      <InstallAllInCategoryButton
+        uninstalledCount={uninstalledCount}
+        hasInProgressInCategory={hasInProgress}
+        deviceToken={deviceToken}
+        categoryId={queryParams.category_id}
+        onSuccess={() => onInstallAllSuccess?.()}
+      />
+    ) : null;
 
   if (isMobileView) {
     return (
@@ -172,16 +273,25 @@ const SelfServiceCard = ({
         <div className={`${baseClass}__mobile-installers`}>
           <SelfServiceFilters
             query={queryParams.query}
-            category_id={queryParams.category_id}
+            categoryId={queryParams.category_id}
+            categories={visibleCategories}
             onSearchQueryChange={onSearchQueryChange}
-            onCategoriesDropdownChange={onCategoriesDropdownChange}
+            onCategoryChange={onCategoryChange}
           />
           <SelfServiceTiles
             contactUrl={contactUrl}
             enhancedSoftware={filteredSoftware}
             isFetching={isFetching}
             isEmptySearch={
-              enhancedSoftware.length > 0 && filteredSoftware.length === 0
+              enhancedSoftware.length > 0 &&
+              filteredSoftware.length === 0 &&
+              !!queryParams.query
+            }
+            isEmptyCategory={
+              enhancedSoftware.length > 0 &&
+              filteredSoftware.length === 0 &&
+              !queryParams.query &&
+              queryParams.category_id !== undefined
             }
             onClickInstallAction={onClickInstallAction}
           />
@@ -196,24 +306,27 @@ const SelfServiceCard = ({
       paddingSize="xlarge"
     >
       <SelfServiceHeader contactUrl={contactUrl} />
-      <SelfServiceFilters
-        query={queryParams.query}
-        category_id={queryParams.category_id}
-        onSearchQueryChange={onSearchQueryChange}
-        onCategoriesDropdownChange={onCategoriesDropdownChange}
-      />
-      <SelfServiceTable
-        baseClass={baseClass}
-        contactUrl={contactUrl}
-        queryParams={queryParams}
-        enhancedSoftware={filteredSoftware}
-        selfServiceData={selfServiceData}
-        tableConfig={tableConfig}
-        isFetching={isFetching}
-        isEmptySearch={isEmptySearch}
-        onSortChange={onSortChange}
-        onClientSidePaginationChange={onClientSidePaginationChange}
-      />
+      <div className={`${baseClass}__content`}>
+        <SelfServiceFilters
+          query={queryParams.query}
+          categoryId={queryParams.category_id}
+          categories={visibleCategories}
+          onSearchQueryChange={onSearchQueryChange}
+          onCategoryChange={onCategoryChange}
+          installAllSlot={installAllButton}
+        />
+        <SelfServiceTable
+          baseClass={baseClass}
+          contactUrl={contactUrl}
+          queryParams={queryParams}
+          enhancedSoftware={filteredSoftware}
+          selfServiceData={selfServiceData}
+          tableConfig={tableConfig}
+          isFetching={isFetching}
+          onSortChange={onSortChange}
+          onClientSidePaginationChange={onClientSidePaginationChange}
+        />
+      </div>
     </Card>
   );
 };

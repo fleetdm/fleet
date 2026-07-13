@@ -1,18 +1,26 @@
+// table-layout: fixed locks column widths to the declared values; without it
+// the browser auto-sizes columns to content and the layout shifts each time
+// sorting brings differently-sized values into view. Widths are set on both
+// the header and cell selectors because fixed layout reads widths from the
+// first row of cells (typically the header row).
 .labels-table {
-  .view-all-hosts-link,
-  .view-all-hosts-link * {
-    text-decoration: none;
-    color: initial;
-    font-weight: initial;
-    font-size: $x-small;
+  .data-table-block .data-table__table {
+    table-layout: fixed;
   }
 
-  .data-table-block .data-table__wrapper {
-    overflow-x: auto;
+  .data-table-block .name__header,
+  .data-table-block .name__cell {
+    width: 30%;
   }
 
-  .name__cell,
-  .description__cell {
-    min-width: $col-md;
+  .data-table-block .description__header,
+  .data-table-block .description__cell {
+    width: 40%;
+  }
+
+  .data-table-block .label_membership_type__header,
+  .data-table-block .label_membership_type__cell {
+    width: 100px;
+    max-width: 100px;
   }
 }

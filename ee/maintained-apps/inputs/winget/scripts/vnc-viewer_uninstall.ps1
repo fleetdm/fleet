@@ -1,8 +1,10 @@
-# Uninstall RealVNC Viewer (MSI) via its registry UninstallString.
-# DisplayName is versioned (e.g. "RealVNC Viewer 7.15.1"), Publisher "RealVNC".
-# The MSI installs machine-wide (ALLUSERS=1), so its ARP entry lives under HKLM.
+# Uninstall RealVNC (Connect) Viewer (MSI) via its registry UninstallString.
+# DisplayName is versioned and was rebranded: older builds register as
+# "RealVNC Viewer 7.15.1", current builds as "RealVNC Connect Viewer 8.4.1".
+# Publisher "RealVNC". The MSI installs machine-wide (ALLUSERS=1), so its ARP
+# entry lives under HKLM.
 
-$softwareNameLike = "RealVNC Viewer*"
+$softwareNamePatterns = @("RealVNC Viewer*", "RealVNC Connect Viewer*")
 $publisher = "RealVNC"
 
 $paths = @(
@@ -16,12 +18,13 @@ try {
     ForEach-Object { Get-ItemProperty $_.PSPath }
 
 $key = $uninstallKeys | Where-Object {
-    $_.DisplayName -like $softwareNameLike -and
+    $dn = $_.DisplayName
+    ($softwareNamePatterns | Where-Object { $dn -like $_ }) -and
     ($publisher -eq "" -or $_.Publisher -eq $publisher)
 } | Select-Object -First 1
 
 if (-not $key -or -not $key.UninstallString) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
+    Write-Host "Uninstall entry not found for $($softwareNamePatterns -join ', ')"
     Exit 0
 }
 

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.20b",
+      "version": "1.21b",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zen Browser (x64 en-US)' AND publisher = 'Zen OSS Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zen Browser (x64 en-US)' AND publisher = 'Zen OSS Team' AND version_compare(version, '1.20b') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zen Browser (x64 en-US)' AND publisher = 'Zen OSS Team' AND version_compare(version, '1.21b') < 0);"
       },
-      "installer_url": "https://github.com/zen-browser/desktop/releases/download/1.20b/zen.installer.exe",
+      "installer_url": "https://github.com/zen-browser/desktop/releases/download/1.21b/zen.installer.exe",
       "install_script_ref": "b813a9e0",
       "uninstall_script_ref": "0361ed80",
-      "sha256": "cc09438f2fb028b8a3c121249e9d36715a168d559e5ea3a15e8653e781f63d12",
+      "sha256": "eaff28ab85d738712392f1f6fc4ce28300cb1028a23b9873ad571a868574c3b1",
       "default_categories": [
         "Browsers"
       ]

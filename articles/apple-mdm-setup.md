@@ -11,9 +11,8 @@ To turn on Windows MDM features, head to this [Windows MDM setup article](https:
 Apple uses Apple Push Notification service (APNs) APNs to authenticate and manage interactions between Fleet and hosts.
 
 > Apple requires that APNs certificates are renewed annually.
-> - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
-> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
-> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts.
+> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. If this happens, configuration profile changes and other MDM commands will remain stuck in “Pending” until renewal.
+> - When renewing, be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts. The recommended approach is to use a shared Apple Developer account to generate the APNs certificate to make sure it can be renewed regardless of an employee's availability.
 
 How to connect Fleet to APNs:
 
@@ -39,6 +38,19 @@ How to connect Fleet to APNs:
 > Available in Fleet Premium
 
 Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+### To connect Fleet to AB, you have to add an AB token to Fleet. To add an AB token:
 
 How to connect Fleet to AB:
 
@@ -125,8 +137,8 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 
 2. Clicking **Turn on MDM** opens a new tab.
-   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
-   - If authentication is successful, or if end user authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
+   - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
+   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
 
 ## Volume Purchasing Program (VPP)
 
@@ -250,10 +262,11 @@ When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet 
   - Clears completed commands, scripts, and software from the previous enrollment
   - Resets host labels
 
-This means you **do not need to delete** an AB host from Fleet before 
-re-enrolling it. Fleet handles clearing stale state automatically.
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
 
 > This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

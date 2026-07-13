@@ -1,0 +1,10 @@
+{
+  "name": "Huly",
+  "unique_identifier": "hc.hcengineering.Huly",
+  "token": "huly",
+  "installer_format": "zip",
+  "slug": "huly/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

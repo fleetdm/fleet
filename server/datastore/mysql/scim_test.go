@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -29,6 +30,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ScimUserByHostID", testScimUserByHostID},
+		{"ScimUserCreateAssociatesAllMatchingHosts", testScimUserCreateAssociatesAllMatchingHosts},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"ReplaceScimUserEmails", testReplaceScimUserEmails},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
@@ -46,6 +48,7 @@ func TestScim(t *testing.T) {
 		{"ScimUsersExist", testScimUsersExist},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
 	for _, c := range cases {
@@ -1502,6 +1505,44 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 }
 
+// testScimUserCreateAssociatesAllMatchingHosts verifies that creating a SCIM user
+// (as the IdP directory sync does) links every host whose MDM IdP account matches
+// the user.
+func testScimUserCreateAssociatesAllMatchingHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Two hosts belonging to the same person, both carrying the same MDM IdP account.
+	host1 := test.NewHost(t, ds, "multi-host-1", "1", "mh1key", "mh1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "multi-host-2", "2", "mh2key", "mh2uuid", time.Now())
+
+	const idpUUID = "multi-idp-uuid"
+	const idpUserName = "multi.user@example.com"
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?, ?, ?, ?)`,
+		idpUUID, idpUserName, "Multi User", idpUserName)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?, ?), (?, ?)`,
+		host1.UUID, idpUUID, host2.UUID, idpUUID)
+	require.NoError(t, err)
+
+	user := fleet.ScimUser{
+		UserName:   idpUserName,
+		ExternalID: new("ext-multi"),
+		Active:     new(true),
+	}
+	user.ID, err = ds.CreateScimUser(ctx, &user)
+	require.NoError(t, err)
+
+	// Both hosts must resolve to the newly-created SCIM user.
+	for _, h := range []*fleet.Host{host1, host2} {
+		got, err := ds.ScimUserByHostID(ctx, h.ID)
+		require.NoError(t, err, "host %d should be linked to the scim user", h.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, user.ID, got.ID, "host %d linked to the wrong scim user", h.ID)
+	}
+}
+
 func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	// Create test users with different attributes and emails
 	users := []fleet.ScimUser{
@@ -2722,4 +2763,141 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, user1.ID, result.ID)
 	assert.Equal(t, "mapping-test-user1", result.UserName)
+}
+
+func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host.
+	host := test.NewHost(t, ds, "android-host", "10", "akey", "androiduuid", time.Now(), test.WithPlatform("android"))
+
+	// --- Certificate template resend ---
+
+	// Create a certificate authority and template.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO certificate_authorities (name, type, url) VALUES ('scim_test_ca', 'custom_scep_proxy', 'https://ca.example.com')`)
+		return err
+	})
+	var caID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &caID, `SELECT id FROM certificate_authorities WHERE name = 'scim_test_ca'`)
+	})
+
+	// Create the cert template.
+	certResp, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "wifi-cert",
+		TeamID:                 0,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+	})
+	require.NoError(t, err)
+
+	// Track the variable association.
+	err = ds.SetCertificateTemplateVariables(ctx, certResp.ID, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+
+	// Create a host_certificate_template row in "delivered" status.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, 'delivered', 'install', 'wifi-cert')`,
+			host.UUID, certResp.ID)
+		return err
+	})
+
+	// --- Android configuration profile resend ---
+
+	// Create an Android config profile with a variable.
+	androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		TeamID:  new(uint), // team 0
+		Name:    "android-var-profile",
+		RawJSON: []byte(`{"screenCaptureDisabled": true, "shortSupportMessage": {"defaultMessage": "User $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+
+	// Create a host_mdm_android_profiles row in "verified" status.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, status, operation_type, checksum) VALUES (?, ?, 'android-var-profile', 'verified', 'install', 'abc123')`,
+			host.UUID, androidProfile.ProfileUUID)
+		return err
+	})
+
+	// --- Managed app config resend ---
+
+	// Create an android enterprise (required for job queuing).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO android_enterprises (signup_name, enterprise_id) VALUES ('test', 'LC0test123')`)
+		return err
+	})
+
+	// Insert a VPP app and app config with a variable.
+	appID := "com.example.varapp"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?, 'android')`, appID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES (?, 'android', 0)`, appID)
+		return err
+	})
+
+	config := []byte(`{"managedConfiguration":{"user":"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, appID, config)
+	require.NoError(t, err)
+
+	// Assign a SCIM user to the host.
+	scimUser, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "cert-user@example.com"})
+	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, host.ID, scimUser)
+	require.NoError(t, err)
+
+	// Clear any jobs that may have been queued during setup.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM jobs`)
+		return err
+	})
+
+	// Change the SCIM user's username — this should trigger resends.
+	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "new-user@example.com"})
+	require.NoError(t, err)
+
+	// (1) Assert certificate template was reset to pending.
+	var certStatus string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&certStatus,
+			`SELECT status FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, certResp.ID)
+	})
+	assert.Equal(t, string(fleet.CertificateTemplatePending), certStatus, "cert template should be reset to pending")
+
+	// (2) Assert android config profile was reset to pending (status = NULL).
+	var androidProfileStatus *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&androidProfileStatus,
+			`SELECT status FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, androidProfile.ProfileUUID)
+	})
+	assert.Nil(t, androidProfileStatus, "android profile status should be reset to NULL (pending)")
+
+	// (3) Assert a software_worker job was queued for the managed app config.
+	type jobRow struct {
+		Name string          `db:"name"`
+		Args json.RawMessage `db:"args"`
+	}
+	var jobs []jobRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &jobs,
+			`SELECT name, args FROM jobs WHERE name = 'software_worker' AND state = 'queued'`)
+	})
+	require.Len(t, jobs, 1, "expected one software_worker job to be queued")
+
+	var jobArgs map[string]any
+	err = json.Unmarshal(jobs[0].Args, &jobArgs)
+	require.NoError(t, err)
+	assert.Equal(t, "make_android_app_available", jobArgs["task"])
+	assert.Equal(t, appID, jobArgs["application_id"])
+	assert.Equal(t, true, jobArgs["app_config_changed"])
+	assert.Contains(t, jobArgs["enterprise_name"], "LC0test123")
 }

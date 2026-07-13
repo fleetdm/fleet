@@ -1,0 +1,10 @@
+{
+  "name": "YACReader",
+  "unique_identifier": "com.yacreader.YACReader",
+  "token": "yacreader",
+  "installer_format": "dmg",
+  "slug": "yacreader/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -47,6 +47,24 @@ on:
         type: string
         default: 3
         required: true
+      fleet_redis_engine:
+        description: "Elasticache engine to deploy"
+        type: choice
+        options:
+        - redis
+        - valkey
+        default: redis
+        required: false
+      fleet_redis_engine_version:
+        description: "Elasticache engine version (must match the engine, e.g. 7.1 for redis, 8.0 for valkey)"
+        type: string
+        default: "7.1"
+        required: false
+      fleet_redis_parameter_group_family:
+        description: "Elasticache parameter group family (must match engine+version, e.g. redis7, valkey7, valkey8)"
+        type: string
+        default: "redis7"
+        required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -79,6 +97,9 @@ env:
   TF_VAR_database_instance_count: "${{ inputs.fleet_database_instance_count }}"
   TF_VAR_redis_instance_size: "${{ inputs.fleet_redis_instance_size }}"
   TF_VAR_redis_instance_count: "${{ inputs.fleet_redis_instance_count }}"
+  TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"
+  TF_VAR_redis_engine_version: "${{ inputs.fleet_redis_engine_version }}"
+  TF_VAR_redis_parameter_group_family: "${{ inputs.fleet_redis_parameter_group_family }}"
 
 permissions:
   id-token: write

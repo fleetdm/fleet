@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -118,18 +119,20 @@ func TestMaybeSendStatistics(t *testing.T) {
 					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
 				},
 			},
-			HostsEnrolledByOrbitVersion:   []fleet.HostsCountByOrbitVersion{},
-			HostsEnrolledByOsqueryVersion: []fleet.HostsCountByOsqueryVersion{},
-			StoredErrors:                  []byte(`[]`),
-			Organization:                  "Fleet",
-			AIFeaturesDisabled:            true,
-			MaintenanceWindowsEnabled:     true,
-			MaintenanceWindowsConfigured:  true,
-			NumHostsFleetDesktopEnabled:   1984,
-			FleetMaintainedAppsMacOS:      []string{"1password/darwin"},
-			FleetMaintainedAppsWindows:    []string{"google-chrome/windows"},
-			GitOpsModeEnabled:             true,
-			GitOpsModeExceptions:          []string{"labels", "software", "secrets"},
+			HostsEnrolledByOrbitVersion:     []fleet.HostsCountByOrbitVersion{},
+			HostsEnrolledByOsqueryVersion:   []fleet.HostsCountByOsqueryVersion{},
+			StoredErrors:                    []byte(`[]`),
+			Organization:                    "Fleet",
+			AIFeaturesDisabled:              true,
+			MaintenanceWindowsEnabled:       true,
+			MaintenanceWindowsConfigured:    true,
+			NumHostsFleetDesktopEnabled:     1984,
+			FleetMaintainedAppsMacOS:        []string{"1password/darwin"},
+			FleetMaintainedAppsWindows:      []string{"google-chrome/windows"},
+			GitOpsModeEnabled:               true,
+			GitOpsModeExceptions:            []string{"labels", "software", "secrets"},
+			NumHostsFleetMDMEnrolledMacOS:   12,
+			NumHostsFleetMDMEnrolledWindows: 34,
 		}, true, nil
 	}
 	recorded := false
@@ -148,7 +151,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"]}`, requestBody)
+	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"googleWorkspaceConfigured":false,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -304,7 +307,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet, &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1001,7 +1004,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet(), &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1068,7 +1071,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet(), &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1315,6 +1318,12 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	}
 
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+		// The cron must pass a filter that includes fleet/team-scoped labels,
+		// otherwise host vitals labels on a team never get populated (#46869). An
+		// empty TeamFilter (nil User) falls back to global-only labels in
+		// applyLabelTeamFilter, so require a global-admin user here.
+		require.NotNil(t, filter.User, "cron must pass a user-scoped filter so team labels are included")
+		require.True(t, filter.User.HasAnyGlobalRole(), "cron must use a global-admin filter to see all team labels")
 		return labels, nil
 	}
 
@@ -1535,4 +1544,15 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 			assert.Contains(t, out, os.Args[0])
 		})
 	}
+}
+
+func TestInitOrgLogoStore(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	// With no software installers bucket configured, the store falls back to
+	// the database-backed implementation. NewOrgLogoStore does no DB work at
+	// construction, so a zero-value Datastore is enough to verify selection.
+	ds := &mysql.Datastore{}
+	store := initOrgLogoStore(t.Context(), config.S3Config{}, ds, logger)
+	require.IsType(t, ds.NewOrgLogoStore(), store)
 }

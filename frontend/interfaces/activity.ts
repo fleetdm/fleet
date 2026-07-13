@@ -108,6 +108,7 @@ export enum ActivityType {
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
+  RanCustomMdmCommand = "ran_custom_mdm_command",
   RanScriptBatch = "ran_script_batch",
   ScheduledScriptBatch = "scheduled_script_batch",
   CanceledScriptBatch = "canceled_script_batch",
@@ -129,6 +130,7 @@ export enum ActivityType {
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  InstalledAllSelfServiceSoftware = "installed_all_self_service_software",
   UninstalledSoftware = "uninstalled_software",
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
@@ -146,6 +148,7 @@ export enum ActivityType {
   CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
+  EditedAppleAccountProvisioning = "edited_apple_account_provisioning",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
@@ -160,6 +163,9 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
+  AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
+  EditedGoogleWorkspaceIntegration = "edited_google_workspace_integration",
+  DeletedGoogleWorkspaceIntegration = "deleted_google_workspace_integration",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
   InstalledCertificate = "installed_certificate",
@@ -183,6 +189,14 @@ export enum ActivityType {
   DeletedOrgLogo = "deleted_org_logo",
   EnabledHistoricalDataset = "enabled_historical_dataset",
   DisabledHistoricalDataset = "disabled_historical_dataset",
+  FailedAutomationWebhook = "failed_automation_webhook",
+  FailedAutomationTicket = "failed_automation_ticket",
+  FailedAutomationCalendarEvent = "failed_automation_calendar_event",
+  FailedAutomationConditionalAccess = "failed_automation_conditional_access",
+  RanAutomationWebhook = "ran_automation_webhook",
+  RanAutomationTicket = "ran_automation_ticket",
+  RanAutomationCalendarEvent = "ran_automation_calendar_event",
+  RanAutomationConditionalAccess = "ran_automation_conditional_access",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -199,6 +213,7 @@ export type IHostPastActivityType =
   | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAllSelfServiceSoftware
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp
   | ActivityType.CanceledRunScript
@@ -213,7 +228,16 @@ export type IHostPastActivityType =
   | ActivityType.CreatedManagedLocalAccount
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
-  | ActivityType.FailedEnrollmentProfileRenewal;
+  | ActivityType.FailedEnrollmentProfileRenewal
+  | ActivityType.RanCustomMdmCommand
+  | ActivityType.RanAutomationWebhook
+  | ActivityType.RanAutomationTicket
+  | ActivityType.RanAutomationCalendarEvent
+  | ActivityType.RanAutomationConditionalAccess
+  | ActivityType.FailedAutomationWebhook
+  | ActivityType.FailedAutomationTicket
+  | ActivityType.FailedAutomationCalendarEvent
+  | ActivityType.FailedAutomationConditionalAccess;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -295,13 +319,17 @@ export interface IActivityDetails {
   query_ids?: number[];
   query_name?: string;
   query_sql?: string;
+  request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
   script_name?: string;
   self_service?: boolean;
+  self_service_category_id?: number | null;
+  self_service_category_name?: string | null;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
   source?: SoftwareSource;
@@ -326,7 +354,15 @@ export interface IActivityDetails {
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
+  // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
+  status_code?: number;
+  error_response?: string;
+  /** Ticket integration that produced a ticket policy automation activity. */
+  type?: "jira" | "zendesk";
+  ticket_key?: string;
+  ticket_id?: number;
   custom_variable_name?: string;
+  domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
@@ -457,12 +493,14 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",
   fleet_enrolled: "Host enrolled",
-  installed_app_store_app: "Installed App Store (VPP) app",
+  installed_app_store_app: "Installed App Store app",
   installed_software: "Install software",
+  installed_all_self_service_software: "Installed all self-service software",
   live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
   mdm_unenrolled: "MDM turned off",
+  ran_custom_mdm_command: "Ran custom MDM command",
   ran_script: "Ran script",
   ran_script_batch: "Bulk ran script",
   scheduled_script_batch: "Scheduled script batch",
@@ -486,6 +524,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_logged_in: "User login: success",
   wiped_host: "Wiped host",
   failed_wipe: "Failed wipe",
+  edited_apple_account_provisioning: "Edited Apple account provisioning",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
@@ -526,6 +565,12 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
+  [ActivityType.AddedGoogleWorkspaceIntegration]:
+    "Added Google Workspace integration",
+  [ActivityType.EditedGoogleWorkspaceIntegration]:
+    "Edited Google Workspace integration",
+  [ActivityType.DeletedGoogleWorkspaceIntegration]:
+    "Deleted Google Workspace integration",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
   [ActivityType.InstalledCertificate]: "Installed certificate",
@@ -547,4 +592,16 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.DeletedLabel]: "Deleted label",
   [ActivityType.EnabledHistoricalDataset]: "Enabled chart data collection",
   [ActivityType.DisabledHistoricalDataset]: "Disabled chart data collection",
+  [ActivityType.FailedAutomationWebhook]: "Failed policy automation: webhook",
+  [ActivityType.FailedAutomationTicket]: "Failed policy automation: ticket",
+  [ActivityType.FailedAutomationCalendarEvent]:
+    "Failed policy automation: calendar event",
+  [ActivityType.FailedAutomationConditionalAccess]:
+    "Failed policy automation: conditional access",
+  [ActivityType.RanAutomationWebhook]: "Policy automation: webhook ran",
+  [ActivityType.RanAutomationTicket]: "Policy automation: ticket created",
+  [ActivityType.RanAutomationCalendarEvent]:
+    "Policy automation: calendar event created",
+  [ActivityType.RanAutomationConditionalAccess]:
+    "Policy automation: single sign-on blocked",
 };

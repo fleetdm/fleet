@@ -1,10 +1,9 @@
 /** TODO: This component is similar to other UI elements that can
  * be abstracted to use a shared base component (e.g. DetailsWidget) */
 
-import React, { useState } from "react";
+import React from "react";
 import classnames from "classnames";
 
-import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -16,8 +15,6 @@ import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
@@ -25,9 +22,13 @@ const baseClass = "installer-details-widget";
 
 interface IInstallerNameProps {
   name: string;
+  /** When true, suppress the truncation tooltip — used in contexts (e.g.
+   * inactive LibraryItemAccordion rows) where every tooltip on the row is
+   * suppressed. */
+  disableTooltip?: boolean;
 }
 
-const InstallerName = ({ name }: IInstallerNameProps) => {
+const InstallerName = ({ name, disableTooltip }: IInstallerNameProps) => {
   const titleRef = React.useRef<HTMLDivElement>(null);
   const isTruncated = useCheckTruncatedElement(titleRef);
 
@@ -36,7 +37,7 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
       tipContent={name}
       position="top"
       underline={false}
-      disableTooltip={!isTruncated}
+      disableTooltip={disableTooltip || !isTruncated}
       showArrow
     >
       <div ref={titleRef} className={`${baseClass}__title`}>
@@ -70,12 +71,23 @@ interface IInstallerDetailsWidgetProps {
   installerType: InstallerType;
   addedTimestamp?: string;
   version?: string | null;
-  sha256?: string | null;
   isFma: boolean;
   isLatestFmaVersion?: boolean;
   isScriptPackage: boolean;
   androidPlayStoreId?: string;
   customDetails?: string;
+  /** Suppress the leading installer-type label ("Custom package", "App Store (VPP)",
+   * etc.). Used when the widget is embedded somewhere that already conveys the type
+   * (e.g. LibraryItemAccordion, where the icon + container do the same work). */
+  hideInstallerType?: boolean;
+  /** Suppress every hover tooltip the widget would normally render (title
+   * truncation, FMA "change in Actions > Edit" hint, App Store "Updated every
+   * hour", Android Play Store link, "Fleet couldn't read the version", and the
+   * `addedAt` formatted-time tooltip). Used by inactive LibraryItemAccordion
+   * rows, whose outer wrapper already shows the rollback hover tooltip — Fleet
+   * UI avoids stacking two tooltips on the same hover target across the app,
+   * so the widget's tooltips have to defer to the row-level one. */
+  disableTooltips?: boolean;
 }
 
 const InstallerDetailsWidget = ({
@@ -83,30 +95,16 @@ const InstallerDetailsWidget = ({
   softwareName,
   installerType,
   addedTimestamp,
-  sha256,
   version,
   isFma,
   isLatestFmaVersion = false,
   isScriptPackage,
   androidPlayStoreId,
   customDetails,
+  hideInstallerType = false,
+  disableTooltips = false,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
-
-  const [copyMessage, setCopyMessage] = useState("");
-
-  const onCopySha256 = (evt: React.MouseEvent) => {
-    evt.preventDefault();
-
-    stringToClipboard(sha256)
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    setTimeout(() => setCopyMessage(""), 1000);
-
-    return false;
-  };
 
   const renderIcon = () => {
     if (installerType === "app-store") {
@@ -123,41 +121,31 @@ const InstallerDetailsWidget = ({
       return <>{customDetails}</>;
     }
 
-    const renderVersionInfo = () => {
+    // Renders just the version chip (or null when hidden). The leading " · "
+    // separator is added by the caller so that callers who suppress the
+    // preceding type label don't get a stray middot.
+    const renderVersionChip = (): React.ReactNode => {
       // Hide version info from script package and Android Play Store web apps
       if (isScriptPackage || isAndroidWebApp(androidPlayStoreId)) {
         return null;
       }
 
-      let versionInfo = <span>{version}</span>;
-
-      if (isFma) {
-        versionInfo = (
-          <TooltipWrapper
-            tipContent={
-              <span>
-                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
-                software.
-              </span>
-            }
-          >
-            <span>
-              {version} {isLatestFmaVersion ? "(latest)" : ""}
-            </span>
-          </TooltipWrapper>
-        );
-      }
-      if (installerType === "app-store") {
-        versionInfo = (
-          <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
-            <span>{version}</span>
-          </TooltipWrapper>
+      if (androidPlayStoreId) {
+        // AndroidLatestVersionWithTooltip has no disable-tooltip prop, so for
+        // inactive rows we render the plain "Latest" text instead — keeps the
+        // chip readable without bringing in the Play Store hover tooltip.
+        if (disableTooltips) return <span>Latest</span>;
+        return (
+          <AndroidLatestVersionWithTooltip
+            androidPlayStoreId={androidPlayStoreId}
+          />
         );
       }
 
       if (!version) {
-        versionInfo = (
+        return (
           <TooltipWrapper
+            disableTooltip={disableTooltips}
             tipContent={
               <span>
                 Fleet couldn&apos;t read the version from {softwareName}.
@@ -180,86 +168,74 @@ const InstallerDetailsWidget = ({
         );
       }
 
-      if (androidPlayStoreId) {
-        versionInfo = (
-          <AndroidLatestVersionWithTooltip
-            androidPlayStoreId={androidPlayStoreId}
-          />
+      if (isFma) {
+        return (
+          <TooltipWrapper
+            disableTooltip={disableTooltips}
+            tipContent={
+              <span>
+                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
+                software.
+              </span>
+            }
+          >
+            <span>
+              {version} {isLatestFmaVersion ? "(latest)" : ""}
+            </span>
+          </TooltipWrapper>
         );
       }
 
-      return <> &bull; {versionInfo}</>;
-    };
-
-    const renderTimeStamp = () =>
-      addedTimestamp ? (
-        <>
-          {" "}
-          &bull;{" "}
+      if (installerType === "app-store") {
+        return (
           <TooltipWrapper
-            tipContent={internationalTimeFormat(new Date(addedTimestamp))}
-            underline={false}
+            disableTooltip={disableTooltips}
+            tipContent={<span>Updated every hour.</span>}
           >
-            {addedFromNow(addedTimestamp)}
+            <span>{version}</span>
           </TooltipWrapper>
-        </>
-      ) : (
-        ""
-      );
+        );
+      }
 
-    const renderSha256 = () => {
-      return sha256 ? (
-        <>
-          {" "}
-          &bull;{" "}
-          <span className={`${baseClass}__sha256`}>
-            <TooltipWrapper
-              tipContent={<>The software&apos;s SHA-256 hash.</>}
-              position="top"
-              showArrow
-              underline={false}
-            >
-              {sha256.slice(0, 7)}&hellip;
-            </TooltipWrapper>
-            <div className={`${baseClass}__sha-copy-button`}>
-              <Button
-                variant="icon"
-                size="small"
-                iconStroke
-                onClick={onCopySha256}
-              >
-                <Icon name="copy" />
-              </Button>
-            </div>
-            <div className={`${baseClass}__copy-overlay`}>
-              {copyMessage && (
-                <div
-                  className={`${baseClass}__copy-message`}
-                >{`${copyMessage} `}</div>
-              )}
-            </div>
-          </span>
-        </>
-      ) : (
-        ""
-      );
+      return <span>{version}</span>;
     };
 
-    return (
-      <>
-        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)}
-        {renderVersionInfo()}
-        {renderTimeStamp()}
-        {renderSha256()}
-      </>
-    );
+    const renderTimeStampChip = (): React.ReactNode =>
+      addedTimestamp ? (
+        <TooltipWrapper
+          disableTooltip={disableTooltips}
+          tipContent={internationalTimeFormat(new Date(addedTimestamp))}
+          underline={false}
+        >
+          {addedFromNow(addedTimestamp)}
+        </TooltipWrapper>
+      ) : null;
+
+    const parts: React.ReactNode[] = [];
+    if (!hideInstallerType) {
+      parts.push(
+        renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)
+      );
+    }
+    const versionChip = renderVersionChip();
+    if (versionChip) parts.push(versionChip);
+    const timeStampChip = renderTimeStampChip();
+    if (timeStampChip) parts.push(timeStampChip);
+
+    return parts.map((part, i) => (
+      // eslint-disable-next-line react/no-array-index-key
+      <React.Fragment key={i}>
+        {i > 0 && <> &bull; </>}
+        {part}
+      </React.Fragment>
+    ));
   };
 
   return (
     <div className={classNames}>
       {renderIcon()}
       <div className={`${baseClass}__info`}>
-        <InstallerName name={softwareName} />
+        <InstallerName name={softwareName} disableTooltip={disableTooltips} />
         <div className={`${baseClass}__details`}>{renderDetails()}</div>
       </div>
     </div>

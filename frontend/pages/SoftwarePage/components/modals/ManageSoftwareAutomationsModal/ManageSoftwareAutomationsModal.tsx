@@ -227,6 +227,17 @@ const ManageAutomationsModal = ({
     setDestinationUrl(value);
   };
 
+  const onURLBlur = () => {
+    // Skip validation whenever the field is disabled (automations off or GitOps
+    // mode) so we don't surface an error on a control the user can't edit. This
+    // must mirror the InputField's `disabled` condition below.
+    if (!softwareAutomationsEnabled || gitOpsModeEnabled) {
+      return;
+    }
+    const { errors: webhookErrors } = validateWebhookURL(destinationUrl);
+    setErrors((prevErrs) => ({ ...omit(prevErrs, "url"), ...webhookErrors }));
+  };
+
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -459,6 +470,7 @@ const ManageAutomationsModal = ({
           type="text"
           value={destinationUrl}
           onChange={onURLChange}
+          onBlur={onURLBlur}
           error={errors.url}
           helpText={
             "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
@@ -471,9 +483,8 @@ const ManageAutomationsModal = ({
           type="button"
           variant="inverse"
           onClick={togglePreviewPayloadModal}
-          disabled={!softwareAutomationsEnabled}
         >
-          Preview payload
+          Example payload
         </Button>
       </>
     );

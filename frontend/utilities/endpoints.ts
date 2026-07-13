@@ -33,6 +33,9 @@ export default {
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
+    `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
+  POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
@@ -41,6 +44,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_ALL: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install_all`,
   DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
     return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
   },
@@ -55,6 +60,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/uninstall/${scriptExecutionId}/results`,
   DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
+  DEVICE_SELF_SERVICE_CATEGORIES: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/self_service_categories`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -117,6 +124,11 @@ export default {
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABELS_SUMMARY: `/${API_VERSION}/fleet/labels/summary`,
+
+  // self-service categories
+  SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  SELF_SERVICE_CATEGORY: (id: number) =>
+    `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
@@ -169,6 +181,10 @@ export default {
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
+
+  // Apple DDM asset endpoints
+  MDM_ASSETS: `/${API_VERSION}/fleet/assets`,
+  MDM_ASSET: (uuid: string) => `/${API_VERSION}/fleet/assets/${uuid}`,
 
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,

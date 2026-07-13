@@ -1,12 +1,12 @@
 {
   "versions": [
     {
-      "version": "7.2",
+      "version": "8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.SFSymbols';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.SFSymbols' AND version_compare(bundle_short_version, '7.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.SFSymbols' AND version_compare(bundle_short_version, '8.0') < 0);"
       },
-      "installer_url": "https://devimages-cdn.apple.com/design/resources/download/SF-Symbols-7.dmg",
+      "installer_url": "https://devimages-cdn.apple.com/design/resources/download/SF-Symbols-8.dmg",
       "install_script_ref": "36b578c4",
       "uninstall_script_ref": "de35f8cd",
       "sha256": "no_check",

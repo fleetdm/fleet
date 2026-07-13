@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -143,17 +145,19 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil && *teamID != 0 {
-		// This auth check ensures we return 403 if the user doesn't have access to the team
+	if teamID != nil {
+		// Verify the caller has permission for the requested scope (team or global).
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 
@@ -208,6 +212,13 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 				}
 				meta.FleetMaintainedVersions = fmaVersions
+
+				// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
+				pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+				}
+				meta.PinnedVersion = pinnedVersion
 
 				// Populate PatchPolicy if there is one
 				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)

@@ -1,0 +1,2 @@
+- Added configurable batch size `FLEET_MDM_ANDROID_BATCH_SIZE` (default: 1000 hosts) for Android MDM operations to prevent overwhelming the Google Android Management API.
+- Added batching and staggered scheduling for Android software installation jobs to spread AMAPI load across multiple worker ticks.

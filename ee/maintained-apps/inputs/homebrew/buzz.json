@@ -1,0 +1,10 @@
+{
+  "name": "Buzz",
+  "unique_identifier": "com.chidiwilliams.buzz",
+  "token": "buzz",
+  "installer_format": "dmg",
+  "slug": "buzz/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

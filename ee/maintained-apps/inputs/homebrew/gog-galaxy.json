@@ -1,0 +1,10 @@
+{
+  "name": "GOG Galaxy",
+  "unique_identifier": "com.gog.galaxy.cef.renderer",
+  "token": "gog-galaxy",
+  "installer_format": "pkg",
+  "slug": "gog-galaxy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

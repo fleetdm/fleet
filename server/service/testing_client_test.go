@@ -235,7 +235,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return err
 	})
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
@@ -476,6 +476,21 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+// LoginMDMSSOUserSetupExperience drives the Orbit Setup Experience MDM SSO flow
+// (Linux/Windows), which carries the device's host UUID through the SSO request
+// data. This exercises the mdmSSOHandleCallbackAuth path that persists the IdP
+// account for a known host, unlike LoginMDMSSOUser (Apple flow) where the host
+// UUID is not yet known. Returns the callback response (a redirect).
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+		HostUUID:  hostUUID,
+	})
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
 // LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
 // /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
 // SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO
@@ -545,9 +560,13 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	return resp
 }
 
-func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password, token string) *http.Response {
+	initiator := fleet.SSOInitiatorAccountDrivenEnroll
+	if token != "" {
+		initiator = fmt.Sprintf("%s:%s", initiator, token)
+	}
 	requestParams := initiateMDMSSORequest{
-		Initiator:      fleet.SSOInitiatorAccountDrivenEnroll,
+		Initiator:      initiator,
 		UserIdentifier: username + "@example.com",
 	}
 	body, err := json.Marshal(requestParams)

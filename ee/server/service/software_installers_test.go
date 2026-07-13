@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -529,7 +530,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		{
 			name:    "no version",
 			version: "^",
-			wantErr: "no version number provided",
+			wantErr: errEmptyCaretVersion.Error(),
 		},
 		{
 			name:    "invalid version",
@@ -547,6 +548,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
 				require.NoError(t, err)
+				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
+				// survives downstream and is persisted to software_title_team_pins.
+				require.Equal(t, vt.version, payload.RollbackVersion)
 			}
 		})
 	}
@@ -1555,6 +1559,72 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 	}
 }
 
+func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
+	ctx := t.Context()
+	host := &fleet.Host{ID: 1, Platform: "darwin"}
+
+	// Each field injects a failure at one point of the flow; a nil field means that
+	// step succeeds. The zero value drives two successful package installs.
+	type failures struct {
+		getTitles    error // GetSoftwareTitlesForInstallAll
+		installTitle error // the per-title install (SelfServiceInstallSoftwareTitle)
+		newActivity  error // the roll-up activity
+	}
+
+	setup := func(fail failures) (*Service, *strings.Builder) {
+		ds := new(mock.Store)
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+			if fail.getTitles != nil {
+				return nil, nil, fail.getTitles
+			}
+			return []*fleet.HostSoftwareWithInstaller{{ID: 10}, {ID: 11}}, nil, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			if fail.installTitle != nil {
+				return nil, fail.installTitle
+			}
+			return &fleet.SoftwareInstaller{InstallerID: 1, SelfService: true, Name: "foo.pkg"}, nil
+		}
+		ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID uint, hostID uint) (bool, error) {
+			return true, nil
+		}
+		ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+			return nil
+		}
+		ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			return "exec-uuid", nil
+		}
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return fail.newActivity
+		}
+		var logs strings.Builder
+		svc.logger = slog.New(slog.NewTextHandler(&logs, nil))
+		return svc, &logs
+	}
+
+	t.Run("returns the error when listing titles fails", func(t *testing.T) {
+		svc, _ := setup(failures{getTitles: errors.New("boom")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.ErrorContains(t, err, "get software titles for install all")
+	})
+
+	t.Run("logs per-title failures and continues instead of aborting the batch", func(t *testing.T) {
+		svc, logs := setup(failures{installTitle: errors.New("lookup failed")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.NoError(t, err) // a per-title failure is logged, not returned
+		// both titles were attempted (the loop continued past the first failure) and logged
+		require.Contains(t, logs.String(), "title_id=10")
+		require.Contains(t, logs.String(), "title_id=11")
+	})
+
+	t.Run("returns the error when the roll-up activity fails", func(t *testing.T) {
+		svc, _ := setup(failures{newActivity: errors.New("activity failed")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.ErrorContains(t, err, "creating installed all self-service software activity")
+	})
+}
+
 // inMemoryKeyValueStore is a thread-safe map-backed KeyValueStore mock for
 // tests that need to observe what the batch goroutine writes.
 func inMemoryKeyValueStore() (*redismock.KeyValueStore, func(key string) *string) {
@@ -1634,12 +1704,49 @@ func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
 	require.Equal(t, wouldDelete, gotDeleted)
 
 	// The result endpoint returns the deleted packages on the dry-run completed branch.
-	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
 	require.NoError(t, err)
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
 	require.Empty(t, message)
 	require.Empty(t, packages)
 	require.Equal(t, wouldDelete, deletedPackages)
+}
+
+func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	// Script only packages use a "script://filename" url to pass the filename,
+	// so these should skip url validation
+	scriptFilenames := []string{
+		"install chatgpt.ps1",
+		"my script://app v2.ps1",
+		"sub dir/install.ps1",
+		`C:\Program Files\install.ps1`,
+		"install chatgpt.sh",
+		"my script://app v2.sh",
+		"sub dir/install.sh",
+	}
+
+	for _, name := range scriptFilenames {
+		// The trailing "not a url" payload is a tripwire: validation only reaches and
+		// rejects it if the script:// payload before it was accepted.
+		payloads := []*fleet.SoftwareInstallerPayload{
+			{URL: "script://" + name, InstallScript: "echo hi"},
+			{URL: "not a url"},
+		}
+		_, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+		require.ErrorContains(t, err, `URL ("not a url") is invalid`)
+		require.NotContains(t, err.Error(), name)
+		require.NotContains(t, err.Error(), "script://")
+	}
 }
 
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
@@ -1666,10 +1773,114 @@ func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 	})
 
-	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
 	require.NoError(t, err)
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
 	require.Empty(t, message)
 	require.Empty(t, packages)
 	require.Empty(t, deletedPackages)
+}
+
+func TestVersionMatchesMajor(t *testing.T) {
+	// Versions taken from ee/maintained-apps/outputs; most are not valid semver. The leading dot-segment is
+	// compared as a string, so a leading-zero or bare major stays distinct from "2"/"10"/"12".
+	cases := []struct {
+		version      string
+		majorVersion string
+		want         bool
+	}{
+		{"149.1.91.172", "149", true},
+		{"149.1.91.172", "150", false},
+		{"149.1.91.172", "14", false},
+		{"6.0.4.11438", "6", true},
+		{"25.0.208.0", "25", true},
+		{"221.0.0.0.0", "221", true},
+		{"0.2026.06.10.09.27.01", "0", true},
+		{"8.0.47.CE", "8", true},
+		{"2.2.18d", "2", true},
+		{"1.2.92.148.g882cc571", "1", true},
+		{"114.0.4-release.20250509.32955", "114", true},
+		{"2026.05.0+218", "2026", true},
+		{"02.07.01.62", "02", true},
+		{"02.07.01.62", "2", false},
+		{"20250302", "20250302", true},
+		{"183", "183", true},
+		{"149", "149", true},
+		{"1.21b", "1", true},
+		{"10.0.1", "1", false},
+		{"12.0", "1", false},
+	}
+	for _, c := range cases {
+		assert.Equalf(t, c.want, versionMatchesMajor(c.version, c.majorVersion), "version %q caret ^%s", c.version, c.majorVersion)
+	}
+}
+
+func TestParsePinnedVersion(t *testing.T) {
+	cases := []struct {
+		name      string
+		version   string
+		wantMajor string
+		wantCaret bool
+		wantErr   string
+	}{
+		{name: "latest is empty", version: "", wantMajor: "", wantCaret: false},
+		{name: "literal 4-component is not a caret", version: "149.0.7827.115", wantMajor: "149.0.7827.115", wantCaret: false},
+		{name: "caret major", version: "^149", wantMajor: "149", wantCaret: true},
+		{name: "caret leading-zero major", version: "^02", wantMajor: "02", wantCaret: true},
+		{name: "empty caret", version: "^", wantErr: errEmptyCaretVersion.Error()},
+		{name: "caret with minor", version: "^149.0", wantErr: errNonMajorVersion.Error()},
+		{name: "caret 4-component", version: "^149.1.91.172", wantErr: errNonMajorVersion.Error()},
+		{name: "caret non-numeric", version: "^abc", wantErr: errNonMajorVersion.Error()},
+	}
+	for _, c := range cases {
+		major, caret, err := parsePinnedVersion(t.Context(), c.version)
+		if c.wantErr != "" {
+			require.ErrorContainsf(t, err, c.wantErr, "case %s", c.name)
+			continue
+		}
+		require.NoErrorf(t, err, "case %s", c.name)
+		assert.Equalf(t, c.wantMajor, major, "case %s", c.name)
+		assert.Equalf(t, c.wantCaret, caret, "case %s", c.name)
+	}
+}
+
+func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		input     []string
+		extension string
+		want      []string
+		wantErr   string
+	}{
+		{name: "empty input", input: nil, extension: "sh", want: []string{}},
+		{name: "sh macos alias", input: []string{"macos"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh native only", input: []string{"linux"}, extension: "sh", want: []string{"linux"}},
+		{name: "sh both platforms", input: []string{"macos", "linux"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh dedupe canonical", input: []string{"macos", "darwin", "macos"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh case + whitespace", input: []string{" MacOS ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "pkg any rejected", input: []string{"macos"}, extension: "pkg", wantErr: `platform "macos" is not a valid "setup_experience_platforms" value for a .pkg package`},
+		{name: "msi any rejected", input: []string{"macos"}, extension: "msi", wantErr: `platform "macos" is not a valid "setup_experience_platforms" value for a .msi package`},
+		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platforms" value for a .sh package`},
+		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := normalizeSetupExperiencePlatforms(c.input, c.extension)
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			// nil vs empty-slice noise: compare both as normalized empty.
+			if len(c.want) == 0 {
+				assert.Empty(t, got)
+				return
+			}
+			assert.Equal(t, c.want, got)
+		})
+	}
 }

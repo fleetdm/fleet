@@ -447,3 +447,80 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 	})
 }
+
+func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
+	// For now this only verifies if labels are blocked on free tier
+	syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera")
+
+	setup := func(t *testing.T, premium bool) (fleet.Service, context.Context, *mock.Store) {
+		lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		if !premium {
+			lic = &fleet.LicenseInfo{Tier: fleet.TierFree}
+		}
+		svc, ctx, ds, _ := setupAppleMDMService(t, lic)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			return ac, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = "w-profile-uuid"
+			return &cp, nil
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			m := make(map[string]uint)
+			for i, label := range labels {
+				m[label] = uint(i + 1)
+			}
+			return m, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			m := make(map[string]*fleet.Label)
+			for i, name := range names {
+				m[name] = &fleet.Label{ID: uint(i + 1), Name: name}
+			}
+			return m, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("labels not allowed on free tier", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.ErrorContains(t, err, "Scoping configuration profile")
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+
+		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.ErrorContains(t, err, "Scoping configuration profile")
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("profile without labels allowed on free tier", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "without-labels", syncML, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("labels allowed on premium tier", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"})
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+}

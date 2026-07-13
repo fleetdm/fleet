@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 )
@@ -22,119 +23,30 @@ import (
 const HoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 
 // EntityAppliesToHost is the SHARED top-level dispatcher for Apple MDM
-// label-gated entities (profiles and declarations). It applies team and
-// platform gates, then composes the include + exclude label handlers
-// carried by the entity.
+// label-gated entities (profiles and declarations). It applies the Apple
+// platform gate, then delegates the team + include/exclude label gates to
+// the platform-neutral dispatcher in server/mdm/reconcile.
 //
 // Both the batched profile and declaration reconcilers — and the per-host
-// enrollment path — route through this function. The handlers themselves
-// operate on []AppleProfileLabelRef and are entity-agnostic. This is the
-// single source of truth for "does this Apple MDM entity apply to this
-// host" so label / team / platform semantics cannot drift across paths.
+// enrollment path — route through this function. The shared package is
+// the single source of truth for "does this label-gated MDM entity apply
+// to this host" so label / team semantics cannot drift across paths or
+// platforms.
 func EntityAppliesToHost(
 	e fleet.AppleLabeledEntity,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
 ) bool {
-	if e.GetTeamID() != host.EffectiveTeamID() {
-		return false
-	}
 	if !IsEligiblePlatform(host.Platform) {
 		return false
 	}
-
-	if e.GetIncludeMode() != fleet.AppleProfileIncludeNone {
-		var ok bool
-		switch e.GetIncludeMode() {
-		case fleet.AppleProfileIncludeAll:
-			ok = HandlerIncludeAll(e.GetIncludeLabels(), hostLabels)
-		case fleet.AppleProfileIncludeAny:
-			ok = HandlerIncludeAny(e.GetIncludeLabels(), hostLabels)
-		default:
-			return false
-		}
-		if !ok {
-			return false
-		}
-	}
-
-	if exc := e.GetExcludeLabels(); len(exc) > 0 {
-		if HandlerExcludeAny(exc, host, hostLabels) {
-			return false
-		}
-	}
-
-	return true
+	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels)
 }
 
 // IsEligiblePlatform reports whether the host's platform is one of the
 // Apple platforms this reconciler can manage.
 func IsEligiblePlatform(platform string) bool {
 	return platform == "darwin" || platform == "ios" || platform == "ipados"
-}
-
-// HandlerIncludeAll: host must be a member of every (non-broken) include
-// label. A broken label disqualifies the entity, mirroring the legacy SQL
-// where include-* with a broken label produces no desired-state row.
-func HandlerIncludeAll(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
-	if len(labels) == 0 {
-		return false
-	}
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return false
-		}
-		if _, ok := hostLabels[*l.LabelID]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-// HandlerIncludeAny: host must be a member of at least one include label.
-// Broken labels can't match (host can't be a member of a deleted label)
-// so they're silently skipped.
-func HandlerIncludeAny(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			continue
-		}
-		if _, ok := hostLabels[*l.LabelID]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-// HandlerExcludeAny: entity passes the exclude gate when the host is NOT
-// a member of any referenced label, with two safety rules:
-//
-//   - Any broken exclude label disqualifies the entity entirely (we can't
-//     prove the exclusion).
-//   - Dynamic labels created after the host's last label scan are treated
-//     as "results not yet reported" — also disqualify, so we don't
-//     install a profile that the not-yet-scanned label would exclude.
-//     Manual labels (membership_type=1) skip this timing check.
-//     Host vital labels runs it's own cron to associate, skip the timing check.
-//
-// Returns true if the host should be excluded, false if the host passes the exclude gate.
-func HandlerExcludeAny(
-	labels []fleet.AppleProfileLabelRef,
-	host *fleet.AppleHostReconcileInfo,
-	hostLabels map[uint]struct{},
-) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return true
-		}
-		if l.LabelMembershipType == int(fleet.LabelMembershipTypeDynamic) && !l.CreatedAt.IsZero() && host.LabelUpdatedAt.Before(l.CreatedAt) {
-			return true
-		}
-		if _, isMember := hostLabels[*l.LabelID]; isMember {
-			return true
-		}
-	}
-	return false
 }
 
 // ComputeReconcileDeltas evaluates desired profile state for each host in
@@ -244,18 +156,45 @@ func IsBrokenDeclaration(declUUID string, declsWithBrokenLabel map[string]struct
 	return broken
 }
 
+// scopeOrDefaultDDM normalizes an empty scope to System (device channel) so
+// pre-scope rows and callers that leave scope unset behave as device-scoped.
+func scopeOrDefaultDDM(s fleet.PayloadScope) fleet.PayloadScope {
+	if s == "" {
+		return fleet.PayloadScopeSystem
+	}
+	return s
+}
+
 // ComputeDeclarationDeltas is the DDM equivalent of ComputeReconcileDeltas.
 // Uses the SAME shared dispatcher (EntityAppliesToHost) so profile and
 // declaration label semantics cannot drift.
+//
+// Returns the host declaration rows to write plus the hosts whose declaration
+// set changed, partitioned by channel. A DDM DeclarativeManagement command only
+// needs to reach the channel(s) that actually changed, so device-scoped and
+// user-scoped changes are tracked separately: a host that only changed on one
+// channel is poked on that channel alone. A scope flip (a declaration whose
+// PayloadScope changed) counts as a change on BOTH channels — the new channel
+// installs it and the old channel drops it because its scoped declaration set
+// no longer includes it.
 func ComputeDeclarationDeltas(
 	hosts []*fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
 	declsByTeam map[uint][]*fleet.AppleDeclarationForReconcile,
 	declsWithBrokenLabel map[string]struct{},
-) (changedHostUUIDs []string, declRowsToWrite []*fleet.MDMAppleHostDeclaration) {
+) (changedDeviceHostUUIDs, changedUserHostUUIDs []string, declRowsToWrite []*fleet.MDMAppleHostDeclaration) {
 	pendingStatus := fleet.MDMDeliveryPending
-	changedSet := make(map[string]struct{})
+	deviceChanged := make(map[string]struct{})
+	userChanged := make(map[string]struct{})
+
+	markChanged := func(hostUUID string, scope fleet.PayloadScope) {
+		if scopeOrDefaultDDM(scope) == fleet.PayloadScopeUser {
+			userChanged[hostUUID] = struct{}{}
+		} else {
+			deviceChanged[hostUUID] = struct{}{}
+		}
+	}
 
 	for _, host := range hosts {
 		teamDecls := declsByTeam[host.EffectiveTeamID()]
@@ -278,13 +217,24 @@ func ComputeDeclarationDeltas(
 
 		for declUUID, d := range desired {
 			c, present := currentByDecl[declUUID]
+			desiredScope := scopeOrDefaultDDM(d.Scope)
 			needsInstall := false
 			switch {
 			case !present:
 				needsInstall = true
+			case scopeOrDefaultDDM(c.Scope) != desiredScope:
+				// scope flip: re-deliver on the new channel; handled below by also
+				// marking the previous channel changed so it drops the declaration.
+				needsInstall = true
 			case !bytes.Equal([]byte(c.Token), d.Token):
 				needsInstall = true
 			case d.SecretsUpdatedAt != nil && (c.SecretsUpdatedAt == nil || c.SecretsUpdatedAt.Before(*d.SecretsUpdatedAt)):
+				needsInstall = true
+			case d.AssetsUpdatedAt != nil && (c.AssetsUpdatedAt == nil || c.AssetsUpdatedAt.Before(*d.AssetsUpdatedAt)):
+				// A referenced asset was edited (its uploaded_at moved forward)
+				// since we last delivered this declaration to the host. Re-deliver
+				// so the per-host effective token changes and the host re-fetches,
+				// even though the declaration's own content/token is unchanged.
 				needsInstall = true
 			case c.OperationType == "" || c.OperationType == fleet.MDMOperationTypeRemove:
 				needsInstall = true
@@ -304,14 +254,27 @@ func ComputeDeclarationDeltas(
 				OperationType:    fleet.MDMOperationTypeInstall,
 				Token:            string(d.Token),
 				SecretsUpdatedAt: d.SecretsUpdatedAt,
+				Scope:            desiredScope,
 			}
 
 			if d.HasFleetVariables {
 				now := time.Now().UTC()
 				row.VariablesUpdatedAt = &now
 			}
+			// Stamp the referenced assets' latest uploaded_at so the per-host
+			// effective token folds it in (see fleet.EffectiveDDMToken) and stays
+			// idempotent: on the next reconcile c.AssetsUpdatedAt equals this value
+			// and no needless re-delivery is triggered.
+			if d.AssetsUpdatedAt != nil {
+				row.AssetsUpdatedAt = d.AssetsUpdatedAt
+			}
 			declRowsToWrite = append(declRowsToWrite, row)
-			changedSet[host.UUID] = struct{}{}
+			markChanged(host.UUID, desiredScope)
+			if present {
+				if prev := scopeOrDefaultDDM(c.Scope); prev != desiredScope {
+					markChanged(host.UUID, prev)
+				}
+			}
 		}
 
 		for declUUID, c := range currentByDecl {
@@ -325,6 +288,7 @@ func ComputeDeclarationDeltas(
 				continue
 			}
 
+			removeScope := scopeOrDefaultDDM(c.Scope)
 			declRowsToWrite = append(declRowsToWrite, &fleet.MDMAppleHostDeclaration{
 				HostUUID:         host.UUID,
 				DeclarationUUID:  c.DeclarationUUID,
@@ -334,16 +298,21 @@ func ComputeDeclarationDeltas(
 				OperationType:    fleet.MDMOperationTypeRemove,
 				Token:            c.Token,
 				SecretsUpdatedAt: c.SecretsUpdatedAt,
+				Scope:            removeScope,
 			})
-			changedSet[host.UUID] = struct{}{}
+			markChanged(host.UUID, removeScope)
 		}
 	}
 
-	changedHostUUIDs = make([]string, 0, len(changedSet))
-	for u := range changedSet {
-		changedHostUUIDs = append(changedHostUUIDs, u)
+	changedDeviceHostUUIDs = make([]string, 0, len(deviceChanged))
+	for u := range deviceChanged {
+		changedDeviceHostUUIDs = append(changedDeviceHostUUIDs, u)
 	}
-	return changedHostUUIDs, declRowsToWrite
+	changedUserHostUUIDs = make([]string, 0, len(userChanged))
+	for u := range userChanged {
+		changedUserHostUUIDs = append(changedUserHostUUIDs, u)
+	}
+	return changedDeviceHostUUIDs, changedUserHostUUIDs, declRowsToWrite
 }
 
 // ExecuteReconcileBatch runs the post-listing reconcile pipeline against
@@ -691,6 +660,28 @@ func ExecuteReconcileBatch(
 		return nil, ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
+	// Defense in depth: the batch host query dedupes hosts by UUID at the
+	// source, but any caller could still hand us a target whose EnrollmentIDs
+	// contain the same ID twice (e.g. duplicate host rows sharing a UUID).
+	// That would make the per-command INSERT into nano_enrollment_queue collide
+	// on its (id, command_uuid) primary key and fail the whole enqueue, so
+	// collapse duplicates before we build commands.
+	var duplicateEnrollmentIDs int
+	for _, target := range installTargets {
+		var removed int
+		target.EnrollmentIDs, removed = dedupeEnrollmentIDs(target.EnrollmentIDs)
+		duplicateEnrollmentIDs += removed
+	}
+	for _, target := range removeTargets {
+		var removed int
+		target.EnrollmentIDs, removed = dedupeEnrollmentIDs(target.EnrollmentIDs)
+		duplicateEnrollmentIDs += removed
+	}
+	if duplicateEnrollmentIDs > 0 {
+		logger.WarnContext(ctx, "batched reconcile: removed duplicate enrollment IDs from command targets; likely duplicate host rows sharing a UUID",
+			"removed", duplicateEnrollmentIDs)
+	}
+
 	logger.DebugContext(ctx, "batched reconcile: before bulk upsert",
 		"host_profiles", len(hostProfiles),
 		"install_targets", len(installTargets),
@@ -758,6 +749,28 @@ func ExecuteReconcileBatch(
 	}
 
 	return enqueueResult.SucceededCmdUUIDs, nil
+}
+
+// dedupeEnrollmentIDs removes duplicate enrollment IDs, preserving first-seen
+// order, and reports how many it dropped. Duplicates would collide on the
+// nano_enrollment_queue (id, command_uuid) primary key when the command is
+// enqueued.
+func dedupeEnrollmentIDs(ids []string) ([]string, int) {
+	if len(ids) < 2 {
+		return ids, 0
+	}
+	seen := make(map[string]struct{}, len(ids))
+	out := ids[:0]
+	var removed int
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			removed++
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out, removed
 }
 
 // ReconcileProfilesForEnrollingHost is the per-host reconciler invoked

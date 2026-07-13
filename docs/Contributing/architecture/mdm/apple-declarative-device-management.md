@@ -142,7 +142,7 @@ The profiles names must be unique across all platforms and profile types for a g
 * DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
 * DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
 * DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
-* DDM profiles cannot be delivered to a user-channel currently, so user-scoped payloads are not supported (if they pass validation, they will be delivered to the device channel).
+* DDM profiles can be delivered to either the device channel or the user channel (macOS only). A declaration selects its channel via a Fleet-specific top-level `PayloadScope` key (`"System"` — the default — or `"User"`); Fleet parses it at upload and records the channel in the `scope` column. The key is left in the stored `raw_json` (so the declaration round-trips and its content hash still reflects scope changes) and is stripped only when the declaration is served to a device, so the JSON the device receives stays valid Apple DDM.
 
 ## Special Cases
 

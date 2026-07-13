@@ -1,0 +1,10 @@
+{
+  "name": "Safe Exam Browser",
+  "unique_identifier": "org.safeexambrowser.SafeExamBrowser",
+  "token": "safe-exam-browser",
+  "installer_format": "dmg",
+  "slug": "safe-exam-browser/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

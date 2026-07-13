@@ -1,5 +1,7 @@
 # GitOps mode
 
+_Available in Fleet Premium_
+
 GitOps mode helps users avoid unexpected changes by preventing manual updates of [GitOps-configurable features](https://fleetdm.com/docs/configuration/yaml-files) in the UI.
 
 For example, if a user in the Fleet UI adds a report and then GitOps runs, the report will be deleted.

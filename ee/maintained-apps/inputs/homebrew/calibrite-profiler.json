@@ -1,0 +1,10 @@
+{
+  "name": "calibrite PROFILER",
+  "unique_identifier": "com.calibrite.profiler",
+  "token": "calibrite-profiler",
+  "installer_format": "dmg",
+  "slug": "calibrite-profiler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

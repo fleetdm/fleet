@@ -1,0 +1,10 @@
+{
+  "name": "jamovi",
+  "unique_identifier": "org.jamovi.jamovi",
+  "token": "jamovi",
+  "installer_format": "dmg",
+  "slug": "jamovi/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
