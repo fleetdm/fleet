@@ -97,11 +97,22 @@ func (e MissingCustomHostVitalValueError) Error() string {
 	return fmt.Sprintf("Couldn't populate custom host vital%s %s: no value set for this host", plural, strings.Join(tokens, ", "))
 }
 
+// CustomHostVitalEntity identifies the kind of entity that can reference a custom host vital.
+type CustomHostVitalEntity string
+
+const (
+	CustomHostVitalEntityScript                CustomHostVitalEntity = "script"
+	CustomHostVitalEntityAppleProfile          CustomHostVitalEntity = "apple_profile"
+	CustomHostVitalEntityAppleDeclaration      CustomHostVitalEntity = "apple_declaration"
+	CustomHostVitalEntityWindowsProfile        CustomHostVitalEntity = "windows_profile"
+	CustomHostVitalEntitySoftwareInstaller     CustomHostVitalEntity = "software_installer"
+	CustomHostVitalEntitySetupExperienceScript CustomHostVitalEntity = "setup_experience_script"
+	CustomHostVitalEntityLabel                 CustomHostVitalEntity = "label"
+)
+
 // Describes an entity that references a custom host vital.
 type EntityUsingCustomHostVital struct {
-	// "script", "apple_profile", "apple_declaration", "windows_profile",
-	// "software_installer", or "setup_experience_script".
-	Type string
+	Type CustomHostVitalEntity
 	// Name is the name of the entity.
 	Name string
 	// FleetName is the name of the fleet (team) the entity belongs to.
@@ -119,12 +130,14 @@ type CustomHostVitalUsedInfo struct {
 func (i CustomHostVitalUsedInfo) Message() string {
 	noun, action := "configuration profile", "Please delete the configuration profile and try again."
 	switch i.Entity.Type {
-	case "script":
+	case CustomHostVitalEntityScript:
 		noun, action = "script", "Please edit or delete the script and try again."
-	case "software_installer":
+	case CustomHostVitalEntitySoftwareInstaller:
 		noun, action = "software", "Please edit or delete the software and try again."
-	case "setup_experience_script":
+	case CustomHostVitalEntitySetupExperienceScript:
 		noun, action = "setup experience script", "Please edit or delete the setup experience script and try again."
+	case CustomHostVitalEntityLabel:
+		noun, action = "label", "Please edit or delete the label and try again."
 	}
 	return fmt.Sprintf(
 		"Custom host vital %q (used as $%s%d) is used by the %q %s in the %q fleet. %s",

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -118,7 +119,7 @@ func (ds *Datastore) DeleteCustomHostVital(ctx context.Context, id uint) (name s
 		}
 
 		// Refuse to delete a definition still referenced by a script/profile.
-		if usedByInfo, err := customHostVitalUsedBy(ctx, tx, id, name); err != nil {
+		if usedByInfo, err := ds.customHostVitalUsedBy(ctx, tx, id, name); err != nil {
 			return ctxerr.Wrap(ctx, err, "checking custom host vital references")
 		} else if usedByInfo != nil {
 			return ctxerr.Wrap(ctx, &fleet.CustomHostVitalUsedError{CustomHostVitalUsedInfo: *usedByInfo}, "found custom host vital in use")
@@ -154,7 +155,7 @@ type customHostVitalRefEntity struct {
 // vital id. It returns a *fleet.CustomHostVitalUsedInfo describing the first
 // referencing entity found, or nil if unreferenced. Mirrors the scan structure
 // of DeleteSecretVariable. The second return is a real DB error.
-func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, name string) (*fleet.CustomHostVitalUsedInfo, error) {
+func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, name string) (*fleet.CustomHostVitalUsedInfo, error) {
 	// The token embeds the numeric id (survives renames), so match by id, not name.
 	token := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, id)
 
@@ -227,12 +228,49 @@ func customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, nam
 					CustomHostVitalID:   id,
 					CustomHostVitalName: name,
 					Entity: fleet.EntityUsingCustomHostVital{
-						Type:      e.Type,
+						Type:      fleet.CustomHostVitalEntity(e.Type),
 						Name:      e.Name,
 						FleetName: e.FleetName,
 					},
 				}, nil
 			}
+		}
+	}
+
+	// Host-vitals labels reference the vital by id inside their criteria JSON
+	// (not by the $FLEET_HOST_VITAL_<id> token), so they need a structured check
+	// rather than the content-token scan above.
+	var labels []struct {
+		Name     string          `db:"name"`
+		FleetName string         `db:"team_name"`
+		Criteria json.RawMessage `db:"criteria"`
+	}
+	labelStmt := `SELECT l.name, COALESCE(t.name, 'Unassigned') AS team_name, l.criteria
+		FROM labels l
+		LEFT JOIN teams t ON t.id = l.team_id
+		WHERE l.label_membership_type = ? AND l.criteria IS NOT NULL`
+	if err := sqlx.SelectContext(ctx, tx, &labels, labelStmt, fleet.LabelMembershipTypeHostVitals); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host vitals label criteria")
+	}
+	for _, l := range labels {
+		var criteria fleet.HostVitalCriteria
+		// A label with malformed criteria is already broken; skip it rather than
+		// block the delete on it.
+		if err := json.Unmarshal(l.Criteria, &criteria); err != nil {
+			ds.logger.WarnContext(ctx, "skipping host vitals label with unparseable criteria during custom host vital delete-protection scan",
+				"label", l.Name, "error", err)
+			continue
+		}
+		if criteria.CustomHostVitalID != nil && *criteria.CustomHostVitalID == id {
+			return &fleet.CustomHostVitalUsedInfo{
+				CustomHostVitalID:   id,
+				CustomHostVitalName: name,
+				Entity: fleet.EntityUsingCustomHostVital{
+					Type:      fleet.CustomHostVitalEntityLabel,
+					Name:      l.Name,
+					FleetName: l.FleetName,
+				},
+			}, nil
 		}
 	}
 
