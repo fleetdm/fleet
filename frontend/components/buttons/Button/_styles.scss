@@ -446,6 +446,68 @@ $base-class: "button";
     box-sizing: border-box;
   }
 
+  // Bordered secondary button (off-white fill + gray border). The new preferred
+  // secondary — see #35329. Options: default, icon before/after, icon only.
+  &--secondary {
+    @include button-variant($ui-off-white, null, null, $inverse: true);
+    @include button-pad-8px-16px; // full-size padding (override the $inverse 8/8)
+    color: $ui-fleet-black-75;
+    border: 1px solid $ui-fleet-black-25;
+    box-sizing: border-box;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
+
+    &:hover:not(.button--disabled) {
+      background-color: $ui-fleet-black-5;
+
+      &:active {
+        background-color: $ui-fleet-black-10;
+      }
+    }
+
+    // Spacing between an icon and the label (icon before/after)
+    .children-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  // Low-emphasis borderless text + icon button. Not to be confused with a link.
+  // Options: icon before/after, icon only. Mirrors the "inverse" treatment
+  // (transparent fill, light-gray hover) and deliberately does NOT recolor the
+  // SVG on hover, so it works with both fill- and stroke-based icons (e.g.
+  // chevrons) without artifacts — see #35329.
+  &--subdued {
+    @include button-variant(
+      $core-fleet-white,
+      $core-fleet-green-over,
+      $core-fleet-green-down,
+      $inverse: true
+    );
+    background-color: transparent;
+    color: $ui-fleet-black-75;
+    box-sizing: border-box;
+
+    // Spacing between an icon and the label (icon before/after)
+    .children-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  // Icon-only secondary/subdued buttons render as a square so a lone icon is
+  // centered (mirrors &--icon). The isIconOnly flag in Button.tsx adds this class.
+  &--secondary.button--icon-only,
+  &--subdued.button--icon-only {
+    width: 36px;
+    padding: 0;
+  }
+
+  &--secondary__small.button--icon-only,
+  &--subdued__small.button--icon-only {
+    width: 28px;
+  }
+
   &--disabled {
     @include disabled;
   }
