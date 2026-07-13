@@ -707,6 +707,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:31:34
 
+### [CVE-2026-6276](https://nvd.nist.gov/vuln/detail/CVE-2026-6276)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use libcurl when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libcurl4t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-13 12:01:46
+
+### [CVE-2026-5773](https://nvd.nist.gov/vuln/detail/CVE-2026-5773)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use libcurl when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libcurl4t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-13 12:01:46
+
 ### [CVE-2026-55200](https://nvd.nist.gov/vuln/detail/CVE-2026-55200)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
