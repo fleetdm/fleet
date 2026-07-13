@@ -276,6 +276,14 @@ A single issue can sprawl across the customer channel, #help-customers, #help-en
   - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
   - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
 
+### Accessing managed cloud customer environments
+
+Every time a customer or prospect managed cloud environment needs to be accessed, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+If a review of production data is required in order to troubleshoot a bug report or incident, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+Customer production data should never be used in development or testing environments. 
+
 ### Report an incident
 
 Review the [criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
