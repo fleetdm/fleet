@@ -47,12 +47,38 @@ describe("UsersTableConfig - combineDataSets", () => {
     expect(freshRow.status).toBe("Active");
   });
 
-  it("never returns 'Inactive' for API-only users", () => {
+  it("returns 'Active' for an API-only user with recent API activity, even when its token was created long ago", () => {
     const users = [
       createMockUser({
         api_only: true,
         last_login_at: daysAgo(100),
+        last_activity_at: daysAgo(1),
         created_at: daysAgo(100),
+      }),
+    ];
+    const [row] = combineDataSets(users, [], 99);
+    expect(row.status).toBe("Active");
+  });
+
+  it("returns 'Inactive' for an API-only user with no recent API activity", () => {
+    const users = [
+      createMockUser({
+        api_only: true,
+        last_login_at: daysAgo(100),
+        last_activity_at: daysAgo(45),
+        created_at: daysAgo(100),
+      }),
+    ];
+    const [row] = combineDataSets(users, [], 99);
+    expect(row.status).toBe("Inactive");
+  });
+
+  it("prefers the most recent of last activity and last login for regular users", () => {
+    // stale login but a session kept alive by recent activity
+    const users = [
+      createMockUser({
+        last_login_at: daysAgo(40),
+        last_activity_at: daysAgo(2),
       }),
     ];
     const [row] = combineDataSets(users, [], 99);

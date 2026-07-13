@@ -60,6 +60,10 @@ export interface IUser {
   api_only: boolean;
   /** Last time the user logged in. `null` if the user has never logged in. */
   last_login_at: string | null;
+  /** Last time the user made an authenticated request with a live session.
+   * This is the inactivity signal for API-only users. `null` if the user has
+   * no live session. */
+  last_activity_at: string | null;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
   api_endpoints?: IApiEndpointRef[];

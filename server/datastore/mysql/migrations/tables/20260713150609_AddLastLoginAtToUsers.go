@@ -15,6 +15,12 @@ func Up_20260713150609(tx *sql.Tx) error {
 		return errors.Wrap(err, "add last_login_at to users")
 	}
 
+	// Users' last activity is computed from sessions (MAX(accessed_at) per
+	// user), which needs an index on user_id.
+	if _, err := tx.Exec(`ALTER TABLE sessions ADD INDEX idx_sessions_user_id (user_id)`); err != nil {
+		return errors.Wrap(err, "add user_id index to sessions")
+	}
+
 	// Best-effort backfill from live sessions so existing active users aren't
 	// reported as never having logged in. A session is created at login, so
 	// the newest session's created_at is the user's most recent login.

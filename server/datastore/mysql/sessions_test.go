@@ -93,6 +93,7 @@ func testSessionsLastLoginAt(t *testing.T, ds *Datastore) {
 	got, err := ds.UserByID(context.Background(), user.ID)
 	require.NoError(t, err)
 	require.Nil(t, got.LastLoginAt)
+	require.Nil(t, got.LastActivityAt)
 
 	var updatedAtBefore time.Time
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -126,6 +127,23 @@ func testSessionsLastLoginAt(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, got.LastLoginAt)
 	require.True(t, got.LastLoginAt.After(firstLogin))
+
+	// live sessions surface last activity (accessed_at); ListUsers also
+	// returns it
+	require.NotNil(t, got.LastActivityAt)
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+	require.NotNil(t, users[0].LastActivityAt)
+	require.NotNil(t, users[0].LastLoginAt)
+
+	// destroying all sessions clears last activity, but the durable
+	// last_login_at survives
+	require.NoError(t, ds.DestroyAllSessionsForUser(context.Background(), user.ID))
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.LastActivityAt)
+	require.NotNil(t, got.LastLoginAt)
 }
 
 func testSessionsGetters(t *testing.T, ds *Datastore) {

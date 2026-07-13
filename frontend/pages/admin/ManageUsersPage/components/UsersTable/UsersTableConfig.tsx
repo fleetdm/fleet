@@ -79,20 +79,25 @@ export interface IUserTableData {
   api_only: boolean;
 }
 
-/** Number of days without a login after which a user is considered inactive. */
+/** Number of days without a login/activity after which a user is considered
+ * inactive. */
 const INACTIVE_AFTER_DAYS = 30;
 
 const USER_INACTIVE_TOOLTIP = `Hasn't logged in for ${INACTIVE_AFTER_DAYS}+ days`;
+const API_ONLY_INACTIVE_TOOLTIP = `No API activity for ${INACTIVE_AFTER_DAYS}+ days`;
 
 const isInactive = (user: IUser): boolean => {
-  // API-only users authenticate with a long-lived token rather than by
-  // logging in, so they are never considered inactive.
-  if (user.api_only) {
-    return false;
-  }
-  // Fall back to created_at for users who have never logged in (including
-  // accounts that predate last login tracking).
-  const lastSeen = user.last_login_at ?? user.created_at;
+  // A user was last seen at the most recent of its last session activity
+  // (the signal for API-only users, whose long-lived token session is
+  // accessed on every request) and its last login. Fall back to created_at
+  // for users who have never logged in (including accounts that predate
+  // last login tracking). Server timestamps share the same ISO format, so
+  // they sort lexicographically.
+  const lastSeen =
+    [user.last_activity_at, user.last_login_at]
+      .filter((date): date is string => !!date)
+      .sort()
+      .pop() ?? user.created_at;
   if (!lastSeen) {
     return false;
   }
@@ -220,7 +225,11 @@ const generateTableHeaders = (
           value={cellProps.cell.value}
           tooltip={
             cellProps.cell.value === "Inactive"
-              ? { tooltipText: USER_INACTIVE_TOOLTIP }
+              ? {
+                  tooltipText: cellProps.row.original.api_only
+                    ? API_ONLY_INACTIVE_TOOLTIP
+                    : USER_INACTIVE_TOOLTIP,
+                }
               : undefined
           }
         />
