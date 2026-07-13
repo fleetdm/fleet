@@ -430,10 +430,11 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 	useLegacyPacks := len(packs) > 0
 	if !useLegacyPacks && svc.packConfigCache != nil {
 		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
-		if cachedJSON, found := svc.packConfigCache.Get(cacheKey); found {
-			if raw, ok := cachedJSON.(json.RawMessage); ok {
-				return raw, nil
-			}
+		if cached, found := svc.packConfigCache.Get(cacheKey); found {
+			// cached may be nil (negative cache: no queries for this team)
+			// or a json.RawMessage with the marshaled pack config.
+			raw, _ := cached.(json.RawMessage)
+			return raw, nil
 		}
 	}
 
@@ -498,18 +499,16 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 		}
 	}
 
-	if len(packConfig) == 0 {
-		return nil, nil
+	var raw json.RawMessage
+	if len(packConfig) > 0 {
+		packJSON, err := json.Marshal(packConfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
+		}
+		raw = json.RawMessage(packJSON)
 	}
 
-	packJSON, err := json.Marshal(packConfig)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
-	}
-
-	raw := json.RawMessage(packJSON)
-
-	// Cache the result for future requests (only if no legacy packs).
+	// Cache the result (including empty) for future requests (only if no legacy packs).
 	if !useLegacyPacks && svc.packConfigCache != nil {
 		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
 		svc.packConfigCache.SetDefault(cacheKey, raw)
