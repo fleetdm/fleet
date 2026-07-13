@@ -250,7 +250,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			authz:  authorizer,
 		}
 		svc.config.Server.PrivateKey = ""
-		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 		err = svc.BatchApplyCertificateAuthorities(ctx, fleet.GroupedCertificateAuthorities{}, fleet.BatchApplyCertificateAuthoritiesOpts{ViaGitOps: true})
 		require.EqualError(t, err, "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key")
