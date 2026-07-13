@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -119,10 +120,11 @@ func testAuth(t *testing.T, s *Suite) {
 // after the user's role is upgraded to admin (same user, same token).
 func testAuthMaintainerToAdminMigration(t *testing.T, s *Suite) {
 	t.Cleanup(func() {
-		// Restore the maintainer user's original role
+		// Restore the maintainer user's original role.
+		// Use context.Background() because t.Context() is canceled during cleanup.
 		maintainer := s.Users[service.TestMaintainerUserEmail]
 		maintainer.GlobalRole = new("maintainer")
-		err := s.DS.SaveUser(t.Context(), &maintainer)
+		err := s.DS.SaveUser(context.Background(), &maintainer)
 		require.NoError(t, err)
 		s.Users[service.TestMaintainerUserEmail] = maintainer
 		s.Token = s.GetTestAdminToken(t)
