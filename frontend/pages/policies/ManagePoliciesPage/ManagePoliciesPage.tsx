@@ -105,6 +105,22 @@ const AUTOMATION_TYPES: AutomationType[] = [
 
 const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
 
+const getValidAutomationTypesForTeam = (
+  teamIdForApi: number | undefined
+): (AutomationType | GlobalPoliciesAutomationType)[] => {
+  if (teamIdForApi === undefined) {
+    // All fleets → global policies only support webhook/ticket automations.
+    return GLOBAL_AUTOMATION_TYPES;
+  }
+  if (teamIdForApi === API_NO_TEAM_ID) {
+    // Unassigned supports every automation type EXCEPT calendar events,
+    // which PolicyAutomationsFields hardcodes as fleet-only (never available
+    // for "All fleets" or "Unassigned").
+    return AUTOMATION_TYPES.filter((type) => type !== "calendar");
+  }
+  return AUTOMATION_TYPES;
+};
+
 const baseClass = "manage-policies-page";
 
 const ManagePolicyPage = ({
@@ -191,9 +207,7 @@ const ManagePolicyPage = ({
       return null;
     }
 
-    const validValues = isAllTeamsSelected
-      ? GLOBAL_AUTOMATION_TYPES
-      : AUTOMATION_TYPES;
+    const validValues = getValidAutomationTypesForTeam(teamIdForApi);
 
     return (validValues as string[]).includes(automationQueryParam)
       ? automationQueryParam
@@ -782,21 +796,14 @@ const ManagePolicyPage = ({
           !automationFilter &&
           !targetedPlatformParam;
 
-        // All fleets (teamIdForApi undefined) → global policies only support
-        // webhook/ticket automations, so only show "all" and "other".
-        // Unassigned (teamIdForApi === API_NO_TEAM_ID) supports every automation
-        // type EXCEPT calendar events, which PolicyAutomationsFields hardcodes
-        // as fleet-only (never available for "All fleets" or "Unassigned").
-        let optionsForTeam = automationFilterOptions;
-        if (teamIdForApi === undefined) {
-          optionsForTeam = automationFilterOptions.filter((opt) =>
-            ["all", "other"].includes(opt.value as string)
-          );
-        } else if (teamIdForApi === API_NO_TEAM_ID) {
-          optionsForTeam = automationFilterOptions.filter(
-            (opt) => opt.value !== "calendar"
-          );
-        }
+        const validAutomationTypesForTeam = getValidAutomationTypesForTeam(
+          teamIdForApi
+        );
+        const optionsForTeam = automationFilterOptions.filter(
+          (opt) =>
+            opt.value === "all" ||
+            (validAutomationTypesForTeam as string[]).includes(opt.value)
+        );
 
         return (
           <DropdownWrapper

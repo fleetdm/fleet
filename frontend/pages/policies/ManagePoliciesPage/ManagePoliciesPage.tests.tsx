@@ -22,7 +22,12 @@ const getConfigHandler = () =>
 
 const getFleetHandler = () =>
   http.get(baseUrl("/fleets/:id"), ({ params }) => {
-    const fleet = { ...createMockConfig(), id: Number(params.id) };
+    const fleetId = Number(params.id);
+    const fleet = {
+      ...createMockConfig(),
+      id: fleetId,
+      name: `Fleet ${fleetId}`,
+    };
     return HttpResponse.json({ team: fleet, fleet });
   });
 
@@ -56,6 +61,16 @@ const getGlobalPoliciesHandler = () =>
 
 const getGlobalPoliciesCountHandler = () =>
   http.get(baseUrl("/policies/count"), () => HttpResponse.json({ count: 0 }));
+
+const getAutomationFilterControl = (): HTMLElement => {
+  const control = document.querySelector(
+    ".manage-policies-page__filter-automation-dropdown .react-select__control"
+  );
+  if (!control) {
+    throw new Error("Automations filter control not found");
+  }
+  return control as HTMLElement;
+};
 
 const setupHandlers = () => {
   mockServer.use(
@@ -124,9 +139,12 @@ describe("ManagePoliciesPage - automations filter", () => {
     });
 
     // Per the fix for #44624: when a filter is present in the query params,
-    // the automations filter dropdown must remain visible (and reflect the
-    // selected filter) even though this fleet has zero policies.
+    // the automations filter dropdown must remain visible and enabled (and
+    // reflect the selected filter) even though this fleet has zero policies.
     expect(screen.getByText("Software")).toBeInTheDocument();
+    expect(getAutomationFilterControl()).not.toHaveClass(
+      "react-select__control--is-disabled"
+    );
   });
 
   it("offers software/scripts/conditional access automation types for the 'Unassigned' fleet, but not calendar", async () => {
@@ -146,13 +164,25 @@ describe("ManagePoliciesPage - automations filter", () => {
     // every automation type EXCEPT calendar events, which
     // PolicyAutomationsFields hardcodes as fleet-only (never available for
     // "All fleets" or "Unassigned").
-    const control = document.querySelector(
-      ".manage-policies-page__filter-automation-dropdown .react-select__control"
-    ) as HTMLElement;
-    await user.click(control);
+    await user.click(getAutomationFilterControl());
 
     expect(screen.getByText("Scripts")).toBeInTheDocument();
     expect(screen.getByText("Conditional access")).toBeInTheDocument();
+    expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
+  });
+
+  it("rejects an automation_type=calendar query param for the 'Unassigned' fleet, since calendar isn't a valid option there", async () => {
+    renderPage("0", "calendar");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No policies for this fleet")
+      ).toBeInTheDocument();
+    });
+
+    // "calendar" isn't a valid filter for "Unassigned", so it must not stick
+    // as the selected value -- the filter should fall back to its default.
+    expect(screen.getByText("All automations")).toBeInTheDocument();
     expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
   });
 });
