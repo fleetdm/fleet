@@ -1441,19 +1441,22 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		assert.Equal(t, "darwin", act.Platform)
 	})
 
-	t.Run("labels-only update preserves the content's Fleet variables", func(t *testing.T) {
-		// SetOrUpdateMDMAppleDeclaration rewrites variable associations from
-		// the varNames it's given, so a labels-only edit must pass the
-		// variables of the unchanged content or they'd be wiped.
+	t.Run("labels-only update preserves the content's Fleet variables and scope", func(t *testing.T) {
+		// SetOrUpdateMDMAppleDeclaration rewrites variable associations and
+		// the scope column from what it's given, so a labels-only edit must
+		// pass the unchanged content's variables and scope or they'd be wiped.
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
 		existing.RawJSON = declBytesForTest("D1", "content with $FLEET_VAR_"+string(fleet.FleetVarHostUUID))
+		existing.Scope = fleet.PayloadScopeUser
 
 		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
 			return existing, nil
 		}
 		var capturedVars []fleet.FleetVarName
+		var capturedDecl *fleet.MDMAppleDeclaration
 		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			capturedDecl = d
 			capturedVars = usesFleetVars
 			return d, nil
 		}
@@ -1461,6 +1464,8 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
+		require.NotNil(t, capturedDecl)
+		assert.Equal(t, fleet.PayloadScopeUser, capturedDecl.Scope)
 	})
 
 	t.Run("team-scoped update on a free license returns a license error", func(t *testing.T) {

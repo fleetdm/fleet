@@ -2203,10 +2203,14 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	}
 
 	var cp *fleet.MDMAndroidConfigProfile
+	var varNames []fleet.FleetVarName
 	if len(profile) > 0 {
 		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 		if err != nil {
 			return err
+		}
+		for _, v := range variables.Find(string(profile)) {
+			varNames = append(varNames, fleet.FleetVarName(v))
 		}
 	} else {
 		// no new content -- only labels are being changed.
@@ -2231,7 +2235,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	}
 	cp.ProfileUUID = profileUUID
 
-	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp); err != nil {
+	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp, varNames); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 

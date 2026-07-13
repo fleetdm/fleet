@@ -736,7 +736,7 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 // preserving its ProfileUUID. cp.Name must match the existing profile's --
 // like Windows profiles, Android profiles have no separate identifier, so
 // name is the only identity a profile has and this method never changes it.
-func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name string `db:"name"`
@@ -763,6 +763,20 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
+			}
+
+			// variable associations are only touched when new content was
+			// uploaded: within a content update the call must be unconditional
+			// so an edit which removes the profile's last Fleet variable still
+			// clears the stale association -- batchSetProfileVariableAssociationsDB
+			// always deletes existing associations before optionally
+			// re-inserting. On a labels-only update the content -- and thus its
+			// variables -- didn't change, and clearing them here would break
+			// variable-driven redelivery.
+			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
+			}, "android", false); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
 		}
 

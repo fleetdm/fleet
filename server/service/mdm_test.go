@@ -3870,7 +3870,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return existing, nil
 		}
 		var updated fleet.MDMAndroidConfigProfile
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			updated = p
 			return &p, nil
 		}
@@ -3904,7 +3904,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return existing, nil
 		}
 		var updated fleet.MDMAndroidConfigProfile
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			updated = p
 			return &p, nil
 		}
@@ -3935,7 +3935,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return existing, nil
 		}
 		var updated fleet.MDMAndroidConfigProfile
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			updated = p
 			return &p, nil
 		}
@@ -3969,7 +3969,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return existing, nil
 		}
 		var updated fleet.MDMAndroidConfigProfile
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			updated = p
 			return &p, nil
 		}
@@ -3990,7 +3990,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
 			return existing, nil
 		}
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -4008,7 +4008,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
 			return existing, nil
 		}
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -4025,7 +4025,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
 			return existing, nil
 		}
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -4054,7 +4054,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
 			return existing, nil
 		}
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -4064,12 +4064,41 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
 		// content-only edit (no labels) still succeeds on a free license
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
 		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
+	})
+
+	t.Run("Fleet variables in the new content are threaded through to the datastore", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 0)
+
+		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
+			return existing, nil
+		}
+		var capturedVars []fleet.FleetVarName
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+			capturedVars = usesFleetVars
+			return &p, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) (fleet.MDMProfilesUpdates, error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
+
+		// labels-only edit passes no variables -- the datastore leaves the
+		// existing associations untouched when no content is provided
+		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		require.NoError(t, err)
+		assert.Empty(t, capturedVars)
 	})
 
 	t.Run("team-scoped update on a free license returns a license error", func(t *testing.T) {
@@ -4082,7 +4111,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMAndroidConfigProfile, error) {
 			return existing, nil
 		}
-		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 			t.Fatal("should not reach the datastore update")
 			return nil, nil
 		}
@@ -4138,7 +4167,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 					}
 					return teamProfile, nil
 				}
-				ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+				ds.UpdateMDMAndroidConfigProfileFunc = func(ctx context.Context, p fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 					return &p, nil
 				}
 

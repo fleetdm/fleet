@@ -3203,7 +3203,7 @@ type Datastore interface {
 	// preserving its ProfileUUID. cp.Name must match the existing profile's --
 	// like Windows profiles, Android profiles have no separate identifier, so
 	// name is the only identity a profile has and cannot change on this path.
-	UpdateMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+	UpdateMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile, usesFleetVars []FleetVarName) (*MDMAndroidConfigProfile, error)
 
 	// DeleteMDMAndroidConfigProfile deletes the Android MDM profile corresponding to
 	// the specified profile uuid.

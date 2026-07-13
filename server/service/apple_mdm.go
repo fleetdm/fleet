@@ -1189,6 +1189,9 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			TeamID:           existing.TeamID,
 			RawJSON:          existing.RawJSON,
 			SecretsUpdatedAt: existing.SecretsUpdatedAt,
+			// the upsert writes scope unconditionally, so the unchanged
+			// content's scope must be carried over or it would be cleared
+			Scope: existing.Scope,
 		}
 		switch labelsMembershipMode {
 		case fleet.LabelsIncludeAll:
