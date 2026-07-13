@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.1.6.29",
+      "version": "2.0.100.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GOG GALAXY' AND publisher = 'GOG.com';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GOG GALAXY' AND publisher = 'GOG.com' AND version_compare(version, '2.1.6.29') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GOG GALAXY' AND publisher = 'GOG.com' AND version_compare(version, '2.0.100.1') < 0);"
       },
-      "installer_url": "https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_2.1.6.29.exe",
+      "installer_url": "https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_2.0.100.1.exe",
       "install_script_ref": "e1c78c6b",
       "uninstall_script_ref": "824492ce",
-      "sha256": "c2888e0a1425823e47ed04c26e2d3c81cb14564a8e92d9c9628c3ed77a9d87bc",
+      "sha256": "d04645ef5e4ada875f48d74828edd62222b2787eff09cb6e1c48e591949fd8f6",
       "default_categories": [
         "Productivity"
       ]
