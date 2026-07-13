@@ -28,6 +28,8 @@ interface ICopyButtonProps {
    *  for inline-with-text copy actions. Pass `10` to match react-tooltip 5's
    *  own default when the trigger is a larger floating button. */
   tooltipOffset?: number;
+  /** Table buttons show on row hover and tab focus only */
+  rowHover?: boolean;
 }
 
 const baseClass = "copy-button";
@@ -43,6 +45,7 @@ const CopyButton = ({
   className,
   ariaLabel = "Copy to clipboard",
   tooltipOffset = 4,
+  rowHover = false,
 }: ICopyButtonProps) => {
   const [message, setMessage] = useState<string | null>(null);
   const tipIdRef = useRef(uniqueId("copy-button-tooltip-"));
@@ -100,7 +103,10 @@ const CopyButton = ({
         onClick={onClick}
         className={classnames(
           `${baseClass}__button`,
-          { [`${baseClass}__button--compact`]: isCompact },
+          {
+            [`${baseClass}__button--compact`]: isCompact,
+            "row-hover-button": rowHover,
+          },
           className
         )}
         ariaLabel={ariaLabel}

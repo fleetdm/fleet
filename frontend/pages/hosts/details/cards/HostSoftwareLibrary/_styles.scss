@@ -71,6 +71,12 @@
 
     .data-table-block {
       .data-table__table {
+        thead {
+          .installer-actions__header {
+            border-left: none;
+          }
+        }
+
         tbody {
           tr {
             .name__cell {
@@ -85,7 +91,7 @@
               }
             }
 
-            .Actions__cell {
+            .installer-actions__cell {
               display: flex;
 
               // Undoes vertical click margin found on table container tooltips

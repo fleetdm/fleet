@@ -1,9 +1,43 @@
 .host-sw-library-table {
+  // TableContainer always renders its filter/customControl slot before the
+  // search box, with no prop to place something after it. `display: contents`
+  // unwraps the two intermediate flex containers so the dropdown, search box,
+  // and "Add software" button become direct siblings under `__header`, which
+  // lets `order` put "Add software" after the search box like the design
+  // calls for.
+  .table-container__header {
+    justify-content: flex-start;
+    gap: $pad-small;
+  }
+
+  .table-container__header-left {
+    display: contents;
+  }
+
+  .controls {
+    display: contents;
+  }
+
+  .table-container__results-count {
+    order: 1;
+  }
+
   &__filter-controls {
     width: 230px;
+    order: 2;
+    // Pushes the dropdown/search/button group to the right, restoring the
+    // separation from the item count that `justify-content: flex-start`
+    // above removed (count and this group used to be split apart by the
+    // default `justify-content: space-between`).
+    margin-left: auto;
   }
 
   .table-container__search {
     width: 315px;
+    order: 3;
+  }
+
+  &__add-software-button {
+    order: 4;
   }
 }

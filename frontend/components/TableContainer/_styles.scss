@@ -254,6 +254,12 @@
       transition: 250ms;
       text-overflow: none;
 
+      // Reveal on the button's own keyboard focus, not just row hover/focus —
+      // otherwise tabbing directly to a hidden row-hover button never shows it.
+      &:focus-visible {
+        opacity: 1;
+      }
+
       // React-select's dropdown opacity must be controlled at input level for keyboard nav
       // So must be controlled at input level here as well
       &.actions-dropdown {

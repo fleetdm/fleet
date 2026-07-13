@@ -188,9 +188,9 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="inverse"
+        variant="secondary"
         type="button"
-        className={`${baseClass}__item-action-button`}
+        className={`${baseClass}__item-action-button row-hover-button`}
         onClick={onClick}
         disabled={disabled}
         size="small"
