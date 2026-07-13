@@ -1,8 +1,9 @@
 <!-- Fleet article template. Category must be "articles" for this format to apply. -->
 <meta name="category" value="articles">
+<meta name="articleTitle" value="[Must match the H1 exactly]">
 <meta name="authorFullName" value="">
 <meta name="authorGitHubUsername" value="">
-<meta name="publishedOn" value="">
+<meta name="publishedOn" value="YYYY-MM-DD">
 <meta name="description" value="">
 
 # Title (sentence case, outcome-led)
