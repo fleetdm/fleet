@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.6.1",
+      "version": "9.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mockoon.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mockoon.app' AND version_compare(bundle_short_version, '9.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mockoon.app' AND version_compare(bundle_short_version, '9.7.0') < 0);"
       },
-      "installer_url": "https://github.com/mockoon/mockoon/releases/download/v9.6.1/mockoon.setup.9.6.1.arm64.dmg",
+      "installer_url": "https://github.com/mockoon/mockoon/releases/download/v9.7.0/mockoon.setup.9.7.0.arm64.dmg",
       "install_script_ref": "b5e5d245",
       "uninstall_script_ref": "69ac3b20",
-      "sha256": "f27fa1aec0b3e84533e1ff9079184873007e67d30fc957f7021d406c34557235",
+      "sha256": "ebb05ad602b1a4df68e0b633027d4011fb335f9539b0a2ed1c1a28d9523934ac",
       "default_categories": [
         "Productivity"
       ]

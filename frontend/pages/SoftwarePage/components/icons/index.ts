@@ -17,6 +17,7 @@ import Adguard from "./Adguard";
 import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdvancedInstaller from "./AdvancedInstaller";
 import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
 import AffinityDesigner from "./AffinityDesigner";
@@ -25,18 +26,23 @@ import AffinityPhoto from "./AffinityPhoto";
 import AffinityPhoto1 from "./AffinityPhoto1";
 import AffinityPublisher from "./AffinityPublisher";
 import AffinityPublisher1 from "./AffinityPublisher1";
+import AgentRansack from "./AgentRansack";
 import Airbuddy from "./Airbuddy";
 import Aircall from "./Aircall";
 import Airdroid from "./Airdroid";
+import AirExplorer from "./AirExplorer";
 import Airparrot from "./Airparrot";
 import Airserver from "./Airserver";
 import Airtable from "./Airtable";
 import Airtame from "./Airtame";
 import Airy from "./Airy";
 import Akiflow from "./Akiflow";
+import Alacritty from "./Alacritty";
 import Alcove from "./Alcove";
 import Aldente from "./Aldente";
+import Alfaview from "./Alfaview";
 import Alloy from "./Alloy";
+import AllwaySync from "./AllwaySync";
 import AltairGraphqlClient from "./AltairGraphqlClient";
 import AltTab from "./AltTab";
 import AmadeusPro from "./AmadeusPro";
@@ -47,6 +53,7 @@ import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonDCV from "./AmazonDCV";
+import AmazonRedshiftOdbcDriver from "./AmazonRedshiftOdbcDriver";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import Amethyst from "./Amethyst";
 import Amie from "./Amie";
@@ -60,6 +67,7 @@ import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import Antigravity from "./Antigravity";
 import AntigravityIde from "./AntigravityIde";
 import Antinote from "./Antinote";
+import Anyburn from "./Anyburn";
 import AnyDesk from "./AnyDesk";
 import Anydo from "./Anydo";
 import Anytype from "./Anytype";
@@ -71,6 +79,7 @@ import AppiumInspector from "./AppiumInspector";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Applite from "./Applite";
+import Aptakube from "./Aptakube";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
 import ArduinoIde from "./ArduinoIde";
@@ -79,19 +88,26 @@ import AssetCatalogTinkerer from "./AssetCatalogTinkerer";
 import Atext from "./Atext";
 import Audacity from "./Audacity";
 import AudioHijack from "./AudioHijack";
+import Audiveris from "./Audiveris";
+import Autopsy from "./Autopsy";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AviatrixVpnClient from "./AviatrixVpnClient";
+import AvsImageConverter from "./AvsImageConverter";
+import AvsMediaPlayer from "./AvsMediaPlayer";
 import AwsCli from "./AwsCli";
+import AwsSamCli from "./AwsSamCli";
 import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureFunctionsCoreTools from "./AzureFunctionsCoreTools";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
 import Badgeify from "./Badgeify";
 import BalenaEtcher from "./BalenaEtcher";
 import BalsamiqWireframes from "./BalsamiqWireframes";
 import BambuStudio from "./BambuStudio";
+import Bandiview from "./Bandiview";
 import Bartender from "./Bartender";
 import Batfi from "./Batfi";
 import BBEdit from "./BBEdit";
@@ -112,6 +128,7 @@ import Bitbox from "./Bitbox";
 import Bitrix24 from "./Bitrix24";
 import Bitwarden from "./Bitwarden";
 import BitwigStudio from "./BitwigStudio";
+import Bleachbit from "./Bleachbit";
 import Blender from "./Blender";
 import Bleunlock from "./Bleunlock";
 import Blip from "./Blip";
@@ -127,9 +144,12 @@ import Box from "./Box";
 import Brave from "./Brave";
 import Breaktimer from "./Breaktimer";
 import BricklinkStudio from "./BricklinkStudio";
+import Browserstacklocal from "./Browserstacklocal";
 import Bruno from "./Bruno";
+import BulkCrapUninstaller from "./BulkCrapUninstaller";
 import Bunch from "./Bunch";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import BurpSuiteProfessional from "./BurpSuiteProfessional";
 import Busycontacts from "./Busycontacts";
 import Buttercup from "./Buttercup";
 import Buzz from "./Buzz";
@@ -149,13 +169,17 @@ import CarbonCopyCloner from "./CarbonCopyCloner";
 import Cardhop from "./Cardhop";
 import Cavalry from "./Cavalry";
 import Cellprofiler from "./Cellprofiler";
+import CertifyTheWeb from "./CertifyTheWeb";
 import Chalk from "./Chalk";
 import Charles from "./Charles";
 import Charmstone from "./Charmstone";
+import Chatbox from "./Chatbox";
 import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import Chatwise from "./Chatwise";
 import Cheetah3D from "./Cheetah3D";
+import ChefWorkstation from "./ChefWorkstation";
+import CherryKeys from "./CherryKeys";
 import CherryStudio from "./CherryStudio";
 import Chime from "./Chime";
 import Choosy from "./Choosy";
@@ -164,6 +188,7 @@ import ChromeOS from "./ChromeOS";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
 import CiscoJabber from "./CiscoJabber";
+import CiscoWebexRecorderAndPlayer from "./CiscoWebexRecorderAndPlayer";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClaudeDevtools from "./ClaudeDevtools";
@@ -173,9 +198,11 @@ import CleanShotX from "./CleanShotX";
 import ClickShare from "./ClickShare";
 import ClickUp from "./ClickUp";
 import CLion from "./CLion";
+import Clipboardfusion from "./Clipboardfusion";
 import Clipbook from "./Clipbook";
 import Clipgrab from "./Clipgrab";
 import Clipy from "./Clipy";
+import Clockassist from "./Clockassist";
 import Clocker from "./Clocker";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Clop from "./Clop";
@@ -185,6 +212,7 @@ import CmakeApp from "./CmakeApp";
 import Cmux from "./Cmux";
 import Coconutbattery from "./Coconutbattery";
 import Codeedit from "./Codeedit";
+import CodemeterRuntimeKit from "./CodemeterRuntimeKit";
 import Coderunner from "./Coderunner";
 import CodexApp from "./CodexApp";
 import Codexbar from "./Codexbar";
@@ -200,16 +228,23 @@ import ConnectFonts from "./ConnectFonts";
 import CopilotMoney from "./CopilotMoney";
 import Cork from "./Cork";
 import CotEditor from "./CotEditor";
+import CpuZ from "./CpuZ";
 import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
+import CreativeForceKelvin from "./CreativeForceKelvin";
+import CreativeForceTriad from "./CreativeForceTriad";
+import CriblEdge from "./CriblEdge";
+import Crisisgo from "./Crisisgo";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
 import Crystalfetch from "./Crystalfetch";
+import CubeBrowser from "./CubeBrowser";
 import Cursor from "./Cursor";
 import Cursorsense from "./Cursorsense";
 import Cursr from "./Cursr";
 import Customshortcuts from "./Customshortcuts";
 import Cyberduck from "./Cyberduck";
+import CyberduckCli from "./CyberduckCli";
 import Daisydisk from "./Daisydisk";
 import Dangerzone from "./Dangerzone";
 import Darkmodebuddy from "./Darkmodebuddy";
@@ -314,6 +349,7 @@ import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
 import Fig from "./Fig";
 import Figma from "./Figma";
+import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
 import FileMakerPro from "./FileMakerPro";
 import Filen from "./Filen";
@@ -337,6 +373,7 @@ import Forklift from "./Forklift";
 import FourKSlideshowMaker from "./FourKSlideshowMaker";
 import FourKStogram from "./FourKStogram";
 import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoDownloaderPlus from "./FourKVideoDownloaderPlus";
 import FourKVideoToMp3 from "./FourKVideoToMp3";
 import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 import Framer from "./Framer";
@@ -351,7 +388,7 @@ import Gather from "./Gather";
 import Gdevelop from "./Gdevelop";
 import Geany from "./Geany";
 import Geekbench from "./Geekbench";
-import Gemini from "./Gemini";
+import Gemini2 from "./Gemini2";
 import GenesysCloud from "./GenesysCloud";
 import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
@@ -373,6 +410,7 @@ import Goodsync from "./Goodsync";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoogleDrive from "./GoogleDrive";
 import GoogleEarthPro from "./GoogleEarthPro";
+import GoogleGemini from "./GoogleGemini";
 import GoToMeeting from "./GoToMeeting";
 import GpgKeychain from "./GpgKeychain";
 import Gpodder from "./Gpodder";
@@ -426,6 +464,7 @@ import iPadOS from "./iPadOS";
 import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
 import Itsycal from "./Itsycal";
+import Itunes from "./Itunes";
 import JabraDirect from "./JabraDirect";
 import Jami from "./Jami";
 import Jamovi from "./Jamovi";
@@ -771,6 +810,7 @@ import Safari from "./Safari";
 import SafeExamBrowser from "./SafeExamBrowser";
 import Sanesidebuttons from "./Sanesidebuttons";
 import Santa from "./Santa";
+import ScaleFt from "./ScaleFt";
 import ScMenu from "./ScMenu";
 import Scratch from "./Scratch";
 import Screenflick from "./Screenflick";
@@ -816,6 +856,7 @@ import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
 import Sonobus from "./Sonobus";
+import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
 import Soulver from "./Soulver";
 import Soundanchor from "./Soundanchor";
@@ -829,6 +870,7 @@ import SpitfireAudio from "./SpitfireAudio";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Splice from "./Splice";
+import Spokenly from "./Spokenly";
 import Spotify from "./Spotify";
 import Spyder from "./Spyder";
 import Sqlectron from "./Sqlectron";
@@ -889,6 +931,7 @@ import TextExpander from "./TextExpander";
 import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
 import Thorium from "./Thorium";
+import ThreeDfZephyrFree from "./3DfZephyrFree";
 import Threema from "./Threema";
 import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
@@ -942,6 +985,7 @@ import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
 import Viz from "./Viz";
 import Vlc from "./Vlc";
@@ -968,12 +1012,14 @@ import WhatsApp from "./WhatsApp";
 import Whisky from "./Whisky";
 import Whispering from "./Whispering";
 import Wifiman from "./Wifiman";
+import Windirstat from "./Windirstat";
 import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winlogbeat from "./Winlogbeat";
 import Winrar from "./Winrar";
 import Wins from "./Wins";
 import Winscp from "./Winscp";
@@ -1022,9 +1068,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "3df zephyr free": ThreeDfZephyrFree,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
   "4k video downloader": FourKVideoDownloader,
+  "4k video downloader+": FourKVideoDownloaderPlus,
   "4k video to mp3": FourKVideoToMp3,
   "4k youtube to mp3": FourKYoutubeToMp3,
   "7 zip": SevenZip,
@@ -1044,6 +1092,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  "advanced installer": AdvancedInstaller,
   "advanced renamer": AdvancedRenamer,
   affinity: Affinity,
   "affinity designer": AffinityDesigner1,
@@ -1052,6 +1101,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "affinity photo 2": AffinityPhoto,
   "affinity publisher": AffinityPublisher1,
   "affinity publisher 2": AffinityPublisher,
+  "agent ransack": AgentRansack,
+  "air explorer": AirExplorer,
   airbuddy: Airbuddy,
   aircall: Aircall,
   airdroid: Airdroid,
@@ -1061,19 +1112,27 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   airtame: Airtame,
   airy: Airy,
   akiflow: Akiflow,
+  alacritty: Alacritty,
   alcove: Alcove,
   aldente: Aldente,
+  alfaview: Alfaview,
   alloy: Alloy,
+  "allway sync": AllwaySync,
   "altair graphql client": AltairGraphqlClient,
   alttab: AltTab,
   "amadeus pro": AmadeusPro,
   amadine: Amadine,
   "amazon chime": AmazonChime,
+  "amazon corretto 11": AmazonCorretto21,
+  "amazon corretto 17": AmazonCorretto21,
   "amazon corretto 21": AmazonCorretto21,
   "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
   "amazon corretto 26": AmazonCorretto26,
+  "amazon corretto 8": AmazonCorretto21,
+  "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
+  "amazon redshift odbc driver": AmazonRedshiftOdbcDriver,
   "amazon workspaces": AmazonWorkspaces,
   amethyst: Amethyst,
   amie: Amie,
@@ -1086,6 +1145,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "antigravity ide": AntigravityIde,
   antinote: Antinote,
   "any.do": Anydo,
+  anyburn: Anyburn,
   anydesk: AnyDesk,
   anytype: Anytype,
   apidog: Apidog,
@@ -1095,6 +1155,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
   applite: Applite,
+  aptakube: Aptakube,
   arc: Arc,
   archaeology: Archaeology,
   "arduino ide": ArduinoIde,
@@ -1103,20 +1164,28 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   atext: Atext,
   audacity: Audacity,
   "audio hijack": AudioHijack,
+  audiveris: Audiveris,
+  autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
+  "avs image converter": AvsImageConverter,
+  "avs media player": AvsMediaPlayer,
   "aws client vpn": AwsVpnClient,
   "aws command line interface": AwsCli,
+  "aws sam command line interface": AwsSamCli,
+  "aws session manager plugin": AwsCli,
   "aws vpn client": AwsVpnClient,
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure functions core tools": AzureFunctionsCoreTools,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,
   bbedit: BBEdit,
@@ -1138,6 +1207,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   bitrix24: Bitrix24,
   bitwarden: Bitwarden,
   "bitwig studio": BitwigStudio,
+  bleachbit: Bleachbit,
   blender: Blender,
   bleunlock: Bleunlock,
   blip: Blip,
@@ -1153,9 +1223,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   brave: Brave,
   breaktimer: Breaktimer,
   "bricklink studio": BricklinkStudio,
+  browserstacklocal: Browserstacklocal,
   bruno: Bruno,
+  "bulk crap uninstaller": BulkCrapUninstaller,
   bunch: Bunch,
   "burp suite community": BurpSuiteCommunity,
+  "burp suite professional": BurpSuiteProfessional,
   busycontacts: Busycontacts,
   buttercup: Buttercup,
   buzz: Buzz,
@@ -1175,19 +1248,24 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cardhop: Cardhop,
   cavalry: Cavalry,
   cellprofiler: Cellprofiler,
+  "certify the web": CertifyTheWeb,
   chalk: Chalk,
   charles: Charles,
   charmstone: Charmstone,
+  chatbox: Chatbox,
   chatgpt: ChatGpt,
   "chatgpt atlas": ChatGptAtlas,
   chatwise: Chatwise,
   cheetah3d: Cheetah3D,
+  "chef workstation": ChefWorkstation,
+  "cherry keys": CherryKeys,
   "cherry studio": CherryStudio,
   chime: Chime,
   choosy: Choosy,
   "chrome remote desktop": ChromeRemoteDesktop,
   "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
+  "cisco webex recorder and player": CiscoWebexRecorderAndPlayer,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
@@ -1198,9 +1276,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   clickshare: ClickShare,
   clickup: ClickUp,
   clion: CLion,
+  clipboardfusion: Clipboardfusion,
   clipbook: Clipbook,
   clipgrab: Clipgrab,
   clipy: Clipy,
+  clockassist: Clockassist,
   clocker: Clocker,
   "clockify desktop": ClockifyDesktop,
   clop: Clop,
@@ -1210,6 +1290,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   coconutbattery: Coconutbattery,
   code: VisualStudioCode,
   codeedit: Codeedit,
+  "codemeter runtime kit": CodemeterRuntimeKit,
   coderunner: Coderunner,
   codex: CodexApp,
   codexbar: Codexbar,
@@ -1225,15 +1306,22 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   copilot: CopilotMoney,
   cork: Cork,
   coteditor: CotEditor,
+  "cpu-z": CpuZ,
   crashplan: CrashPlan,
+  "creative force kelvin": CreativeForceKelvin,
+  "creative force triad": CreativeForceTriad,
+  "cribl edge": CriblEdge,
+  crisisgo: Crisisgo,
   crossover: Crossover,
   cryptomator: Cryptomator,
   crystalfetch: Crystalfetch,
+  "cube browser": CubeBrowser,
   cursor: Cursor,
   cursorsense: Cursorsense,
   cursr: Cursr,
   customshortcuts: Customshortcuts,
   cyberduck: Cyberduck,
+  "cyberduck cli": CyberduckCli,
   daisydisk: Daisydisk,
   dangerzone: Dangerzone,
   darkmodebuddy: Darkmodebuddy,
@@ -1345,6 +1433,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
+  filebeat: Filebeat,
   "filemaker pro": FileMakerPro,
   filen: Filen,
   "fing desktop": Fing,
@@ -1375,7 +1464,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gdevelop: Gdevelop,
   geany: Geany,
   geekbench: Geekbench,
-  gemini: Gemini,
+  gemini: GoogleGemini,
+  "gemini 2": Gemini2,
   "genesys cloud": GenesysCloud,
   gephi: Gephi,
   ghostty: Ghostty,
@@ -1400,6 +1490,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   "google drive": GoogleDrive,
   "google earth pro": GoogleEarthPro,
+  "google gemini": GoogleGemini,
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
@@ -1454,6 +1545,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   istherenet: Istherenet,
   iterm2: ITerm,
   itsycal: Itsycal,
+  itunes: Itunes,
   "jabra direct": JabraDirect,
   jami: Jami,
   jamovi: Jamovi,
@@ -1646,6 +1738,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
   "ok json": OkJson,
+  "okta advanced server access": ScaleFt,
   "okta verify": OktaVerify,
   ollama: Ollama,
   omnidisksweeper: Omnidisksweeper,
@@ -1763,7 +1856,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidweaver: Rapidweaver,
   raycast: Raycast,
   readest: Readest,
+  "realvnc connect viewer": VncViewer,
   "realvnc server": RealVncServer,
+  "realvnc viewer": VncViewer,
   reaper: Reaper,
   recents: Recents,
   rectangle: Rectangle,
@@ -1805,6 +1900,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   santa: Santa,
   "sbarex qlmarkdown": Qlmarkdown,
   "sc menu": ScMenu,
+  scaleft: ScaleFt,
   scratch: Scratch,
   "screen studio": ScreenStudio,
   screenflick: Screenflick,
@@ -1847,6 +1943,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
   sonobus: Sonobus,
+  sonos: Sonos,
   soulver: Soulver,
   "sound control": SoundControl,
   soundanchor: Soundanchor,
@@ -1859,6 +1956,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   splice: Splice,
+  spokenly: Spokenly,
   spotify: Spotify,
   "sproutcube shortcat": Shortcat,
   spyder: Spyder,
@@ -1974,6 +2072,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,
@@ -2002,11 +2101,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winlogbeat: Winlogbeat,
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,

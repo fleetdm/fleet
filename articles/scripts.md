@@ -89,15 +89,50 @@ After you've initiated a batch script run, you can see its status by navigating 
 To see a breakdown of the hosts targeted by a specific batch script run, click on that run's entry in the **Started**, **Scheduled**, or **Finished** list.  
 
 To cancel a current or future batch script run:
+
 1. Select the batch run you wish to cancel from the **Started** or **Scheduled** list.
+
 2. In the modal window that appears, hover over the **Pending** hosts row.
+
 3. Click on the **Cancel** button that appears in that row.
 
 Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
+
+## Use Fleet variables in scripts
+
+Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables) (prefixed with `$FLEET_VAR_`) can be used in scripts to inject host-specific data at execution time. When the script runs on a host, Fleet replaces the variable with the host's actual value.
+
+For example, to use the host's end user IdP username in a script:
+
+**macOS/Linux (.sh):**
+```sh
+#!/bin/bash
+echo "Configuring account for $FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+```
+
+**Windows (.ps1):**
+```sh
+Write-Host "Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL"
+```
+
+### Supported variables include:
+
+- $FLEET_VAR_HOST_END_USER_IDP_USERNAME
+- $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME
+- $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART
+- $FLEET_VAR_HOST_END_USER_IDP_GROUPS
+- $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT
+- $FLEET_VAR_HOST_HARDWARE_SERIAL
+- $FLEET_VAR_HOST_UUID
+- $FLEET_VAR_HOST_PLATFORM
+
+See the full list in the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
+
+> The ${FLEET_VAR_NAME} brace syntax is also supported for embedding variables within strings (e.g., user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@company.com).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-10-07">
 <meta name="articleTitle" value="Scripts">
-<meta name="description" value="Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet.">
+<meta name="description" value="Learn how to execute scripts on your hosts using Fleet, including using Fleet variables for host-specific data.">

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.3.280",
+      "version": "1.3.282",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'tv.medal.highlight';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'tv.medal.highlight' AND version_compare(bundle_short_version, '1.3.280') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'tv.medal.highlight' AND version_compare(bundle_short_version, '1.3.282') < 0);"
       },
-      "installer_url": "https://cdn.highlightai.com/releases/darwin/arm64/Highlight-1.3.280-arm64.dmg",
+      "installer_url": "https://cdn.highlightai.com/releases/darwin/arm64/Highlight-1.3.282-arm64.dmg",
       "install_script_ref": "bb764101",
       "uninstall_script_ref": "49c63a27",
-      "sha256": "07b42c31dd7282f5ab290df0dc7e32a6de57ba6b826a1099bd313b636ac4157d",
+      "sha256": "e2de8a71cbe58f8891740d99e12ceba87ecc16a1d50ae7450b4302ac78aec9e9",
       "default_categories": [
         "Productivity"
       ]

@@ -29,9 +29,14 @@ const (
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"
+	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
+	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
+	// installer to the newest cached version its pin state allows. Premium only;
+	// runs every 1h.
+	CronMaintainedAppsAutoUpdate CronScheduleName = "maintained_apps_auto_update"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
 	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"

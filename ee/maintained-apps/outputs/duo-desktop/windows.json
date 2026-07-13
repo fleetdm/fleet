@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.18.0",
+      "version": "7.19.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Duo Desktop' AND publisher = 'Duo Security';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Duo Desktop' AND publisher = 'Duo Security' AND version_compare(version, '7.18.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Duo Desktop' AND publisher = 'Duo Security' AND version_compare(version, '7.19.0') < 0);"
       },
-      "installer_url": "https://dl.duosecurity.com/DuoDesktop-7.18.0.msi",
+      "installer_url": "https://dl.duosecurity.com/DuoDesktop-7.19.0.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "0d338e9c",
-      "sha256": "9e7165dd2b4f97b91e887bab95f7e5ccc60076016cf97a2df5ac5ad1049e81a3",
+      "sha256": "55b4079170f6bb0fe085b331f448390198c0aa76a4c4ed3267ac0782e2f8b4bd",
       "default_categories": [
         "Productivity"
       ],

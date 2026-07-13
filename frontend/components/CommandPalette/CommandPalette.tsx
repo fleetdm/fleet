@@ -7,7 +7,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Command } from "cmdk";
+import { Command, useCommandState } from "cmdk";
 import {
   Title as DialogTitle,
   Description as DialogDescription,
@@ -43,6 +43,24 @@ import UprightEmoji from "./components/UprightEmoji";
 import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
+
+// Subscribes to cmdk's selected value via its internal store. We can't
+// rely on `Command.Dialog`'s `onValueChange` prop for this: in cmdk@1.1.1
+// that callback only fires when `value` is also controlled, and the
+// palette runs cmdk uncontrolled so arrow-key highlight changes never
+// reach React without this bridge. Rendered inside `Command.Dialog` so
+// the `useCommandState` context is available.
+const HighlightSubscriber = ({
+  onChange,
+}: {
+  onChange: (value: string) => void;
+}) => {
+  const value = useCommandState((state) => state.value);
+  useEffect(() => {
+    onChange(value ?? "");
+  }, [value, onChange]);
+  return null;
+};
 
 // cmdk treats `value` as the row's identity *and* as the substring it
 // filters against. Two rows with the same value collide. Including the
@@ -471,14 +489,50 @@ const CommandPalette = (): JSX.Element | null => {
     return map;
   }, [items]);
 
+  // Track whether the most recent input was a keystroke or pointer move.
+  // Hovering changes cmdk's selected value (selection-follows-pointer),
+  // which would otherwise pop sub-items open every time the mouse passes
+  // a parent row. We still want auto-expand on arrow-key navigation, so
+  // gate it on this ref instead of turning off pointer selection
+  // entirely (which would also kill the hover highlight).
+  const lastInputSourceRef = useRef<"keyboard" | "pointer">("keyboard");
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = () => {
+      lastInputSourceRef.current = "keyboard";
+    };
+    const onPointer = () => {
+      lastInputSourceRef.current = "pointer";
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointermove", onPointer, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointermove", onPointer, true);
+    };
+  }, [open]);
+
   // Auto expand/collapse sub-items as the user arrows through items.
   // Normalize to match how valueToParentId stores its keys — cmdk
   // hands back the raw `value` prop (preserves casing/whitespace).
   const handleHighlightChange = useCallback(
     (value: string) => {
       if (isSearching) return;
+      if (lastInputSourceRef.current !== "keyboard") return;
       const parentId = valueToParentId.get(value.toLowerCase().trim());
-      setExpandedItems(parentId ? new Set([parentId]) : new Set());
+      // Bail out when the target set is equivalent to the current one
+      // (arrowing within the same parent's sub-items, or moving between
+      // two non-parent rows). Without this, every arrow press allocates
+      // a new Set and forces a re-render even when no expansion state
+      // actually changes.
+      setExpandedItems((prev) => {
+        if (parentId) {
+          if (prev.size === 1 && prev.has(parentId)) return prev;
+          return new Set([parentId]);
+        }
+        if (prev.size === 0) return prev;
+        return new Set();
+      });
     },
     [valueToParentId, isSearching]
   );
@@ -750,7 +804,6 @@ const CommandPalette = (): JSX.Element | null => {
     <Command.Dialog
       open={open}
       onOpenChange={handleOpenChange}
-      onValueChange={handleHighlightChange}
       label="Command palette"
       className={baseClass}
       overlayClassName={`${baseClass}__overlay`}
@@ -772,6 +825,7 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
+      <HighlightSubscriber onChange={handleHighlightChange} />
       {/* cmdk's Dialog wraps Radix Dialog.Content, which requires a Title and
           a Description for screen reader accessibility — without these, Radix
           logs a console error/warning on every open. Both are rendered

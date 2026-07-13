@@ -1,6 +1,6 @@
 # File carving
 
-Fleet supports file carving which allows you to request files (and sets of files) and their full contents from hosts.
+Fleet supports file carving, which allows you to request files (and sets of files) and their full contents from hosts.
 
 File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://fleetdm.com/docs/deploying/configuration#s-3-file-carving-backend).
 
@@ -9,19 +9,16 @@ File carving data can be either stored in Fleet's database or to an external S3 
 In your agent configuration, add the following [command line flags](https://fleetdm.com/docs/configuration/agent-configuration#options-and-command-line-flags) to enable carving:
 
 ```yaml
-command_line_flags:
-  disable_carver=false
-  carver_disable_function=false
-  carver_start_endpoint=/api/v1/osquery/carve/begin
-  carver_continue_endpoint=/api/v1/osquery/carve/block
-  carver_block_size=8000000
+  disable_carver: false
+  carver_disable_function: false
+  carver_start_endpoint: /api/v1/osquery/carve/begin
+  carver_continue_endpoint: /api/v1/osquery/carve/block
+  carver_block_size: 8000000
 ```
 
-For the (default) MySQL Backend, the configured `carver_block_size` must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
+The configured `carver_block_size` must be less than the value of `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) is 64MB (`67108864`).
 
-For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the
-[constraints of S3's multipart
+For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
 Compression of the carve contents can be enabled with the `carver_compression` flag. When used, the carve results will be compressed with [Zstandard](https://facebook.github.io/zstd/) compression.
@@ -31,7 +28,7 @@ Compression of the carve contents can be enabled with the `carver_compression` f
 > File carving can cause significant performance impact if multiple factors are scaled up simultaneously. To avoid overloading your Fleet instance:
 > - Target a narrow host set. Avoid running carves against all hosts.
 > - Use specific paths. Avoid wildcard paths (e.g. /tmp/* or user home directories) that may match many or large files.
-> - Mind the limits. Individual files must be under 8 GB; each file is transferred in 256 MB blocks (one database row and S3 object per block).
+> - Mind the limits. Individual files must be under 8 GB
 > - Avoid scheduled carves on broad targets. Automations that repeat carves against large host sets compound the load over time.
 > The total load scales as the product of: number of hosts × number of paths × number of matching files × average file size. Any one of these can be large in isolation, but all four at once can result in millions of database writes and terabytes of S3 data simultaneously.
 
@@ -40,13 +37,13 @@ File carves are initiated with live reports. Run live report using the `carves` 
 For example, to extract the `/etc/hosts` file on a host with hostname `mac-workstation`:
 
 ```sh
-fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
+fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
-The globbing syntax is also supported to carve entire directories or more:
+Glob syntax is also supported to carve entire directories or more:
 
 ```sh
-fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
+fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
 
 ## Retrieve carves
@@ -71,9 +68,9 @@ fleetctl get carve --stdout 3 | tar -x
 
 ## Expiration
 
-Carve contents remain available for 24 hours after the first data is provided from the Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
+Carve contents remain available for 24 hours after the first data is provided from Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database, and the carve is marked as "expired".
 
-The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to setup a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
+The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to set up a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e., by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what is actually available in the bucket.
 
 ## Alternative carving backends
 
@@ -87,7 +84,7 @@ Configure the following:
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
 - `FLEET_S3_REGION=localhost` or any non-empty string otherwise Fleet will attempt to derive the region.
 
-If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will automatically point carves to the local RustFS container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
+If you're testing file carving locally, the `--dev` flag on Fleet server will automatically point carves to the local RustFS container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
 
 ## Troubleshooting
 
@@ -95,25 +92,21 @@ If you're testing file carving locally with the docker-compose environment, the 
 
 You can report on the status of carves through queries to the `carves` table.
 
-The details provided by
+You can debug carving problems with:
 
 ```sh
-fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
+fleetctl report --labels 'All Hosts' --query 'SELECT * FROM carves'
 ```
 
-can be helpful to debug carving problems.
 
 ### Ensure `carver_block_size` is set appropriately
 
-`carver_block_size` is an option that sets the size of each part of a file carve that Fleet's agent (fleetd)
-sends to the Fleet server.
+`carver_block_size` is an option that sets the size of each part of a file carve that Fleet's agent (fleetd) sends to the Fleet server.
 
-When using the MySQL backend (default), this value must be less than the `max_allowed_packet`
-setting in MySQL. If it is too large, MySQL will reject the writes.
+When using the MySQL backend (default), this value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 
 When using S3, the value must be at least 5MiB (5242880 bytes), as smaller multipart upload
-sizes are rejected. Additionally, [S3
-limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
+sizes are rejected. Additionally, [S3 limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
 parts to 10,000.
 
 The value must be small enough that HTTP requests do not time out.

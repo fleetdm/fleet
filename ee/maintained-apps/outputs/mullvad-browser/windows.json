@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "15.0.14",
+      "version": "15.0.16",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mullvad Browser' AND publisher = 'Mullvad VPN';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mullvad Browser' AND publisher = 'Mullvad VPN' AND version_compare(version, '15.0.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mullvad Browser' AND publisher = 'Mullvad VPN' AND version_compare(version, '15.0.16') < 0);"
       },
-      "installer_url": "https://github.com/mullvad/mullvad-browser/releases/download/15.0.14/mullvad-browser-windows-x86_64-15.0.14.exe",
+      "installer_url": "https://github.com/mullvad/mullvad-browser/releases/download/15.0.16/mullvad-browser-windows-x86_64-15.0.16.exe",
       "install_script_ref": "de703749",
       "uninstall_script_ref": "77ded4aa",
-      "sha256": "56d5e332b1e780c6413c1a88e7b0a855ec1df5a400a26d92f08585637bc75c02",
+      "sha256": "72f10b35a388c5f14ebff0eadc32b2a84b70f6e459f801f8fc9d8a21c398329a",
       "default_categories": [
         "Browsers"
       ]

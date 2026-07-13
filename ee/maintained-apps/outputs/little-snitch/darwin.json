@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.3.3",
+      "version": "6.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'at.obdev.LittleSnitch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'at.obdev.LittleSnitch' AND version_compare(bundle_short_version, '6.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'at.obdev.LittleSnitch' AND version_compare(bundle_short_version, '6.4.1') < 0);"
       },
-      "installer_url": "https://www.obdev.at/downloads/littlesnitch/LittleSnitch-6.3.3.dmg",
+      "installer_url": "https://www.obdev.at/downloads/littlesnitch/LittleSnitch-6.4.1.dmg",
       "install_script_ref": "72dca0dd",
       "uninstall_script_ref": "7868f19f",
-      "sha256": "9180c2ee2f69259d920255258930783aa7c9cc1ffbbb128920df2f51a9955265",
+      "sha256": "46074f19a492dbb36dbbbfc267942beff662b2f2f938c5e517d7e090ba0d7264",
       "default_categories": [
         "Developer tools"
       ]

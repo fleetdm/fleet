@@ -377,6 +377,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				}
 
 				appStoreApp.SelfService = true
+				if payload.Configuration != nil {
+					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
+						return nil, nil, err
+					}
+				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
@@ -1534,11 +1539,60 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 }
 
 func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+	// The Add software > App Store picker reads the token list, so this must be
+	// readable by the same roles that can read App Store apps
+	// (fleet.VPPApp/installable_entity), not just admins. Global roles can read
+	// every token; team-scoped users can only read tokens assigned to a team
+	// where they have read access (plus "All teams" tokens).
+	globalRead := svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionRead)
+
+	// Collect the teams where a team-scoped user has read access. Left empty for
+	// global readers since they can see everything.
+	readableTeams := make(map[uint]struct{})
+	if globalRead != nil {
+		if user := authz.UserFromContext(ctx); user != nil {
+			for _, t := range user.Teams {
+				teamID := t.ID
+				if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: &teamID}, fleet.ActionRead); err == nil {
+					readableTeams[teamID] = struct{}{}
+				}
+			}
+		}
+
+		// No read access globally or on any team: return the forbidden error.
+		if len(readableTeams) == 0 {
+			return nil, globalRead
+		}
+	}
+
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListVPPTokens(ctx)
+	// Global readers get every token unchanged.
+	if globalRead == nil {
+		return tokens, nil
+	}
+
+	filtered := make([]*fleet.VPPTokenDB, 0, len(tokens))
+	for _, tok := range tokens {
+		// A non-nil, empty Teams slice means the token is assigned to "All
+		// teams" and is visible to any user with read access. A nil slice means
+		// the token is unassigned and only global readers should see it.
+		if tok.Teams != nil && len(tok.Teams) == 0 {
+			filtered = append(filtered, tok)
+			continue
+		}
+		for _, tt := range tok.Teams {
+			if _, ok := readableTeams[tt.ID]; ok {
+				filtered = append(filtered, tok)
+				break
+			}
+		}
+	}
+
+	return filtered, nil
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {

@@ -1,16 +1,16 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
 import { ILabelSummary } from "interfaces/label";
 
 import { useQuery } from "react-query";
 
-import { NotificationContext } from "context/notification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
+import { notify } from "components/ToastNotification";
 import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -65,7 +65,6 @@ const EditAutoUpdateConfigModal = ({
   refetchSoftwareTitle,
   onExit,
 }: EditAutoUpdateConfigModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const formClassNames = classnames(formClass, {
@@ -117,8 +116,7 @@ const EditAutoUpdateConfigModal = ({
     try {
       await softwareAPI.editAppStoreApp(softwareTitle.id, teamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <strong>
             {getDisplayedSoftwareName(
@@ -133,9 +131,9 @@ const EditAutoUpdateConfigModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        "An error occurred while updating the configuration. Please try again."
+      notify.error(
+        "An error occurred while updating the configuration. Please try again.",
+        { response: e }
       );
     }
     setIsUpdatingConfiguration(false);
@@ -302,7 +300,7 @@ const EditAutoUpdateConfigModal = ({
             </Button>
             <GitOpsModeTooltipWrapper
               entityType="software"
-              position="right"
+              position="top"
               tipOffset={8}
               renderChildren={(disableChildren) => (
                 <Button

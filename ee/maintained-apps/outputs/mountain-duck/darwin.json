@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.2.1",
+      "version": "5.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck' AND version_compare(bundle_short_version, '5.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck' AND version_compare(bundle_short_version, '5.3.1') < 0);"
       },
-      "installer_url": "https://dist.mountainduck.io/Mountain%20Duck-5.2.1.28671.zip",
+      "installer_url": "https://dist.mountainduck.io/Mountain%20Duck-5.3.1.29526.zip",
       "install_script_ref": "6ff201d4",
       "uninstall_script_ref": "9229a596",
-      "sha256": "86191ee2d9dbbf67540b20c050c13606215c2032def9c420111d45e2d3d9867a",
+      "sha256": "b224d053f47d30253e0b7b86a19018f94496dc06246f1ff6b79fe3717764936d",
       "default_categories": [
         "Productivity"
       ]

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.84.0",
+      "version": "0.85.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'name.abuchen.portfolio.distro.product';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'name.abuchen.portfolio.distro.product' AND version_compare(bundle_short_version, '0.84.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'name.abuchen.portfolio.distro.product' AND version_compare(bundle_short_version, '0.85.0') < 0);"
       },
-      "installer_url": "https://github.com/buchen/portfolio/releases/download/0.84.0/PortfolioPerformance-0.84.0-aarch64.dmg",
+      "installer_url": "https://github.com/buchen/portfolio/releases/download/0.85.0/PortfolioPerformance-0.85.0-aarch64.dmg",
       "install_script_ref": "b401344a",
       "uninstall_script_ref": "987c225a",
-      "sha256": "04bce9b838406e8fb888fad36f042bf4b1265069bc0c0bc13b1f36e434d8acf1",
+      "sha256": "6ccc40ffee35d014a258f4d28583c7c76e5961bb65a8e0a8084a79303f103bb7",
       "default_categories": [
         "Productivity"
       ]

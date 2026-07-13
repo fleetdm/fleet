@@ -687,6 +687,12 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		argsWithoutBundleIdentifier       []any
 		argsWithBundleIdentifier          []any
 		uniqueTitleStrToChecksums         = make(map[string][]string)
+		// A Windows program's title identity is its upgrade_code, not its name (names drift
+		// between versions). Look programs up by unique_identifier (= upgrade_code) as well, so
+		// a report whose name has drifted from the stored title still resolves to it instead of
+		// being treated as new and issuing an INSERT IGNORE that can never win.
+		argsProgramUpgradeCode []any
+		upgradeCodeToChecksums = make(map[string][]string)
 	)
 	bundleIDsToIncomingNames := make(map[string]string)
 	for checksum := range newSoftwareChecksums {
@@ -695,8 +701,13 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			bundleIDsToIncomingNames[sw.BundleIdentifier] = sw.Name
 			argsWithBundleIdentifier = append(argsWithBundleIdentifier, sw.BundleIdentifier)
 		} else {
-			// TODO(jacob) - consider `upgrade_code` here and below if needed for additional specificity
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.ExtensionFor)
+			// Windows programs also match by upgrade_code (their true identity). unique_identifier
+			// resolves to upgrade_code for a program, so this lookup reuses idx_unique_sw_titles.
+			if sw.Source == "programs" && sw.UpgradeCode != nil && *sw.UpgradeCode != "" {
+				argsProgramUpgradeCode = append(argsProgramUpgradeCode, *sw.UpgradeCode, sw.Source, sw.ExtensionFor)
+				upgradeCodeToChecksums[*sw.UpgradeCode] = append(upgradeCodeToChecksums[*sw.UpgradeCode], checksum)
+			}
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
 		// Note: Multiple checksums can map to the same title (e.g., when names are truncated). This should not normally happen.
@@ -751,6 +762,38 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 				for _, checksum := range checksums {
 					incomingChecksumsToTitleSummaries[checksum] = titleSummary
 				}
+			}
+		}
+	}
+
+	// Get Windows-program titles by upgrade_code (their true identity). This resolves programs
+	// whose reported name has drifted from the stored title's name but shares its upgrade_code;
+	// otherwise they miss the name lookup above, are treated as new, and their INSERT IGNORE
+	// collides on idx_unique_sw_titles forever (see #48875). Matching on unique_identifier reuses
+	// idx_unique_sw_titles (there is no standalone index on the upgrade_code column).
+	if len(argsProgramUpgradeCode) > 0 {
+		numItems := len(argsProgramUpgradeCode) / 3
+		valuePlaceholders := make([]string, 0, numItems)
+		for range numItems {
+			valuePlaceholders = append(valuePlaceholders, "(?, ?, ?)")
+		}
+		stmt := fmt.Sprintf(
+			"SELECT id, name, source, extension_for, upgrade_code FROM software_titles WHERE (unique_identifier, source, extension_for) IN (%s)",
+			strings.Join(valuePlaceholders, ", "),
+		)
+		var existingProgramTitlesByUpgradeCode []fleet.SoftwareTitleSummary
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingProgramTitlesByUpgradeCode, stmt, argsProgramUpgradeCode...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get existing program titles by upgrade_code")
+		}
+		// (unique_identifier, source, extension_for) is unique (idx_unique_sw_titles), so this maps unambiguously.
+		// It runs after the name mapping above and overwrites it, so an upgrade_code/unique_identifier match wins
+		// on a tie (matching the post-insert recovery precedence).
+		for _, titleSummary := range existingProgramTitlesByUpgradeCode {
+			if titleSummary.UpgradeCode == nil || *titleSummary.UpgradeCode == "" {
+				continue
+			}
+			for _, checksum := range upgradeCodeToChecksums[*titleSummary.UpgradeCode] {
+				incomingChecksumsToTitleSummaries[checksum] = titleSummary
 			}
 		}
 	}
@@ -3575,26 +3618,25 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
 	softwareInstallsStmt := `
         WITH upcoming_software_install AS (
-            SELECT
-                ua.execution_id AS last_install_install_uuid,
-                ua.created_at AS last_install_installed_at,
-                siua.software_installer_id AS installer_id,
-                'pending_install' AS status
-            FROM
-                upcoming_activities ua
-            INNER JOIN
-                software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-            LEFT JOIN (
-                upcoming_activities ua2
-                INNER JOIN software_install_upcoming_activities siua2 ON ua2.id = siua2.upcoming_activity_id
-            ) ON ua.host_id = ua2.host_id AND
-                siua.software_installer_id = siua2.software_installer_id AND
-                ua.activity_type = ua2.activity_type AND
-                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-            WHERE
-                ua.host_id = ? AND
-                ua.activity_type = 'software_install' AND
-                ua2.id IS NULL
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+                SELECT
+                    ua.execution_id AS last_install_install_uuid,
+                    ua.created_at AS last_install_installed_at,
+                    siua.software_installer_id AS installer_id,
+                    'pending_install' AS status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY siua.software_installer_id, ua.activity_type
+                        ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+                    ) AS rn
+                FROM
+                    upcoming_activities ua
+                INNER JOIN
+                    software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+                WHERE
+                    ua.host_id = ? AND
+                    ua.activity_type = 'software_install'
+            ) ranked
+            WHERE rn = 1
         ),
         last_software_install AS (
             SELECT
@@ -3666,26 +3708,25 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
 	softwareUninstallsStmt := `
         WITH upcoming_software_uninstall AS (
-            SELECT
-                ua.execution_id AS last_uninstall_script_execution_id,
-                ua.created_at AS last_uninstall_uninstalled_at,
-                siua.software_installer_id AS installer_id,
-                'pending_uninstall' AS status
-            FROM
-                upcoming_activities ua
-            INNER JOIN
-                software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-            LEFT JOIN (
-                upcoming_activities ua2
-                INNER JOIN software_install_upcoming_activities siua2 ON ua2.id = siua2.upcoming_activity_id
-            ) ON ua.host_id = ua2.host_id AND
-                siua.software_installer_id = siua2.software_installer_id AND
-                ua.activity_type = ua2.activity_type AND
-                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-            WHERE
-                ua.host_id = ? AND
-                ua.activity_type = 'software_uninstall' AND
-                ua2.id IS NULL
+            SELECT last_uninstall_script_execution_id, last_uninstall_uninstalled_at, installer_id, status FROM (
+                SELECT
+                    ua.execution_id AS last_uninstall_script_execution_id,
+                    ua.created_at AS last_uninstall_uninstalled_at,
+                    siua.software_installer_id AS installer_id,
+                    'pending_uninstall' AS status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY siua.software_installer_id, ua.activity_type
+                        ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+                    ) AS rn
+                FROM
+                    upcoming_activities ua
+                INNER JOIN
+                    software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+                WHERE
+                    ua.host_id = ? AND
+                    ua.activity_type = 'software_uninstall'
+            ) ranked
+            WHERE rn = 1
         ),
         last_software_uninstall AS (
             SELECT
@@ -4286,35 +4327,33 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	}
 	vppInstallsStmt := fmt.Sprintf(`
 	(   -- upcoming_vpp_install
-			SELECT
-					vpp_apps.title_id AS id,
-					ua.execution_id AS last_install_install_uuid,
-					ua.created_at AS last_install_installed_at,
-					vaua.adam_id AS vpp_app_adam_id,
-					vat.self_service AS vpp_app_self_service,
-					'pending_install' AS status
-			FROM
-					upcoming_activities ua
-			INNER JOIN
-					vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			LEFT JOIN (
-					upcoming_activities ua2
-					INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
-			) ON ua.host_id = ua2.host_id AND
-					vaua.adam_id = vaua2.adam_id AND
-					vaua.platform = vaua2.platform AND
-					ua.activity_type = ua2.activity_type AND
-					(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-			LEFT JOIN
-				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-			INNER JOIN
-				vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
-			WHERE
-				-- selfServiceFilter
-				%s
-			 ua.host_id = :host_id AND
-			 ua.activity_type = 'vpp_app_install' AND
-			 ua2.id IS NULL
+			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status FROM (
+				SELECT
+						vpp_apps.title_id AS id,
+						ua.execution_id AS last_install_install_uuid,
+						ua.created_at AS last_install_installed_at,
+						vaua.adam_id AS vpp_app_adam_id,
+						vat.self_service AS vpp_app_self_service,
+						'pending_install' AS status,
+						ROW_NUMBER() OVER (
+							PARTITION BY vaua.adam_id, vaua.platform, ua.activity_type
+							ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+						) AS rn
+				FROM
+						upcoming_activities ua
+				INNER JOIN
+						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+				LEFT JOIN
+					vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+				INNER JOIN
+					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
+				WHERE
+					-- selfServiceFilter
+					%s
+				 ua.host_id = :host_id AND
+				 ua.activity_type = 'vpp_app_install'
+			) ranked
+			WHERE rn = 1
 ) UNION (
 			-- last_vpp_install
 			SELECT
@@ -4401,36 +4440,35 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 
 	installsStmt := fmt.Sprintf(`
 (   -- upcoming_in_house_install
-	SELECT
-		iha.title_id AS id,
-		ua.execution_id AS last_install_install_uuid,
-		ua.created_at AS last_install_installed_at,
-		ihua.in_house_app_id AS in_house_app_id,
-		iha.filename AS in_house_app_name,
-		iha.platform AS in_house_app_platform,
-		iha.version AS in_house_app_version,
-		iha.self_service AS in_house_app_self_service,
-		'pending_install' AS status
-	FROM
-		upcoming_activities ua
-	INNER JOIN
-		in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
-	LEFT JOIN (
-		upcoming_activities ua2
-		INNER JOIN in_house_app_upcoming_activities ihua2 ON ua2.id = ihua2.upcoming_activity_id
-	) ON ua.host_id = ua2.host_id AND
-			ihua.in_house_app_id = ihua2.in_house_app_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	INNER JOIN
-		in_house_apps iha ON ihua.in_house_app_id = iha.id
-	WHERE
-		-- selfServiceFilter
-		%s
-		ua.host_id = :host_id AND
-		ua.activity_type = 'in_house_app_install' AND
-		iha.global_or_team_id = :global_or_team_id AND
-		ua2.id IS NULL
+	SELECT id, last_install_install_uuid, last_install_installed_at, in_house_app_id, in_house_app_name, in_house_app_platform, in_house_app_version, in_house_app_self_service, status FROM (
+		SELECT
+			iha.title_id AS id,
+			ua.execution_id AS last_install_install_uuid,
+			ua.created_at AS last_install_installed_at,
+			ihua.in_house_app_id AS in_house_app_id,
+			iha.filename AS in_house_app_name,
+			iha.platform AS in_house_app_platform,
+			iha.version AS in_house_app_version,
+			iha.self_service AS in_house_app_self_service,
+			'pending_install' AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ihua.in_house_app_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+		INNER JOIN
+			in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+		INNER JOIN
+			in_house_apps iha ON ihua.in_house_app_id = iha.id
+		WHERE
+			-- selfServiceFilter
+			%s
+			ua.host_id = :host_id AND
+			ua.activity_type = 'in_house_app_install' AND
+			iha.global_or_team_id = :global_or_team_id
+	) ranked
+	WHERE rn = 1
 ) UNION (
 	-- last_in_house_install
 	SELECT
@@ -4688,9 +4726,11 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 
 // hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
 // "source" is included for test determinism (used as the secondary order key in tests).
+// "name" uses COALESCE(NULLIF(...)) so that a custom display name (when set) is used
+// for sorting, falling back to the software title name (often an installer filename).
 var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"name":   "name",
-	"source": "source",
+	"name":   "COALESCE(NULLIF(stdn.display_name, ''), combined_results.name)",
+	"source": "combined_results.source",
 }
 
 // hostSoftwareTitleAssembler accumulates and de-duplicates host software title records
@@ -6527,7 +6567,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
-		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
+		stmt = fmt.Sprintf(
+			"SELECT combined_results.* FROM (%s) AS combined_results LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = combined_results.id AND stdn.team_id = ?",
+			stmt,
+		)
+		args = append(args, globalOrTeamID)
 		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
@@ -6763,17 +6807,15 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			hsi.policy_id,
 			hsi.self_service,
 			hsi.created_at,
-			si.title_id AS software_title_id,
-			si.filename AS software_package,
-			st.name AS software_title
+			hsi.software_title_id,
+			hsi.installer_filename AS software_package,
+			hsi.software_title_name AS software_title
 		FROM host_software_installs hsi
-		INNER JOIN software_installers si ON si.id = hsi.software_installer_id
-		INNER JOIN software_titles st ON st.id = si.title_id
 		WHERE hsi.execution_id = ? AND hsi.host_id = ?
 	`
 
 	var details struct {
-		SoftwareInstallerID uint      `db:"software_installer_id"`
+		SoftwareInstallerID *uint     `db:"software_installer_id"`
 		UserID              *uint     `db:"user_id"`
 		PolicyID            *uint     `db:"policy_id"`
 		SelfService         bool      `db:"self_service"`
@@ -6953,7 +6995,9 @@ FROM software_categories
 WHERE team_id = ?
 ORDER BY name
 `
-	var categories []fleet.SoftwareCategory
+	// Non-nil so the JSON response serializes as `[]` rather than `null` when a
+	// team has no categories.
+	categories := []fleet.SoftwareCategory{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software categories")
 	}
@@ -6986,7 +7030,16 @@ func batchNewSoftwareCategoriesDB(ctx context.Context, q sqlx.ExtContext, teamID
 		return nil
 	}
 	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(names)), ", ")
-	stmt := `INSERT INTO software_categories (name, team_id) VALUES ` + placeholders
+	// ON DUPLICATE KEY UPDATE makes this insert idempotent against the
+	// (team_id, name) unique index. Callers already filter out names that exist,
+	// but that check runs in Go and can't perfectly mirror the utf8mb4_unicode_ci
+	// collation (which ignores variation selectors and gives many emoji equal
+	// weight), so a name that's distinct to Go may collide in the index. The
+	// upsert lets the existing row win instead of failing the batch with a 1062
+	// duplicate-entry error; it also tolerates concurrent inserts of the same
+	// default categories.
+	stmt := `INSERT INTO software_categories (name, team_id) VALUES ` + placeholders +
+		` ON DUPLICATE KEY UPDATE name = name`
 	args := make([]any, 0, len(names)*2)
 	for _, name := range names {
 		args = append(args, name, teamID)

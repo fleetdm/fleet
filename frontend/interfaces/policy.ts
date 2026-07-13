@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
+import type { ActivityType, IActivityDetails } from "interfaces/activity";
 import { IScript } from "./script";
 import { ILabelPolicy } from "./label";
 
@@ -31,6 +32,22 @@ export interface IStoredPolicyResponse {
 export interface IPoliciesCountResponse {
   count: number;
   inherited_policy_count?: number;
+}
+
+export type PolicyAutomationActivityStatus = "error" | "success";
+
+export interface IPolicyAutomationActivity {
+  id: number;
+  created_at: string;
+  type: ActivityType;
+  fleet_initiated: boolean;
+  details: IActivityDetails;
+  host_id: number;
+  host_display_name: string;
+  status: PolicyAutomationActivityStatus;
+  output: string | null;
+  pre_install_output: string | null;
+  post_install_output: string | null;
 }
 
 export interface IPolicy {

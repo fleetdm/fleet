@@ -110,8 +110,8 @@ labels:
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/macos-screen-lock-exclusions.yml
   - path: ./lib/all/labels/windows-screen-lock-exclusions.yml
-  - path: ./lib/all/labels/team-g-mdm.yml
-  - path: ./lib/all/labels/team-g-software.yml
+  - path: ./lib/all/labels/team-g-apple-at-work.yml
+  - path: ./lib/all/labels/team-g-auto-patching.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-desktop-installed.yml
@@ -119,4 +119,7 @@ labels:
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
   - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml
+  - path: ./lib/all/labels/macs-excluded-from-external-storage-restrictions.yml
+  - path: ./lib/all/labels/windows-excluded-from-external-storage-restrictions.yml
+  - path: ./lib/all/labels/linux-excluded-from-external-storage-restrictions.yml
   - path: ./lib/all/labels/hosts-with-npm-package-inventory.yml

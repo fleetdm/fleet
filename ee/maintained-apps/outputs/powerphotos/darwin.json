@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "3.3.5",
+      "version": "3.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fatcatsoftware.PowerPhotos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fatcatsoftware.PowerPhotos' AND version_compare(bundle_short_version, '3.3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fatcatsoftware.PowerPhotos' AND version_compare(bundle_short_version, '3.4.1') < 0);"
       },
       "installer_url": "https://www.fatcatsoftware.com/powerphotos/PowerPhotos.zip",
       "install_script_ref": "1398e00e",
