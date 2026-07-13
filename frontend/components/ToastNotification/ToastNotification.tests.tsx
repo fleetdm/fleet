@@ -36,7 +36,7 @@ describe("notify - sonner toast API", () => {
     jest.runAllTimers();
     expect(mockedToast.custom).toHaveBeenCalledTimes(1);
 
-    const [, options] = mockedToast.custom.mock.calls[0];
+    const options = mockedToast.custom.mock.calls[0][1]!;
     expect(options).toMatchObject({ duration: 5000, id });
   });
 
@@ -46,7 +46,7 @@ describe("notify - sonner toast API", () => {
     expect(typeof id).toBe("string");
     expect(mockedToast.custom).toHaveBeenCalledTimes(1);
 
-    const [, options] = mockedToast.custom.mock.calls[0];
+    const options = mockedToast.custom.mock.calls[0][1]!;
     expect(options).toMatchObject({ duration: Infinity, id });
   });
 
@@ -77,7 +77,7 @@ describe("notify - sonner toast API", () => {
     expect(id).toBe("my-custom-id");
 
     jest.runAllTimers();
-    const [, options] = mockedToast.custom.mock.calls[0];
+    const options = mockedToast.custom.mock.calls[0][1]!;
     expect(options.id).toBe("my-custom-id");
   });
 
