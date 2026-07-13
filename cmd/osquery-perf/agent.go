@@ -548,6 +548,7 @@ type agent struct {
 	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
+	FleetdPollInterval    time.Duration
 	DiskEncryptionEnabled bool
 	mdmProfileFailureProb float64
 	OSPatchLevel          int                 // For Linux patches
@@ -668,7 +669,7 @@ func newAgent(
 	hostIndexOffset int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
-	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
+	configInterval, logInterval, queryInterval, mdmCheckInInterval, fleetdPollInterval time.Duration,
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
@@ -771,6 +772,7 @@ func newAgent(
 		LogInterval:                   logInterval,
 		QueryInterval:                 queryInterval,
 		MDMCheckInInterval:            mdmCheckInInterval,
+		FleetdPollInterval:            fleetdPollInterval,
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 		defaultSerialProb:             defaultSerialProb,
@@ -1224,31 +1226,41 @@ func (a *agent) runOrbitLoop() {
 		checkToken()
 	}
 
+	// atLeastPoll raises a default polling interval to the configured
+	// --fleetd_poll_interval floor (0 = keep defaults). Real fleetd has no
+	// such knob; this lets a load test model payload-only (socket-like)
+	// traffic where fleetd polling would not exist.
+	atLeastPoll := func(d time.Duration) time.Duration {
+		if a.FleetdPollInterval > d {
+			return a.FleetdPollInterval
+		}
+		return d
+	}
 	// orbit makes a call to check the config and update the CLI flags every 30
 	// seconds
-	const orbitConfigDefault = 30 * time.Second
+	orbitConfigDefault := atLeastPoll(30 * time.Second)
 	orbitConfigTicker := time.NewTicker(orbitConfigDefault)
 	defer orbitConfigTicker.Stop()
 	// orbit makes a call every 5 minutes to check the validity of the device
 	// token on the server
-	const orbitTokenRemoteCheckDefault = 5 * time.Minute
+	orbitTokenRemoteCheckDefault := atLeastPoll(5 * time.Minute)
 	orbitTokenRemoteCheckTicker := time.NewTicker(orbitTokenRemoteCheckDefault)
 	defer orbitTokenRemoteCheckTicker.Stop()
 	// orbit pings the server every 1 hour to rotate the device token
-	const orbitTokenRotationDefault = 1 * time.Hour
+	orbitTokenRotationDefault := atLeastPoll(1 * time.Hour)
 	orbitTokenRotationTicker := time.NewTicker(orbitTokenRotationDefault)
 	defer orbitTokenRotationTicker.Stop()
 	// orbit polls the /orbit/ping endpoint every 5 minutes to check if the
 	// server capabilities have changed
-	const capabilitiesCheckerDefault = 5 * time.Minute
+	capabilitiesCheckerDefault := atLeastPoll(5 * time.Minute)
 	capabilitiesCheckerTicker := time.NewTicker(capabilitiesCheckerDefault)
 	defer capabilitiesCheckerTicker.Stop()
 	// fleet desktop polls for policy compliance every 5 minutes
-	const fleetDesktopPolicyDefault = 5 * time.Minute
+	fleetDesktopPolicyDefault := atLeastPoll(5 * time.Minute)
 	fleetDesktopPolicyTicker := time.NewTicker(fleetDesktopPolicyDefault)
 	defer fleetDesktopPolicyTicker.Stop()
 	// fleet desktop pings every 10s for connectivity check.
-	const fleetDesktopConnectivityDefault = 10 * time.Second
+	fleetDesktopConnectivityDefault := atLeastPoll(10 * time.Second)
 	fleetDesktopConnectivityCheck := time.NewTicker(fleetDesktopConnectivityDefault)
 	defer fleetDesktopConnectivityCheck.Stop()
 	// quietWatcher makes no server requests; it watches the quiet signal
@@ -3923,6 +3935,7 @@ func main() {
 		// the device having to check-in at a regular interval. I believe macOS will check-in from time to time
 		// without push notifications, but definitely not every minute.
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
+		fleetdPollInterval  = flag.Duration("fleetd_poll_interval", 0, "When > 0, raises every orbit/Fleet Desktop polling interval to at least this duration (load tests that model payload-only traffic)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -4184,6 +4197,7 @@ func main() {
 			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
+			*fleetdPollInterval,
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
 			softwareInstaller{
