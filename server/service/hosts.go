@@ -2388,10 +2388,11 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
-			}
-			for _, cert := range resentCerts {
-				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), cert); err != nil {
-					svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
 				}
 			}
 		} else {
@@ -2400,10 +2401,11 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
-			}
-			for _, cert := range resentCerts {
-				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), cert); err != nil {
-					svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
 				}
 			}
 		}
