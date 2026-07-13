@@ -28,8 +28,8 @@ import {
 } from "interfaces/policy";
 import {
   API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
-  ITeamConfig,
 } from "interfaces/team";
 import { isQueryablePlatform } from "interfaces/platform";
 
@@ -782,12 +782,21 @@ const ManagePolicyPage = ({
           !automationFilter &&
           !targetedPlatformParam;
 
-        // No team ID = All fleets → only show "all" and "other" options
-        const optionsForTeam = teamIdForApi
-          ? automationFilterOptions
-          : automationFilterOptions.filter((opt) =>
-              ["all", "other"].includes(opt.value as string)
-            );
+        // All fleets (teamIdForApi undefined) → global policies only support
+        // webhook/ticket automations, so only show "all" and "other".
+        // Unassigned (teamIdForApi === API_NO_TEAM_ID) supports every automation
+        // type EXCEPT calendar events, which PolicyAutomationsFields hardcodes
+        // as fleet-only (never available for "All fleets" or "Unassigned").
+        let optionsForTeam = automationFilterOptions;
+        if (teamIdForApi === undefined) {
+          optionsForTeam = automationFilterOptions.filter((opt) =>
+            ["all", "other"].includes(opt.value as string)
+          );
+        } else if (teamIdForApi === API_NO_TEAM_ID) {
+          optionsForTeam = automationFilterOptions.filter(
+            (opt) => opt.value !== "calendar"
+          );
+        }
 
         return (
           <DropdownWrapper
