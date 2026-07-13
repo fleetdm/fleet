@@ -1,10 +1,12 @@
 # Uninstalls Foxit PDF Editor.
 #
 # Foxit PDF Editor is a Foxit WiX MultiLangBootstrapper install that runs an auto-updater
-# service, so a plain uninstall can be blocked by running processes. Stop the
-# Foxit services/processes first, then run the ARP UninstallString (a cached
-# burn bundle exe with /uninstall /quiet, or an MsiExec /X{ProductCode}). The
-# ARP entry lives in the WOW6432Node (32-bit) hive even on x64.
+# service; its visible ARP entry is the inner MSI (its UninstallString uses
+# "MsiExec.exe /I{ProductCode}", the maintenance/repair form). We stop the
+# Foxit services/processes first so files aren't locked, then resolve the
+# ProductCode GUID and run a clean "msiexec /x {ProductCode} /qn /norestart"
+# (never reuse the /I from the registry string). The ARP entry lives in the
+# WOW6432Node (32-bit) hive even on x64.
 
 $softwareName = "Foxit PDF Editor"
 
@@ -34,33 +36,22 @@ if (-not $selected) {
     Exit 1
 }
 
-$raw = $selected.QuietUninstallString
-if (-not $raw) { $raw = $selected.UninstallString }
-if (-not $raw) { Write-Host "No UninstallString for '$softwareName'."; Exit 1 }
-
-# Parse exe + args (quoted / unquoted / bare).
-if ($raw -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exe = $matches[1]; $exeArgs = $matches[2].Trim()
-} elseif ($raw -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exe = $matches[1]; $exeArgs = $matches[2].Trim()
-} else {
-    $exe = $raw; $exeArgs = ""
+# ProductCode: prefer the ARP key name (it is the MSI ProductCode), else pull
+# the first GUID out of the UninstallString. Never carry over its /I switch.
+$productCode = $selected.PSChildName
+if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+    $raw = $selected.UninstallString
+    if ($raw -match '(\{[0-9A-Fa-f-]+\})') { $productCode = $matches[1] }
+}
+if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+    Write-Host "Could not determine ProductCode for '$softwareName'."
+    Exit 1
 }
 
-if ($exe -match '(?i)msiexec') {
-    if ($exeArgs -notmatch '(?i)/(x|uninstall)') { $exeArgs = "/X $exeArgs" }
-    if ($exeArgs -notmatch '(?i)/(qn|quiet)') { $exeArgs = "$exeArgs /qn" }
-    if ($exeArgs -notmatch '(?i)/norestart') { $exeArgs = "$exeArgs /norestart" }
-} else {
-    if ($exeArgs -notmatch '(?i)/uninstall') { $exeArgs = "/uninstall $exeArgs" }
-    if ($exeArgs -notmatch '(?i)/quiet') { $exeArgs = "$exeArgs /quiet" }
-    if ($exeArgs -notmatch '(?i)/norestart') { $exeArgs = "$exeArgs /norestart" }
-}
-$exeArgs = $exeArgs.Trim()
-
-Write-Host "Uninstall command: $exe"
-Write-Host "Uninstall args: $exeArgs"
-$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait
+Write-Host "Uninstalling product code: $productCode"
+$process = Start-Process msiexec.exe `
+    -ArgumentList "/x $productCode /qn /norestart" `
+    -NoNewWindow -PassThru -Wait
 $exitCode = $process.ExitCode
 Write-Host "Uninstall exit code: $exitCode"
 

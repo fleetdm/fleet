@@ -368,8 +368,6 @@ import Far2L from "./Far2L";
 import Farrago from "./Farrago";
 import Fastmail from "./Fastmail";
 import Fastscripts from "./Fastscripts";
-import FaststoneCapture from "./FaststoneCapture";
-import FaststoneImageViewer from "./FaststoneImageViewer";
 import Fellow from "./Fellow";
 import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
@@ -1482,8 +1480,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
-  "faststone capture": FaststoneCapture,
-  "faststone image viewer": FaststoneImageViewer,
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,

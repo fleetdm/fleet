@@ -3159,20 +3159,6 @@
       "description": "FastScripts is a tool for running time-saving scripts."
     },
     {
-      "name": "FastStone Capture",
-      "slug": "faststone-capture/windows",
-      "platform": "windows",
-      "unique_identifier": "FastStone Capture",
-      "description": "FastStone Capture is a lightweight screen-capture tool and screen recorder."
-    },
-    {
-      "name": "FastStone Image Viewer",
-      "slug": "faststone-image-viewer/windows",
-      "platform": "windows",
-      "unique_identifier": "FastStone Image Viewer",
-      "description": "FastStone Image Viewer is a fast image browser, converter, and editor."
-    },
-    {
       "name": "Fellow",
       "slug": "fellow/darwin",
       "platform": "darwin",
