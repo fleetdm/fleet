@@ -12,6 +12,7 @@ export default {
   CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/configuration-profiles`,
+  CONTROLS_ASSETS: `${URL_PREFIX}/controls/os-settings/assets`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
@@ -71,6 +72,7 @@ export default {
   ADMIN_INTEGRATIONS_SSO: `${INTEGRATIONS_PREFIX}/sso`,
   ADMIN_INTEGRATIONS_SSO_FLEET_USERS: `${INTEGRATIONS_PREFIX}/sso/fleet-users`,
   ADMIN_INTEGRATIONS_SSO_END_USERS: `${INTEGRATIONS_PREFIX}/sso/end-users`,
+  ADMIN_INTEGRATIONS_FPSSO: `${INTEGRATIONS_PREFIX}/account-provisioning`,
   ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK: `${INTEGRATIONS_PREFIX}/host-status-webhook`,
 
   ADMIN_FLEETS: `${URL_PREFIX}/settings/fleets`,

@@ -796,7 +796,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	}
 
 	// Create the profile
-	result, err := ds.NewMDMAndroidConfigProfile(ctx, profile)
+	result, err := ds.NewMDMAndroidConfigProfile(ctx, profile, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.ProfileUUID)
 
@@ -806,7 +806,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		TeamID:  nil,
 		RawJSON: []byte(`{"hello2": "world2"}`),
 	}
-	result2, err := ds.NewMDMAndroidConfigProfile(ctx, profile2)
+	result2, err := ds.NewMDMAndroidConfigProfile(ctx, profile2, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result2.ProfileUUID)
 
@@ -838,7 +838,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		TeamID:  nil,
 		RawJSON: []byte(`{"hello3": "world3"}`),
 	}
-	_, err = ds.NewMDMAndroidConfigProfile(ctx, androidProfile)
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, androidProfile, nil)
 	require.ErrorContains(t, err, "already exists")
 
 	// Create that same conflicting android profile but on a different team
@@ -846,7 +846,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, team)
 	androidProfile.TeamID = ptr.Uint(team.ID)
-	otherTeamProfile, err := ds.NewMDMAndroidConfigProfile(ctx, androidProfile)
+	otherTeamProfile, err := ds.NewMDMAndroidConfigProfile(ctx, androidProfile, nil)
 	require.NoError(t, err)
 
 	// Verify we can GET the newly created profile
@@ -879,7 +879,7 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		RawJSON: []byte(`{"hello": "world"}`),
 	}
 
-	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile1)
 
@@ -888,7 +888,7 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		TeamID:  nil,
 		RawJSON: []byte(`{"hello": "world"}`),
 	}
-	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 
@@ -952,7 +952,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	initial, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
 		Name:    "Update Test Profile",
 		RawJSON: []byte(`{"original": true}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	newRawJSON := []byte(`{"updated": true}`)
@@ -1039,7 +1039,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	anyExcludeProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
 		Name:    "Any Exclude Labels Profile",
 		RawJSON: []byte(`{"anyExclude": true}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	includeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-include-any", Query: "select 1"})
 	require.NoError(t, err)
@@ -1082,7 +1082,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	combined, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
 		Name:    "Combined Update Profile",
 		RawJSON: []byte(`{"combinedOriginal": true}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	combinedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-combined-label", Query: "select 1"})
 	require.NoError(t, err)
@@ -1321,17 +1321,17 @@ func testGetHostMDMAndroidProfiles(t *testing.T, ds *Datastore) {
 
 	// Create some profiles
 	profile1 := androidProfileForTest("profile1")
-	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile1)
 
 	profile2 := androidProfileForTest("profile2")
-	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 
 	profile3 := androidProfileForTest("profile3")
-	profile3, err = ds.NewMDMAndroidConfigProfile(ctx, *profile3)
+	profile3, err = ds.NewMDMAndroidConfigProfile(ctx, *profile3, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile3)
 
@@ -1524,13 +1524,13 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
 	require.NoError(t, err)
 
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1"))
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1"), nil)
 	require.NoError(t, err)
-	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2"))
+	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2"), nil)
 	require.NoError(t, err)
 	tmP3 := androidProfileForTest("team-1")
 	tmP3.TeamID = &tm.ID
-	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP3)
+	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP3, nil)
 	require.NoError(t, err)
 
 	// all profiles use the same raw JSON, so they share the same checksum
@@ -1568,7 +1568,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lblIncAll2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-2", Query: "select 1"})
 	require.NoError(t, err)
-	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-4", lblIncAll1, lblIncAll2))
+	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-4", lblIncAll1, lblIncAll2), nil)
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
@@ -1618,7 +1618,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lblIncAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-2", Query: "select 1"})
 	require.NoError(t, err)
-	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-5", lblIncAny1, lblIncAny2))
+	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-5", lblIncAny1, lblIncAny2), nil)
 	require.NoError(t, err)
 
 	// no change, host 0 not a member yet
@@ -1655,7 +1655,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lblExclAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-2", LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
-	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-6", lblExclAny1, lblExclAny2))
+	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-6", lblExclAny1, lblExclAny2), nil)
 	require.NoError(t, err)
 
 	// no change, label membership was not updated after labels created
@@ -1837,13 +1837,13 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// Dynamic exclude-any label
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1", lblExclAny1))
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1", lblExclAny1), nil)
 	require.NoError(t, err)
 	// Manual exclude-any label only
-	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2", lblExclAny2))
+	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2", lblExclAny2), nil)
 	require.NoError(t, err)
 	// Both manual and dynamic label exclusion
-	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-3", lblExclAny1, lblExclAny2))
+	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-3", lblExclAny1, lblExclAny2), nil)
 	require.NoError(t, err)
 
 	// all profiles use the same raw JSON, so they share the same checksum
@@ -1883,15 +1883,15 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	tmP6.TeamID = &tm.ID
 
 	// Dynamic exclude-any label
-	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP4)
+	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP4, nil)
 	require.NoError(t, err)
 
 	// Manual exclude-any label only
-	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP5)
+	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP5, nil)
 	require.NoError(t, err)
 
 	// Both manual and dynamic label exclusion
-	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP6)
+	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP6, nil)
 	require.NoError(t, err)
 
 	// p5 becomes immediately applicable to host 1 because it only has a manual label
@@ -1976,7 +1976,7 @@ func testListMDMAndroidProfilesToSendCursor(t *testing.T, ds *Datastore) {
 	})
 
 	// Add a profile so all 5 hosts have pending work.
-	_, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("cursor-test-profile"))
+	_, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("cursor-test-profile"), nil)
 	require.NoError(t, err)
 
 	// No cursor, no limit — returns all 5 hosts.
@@ -2065,10 +2065,10 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	require.NoError(t, err)
 
 	// include-all + exclude-any profile (requires both incl-all-1 and incl-all-2)
-	pCombinedAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-all", inclAllLbl, inclAllLbl2, exclLbl))
+	pCombinedAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-all", inclAllLbl, inclAllLbl2, exclLbl), nil)
 	require.NoError(t, err)
 	// include-any + exclude-any profile
-	pCombinedAny, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-any", inclAnyLbl, exclLbl))
+	pCombinedAny, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-any", inclAnyLbl, exclLbl), nil)
 	require.NoError(t, err)
 
 	profChecksum := getAndroidProfileChecksum(t, ds, pCombinedAll.ProfileUUID)
@@ -2134,11 +2134,11 @@ func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
 	p3 := androidProfileForTest("p3")
 	p3.RawJSON = []byte(`{"v": 3}`)
 
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
-	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3, nil)
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -2213,7 +2213,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			// last profile is for a team
 			p.TeamID = &tm.ID
 		}
-		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
 		require.NoError(t, err)
 		profiles[i] = p
 	}
@@ -2592,7 +2592,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
 	for i := range profiles {
 		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
-		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
 		require.NoError(t, err)
 		profiles[i] = p
 	}
@@ -2753,7 +2753,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
 	for i := range profiles {
 		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
-		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
 		require.NoError(t, err)
 		profiles[i] = p
 	}

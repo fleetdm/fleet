@@ -31,6 +31,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
   ITeamConfig,
 } from "interfaces/team";
+import { isQueryablePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -83,6 +84,7 @@ interface IManagePoliciesPageProps {
       order_direction?: "asc" | "desc";
       page?: string;
       automation_type?: AutomationType;
+      platform?: string;
       manage_automations?: string;
     };
     search: string;
@@ -179,6 +181,9 @@ const ManagePolicyPage = ({
     DEFAULT_SORT_DIRECTION)();
   const page =
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
+  const targetedPlatformParam = isQueryablePlatform(queryParams?.platform)
+    ? queryParams?.platform
+    : undefined;
   const initialAutomationFilter = (() => {
     const automationQueryParam = queryParams.automation_type;
 
@@ -269,6 +274,7 @@ const ManagePolicyPage = ({
         orderDirection: sortDirection,
         orderKey: sortHeader,
         automationType: automationFilter as GlobalPoliciesAutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => {
@@ -278,6 +284,7 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
       staleTime: 5000,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -292,6 +299,7 @@ const ManagePolicyPage = ({
         scope: "policiesCount",
         query: !isAllTeamsSelected ? "" : searchQuery,
         automationType: automationFilter as GlobalPoliciesAutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
@@ -328,6 +336,7 @@ const ManagePolicyPage = ({
         // no teams does inherit
         mergeInherited: true,
         automationType: automationFilter as AutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => {
@@ -336,6 +345,7 @@ const ManagePolicyPage = ({
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -357,6 +367,7 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
         mergeInherited: true,
         automationType: automationFilter as AutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -389,6 +400,7 @@ const ManagePolicyPage = ({
         setConfig(data);
       },
       staleTime: 5000,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -399,6 +411,7 @@ const ManagePolicyPage = ({
     // Enable for all teams including "No team" (teamIdForApi === 0)
     enabled: isRouteOk && teamIdForApi !== undefined,
     staleTime: 5000,
+    refetchOnWindowFocus: false,
   });
   const teamConfig = teamData?.team;
 
@@ -683,7 +696,10 @@ const ManagePolicyPage = ({
     const hide =
       isFetchingCount ||
       policiesErrors ||
-      (!policyResults && searchQuery === "" && !automationFilter);
+      (!policyResults &&
+        searchQuery === "" &&
+        !automationFilter &&
+        !targetedPlatformParam);
 
     if (hide) {
       return null;
@@ -765,7 +781,10 @@ const ManagePolicyPage = ({
           ? globalPoliciesCount
           : teamPoliciesCountMergeInherited;
         const isTrulyEmpty =
-          (policiesCount ?? 0) === 0 && searchQuery === "" && !automationFilter;
+          (policiesCount ?? 0) === 0 &&
+          searchQuery === "" &&
+          !automationFilter &&
+          !targetedPlatformParam;
 
         // No team ID = All fleets → only show "all" and "other" options
         const optionsForTeam = teamIdForApi
@@ -823,7 +842,10 @@ const ManagePolicyPage = ({
           page={page}
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
-          isFiltered={!!automationFilter}
+          isFiltered={!!automationFilter || !!targetedPlatformParam}
+          router={router}
+          queryParams={queryParams}
+          platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
@@ -867,7 +889,10 @@ const ManagePolicyPage = ({
           page={page}
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
-          isFiltered={!!automationFilter}
+          isFiltered={!!automationFilter || !!targetedPlatformParam}
+          router={router}
+          queryParams={queryParams}
+          platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined

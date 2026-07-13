@@ -114,6 +114,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fleet maintained apps")
 		}
+		numHostsFleetMDMEnrolledMacOS, numHostsFleetMDMEnrolledWindows, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of hosts enrolled in Fleet MDM")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumHostsABMPending = numHostsABMPending
@@ -169,6 +173,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumQueries = numQueries
 		stats.FleetMaintainedAppsMacOS = fleetMaintainedAppsMacOS
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
+		stats.NumHostsFleetMDMEnrolledMacOS = numHostsFleetMDMEnrolledMacOS
+		stats.NumHostsFleetMDMEnrolledWindows = numHostsFleetMDMEnrolledWindows
 
 		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
 		if err != nil {

@@ -415,6 +415,13 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		if err != nil {
 			return nil, newOsqueryError("internal error: parse base configuration: " + err.Error())
 		}
+		if config == nil {
+			// Unmarshaling the JSON literal `null` (e.g. agent options with
+			// "config": null) sets the map to nil rather than leaving it empty.
+			// Re-initialize so later assignments (e.g. config["packs"]) don't
+			// panic with "assignment to entry in nil map".
+			config = make(map[string]any)
+		}
 	}
 
 	packConfig := fleet.Packs{}
@@ -910,6 +917,46 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 	return false, nil
 }
 
+// cleanupOutOfScopePolicyMembership deletes the host's policy_membership rows
+// for the given stale policies: policies with a stored row but no result in the
+// host's incoming distributed write (as returned by RecordPolicyQueryExecutions).
+// Fleet sends all in-scope policy queries together at the policy update interval
+// and osquery reports a result (or an error) for each, so a stale policy is no
+// longer in scope for the host (e.g. it changed teams, or fell out of the
+// policy's platform or label scope). Such rows otherwise linger forever,
+// inflating the failing policies counts computed from raw policy_membership
+// (Fleet Desktop badge, host issues) even though the host's policy listing
+// filters those policies out.
+//
+// The deletion is skipped for hosts in setup experience: they are sent a
+// filtered subset of policy queries (see policyQueriesForHost), so their stale
+// set is not meaningful. Under async policy processing this is a no-op, since
+// the task layer buffers results in Redis and always reports no stale policies.
+// Errors are logged and swallowed: this cleanup is best-effort and self-heals
+// on the host's next policy reporting cycle.
+func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host *fleet.Host, stalePolicyIDs []uint) {
+	if len(stalePolicyIDs) == 0 {
+		return
+	}
+	inSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		return
+	}
+	if inSetupExperience {
+		return
+	}
+	if err := svc.ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, stalePolicyIDs); err != nil {
+		logging.WithErr(ctx, err)
+		return
+	}
+	// Refresh the failing policies count now that stale rows are gone;
+	// RecordPolicyQueryExecutions already updated it, but before the deletion.
+	if err := svc.ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
+		logging.WithErr(ctx, err)
+	}
+}
+
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
@@ -1307,14 +1354,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// maybe we should impose restrictions between async collection interval
 		// and policy update interval?
 
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing); err != nil {
+		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing)
+		if err != nil {
 			logging.WithErr(ctx, err)
 		}
+		svc.cleanupOutOfScopePolicyMembership(ctx, host, stalePolicyIDs)
 	} else if hostWithoutPolicies {
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{}); err != nil {
+		// The host was sent the "no policies" wildcard query, so no policies are in scope
+		// for it and all of its stored policy_membership rows are stale.
+		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{})
+		if err != nil {
 			logging.WithErr(ctx, err)
 		}
+		svc.cleanupOutOfScopePolicyMembership(ctx, host, stalePolicyIDs)
 	}
 
 	if additionalUpdated {

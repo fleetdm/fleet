@@ -1056,22 +1056,31 @@ UPDATE_GO_MODS := \
 	./tools/snapshot/go.mod \
 	./tools/terraform/go.mod \
 	./third_party/vuln-check/go.mod \
+	./third_party/goval-dictionary/go.mod \
+	./tools/ci/apiparamcheck/go.mod \
 	./tools/ci/setboolcheck/go.mod \
 	./tools/github-manage/go.mod \
 	./tools/qacheck/go.mod \
-	./third_party/goval-dictionary/go.mod \
-	./tools/fleet-mcp/go.mod \
-	./tools/dibble/go.mod
+	./tools/screencap/go.mod \
+	./tools/hangar/go.mod \
+	./cmd/fleet-mcp/go.mod \
+	./tools/dibble/go.mod \
+	./tools/upgrade/go.mod
 update-go:
-	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
+	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
-		echo "Please update sha256 in $$dockerfile" ; \
+		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
+		echo "Resolving index digest for $$tag ..." ; \
+		digest=$$(docker buildx imagetools inspect $$tag --format '{{.Manifest.Digest}}') ; \
+		test "$$digest" || (echo "Failed to resolve digest for $$tag" ; exit 1) ; \
+		go run ./tools/tuf/replace $$dockerfile "$$tag@sha256:[0-9a-f]+" "$$tag@$$digest" ; \
+		echo "* Updated $$dockerfile -> $$tag@$$digest" ; \
 	done
 	@for gomod in $(UPDATE_GO_MODS) ; do \
 		go run ./tools/tuf/replace $$gomod "(?m)^go .+$$" "go $(version)" ; \
 	done
-	@echo "* Updated go to $(version)" > changes/update-go-$(version)
-	@cp changes/update-go-$(version) orbit/changes/update-go-$(version)
+	@echo "- Updated Go to $(version)." > changes/update-go-$(version)
+	@echo "* Updated Go to $(version)." > orbit/changes/update-go-$(version)
 
 include ./tools/makefile-support/helpsystem-targets

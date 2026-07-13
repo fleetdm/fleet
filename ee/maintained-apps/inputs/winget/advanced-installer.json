@@ -1,0 +1,11 @@
+{
+  "name": "Advanced Installer",
+  "slug": "advanced-installer/windows",
+  "package_identifier": "Caphyon.AdvancedInstaller",
+  "unique_identifier": "Advanced Installer",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
