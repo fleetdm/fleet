@@ -226,19 +226,6 @@
     text-align: center;
   }
 
-  &__empty-page {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  // Hides the next button on this UI
-  &__previous-button {
-    button:last-child {
-      display: none;
-    }
-  }
-
   .fleet-checkbox__tick {
     top: 1px;
   }

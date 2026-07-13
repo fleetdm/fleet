@@ -474,6 +474,57 @@ func applyAndValidateConditionalAccessOktaFields(
 	return nil
 }
 
+// persistAppleAccountProvisioningSecret stores, preserves, or soft-deletes the
+// Apple account provisioning IdP client secret in mdm_config_assets so it
+// matches the (already-validated) incoming config. It reports whether the
+// stored secret actually changed, so re-applying a GitOps config that resends an
+// identical secret is a no-op and emits no activity.
+//   - configured + a new secret provided: store it (replacing any existing
+//     value), reporting changed only when the value actually differs.
+//   - configured + no new secret: preserve the existing secret (unchanged).
+//   - feature cleared (was configured, now isn't): soft-delete the secret.
+func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) (changed bool, err error) {
+	switch {
+	case configured && newSecretProvided:
+		current, err := svc.appleAccountProvisioningSecret(ctx)
+		if err != nil {
+			return false, err
+		}
+		if current == secret {
+			return false, nil
+		}
+		if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+			Value: []byte(secret),
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
+		}
+		return true, nil
+	case !configured && wasConfigured:
+		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// appleAccountProvisioningSecret returns the stored Apple account provisioning
+// IdP client secret, or "" if none is stored.
+func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, nil)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get apple account provisioning idp client secret")
+	}
+	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -719,6 +770,61 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
+	// Apple account provisioning (Platform SSO): the IdP client secret is never
+	// persisted in the AppConfig JSON — it's stored encrypted in
+	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
+	// strip it from the config that gets saved.
+	oldAAP := oldAppConfig.MDM.AppleAccountProvisioning
+	incomingAAP := newAppConfig.MDM.AppleAccountProvisioning
+
+	if applyOpts.Overwrite {
+		appConfig.MDM.AppleAccountProvisioning = incomingAAP
+	}
+
+	incomingSecret := incomingAAP.OAuthIdPClientSecret
+	newAAPSecretProvided := incomingSecret.Valid && incomingSecret.Value != "" && incomingSecret.Value != fleet.MaskedPassword
+	newAAPSecret := incomingSecret.Value
+
+	mergedAAP := appConfig.MDM.AppleAccountProvisioning
+	appConfig.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.String{}
+
+	// Apple account provisioning is all-or-nothing: the token URL, client ID, and
+	// client secret are only meaningful together, so the config must have all three
+	// set or all three empty — never a partial state that reports as "configured"
+	// but can't run the sign-in flow.
+	tokenURLSet := mergedAAP.OAuthIdPTokenURL.Value != ""
+	clientIDSet := mergedAAP.OAuthIdPClientID.Value != ""
+	switch {
+	case mergedAAP.Configured(): // both public fields set
+		aapProvided := incomingAAP.OAuthIdPTokenURL.Set || incomingAAP.OAuthIdPClientID.Set || incomingAAP.OAuthIdPClientSecret.Set
+		if aapProvided && !lic.IsPremium() {
+			invalid.Append("mdm.apple_account_provisioning", ErrMissingLicense.Error())
+		}
+		if newAAPSecretProvided && svc.config.Server.PrivateKey == "" {
+			invalid.Append("mdm.apple_account_provisioning",
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+		if u, err := url.Parse(mergedAAP.OAuthIdPTokenURL.Value); err != nil || u.Host == "" || u.Scheme != "https" {
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_token_url", "must be a valid https URL")
+		}
+		switch {
+		case !newAAPSecretProvided && (applyOpts.Overwrite || !oldAAP.Configured()):
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be set together with oauth_idp_token_url and oauth_idp_client_id")
+		case !newAAPSecretProvided && mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value:
+			// Reusing a stored secret while repointing the IdP token endpoint would
+			// leak it to the new (possibly hostile) URL, so require it be provided.
+			// Similar to CAs and their secrets.
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be provided when changing oauth_idp_token_url")
+		}
+	case tokenURLSet || clientIDSet || newAAPSecretProvided:
+		// Not fully configured, but a field was supplied (one public field without
+		// the other, or a secret on its own) — a partial config.
+		invalid.Append("mdm.apple_account_provisioning",
+			"oauth_idp_token_url, oauth_idp_client_id, and oauth_idp_client_secret must all be set together, or all be empty")
 	}
 
 	// this is to handle the case where `apple_enable_release_device_manually: null` is
@@ -1033,13 +1139,41 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
 	}
 
+	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
+	if err != nil {
+		return nil, err
+	}
+	// The IdP client secret never reaches the AppConfig JSON, so a secret-only
+	// change isn't visible in the saved config diff — track it separately.
+	aapChanged := aapSecretChanged ||
+		mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value ||
+		mergedAAP.OAuthIdPClientID.Value != oldAAP.OAuthIdPClientID.Value
+
+	// Mint the PSSO signing key and CA the first time the feature is configured.
+	// Idempotent: existing assets are preserved (never recreated on reconfigure),
+	// and they are deliberately kept when the feature is disabled so a later
+	// re-enable reuses the same JWKS key and unlock-key CA.
+	if mergedAAP.Configured() {
+		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
+		}
+	}
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
 
 	// Flush the pack config cache because QueryReportsDisabled (which is
 	// part of the cache key) may have changed.
+	// NOTE: In multi-instance deployments, this only invalidates the cache on
+	// this instance. Other instances rely on the 1-minute TTL to pick up changes.
 	svc.InvalidatePackConfigCache()
+
+	if aapChanged {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())
+		}
+	}
 
 	// Best-effort: drop orphan blobs whose URL was just replaced with an
 	// external or empty value. Mirrors the explicit DELETE /logo endpoint's

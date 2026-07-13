@@ -20,10 +20,6 @@ func rawMessagePtr(s string) *json.RawMessage {
 	return &raw
 }
 
-func uintPtr(v uint) *uint {
-	return &v
-}
-
 // setupPackConfigCacheTest creates a mock datastore and service configured for
 // pack config cache testing. The returned callCounter tracks the number of
 // times ListScheduledQueriesForAgents is invoked (the main DB call that the
@@ -307,8 +303,8 @@ func TestPackConfigCacheTeamIsolation(t *testing.T) {
 	svc, _, callCounter := setupPackConfigCacheTest(t)
 
 	globalHost := &fleet.Host{ID: 1}
-	team1Host := &fleet.Host{ID: 2, TeamID: uintPtr(1)}
-	team2Host := &fleet.Host{ID: 3, TeamID: uintPtr(2)}
+	team1Host := &fleet.Host{ID: 2, TeamID: new(uint(1))}
+	team2Host := &fleet.Host{ID: 3, TeamID: new(uint(2))}
 
 	ctxGlobal := hostctx.NewContext(t.Context(), globalHost)
 	ctxTeam1 := hostctx.NewContext(t.Context(), team1Host)

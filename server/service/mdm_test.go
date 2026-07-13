@@ -192,8 +192,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		_, err = svc.UploadVPPToken(ctx, nil)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
-		_, err = svc.GetVPPTokens(ctx)
-		checkAuthErr(t, shouldFailWithAuth, err)
+		// GetVPPTokens is not admin-only (maintainers/technicians can read it to
+		// use the App Store picker); its authorization is covered by TestVPPAuth.
 
 		err = svc.DeleteVPPToken(ctx, 0)
 		checkAuthErr(t, shouldFailWithAuth, err)
@@ -1187,6 +1187,16 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 					</Target>
 				</Item>
 			</Exec>`, "", "./Device/Vendor/MSFT/RemoteWipe/doWipe"},
+		// Regression for #48752: a scope-less wipe LocURI (which Windows still executes) must not bypass the premium gate.
+		{"scope-less wipe, non premium license", false, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>Vendor/MSFT/RemoteWipe/doWipe</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "Requires Fleet Premium license", ""},
 		{"non-premium command", false, `
 			<Exec>
 				<CmdID>1</CmdID>
@@ -1217,9 +1227,11 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			ctx = test.UserContext(ctx, test.UserAdmin)
+			// Use a per-subtest context so a premium license added by one case does not leak into later cases via the
+			// shared outer ctx (which would mask a missing premium gate).
+			cmdCtx := test.UserContext(ctx, test.UserAdmin)
 			if c.premium {
-				ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+				cmdCtx = license.NewContext(cmdCtx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 			}
 
 			var svcImpl *Service
@@ -1229,7 +1241,7 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 			case *Service:
 				svcImpl = v
 			}
-			res, err := svcImpl.enqueueMicrosoftMDMCommand(ctx, []byte(c.xmlCmd), []string{"uuid"})
+			res, err := svcImpl.enqueueMicrosoftMDMCommand(cmdCtx, []byte(c.xmlCmd), []string{"uuid"})
 
 			if c.wantErr != "" {
 				require.Error(t, err)
@@ -1653,6 +1665,66 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	}
 }
 
+// TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled verifies that a custom BitLocker profile is rejected by
+// default but accepted when custom disk encryption is enabled via server configuration
+// (mdm.enable_custom_disk_encryption or its alias mdm.enable_custom_filevault).
+func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
+	bitLockerProfile := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`)
+
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true},
+			}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = uuid.New().String()
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		return ds
+	}
+
+	cases := []struct {
+		name                       string
+		enableCustomDiskEncryption bool
+		enableCustomFileVault      bool
+		wantErr                    string // empty means the BitLocker profile is expected to be accepted
+	}{
+		{name: "rejected when neither setting is set", wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg},
+		{name: "allowed when enable_custom_disk_encryption is set", enableCustomDiskEncryption: true},
+		{name: "allowed when enable_custom_filevault is set", enableCustomFileVault: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := newDS()
+			cfg := config.TestConfig()
+			cfg.MDM.EnableCustomDiskEncryption = c.enableCustomDiskEncryption
+			cfg.MDM.EnableCustomFileVault = c.enableCustomFileVault
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+			ctx = test.UserContext(ctx, test.UserAdmin)
+
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				require.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+			} else {
+				require.NoError(t, err)
+				require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+			}
+		})
+	}
+}
+
 func TestMDMBatchSetProfiles(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
@@ -1700,6 +1772,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	}
 	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
 		return nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
 	}
 
 	testCases := []struct {
@@ -2759,6 +2834,9 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			Name: "team1",
 		}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 
 	type ProfileLabels struct {
 		IncludeAll bool
@@ -3119,6 +3197,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 				return &fleet.GroupedCertificateAuthorities{}, nil
 			}
 			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+			ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
 			// Tracking of OS update profiles now happens atomically inside
 			// BatchSetMDMProfiles; the service only forwards the profiles.
 			var gotAppleOSUpdate, gotWindowsOSUpdate bool
@@ -3337,7 +3416,8 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
-	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+		require.Empty(t, usesFleetVars)
 		return &fleet.MDMAndroidConfigProfile{}, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
@@ -3451,7 +3531,8 @@ func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{}, nil
 		}
-		ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+		ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+			require.Empty(t, usesFleetVars)
 			return &cp, nil
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
