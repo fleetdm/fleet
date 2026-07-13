@@ -1,15 +1,13 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import FleetMarkdown from "./FleetMarkdown";
 
-// Mock SQLEditor since Ace doesn't run cleanly in jsdom
 jest.mock("components/SQLEditor", () => ({
   __esModule: true,
   default: ({ value }: { value: string }) => (
     <pre data-testid="sql-editor">{value}</pre>
   ),
 }));
-
-import FleetMarkdown from "./FleetMarkdown";
 
 /**
  * Tests Fleet-specific rendering behavior in the FleetMarkdown wrapper:
