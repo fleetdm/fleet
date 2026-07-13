@@ -3026,11 +3026,25 @@
       "description": "eM Client is an email client."
     },
     {
+      "name": "EndNote",
+      "slug": "endnote/windows",
+      "platform": "windows",
+      "unique_identifier": "EndNote 2025",
+      "description": "EndNote is a reference manager for organizing citations and formatting bibliographies."
+    },
+    {
       "name": "Enpass",
       "slug": "enpass/darwin",
       "platform": "darwin",
       "unique_identifier": "in.sinew.Enpass-Desktop",
       "description": "Enpass is a password and credentials manager."
+    },
+    {
+      "name": "Enpass",
+      "slug": "enpass/windows",
+      "platform": "windows",
+      "unique_identifier": "Enpass",
+      "description": "Enpass is an offline password manager that stores credentials in a local, master-password-protected vault."
     },
     {
       "name": "Ente Auth",
@@ -3073,6 +3087,13 @@
       "platform": "darwin",
       "unique_identifier": "com.evernote.Evernote",
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
+      "name": "Evernote",
+      "slug": "evernote/windows",
+      "platform": "windows",
+      "unique_identifier": "Evernote",
+      "description": "Evernote is a note-taking app for capturing notes, tasks, and schedules in one place."
     },
     {
       "name": "exacqVision Client",

@@ -349,6 +349,7 @@ import ElgatoStreamDeck from "./ElgatoStreamDeck";
 import ElgatoWaveLink from "./ElgatoWaveLink";
 import ElmediaPlayer from "./ElmediaPlayer";
 import Emclient from "./Emclient";
+import Endnote from "./Endnote";
 import Enpass from "./Enpass";
 import EnteAuth from "./EnteAuth";
 import EpicGames from "./EpicGames";
@@ -1457,6 +1458,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "elmedia player": ElmediaPlayer,
   "eltima cloudmounter": Cloudmounter,
   "em client": Emclient,
+  endnote: Endnote,
   enpass: Enpass,
   "ente auth": EnteAuth,
   "epic games launcher": EpicGames,
