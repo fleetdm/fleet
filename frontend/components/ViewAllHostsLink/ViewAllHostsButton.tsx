@@ -62,7 +62,7 @@ const ViewAllHostsButton = ({
     <Button
       className={viewAllHostsButtonClass}
       onClick={onClick}
-      variant="inverse"
+      variant="subdued"
       size="small"
     >
       {!condensed && (
