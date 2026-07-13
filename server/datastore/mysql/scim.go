@@ -1507,8 +1507,8 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 
 	// Insert a job for each affected app config.
 	const insertJob = `
-	INSERT INTO jobs (name, args, state)
-	VALUES (?, ?, 'queued')
+	INSERT INTO jobs (name, args, state, error)
+	VALUES (?, ?, 'queued', '')
 `
 	for _, app := range apps {
 		args, err := json.Marshal(map[string]any{
