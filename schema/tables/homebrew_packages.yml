@@ -16,7 +16,7 @@ columns:
     description: Package install path
     type: test
     required: false
-  - name: app_name
+  - name: prefix
     description: Homebrew install prefix
     type: text
     required: false
