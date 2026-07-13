@@ -28,8 +28,8 @@ import {
 } from "interfaces/policy";
 import {
   API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
-  ITeamConfig,
 } from "interfaces/team";
 import { isQueryablePlatform } from "interfaces/platform";
 
@@ -104,6 +104,22 @@ const AUTOMATION_TYPES: AutomationType[] = [
 ];
 
 const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
+
+const getValidAutomationTypesForTeam = (
+  teamIdForApi: number | undefined
+): (AutomationType | GlobalPoliciesAutomationType)[] => {
+  if (teamIdForApi === undefined) {
+    // All fleets → global policies only support webhook/ticket automations.
+    return GLOBAL_AUTOMATION_TYPES;
+  }
+  if (teamIdForApi === API_NO_TEAM_ID) {
+    // Unassigned supports every automation type EXCEPT calendar events,
+    // which PolicyAutomationsFields hardcodes as fleet-only (never available
+    // for "All fleets" or "Unassigned").
+    return AUTOMATION_TYPES.filter((type) => type !== "calendar");
+  }
+  return AUTOMATION_TYPES;
+};
 
 const baseClass = "manage-policies-page";
 
@@ -191,9 +207,7 @@ const ManagePolicyPage = ({
       return null;
     }
 
-    const validValues = isAllTeamsSelected
-      ? GLOBAL_AUTOMATION_TYPES
-      : AUTOMATION_TYPES;
+    const validValues = getValidAutomationTypesForTeam(teamIdForApi);
 
     return (validValues as string[]).includes(automationQueryParam)
       ? automationQueryParam
@@ -786,12 +800,14 @@ const ManagePolicyPage = ({
           !automationFilter &&
           !targetedPlatformParam;
 
-        // No team ID = All fleets → only show "all" and "other" options
-        const optionsForTeam = teamIdForApi
-          ? automationFilterOptions
-          : automationFilterOptions.filter((opt) =>
-              ["all", "other"].includes(opt.value as string)
-            );
+        const validAutomationTypesForTeam = getValidAutomationTypesForTeam(
+          teamIdForApi
+        );
+        const optionsForTeam = automationFilterOptions.filter(
+          (opt) =>
+            opt.value === "all" ||
+            (validAutomationTypesForTeam as string[]).includes(opt.value)
+        );
 
         return (
           <DropdownWrapper
