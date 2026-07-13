@@ -6883,6 +6883,26 @@ func (s *integrationMDMTestSuite) TestMDMSSOReenrollWithDifferentIdPEmail() {
 		}
 	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 
+	// TearDownTest clears the SSO provider settings but not
+	// macos_setup.enable_end_user_authentication, so disable end-user auth here
+	// (via t.Cleanup, so it runs even if the test fails) to avoid leaking the
+	// enabled-without-IdP state into subsequent suite tests.
+	t.Cleanup(func() {
+		var cleanupResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &cleanupResp)
+	})
+
 	// A single device (identified by a stable host UUID) enrolls, is deleted and
 	// re-enrolls under the same host UUID, signing in as two different IdP users.
 	hostUUID := uuid.NewString()
