@@ -2830,6 +2830,69 @@
       "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
     },
     {
+      "name": "Eclipse Temurin JDK 11",
+      "slug": "eclipse-temurin-jdk-11/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 11 is the free, open-source OpenJDK 11 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JDK 17",
+      "slug": "eclipse-temurin-jdk-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 17 is the free, open-source OpenJDK 17 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JDK 21",
+      "slug": "eclipse-temurin-jdk-21/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 21 is the free, open-source OpenJDK 21 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JDK 8",
+      "slug": "eclipse-temurin-jdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 8 is the free, open-source OpenJDK 8 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 11",
+      "slug": "eclipse-temurin-jre-11/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 11 is the free, open-source OpenJDK 11 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 17",
+      "slug": "eclipse-temurin-jre-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 17 is the free, open-source OpenJDK 17 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 21",
+      "slug": "eclipse-temurin-jre-21/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 21 is the free, open-source OpenJDK 21 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 8",
+      "slug": "eclipse-temurin-jre-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 8 is the free, open-source OpenJDK 8 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Egnyte WebEdit",
+      "slug": "egnyte-webedit/windows",
+      "platform": "windows",
+      "unique_identifier": "Egnyte WebEdit",
+      "description": "Egnyte WebEdit opens files from the Egnyte web UI directly in their native desktop applications."
+    },
+    {
       "name": "Egnyte",
       "slug": "egnyte/darwin",
       "platform": "darwin",
@@ -2877,6 +2940,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kamban.elephas",
       "description": "Elephas is a personal AI Writing Assistant."
+    },
+    {
+      "name": "Elevate UC",
+      "slug": "elevate-uc/windows",
+      "platform": "windows",
+      "unique_identifier": "Elevate UC",
+      "description": "Elevate UC is an Intermedia unified-communications client for calling, messaging, and meetings."
     },
     {
       "name": "Elgato Camera Hub",
@@ -3003,6 +3073,13 @@
       "platform": "darwin",
       "unique_identifier": "com.evernote.Evernote",
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
+      "name": "exacqVision Client",
+      "slug": "exacqvision-client/windows",
+      "platform": "windows",
+      "unique_identifier": "exacqVision Client (x64)",
+      "description": "exacqVision Client is the viewing client for exacqVision video management systems."
     },
     {
       "name": "ExifCleaner",
