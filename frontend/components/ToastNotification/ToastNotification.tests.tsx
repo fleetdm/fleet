@@ -109,9 +109,7 @@ describe("notify - sonner toast API", () => {
 
     const renderFn = mockedToast.custom.mock.calls[0][0];
     const element = renderFn("test-id");
-    expect(element.props.detailLabel).toBe(
-      "Status: 422 Unprocessable Entity"
-    );
+    expect(element.props.detailLabel).toBe("Status: 422 Unprocessable Entity");
     expect(element.props.detail).toEqual({ error: "bad input" });
   });
 
