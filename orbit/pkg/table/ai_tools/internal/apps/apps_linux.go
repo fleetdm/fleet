@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 )
 
@@ -57,7 +58,7 @@ func scanApps(homesList []homes.Home) []App {
 }
 
 func parseDesktop(path string) (name, exec string) {
-	b, err := os.ReadFile(path) // #nosec G304 -- fixed-extension file under an enumerated applications dir
+	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return "", ""
 	}

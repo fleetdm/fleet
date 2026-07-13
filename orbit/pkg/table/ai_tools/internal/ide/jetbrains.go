@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/classify"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
 )
@@ -112,7 +113,7 @@ func scanJetBrainsPluginsDir(h homes.Home, editor, pluginsDir string) []Plugin {
 // under lib/ that contains it (the common exploded-plugin layout).
 func readPluginFromDir(dir string) (ideaPlugin, string) {
 	direct := filepath.Join(dir, "META-INF", "plugin.xml")
-	if b, err := os.ReadFile(direct); err == nil { // #nosec G304 -- fixed path under enumerated plugin dir
+	if b, err := fsutil.ReadFileBounded(direct); err == nil {
 		return parsePluginXML(b), direct
 	}
 	libEntries, err := os.ReadDir(filepath.Join(dir, "lib"))

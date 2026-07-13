@@ -9,7 +9,6 @@ import (
 	"context"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/classify"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
@@ -43,7 +42,7 @@ func Collect(ctx context.Context, snap *proc.Snapshot, remoteMCPHosts map[string
 	if snap == nil {
 		return nil
 	}
-	hosts := buildHostSet(ctx, remoteMCPHosts)
+	hosts := buildHostSet(remoteMCPHosts)
 	var out []Socket
 
 	for _, c := range snap.Conns {
@@ -130,34 +129,24 @@ func isLoopback(ip string) bool {
 	return parsed != nil && parsed.IsLoopback()
 }
 
-// buildHostSet resolves user-declared remote MCP hostnames to IPs so an
-// established connection can be attributed to a configured remote MCP server.
+// buildHostSet maps user-declared remote MCP hostnames to their labels.
 //
-// Only user-declared remote MCP hosts are resolved here. We deliberately keep
-// no hostname list for hosted AI APIs: cloud providers share IPs across many
-// services (e.g. a Google edge IP backs both the Gemini API and unrelated
-// Google traffic), so IP-based attribution produces false positives. Egress to
-// hosted AI APIs is instead attributed by the owning process
-// (classifyEstablished), which is robust and DNS-free.
-func buildHostSet(ctx context.Context, remoteMCP map[string]string) map[string]hostInfo {
+// It deliberately performs NO name resolution. The hostnames come from MCP
+// config files that any unprivileged user can write, and this collector runs in
+// the root/SYSTEM daemon; resolving them would emit attacker-chosen outbound DNS
+// on every query, turning a passive inventory table into a network beacon /
+// DNS-exfil channel. Egress is attributed by the owning process instead
+// (classifyEstablished), which is robust and DNS-free — so dropping resolution
+// costs only IP-based attribution of a configured remote MCP host, a secondary
+// path already dominated by process attribution.
+func buildHostSet(remoteMCP map[string]string) map[string]hostInfo {
 	set := map[string]hostInfo{}
-	var res net.Resolver
 	for host, label := range remoteMCP {
 		host = strings.ToLower(strings.TrimSpace(host))
 		if host == "" {
 			continue
 		}
-		info := hostInfo{label, "mcp-remote-egress"}
-		set[host] = info
-		// Bounded, cancellable lookup: a root-level scanner must never hang
-		// indefinitely on slow/hostile DNS for an attacker-supplied hostname
-		// from an MCP config. Resolution failures are non-fatal (best-effort).
-		lookupCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		ips, _ := res.LookupHost(lookupCtx, host)
-		cancel()
-		for _, ip := range ips {
-			set[ip] = info
-		}
+		set[host] = hostInfo{label, "mcp-remote-egress"}
 	}
 	return set
 }

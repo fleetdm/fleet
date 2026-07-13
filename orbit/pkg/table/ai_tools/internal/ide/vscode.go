@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/classify"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
 )
@@ -88,7 +89,7 @@ func scanVSCodeFamily(h homes.Home, _ paths.Roots) []Plugin {
 }
 
 func readVSCodeManifest(path string) (vscodeManifest, bool) {
-	b, err := os.ReadFile(path) // #nosec G304 -- path under an enumerated extensions directory
+	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return vscodeManifest{}, false
 	}
@@ -103,7 +104,7 @@ func readVSCodeManifest(path string) (vscodeManifest, bool) {
 // the extensions dir's .obsolete file ({"publisher.name-version": true}).
 func readObsolete(dir string) map[string]struct{} {
 	out := map[string]struct{}{}
-	b, err := os.ReadFile(filepath.Join(dir, ".obsolete")) // #nosec G304 -- fixed filename in enumerated dir
+	b, err := fsutil.ReadFileBounded(filepath.Join(dir, ".obsolete"))
 	if err != nil {
 		return out
 	}

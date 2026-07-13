@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
 )
@@ -64,7 +65,7 @@ func scanZed(h homes.Home, r paths.Roots) []Plugin {
 // readSimpleTOML extracts top-level `key = "value"` pairs. extension.toml uses a
 // flat header, so a full TOML parser (and its dependency) is unnecessary.
 func readSimpleTOML(path string) map[string]string {
-	b, err := os.ReadFile(path) // #nosec G304 -- fixed manifest name under enumerated dir
+	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return nil
 	}
@@ -129,7 +130,7 @@ func scanSublime(h homes.Home, r paths.Roots) []Plugin {
 			}
 			manifest := filepath.Join(dir, e.Name(), "package-metadata.json")
 			version := ""
-			if b, err := os.ReadFile(manifest); err == nil { // #nosec G304 -- fixed name under enumerated dir
+			if b, err := fsutil.ReadFileBounded(manifest); err == nil {
 				var m sublimeMeta
 				if json.Unmarshal(b, &m) == nil {
 					version = m.Version

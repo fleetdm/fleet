@@ -180,7 +180,7 @@ var injectionMarkers = []string{
 // scanContent reads the head of the file and returns matched injection markers
 // plus whether hidden (zero-width / Unicode-tag) characters are present.
 func scanContent(path string) (markers []string, hiddenUnicode bool) {
-	f, err := os.Open(path) // #nosec G304 -- path discovered by this collector's curated probes
+	f, err := fsutil.OpenRegular(path)
 	if err != nil {
 		return nil, false
 	}

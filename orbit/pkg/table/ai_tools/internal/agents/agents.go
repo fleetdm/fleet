@@ -81,7 +81,7 @@ func Scan(h homes.Home, snap *proc.Snapshot) []Agent {
 			a.Runtime = k.runtime
 		}
 		cmdline := markRunning(&a, k, snap)
-		a.SHA256 = fsutil.SHA256(a.BinaryPath)
+		a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
 		enrichPosture(&a, k, h, cmdline)
 		out = append(out, a)
 	}
@@ -125,6 +125,32 @@ func detect(k known, home string, binDirs, nmDirs []string) (Agent, bool) {
 		a.Binary = k.binaries[0]
 	}
 	return a, true
+}
+
+// systemBinPrefixes are trusted system / package-manager directories where
+// agent CLIs are commonly symlinked (Homebrew links /opt/homebrew/bin/<tool>
+// into its Cellar, for example).
+var systemBinPrefixes = []string{"/opt/homebrew/", "/usr/local/", "/usr/bin/", "/home/linuxbrew/"}
+
+// resolveSystemBinary resolves a symlink to its target only when the link lives
+// under a trusted system bin directory, so package-manager-symlinked agent
+// binaries are still hashed by the (symlink-refusing) fsutil.SHA256. Paths under
+// user homes are returned unchanged and never symlink-resolved, so a low-priv
+// user cannot use a home-dir symlink to steer the root scanner at a file it
+// should not read.
+func resolveSystemBinary(p string) string {
+	if p == "" {
+		return p
+	}
+	for _, prefix := range systemBinPrefixes {
+		if strings.HasPrefix(p, prefix) {
+			if resolved, err := filepath.EvalSymlinks(p); err == nil {
+				return resolved
+			}
+			break
+		}
+	}
+	return p
 }
 
 func agentBinDirs(home string, _ paths.Roots) []string {
@@ -182,7 +208,7 @@ func findBinary(names, dirs []string) (string, string, bool) {
 }
 
 func npmVersion(packageJSON string) (string, bool) {
-	b, err := os.ReadFile(packageJSON) // #nosec G304 -- fixed manifest under a node_modules dir
+	b, err := fsutil.ReadFileBounded(packageJSON)
 	if err != nil {
 		return "", false
 	}
@@ -198,7 +224,7 @@ func npmVersion(packageJSON string) (string, bool) {
 func pipxVersion(venv, dist string) string {
 	matches, _ := filepath.Glob(filepath.Join(venv, "lib", "python*", "site-packages", dist+"*.dist-info", "METADATA"))
 	for _, mp := range matches {
-		b, err := os.ReadFile(mp) // #nosec G304 -- fixed metadata file under a pipx venv
+		b, err := fsutil.ReadFileBounded(mp)
 		if err != nil {
 			continue
 		}

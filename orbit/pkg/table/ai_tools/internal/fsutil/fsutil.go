@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 )
 
 // maxHashBytes bounds how large a file we are willing to hash. Hashing streams
@@ -21,17 +22,41 @@ import (
 // larger than this return an empty hash rather than a misleading prefix hash.
 const maxHashBytes = 256 << 20 // 256 MiB
 
+// maxReadFileBytes bounds how much of a file ReadFileBounded will read into
+// memory. Every legitimate config/manifest we read is well under this; the cap
+// stops a planted multi-gigabyte file from exhausting memory in the root daemon.
+const maxReadFileBytes = 64 << 20 // 64 MiB
+
+// OpenRegular opens path read-only for scanning, refusing anything that is not
+// a regular file. Because this scanner runs as root over paths writable by
+// unprivileged users, it must never follow a symlink (which could point at a
+// root-only file) nor block on a FIFO/device. os.Lstat rejects symlinks and
+// non-regular files up front; O_NONBLOCK closes the stat→open race so a file
+// swapped for a FIFO between the check and the open still cannot block. Callers
+// that stream (rather than read the whole file) use this directly.
+func OpenRegular(path string) (*os.File, error) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, os.ErrInvalid
+	}
+	return os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0) // #nosec G304 -- path discovered by a curated collector; opened non-following, non-blocking, regular-only
+}
+
 // SHA256 returns the lowercase hex SHA-256 of the file at path, or "" if the
-// file can't be read, is a directory, or exceeds maxHashBytes.
+// file can't be read, is not a regular file (directory, symlink, FIFO, device,
+// socket), or exceeds maxHashBytes.
 func SHA256(path string) string {
 	if path == "" {
 		return ""
 	}
-	fi, err := os.Stat(path)
-	if err != nil || fi.IsDir() || fi.Size() > maxHashBytes {
+	fi, err := os.Lstat(path)
+	if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxHashBytes {
 		return ""
 	}
-	f, err := os.Open(path) // #nosec G304 -- caller passes a path already discovered by a curated collector
+	f, err := OpenRegular(path)
 	if err != nil {
 		return ""
 	}
@@ -44,6 +69,20 @@ func SHA256(path string) string {
 		return ""
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// ReadFileBounded reads up to maxReadFileBytes of the regular file at path. It
+// is the safe replacement for os.ReadFile in this package: it refuses symlinks
+// and non-regular files and never blocks on a FIFO/device (see
+// OpenRegular), so a hostile file planted in a scanned home directory
+// cannot leak a root-only target or hang the root daemon.
+func ReadFileBounded(path string) ([]byte, error) {
+	f, err := OpenRegular(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	return io.ReadAll(io.LimitReader(f, maxReadFileBytes))
 }
 
 // SHA256Bytes returns the lowercase hex SHA-256 of b (used for hashing
@@ -79,13 +118,16 @@ func Stat(path string) Perm {
 	}
 }
 
-// Exists reports whether path is an existing regular (non-directory) file.
+// Exists reports whether path is an existing regular file. It uses Lstat and
+// refuses symlinks and other non-regular files, matching the read path: the
+// root scanner must not treat a symlink to a root-only file as a scannable
+// config, nor probe FIFOs/devices.
 func Exists(path string) bool {
-	fi, err := os.Stat(path)
+	fi, err := os.Lstat(path)
 	if err != nil {
 		return false
 	}
-	return !fi.IsDir()
+	return fi.Mode().IsRegular()
 }
 
 // walkSkip are directory names never descended into during a bounded walk —

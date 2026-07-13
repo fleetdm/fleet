@@ -104,6 +104,7 @@ func writeFile(t *testing.T, path, content string) {
 }
 
 func TestCollectChromiumProfile(t *testing.T) {
+	home := t.TempDir()
 	profile := t.TempDir()
 	exts := filepath.Join(profile, "Extensions")
 
@@ -119,8 +120,11 @@ func TestCollectChromiumProfile(t *testing.T) {
 	writeFile(t, filepath.Join(exts, nonAI, "2.0.0", "manifest.json"),
 		`{"name":"Prettier","version":"2.0.0","manifest_version":3}`)
 
-	// Unpacked AI extension: NOT under Extensions/, only in Preferences (location 4).
-	unpackedSrc := t.TempDir()
+	// Unpacked AI extension: NOT under Extensions/, only in Preferences (location
+	// 4). Its source lives under the user's home, as a real unpacked extension
+	// does — collectChromiumProfile only hashes a Preferences "path" contained in
+	// the owning home (attacker-controlled paths outside it are refused).
+	unpackedSrc := filepath.Join(home, "unpacked-ext")
 	writeFile(t, filepath.Join(unpackedSrc, "manifest.json"),
 		`{"name":"Claude Dev","version":"9.9.9","manifest_version":3,"permissions":["<all_urls>"]}`)
 	unpackedID := "cccccccccccccccccccccccccccccccc"
@@ -137,7 +141,7 @@ func TestCollectChromiumProfile(t *testing.T) {
 	pb, _ := json.Marshal(prefs)
 	writeFile(t, filepath.Join(profile, "Secure Preferences"), string(pb))
 
-	got := collectChromiumProfile(profile, "chrome", "Default", homes.Home{UID: "501", Username: "tester"})
+	got := collectChromiumProfile(profile, "chrome", "Default", homes.Home{UID: "501", Username: "tester", Dir: home})
 
 	by := map[string]Extension{}
 	for _, e := range got {
@@ -174,6 +178,32 @@ func TestCollectChromiumProfile(t *testing.T) {
 }
 
 func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }
+
+// TestGeckoRejectsTraversalID verifies an addon id from the user-writable
+// extensions.json that contains path-traversal characters is dropped, so the
+// root scanner cannot be steered outside the profile's extensions dir.
+func TestGeckoRejectsTraversalID(t *testing.T) {
+	profile := t.TempDir()
+	writeFile(t, filepath.Join(profile, "extensions.json"), `{"addons":[
+		{"id":"../../../../etc/evil","type":"extension","location":"app-profile","version":"1.0","defaultLocale":{"name":"ChatGPT"}},
+		{"id":"chatgpt@ai","type":"extension","location":"app-profile","version":"1.0","defaultLocale":{"name":"ChatGPT"}}
+	]}`)
+
+	got := collectGeckoProfile(profile, "firefox", "default", homes.Home{UID: "501", Username: "tester"})
+
+	var cleanFound bool
+	for _, e := range got {
+		if strings.Contains(e.ID, "..") || strings.ContainsAny(e.ID, `/\`) {
+			t.Errorf("traversal addon id surfaced: %q", e.ID)
+		}
+		if e.ID == "chatgpt@ai" {
+			cleanFound = true
+		}
+	}
+	if !cleanFound {
+		t.Error("clean AI addon should still be surfaced")
+	}
+}
 
 func writeXPI(t *testing.T, path, manifestJSON string) {
 	t.Helper()

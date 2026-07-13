@@ -36,7 +36,7 @@ type geckoAddon struct {
 // collectGeckoProfile enumerates AI extensions in one Gecko profile from its
 // extensions.json registry, hashing the matching .xpi.
 func collectGeckoProfile(profilePath, browser, profileName string, h homes.Home) []Extension {
-	b, err := os.ReadFile(filepath.Join(profilePath, "extensions.json")) // #nosec G304 -- fixed name under an enumerated browser profile
+	b, err := fsutil.ReadFileBounded(filepath.Join(profilePath, "extensions.json"))
 	if err != nil {
 		return nil
 	}
@@ -56,6 +56,12 @@ func collectGeckoProfile(profilePath, browser, profileName string, h homes.Home)
 		}
 		isAI, cat := classify.BrowserExtension(a.ID, a.DefaultLocale.Name)
 		if !isAI {
+			continue
+		}
+		// a.ID is read from the user-writable extensions.json; a value containing
+		// path separators or ".." would escape the profile's extensions dir when
+		// joined below (and then be hashed as root). Reject those.
+		if strings.ContainsAny(a.ID, `/\`) || strings.Contains(a.ID, "..") {
 			continue
 		}
 		xpi := filepath.Join(profilePath, "extensions", a.ID+".xpi")
@@ -125,7 +131,7 @@ func hostPermsFromXPI(xpiPath string) []string {
 // geckoProfiles returns the profiles for one Gecko root, parsing profiles.ini
 // and falling back to globbing when it is absent or yields nothing.
 func geckoProfiles(root string) []geckoProfile {
-	b, err := os.ReadFile(filepath.Join(root, "profiles.ini")) // #nosec G304 -- fixed name under a derived browser root
+	b, err := fsutil.ReadFileBounded(filepath.Join(root, "profiles.ini"))
 	if err != nil {
 		return globGeckoProfiles(root)
 	}

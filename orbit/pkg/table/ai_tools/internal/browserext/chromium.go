@@ -67,7 +67,7 @@ type prefEntry struct {
 func readChromiumPrefs(profileDir string) map[string]prefEntry {
 	out := map[string]prefEntry{}
 	for _, fn := range []string{"Secure Preferences", "Preferences"} {
-		b, err := os.ReadFile(filepath.Join(profileDir, fn)) // #nosec G304 -- fixed filename under an enumerated browser profile
+		b, err := fsutil.ReadFileBounded(filepath.Join(profileDir, fn))
 		if err != nil {
 			continue
 		}
@@ -122,7 +122,7 @@ func resolveChromiumName(versionDir string, m chromiumManifest) string {
 		if loc == "" {
 			continue
 		}
-		b, err := os.ReadFile(filepath.Join(versionDir, "_locales", loc, "messages.json")) // #nosec G304 -- fixed name under an enumerated extension dir
+		b, err := fsutil.ReadFileBounded(filepath.Join(versionDir, "_locales", loc, "messages.json"))
 		if err != nil {
 			continue
 		}
@@ -139,6 +139,17 @@ func resolveChromiumName(versionDir string, m chromiumManifest) string {
 		}
 	}
 	return m.Name
+}
+
+// underHome reports whether cand, once cleaned, is contained within the home
+// directory. Used to refuse attacker-controlled absolute paths (Chromium
+// Preferences "path") that would otherwise escape the scanned home.
+func underHome(home, cand string) bool {
+	rel, err := filepath.Rel(filepath.Clean(home), filepath.Clean(cand))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func msgKey(name string) (string, bool) {
@@ -166,7 +177,7 @@ func collectChromiumProfile(profileDir, browser, profileName string, h homes.Hom
 			if !ok {
 				continue
 			}
-			b, err := os.ReadFile(manifestPath) // #nosec G304 -- path under an enumerated extensions dir
+			b, err := fsutil.ReadFileBounded(manifestPath)
 			if err != nil {
 				continue
 			}
@@ -194,9 +205,14 @@ func collectChromiumProfile(profileDir, browser, profileName string, h homes.Hom
 			if pe.Manifest.Name == "" && pe.Path == "" {
 				continue
 			}
+			// pe.Path comes from the user-writable Preferences file and may be an
+			// absolute path anywhere on disk. Contain it to the owning home so the
+			// root scanner cannot be pointed at an arbitrary file to hash (below).
 			mp := ""
 			if pe.Path != "" {
-				mp = filepath.Join(pe.Path, "manifest.json")
+				if cand := filepath.Join(pe.Path, "manifest.json"); underHome(h.Dir, cand) {
+					mp = cand
+				}
 			}
 			ext = &Extension{
 				ID:           id,

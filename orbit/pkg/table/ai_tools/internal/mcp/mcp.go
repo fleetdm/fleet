@@ -259,7 +259,7 @@ func (j jsonServer) commandAndArgs() (string, []string) {
 }
 
 func extractJSONServers(path, key string) (map[string]jsonServer, bool) {
-	b, err := os.ReadFile(path) // #nosec G304 -- path is from the curated config catalog
+	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return nil, false
 	}
@@ -279,7 +279,7 @@ func extractJSONServers(path, key string) (map[string]jsonServer, bool) {
 }
 
 func parseClaudeJSON(path string) []Server {
-	b, err := os.ReadFile(path) // #nosec G304 -- path is from the curated config catalog
+	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return nil
 	}
@@ -366,7 +366,7 @@ func normalizeTransport(t, tr string) string {
 // ---- Continue (YAML or JSON; map or list) ----
 
 func parseContinueFile(path string) []Server {
-	b, err := os.ReadFile(path) // #nosec G304 -- path is from the curated config catalog
+	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return nil
 	}
@@ -396,7 +396,7 @@ func scanContinueDir(h homes.Home) []Server {
 			continue
 		}
 		p := filepath.Join(dir, name)
-		b, err := os.ReadFile(p) // #nosec G304 -- path under the user's ~/.continue/mcpServers
+		b, err := fsutil.ReadFileBounded(p)
 		if err != nil {
 			continue
 		}

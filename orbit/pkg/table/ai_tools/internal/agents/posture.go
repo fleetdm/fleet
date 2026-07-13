@@ -2,10 +2,10 @@ package agents
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 )
 
@@ -50,7 +50,7 @@ func claudePermissionMode(home string) string {
 		filepath.Join(home, ".claude", "settings.json"),
 		filepath.Join(home, ".claude", "settings.local.json"),
 	} {
-		b, err := os.ReadFile(p) // #nosec G304 -- fixed path under the user's ~/.claude
+		b, err := fsutil.ReadFileBounded(p)
 		if err != nil {
 			continue
 		}

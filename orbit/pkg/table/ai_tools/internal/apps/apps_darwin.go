@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"howett.net/plist"
 )
@@ -39,8 +40,11 @@ func scanApps(homesList []homes.Home) []App {
 				continue
 			}
 			seen[k.name] = struct{}{}
+			// info.Executable comes from the bundle's user-writable Info.plist; a
+			// value with a path separator or ".." would escape the bundle when
+			// joined (and later be hashed as root). Only accept a bare filename.
 			exec := ""
-			if info.Executable != "" {
+			if info.Executable != "" && !strings.ContainsAny(info.Executable, `/\`) && !strings.Contains(info.Executable, "..") {
 				exec = filepath.Join(appPath, "Contents", "MacOS", info.Executable)
 			}
 			out = append(out, App{
@@ -65,7 +69,7 @@ func scanApps(homesList []homes.Home) []App {
 
 func readInfoPlist(appPath string) infoPlist {
 	var info infoPlist
-	b, err := os.ReadFile(filepath.Join(appPath, "Contents", "Info.plist")) // #nosec G304 -- fixed path inside an enumerated .app bundle
+	b, err := fsutil.ReadFileBounded(filepath.Join(appPath, "Contents", "Info.plist"))
 	if err != nil {
 		return info
 	}
