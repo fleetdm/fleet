@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -140,7 +141,7 @@ func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name 
 		return "", authzErr
 	}
 
-	identifier, err := svc.validateAppleDDMAsset(ctx, data)
+	identifier, _, err := svc.validateAppleDDMAsset(ctx, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating Apple DDM asset")
 	}
@@ -158,51 +159,76 @@ func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name 
 		return "", ctxerr.Wrap(ctx, err, "creating Apple DDM asset")
 	}
 
+	actTeamID, actTeamName, err := svc.assetActivityTeam(ctx, teamID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "resolving team for asset activity")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCreatedDeclarationAsset{
+		AssetName: name,
+		TeamID:    actTeamID,
+		TeamName:  actTeamName,
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "logging activity for created declaration asset")
+	}
+
 	return assetUUID, nil
 }
 
-func (svc *Service) validateAppleDDMAsset(ctx context.Context, data []byte) (identifier string, err error) {
+// assetActivityTeam resolves the team id/name pointers to include in a DDM
+// asset activity. Both are nil for the "no team" case (team 0 or nil).
+func (svc *Service) assetActivityTeam(ctx context.Context, teamID *uint) (*uint, *string, error) {
+	if teamID == nil || *teamID == 0 {
+		return nil, nil, nil
+	}
+	tm, err := svc.ds.TeamLite(ctx, *teamID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "loading team for asset activity")
+	}
+	return teamID, &tm.Name, nil
+}
+
+func (svc *Service) validateAppleDDMAsset(ctx context.Context, data []byte) (identifier, assetType string, err error) {
 	var rawAsset fleet.RawDDMAsset
 	if err := json.Unmarshal(data, &rawAsset); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling asset data")
+		return "", "", ctxerr.Wrap(ctx, err, "unmarshaling asset data")
 	}
 
 	if rawAsset.Identifier == "" {
-		return "", &fleet.BadRequestError{Message: "Asset must contain a non-empty identifier"}
+		return "", "", &fleet.BadRequestError{Message: "Asset must contain a non-empty identifier"}
 	}
 
 	if !strings.HasPrefix(rawAsset.Type, "com.apple.asset.") {
-		return "", &fleet.BadRequestError{Message: "Asset type must be a valid Apple asset type beginning with 'com.apple.asset.'"}
+		return "", "", &fleet.BadRequestError{Message: "Asset type must be a valid Apple asset type beginning with 'com.apple.asset.'"}
 	}
 
 	// Check if Identifier uses a FLEET_SECRET, fail if so.
 	if strings.Contains(rawAsset.Identifier, "FLEET_SECRET") {
-		return "", &fleet.BadRequestError{Message: "Asset identifier must not contain a $FLEET_SECRET"}
+		return "", "", &fleet.BadRequestError{Message: "Asset identifier must not contain a $FLEET_SECRET"}
 	}
 
 	expanded, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets and updated_at")
+		return "", "", ctxerr.Wrap(ctx, err, "expanding embedded secrets and updated_at")
 	}
 
 	if err := json.Unmarshal([]byte(expanded), &rawAsset); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling asset data")
+		return "", "", ctxerr.Wrap(ctx, err, "unmarshaling asset data")
 	}
 
 	// We disallow authentication, as we force MDM auth when serving the assets.
 	if rawAsset.Payload.Authentication != nil {
-		return "", &fleet.BadRequestError{Message: "Asset payload must not contain an authentication key"}
+		return "", "", &fleet.BadRequestError{Message: "Asset payload must not contain an authentication key"}
 	}
 
 	if rawAsset.Payload.Reference.DataURL == "" {
-		return "", &fleet.BadRequestError{Message: "Asset payload must contain a non-empty reference data URL"}
+		return "", "", &fleet.BadRequestError{Message: "Asset payload must contain a non-empty reference data URL"}
 	}
 
 	if _, err := url.ParseRequestURI(rawAsset.Payload.Reference.DataURL); err != nil {
-		return "", &fleet.BadRequestError{Message: fmt.Sprintf("Invalid payload data URL: %v", err)}
+		return "", "", &fleet.BadRequestError{Message: fmt.Sprintf("Invalid payload data URL: %v", err)}
 	}
 
-	return rawAsset.Identifier, nil
+	return rawAsset.Identifier, rawAsset.Type, nil
 }
 
 func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
@@ -225,6 +251,129 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 			return &fleet.BadRequestError{Message: "Couldn't delete. A configuration profile is linked to this asset. Please delete the profile and try again."}
 		}
 		return ctxerr.Wrap(ctx, err, "deleting Apple DDM asset")
+	}
+
+	actTeamID, actTeamName, err := svc.assetActivityTeam(ctx, asset.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolving team for asset activity")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedDeclarationAsset{
+		AssetName: asset.Name,
+		TeamID:    actTeamID,
+		TeamName:  actTeamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for deleted declaration asset")
+	}
+
+	return nil
+}
+
+func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error {
+	var tmName *string
+	if teamName != "" {
+		tmName = &teamName
+	}
+	if teamID != nil && tmName != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+	}
+
+	var resolvedTeamName string
+	if teamID != nil || tmName != nil {
+		tm, err := svc.teamByIDOrName(ctx, teamID, tmName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolving team for assets batch")
+		}
+		if tm == nil {
+			return ctxerr.Wrap(ctx, common_mysql.NotFound("Team"))
+		}
+		teamID = &tm.ID
+		resolvedTeamName = tm.Name
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.DDMAssetAuthz{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Secrets may not be available during a dry run (e.g. GitOps), so skip
+	// validating assets that reference them, mirroring the profiles batch path.
+	if dryRun {
+		withoutSecrets := make([]fleet.MDMAppleDDMAssetBatchPayload, 0, len(assets))
+		for _, a := range assets {
+			if len(fleet.ContainsPrefixVars(string(a.Contents), fleet.ServerSecretPrefix)) == 0 {
+				withoutSecrets = append(withoutSecrets, a)
+			}
+		}
+		assets = withoutSecrets
+	}
+
+	toSet := make([]*fleet.MDMAppleDDMAssetToSet, 0, len(assets))
+	seenNames := make(map[string]struct{}, len(assets))
+	seenIdentifiers := make(map[string]struct{}, len(assets))
+	for _, a := range assets {
+		identifier, assetType, err := svc.validateAppleDDMAsset(ctx, a.Contents)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "validating asset %q", a.Name)
+		}
+		if _, ok := seenNames[a.Name]; ok {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Couldn't apply. The asset name %q is used more than once.", a.Name)}
+		}
+		if _, ok := seenIdentifiers[identifier]; ok {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Couldn't apply. The asset identifier %q is used more than once.", identifier)}
+		}
+		seenNames[a.Name] = struct{}{}
+		seenIdentifiers[identifier] = struct{}{}
+		toSet = append(toSet, &fleet.MDMAppleDDMAssetToSet{
+			Name:       a.Name,
+			Identifier: identifier,
+			Type:       assetType,
+			Data:       a.Contents,
+		})
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	changes, err := svc.ds.BatchSetAppleDDMAssets(ctx, teamID, toSet)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "batch setting apple ddm assets")
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID != nil && *teamID > 0 {
+		actTeamID = teamID
+		actTeamName = &resolvedTeamName
+	}
+	for _, name := range changes.Created {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCreatedDeclarationAsset{
+			AssetName: name,
+			TeamID:    actTeamID,
+			TeamName:  actTeamName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for created declaration asset")
+		}
+	}
+	for _, name := range changes.Edited {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDeclarationAsset{
+			AssetName: name,
+			TeamID:    actTeamID,
+			TeamName:  actTeamName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited declaration asset")
+		}
+	}
+	for _, name := range changes.Deleted {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedDeclarationAsset{
+			AssetName: name,
+			TeamID:    actTeamID,
+			TeamName:  actTeamName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for deleted declaration asset")
+		}
 	}
 
 	return nil

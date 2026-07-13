@@ -1064,7 +1064,8 @@ UPDATE_GO_MODS := \
 	./tools/screencap/go.mod \
 	./tools/hangar/go.mod \
 	./cmd/fleet-mcp/go.mod \
-	./tools/dibble/go.mod
+	./tools/dibble/go.mod \
+	./tools/upgrade/go.mod
 update-go:
 	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \

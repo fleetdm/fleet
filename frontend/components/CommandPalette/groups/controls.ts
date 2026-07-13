@@ -79,6 +79,17 @@ const buildControlsItems = (
             "windows csp",
           ],
         },
+        // Assets are premium-only
+        ...(isPremiumTier
+          ? [
+              {
+                id: "controls-assets",
+                label: "Assets",
+                path: withTeamId(paths.CONTROLS_ASSETS),
+                keywords: ["assets", "ddm"],
+              },
+            ]
+          : []),
         // Certificates and Passwords — Premium-only, and not
         // available to technicians.
         ...(isPremiumTier && !isTechnician
