@@ -282,7 +282,7 @@ Every time a customer or prospect managed cloud environment needs to be accessed
 
 If a review of production data is required in order to troubleshoot a bug report or incident, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
 
-Customer production data should never be used in development or testing environments. 
+Customer production data must never be used in development or testing environments. 
 
 ### Report an incident
 
