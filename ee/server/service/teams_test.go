@@ -137,12 +137,12 @@ func TestNewTeamNameValidation(t *testing.T) {
 		},
 		{
 			name:     "name at max length is accepted",
-			teamName: ptr.String(strings.Repeat("a", fleet.MaxTeamNameLength)),
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength)),
 			wantName: strings.Repeat("a", fleet.MaxTeamNameLength),
 		},
 		{
 			name:     "name over max length is rejected",
-			teamName: ptr.String(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
 			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
 		},
 	}
@@ -270,12 +270,12 @@ func TestModifyTeamNameValidation(t *testing.T) {
 		},
 		{
 			name:     "name at max length is accepted",
-			teamName: ptr.String(strings.Repeat("a", fleet.MaxTeamNameLength)),
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength)),
 			wantName: strings.Repeat("a", fleet.MaxTeamNameLength),
 		},
 		{
 			name:     "name over max length is rejected",
-			teamName: ptr.String(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
 			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
 		},
 	}
