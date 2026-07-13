@@ -3291,9 +3291,9 @@ type Datastore interface {
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
-	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
-	DeleteScimUser(ctx context.Context, id uint) error
+	DeleteScimUser(ctx context.Context, id uint) ([]ActivityTypeResentCertificate, error)
 	// ListScimUsers retrieves a list of SCIM users with optional filtering
 	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 	// CreateScimGroup creates a new SCIM group in the database
