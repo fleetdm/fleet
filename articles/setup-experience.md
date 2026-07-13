@@ -264,22 +264,19 @@ When this feature is enabled, any failed software will immediately end the setup
 
 End users won't continue through setup experience unless they press Command (⌘) + Shift + X.
 
-### Risks of App Store (VPP) apps
+### App Store (VPP) apps in setup experience
 
-App Store (VPP) apps install differently than custom packages and Fleet-maintained apps. Fleet installs custom packages and Fleet-maintained apps locally through Fleet's agent (fleetd). App Store (VPP) apps are installed by Apple: Fleet sends an `InstallApplication` MDM command, and the device downloads and installs the app from the App Store. As a result, VPP installs during setup depend on Apple's services and the device's connection to the App Store while it's still in Setup Assistant.
+App Store (VPP) apps are installed by Apple. Fleet sends an [InstallApplication](https://developer.apple.com/documentation/devicemanagement/install-application-command) MDM command, and the device downloads and installs the app from the App Store. As a result, VPP installs during setup depend on Apple's services and the device's connection to the App Store while it's still in Setup Assistant.
 
-Keep this in mind when adding VPP apps to setup experience:
 
-- **Setup can be delayed or blocked.** During macOS setup, Fleet holds the device in Setup Assistant until every setup experience item finishes. Software installs one at a time, in alphabetical order, so a slow or hung VPP install makes the end user wait at the Setup Assistant screen. Fleet waits for each install to verify (10 minutes by default) and retries a failed VPP install up to 4 times (1 initial attempt + 3 retries), so a single failing app can hold setup for a long time before Fleet marks it failed. On iOS and iPadOS, only VPP apps run during setup, so a hung install delays the device's release.
-
-- **VPP installs depend on Apple.** Because Apple performs the install, problems outside Fleet can cause installs to fail or hang for every enrolling host at once: an App Store or Apple Business (AB) outage, Apple throttling `InstallApplication` commands during a large rollout, an expired or missing VPP token, too few available licenses, or an app that isn't available in the device's region. Fleet retries, but retries don't help while Apple is unavailable.
+Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
 
 To reduce these risks:
 
 - Only add apps that end users need before their first login. Deliver everything else after enrollment using [automatic install](https://fleetdm.com/guides/automatic-software-install-in-fleet), which runs in the background and doesn't hold the device in Setup Assistant.
 - Keep the setup experience software list short. Each item extends setup time.
 - Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
-- Decide how you want failures handled with the ["Cancel setup if software install fails"](#stop-setup-on-failed-software-installs) option. When it's off, a failed VPP install lets the end user through once Fleet finishes retrying. When it's on, the first failed install ends setup and asks the end user to restart.
+- If available, choose Fleet-maintained app over App Store (VPP) app for better control
 
 If a host gets stuck, you can send the [`DeviceConfigured`](https://developer.apple.com/documentation/devicemanagement/device-configured-command) command using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the end user through.
 
