@@ -385,6 +385,7 @@ import Firefox from "./Firefox";
 import Fission from "./Fission";
 import FleetDesktop from "./FleetDesktop";
 import Flexoptix from "./Flexoptix";
+import Flexwhere from "./Flexwhere";
 import Fluid from "./Fluid";
 import FluxApp from "./FluxApp";
 import FocusriteControl2 from "./FocusriteControl2";
@@ -394,14 +395,18 @@ import Fontlab from "./Fontlab";
 import Forecast from "./Forecast";
 import Fork from "./Fork";
 import Forklift from "./Forklift";
+import Fortify from "./Fortify";
 import FourKSlideshowMaker from "./FourKSlideshowMaker";
 import FourKStogram from "./FourKStogram";
 import FourKVideoDownloader from "./FourKVideoDownloader";
 import FourKVideoDownloaderPlus from "./FourKVideoDownloaderPlus";
 import FourKVideoToMp3 from "./FourKVideoToMp3";
 import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
+import FoxitPdfEditor from "./FoxitPdfEditor";
+import FoxitPdfReader from "./FoxitPdfReader";
 import Framer from "./Framer";
 import Franz from "./Franz";
+import Freecad from "./Freecad";
 import FreeDownloadManager from "./FreeDownloadManager";
 import Freefilesync from "./Freefilesync";
 import Front from "./Front";
@@ -1492,6 +1497,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fission: Fission,
   "fleet desktop": FleetDesktop,
   "flexoptix app": Flexoptix,
+  flexwhere: Flexwhere,
   fluid: Fluid,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
@@ -1500,9 +1506,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   forecast: Forecast,
   fork: Fork,
   forklift: Forklift,
+  fortify: Fortify,
+  "foxit pdf editor": FoxitPdfEditor,
+  "foxit pdf reader": FoxitPdfReader,
   framer: Framer,
   franz: Franz,
   "free download manager": FreeDownloadManager,
+  freecad: Freecad,
   freefilesync: Freefilesync,
   front: Front,
   fsmonitor: Fsmonitor,
