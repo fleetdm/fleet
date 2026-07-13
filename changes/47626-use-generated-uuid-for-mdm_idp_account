@@ -1,0 +1,1 @@
+* Fixed error in re-enrollment to Fleet with EUA on Linux with a different e-mail than the one use in the first enrollment.
