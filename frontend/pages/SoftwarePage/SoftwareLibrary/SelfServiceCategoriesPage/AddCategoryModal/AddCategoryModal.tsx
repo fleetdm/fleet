@@ -26,9 +26,7 @@ const AddCategoryModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const trimmedName = name.trim();
-  const isInvalid =
-    trimmedName.length === 0 || trimmedName.length > MAX_ENTITY_NAME_LENGTH;
-  const isDisabled = isInvalid || isSubmitting;
+  const isDisabled = trimmedName.length === 0 || isSubmitting;
 
   const onNameChange = (value: string) => {
     setName(value);

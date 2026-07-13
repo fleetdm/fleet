@@ -1,5 +1,3 @@
-import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
-
 import { ILabelFormData } from "./LabelForm";
 
 export interface ILabelFormValidation {
@@ -7,9 +5,6 @@ export interface ILabelFormValidation {
   name?: { isValid: boolean; message?: string };
   description?: { isValid: boolean; message?: string };
 }
-
-// Matches length in DB
-const MAX_LABEL_DESCRIPTION_LENGTH = 255;
 
 type IMessageFunc = (formData: ILabelFormData) => string;
 type IValidationMessage = string | IMessageFunc;
@@ -37,23 +32,10 @@ const FORM_VALIDATIONS: IFormValidations = {
         isValid: (formData) => formData.name.trim().length > 0,
         message: "Label name must be present",
       },
-      {
-        name: "notTooLong",
-        isValid: (formData) => formData.name.length <= MAX_ENTITY_NAME_LENGTH,
-        message: `Name may not exceed ${MAX_ENTITY_NAME_LENGTH} characters`,
-      },
     ],
   },
   description: {
-    validations: [
-      {
-        name: "notTooLong",
-        isValid: (formData) =>
-          !formData.description ||
-          formData.description.length <= MAX_LABEL_DESCRIPTION_LENGTH,
-        message: `Description may not exceed ${MAX_LABEL_DESCRIPTION_LENGTH} characters`,
-      },
-    ],
+    validations: [],
   },
 };
 

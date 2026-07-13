@@ -27,10 +27,8 @@ const EditCategoryModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const trimmedName = name.trim();
-  const isInvalid =
-    trimmedName.length === 0 || trimmedName.length > MAX_ENTITY_NAME_LENGTH;
   const isUnchanged = trimmedName === category.name;
-  const isDisabled = isInvalid || isUnchanged || isSubmitting;
+  const isDisabled = trimmedName.length === 0 || isUnchanged || isSubmitting;
 
   const onNameChange = (value: string) => {
     setName(value);
