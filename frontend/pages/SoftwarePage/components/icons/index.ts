@@ -356,7 +356,6 @@ import EpicGames from "./EpicGames";
 import Equinox from "./Equinox";
 import Etrecheckpro from "./Etrecheckpro";
 import Evernote from "./Evernote";
-import ExacqvisionClient from "./ExacqvisionClient";
 import Excel from "./Excel";
 import Exifcleaner from "./Exifcleaner";
 import Exifrenamer from "./Exifrenamer";
@@ -1465,7 +1464,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   equinox: Equinox,
   etrecheck: Etrecheckpro,
   evernote: Evernote,
-  "exacqvision client": ExacqvisionClient,
   exifcleaner: Exifcleaner,
   exifrenamer: Exifrenamer,
   expressvpn: ExpressVpn,

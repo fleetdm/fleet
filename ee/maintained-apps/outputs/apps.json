@@ -3096,13 +3096,6 @@
       "description": "Evernote is a note-taking app for capturing notes, tasks, and schedules in one place."
     },
     {
-      "name": "exacqVision Client",
-      "slug": "exacqvision-client/windows",
-      "platform": "windows",
-      "unique_identifier": "exacqVision Client (x64)",
-      "description": "exacqVision Client is the viewing client for exacqVision video management systems."
-    },
-    {
       "name": "ExifCleaner",
       "slug": "exifcleaner/darwin",
       "platform": "darwin",
