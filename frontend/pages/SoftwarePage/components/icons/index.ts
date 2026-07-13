@@ -324,13 +324,23 @@ import Eaglefiler from "./Eaglefiler";
 import Easydict from "./Easydict";
 import Easyfind from "./Easyfind";
 import Eclipse from "./Eclipse";
+import EclipseTemurinJdk11 from "./EclipseTemurinJdk11";
+import EclipseTemurinJdk17 from "./EclipseTemurinJdk17";
+import EclipseTemurinJdk21 from "./EclipseTemurinJdk21";
+import EclipseTemurinJdk8 from "./EclipseTemurinJdk8";
+import EclipseTemurinJre11 from "./EclipseTemurinJre11";
+import EclipseTemurinJre17 from "./EclipseTemurinJre17";
+import EclipseTemurinJre21 from "./EclipseTemurinJre21";
+import EclipseTemurinJre8 from "./EclipseTemurinJre8";
 import Edge from "./Edge";
 import Egnyte from "./Egnyte";
+import EgnyteWebedit from "./EgnyteWebedit";
 import EightXEightWork from "./8X8Work";
 import Electronmail from "./Electronmail";
 import Electrum from "./Electrum";
 import Element from "./Element";
 import Elephas from "./Elephas";
+import ElevateUc from "./ElevateUc";
 import ElgatoCameraHub from "./ElgatoCameraHub";
 import ElgatoCaptureDeviceUtility from "./ElgatoCaptureDeviceUtility";
 import ElgatoControlCenter from "./ElgatoControlCenter";
@@ -339,6 +349,7 @@ import ElgatoStreamDeck from "./ElgatoStreamDeck";
 import ElgatoWaveLink from "./ElgatoWaveLink";
 import ElmediaPlayer from "./ElmediaPlayer";
 import Emclient from "./Emclient";
+import Endnote from "./Endnote";
 import Enpass from "./Enpass";
 import EnteAuth from "./EnteAuth";
 import EpicGames from "./EpicGames";
@@ -1420,13 +1431,23 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   easyfind: Easyfind,
   eclipse: Eclipse,
   "eclipse memory analyzer": Memoryanalyzer,
+  "eclipse temurin jdk 11": EclipseTemurinJdk11,
+  "eclipse temurin jdk 17": EclipseTemurinJdk17,
+  "eclipse temurin jdk 21": EclipseTemurinJdk21,
+  "eclipse temurin jdk 8": EclipseTemurinJdk8,
+  "eclipse temurin jre 11": EclipseTemurinJre11,
+  "eclipse temurin jre 17": EclipseTemurinJre17,
+  "eclipse temurin jre 21": EclipseTemurinJre21,
+  "eclipse temurin jre 8": EclipseTemurinJre8,
   edge: MicrosoftEdge,
   edrawmax: WondershareEdrawmax,
   egnyte: Egnyte,
+  "egnyte webedit": EgnyteWebedit,
   electronmail: Electronmail,
   electrum: Electrum,
   element: Element,
   elephas: Elephas,
+  "elevate uc": ElevateUc,
   "elgato camera hub": ElgatoCameraHub,
   "elgato capture device utility": ElgatoCaptureDeviceUtility,
   "elgato control center": ElgatoControlCenter,
@@ -1436,6 +1457,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "elmedia player": ElmediaPlayer,
   "eltima cloudmounter": Cloudmounter,
   "em client": Emclient,
+  endnote: Endnote,
   enpass: Enpass,
   "ente auth": EnteAuth,
   "epic games launcher": EpicGames,
