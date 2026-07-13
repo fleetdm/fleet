@@ -238,7 +238,11 @@ const PolicyResults = ({
   });
 
   return (
-    <div className={baseClass}>
+    // `notranslate`: Chrome's auto-translate wraps text nodes in <font> elements,
+    // detaching nodes React holds refs to. As live results stream in and cells
+    // unmount, React's removeChild throws NotFoundError and error-boundaries the
+    // page (#48277). Excluding this streaming subtree from translation avoids it.
+    <div className={`${baseClass} notranslate`}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
         numHostsResponded={uiHostCounts.total}

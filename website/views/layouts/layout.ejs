@@ -94,7 +94,7 @@
     // End Rollbar Snippet
     </script>
    
-    <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
+    <% /* Google Analytics, Google Tag Manager, Qualified etc. */ %>
 
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
@@ -114,8 +114,6 @@
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
-    <% /* Clay */ %>
-      <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
     <% /* Qualified */ %>
     <% if(!disableChatbotAndIndexing) {%>
       <script>
@@ -126,14 +124,6 @@
     <% } else {%>
       <meta name="robots" content="noindex">
     <% } %>
-    <% /* Snitcher */ %>
-    <script>
-        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
-        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
-        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
-        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
-        snid('verify', '8416878');
-    </script>
     <% /* Hotjar code */ %>
     <script>
       (function(h,o,t,j,a,r){
@@ -984,7 +974,6 @@
     <script src="/js/pages/fast-track.page.js"></script>
     <script src="/js/pages/fleet-premium-trial.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
-    <script src="/js/pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/infrastructure-as-code.page.js"></script>
@@ -1017,6 +1006,7 @@
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <script src="/js/pages/visibility-and-reporting.page.js"></script>
+    <script src="/js/pages/workshops.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -1164,7 +1154,9 @@
       vgo('setAccount', '652899825');
       vgo('setTrackByDefault', true);
       vgo('process');
-    </script>      
+    </script>
+    <% /* Clay */ %>
+    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
    <% } %>
     <% /* Remove query params from the page URLs after the page is fully loaded. */ %>
     <script>

@@ -627,6 +627,11 @@ var hostRefs = []string{
 // Orbit re-enrollment recreates the host row and the existing password row remains
 // reachable for view/rotate. Apple-MDM unenroll/re-enroll is handled separately by
 // MDMResetEnrollment, which soft-deletes the row.
+// - mdm_apple_psso_devices / mdm_apple_psso_keys: keyed by host_uuid, intentionally
+// preserved across host deletion for the same reason — the Mac may still be
+// MDM-enrolled with Platform SSO active, and its registered keys must keep
+// authenticating token requests. ADE re-enrollment clears them via
+// MDMAppleResetOnReenrollment.
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
@@ -1165,9 +1170,12 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
 		// for the rows actually returned by the outer query, each as an indexed lookup on
 		// idx_host_emails_host_id_email.
+		// GROUP_CONCAT without ORDER BY has no guaranteed order; sort to match
+		// listHostDeviceMappingDB so all endpoints return device_mapping in the
+		// same order.
 		sql += fmt.Sprintf(`,
     COALESCE((
-        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s)), ']')
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s) ORDER BY he.email, he.source), ']')
         FROM host_emails he
         WHERE he.host_id = h.id
     ), 'null') as device_mapping
@@ -1764,7 +1772,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 	// supported linux platforms if disk encryption is enabled.
 	includeLinuxCond := "FALSE"
 	if diskEncryptionConfig.Enabled {
-		includeLinuxCond = `(h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')`
+		includeLinuxCond = `(h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%')`
 	}
 
 	sqlFmt := ` AND (
@@ -1890,7 +1898,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'rhel')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'zorin', 'rhel')"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1899,7 +1907,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 	sqlFmt += ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1 AND hmdm.is_server = 0 AND %s) -- windows
 		OR (h.platform = 'darwin' AND ne.id IS NOT NULL AND hmdm.enrolled = 1 AND %s) -- apple
-		OR ((h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
+		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
 	)`
 
 	var subqueryMacOS string
@@ -6423,6 +6431,33 @@ SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE 
 	}
 
 	return count, nil
+}
+
+// numHostsFleetMDMEnrolledDB returns the number of macOS and Windows hosts that are currently enrolled in Fleet's own
+// MDM. It excludes hosts enrolled in a third-party MDM, server hosts (host_mdm.is_server = 1), and hosts that are not
+// currently enrolled (host_mdm.enrolled = 0, which includes ABM-pending and unenrolled hosts).
+func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, err error) {
+	var counts struct {
+		MacOS   int `db:"macos"`
+		Windows int `db:"windows"`
+	}
+	const stmt = `
+SELECT
+	COALESCE(SUM(CASE WHEN h.platform = 'darwin' THEN 1 ELSE 0 END), 0) AS macos,
+	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows
+FROM host_mdm hm
+	JOIN hosts h ON h.id = hm.host_id
+	JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
+WHERE hm.enrolled = 1
+	AND NOT COALESCE(hm.is_server, false)
+	AND mdms.name = ?
+	AND h.platform IN ('darwin', 'windows')
+	`
+	if err := sqlx.GetContext(ctx, db, &counts, stmt, fleet.WellKnownMDMFleet); err != nil {
+		return 0, 0, err
+	}
+
+	return counts.MacOS, counts.Windows, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {

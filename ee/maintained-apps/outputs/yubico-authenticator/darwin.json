@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.4.0",
+      "version": "7.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.yubioath';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.yubioath' AND version_compare(bundle_short_version, '7.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.yubioath' AND version_compare(bundle_short_version, '7.4.1') < 0);"
       },
-      "installer_url": "https://developers.yubico.com/yubioath-flutter/Releases/yubico-authenticator-7.4.0-mac.dmg",
+      "installer_url": "https://developers.yubico.com/yubioath-flutter/Releases/yubico-authenticator-7.4.1-mac.dmg",
       "install_script_ref": "7dc459ff",
       "uninstall_script_ref": "47160642",
-      "sha256": "fd776bea250dfddac6f4fa1bc2f24d27c3a1a11fba2bbeeafc5b9f1446f0701b",
+      "sha256": "9adb0de91b139003c86903296d042053a78f3f60ead68388341bf1b1bc2e1ef3",
       "default_categories": [
         "Productivity"
       ]

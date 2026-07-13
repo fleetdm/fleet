@@ -40,7 +40,7 @@ const baseProps: ILibraryItemAccordionProps = {
   failedPath: statusPath("failed"),
   hashSha256:
     "af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7",
-  downloadUrl: "https://example.com/installer.pkg",
+  canDownload: true,
 };
 
 const makeLabels = (count: number): ILabelSoftwareTitle[] =>
@@ -85,34 +85,49 @@ describe("LibraryItemAccordion", () => {
   });
 
   describe("badges", () => {
-    it("renders the Latest badge when badgeState is 'latest'", () => {
-      renderAccordion({ badgeState: "latest" });
+    it("renders the Latest badge as a button when onBadgeClick is wired", () => {
+      renderAccordion({ badgeState: "latest", onBadgeClick: jest.fn() });
       expect(screen.getByRole("button", { name: "Latest" })).toBeVisible();
     });
 
-    it("renders the Pinned badge when badgeState is 'pinned'", () => {
-      renderAccordion({ badgeState: "pinned" });
+    it("renders the Pinned badge as a button when onBadgeClick is wired", () => {
+      renderAccordion({ badgeState: "pinned", onBadgeClick: jest.fn() });
       expect(screen.getByRole("button", { name: "Pinned" })).toBeVisible();
     });
 
-    it("renders the Major version badge when badgeState is 'majorVersion'", () => {
-      renderAccordion({ badgeState: "majorVersion" });
+    it("renders the Major version badge as a button when onBadgeClick is wired", () => {
+      renderAccordion({ badgeState: "majorVersion", onBadgeClick: jest.fn() });
       expect(
         screen.getByRole("button", { name: "Major version" })
       ).toBeVisible();
     });
+
+    it.each([
+      ["latest", "Latest"],
+      ["pinned", "Pinned"],
+      ["majorVersion", "Major version"],
+    ] as const)(
+      "renders the %s badge as a static span (no bogus click affordance) when onBadgeClick is undefined",
+      (state, label) => {
+        renderAccordion({ badgeState: state, onBadgeClick: undefined });
+        // Observer viewing an FMA: the pin state stays visible but is not a
+        // click target, since observers can't open the versions modal.
+        expect(
+          screen.queryByRole("button", { name: label })
+        ).not.toBeInTheDocument();
+        // Text still displays.
+        expect(screen.getByText(label)).toBeVisible();
+      }
+    );
 
     it("renders no badge when badgeState is undefined", () => {
       renderAccordion({ badgeState: undefined });
       expect(
         screen.queryByRole("button", { name: "Latest" })
       ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Pinned" })
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Major version" })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Latest")).not.toBeInTheDocument();
+      expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
+      expect(screen.queryByText("Major version")).not.toBeInTheDocument();
     });
 
     it("renders the label-count badge when labels are scoped", () => {
@@ -133,9 +148,9 @@ describe("LibraryItemAccordion", () => {
       expect(screen.getByText("All hosts")).toBeVisible();
     });
 
-    it("does not render 'All hosts' when badgeState is undefined (no badge means no fallback)", () => {
+    it("renders 'All hosts' on rows with no badgeState (custom/App Store rows still show the label fallback)", () => {
       renderAccordion({ badgeState: undefined, labels: [] });
-      expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+      expect(screen.getByText("All hosts")).toBeVisible();
     });
 
     it("renders a tooltip with the label list when hovering the count badge", async () => {
@@ -362,8 +377,8 @@ describe("LibraryItemAccordion", () => {
       expect(onDownloadClick).toHaveBeenCalledTimes(1);
     });
 
-    it("is omitted when downloadUrl is not provided", async () => {
-      const { user } = renderAccordion({ downloadUrl: undefined });
+    it("is omitted when canDownload is false", async () => {
+      const { user } = renderAccordion({ canDownload: false });
 
       await user.click(screen.getByRole("button", { expanded: false }));
       expect(
@@ -381,7 +396,7 @@ describe("LibraryItemAccordion", () => {
       expect(
         screen.queryByRole("button", { name: "Delete this version" })
       ).not.toBeInTheDocument();
-      // Download stays — gated only by `downloadUrl`, not edit permission.
+      // Download stays — gated only by `canDownload`, not edit permission.
       expect(
         screen.getByRole("button", { name: "Download installer" })
       ).toBeVisible();
@@ -402,16 +417,17 @@ describe("LibraryItemAccordion", () => {
 
   // Cross-cutting: every callback prop is optional, so a row with none wired
   // up must still click through every interactive element without throwing.
+  // (The status-badge — "Latest"/"Pinned"/"Major version" — is intentionally
+  // non-interactive without a handler; covered in the "badges" block above.)
   describe("no-handler safety", () => {
     it("does not throw when interactive elements are clicked without handlers", async () => {
       const { user } = renderAccordion({
         badgeState: "latest",
         labels: makeLabels(2),
-        // intentionally no onBadgeClick / onLabelCountClick / onDownloadClick /
-        // onTrashClick — exercising the optional-callback no-op paths
+        // intentionally no onLabelCountClick / onDownloadClick / onTrashClick —
+        // exercising the optional-callback no-op paths
       });
 
-      await user.click(screen.getByRole("button", { name: "Latest" }));
       await user.click(screen.getByRole("button", { name: "2" }));
       await user.click(screen.getByRole("button", { expanded: false }));
       await user.click(

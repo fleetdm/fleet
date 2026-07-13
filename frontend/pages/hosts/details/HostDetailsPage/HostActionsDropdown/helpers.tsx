@@ -388,10 +388,6 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     hostPlatform,
     hostMdmEnrollmentStatus,
     isManagedLocalAccountEnabled,
@@ -403,7 +399,12 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
     return false;
   }
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // Not role-gated: the backend authorizes this action for any user who can
+  // read the host (including observers), matching the other "show secret"
+  // actions above (disk encryption key, Recovery Lock password). Restricting
+  // it to admins/maintainers here hid the action from observers even though
+  // the API returns the managed account password to them.
+  return true;
 };
 
 const canClearPasscode = (config: IHostActionConfigOptions) => {
@@ -690,13 +691,6 @@ const modifyOptions = (
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "query")
     );
-
-    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
-    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
-      optionsToDisable = optionsToDisable.concat(
-        options.filter((option) => option.value === "mdmOff")
-      );
-    }
   }
 
   // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM

@@ -1,4 +1,21 @@
-No single management approach handles macOS, Windows, Linux, Android, and ChromeOS natively. Each platform brings its own enrollment model, configuration language, and reporting behavior. A security baseline that works on one may have no direct equivalent on another. This guide covers how endpoint management works across platforms, what to look for when evaluating approaches, and where mixed environments create the most friction.
+# Multi-platform endpoint management: best practices guide
+
+*Every OS in your fleet speaks its own management protocol, and the gaps between them are where compliance and security quietly break down. Here's how endpoint management actually works across platforms, and what to look for when one console has to cover all of them.*
+
+## Key takeaways
+
+- **No operating system manages the others.** macOS, Windows, Linux, Android, and ChromeOS each ship a distinct enrollment model, configuration language, and reporting cadence, so a control you enforce on one rarely maps cleanly to the next.
+- **Consumer defaults are the attack surface.** Devices arrive optimized for convenience, not enterprise security, and the same missing controls auditors flag are the ones attackers target. Management closes those gaps consistently across the fleet.
+- **The patterns that scale are operational, not product features.** Zero-touch provisioning, configuration baselines tied to a framework, phased rollouts, and configuration expressed as code are what keep a growing fleet manageable.
+- **A single console earns its keep in reporting and OS updates.** These are the two places mixed fleets otherwise fracture into per-platform evidence and update cadences you have to reconcile by hand.
+- **Point-in-time checks miss drift.** A device can pass compliance at enrollment and quietly diverge a week later, so continuous visibility between management cycles matters more than a clean snapshot.
+- **Transparency is a feature in mixed environments.** Open-source management lets you inspect the code, audit what data is collected, and adapt the tool to your workflows, and Fleet covers macOS, Windows, Linux, iOS, iPadOS, and Android from one console.
+
+<a purpose="cta-button" href="https://fleetdm.com/device-management">See multi-platform management in Fleet</a>
+
+No single management approach handles macOS, Windows, Linux, Android, and ChromeOS natively. Each platform brings its own enrollment model, configuration language, and reporting behavior, and a security baseline that works on one may have no direct equivalent on another.
+
+This guide covers how endpoint management works across platforms, what to look for when evaluating approaches, and where mixed environments create the most friction. Start with what the practice actually covers.
 
 ## What is endpoint management?
 
@@ -91,13 +108,13 @@ On mixed fleets, update management is also one of the first places where platfor
 
 In mixed environments, transparency into how management tooling works can matter as much as the feature list. Open-source endpoint management provides the ability to inspect the codebase, audit data collection behavior, and customize the solution to fit the environment. That means adapting the software to existing workflows rather than the other way around.
 
-Fleet is an open-source device management solution built on osquery. It supports macOS, Windows, Linux, iOS, iPadOS, and Android from a single console, with ChromeOS visibility through the Fleetd Chrome extension. Fleet's MDM delivers configuration profiles and commands, while Fleet's osquery-powered agent collects detailed device data that validates those configurations. On Linux, where no native MDM protocol exists, Fleet provides agent-based management that integrates with the [GitOps workflows](https://fleetdm.com/infrastructure-as-code) Linux and DevOps teams already use.
+Fleet is an open-source device management platform. It supports macOS, Windows, Linux, iOS, iPadOS, and Android from a single console, with ChromeOS visibility through the fleetd Chrome extension. Fleet's MDM delivers configuration profiles and commands, while Fleet's agent collects detailed device data that validates those configurations. On Linux, where no native MDM protocol exists, Fleet provides agent-based management that integrates with the [GitOps workflows](https://fleetdm.com/infrastructure-as-code) Linux and DevOps teams already use.
 
 ## Multi-platform device management with Fleet
 
-The unified reporting and change-control workflows discussed above are where a single-console approach pays off most. Fleet provides [device management](https://fleetdm.com/device-management) that ties intended configuration, the action sent to the device, and the device state reported afterward into one operational thread. That connection holds across macOS, Windows, Linux, iOS, iPadOS, and Android, with ChromeOS covered through the Fleetd Chrome extension for visibility.
+The unified reporting and change-control workflows discussed above are where a single-console approach pays off most. Fleet provides [device management](https://fleetdm.com/device-management) that ties intended configuration, the action sent to the device, and the device state reported afterward into one operational thread. That connection holds across macOS, Windows, Linux, iOS, iPadOS, and Android, with ChromeOS covered through the fleetd Chrome extension for visibility.
 
-Fleet supports zero-touch enrollment through Apple Business Manager and Windows Autopilot, and supports Android Enterprise enrollment for both BYOD work profiles and fully managed devices. Fleet also enforces OS updates across every supported platform. That means a minimum version and deadline on macOS, iOS, and iPadOS through DDM, a deadline and grace period on Windows, and systemUpdate configuration on fully managed Android devices.
+Fleet supports zero-touch enrollment through Apple Business Manager and Windows Autopilot, and supports Android Enterprise enrollment for both BYOD work profiles and fully managed devices. Fleet also enforces OS updates across the major platforms: a minimum version and deadline on macOS, iOS, and iPadOS through DDM, a deadline and grace period on Windows, and systemUpdate configuration on fully managed Android devices.
 
 Configuration management happens through fleetctl gitops, a built-in CLI that applies version-controlled YAML as part of a CI/CD pipeline. The YAML covers OS update deadlines, software packages, configuration profiles, policies, and scripts, and every change moves through pull-request review with an audit trail.
 
@@ -105,11 +122,11 @@ Beyond enrollment and update enforcement, Fleet delivers continuous compliance a
 
 - CIS Benchmark policies: Maintained queries for macOS and Windows that track new CIS document versions
 - Automated remediation: Software installs or scripts run automatically when a policy check fails
-- Continuous drift detection: Fleet's osquery-powered agent reports device state in near real-time
+- Continuous drift detection: Fleet's agent reports device state in near real-time
 - Vulnerability detection: Built-in matching against CVE data with EPSS scoring and the CISA Known Exploited Vulnerabilities catalog
 - Conditional access: Integrations with Microsoft Entra ID (macOS and Windows) and Okta (macOS) block access to protected apps when a device falls out of compliance
 
-Compliance reporting becomes a direct export, and security investigations move faster. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet fits your environment.
+Audit evidence comes from one place, and security investigations move faster. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet fits your environment.
 
 ## Frequently asked questions
 

@@ -152,6 +152,7 @@ export enum ActivityType {
   CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
+  EditedAppleAccountProvisioning = "edited_apple_account_provisioning",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
@@ -232,7 +233,15 @@ export type IHostPastActivityType =
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
-  | ActivityType.RanCustomMdmCommand;
+  | ActivityType.RanCustomMdmCommand
+  | ActivityType.RanAutomationWebhook
+  | ActivityType.RanAutomationTicket
+  | ActivityType.RanAutomationCalendarEvent
+  | ActivityType.RanAutomationConditionalAccess
+  | ActivityType.FailedAutomationWebhook
+  | ActivityType.FailedAutomationTicket
+  | ActivityType.FailedAutomationCalendarEvent
+  | ActivityType.FailedAutomationConditionalAccess;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -520,6 +529,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_logged_in: "User login: success",
   wiped_host: "Wiped host",
   failed_wipe: "Failed wipe",
+  edited_apple_account_provisioning: "Edited Apple account provisioning",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:

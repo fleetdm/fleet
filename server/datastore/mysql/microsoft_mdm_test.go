@@ -68,6 +68,8 @@ func TestMDMWindows(t *testing.T) {
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
+		{"TestWindowsMDMProfilePriorContentRetention", testWindowsMDMProfilePriorContentRetention},
+		{"TestWindowsMDMProfilePriorContentFallbackAndGC", testWindowsMDMProfilePriorContentFallbackAndGC},
 		{"TestBatchDeleteMultipleWindowsProfiles", testBatchDeleteMultipleWindowsProfiles},
 		{"TestDeleteWindowsProfileByTeamAndNameRetainsContent", testDeleteWindowsProfileByTeamAndNameRetainsContent},
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
@@ -2800,6 +2802,39 @@ func rawWindowsDeleteCommandForHostProfile(t *testing.T, ds *Datastore, hostUUID
 	return raws[0]
 }
 
+// truncateWindowsProfileTablesOnCleanup registers a cleanup that truncates the tables the cron-reconcile subtests dirty, so
+// sibling subtests can share the suite-created host and enrollment. Tables a caller additionally touched (e.g. label scoping)
+// are passed as extras.
+func truncateWindowsProfileTablesOnCleanup(t *testing.T, ds *Datastore, extraTables ...string) {
+	t.Helper()
+	t.Cleanup(func() {
+		TruncateTables(t, ds, append([]string{
+			"host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands",
+			"mdm_windows_configuration_profiles", "mdm_windows_configuration_profiles_prior_content",
+		}, extraTables...)...)
+	})
+}
+
+// rawWindowsCommandsForHost returns the raw SyncML of every command queued for the host. Edit-path supplemental <Delete>
+// commands are fire-and-forget (no host_mdm_windows_profiles row), so tests inspect the queue itself rather than joining
+// through host rows like rawWindowsDeleteCommandForHostProfile does.
+func rawWindowsCommandsForHost(t *testing.T, ds *Datastore, hostUUID string) []string {
+	t.Helper()
+	var raws [][]byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(t.Context(), q, &raws,
+			`SELECT wc.raw_command FROM windows_mdm_commands wc
+			JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
+			JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
+			WHERE mwe.host_uuid = ?`, hostUUID)
+	})
+	out := make([]string, len(raws))
+	for i, r := range raws {
+		out[i] = string(r)
+	}
+	return out
+}
+
 // windowsReconcileDeltasForTest computes the fleet-wide install/remove sets the way the cron does: one
 // GetWindowsProfileReconcileSnapshot covering all enrolled Windows hosts, fed through ComputeWindowsReconcileDeltas. Tests use it
 // to observe desired-state diffs against a real database.
@@ -3586,6 +3621,18 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	// uploaded_at is not the same
 	require.False(t, profNoTmN1.UploadedAt.Equal(profNoTmN1b.UploadedAt))
 
+	// the pre-edit content was retained so the profile-manager cron can build <Delete> commands for LocURIs the edit dropped
+	retainedSyncML := func(t *testing.T) [][]byte {
+		t.Helper()
+		var retained [][]byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &retained,
+				`SELECT syncml FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profNoTmN1.ProfileUUID)
+		})
+		return retained
+	}
+	require.Equal(t, [][]byte{profNoTmN1.SyncML}, retainedSyncML(t))
+
 	// wait a second to ensure timestamps in the DB change
 	time.Sleep(time.Second)
 
@@ -3594,6 +3641,9 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	cp2.UploadedAt = profNoTmN1b.UploadedAt
 	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2})
+
+	// a no-change update retains nothing new
+	require.Equal(t, [][]byte{profNoTmN1.SyncML}, retainedSyncML(t))
 
 	// create a profile for Apple and team 1 with that name works
 	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("N1", "I1", 1), nil)
@@ -5600,9 +5650,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	installWindowsProfilesAsVerified(t, ds, []string{h1.UUID, h2.UUID}, []string{profAUUID, profBUUID})
 
 	t.Run("shared LocURI not deleted when other profile uses it", func(t *testing.T) {
-		t.Cleanup(func() {
-			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles", "mdm_configuration_profile_labels", "label_membership")
-		})
+		truncateWindowsProfileTablesOnCleanup(t, ds, "mdm_configuration_profile_labels", "label_membership")
 
 		// Delete profile A. LocURI Y is shared with B, so only X should be deleted.
 		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -5625,9 +5673,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("label-scoped protector only protects hosts in scope", func(t *testing.T) {
-		t.Cleanup(func() {
-			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles", "mdm_configuration_profile_labels", "label_membership")
-		})
+		truncateWindowsProfileTablesOnCleanup(t, ds, "mdm_configuration_profile_labels", "label_membership")
 
 		// Profile A: LocURIs X, Y. Profile B: LocURI Y (shared), label-scoped to h1 only.
 		// When A is deleted:
@@ -5687,17 +5733,9 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 
 		// h1: profB applies (label-scoped, h1 is in the label).
 		// Y is protected, only X should be deleted.
-		var h1Cmds [][]byte
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &h1Cmds,
-				`SELECT wc.raw_command FROM windows_mdm_commands wc
-				JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
-				JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
-				WHERE mwe.host_uuid = ?`, h1.UUID)
-		})
+		h1Cmds := rawWindowsCommandsForHost(t, ds, h1.UUID)
 		require.NotEmpty(t, h1Cmds, "h1 should have delete commands")
-		for _, cmd := range h1Cmds {
-			s := string(cmd)
+		for _, s := range h1Cmds {
 			if strings.Contains(s, "<Delete") {
 				assert.Contains(t, s, "./Device/X", "h1: should delete X")
 				assert.NotContains(t, s, "./Device/Y", "h1: should NOT delete Y (protected by label-scoped profB)")
@@ -5706,18 +5744,10 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 
 		// h2: profB does NOT apply (h2 not in label).
 		// Y is NOT protected, both X and Y should be deleted.
-		var h2Cmds [][]byte
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &h2Cmds,
-				`SELECT wc.raw_command FROM windows_mdm_commands wc
-				JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
-				JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
-				WHERE mwe.host_uuid = ?`, h2.UUID)
-		})
+		h2Cmds := rawWindowsCommandsForHost(t, ds, h2.UUID)
 		require.NotEmpty(t, h2Cmds, "h2 should have delete commands")
 		h2HasX, h2HasY := false, false
-		for _, cmd := range h2Cmds {
-			s := string(cmd)
+		for _, s := range h2Cmds {
 			if strings.Contains(s, "<Delete") {
 				if strings.Contains(s, "./Device/X") {
 					h2HasX = true
@@ -5735,9 +5765,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	// "expected profiles from 1 team, got 2" because some hosts that once had
 	// the profile had since been moved to a different team.
 	t.Run("stale rows from moved host do not block delete", func(t *testing.T) {
-		t.Cleanup(func() {
-			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
-		})
+		truncateWindowsProfileTablesOnCleanup(t, ds)
 
 		prof := &fleet.MDMWindowsConfigProfile{Name: "no-team-prof", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Z</LocURI></Target><Data>1</Data></Item></Replace>`)}
 		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -5795,127 +5823,333 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			assert.Contains(t, string(rawCmd), "./Device/Z")
 		}
 	})
+
+	t.Run("stale-version host gets delete built from its own version", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
+
+		// v1 has X and Y; v2 drops Y. h1 applied v1 and went offline; h2 applied v2. Deleting the profile must build h1's
+		// <Delete> from v1 (X and Y) and h2's from v2 (X only): building both from the newest retained version would leave Y
+		// enforced on h1 forever.
+		syncMLv1 := []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>1</Data></Item></Replace>`)
+		syncMLv2 := []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace>`)
+
+		setProfile := func(t *testing.T, syncML []byte) {
+			t.Helper()
+			prof := &fleet.MDMWindowsConfigProfile{Name: "stale-prof", SyncML: syncML}
+			require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+				return err
+			}))
+		}
+		installVerified := func(t *testing.T, profUUID, hostUUID string, syncML []byte) {
+			t.Helper()
+			verified := fleet.MDMDeliveryVerified
+			checksum := md5.Sum(syncML) // nolint:gosec // checksum for comparison, not security
+			require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				{ProfileUUID: profUUID, ProfileName: "stale-prof", HostUUID: hostUUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: checksum[:]},
+			}))
+		}
+
+		setProfile(t, syncMLv1)
+		profUUID := windowsProfileUUIDByName(t, ds, "stale-prof")
+		installVerified(t, profUUID, h1.UUID, syncMLv1) // h1 applied v1, then went offline
+		setProfile(t, syncMLv2)                         // the edit retains v1; h1 never applies v2
+		installVerified(t, profUUID, h2.UUID, syncMLv2) // h2 applied v2
+
+		// Delete the profile (retains v2) and run the cron.
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{}, nil)
+			return err
+		})
+		require.NoError(t, err)
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+		h1Cmd := string(rawWindowsDeleteCommandForHostProfile(t, ds, h1.UUID, profUUID))
+		require.NotEmpty(t, h1Cmd, "h1 should have a queued <Delete>")
+		assert.Contains(t, h1Cmd, "./Device/X", "h1: X was in its installed version")
+		assert.Contains(t, h1Cmd, "./Device/Y", "h1: Y was in its installed version (v1) even though the newest version dropped it")
+
+		h2Cmd := string(rawWindowsDeleteCommandForHostProfile(t, ds, h2.UUID, profUUID))
+		require.NotEmpty(t, h2Cmd, "h2 should have a queued <Delete>")
+		assert.Contains(t, h2Cmd, "./Device/X", "h2: X was in its installed version")
+		assert.NotContains(t, h2Cmd, "./Device/Y", "h2: its installed version (v2) never had Y")
+	})
 }
 
+// testEditProfileDeletesRemovedLocURIs verifies the deferred removed-LocURI revert path; the request retains the removed LocURIs
+// keyed by the version they were removed from, and the profile-manager cron enqueues the <Delete> commands (with per-host
+// protection) when it re-installs the modified profile.
 func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
 
 	h1 := test.NewHost(t, ds, "host-edit-1", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h1)
 
-	t.Run("removed LocURI generates delete", func(t *testing.T) {
-		t.Cleanup(func() {
-			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
-		})
+	// installAsVerified marks the profile installed-and-verified on h1 with the checksum of the version it currently has, so the cron
+	// sees a content change (modify) and tags the install with that previous checksum.
+	installAsVerified := func(t *testing.T, profUUID, profName string, syncML []byte) {
+		t.Helper()
+		verified := fleet.MDMDeliveryVerified
+		checksum := md5.Sum(syncML) // nolint:gosec // checksum for comparison, not security
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{ProfileUUID: profUUID, ProfileName: profName, HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: checksum[:]},
+		}))
+	}
+
+	t.Run("removed LocURI generates delete via cron", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
 
 		// Profile with two LocURIs.
-		prof := &fleet.MDMWindowsConfigProfile{Name: "edit-test", SyncML: []byte(`<Atomic><Replace><Item><Target><LocURI>./Device/Keep</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Remove</LocURI></Target><Data>1</Data></Item></Replace></Atomic>`)}
+		oldSyncML := []byte(`<Atomic><Replace><Item><Target><LocURI>./Device/Keep</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Remove</LocURI></Target><Data>1</Data></Item></Replace></Atomic>`)
+		prof := &fleet.MDMWindowsConfigProfile{Name: "edit-test", SyncML: oldSyncML}
 
-		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
 			return err
-		})
-		require.NoError(t, err)
+		}))
+		profUUID := windowsProfileUUIDByName(t, ds, "edit-test")
 
-		var profUUID string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'edit-test'`)
-		})
-
-		// Simulate profile installed on the host.
-		verified := fleet.MDMDeliveryVerified
-		err = ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
-			{ProfileUUID: profUUID, ProfileName: "edit-test", HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
-		})
-		require.NoError(t, err)
+		// Simulate the original version installed on the host.
+		installAsVerified(t, profUUID, "edit-test", oldSyncML)
 
 		// Edit profile: remove ./Device/Remove.
 		profEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-test", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Keep</LocURI></Target><Data>1</Data></Item></Replace>`)}
-
-		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profEdited}, nil)
 			return err
-		})
-		require.NoError(t, err)
+		}))
 
-		// A delete command should have been generated for ./Device/Remove.
-		var deleteCommands [][]byte
+		// The request itself must NOT have fanned out any command: the work is deferred to the cron.
+		require.Empty(t, rawWindowsCommandsForHost(t, ds, h1.UUID), "batch-set must not enqueue commands; the cron does")
+
+		// The prior (pre-edit) version's content is retained, keyed by its checksum, so the cron can diff it against the new content.
+		var retained [][]byte
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &deleteCommands,
-				`SELECT wc.raw_command FROM windows_mdm_commands wc
-				JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
-				JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
-				WHERE mwe.host_uuid = ?
-				ORDER BY wc.created_at DESC`, h1.UUID)
+			return sqlx.SelectContext(ctx, q, &retained,
+				`SELECT syncml FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profUUID)
 		})
+		require.Len(t, retained, 1)
+		require.Equal(t, oldSyncML, retained[0])
+
+		// Run the cron: it re-installs the edited profile AND enqueues the <Delete> for ./Device/Remove.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		foundDelete := false
-		for _, cmd := range deleteCommands {
-			s := string(cmd)
+		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
 			if strings.Contains(s, "<Delete") && strings.Contains(s, "./Device/Remove") {
 				foundDelete = true
 				assert.NotContains(t, s, "./Device/Keep", "should not delete the kept LocURI")
 			}
 		}
-		assert.True(t, foundDelete, "expected a <Delete> command for ./Device/Remove")
+		assert.True(t, foundDelete, "expected the cron to enqueue a <Delete> command for ./Device/Remove")
 	})
 
 	t.Run("shared LocURI not deleted when editing", func(t *testing.T) {
-		t.Cleanup(func() {
-			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
-		})
+		truncateWindowsProfileTablesOnCleanup(t, ds)
 
-		// Profile A has LocURIs P, Q. Profile B has LocURI Q (shared).
-		profA := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/P</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Q</LocURI></Target><Data>1</Data></Item></Replace>`)}
+		// Profile A has LocURIs P, Q. Profile B has LocURI Q (shared) and is still desired on the host.
+		oldSyncMLA := []byte(`<Replace><Item><Target><LocURI>./Device/P</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Q</LocURI></Target><Data>1</Data></Item></Replace>`)
+		profA := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-A", SyncML: oldSyncMLA}
 		profBShared := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-B", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Q</LocURI></Target><Data>2</Data></Item></Replace>`)}
 
-		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profBShared}, nil)
 			return err
-		})
-		require.NoError(t, err)
+		}))
+		profAUUID := windowsProfileUUIDByName(t, ds, "edit-shared-A")
 
-		var profAUUID string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profAUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'edit-shared-A'`)
-		})
-
-		// Simulate profile A installed on the host.
-		verified := fleet.MDMDeliveryVerified
-		err = ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
-			{ProfileUUID: profAUUID, ProfileName: "edit-shared-A", HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
-		})
-		require.NoError(t, err)
+		// Simulate profile A installed on the host (B applies but assume not yet installed; it is still desired, which is what protects Q).
+		installAsVerified(t, profAUUID, "edit-shared-A", oldSyncMLA)
 
 		// Edit A to remove Q (shared with B), keep only P.
 		profAEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/P</LocURI></Target><Data>1</Data></Item></Replace>`)}
-
-		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profAEdited, profBShared}, nil)
 			return err
-		})
-		require.NoError(t, err)
+		}))
 
-		// Check that no delete was generated for Q (protected by B),
-		// and no delete was generated for P (still in the edited profile).
-		var deleteCommands [][]byte
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &deleteCommands,
-				`SELECT wc.raw_command FROM windows_mdm_commands wc
-				JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
-				JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
-				WHERE mwe.host_uuid = ?
-				ORDER BY wc.created_at DESC`, h1.UUID)
-		})
+		// Run the cron and confirm no <Delete> was generated for Q (protected by B, still desired) nor for P (still in edited A).
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
-		for _, cmd := range deleteCommands {
-			s := string(cmd)
+		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
 			if strings.Contains(s, "<Delete") {
 				assert.NotContains(t, s, "./Device/Q", "should NOT delete Q (protected by edit-shared-B)")
 				assert.NotContains(t, s, "./Device/P", "should NOT delete P (still in edited profile)")
 			}
 		}
 	})
+
+	t.Run("value-only edit reinstalls without any delete", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
+
+		oldSyncML := []byte(`<Replace><Item><Target><LocURI>./Device/Flip</LocURI></Target><Data>1</Data></Item></Replace>`)
+		prof := &fleet.MDMWindowsConfigProfile{Name: "edit-value-only", SyncML: oldSyncML}
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+			return err
+		}))
+		profUUID := windowsProfileUUIDByName(t, ds, "edit-value-only")
+		installAsVerified(t, profUUID, "edit-value-only", oldSyncML)
+
+		// The edit flips the Data value only; the LocURI set is unchanged, so the re-install alone corrects the device.
+		profEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-value-only", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Flip</LocURI></Target><Data>2</Data></Item></Replace>`)}
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profEdited}, nil)
+			return err
+		}))
+
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+		foundReinstall := false
+		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
+			require.NotContains(t, s, "<Delete", "a value-only edit must not generate any <Delete>")
+			if strings.Contains(s, "./Device/Flip") && strings.Contains(s, "<Data>2</Data>") {
+				foundReinstall = true
+			}
+		}
+		require.True(t, foundReinstall, "expected the cron to enqueue the re-install carrying the new value")
+	})
+
+	t.Run("scope-prefix respelling is not a removal", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
+
+		// Windows treats "./Device/Vendor/X", "./Vendor/X", "Device/Vendor/X" and "Vendor/X" as the same device-scoped node. v1
+		// spells Keep and Shared with the explicit "./Device/" scope and Drop without it; v2 keeps the Keep node under its implicit
+		// spelling and drops Shared and Drop. Only Drop may be deleted: Keep was respelled, not removed, and Shared is protected by
+		// edit-scope-B, which enforces the same node under yet another spelling.
+		oldSyncML := []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Keep</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Shared</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Vendor/MSFT/Drop</LocURI></Target><Data>1</Data></Item></Replace>`)
+		profA := &fleet.MDMWindowsConfigProfile{Name: "edit-scope-A", SyncML: oldSyncML}
+		profBShared := &fleet.MDMWindowsConfigProfile{Name: "edit-scope-B", SyncML: []byte(`<Replace><Item><Target><LocURI>Vendor/MSFT/Shared</LocURI></Target><Data>2</Data></Item></Replace>`)}
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profBShared}, nil)
+			return err
+		}))
+		profAUUID := windowsProfileUUIDByName(t, ds, "edit-scope-A")
+		installAsVerified(t, profAUUID, "edit-scope-A", oldSyncML)
+
+		profAEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-scope-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Vendor/MSFT/Keep</LocURI></Target><Data>1</Data></Item></Replace>`)}
+		require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profAEdited, profBShared}, nil)
+			return err
+		}))
+
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+		foundDelete := false
+		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
+			if strings.Contains(s, "<Delete") {
+				foundDelete = true
+				assert.Contains(t, s, "./Vendor/MSFT/Drop", "Drop is a real removal, sent in its original spelling")
+				assert.NotContains(t, s, "Keep", "Keep was respelled, not removed")
+				assert.NotContains(t, s, "Shared", "Shared is protected by edit-scope-B under a different spelling")
+			}
+		}
+		assert.True(t, foundDelete, "expected a <Delete> for the dropped LocURI")
+	})
+
+	t.Run("host that skipped a version diffs against its own installed version", func(t *testing.T) {
+		truncateWindowsProfileTablesOnCleanup(t, ds)
+
+		// v1 has A, B, C. v2 drops B and C. v3 re-adds B. The host stays on v1 the whole time (both edits land before it checks
+		// in), so the delete must be diff(v1, live v3) = {C}: B is back in v3 and must survive, A never left. Diffing v1 against
+		// v2's retained content instead would wrongly delete B.
+		syncMLv1 := []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/B</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/C</LocURI></Target><Data>1</Data></Item></Replace>`)
+		syncMLv2 := []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace>`)
+		syncMLv3 := []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/B</LocURI></Target><Data>1</Data></Item></Replace>`)
+
+		setProfile := func(t *testing.T, syncML []byte) {
+			t.Helper()
+			prof := &fleet.MDMWindowsConfigProfile{Name: "edit-skip-version", SyncML: syncML}
+			require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+				return err
+			}))
+		}
+
+		setProfile(t, syncMLv1)
+		installAsVerified(t, windowsProfileUUIDByName(t, ds, "edit-skip-version"), "edit-skip-version", syncMLv1)
+		setProfile(t, syncMLv2)
+		setProfile(t, syncMLv3)
+
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+
+		foundDelete := false
+		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
+			if strings.Contains(s, "<Delete") {
+				foundDelete = true
+				assert.Contains(t, s, "./Device/C", "C was dropped by v2 and never re-added")
+				assert.NotContains(t, s, "./Device/B", "B was re-added by v3; deleting it would revert a live setting")
+				assert.NotContains(t, s, "./Device/A", "A is present in every version")
+			}
+		}
+		assert.True(t, foundDelete, "expected a <Delete> for ./Device/C")
+	})
+}
+
+// testWindowsMDMProfilePriorContentRetention covers the unified prior-content retention used by both the delete and edit paths:
+// retaining live content keyed by (profile_uuid, checksum), the keyed lookup the cron uses, and the reference-counted GC.
+// retainWindowsProfilePriorContentDB is normally called inside batchSetMDMWindowsProfilesDB before content is deleted/overwritten.
+func testWindowsMDMProfilePriorContentRetention(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// retain reads from the live table, so create a real profile first, then retain its current content.
+	syncMLv1 := []byte(`<Replace><Item><Target><LocURI>./Device/V1</LocURI></Target><Data>1</Data></Item></Replace>`)
+	prof := &fleet.MDMWindowsConfigProfile{Name: "prior-content-1", SyncML: syncMLv1}
+	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+		return err
+	}))
+	profUUID := windowsProfileUUIDByName(t, ds, "prior-content-1")
+	checksumV1 := md5.Sum(syncMLv1) //nolint:gosec // checksum for comparison, not security
+
+	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profUUID})
+	}))
+
+	// Simulate a second retained version directly (e.g. a later edit retained v1 then v2 was overwritten).
+	checksumV2 := make([]byte, 16)
+	checksumV2[0] = 0x02
+	syncMLv2 := []byte(`<Replace><Item><Target><LocURI>./Device/V2</LocURI></Target><Data>1</Data></Item></Replace>`)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_windows_configuration_profiles_prior_content (profile_uuid, checksum, syncml) VALUES (?, ?, ?)`,
+			profUUID, checksumV2, syncMLv2)
+		return err
+	})
+
+	// Keyed lookup returns the exact requested versions; a missing key is simply absent.
+	got, err := ds.GetWindowsMDMProfilePriorContents(ctx, []fleet.MDMWindowsProfileVersionKey{
+		{ProfileUUID: profUUID, Checksum: checksumV1[:]},
+		{ProfileUUID: profUUID, Checksum: checksumV2},
+		{ProfileUUID: profUUID, Checksum: make([]byte, 16)}, // never stored
+	})
+	require.NoError(t, err)
+	byChecksum := make(map[string][]byte, len(got))
+	for _, g := range got {
+		require.Equal(t, profUUID, g.ProfileUUID)
+		byChecksum[string(g.Checksum)] = g.SyncML
+	}
+	require.Len(t, byChecksum, 2)
+	require.Equal(t, syncMLv1, byChecksum[string(checksumV1[:])])
+	require.Equal(t, syncMLv2, byChecksum[string(checksumV2)])
+
+	// Reference-counted GC: a host still on v1 keeps that row; v2 (no host) is collected.
+	h := test.NewHost(t, ds, "host-retention", "10.0.0.99", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h)
+	verified := fleet.MDMDeliveryVerified
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+		{ProfileUUID: profUUID, ProfileName: "prior-content-1", HostUUID: h.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: checksumV1[:]},
+	}))
+
+	require.NoError(t, ds.CleanupWindowsMDMProfilePriorContent(ctx))
+
+	var remaining [][]byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT checksum FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profUUID)
+	})
+	require.Equal(t, [][]byte{checksumV1[:]}, remaining, "v1 retained (host still on it), v2 collected")
 }
 
 // testBatchDeleteMultipleWindowsProfiles exercises the multi-profile delete path in
@@ -6045,7 +6279,7 @@ func testDeleteWindowsProfileByTeamAndNameRetainsContent(t *testing.T, ds *Datas
 	var retained []byte
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &retained,
-			`SELECT syncml FROM mdm_windows_configuration_profiles_pending_delete WHERE profile_uuid = ?`, profUUID)
+			`SELECT syncml FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profUUID)
 	})
 	require.Contains(t, string(retained), "./Device/TN", "deleted profile content should be retained for the reconciler")
 
@@ -7117,25 +7351,28 @@ func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err), "two Windows hosts share the serial; method must refuse to pick")
 }
 
-// TestWindowsMDMPendingDeleteRetentionAndGC covers the delete profile retention table: GetMDMWindowsProfilesContents falls back to retained
-// content for deleted profiles, and CleanupWindowsMDMPendingDeleteProfiles garbage-collects reference-counted (a row is removed only
-// once no host_mdm_windows_profiles row still references the profile, so retained content survives as long as a host still needs it).
-func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
-	ds := CreateMySQLDS(t)
+// testWindowsMDMProfilePriorContentFallbackAndGC covers the unified prior-content retention table: GetMDMWindowsProfilesContents falls
+// back to retained content for deleted profiles, and CleanupWindowsMDMProfilePriorContent garbage-collects reference-counted on
+// (profile_uuid, checksum) (a version is removed only once no host_mdm_windows_profiles row still has it installed).
+func testWindowsMDMProfilePriorContentFallbackAndGC(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// w-ref is still referenced by a host that has not yet received its <Delete>; w-orphan is referenced by no host.
+	refChecksum := make([]byte, 16)
+	refChecksum[0] = 0x01
+	orphanChecksum := make([]byte, 16)
+	orphanChecksum[0] = 0x02
+
+	// w-ref's version is still installed on a host that has not yet received its <Delete>; w-orphan's is installed nowhere.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO mdm_windows_configuration_profiles_pending_delete
-			(profile_uuid, team_id, name, syncml) VALUES
-			('w-ref', 0, 'ref', '<Replace/>'),
-			('w-orphan', 0, 'orphan', '<Replace/>')`)
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_windows_configuration_profiles_prior_content
+			(profile_uuid, checksum, syncml) VALUES (?, ?, '<Replace/>'), (?, ?, '<Replace/>')`,
+			"w-ref", refChecksum, "w-orphan", orphanChecksum)
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
-			(host_uuid, profile_uuid, command_uuid, profile_name) VALUES
-			('host-still-pending', 'w-ref', 'cmd-1', 'ref')`)
+			(host_uuid, profile_uuid, command_uuid, profile_name, checksum) VALUES
+			('host-still-pending', 'w-ref', 'cmd-1', 'ref', ?)`, refChecksum)
 		return err
 	})
 
@@ -7144,15 +7381,15 @@ func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, contents, 2)
 	require.Equal(t, []byte("<Replace/>"), contents["w-ref"].SyncML)
-	require.NotEmpty(t, contents["w-ref"].Checksum)
+	require.Equal(t, refChecksum, contents["w-ref"].Checksum)
 
-	// Reference-counted GC removes only the orphan; w-ref survives because a host still references it.
-	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx))
+	// Reference-counted GC removes only the orphan version; w-ref survives because a host still has it installed.
+	require.NoError(t, ds.CleanupWindowsMDMProfilePriorContent(ctx))
 
 	var remaining []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &remaining,
-			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_prior_content ORDER BY profile_uuid`)
 	})
 	require.Equal(t, []string{"w-ref"}, remaining)
 
@@ -7161,10 +7398,10 @@ func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = 'w-ref'`)
 		return err
 	})
-	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx))
+	require.NoError(t, ds.CleanupWindowsMDMProfilePriorContent(ctx))
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &remaining,
-			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_prior_content ORDER BY profile_uuid`)
 	})
 	require.Empty(t, remaining)
 }

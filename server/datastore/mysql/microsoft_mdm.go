@@ -9,8 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
-	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -736,6 +734,18 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 	})
 }
 
+// MDMWindowsInsertCommandForHostUUIDs is the fire-and-forget enqueue used by the profile-manager cron to deliver supplemental
+// <Delete> commands (e.g. LocURIs removed from an edited profile) to a bounded batch of hosts. The command stands alone and is
+// not tracked per host.
+func (ds *Datastore) MDMWindowsInsertCommandForHostUUIDs(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, cmd)
+	})
+}
+
 // MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
 // (identified by host UUID or MDM device ID). All commands are inserted in one transaction: either every row
 // is committed or none. Used by the ESP finalize path so the dropped-response retry safety net can't end up
@@ -1076,9 +1086,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			args = append(args, enrolledDevice.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
 
-			// if the command is a Wipe, keep track of it so we can update
-			// host_mdm_actions accordingly.
-			if strings.Contains(cmd.TargetLocURI, "/Device/Vendor/MSFT/RemoteWipe/") {
+			// if the command is a Wipe, keep track of it so we can update host_mdm_actions accordingly.
+			if fleet.LocURITargetsReservedNode(cmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI) {
 				wipeCmdUUID = cmd.CommandUUID
 				wipeCmdStatus = statusCode
 			}
@@ -1157,6 +1166,36 @@ ON DUPLICATE KEY UPDATE
 	return result, nil
 }
 
+// renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
+// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep).
+func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, profileUUIDs []string) (map[string]struct{}, error) {
+	if len(profileUUIDs) == 0 {
+		return nil, nil
+	}
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT profile_uuid
+		FROM host_mdm_managed_certificates
+		WHERE host_uuid = ? AND profile_uuid IN (?) AND type IN (?)`,
+		hostUUID, profileUUIDs, caTypeStrs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building managed cert profile query")
+	}
+	var uuids []string
+	if err := sqlx.SelectContext(ctx, tx, &uuids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting renewal-ID managed cert profile uuids")
+	}
+	result := make(map[string]struct{}, len(uuids))
+	for _, u := range uuids {
+		result[u] = struct{}{}
+	}
+	return result, nil
+}
+
 // updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential
 // profile payloads and updates the corresponding `status` and `detail` columns
 // in `host_mdm_windows_profiles`
@@ -1217,12 +1256,41 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		return ctxerr.Wrap(ctx, err, "running query to get matching profiles")
 	}
 
+	// Proxied SCEP profiles must not report "verified" off the device's SyncML ACK alone: a 2xx ACK only means the
+	// SCEP <Exec> was accepted by the CSP, not that a certificate was issued (the exchange runs asynchronously after).
+	// Downgrade those installs to "verifying" and let UpdateHostCertificates flip them to "verified" once the matching
+	// certificate is observed on the host. Detect them by an existing renewal-ID-backed managed-certificate row (custom
+	// SCEP proxy, NDES, or Smallstep).
+	var verifiedInstallProfileUUIDs []string
+	for _, hp := range matchingHostProfiles {
+		payload := uuidsToPayloads[hp.CommandUUID]
+		if payload == nil {
+			continue
+		}
+		if hp.OperationType == fleet.MDMOperationTypeInstall && payload.Status != nil && *payload.Status == fleet.MDMDeliveryVerified {
+			verifiedInstallProfileUUIDs = append(verifiedInstallProfileUUIDs, hp.ProfileUUID)
+		}
+	}
+	scepProxyProfileUUIDs, err := renewalIDManagedCertProfileUUIDsDB(ctx, tx, hostUUID, verifiedInstallProfileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for proxied SCEP managed certificate profiles")
+	}
+
 	// Partition matching entries into upsert and delete buckets.
 	var sb strings.Builder
 	args = args[:0]
 	var deleteCommandUUIDs []string
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
+		if payload == nil {
+			continue
+		}
+		if hp.OperationType == fleet.MDMOperationTypeInstall && payload.Status != nil && *payload.Status == fleet.MDMDeliveryVerified {
+			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok {
+				verifying := fleet.MDMDeliveryVerifying
+				payload.Status = &verifying
+			}
+		}
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
 			// Don't retry remove operations; removal is best-effort. Only retry install operations up to the max retry count.
 			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxWindowsProfileRetries {
@@ -1273,6 +1341,22 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 	}
 
+	return nil
+}
+
+func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
+	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
+	const stmt = `
+		UPDATE host_mdm_windows_profiles
+		SET status = ?, detail = ?
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
+			AND (status IS NULL OR status <> ?)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+	}
 	return nil
 }
 
@@ -1661,7 +1745,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Retain the profile's content so the profile-manager cron can build <Delete> commands after the definition is gone.
 		// This must run before the definition row is deleted. deleteMDMWindowsConfigProfile returns notFound if it does not exist.
-		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, []string{profileUUID}); err != nil {
+		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profileUUID}); err != nil {
 			return err
 		}
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
@@ -1717,195 +1801,50 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	return nil
 }
 
-// copyWindowsConfigProfilesToPendingDeleteDB retains the content of about-to-be-deleted Windows config profiles so the
-// profile-manager cron can build <Delete> commands for them after the live definition rows are gone. It MUST run inside the
-// delete transaction BEFORE the definition rows are deleted, since it copies straight from the live table. ON DUPLICATE KEY
-// UPDATE refreshes created_at so a re-delete of the same profile_uuid.
-func (ds *Datastore) copyWindowsConfigProfilesToPendingDeleteDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+// retainWindowsProfilePriorContentDB retains the CURRENT live content of the given Windows config profiles, keyed by
+// (profile_uuid, checksum), so the profile-manager cron can build <Delete> commands from the exact version a host has after the
+// live definition is gone (delete) or overwritten (edit).
+func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
 	if len(profileUUIDs) == 0 {
 		return nil
 	}
 	stmt, args, err := sqlx.In(`
-		INSERT INTO mdm_windows_configuration_profiles_pending_delete (profile_uuid, team_id, name, syncml)
-		SELECT profile_uuid, team_id, name, syncml
+		INSERT IGNORE INTO mdm_windows_configuration_profiles_prior_content (profile_uuid, checksum, syncml)
+		SELECT profile_uuid, checksum, syncml
 		FROM mdm_windows_configuration_profiles
-		WHERE profile_uuid IN (?)
-		ON DUPLICATE KEY UPDATE created_at = NOW(6)`, profileUUIDs)
+		WHERE profile_uuid IN (?)`, profileUUIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN for pending-delete copy")
+		return ctxerr.Wrap(ctx, err, "building IN for prior-content retention")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "copying windows config profiles to pending delete")
+		return ctxerr.Wrap(ctx, err, "retaining windows config profile prior content")
 	}
 	return nil
 }
 
-// checkAndEnqueueLabelScopedDeletes identifies which protecting profiles are
-// label-scoped and, if any, sends supplemental <Delete> commands for hosts
-// where the protector doesn't apply.
-func (ds *Datastore) checkAndEnqueueLabelScopedDeletes(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	toCheck []locURIProtectionParams,
-	locURIToProtectingProfiles map[string][]string,
-) error {
-	// Collect all protecting profile UUIDs.
-	allProtectingUUIDs := make(map[string]struct{})
-	for _, uuids := range locURIToProtectingProfiles {
-		for _, u := range uuids {
-			allProtectingUUIDs[u] = struct{}{}
-		}
-	}
-	if len(allProtectingUUIDs) == 0 {
-		return nil
+// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
+// Reader-backed; callers that cannot tolerate a replica-lag miss (the reconcile pass consumes each modify-install once) wrap the
+// context with ctxdb.RequirePrimary.
+func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
+	if len(keys) == 0 {
+		return nil, nil
 	}
 
-	// Check which are label-scoped.
-	lsStmt, lsArgs, lsErr := sqlx.In(
-		`SELECT DISTINCT windows_profile_uuid FROM mdm_configuration_profile_labels
-		WHERE windows_profile_uuid IN (?)`, slices.Collect(maps.Keys(allProtectingUUIDs)))
-	if lsErr != nil {
-		return ctxerr.Wrap(ctx, lsErr, "building IN for label-scoped profile check")
-	}
-	var labelScoped []string
-	if err := sqlx.SelectContext(ctx, tx, &labelScoped, lsStmt, lsArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "querying label-scoped profiles")
+	// Composite (profile_uuid, checksum) IN ((?,?),...). The placeholder structure is constant, so this is a parameterized query.
+	placeholders := strings.TrimSuffix(strings.Repeat("(?,?),", len(keys)), ",")
+	stmt := `SELECT profile_uuid, checksum, syncml
+		FROM mdm_windows_configuration_profiles_prior_content
+		WHERE (profile_uuid, checksum) IN (` + placeholders + `)`
+	args := make([]any, 0, len(keys)*2)
+	for _, k := range keys {
+		args = append(args, k.ProfileUUID, k.Checksum)
 	}
 
-	labelScopedProfiles := make(map[string]struct{})
-	for _, u := range labelScoped {
-		labelScopedProfiles[u] = struct{}{}
+	var rows []fleet.MDMWindowsProfilePriorContent
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting windows profile prior content")
 	}
-	if len(labelScopedProfiles) == 0 {
-		return nil
-	}
-
-	return ds.enqueueSupplementalDeletesForLabelScopedProtection(
-		ctx, tx, toCheck, locURIToProtectingProfiles, labelScopedProfiles)
-}
-
-// locURIProtectionParams holds the data needed by enqueueSupplementalDeletesForLabelScopedProtection.
-type locURIProtectionParams struct {
-	// protectedURIs are the LocURIs from this profile that were filtered
-	// out by the team-wide protection in pass 1 (i.e., another profile in
-	// the team also targets them). Pass 2 checks per-host if the protector
-	// actually applies.
-	protectedURIs []string
-	hostUUIDs     []string
-}
-
-// enqueueSupplementalDeletesForLabelScopedProtection handles pass 2 of
-// LocURI protection. For each profile being deleted, it checks if any
-// protected LocURIs are only protected by label-scoped profiles. If a
-// label-scoped protector doesn't actually apply to a host, a supplemental
-// <Delete> is enqueued for that host.
-//
-// Label type handling (include-any, include-all, exclude-any): this function
-// does NOT re-implement label matching logic. Instead, it checks
-// host_mdm_windows_profiles for an existing install assignment. The reconciler
-// already evaluated all label types when it created those rows, so a row with
-// operation_type='install' means the profile applies to that host regardless
-// of how the label matching was computed.
-//
-// This is only called when there are protected LocURIs AND at least one
-// protecting profile is label-scoped, which is rare.
-func (ds *Datastore) enqueueSupplementalDeletesForLabelScopedProtection(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	profilesToCheck []locURIProtectionParams,
-	locURIToProtectingProfiles map[string][]string,
-	labelScopedProfiles map[string]struct{},
-) error {
-	for _, p := range profilesToCheck {
-		if len(p.protectedURIs) == 0 || len(p.hostUUIDs) == 0 {
-			continue
-		}
-
-		// Filter to LocURIs where at least one protector is label-scoped.
-		var labelProtectedURIs []string
-		for _, uri := range p.protectedURIs {
-			for _, protector := range locURIToProtectingProfiles[uri] {
-				if _, isScoped := labelScopedProfiles[protector]; isScoped {
-					labelProtectedURIs = append(labelProtectedURIs, uri)
-					break
-				}
-			}
-		}
-		if len(labelProtectedURIs) == 0 {
-			continue
-		}
-
-		// Batch: get which label-scoped protecting profiles are installed on which hosts.
-		type hostProfile struct {
-			HostUUID    string `db:"host_uuid"`
-			ProfileUUID string `db:"profile_uuid"`
-		}
-		var hostProfs []hostProfile
-		hpStmt, hpArgs, hpErr := sqlx.In(
-			`SELECT host_uuid, profile_uuid FROM host_mdm_windows_profiles
-			WHERE host_uuid IN (?) AND profile_uuid IN (?) AND operation_type = 'install'`,
-			p.hostUUIDs, slices.Collect(maps.Keys(labelScopedProfiles)))
-		if hpErr != nil {
-			return ctxerr.Wrap(ctx, hpErr, "building IN for host-profile label check")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &hostProfs, hpStmt, hpArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "querying host-profile assignments for label check")
-		}
-
-		hostHasProfile := make(map[string]map[string]struct{})
-		for _, hp := range hostProfs {
-			if hostHasProfile[hp.HostUUID] == nil {
-				hostHasProfile[hp.HostUUID] = make(map[string]struct{})
-			}
-			hostHasProfile[hp.HostUUID][hp.ProfileUUID] = struct{}{}
-		}
-
-		// For each host, determine which protected LocURIs are safe to delete.
-		// Group hosts by their safe-URI set so we can batch the command insertion.
-		// Key: sorted comma-joined URIs; Value: list of host UUIDs.
-		hostsByURISet := make(map[string][]string)
-		for _, hostUUID := range p.hostUUIDs {
-			var hostSafeURIs []string
-			for _, uri := range labelProtectedURIs {
-				protectorApplies := false
-				for _, protectorUUID := range locURIToProtectingProfiles[uri] {
-					if _, isScoped := labelScopedProfiles[protectorUUID]; !isScoped {
-						protectorApplies = true // non-label profile, always applies
-						break
-					}
-					if _, ok := hostHasProfile[hostUUID][protectorUUID]; ok {
-						protectorApplies = true
-						break
-					}
-				}
-				if !protectorApplies {
-					hostSafeURIs = append(hostSafeURIs, uri)
-				}
-			}
-			if len(hostSafeURIs) > 0 {
-				slices.Sort(hostSafeURIs)
-				key := strings.Join(hostSafeURIs, ",")
-				hostsByURISet[key] = append(hostsByURISet[key], hostUUID)
-			}
-		}
-
-		// One command per unique URI set, shared across all hosts in the group.
-		for uriKey, hostUUIDs := range hostsByURISet {
-			uris := strings.Split(uriKey, ",")
-			cmdUUID := uuid.NewString()
-			deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(uris, cmdUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building supplemental delete command")
-			}
-			if deleteCmd == nil {
-				continue
-			}
-			if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
-				return ctxerr.Wrap(ctx, err, "enqueuing supplemental delete for label-scoped LocURI")
-			}
-		}
-	}
-	return nil
+	return rows, nil
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
@@ -1929,7 +1868,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Retain the profile's content for the cron to build <Delete> commands from, before the definition row is deleted (#46993).
-		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
+		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profile.ProfileUUID); err != nil {
@@ -2322,8 +2261,7 @@ func (ds *Datastore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, prof
 }
 
 // GetMDMWindowsProfilesContents returns the SyncML (and checksum) for the given profile UUIDs. Live profiles are looked up first; for
-// any UUID not found live it falls back to mdm_windows_configuration_profiles_pending_delete. The fallback is safe because a deleted
-// UUID is only ever a remove target, never an install target.
+// any UUID not found live it falls back to the most recently retained version in mdm_windows_configuration_profiles_prior_content.
 func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 	if len(uuids) == 0 {
 		return nil, nil
@@ -2355,7 +2293,7 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 		}
 	}
 
-	// Fall back to the pending-delete retention table for any UUID not found live (deleted profiles still being drained by the cron).
+	// Fall back to retained prior content for any UUID not found live (deleted profiles still being drained by the cron).
 	var missing []string
 	for _, u := range uuids {
 		if _, ok := results[u]; !ok {
@@ -2363,21 +2301,23 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 		}
 	}
 	if len(missing) > 0 {
-		pdStmt, pdArgs, pdErr := sqlx.In(`
-			SELECT profile_uuid, syncml, UNHEX(MD5(syncml)) AS checksum
-			FROM mdm_windows_configuration_profiles_pending_delete WHERE profile_uuid IN (?)`, missing)
-		if pdErr != nil {
-			return nil, ctxerr.Wrap(ctx, pdErr, "building in statement for pending-delete contents")
+		pcStmt, pcArgs, pcErr := sqlx.In(`
+			SELECT profile_uuid, syncml, checksum
+			FROM mdm_windows_configuration_profiles_prior_content
+			WHERE profile_uuid IN (?)
+			ORDER BY created_at ASC, checksum ASC`, missing)
+		if pcErr != nil {
+			return nil, ctxerr.Wrap(ctx, pcErr, "building in statement for prior-content contents")
 		}
-		var pending []struct {
+		var prior []struct {
 			ProfileUUID string `db:"profile_uuid"`
 			SyncML      []byte `db:"syncml"`
 			Checksum    []byte `db:"checksum"`
 		}
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &pending, pdStmt, pdArgs...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "running pending-delete contents query")
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &prior, pcStmt, pcArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "running prior-content contents query")
 		}
-		for _, p := range pending {
+		for _, p := range prior {
 			results[p.ProfileUUID] = fleet.MDMWindowsProfileContents{
 				SyncML:   p.SyncML,
 				Checksum: p.Checksum,
@@ -2536,7 +2476,7 @@ INSERT INTO
 
 		// An OS-update profile is tracked as the team's OS-update profile within
 		// this transaction so it rolls back together on failure.
-		if bytes.Contains(cp.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		if fleet.ProfileTargetsReservedLocURI(cp.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 			if err := trackWindowsUpdateConfigProfileDB(ctx, tx, teamID, profileUUID); err != nil {
 				return err
 			}
@@ -2686,30 +2626,55 @@ ON DUPLICATE KEY UPDATE
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
-	if err != nil {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// For an existing profile whose content is changing, retain the outgoing version before the upsert overwrites it, so the
+		// profile-manager cron can build <Delete> commands for LocURIs the new content drops (the same guarantee as
+		// batchSetMDMWindowsProfilesDB's edit path). Reserved profiles updated through this method (e.g. Windows OS updates) are
+		// delivered and reconciled like any other profile, so they need the same retention.
+		var existing struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		err := sqlx.GetContext(ctx, tx, &existing,
+			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, teamID, cp.Name)
 		switch {
-		case IsDuplicate(err):
+		case err == nil:
+			if !bytes.Equal(existing.SyncML, cp.SyncML) {
+				if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{existing.ProfileUUID}); err != nil {
+					return ctxerr.Wrap(ctx, err, "retaining prior content for updated profile")
+				}
+			}
+		case errors.Is(err, sql.ErrNoRows):
+			// new profile, nothing to retain
+		default:
+			return ctxerr.Wrap(ctx, err, "loading existing windows profile before upsert")
+		}
+
+		res, err := tx.ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		if err != nil {
+			switch {
+			case IsDuplicate(err):
+				return &existsError{
+					ResourceType: "MDMWindowsConfigProfile.Name",
+					Identifier:   cp.Name,
+					TeamID:       cp.TeamID,
+				}
+			default:
+				return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+			}
+		}
+
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
 			return &existsError{
 				ResourceType: "MDMWindowsConfigProfile.Name",
 				Identifier:   cp.Name,
 				TeamID:       cp.TeamID,
 			}
-		default:
-			return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
 		}
-	}
 
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		return &existsError{
-			ResourceType: "MDMWindowsConfigProfile.Name",
-			Identifier:   cp.Name,
-			TeamID:       cp.TeamID,
-		}
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // batchSetMDMWindowsProfilesDB must be called from inside a transaction.
@@ -2850,7 +2815,7 @@ ON DUPLICATE KEY UPDATE
 	// Step 2: Retain the content of profiles being deleted so the profile-manager cron can build <Delete> commands after the
 	// definition rows are gone. Must run before Step 3 deletes the definitions.
 	if len(deletedProfileUUIDs) > 0 {
-		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, deletedProfileUUIDs); err != nil {
+		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "retain deleted profiles for async removal")
 		}
 	}
@@ -2878,150 +2843,21 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
-	// For profiles being updated (same name, different content), diff the old
-	// and new LocURIs. Generate <Delete> commands for LocURIs that were removed
-	// so the device reverts those settings.
+	// For profiles being updated (same name, different content), retain the OUTGOING version's content before the upsert below
+	// overwrites it. A re-install only Replaces/Adds the new content; it never reverts a LocURI the edit dropped, so the device must
+	// receive a <Delete> for each removed LocURI. The profile-manager cron, when it re-installs the modified profile, diffs this
+	// retained prior version against the new content and enqueues the <Delete> commands asynchronously in its bounded batches, with
+	// per-host LocURI protection. This reuses the same retention table and async path as profile deletion.
 	//
-	// This is an edge case (most edits change values, not remove LocURIs).
-	// The delete commands are best-effort and currently not visible to the
-	// IT admin in the UI or API. They are fire-and-forget MDM commands
-	// with no corresponding host_mdm_windows_profiles status entry.
-
-	// Two-pass LocURI protection for edited profiles:
-	// Pass 1 (team-wide): Build protection set from all retained profiles.
-	// Pass 2 (per-host): For protected LocURIs where the protector is
-	//   label-scoped, check per-host if it actually applies.
-	//
-	// Known limitation: pass 2 runs before the INSERT (line ~2967) and
-	// batchSetLabelAndVariableAssociations (line ~2987), so:
-	//  (a) Brand-new profiles don't have UUIDs yet (generated by MySQL on
-	//      INSERT), so they appear in allRetainedURIs (pass 1 protects their
-	//      LocURIs) but NOT in editLocURIProtectors. Pass 2 can't check their
-	//      label scope.
-	//  (b) Existing profiles whose label associations change in the same batch
-	//      are checked against stale mdm_configuration_profile_labels rows and
-	//      stale host_mdm_windows_profiles install rows.
-	// In both cases the result is over-protection: the delete is suppressed on
-	// all hosts even if the protector doesn't apply. The setting stays enforced
-	// on hosts outside the protector's label scope. Fixing this requires
-	// restructuring so pass 2 runs after the INSERT and label association.
-	allRetainedURIs := make(map[string]struct{})
-	// Track which profile UUID protects which LocURI for pass 2.
-	editLocURIProtectors := make(map[string][]string) // uri -> []profileUUID
-	// Build name-to-UUID lookup for incoming profiles.
-	incomingNameToUUID := make(map[string]string)
-	for _, ep := range existingProfiles {
-		incomingNameToUUID[ep.Name] = ep.ProfileUUID
-	}
-	for _, p := range incomingProfs {
-		// Normalize SCEP placeholders so LocURIs are compared on resolved
-		// paths, consistent with the delete path in cancelWindowsHostInstallsForDeletedMDMProfiles.
-		resolvedSyncML := p.SyncML
-		if puuid, ok := incomingNameToUUID[p.Name]; ok {
-			resolvedSyncML = fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(p.SyncML, []byte(puuid))
-		}
-		for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolvedSyncML) {
-			allRetainedURIs[uri] = struct{}{}
-			if puuid, ok := incomingNameToUUID[p.Name]; ok {
-				editLocURIProtectors[uri] = append(editLocURIProtectors[uri], puuid)
-			}
-		}
-	}
-	// Include LocURIs from reserved profiles that are always kept. Reserved
-	// profiles may not be in existingProfiles (which only loads profiles
-	// matching incomingNames), so query them separately.
-	reservedNames := mdm.ListFleetReservedWindowsProfileNames()
-	if len(reservedNames) > 0 {
-		rpStmt, rpArgs, rpErr := sqlx.In(
-			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name IN (?)`,
-			profTeamID, reservedNames)
-		if rpErr != nil {
-			return false, ctxerr.Wrap(ctx, rpErr, "building IN for reserved profiles query")
-		}
-		var reservedProfiles []struct {
-			ProfileUUID string `db:"profile_uuid"`
-			SyncML      []byte `db:"syncml"`
-		}
-		if err := sqlx.SelectContext(ctx, tx, &reservedProfiles, rpStmt, rpArgs...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "querying reserved profiles for LocURI protection")
-		}
-		for _, rp := range reservedProfiles {
-			resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(rp.SyncML, []byte(rp.ProfileUUID))
-			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
-				allRetainedURIs[uri] = struct{}{}
-				editLocURIProtectors[uri] = append(editLocURIProtectors[uri], rp.ProfileUUID)
-			}
-		}
-	}
-
+	// This is an edge case (most edits change values, not remove LocURIs), and the reverts are best-effort, not surfaced in the UI/API.
+	var editedProfileUUIDs []string
 	for _, existing := range existingProfiles {
-		incoming := incomingProfs[existing.Name]
-		if incoming == nil || bytes.Equal(existing.SyncML, incoming.SyncML) {
-			continue
+		if incoming := incomingProfs[existing.Name]; incoming != nil && !bytes.Equal(existing.SyncML, incoming.SyncML) {
+			editedProfileUUIDs = append(editedProfileUUIDs, existing.ProfileUUID)
 		}
-
-		// Normalize SCEP placeholders for consistent LocURI comparison.
-		resolvedOld := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(existing.SyncML, []byte(existing.ProfileUUID))
-		resolvedNew := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(incoming.SyncML, []byte(existing.ProfileUUID))
-		oldURIs := fleet.ExtractLocURIsFromProfileBytes(resolvedOld)
-		newURIs := fleet.ExtractLocURIsFromProfileBytes(resolvedNew)
-
-		newSet := make(map[string]bool, len(newURIs))
-		for _, u := range newURIs {
-			newSet[u] = true
-		}
-
-		// Pass 1: team-wide protection.
-		var removedURIs []string
-		var protectedURIs []string
-		for _, u := range oldURIs {
-			if newSet[u] {
-				continue // still in updated profile
-			}
-			if _, ok := allRetainedURIs[u]; ok {
-				protectedURIs = append(protectedURIs, u)
-			} else {
-				removedURIs = append(removedURIs, u)
-			}
-		}
-
-		// Find hosts that have this profile installed (not pending removal).
-		var hostUUIDs []string
-		if len(removedURIs) > 0 || len(protectedURIs) > 0 {
-			if err := sqlx.SelectContext(ctx, tx, &hostUUIDs,
-				`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND operation_type = ? AND status IS NOT NULL`,
-				existing.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "selecting hosts for edited profile LocURI cleanup")
-			}
-		}
-
-		// Send deletes for unprotected LocURIs (applies to all hosts).
-		if len(removedURIs) > 0 && len(hostUUIDs) > 0 {
-			cmdUUID := uuid.NewString()
-			deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(removedURIs, cmdUUID)
-			if err == nil && deleteCmd != nil {
-				ds.logger.InfoContext(ctx, "sending delete commands for LocURIs removed from edited profile",
-					"profile.name", existing.Name, "profile.uuid", existing.ProfileUUID, "removed_loc_uris", len(removedURIs))
-				if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
-					return false, ctxerr.Wrap(ctx, err, "inserting delete commands for removed LocURIs")
-				}
-			}
-		}
-
-		// Pass 2: for protected LocURIs where the protector is label-scoped,
-		// check per-host if the protector actually applies.
-		if len(protectedURIs) > 0 && len(hostUUIDs) > 0 {
-			if err := ds.checkAndEnqueueLabelScopedDeletes(
-				ctx, tx,
-				[]locURIProtectionParams{{
-					protectedURIs: protectedURIs,
-					hostUUIDs:     hostUUIDs,
-				}},
-				editLocURIProtectors,
-			); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "label-scoped LocURI protection check for edited profile")
-			}
-		}
+	}
+	if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, editedProfileUUIDs); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "retaining prior content for edited profiles")
 	}
 
 	// insert the new profiles and the ones that have changed
@@ -3272,19 +3108,20 @@ LIMIT ?`
 	return nil
 }
 
-// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-profile content
-// (mdm_windows_configuration_profiles_pending_delete) once no host_mdm_windows_profiles row still references the profile, meaning every
-// host has drained its <Delete> or been unenrolled. Reference-counted rather than age-based, so we never drop content a host still
-// needs: a host that was offline when the profile was deleted keeps its host-profile row, which keeps the content alive until the
-// removal finally delivers. The NOT EXISTS is an index probe via host_mdm_windows_profiles(profile_uuid).
-func (ds *Datastore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error {
+// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior profile content once no host_mdm_windows_profiles row
+// still has that version installed. Reference-counted on (profile_uuid, checksum) rather than age-based, so a version's content
+// survives exactly as long as some host still has it installed and could still need its <Delete> (e.g. a host that was offline
+// when the profile was edited or deleted). Once every host has moved past that version (re-installed to a newer one, drained its
+// removal, or unenrolled), the row is dropped.
+func (ds *Datastore) CleanupWindowsMDMProfilePriorContent(ctx context.Context) error {
 	const stmt = `
-DELETE pd FROM mdm_windows_configuration_profiles_pending_delete pd
+DELETE pc FROM mdm_windows_configuration_profiles_prior_content pc
 WHERE NOT EXISTS (
-	SELECT 1 FROM host_mdm_windows_profiles hmwp WHERE hmwp.profile_uuid = pd.profile_uuid
+	SELECT 1 FROM host_mdm_windows_profiles hmwp
+	WHERE hmwp.profile_uuid = pc.profile_uuid AND hmwp.checksum = pc.checksum
 )`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup windows mdm pending-delete profiles")
+		return ctxerr.Wrap(ctx, err, "cleanup windows mdm profile prior content")
 	}
 	return nil
 }
