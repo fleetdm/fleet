@@ -1,0 +1,1 @@
+- Added an "Inactive" status with an explanatory tooltip to the Users table for users who haven't logged in for 30+ days. Fleet now records each user's last login time in a new `last_login_at` field, returned by the users API endpoints. API-only users are never shown as inactive.

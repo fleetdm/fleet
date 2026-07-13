@@ -60,7 +60,8 @@
       background-color: $ui-success;
     }
   }
-  &--no-access {
+  &--no-access,
+  &--inactive {
     &:before {
       background-color: $ui-offline;
     }

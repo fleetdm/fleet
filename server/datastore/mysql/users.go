@@ -25,7 +25,7 @@ var userSearchColumns = []string{"name", "email"}
 // various places, which we do not want.
 const userSelectColumns = `id, created_at, updated_at, password, salt, name, email,
 	admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role,
-	api_only, mfa_enabled, invite_id`
+	api_only, mfa_enabled, invite_id, last_login_at`
 
 // userSummaryColumns are the columns selected for UserSummary.
 const userSummaryColumns = `id, name, email, gravatar_url, api_only`

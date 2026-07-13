@@ -136,7 +136,16 @@ func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet
 }
 
 func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
-	return ds.makeSessionInTransaction(ctx, ds.writer(ctx), userID, sessionKeySize)
+	var session *fleet.Session
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		session, err = ds.makeSessionInTransaction(ctx, tx, userID, sessionKeySize)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
 }
 
 func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtContext, userID uint, sessionKeySize int) (*fleet.Session, error) {
@@ -155,6 +164,15 @@ func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtCo
 	result, err := tx.ExecContext(ctx, sqlStatement, userID, sessionKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving session")
+	}
+
+	// Record the login on the user. updated_at is explicitly preserved because
+	// it has ON UPDATE CURRENT_TIMESTAMP and a login is not a user modification.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE users SET last_login_at = ?, updated_at = updated_at WHERE id = ?`,
+		ds.clock.Now(), userID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating user last login")
 	}
 
 	id, _ := result.LastInsertId()           // cannot fail with the mysql driver

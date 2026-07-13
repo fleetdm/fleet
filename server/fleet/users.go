@@ -67,6 +67,10 @@ type User struct {
 	MFAEnabled bool    `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
+	// LastLoginAt is the last time the user logged in (i.e. the last time a
+	// session was created for the user). It is nil if the user has never
+	// logged in (or hasn't logged in since the column was introduced).
+	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams" renameto:"fleets"`

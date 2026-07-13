@@ -12,6 +12,7 @@ const DEFAULT_USER_MOCK: IUser = {
   sso_enabled: false,
   global_role: "admin",
   api_only: false,
+  last_login_at: null,
   teams: [],
   fleets: [],
 };

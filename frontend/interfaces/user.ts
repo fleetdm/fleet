@@ -58,6 +58,8 @@ export interface IUser {
   mfa_enabled?: boolean;
   global_role: UserRole | null;
   api_only: boolean;
+  /** Last time the user logged in. `null` if the user has never logged in. */
+  last_login_at: string | null;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
   api_endpoints?: IApiEndpointRef[];
