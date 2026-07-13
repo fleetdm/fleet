@@ -31,7 +31,7 @@ describe("LocalAccountSection", () => {
 
   it("renders the section title and subtitle", () => {
     render(<LocalAccountSection {...defaultProps} />);
-    expect(screen.getByText("Local account")).toBeInTheDocument();
+    expect(screen.getByText("Local accounts")).toBeInTheDocument();
     expect(
       screen.getByText(/Currently supported for macOS hosts/)
     ).toBeInTheDocument();

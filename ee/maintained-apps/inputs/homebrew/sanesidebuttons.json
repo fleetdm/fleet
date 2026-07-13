@@ -1,0 +1,10 @@
+{
+  "name": "SaneSideButtons",
+  "unique_identifier": "com.janhuelsmann.sanesidebuttons",
+  "token": "sanesidebuttons",
+  "installer_format": "dmg",
+  "slug": "sanesidebuttons/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

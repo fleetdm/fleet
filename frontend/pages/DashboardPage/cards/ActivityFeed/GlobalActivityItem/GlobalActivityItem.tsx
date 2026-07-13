@@ -18,6 +18,7 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -31,6 +32,7 @@ import { API_NO_TEAM_ID } from "interfaces/team";
 const baseClass = "global-activity-item";
 
 const ACTIVITIES_WITH_DETAILS = new Set([
+  ActivityType.RanCustomMdmCommand,
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
@@ -1094,6 +1096,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranCustomMdmCommand: (activity: IActivity) => {
+    const { request_type, host_display_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatMdmCommandNameForActivityItem(request_type)} on{" "}
+        <b>{host_display_name}</b>.
+      </>
+    );
+  },
   ranScript: (activity: IActivity) => {
     const { script_name, host_display_name, from_setup_experience } =
       activity.details || {};
@@ -1547,6 +1559,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  installedAllSelfServiceSoftware: (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    if (categoryName) {
+      return (
+        <>
+          {" "}
+          <b>End user</b> selected the <b>Install all</b> option in the
+          self-service <b>{categoryName}</b> category.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        <b>End user</b> installed all the software in self-service.
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -1663,6 +1693,22 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  googleWorkspaceIntegration: (verb: string) => (activity: IActivity) => {
+    const { domain } = activity.details ?? {};
+    return (
+      <>
+        {" "}
+        {verb} the Google Workspace integration
+        {domain ? (
+          <>
+            {" "}
+            for <strong>{domain}</strong>
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   hostBypassedConditionalAccess: (activity: IActivity) => {
     const idpFullName = activity.details?.idp_full_name;
     const hostDisplayName = activity.details?.host_display_name;
@@ -1734,7 +1780,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         canceled <b>{title}</b> install on <b>{hostName}</b>
         {fromSetupExperience
-          ? " during setup experience. End user was asked to restart."
+          ? " during setup experience. End user was asked to restart"
           : ""}
         .
       </>
@@ -2372,6 +2418,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
     }
+    case ActivityType.RanCustomMdmCommand: {
+      return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
+    }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
@@ -2453,6 +2502,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity);
     }
+    case ActivityType.InstalledAllSelfServiceSoftware: {
+      return TAGGED_TEMPLATES.installedAllSelfServiceSoftware(activity);
+    }
     case ActivityType.UninstalledSoftware: {
       return TAGGED_TEMPLATES.uninstalledSoftware(activity);
     }
@@ -2500,6 +2552,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
+    }
+    case ActivityType.AddedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("added")(activity);
+    }
+    case ActivityType.EditedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("edited")(activity);
+    }
+    case ActivityType.DeletedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("deleted")(activity);
     }
     case ActivityType.UpdatedConditionalAccessBypass: {
       return TAGGED_TEMPLATES.updatedConditionalAccessBypass();
@@ -2639,6 +2700,9 @@ const GlobalActivityItem = ({
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
         return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+      case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function

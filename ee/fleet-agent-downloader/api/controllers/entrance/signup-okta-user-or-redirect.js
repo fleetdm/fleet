@@ -15,12 +15,15 @@ module.exports = {
 
 
   fn: async function () {
-
+    // If the okta sso hook is not configured, redirect the user to the login page.
+    if(!sails.config.custom.oktaClientSecret) {
+      throw {redirect: '/login'};
+    }
     if(!this.req.session) {// If the requesting user does not have a session, redirect them to the login page.
       throw {redirect: '/login'};
     }
     // If the requesting user has a session, but it does not contain a passport object, we'll redirect them to the login page.
-    if (!this.req.session.passport.user) {
+    if (!this.req.session.passport || !this.req.session.passport.user) {
       throw {redirect: '/login'};
     }
 

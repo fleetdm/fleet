@@ -1,10 +1,6 @@
 .policies-table {
   border-collapse: collapse;
 
-  .data-table__wrapper {
-    overflow-x: auto;
-  }
-
   thead {
     th {
       &.passing_host_count__header,
@@ -42,12 +38,13 @@
   &--none {
     color: $ui-fleet-black-50;
   }
-}
 
-// The read-only empty cell is a plain <span> (no role="button"); keep it
-// non-interactive. The editable empty cell is a <div role="button">.
-span.automations__cell-content--none {
-  cursor: default;
+  // Read-only cells (rendered for roles that can't open the automations modal)
+  // are plain, non-interactive <span>s with no pencil icon — keep the default
+  // cursor so they don't appear clickable.
+  &--readonly {
+    cursor: default;
+  }
 }
 
 .automations__name {

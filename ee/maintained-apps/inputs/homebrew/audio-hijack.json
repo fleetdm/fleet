@@ -1,0 +1,10 @@
+{
+  "name": "Audio Hijack",
+  "unique_identifier": "com.rogueamoeba.audiohijack",
+  "token": "audio-hijack",
+  "installer_format": "zip",
+  "slug": "audio-hijack/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

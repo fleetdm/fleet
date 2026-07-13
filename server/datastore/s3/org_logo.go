@@ -29,7 +29,6 @@ func NewOrgLogoStore(cfg config.S3Config) (*OrgLogoStore, error) {
 			s3store:    s3store,
 			pathPrefix: "org-logos",
 			fileLabel:  "org logo",
-			gcs:        isGCS(cfg.EndpointURL),
 		},
 	}, nil
 }

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.1.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland' AND version_compare(bundle_short_version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland' AND version_compare(bundle_short_version, '2026.1.4') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/go/goland-2026.1.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/go/goland-2026.1.4-aarch64.dmg",
       "install_script_ref": "1d48cff5",
       "uninstall_script_ref": "c7ca278d",
-      "sha256": "4c59c432aeeee7552fb5a3a39f14be69b261b11dda4a76908cd15f17c110adc4",
+      "sha256": "cbb98491ed33d0cbd0b3e90cb6b9ababb11e02d2546e0a3ab0666b381d0cada3",
       "default_categories": [
         "Developer tools"
       ]

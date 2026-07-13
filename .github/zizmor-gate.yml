@@ -1,34 +1,73 @@
 # zizmor "blocking gate" configuration.
 #
-# This config is used by the zizmor job in .github/workflows/zizmor.yml. It disables the
-# audit rules for which we currently carry a backlog of findings, so the job fails the
-# build only for rules the repository ALREADY passes (catching regressions).
-#
-# As the backlog is burned down in follow-up work, delete the corresponding `disable: true`
-# entry below to start enforcing that rule too. The current finding counts (in our
-# .github/workflows + .github/actions scope) are noted for reference.
+# This config is used by the zizmor job in .github/workflows/zizmor.yml.
 #
 # This file is passed explicitly via the action's `config:` input rather than being named
 # .github/zizmor.yml, so a plain `zizmor .` run still reports the full backlog locally.
 
 rules:
-  artipacked: # 125 findings
-    disable: true
-  cache-poisoning: # 16 findings
-    disable: true
-  dependabot-cooldown: # 2 findings
-    disable: true
-  excessive-permissions: # 20 findings
-    disable: true
-  known-vulnerable-actions: # 418 findings (online audit)
-    disable: true
-  misfeature: # 11 findings
-    disable: true
-  ref-version-mismatch: # 44 findings (online audit)
-    disable: true
-  secrets-inherit: # 5 findings
-    disable: true
-  template-injection: # 234 findings
-    disable: true
-  unpinned-uses: # 31 findings
-    disable: true
+  # The misfeature rule stays ENABLED so new workflows are still checked; we only waive the
+  # specific Windows signing/build workflows below. Their findings are all `shell: cmd` notices:
+  # zizmor cannot introspect CMD scripts, so it emits a Low-severity analysis-limitation note
+  # rather than a real finding, and these workflows require the Windows CMD shell. Matching is by
+  # filename, so keep these names unique.
+  misfeature:
+    ignore:
+      - build-fleetctl-msi.yml
+      - code-sign-windows.yml
+      - e2e-agent.yml
+      - fleet-and-orbit.yml
+      - generate-osqueryd-targets.yml
+      - goreleaser-fleet.yaml
+  # The template-injection rule stays ENABLED so new workflows are checked, and we waive only the
+  # workflows that carry the existing backlog (listed below). We audited every current finding by
+  # trigger and source: none are reachable by untrusted input. There are no pull_request_target /
+  # workflow_run / issue_comment workflows; the one issues-triggered workflow
+  # (auto-tag-unreleased-bugs.yml) reads the issue body via actions/github-script's context object,
+  # never interpolated into a shell. The remaining findings draw only from maintainer-/runner-
+  # controlled sources (static matrix values, workflow_dispatch inputs gated behind write access,
+  # push/tag refs, github.sha, and internal step outputs), so they are not externally exploitable.
+  # This waiver freezes the backlog: any template-injection in a NEW workflow, or any NEW finding
+  # in a workflow not listed here, fails the gate.
+  #
+  # Matching is by filename only (zizmor does not match on path), so keep these names unique.
+  # NOTE: `action.yml` matches every composite-action manifest. Today only .github/actions/r2-upload
+  # carries findings; a future finding in another composite action (e.g. eng-metrics) would also be
+  # suppressed. Revisit if more composite actions are added.
+  template-injection:
+    ignore:
+      - action.yml # .github/actions/r2-upload/action.yml (bash; env/inputs from trusted callers)
+      - build-fleetctl-msi.yml
+      - build-fleetctl-pkg.yml
+      - build-fleetd-base-msi.yml
+      - build-fleetd-base-pkg.yml
+      - build-fleetdm-fleetctl-check-vulnerabilities.yml
+      - check-bomutils-vulnerabilities.yml
+      - check-vulnerabilities-in-released-docker-images.yml
+      - check-wix-vulnerabilities.yml
+      - code-sign-windows.yml
+      - db-upgrade-test.yml
+      - dogfood-automated-policy-updates.yml
+      - dogfood-update-testing-qa-apps.yml
+      - e2e-agent.yml
+      - fleet-and-orbit.yml
+      - generate-desktop-targets.yml
+      - golangci-lint.yml
+      - goreleaser-fleet.yaml
+      - goreleaser-orbit.yaml
+      - goreleaser-snapshot-fleet.yaml
+      - ingest-maintained-apps.yml
+      - loadtest-infra.yml
+      - loadtest-osquery-perf.yml
+      - product-eng-handbook-summary.yml
+      - publish-go-module.yml
+      - randokiller-go.yml
+      - release-fleetd-base.yml
+      - release-fleetd-chrome-beta.yml
+      - release-fleetd-chrome.yml
+      - tag-aging-bugs.yml
+      - test-db-changes.yml
+      - test-fma-darwin-pr-only.yml
+      - test-fma-windows-pr-only.yml
+      - test-go-suite.yaml
+      - verify-fleetd-base.yml

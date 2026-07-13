@@ -1,0 +1,13 @@
+{
+  "name": "Microsoft Remote Help",
+  "slug": "microsoft-remote-help/windows",
+  "package_identifier": "Microsoft.RemoteHelp",
+  "unique_identifier": "Remote Help",
+  "program_publisher": "Microsoft Corporation",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_remote_help_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_remote_help_uninstall.ps1"
+}

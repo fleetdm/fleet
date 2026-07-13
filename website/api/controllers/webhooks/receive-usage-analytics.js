@@ -51,6 +51,8 @@ module.exports = {
     entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
     conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
+    gitOpsModeEnabled: {type: 'boolean', defaultsTo: false},
+    gitOpsModeExceptions: {type: ['string'], defaultsTo: [] },
   },
 
 

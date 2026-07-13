@@ -17,15 +17,19 @@
 // into each host's set. This model has many potential writes for LQ
 // creation, but a host checkin has very few.
 //
-// We believe that normal fleet usage has many hosts, and a small
-// number of live queries targeting all of them. This was a big
-// factor in choosing this implementation.
+// The bitfield model fits "many hosts, few queries", but it scales poorly when
+// many queries run concurrently: a host checkin must probe (GETBIT) every active
+// query's bitfield, so the per-checkin cost grows with the number of queries -
+// even queries that target a single host force a probe on every host. To handle
+// that case, this package uses a hybrid: queries targeting at most
+// smallTargetThreshold hosts are stored using the per-host set model above
+// (the "reverse index"), while larger ("broadcast") queries keep the bitfield.
 //
 // # Implementation
 //
-// As mentioned in the Design section, there are three keys for each
-// live query: the bitfield, the SQL of the query and the set containing
-// the IDs of all active live queries:
+// There are three keys for each bitfield (broadcast) live query: the bitfield,
+// the SQL of the query and the set containing the IDs of all active live
+// queries:
 //
 //	livequery:<ID> is the bitfield that indicates the hosts
 //	sql:livequery:<ID> is the SQL of the query.
@@ -37,6 +41,20 @@
 // livequery:{1} and sql:livequery:{1}), so that the two keys for the same <ID>
 // are always stored on the same node (as they hash to the same cluster slot).
 // See https://redis.io/topics/cluster-spec#keys-hash-tags for details.
+//
+// Small-target queries instead use the reverse index. There is no bitfield;
+// the campaign ID is added to a per-host set for each targeted host, and the
+// campaign ID is also added to a set of reverse-model queries:
+//
+//	livequery:host:<hostID> is the set of campaign IDs targeting that host
+//	livequery:active:reverse is the set of campaign IDs using the reverse model
+//
+// The sql:livequery:<ID> and livequery:active keys are used by both models. A
+// host checkin reads its own livequery:host:<hostID> set once (instead of one
+// GETBIT per small-target query) and probes the bitfield only for the remaining
+// broadcast queries. The per-host sets have a TTL and stale entries (campaigns
+// no longer active) are filtered against the active set at read time, so they do
+// not need to be removed on StopQuery.
 //
 // It is a noted downside that the active live queries set will necessarily
 // live on a single node in cluster mode (a "hot key"), and that node will see
@@ -65,6 +83,8 @@ const (
 	queryKeyPrefix          = "livequery:"
 	sqlKeyPrefix            = "sql:"
 	activeQueriesKey        = "livequery:active"
+	activeReverseQueriesKey = "livequery:active:reverse"
+	reverseHostKeyPrefix    = "livequery:host:"
 	queryExpiration         = 7 * 24 * time.Hour
 	queryResultsCountPrefix = "query_results_count:"
 )
@@ -77,6 +97,11 @@ type redisLiveQuery struct {
 	// in memory cache expiration
 	cacheExpiration time.Duration
 
+	// smallTargetThreshold is the maximum number of targeted hosts for a query to
+	// use the per-host reverse index instead of the bitfield. A value of 0
+	// disables the reverse index entirely (all queries use the bitfield).
+	smallTargetThreshold int
+
 	logger *slog.Logger
 }
 
@@ -86,6 +111,10 @@ type redisLiveQuery struct {
 type memCache struct {
 	sqlCache           map[string]string
 	activeQueriesCache []string
+	// reverseActiveCache holds the campaign IDs (among the active queries) that
+	// use the reverse per-host index. It is used by the read path to exclude
+	// those queries from the per-host bitfield (GETBIT) probes.
+	reverseActiveCache map[string]struct{}
 	cacheExp           time.Time
 	mu                 sync.RWMutex
 }
@@ -106,14 +135,29 @@ func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
 	return sql, found
 }
 
-// NewRedisQueryResults creates a new Redis implementation of the
-// QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool fleet.RedisPool, logger *slog.Logger, memCacheExp time.Duration) *redisLiveQuery {
+// isReverse is a thread-safe method that reports whether the given active
+// campaign ID is stored using the reverse per-host index (rather than a
+// bitfield).
+func (r *redisLiveQuery) isReverse(campaignID string) bool {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	_, found := r.cache.reverseActiveCache[campaignID]
+	return found
+}
+
+// NewRedisLiveQuery creates a new Redis implementation of the live query store
+// using the provided Redis connection pool.
+//
+// smallTargetThreshold is the maximum number of targeted hosts for a query to
+// use the reverse per-host index instead of the bitfield; a value of 0 disables
+// the reverse index entirely (kill-switch), so all queries use the bitfield.
+func NewRedisLiveQuery(pool fleet.RedisPool, logger *slog.Logger, memCacheExp time.Duration, smallTargetThreshold int) *redisLiveQuery {
 	return &redisLiveQuery{
-		pool:            pool,
-		cache:           newMemCache(),
-		cacheExpiration: memCacheExp,
-		logger:          logger,
+		pool:                 pool,
+		cache:                newMemCache(),
+		cacheExpiration:      memCacheExp,
+		smallTargetThreshold: smallTargetThreshold,
+		logger:               logger,
 	}
 }
 
@@ -121,6 +165,7 @@ func newMemCache() memCache {
 	return memCache{
 		sqlCache:           make(map[string]string),
 		activeQueriesCache: make([]string, 0),
+		reverseActiveCache: make(map[string]struct{}),
 	}
 }
 
@@ -148,6 +193,14 @@ func extractTargetKeyName(key string) string {
 	return name
 }
 
+// reverseHostKey returns the key of the per-host set that stores the campaign
+// IDs of the small-target live queries targeting the given host. The host ID is
+// used as the cluster hash tag so that a host's set always lives on a single
+// node (the set is read on every checkin for that host).
+func reverseHostKey(hostID uint) string {
+	return reverseHostKeyPrefix + "{" + strconv.FormatUint(uint64(hostID), 10) + "}"
+}
+
 // RunQuery stores the live query information in ephemeral storage for the
 // duration of the query or its TTL. Note that hostIDs *must* be sorted
 // in ascending order. The name is the campaign ID as a string.
@@ -156,12 +209,27 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 		return errors.New("no hosts targeted")
 	}
 
-	// store the sql and targeted hosts information
-	if err := r.storeQueryInfo(name, sql, hostIDs); err != nil {
-		return fmt.Errorf("store query info: %w", err)
+	// Small-target queries use the per-host reverse index so that a host checkin
+	// does not have to probe this query's bitfield (one GETBIT per query). Large
+	// (broadcast) queries keep the bitfield, which is compact relative to a large
+	// target set and cheap to create/stop. A threshold of 0 disables the reverse
+	// index (no query has <= 0 targets), so all queries use the bitfield.
+	if len(hostIDs) <= r.smallTargetThreshold {
+		if err := r.storeQueryInfoReverse(name, sql, hostIDs); err != nil {
+			return fmt.Errorf("store reverse query info: %w", err)
+		}
+		// mark the campaign id as using the reverse model
+		if err := r.storeReverseQueryName(name); err != nil {
+			return fmt.Errorf("store reverse query name: %w", err)
+		}
+	} else {
+		// store the sql and targeted hosts information (bitfield)
+		if err := r.storeQueryInfo(name, sql, hostIDs); err != nil {
+			return fmt.Errorf("store query info: %w", err)
+		}
 	}
 
-	// store name (campaign id) into the active live queries set
+	// store name (campaign id) into the active live queries set (both models)
 	if err := r.storeQueryNames(name); err != nil {
 		return fmt.Errorf("store query name: %w", err)
 	}
@@ -170,7 +238,8 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 }
 
 func (r *redisLiveQuery) StopQuery(name string) error {
-	// remove the sql and targeted hosts keys
+	// remove the sql and targeted hosts keys (DEL of the bitfield key is a no-op
+	// for reverse queries, which don't have one)
 	if err := r.removeQueryInfo(name); err != nil {
 		return fmt.Errorf("remove query info: %w", err)
 	}
@@ -180,6 +249,16 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 		return fmt.Errorf("remove query name: %w", err)
 	}
 
+	// remove from the reverse model set. The per-host sets cannot be enumerated
+	// by campaign, so they are left to expire via their TTL and are filtered out
+	// at read time against the active set. This is safe only because campaign IDs
+	// are monotonic (MySQL auto-increment) and never reused: a stale per-host
+	// membership can therefore never collide with a different, newly-active
+	// campaign that happens to share the same ID.
+	if err := r.removeReverseQueryNames(name); err != nil {
+		return fmt.Errorf("remove reverse query name: %w", err)
+	}
+
 	return nil
 }
 
@@ -187,28 +266,73 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 var cleanupExpiredQueriesModulo int64 = 10
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
-	// Get keys for active queries
+	// Get keys for active queries (this also (re)loads the in-memory cache, which
+	// is what isReverse below relies on).
 	names, err := r.LoadActiveQueryNames()
 	if err != nil {
 		return nil, fmt.Errorf("load active queries: %w", err)
 	}
 
-	// convert the query name (campaign id) to the key name
+	queries := make(map[string]string)
+
+	// Broadcast queries: probe this host's bit in each query's bitfield. Reverse
+	// (small-target) queries are excluded here - probing them is the per-checkin
+	// command storm this whole change is meant to avoid.
 	keyNames := make([]string, 0, len(names))
 	for _, name := range names {
+		if r.isReverse(name) {
+			continue
+		}
 		tkey, _ := generateKeys(name)
 		keyNames = append(keyNames, tkey)
 	}
 
 	keysBySlot := redis.SplitKeysBySlot(r.pool, keyNames...)
-	queries := make(map[string]string)
 	for _, qkeys := range keysBySlot {
 		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
 			return nil, err
 		}
 	}
 
+	// Reverse (small-target) queries: a single read of this host's own set.
+	if err := r.collectReverseQueriesForHost(hostID, queries); err != nil {
+		return nil, err
+	}
+
 	return queries, nil
+}
+
+// collectReverseQueriesForHost reads the per-host reverse-index set and adds any
+// still-active small-target queries targeting this host to queriesByHost. Stale
+// campaign IDs (lingering in the per-host set after the query was stopped) are
+// filtered out because their SQL is no longer in the cache.
+func (r *redisLiveQuery) collectReverseQueriesForHost(hostID uint, queriesByHost map[string]string) error {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Stale-entry filtering below relies on the SQL cache holding only active
+	// queries. Refresh it on expiry here so this path stays correct on its own,
+	// independent of any cache (re)load done by the caller or the bitfield path
+	// (which is skipped when every active query is small-target).
+	if r.cacheIsExpired() {
+		if err := r.loadCache(); err != nil {
+			return fmt.Errorf("load cache: %w", err)
+		}
+	}
+
+	names, err := redigo.Strings(conn.Do("SMEMBERS", reverseHostKey(hostID)))
+	if err != nil && err != redigo.ErrNil {
+		return fmt.Errorf("smembers reverse host key: %w", err)
+	}
+
+	for _, name := range names {
+		// The SQL cache only holds active queries, so a missing entry means the
+		// campaign is no longer active (stale entry) and is skipped.
+		if sql, found := r.getSQLByCampaignID(name); found {
+			queriesByHost[name] = sql
+		}
+	}
+	return nil
 }
 
 func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string) error {
@@ -261,6 +385,15 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
+	// Clear completion in both models without depending on which one this query
+	// uses: exactly one of these has an effect, the other is a harmless no-op
+	// (SREM on an absent member, and the guarded SETBIT below on an absent key).
+	// This avoids relying on a possibly-stale cache to pick the model, where a
+	// wrong guess would leave the host still receiving the query.
+	if _, err := conn.Do("SREM", reverseHostKey(hostID), name); err != nil {
+		return fmt.Errorf("srem reverse host key: %w", err)
+	}
+
 	targetKey, _ := generateKeys(name)
 
 	// Update the bitfield for this host only if the key exists.
@@ -306,6 +439,82 @@ func (r *redisLiveQuery) storeQueryInfo(name, sql string, hostIDs []uint) error 
 		return fmt.Errorf("set targets: %w", err)
 	}
 	return nil
+}
+
+// storeQueryInfoReverse stores the SQL of the query and adds the campaign id to
+// the per-host set of every targeted host (the reverse index). The per-host
+// sets are given a TTL so that orphaned entries (e.g. if StopQuery is missed)
+// eventually expire; they are also filtered against the active set at read time.
+func (r *redisLiveQuery) storeQueryInfoReverse(name, sql string, hostIDs []uint) error {
+	// Store the SQL first, so a host never sees the query as targeted before its
+	// SQL can be looked up (same ordering guarantee as the bitfield path).
+	_, sqlKey := generateKeys(name)
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	if _, err := conn.Do("SET", sqlKey, sql, "EX", queryExpiration.Seconds()); err != nil {
+		conn.Close()
+		return fmt.Errorf("set sql: %w", err)
+	}
+	conn.Close()
+
+	// Add the campaign id to each targeted host's set, pipelined per cluster slot.
+	hostKeys := make([]string, len(hostIDs))
+	for i, hostID := range hostIDs {
+		hostKeys[i] = reverseHostKey(hostID)
+	}
+
+	keysBySlot := redis.SplitKeysBySlot(r.pool, hostKeys...)
+	for _, keys := range keysBySlot {
+		if err := r.storeBatchReverseHostKeys(name, keys); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) storeBatchReverseHostKeys(name string, hostKeys []string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, hostKey := range hostKeys {
+		if err := conn.Send("SADD", hostKey, name); err != nil {
+			return fmt.Errorf("sadd reverse host key: %w", err)
+		}
+		if err := conn.Send("EXPIRE", hostKey, int(queryExpiration.Seconds())); err != nil {
+			return fmt.Errorf("expire reverse host key: %w", err)
+		}
+	}
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+	// drain replies (2 per host key) to complete the pipeline
+	for range hostKeys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive sadd reply: %w", err)
+		}
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive expire reply: %w", err)
+		}
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) storeReverseQueryName(name string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := conn.Do("SADD", activeReverseQueriesKey, name)
+	return err
+}
+
+func (r *redisLiveQuery) removeReverseQueryNames(names ...string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	var args redigo.Args
+	args = args.Add(activeReverseQueriesKey)
+	args = args.AddFlat(names)
+	_, err := conn.Do("SREM", args...)
+	return err
 }
 
 func (r *redisLiveQuery) storeQueryNames(names ...string) error {
@@ -376,6 +585,17 @@ func (r *redisLiveQuery) loadCache() error {
 		return fmt.Errorf("get active queries: %w", err)
 	}
 
+	// Load which active campaigns use the reverse per-host index, so the read
+	// path can exclude them from the per-host bitfield (GETBIT) probes.
+	reverseIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeReverseQueriesKey))
+	if err != nil && err != redigo.ErrNil {
+		return fmt.Errorf("get reverse active queries: %w", err)
+	}
+	reverseActive := make(map[string]struct{}, len(reverseIDs))
+	for _, id := range reverseIDs {
+		reverseActive[id] = struct{}{}
+	}
+
 	for _, id := range activeIDs {
 		_, sqlKey := generateKeys(id)
 
@@ -409,6 +629,7 @@ func (r *redisLiveQuery) loadCache() error {
 	r.cache.mu.Lock()
 	r.cache.sqlCache = sqlCache
 	r.cache.activeQueriesCache = activeIDs
+	r.cache.reverseActiveCache = reverseActive
 	r.cache.cacheExp = time.Now().Add(r.cacheExpiration)
 	r.cache.mu.Unlock()
 
@@ -487,6 +708,13 @@ func (r *redisLiveQuery) removeInactiveQueries(ctx context.Context, inactiveCamp
 	if _, err := conn.Do("SREM", args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "remove inactive campaign IDs")
 	}
+
+	// Also remove from the reverse model set. The per-host sets are left to expire
+	// via their TTL and are filtered against the active set at read time.
+	reverseArgs := redigo.Args{}.Add(activeReverseQueriesKey).AddFlat(inactiveCampaignIDs)
+	if _, err := conn.Do("SREM", reverseArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove inactive reverse campaign IDs")
+	}
 	return nil
 }
 
@@ -549,36 +777,57 @@ func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, e
 		return make(map[uint]int), nil
 	}
 
+	// The query_results_count keys have no hash tag, so they may live on
+	// different slots in a Redis Cluster. Group them by slot so that each
+	// pipelined request only touches keys that hash to the same slot, avoiding
+	// MOVED redirects.
+	keys := make([]string, 0, len(queryIDs))
+	keyToID := make(map[string]uint, len(queryIDs))
+	for _, queryID := range queryIDs {
+		key := queryResultsCountKey(queryID)
+		keys = append(keys, key)
+		keyToID[key] = queryID
+	}
+
+	results := make(map[uint]int, len(queryIDs))
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.collectBatchResultsCounts(slotKeys, keyToID, results); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (r *redisLiveQuery) collectBatchResultsCounts(keys []string, keyToID map[string]uint, results map[uint]int) error {
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	// Pipeline GET requests for all query IDs
-	for _, queryID := range queryIDs {
-		key := queryResultsCountKey(queryID)
+	// Pipeline GET requests for all keys in this slot.
+	for _, key := range keys {
 		if err := conn.Send("GET", key); err != nil {
-			return nil, fmt.Errorf("send get query results count: %w", err)
+			return fmt.Errorf("send get query results count: %w", err)
 		}
 	}
 
 	if err := conn.Flush(); err != nil {
-		return nil, fmt.Errorf("flush pipeline: %w", err)
+		return fmt.Errorf("flush pipeline: %w", err)
 	}
 
-	// Receive results and build the map
-	results := make(map[uint]int, len(queryIDs))
-	for _, queryID := range queryIDs {
+	// Receive results in order and build the map.
+	for _, key := range keys {
 		count, err := redigo.Int(conn.Receive())
 		if err != nil {
 			if err == redigo.ErrNil {
-				results[queryID] = 0
+				results[keyToID[key]] = 0
 				continue
 			}
-			return nil, fmt.Errorf("receive query results count: %w", err)
+			return fmt.Errorf("receive query results count: %w", err)
 		}
-		results[queryID] = count
+		results[keyToID[key]] = count
 	}
 
-	return results, nil
+	return nil
 }
 
 // IncrQueryResultsCounts increments the query results counts by the given amounts.
@@ -588,13 +837,38 @@ func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) 
 		return nil
 	}
 
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	// Pipeline INCRBY requests for all query IDs
+	// The query_results_count keys have no hash tag, so they may live on
+	// different slots in a Redis Cluster. Group them by slot so that each
+	// pipelined request only touches keys that hash to the same slot, avoiding
+	// MOVED redirects.
+	keys := make([]string, 0, len(queryIDsToAmounts))
+	amountByKey := make(map[string]int, len(queryIDsToAmounts))
 	for queryID, amount := range queryIDsToAmounts {
 		key := queryResultsCountKey(queryID)
-		if err := conn.Send("INCRBY", key, amount); err != nil {
+		keys = append(keys, key)
+		amountByKey[key] = amount
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.incrBatchResultsCounts(slotKeys, amountByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) incrBatchResultsCounts(keys []string, amountByKey map[string]int) error {
+	// Use a plain connection rather than redis.ConfigureDoer: the latter wraps
+	// the connection in a redisc.RetryConn, whose Send method is unsupported, so
+	// the pipeline below would fail. All keys in this batch hash to the same
+	// slot, so no redirection handling is needed.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	// Pipeline INCRBY requests for all keys in this slot.
+	for _, key := range keys {
+		if err := conn.Send("INCRBY", key, amountByKey[key]); err != nil {
 			return fmt.Errorf("send incrby query results count: %w", err)
 		}
 	}
@@ -603,8 +877,8 @@ func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) 
 		return fmt.Errorf("flush pipeline: %w", err)
 	}
 
-	// Receive all results to complete the pipeline (we don't need the values)
-	for range queryIDsToAmounts {
+	// Receive all results to complete the pipeline (we don't need the values).
+	for range keys {
 		if _, err := conn.Receive(); err != nil {
 			return fmt.Errorf("receive incrby result: %w", err)
 		}

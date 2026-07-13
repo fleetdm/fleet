@@ -1,0 +1,10 @@
+{
+  "name": "SnowSQL",
+  "unique_identifier": "net.snowflake.snowsql",
+  "token": "snowflake-snowsql",
+  "installer_format": "pkg",
+  "slug": "snowflake-snowsql/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

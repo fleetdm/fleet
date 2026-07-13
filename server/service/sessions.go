@@ -481,13 +481,14 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
 		ssoURL = appConfig.SSOSettings.SSOServerURL
 	}
-	// Parse the URL and use JoinPath to avoid double slashes
+	// Construct the ACS callback URL. CallbackURL appends the url_prefix only when
+	// the server URL doesn't already include it, so the subpath is present exactly
+	// once whether or not server_url was configured with the prefix.
 	parsedURL, err := url.Parse(ssoURL)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid SSO URL: "+err.Error()))
 	}
-	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
-	acsURL := parsedURL.String()
+	acsURL := sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback").String()
 
 	// If entityID is not explicitly set, default to host name.
 	//
@@ -573,6 +574,17 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "missing SAMLResponse",
 		}, "missing SAMLResponse in SSO callback")
+	}
+	// Cap the SAMLResponse value itself, not just the request body. FormValue
+	// reads from both the POST body and the URL query string, and
+	// WithRequestBodySizeLimit only bounds the body — so without this check the
+	// body cap is trivially bypassed by sending the payload as a
+	// ?SAMLResponse= query argument. This guards both the regular and MDM SSO
+	// callbacks, which share this decoder.
+	if int64(len(samlResponseValue)) > fleet.MaxSSOCallbackSize {
+		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "SAMLResponse too large",
+		}, "SAMLResponse exceeds maximum size in SSO callback")
 	}
 	decodedSAMLResponseValue, err := sso.DecodeSAMLResponse(samlResponseValue)
 	if err != nil {
@@ -718,15 +730,16 @@ func (svc *Service) InitSSOCallback(
 	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
 		ssoURL = appConfig.SSOSettings.SSOServerURL
 	}
-	// Parse the URL and use JoinPath to avoid double slashes
 	parsedURL, err := url.Parse(ssoURL)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, newSSOError(err, ssoOtherError), "invalid SSO URL")
 	}
 	baseSSO := parsedURL.String()
 
-	// Now construct the ACS URL
-	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
+	// Now construct the ACS URL. CallbackURL appends the url_prefix only when the
+	// server URL doesn't already include it, so the subpath is present exactly once
+	// whether or not server_url was configured with the prefix.
+	parsedURL = sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
 
 	expectedAudiences := []string{
 		appConfig.SSOSettings.EntityID,
@@ -870,7 +883,7 @@ func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
 		Mailer: &mail.MFAMailer{
 			FullName: user.Name,
 			Token:    token,
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix), //nolint:gosec // dismiss G203
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}

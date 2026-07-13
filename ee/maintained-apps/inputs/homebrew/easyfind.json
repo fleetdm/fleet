@@ -1,0 +1,10 @@
+{
+  "name": "EasyFind",
+  "unique_identifier": "org.grunenberg.EasyFind",
+  "token": "easyfind",
+  "installer_format": "zip",
+  "slug": "easyfind/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

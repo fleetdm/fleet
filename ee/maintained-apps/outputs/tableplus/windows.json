@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "26.6.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'TablePlus%' AND publisher = 'TablePlus, Inc';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TablePlus%' AND publisher = 'TablePlus, Inc' AND version_compare(version, '26.6.0') < 0);"
+      },
+      "installer_url": "https://files.tableplus.com/windows/26.6.0/TablePlusSetup.exe",
+      "install_script_ref": "052dc935",
+      "uninstall_script_ref": "8bfcecd6",
+      "sha256": "2528934ce6bb1f6baa1834d865d3dcabd0e0b5b4ce7e3ce85d0deaee4088bc88",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "052dc935": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# TablePlus ships as an Inno Setup installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    # /ALLUSERS forces a machine-wide install so the app is visible when Fleet\n    # runs the installer in the SYSTEM context.\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "8bfcecd6": "# Attempts to locate TablePlus's Inno Setup uninstaller from the registry and run it silently.\n\n$displayNameLike = \"TablePlus*\"\n$publisher = \"TablePlus, Inc\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"TablePlus\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/VERYSILENT /NORESTART\"\n\n$splitArgs = $uninstallCommand.Split('\"')\nif ($splitArgs.Length -gt 1) {\n    if ($splitArgs.Length -eq 3) {\n        $existingArgs = $splitArgs[2].Trim()\n        if ($existingArgs -ne '') {\n            $uninstallArgs = \"$existingArgs $uninstallArgs\"\n        }\n    } elseif ($splitArgs.Length -gt 3) {\n        Write-Host \"Error: Uninstall command contains multiple quoted strings\"\n        Exit 1\n    }\n    $uninstallCommand = $splitArgs[1]\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

@@ -45,7 +45,6 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-observability': true,
   'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
@@ -72,7 +71,7 @@ module.exports.policies = {
   'deliver-application-submission': true,
   'landing-pages/*': true,
   'deliver-gitops-workshop-request': true,
-  'view-gitops-workshop': true,
+  'view-workshops': true,
   'view-deployment': true,
   'view-linux-management': true,
   'view-infrastructure-as-code': true,
@@ -81,4 +80,6 @@ module.exports.policies = {
   'view-partners': true,
   'deliver-webinar-access-request': true,
   'view-download': true,
+  'view-visibility-and-reporting': true,
+  'view-security-and-control': true,
 };

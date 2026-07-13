@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.5.0",
+      "version": "6.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team' AND version_compare(version, '5.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team' AND version_compare(version, '6.0.0') < 0);"
       },
-      "installer_url": "https://github.com/k-pet-group/BlueJ-Greenfoot/releases/download/BLUEJ-RELEASE-5.5.0/BlueJ-windows-5.5.0.msi",
+      "installer_url": "https://github.com/k-pet-group/BlueJ-Greenfoot/releases/download/BLUEJ-RELEASE-6.0.0/BlueJ-windows-6.0.0.msi",
       "install_script_ref": "29a9338f",
       "uninstall_script_ref": "d85b3e22",
-      "sha256": "697404b7f704235878861bd4133e24480e17e74942f0a9d31db08ddfe4ee21c0",
+      "sha256": "4383dae085447d55672f9521320bd60f23fd3cf7d88e219c17a4731dad665528",
       "default_categories": [
         "Developer tools"
       ]

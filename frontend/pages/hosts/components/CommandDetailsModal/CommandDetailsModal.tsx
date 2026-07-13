@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -22,29 +22,48 @@ import Button from "components/buttons/Button";
 
 const baseClass = "command-details-modal";
 
-export const GetIconName = (status: string): IconNames => {
+export const getIconName = (status: string): IconNames => {
+  // Apple MDM status strings
   switch (status) {
     case "Error":
-      return "error";
     case "CommandFormatError":
       return "error";
     case "Acknowledged":
       return "success";
     case "Pending":
-      return "pending-outline";
     case "NotNow":
       return "pending-outline";
-
     default:
-      // FIXME: update for other platforms and design appropriate default handling for unknown
-      // statuses; for now, just return warning icon to indicate unknown state
-      return "warning";
+      break;
+  }
+  // Windows OMA-DM status codes (numeric strings): 101 = pending, 200-399 = ran, 400+ = failed
+  const code = parseInt(status, 10);
+  if (!Number.isNaN(code)) {
+    if (code >= 400) return "error";
+    if (code >= 200) return "success";
+    return "pending-outline";
+  }
+  return "warning";
+};
+
+export const getVerbForCommandStatus = (status: string): string => {
+  const icon = getIconName(status);
+  switch (icon) {
+    case "error":
+      return "failed to run";
+    case "success":
+      return "ran";
+    case "pending-outline":
+      return "sent";
+    default:
+      // unknown status
+      return "sent";
   }
 };
 
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
-    ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+    ? ` (${timeAgo(new Date(result.updated_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
@@ -104,7 +123,7 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
 const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
   <IconStatusMessage
     className={`${baseclass}__status-message`}
-    iconName={GetIconName(result.status)}
+    iconName={getIconName(result.status)}
     message={getStatusMessage(result)}
   />
 );

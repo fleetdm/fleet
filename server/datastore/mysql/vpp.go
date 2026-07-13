@@ -196,30 +196,27 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	stmt := `
 WITH
 
--- select most recent upcoming activities for each host
+-- select most recent upcoming activity per host (per activity type)
 upcoming AS (
-	SELECT
-		ua.host_id,
-		:software_status_pending AS status
-	FROM
-		upcoming_activities ua
-		JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN vpp_app_upcoming_activities vaua2
-				ON ua2.id = vaua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			vaua.adam_id = vaua2.adam_id AND
-			vaua.platform = vaua2.platform AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.activity_type = 'vpp_app_install'
-		AND ua2.id IS NULL
-		AND vaua.adam_id = :adam_id
-		AND vaua.platform = :platform
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	SELECT host_id, status FROM (
+		SELECT
+			ua.host_id,
+			:software_status_pending AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ua.host_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			JOIN hosts h ON ua.host_id = h.id
+		WHERE
+			ua.activity_type = 'vpp_app_install'
+			AND vaua.adam_id = :adam_id
+			AND vaua.platform = :platform
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	) ranked
+	WHERE rn = 1
 ),
 
 -- select most recent past activities for each host
@@ -1277,6 +1274,26 @@ func (ds *Datastore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, 
 		return nil, ctxerr.Wrap(ctx, err, "list host recent VPP install attempts")
 	}
 	adamIDs = make(map[string]struct{})
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
+}
+
+func (ds *Datastore) MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	// The window is keyed on verification_at (when the install became successful and
+	// triggered the host refetch), not created_at, so a long-running install verified
+	// recently still counts and the cooldown isn't bypassed. removed=1 rows are software
+	// no longer on the host, which should be reinstalled rather than throttled.
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIDsList,
+		`SELECT DISTINCT(adam_id) FROM host_vpp_software_installs
+		WHERE host_id = ? AND canceled = 0 AND removed = 0
+			AND verification_at >= NOW() - INTERVAL ? SECOND`,
+		hostID, seconds); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list host recently verified VPP installs")
+	}
+	adamIDs = make(map[string]struct{}, len(adamIDsList))
 	for _, id := range adamIDsList {
 		adamIDs[id] = struct{}{}
 	}
@@ -3005,7 +3022,8 @@ func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sql
 		if exists {
 			return ctxerr.Wrap(ctx, fleet.ConflictError{
 				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-					conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+					conflictingTitle, teamName),
+			}, "vpp app conflicts with existing software installer")
 		}
 	}
 
@@ -3089,25 +3107,35 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 		return nil
 	}
 
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
 	const getHostUUIDStmt = `
 SELECT
 	h.uuid,
 	h.platform,
 	h.team_id,
 	h.hardware_serial,
-	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+	COALESCE((
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
+		LIMIT 1
+	), 0) AS is_user_enrollment
 FROM
 	hosts h
-	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
 	h.id = ?
 `
 	var hostData struct {
-		UUID                 string `db:"uuid"`
-		Platform             string `db:"platform"`
-		TeamID               *uint  `db:"team_id"`
-		HardwareSerial       string `db:"hardware_serial"`
-		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
+		UUID             string `db:"uuid"`
+		Platform         string `db:"platform"`
+		TeamID           *uint  `db:"team_id"`
+		HardwareSerial   string `db:"hardware_serial"`
+		IsUserEnrollment bool   `db:"is_user_enrollment"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host info for vpp install")
@@ -3198,7 +3226,7 @@ WHERE
 			HostPlatform:     hostData.Platform,
 			ITunesStoreID:    p.AdamID,
 			Configuration:    cfg,
-			IsUserEnrollment: hostData.IsPersonalEnrollment,
+			IsUserEnrollment: hostData.IsUserEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)

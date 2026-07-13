@@ -172,8 +172,9 @@ const (
 )
 
 const (
-	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+	FleetBitLockerTargetLocURI  = "/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI   = "/Vendor/MSFT/Policy/Config/Update"
+	FleetRemoteWipeTargetLocURI = "/Vendor/MSFT/RemoteWipe"
 
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
@@ -238,6 +239,10 @@ const (
 	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
 	DocProvisioningAppProviderID = "Fleet"
 
+	// DMClientPollIntervalLocURI is the DMClient Poll node Fleet writes to tune the Windows MDM poll cadence (the aggressive default vs the
+	// relaxed steady-state for hosts that can be woken on demand by fleetd).
+	DMClientPollIntervalLocURI = "./Device/Vendor/MSFT/DMClient/Provider/" + DocProvisioningAppProviderID + "/Poll/IntervalForFirstSetOfRetries"
+
 	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
 	DocProvisioningAppName = DocProvisioningAppProviderID
 
@@ -279,12 +284,6 @@ const (
 	ReqSecTokenContextItemApplicationVersion   = "ApplicationVersion"
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
-
-	// APPRU query param expected by STS Auth endpoint
-	STSAuthAppRu = "appru"
-
-	// Login related query param expected by STS Auth endpoint
-	STSLoginHint = "login_hint"
 
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"

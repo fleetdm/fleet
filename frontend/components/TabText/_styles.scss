@@ -24,12 +24,7 @@
     }
   }
 
-  &__dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    min-width: 8px;
-    border-radius: 100%;
-    background-color: $ui-success;
+  &__check {
+    transform: scale(0.85);
   }
 }

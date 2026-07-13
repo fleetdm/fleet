@@ -1,0 +1,12 @@
+{
+  "name": "Thorium Reader",
+  "slug": "thorium/windows",
+  "package_identifier": "EDRLab.Thorium",
+  "unique_identifier": "Thorium",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/thorium_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/thorium_uninstall.ps1"
+}

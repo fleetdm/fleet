@@ -188,7 +188,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 				}
 			}
 
-			if cursor != resp.Cursor {
+			if err == nil && cursor != resp.Cursor {
 				err = s.store.StoreCursor(ctx, s.name, resp.Cursor)
 				if err != nil {
 					return err

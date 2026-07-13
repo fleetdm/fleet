@@ -68,6 +68,11 @@
       "android_enabled_and_configured": false,
       "apple_business": null,
       "apple_business_manager": null,
+      "apple_account_provisioning": {
+        "oauth_idp_token_url": null,
+        "oauth_idp_client_id": null,
+        "oauth_idp_client_secret": null
+      },
       "apple_server_url": "",
       "volume_purchasing_program": null,
       "apple_bm_terms_expired": false,

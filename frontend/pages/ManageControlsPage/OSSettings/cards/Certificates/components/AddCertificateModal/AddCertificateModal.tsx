@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
@@ -6,8 +6,8 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import paths from "router/paths";
 
-import { NotificationContext } from "context/notification";
-import certificatesAPI, { ICertificate } from "services/entities/certificates";
+import { notify } from "components/ToastNotification";
+import certificatesAPI from "services/entities/certificates";
 import { getErrorReason } from "interfaces/errors";
 
 import InputField from "components/forms/fields/InputField";
@@ -35,20 +35,16 @@ export interface IAddCertFormData {
 }
 
 interface IAddCertModalProps {
-  existingCerts: ICertificate[];
   onExit: () => void;
   onSuccess: () => void;
   currentTeamId?: number;
 }
 
 const AddCertModal = ({
-  existingCerts: existingCTs,
   onExit,
   onSuccess,
   currentTeamId,
 }: IAddCertModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isUpdating, setIsUpdating] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [formData, setFormData] = useState<IAddCertFormData>({
@@ -64,10 +60,7 @@ const AddCertModal = ({
     subjectAlternativeName?: string;
   }>({});
 
-  const validations = useMemo(
-    () => generateFormValidations(existingCTs || []),
-    [existingCTs]
-  );
+  const validations = useMemo(() => generateFormValidations(), []);
 
   // formValidation is derived from formData + attemptedSubmit; computing it during render via
   // useMemo keeps it in lockstep with its inputs without scattering setFormValidation calls
@@ -141,7 +134,7 @@ const AddCertModal = ({
         subjectAlternativeName: formData.subjectAlternativeName,
         teamId: currentTeamId,
       });
-      renderFlash("success", "Successfully added your certificate.");
+      notify.success("Successfully added your certificate.");
       onSuccess();
       onExit();
     } catch (e) {
@@ -158,7 +151,9 @@ const AddCertModal = ({
           name: "Name is already used by another certificate.",
         });
       } else {
-        renderFlash("error", "Couldn't add certificate. Please try again.");
+        notify.error("Couldn't add certificate. Please try again.", {
+          response: e,
+        });
       }
     } finally {
       setIsUpdating(false);
@@ -175,18 +170,6 @@ const AddCertModal = ({
     }
     return (
       <form className={baseClass} onSubmit={onSubmitForm}>
-        <InputField
-          name="name"
-          label="Name"
-          value={formData.name}
-          onChange={onInputChange}
-          error={serverErrors.name ?? formValidation.name?.message}
-          helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
-          parseTarget
-          placeholder="VPN certificate"
-          autofocus
-          ignore1password
-        />
         <DropdownWrapper
           label="Certificate authority (CA)"
           name="certificateAuthority"
@@ -207,6 +190,16 @@ const AddCertModal = ({
             </>
           }
           error={formValidation.certAuthorityId?.message}
+        />
+        <InputField
+          name="name"
+          label="Name"
+          value={formData.name}
+          onChange={onInputChange}
+          error={serverErrors.name ?? formValidation.name?.message}
+          helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
+          parseTarget
+          placeholder="VPN certificate"
         />
         <InputField
           name="subjectName"

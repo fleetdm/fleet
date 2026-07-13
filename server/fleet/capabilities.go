@@ -84,6 +84,13 @@ const (
 	// CapabilityLinuxDiskEncryptionEscrow denotes the ability of the server to escrow Ubuntu and Fedora disk
 	// encryption LUKS passphrases
 	CapabilityLinuxDiskEncryptionEscrow Capability = "linux_disk_encryption_escrow"
+	// CapabilityLUKSRecoveryKeyEscrow denotes the ability of the server to
+	// accept an OrbitPostLUKSRequest whose KeyType is LUKSKeyTypeRecoveryKey
+	// (no Salt, no numeric KeySlot). Servers without this capability reject
+	// the payload with a "passphrase, salt, and key_slot must be provided"
+	// error, so orbit must gate the snapd/TPM-backed FDE escrow path on it
+	// to avoid churning the fleet-escrow key slot on every retry.
+	CapabilityLUKSRecoveryKeyEscrow Capability = "luks_recovery_key_escrow"
 	// CapabilitySetupExperience denotes the ability of the server to support
 	// installing software and running a script during macOS ADE enrollment, and
 	// the ability of the client to show the corresponding UI to support that
@@ -98,6 +105,10 @@ const (
 	// CapabilityEndUserAuth denotes the ability of the client to authenticate
 	// the end user against the Fleet server (e.g. SSO) before enrolling
 	CapabilityEndUserAuth Capability = "end_user_auth"
+	// CapabilityWindowsMDMSync denotes the ability of Windows fleetd to start an on-demand OMA-DM session (via deviceenroller) when the server
+	// signals that the host has queued Windows MDM commands. This lets the server relax the aggressive Windows MDM poll while keeping command
+	// latency low.
+	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -107,6 +118,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityEndUserEmail:              {},
 		CapabilityEscrowBuddy:               {},
 		CapabilityLinuxDiskEncryptionEscrow: {},
+		CapabilityLUKSRecoveryKeyEscrow:     {},
 		CapabilitySetupExperience:           {},
 		CapabilityWebSetupExperience:        {},
 		CapabilityMacOSWebSetupExperience:   {},
@@ -129,6 +141,10 @@ func GetOrbitClientCapabilities() CapabilityMap {
 	// On non-macOS systems, include end user auth capability.
 	if runtime.GOOS != "darwin" {
 		capabilities[CapabilityEndUserAuth] = struct{}{}
+	}
+	// Windows fleetd can start an on-demand OMA-DM session (windowsMDMSyncConfigReceiver) when the server signals queued MDM commands.
+	if runtime.GOOS == "windows" {
+		capabilities[CapabilityWindowsMDMSync] = struct{}{}
 	}
 	return capabilities
 }

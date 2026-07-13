@@ -1,0 +1,10 @@
+{
+  "name": "Equinox",
+  "unique_identifier": "com.rlxone.equinox",
+  "token": "equinox",
+  "installer_format": "dmg",
+  "slug": "equinox/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

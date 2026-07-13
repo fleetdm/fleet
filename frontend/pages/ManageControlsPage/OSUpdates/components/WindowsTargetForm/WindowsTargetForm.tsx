@@ -5,7 +5,7 @@ import { AxiosResponse } from "axios";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
@@ -110,7 +110,6 @@ const WindowsTargetForm = ({
   refetchAppConfig,
   refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
 
@@ -140,9 +139,11 @@ const WindowsTargetForm = ({
       currentTeamId === APP_CONTEXT_NO_TEAM_ID
         ? await configAPI.update(updateData)
         : await teamsAPI.update(updateData, currentTeamId);
-      renderFlash("success", "Successfully updated Windows OS update options.");
+      notify.success("Successfully updated Windows OS update options.");
     } catch (err) {
-      renderFlash("error", getErrorMessage(err as AxiosResponse<IApiError>));
+      notify.error(getErrorMessage(err as AxiosResponse<IApiError>), {
+        response: err,
+      });
     } finally {
       currentTeamId === APP_CONTEXT_NO_TEAM_ID
         ? refetchAppConfig()

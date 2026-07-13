@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.1.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm' AND version_compare(bundle_short_version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm' AND version_compare(bundle_short_version, '2026.1.4') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.1.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.1.4-aarch64.dmg",
       "install_script_ref": "cd510d61",
       "uninstall_script_ref": "c0791a1f",
-      "sha256": "d98c821e2ef23d79eae4a5a4a82f94a1d9dce318fe0e44ec2f5bd436a2cd98f8",
+      "sha256": "6587a7e84c341986c1026b860830023c1b3283167ab13efcee8ea0a85f43273c",
       "default_categories": [
         "Developer tools"
       ]

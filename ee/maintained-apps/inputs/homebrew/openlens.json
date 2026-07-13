@@ -1,0 +1,10 @@
+{
+  "name": "OpenLens",
+  "unique_identifier": "com.electron.open-lens",
+  "token": "openlens",
+  "installer_format": "dmg",
+  "slug": "openlens/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

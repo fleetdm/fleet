@@ -10,7 +10,7 @@ import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import paths from "router/paths";
 
@@ -110,7 +110,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isPremiumTier,
     isOnGlobalTeam,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const {
     currentTeamId,
@@ -486,7 +485,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             hosts: enrolled_automated_hosts_count,
           },
           {
-            status: "On (personal)",
+            status: "On (manual - personal)",
             hosts: enrolled_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
@@ -596,15 +595,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             },
           });
         }
-        renderFlash(
-          "success",
-          "Successfully updated activity feed automations."
-        );
+        notify.success("Successfully updated activity feed automations.");
         setShowActivityFeedAutomationsModal(false);
-      } catch {
-        renderFlash(
-          "error",
-          "Couldn't update activity feed automations. Please try again."
+      } catch (e) {
+        notify.error(
+          "Couldn't update activity feed automations. Please try again.",
+          { response: e }
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);
@@ -616,7 +612,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       config?.webhook_settings.activities_webhook.destination_url,
       config?.webhook_settings.activities_webhook.enable_activities_webhook,
       refetchConfig,
-      renderFlash,
     ]
   );
 
@@ -665,8 +660,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showActivityFeedTitle,
     action: canEditActivityFeedAutomations
       ? {
-          type: "button",
-          text: "Manage automations",
+          type: "automations",
           onClick: () => setShowActivityFeedAutomationsModal(true),
         }
       : undefined,
@@ -936,6 +930,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           <Card paddingSize="xlarge" borderRadiusSize="large">
             <HostsEnrolledCard
               counts={totalCounts}
+              totalHostCount={hostSummaryTotals?.totals_hosts_count || 0}
               builtInLabels={labels}
               currentTeamId={teamIdForApi}
               router={router}
@@ -945,6 +940,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}
+              filterDefaults={
+                featuresConfig?.vulnerability_exposure_historical_reporting
+              }
             />
           </Card>
         </div>

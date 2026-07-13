@@ -1,0 +1,10 @@
+{
+  "name": "RoboForm",
+  "unique_identifier": "com.SiberSystems.RoboForm",
+  "token": "roboform",
+  "installer_format": "dmg",
+  "slug": "roboform/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

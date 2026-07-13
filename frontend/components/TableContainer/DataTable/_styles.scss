@@ -13,15 +13,19 @@ $shadow-transition-width: 16px;
       border-radius: 6px;
       flex-grow: 1;
       width: 100%;
+      // Wide tables scroll horizontally within the table wrapper rather than
+      // pushing the document past the viewport. The shadow backgrounds below
+      // were already engineered for horizontal scrolling.
+      overflow-x: auto;
 
       // Shadow
       background-image:
       /* Shadows */ linear-gradient(
           to right,
           $core-fleet-white,
-          $transparent
+          $core-fleet-white-transparent
         ),
-        linear-gradient(to left, $core-fleet-white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $core-fleet-white-transparent),
         /* Shadow covers */
           linear-gradient(
             to right,
@@ -146,7 +150,12 @@ $shadow-transition-width: 16px;
           min-width: max-content;
           font-weight: $bold;
 
-          span {
+          // Targets only HeaderCell's wrapper span (direct child of
+          // `.header-cell`), not arbitrary descendant spans. Previously
+          // `.column-header span` matched every descendant, leaking
+          // `display: flex` onto nested suffix/decoration spans like
+          // `.resolved-suffix` and turning them block-level.
+          .header-cell > span {
             display: flex;
             align-items: center;
             gap: $gap-icon-text;

@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft 365 Copilot",
+  "unique_identifier": "com.microsoft.m365copilot",
+  "token": "microsoft-365-copilot",
+  "installer_format": "pkg",
+  "slug": "microsoft-365-copilot/darwin",
+  "default_categories": ["Productivity"]
+}

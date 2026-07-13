@@ -1,0 +1,10 @@
+{
+  "name": "Bartender",
+  "unique_identifier": "com.surteesstudios.Bartender",
+  "token": "bartender",
+  "installer_format": "zip",
+  "slug": "bartender/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

@@ -198,15 +198,16 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	var (
-		macOSMinVersionUpdated        bool
-		updateNewHostsChanged         bool
-		iOSMinVersionUpdated          bool
-		iPadOSMinVersionUpdated       bool
-		windowsUpdatesUpdated         bool
-		macOSDiskEncryptionUpdated    bool
-		recoveryLockPasswordUpdated   bool
-		macOSEnableEndUserAuthUpdated bool
-		conditionalAccessUpdated      bool
+		macOSMinVersionUpdated          bool
+		updateNewHostsChanged           bool
+		iOSMinVersionUpdated            bool
+		iPadOSMinVersionUpdated         bool
+		windowsUpdatesUpdated           bool
+		macOSDiskEncryptionUpdated      bool
+		recoveryLockPasswordUpdated     bool
+		macOSEnableEndUserAuthUpdated   bool
+		macOSManagedLocalAccountUpdated bool
+		conditionalAccessUpdated        bool
 	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -351,13 +352,24 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
 
-			if err := payload.MDM.MacOSSetup.Validate(); err != nil {
+			if err := payload.MDM.MacOSSetup.ValidateAgainst(team.Config.MDM.MacOSSetup); err != nil {
 				return nil, err
 			}
 
-			// move over values that we just validated, so they get updated.
-			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
-			team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
+			macOSManagedLocalAccountUpdated = payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set &&
+				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+			if macOSManagedLocalAccountUpdated && payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value && !appCfg.MDM.EnabledAndConfigured {
+				return nil, fleet.NewInvalidArgumentError("setup_experience.enable_managed_local_account",
+					`Couldn't update setup_experience.enable_managed_local_account because MDM features aren't turned on in Fleet.`)
+			}
+
+			// move over values that we just validated, so they get updated, but only if set since this is partial patch.
+			if payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set {
+				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
+			}
+			if payload.MDM.MacOSSetup.EndUserLocalAccountType.Set {
+				team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
+			}
 		}
 	}
 
@@ -605,6 +617,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
 		}
 	}
+	if macOSManagedLocalAccountUpdated {
+		if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable managed local account")
+		}
+	}
 	// Create activity if conditional access was enabled or disabled for the team.
 	if conditionalAccessUpdated {
 		if team.Config.Integrations.ConditionalAccessEnabled.Value {
@@ -687,7 +704,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWriteMembers); err != nil {
 		return nil, err
 	}
 
@@ -732,7 +749,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWriteMembers); err != nil {
 		return nil, err
 	}
 
@@ -863,6 +880,37 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	for _, ct := range certTemplates {
 		if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, ct.ID); err != nil {
 			return ctxerr.Wrapf(ctx, err, "set hosts to pending remove for certificate template %d", ct.ID)
+		}
+	}
+
+	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
+	}
+
+	// cleanup app config references for the team being deleted
+	if len(orgNames) > 0 {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		updated := false
+		for _, orgName := range orgNames {
+			for i, token := range appCfg.MDM.AppleBusinessManager.Value {
+				if token.OrganizationName != orgName {
+					// no-op for this org name/token combo
+					continue
+				}
+
+				token.CleanRemovedTeam(name)
+				appCfg.MDM.AppleBusinessManager.Value[i] = token
+				updated = true
+			}
+		}
+		if updated {
+			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+				return ctxerr.Wrap(ctx, err, "save app config")
+			}
 		}
 	}
 
@@ -1368,6 +1416,23 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	return idsByName, nil
 }
 
+// validateVulnExposureFilters validates a team's vulnerability-exposure chart
+// filter defaults (display-only defaults that seed the dashboard chart's
+// filter controls; they do not affect data collection). Sparse/PATCH
+// semantics: only present fields are checked. Teams are premium-only, so no
+// separate license gate is required here.
+func validateVulnExposureFilters(ctx context.Context, veFilters *fleet.VulnExposureFilterSettings) error {
+	if veFilters == nil {
+		return nil
+	}
+	invalid := &fleet.InvalidArgumentError{}
+	veFilters.Validate("team.settings.features", invalid)
+	if invalid.HasErrors() {
+		return ctxerr.Wrap(ctx, invalid)
+	}
+	return nil
+}
+
 func (svc *Service) createTeamFromSpec(
 	ctx context.Context,
 	spec *fleet.TeamSpec,
@@ -1389,6 +1454,9 @@ func (svc *Service) createTeamFromSpec(
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := validateVulnExposureFilters(ctx, features.VulnerabilityExposureHistoricalReporting); err != nil {
+		return nil, err
 	}
 
 	var macOSSettings fleet.MacOSSettings
@@ -1612,6 +1680,9 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
+	if err := validateVulnExposureFilters(ctx, team.Config.Features.VulnerabilityExposureHistoricalReporting); err != nil {
+		return err
+	}
 
 	// Check OS update settings.
 	var (
@@ -1753,7 +1824,9 @@ func (svc *Service) editTeamFromSpec(
 
 	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
 	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
-		if appCfg.MDM.EndUserAuthentication.IsEmpty() {
+		// Skip the precondition during dry-run that end-user auth SSO must be configured,
+		// since we can't tell here if the GitOps run is also doing that configuration.
+		if !opts.DryRun && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
@@ -1978,7 +2051,11 @@ func (svc *Service) editTeamFromSpec(
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
 		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+			// The package may have already been deleted via the GUI while the
+			// team config JSON still had the stale URL; ignore not-found.
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+			}
 		}
 	}
 
@@ -1994,6 +2071,14 @@ func (svc *Service) editTeamFromSpec(
 	if didUpdateMacOSEndUserAuth {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(
 			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
+		); err != nil {
+			return err
+		}
+	}
+
+	if didUpdateEnableManagedLocalAccount {
+		if err := svc.updateMacOSSetupEnableManagedLocalAccount(
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}

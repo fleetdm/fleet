@@ -52,6 +52,11 @@
     font-weight: $bold;
   }
 
+  &__tooltip-share {
+    margin-top: $pad-xsmall;
+    opacity: 0.8;
+  }
+
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
   // and individual bar rectangles. Recharts wraps each bar in a focusable
   // <rect> and the chart surface itself is focusable when interactive.

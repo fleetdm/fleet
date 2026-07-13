@@ -1,0 +1,1 @@
+- Updated the "installed during setup" tooltip on Controls > Setup experience > Install software to clarify that installation order depends on software name (0-9, then A-Z), and that software without a policy is installed before software with a policy.

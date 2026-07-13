@@ -85,11 +85,14 @@
     position: relative;
     width: 550px;
 
+    // Fades to the surface background — color-mix() with --core-fleet-white
+    // keeps this dark-mode aware instead of hardcoding the light-mode hex
+    // (matches the veil pattern in components/EmptyState/_styles.scss).
     background: linear-gradient(
       180deg,
-      rgba(249, 250, 252, 0) 0%,
-      rgba(249, 250, 252, 0.75) 29.33%,
-      #f9fafc 83.17%
+      color-mix(in srgb, var(--core-fleet-white) 0%, transparent) 0%,
+      color-mix(in srgb, var(--core-fleet-white) 75%, transparent) 29.33%,
+      var(--core-fleet-white) 83.17%
     );
 
     &--fleet {

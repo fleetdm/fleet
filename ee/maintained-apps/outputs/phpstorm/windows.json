@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.1.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PhpStorm %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PhpStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PhpStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.26222.71') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2026.1.2.exe",
+      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2026.1.4.exe",
       "install_script_ref": "ea27a84f",
       "uninstall_script_ref": "909d4772",
-      "sha256": "4ea5303f5f93ccb48a1ef151efa079f8ee301fabd90f6ea0648d323fea3f3b3c",
+      "sha256": "7f37235288b56cb9c19a4a6833596441af27df8100d02b40ed182936b6c902d6",
       "default_categories": [
         "Developer tools"
       ]
