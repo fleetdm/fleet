@@ -1,0 +1,1 @@
+- Fixed intermittent Windows Autopilot enrollments hanging on the Enrollment Status Page "Account setup" screen when the host was linked before the ESP hold commands ran, by recreating the user-scope DMClient node during ESP release so the completion signal is no longer rejected.

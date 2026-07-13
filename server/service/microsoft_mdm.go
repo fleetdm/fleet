@@ -2725,6 +2725,17 @@ func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+		// Recreate the user-scope DMClient Provider tree immediately before the user-scope Replace. The hold phase only
+		// sends these Adds while host_uuid is empty (handleESPHoldOrTransition); if host_uuid is linked -- by orbit
+		// enroll, the DevDetail/SMBIOS reply, or the osquery backstop -- before the first Pending-phase hold session
+		// runs, the Adds are skipped and the user-scope node is never created. The release-phase Replace then lands on a
+		// nonexistent node and returns SyncML 405, hanging the device on the Account setup ("Working on it...") ESP
+		// phase until the 3-hour timeout. Sending the Adds here makes the release self-sufficient regardless of who wins
+		// the host_uuid linking race: SyncML processes commands in message order, so these run before the Replace below,
+		// and when the node already exists (the common case) they return a harmless 418 (Already Exists) that does not
+		// fail the session.
+		newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s", provID)),
+		newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus", provID)),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 	}

@@ -31,8 +31,8 @@ import (
 //     (block: reason-specific static text; warn: dynamic failed-software list).
 //   - Release path command shape: Device-scope AND User-scope ServerHasFinishedProvisioning plus
 //     PolicyProviders InstallationState=3; NO CustomErrorText, NO BlockInStatusPage. The user-scope
-//     Provider node is created during the hold phase via Add commands so the user-scope SHFP write
-//     lands instead of being 405-rejected.
+//     Provider node Adds are re-sent inline, ordered before the user-scope SHFP Replace, so the write
+//     lands instead of being 405-rejected even when the hold-phase Adds were skipped (issue #49134).
 //   - Persisted CommandUUIDs equal inline CmdID.Value (the ack-clearing invariant).
 //   - Persist runs as a single batched call (a regression that loops single inserts would split CustomErrorText
 //     and the block flags across multiple TX boundaries).
@@ -342,17 +342,29 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 				"release path must NOT include CustomErrorText")
 			// Release writes ServerHasFinishedProvisioning at BOTH Device and User scope. Device scope completes
 			// the Device setup phase; User scope completes Account setup. The User-scope write requires the
-			// user-scope DMClient Provider node to have been created earlier via the hold-phase Add commands.
+			// user-scope DMClient Provider node to exist; the release recreates it inline via Add commands so the
+			// write lands even when the hold-phase Adds were skipped (host_uuid linked before the first hold session).
 			shfpDeviceFound, shfpUserFound := false, false
-			for _, c := range cmds {
+			userProviderAddIdx, userFirstSyncAddIdx, userSHFPIdx := -1, -1, -1
+			for i, c := range cmds {
 				uri := c.GetTargetURI()
-				if !strings.Contains(uri, "ServerHasFinishedProvisioning") {
+				if strings.Contains(uri, "ServerHasFinishedProvisioning") {
+					if strings.Contains(uri, "/Device/") {
+						shfpDeviceFound = true
+					} else if strings.Contains(uri, "/User/") {
+						shfpUserFound = true
+						userSHFPIdx = i
+					}
 					continue
 				}
-				if strings.Contains(uri, "/Device/") {
-					shfpDeviceFound = true
-				} else if strings.Contains(uri, "/User/") {
-					shfpUserFound = true
+				// The user-scope Provider node Add and its FirstSyncStatus child Add (idempotent; 418 when the node
+				// already exists). Match on the /User/ Provider tree, distinguishing the parent from the child.
+				if c.XMLName.Local == fleet.CmdAdd && strings.Contains(uri, "/User/Vendor/MSFT/DMClient/Provider/") {
+					if strings.HasSuffix(uri, "/FirstSyncStatus") {
+						userFirstSyncAddIdx = i
+					} else {
+						userProviderAddIdx = i
+					}
 				}
 			}
 			assert.Truef(rt, shfpDeviceFound,
@@ -361,6 +373,14 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 				"release path must include User-scope ServerHasFinishedProvisioning so Account setup completes; "+
 					"omitting it hangs the device on 'Working on it...' indefinitely on Win11 26200 when Account "+
 					"setup has been displayed")
+			// The user-scope node Adds must be present AND ordered before the user-scope Replace, otherwise the
+			// Replace 405s on a nonexistent node (issue #49134). SyncML processes commands in message order.
+			require.Truef(rt, userProviderAddIdx >= 0 && userFirstSyncAddIdx >= 0,
+				"release path must Add the user-scope Provider node and FirstSyncStatus child before the "+
+					"user-scope ServerHasFinishedProvisioning Replace (issue #49134)")
+			assert.Truef(rt, userProviderAddIdx < userSHFPIdx && userFirstSyncAddIdx < userSHFPIdx,
+				"user-scope node Adds must precede the user-scope ServerHasFinishedProvisioning Replace so the "+
+					"Replace lands on an existing node (issue #49134)")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "BlockInStatusPage"),
 				"release path must NOT include BlockInStatusPage")
 		}
