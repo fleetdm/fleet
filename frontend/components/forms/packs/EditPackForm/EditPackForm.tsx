@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import useDeepEffect from "hooks/useDeepEffect";
 
+import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
 import Button from "components/buttons/Button";
 
 import { IQuery } from "interfaces/query";
@@ -111,6 +112,7 @@ const EditPackForm = ({
         name="name"
         error={errors.name}
         inputWrapperClass={`${baseClass}__pack-title`}
+        inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
       />
       <InputField
         onChange={onChangePackDescription}
@@ -120,6 +122,7 @@ const EditPackForm = ({
         name="description"
         placeholder="Add a description of your pack"
         type="textarea"
+        inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
       />
       <SelectTargetsDropdown
         label="Select pack targets"

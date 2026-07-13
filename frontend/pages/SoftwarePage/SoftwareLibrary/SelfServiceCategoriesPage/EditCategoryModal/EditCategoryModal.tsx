@@ -3,13 +3,13 @@ import React, { useState } from "react";
 import selfServiceCategoriesAPI from "services/entities/self_service_categories";
 import { hasStatusKey } from "interfaces/errors";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
+import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 
 const baseClass = "edit-category-modal";
-const NAME_MAX_LENGTH = 255;
 
 interface IEditCategoryModalProps {
   category: ISelfServiceCategory;
@@ -28,7 +28,7 @@ const EditCategoryModal = ({
 
   const trimmedName = name.trim();
   const isInvalid =
-    trimmedName.length === 0 || trimmedName.length > NAME_MAX_LENGTH;
+    trimmedName.length === 0 || trimmedName.length > MAX_ENTITY_NAME_LENGTH;
   const isUnchanged = trimmedName === category.name;
   const isDisabled = isInvalid || isUnchanged || isSubmitting;
 
@@ -75,7 +75,7 @@ const EditCategoryModal = ({
           error={error}
           autofocus
           ignore1password
-          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
         />
         <div className="modal-cta-wrap">
           <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>

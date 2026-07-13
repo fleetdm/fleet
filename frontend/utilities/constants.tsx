@@ -88,6 +88,12 @@ export const LOGGING_TYPE_OPTIONS = [
 
 export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
+// Max character length for most user-supplied name/title fields — matches the
+// varchar(255) column shared across policies, reports, teams (fleets), labels,
+// scripts, software categories, custom variables, certificate authorities, etc.
+// Use on any `InputField` bound to a `name`/`title` column: `inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}`.
+export const MAX_ENTITY_NAME_LENGTH = 255;
+
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
   { label: "5.23.1 +", value: "5.23.1" },

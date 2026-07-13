@@ -1,0 +1,3 @@
+- Fixed long fleet names overflowing the fleets table, fleet detail page header, teams dropdown, and manage enroll secrets modal. Fleet name inputs now cap at 255 characters (matching the database column), and the API and GitOps now return a clear validation error instead of a raw "Data too long" MySQL error when a longer name is submitted.
+- Added 255-character caps to additional user-supplied name and description inputs (API user, custom variable, certificate, label, pack, certificate authority forms) to prevent the same class of overflow bug.
+- Fixed long label names overflowing the Labels card on the host details page.

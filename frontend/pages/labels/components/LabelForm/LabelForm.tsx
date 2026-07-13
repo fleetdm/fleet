@@ -1,5 +1,7 @@
 import React, { ReactNode, useState } from "react";
 
+import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
+
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -150,6 +152,7 @@ const LabelForm = ({
         inputClassName={`${baseClass}__label-title`}
         label="Name"
         placeholder="Label name"
+        inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
       />
       <InputField
         error={formValidation.description?.message}
@@ -162,6 +165,7 @@ const LabelForm = ({
         label="Description"
         type="textarea"
         placeholder="Label description (optional)"
+        inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
       />
       {immutableFields.length > 0 ? (
         <span className={`${baseClass}__help-text`}>

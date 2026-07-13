@@ -13,6 +13,8 @@
 
   &__list-item {
     margin-bottom: 0;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .button,
@@ -21,5 +23,9 @@
     .__react_component_tooltip {
       font-weight: $regular;
     }
+  }
+
+  &__list-button {
+    max-width: 300px;
   }
 }
