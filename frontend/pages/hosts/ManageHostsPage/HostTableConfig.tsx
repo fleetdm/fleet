@@ -579,9 +579,19 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Agent
   {
     title: "Agent",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Agent" isSortedDesc={cellProps.column.isSortedDesc} />
-    ),
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper tipContent="Currently only supported for macOS, Windows, Linux, and ChromeOS.">
+          Agent
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: (row) => row.orbit_version || row.osquery_version,
     id: "agent",
     Cell: (cellProps: IHostTableStringCellProps) => {
@@ -673,12 +683,19 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Last restarted
   {
     title: "Last restarted",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Last restarted"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper tipContent="Currently only supported for macOS, Windows, and Linux.">
+          Last restarted
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: "last_restarted_at",
     id: "last_restarted_at",
     Cell: (cellProps: IHostTableStringCellProps) => {
