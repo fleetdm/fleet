@@ -73,6 +73,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 		{"GetSoftwareTitlesForInstallAll", testGetSoftwareTitlesForInstallAll},
 		{"SummaryUpcomingPerHostNoDropout", testSummaryUpcomingPerHostNoDropout},
+		{"GetSoftwareInstallDetailsCustomHostVitals", testGetSoftwareInstallDetailsCustomHostVitals},
 	}
 
 	for _, c := range cases {
@@ -81,6 +82,65 @@ func TestSoftwareInstallers(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testGetSoftwareInstallDetailsCustomHostVitals(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "chv-host", "chv-1", "chv-key", "chv-uuid", time.Now())
+	user := test.NewUser(t, ds, "Alice", "alice-chv@example.com", true)
+
+	assetTag, err := ds.CreateCustomHostVital(ctx, "Asset tag")
+	require.NoError(t, err)
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, assetTag.ID, "A-123"))
+
+	newInstaller := func(t *testing.T, storageID string, scripts map[string]string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     scripts["install"],
+			PostInstallScript: scripts["post"],
+			UninstallScript:   scripts["uninstall"],
+			PreInstallQuery:   "SELECT 1",
+			InstallerFile:     tfr,
+			StorageID:         storageID,
+			Filename:          storageID,
+			Title:             storageID,
+			Version:           "1.0",
+			Source:            "apps",
+			UserID:            user.ID,
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+
+	token := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, assetTag.ID)
+	installerID := newInstaller(t, "chv-storage-1", map[string]string{
+		"install": "install " + token, "post": "post " + token, "uninstall": "uninstall " + token,
+	})
+	execID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	details, err := ds.GetSoftwareInstallDetails(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, "install A-123", details.InstallScript)
+	require.Equal(t, "post A-123", details.PostInstallScript)
+	require.Equal(t, "uninstall A-123", details.UninstallScript)
+
+	// A referenced vital with no value for the host fails delivery.
+	dept, err := ds.CreateCustomHostVital(ctx, "Department")
+	require.NoError(t, err)
+	installerID2 := newInstaller(t, "chv-storage-2", map[string]string{
+		"install": fmt.Sprintf("install $%s%d", fleet.CustomHostVitalPrefix, dept.ID),
+	})
+	execID2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID2, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.GetSoftwareInstallDetails(ctx, execID2)
+	var missing *fleet.MissingCustomHostVitalValueError
+	require.ErrorAs(t, err, &missing)
+	require.Equal(t, []uint{dept.ID}, missing.MissingIDs) //nolint:nilaway // cannot be nil due to require.ErrorAs above
 }
 
 func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {

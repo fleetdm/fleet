@@ -2242,6 +2242,22 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
+	// Only Apple and Windows profiles expand $FLEET_HOST_VITAL_ tokens at delivery.
+	// Android has no expansion path and is rejected outright in getAndroidProfiles
+	// (MDMAndroidConfigProfile.ValidateUserProvided) below; skip it here so an Android
+	// profile referencing a vital gets that clear "not supported" error rather than a
+	// misleading "missing from database" one from this existence check.
+	customHostVitalDocs := make([]string, 0, len(profiles))
+	for _, p := range profiles {
+		if mdm.GetRawProfilePlatform(p.Contents) == "android" {
+			continue
+		}
+		customHostVitalDocs = append(customHostVitalDocs, string(p.Contents))
+	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, customHostVitalDocs); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profiles", err.Error()))
+	}
+
 	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")

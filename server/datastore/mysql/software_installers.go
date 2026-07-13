@@ -129,22 +129,29 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 
-	expandedInstallScript, err := ds.ExpandEmbeddedSecrets(ctx, result.InstallScript)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in install script")
-	}
-	expandedPostInstallScript, err := ds.ExpandEmbeddedSecrets(ctx, result.PostInstallScript)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in post-install script")
-	}
-	expandedUninstallScript, err := ds.ExpandEmbeddedSecrets(ctx, result.UninstallScript)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in uninstall script")
+	// Install scripts run per-host, so custom host vitals resolve against the target host.
+	expand := func(script, kind string) (string, error) {
+		expanded, err := ds.ExpandEmbeddedSecrets(ctx, script)
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "expanding secrets in %s script", kind)
+		}
+		expanded, err = ds.ExpandCustomHostVitals(ctx, result.HostID, expanded)
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "expanding custom host vitals in %s script", kind)
+		}
+		return expanded, nil
 	}
 
-	result.InstallScript = expandedInstallScript
-	result.PostInstallScript = expandedPostInstallScript
-	result.UninstallScript = expandedUninstallScript
+	var err error
+	if result.InstallScript, err = expand(result.InstallScript, "install"); err != nil {
+		return nil, err
+	}
+	if result.PostInstallScript, err = expand(result.PostInstallScript, "post-install"); err != nil {
+		return nil, err
+	}
+	if result.UninstallScript, err = expand(result.UninstallScript, "uninstall"); err != nil {
+		return nil, err
+	}
 
 	// Check if this install is part of setup experience and set retry count accordingly
 	var setupExperienceCount int

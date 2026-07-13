@@ -88,6 +88,16 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	// Custom host vital reference validation is wired into all script/profile
+	// upload paths. Provide a permissive default so tests that don't reference
+	// $FLEET_HOST_VITAL_<id> don't need to stub it (the real datastore no-ops
+	// when the document has no such tokens). Tests that assert on it can override.
+	if mockDS, ok := ds.(*fleet_mock.Store); ok {
+		if mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
+			mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+		}
+	}
+
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	logger := slog.New(slog.DiscardHandler)
 	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,

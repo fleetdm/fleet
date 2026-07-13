@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -37,6 +38,110 @@ func (HostCustomHostVitalValue) AuthzType() string {
 	return "host_custom_vital"
 }
 
+type MissingCustomHostVitalsError struct {
+	MissingIDs []uint
+}
+
+func (e MissingCustomHostVitalsError) Error() string {
+	tokens := make([]string, 0, len(e.MissingIDs))
+	for _, id := range e.MissingIDs {
+		tokens = append(tokens, fmt.Sprintf("\"$%s%d\"", CustomHostVitalPrefix, id))
+	}
+	plural := ""
+	if len(tokens) > 1 {
+		plural = "s"
+	}
+	return fmt.Sprintf("Couldn't add. Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
+}
+
+// InvalidCustomHostVitalRefError is returned on upload when a document contains a
+// $FLEET_HOST_VITAL_<x> token whose <x> is not a valid custom host vital ID
+// (a positive integer) — e.g. a typo like $FLEET_HOST_VITAL_asset_tag.
+type InvalidCustomHostVitalRefError struct {
+	// Refs are the offending tokens without the leading '$', e.g. "FLEET_HOST_VITAL_asset_tag".
+	Refs []string
+}
+
+func (e InvalidCustomHostVitalRefError) Error() string {
+	tokens := make([]string, 0, len(e.Refs))
+	for _, r := range e.Refs {
+		tokens = append(tokens, fmt.Sprintf("\"$%s\"", r))
+	}
+	plural := ""
+	if len(tokens) > 1 {
+		plural = "s"
+	}
+	return fmt.Sprintf(
+		"Couldn't add. Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
+		plural, strings.Join(tokens, ", "), CustomHostVitalPrefix,
+	)
+}
+
+// MissingCustomHostVitalValueError is returned when expanding $FLEET_HOST_VITAL_<id>
+// at delivery time for a host that has no value set for that (existing) vital.
+// Distinct from MissingCustomHostVitalsError (upload-time: the id doesn't exist)
+// so the delivery failure detail shown to admins names the real cause.
+type MissingCustomHostVitalValueError struct {
+	MissingIDs []uint
+}
+
+func (e MissingCustomHostVitalValueError) Error() string {
+	tokens := make([]string, 0, len(e.MissingIDs))
+	for _, id := range e.MissingIDs {
+		tokens = append(tokens, fmt.Sprintf("\"$%s%d\"", CustomHostVitalPrefix, id))
+	}
+	plural := ""
+	if len(tokens) > 1 {
+		plural = "s"
+	}
+	return fmt.Sprintf("Couldn't populate custom host vital%s %s: no value set for this host", plural, strings.Join(tokens, ", "))
+}
+
+// Describes an entity that references a custom host vital.
+type EntityUsingCustomHostVital struct {
+	// "script", "apple_profile", "apple_declaration", "windows_profile",
+	// "software_installer", or "setup_experience_script".
+	Type string
+	// Name is the name of the entity.
+	Name string
+	// FleetName is the name of the fleet (team) the entity belongs to.
+	FleetName string
+}
+
+// CustomHostVitalUsedInfo describes a script/profile/declaration that references a custom host vital.
+type CustomHostVitalUsedInfo struct {
+	CustomHostVitalID   uint
+	CustomHostVitalName string
+	Entity              EntityUsingCustomHostVital
+}
+
+// Message returns the human-readable "X is used by Y" explanation.
+func (i CustomHostVitalUsedInfo) Message() string {
+	noun, action := "configuration profile", "Please delete the configuration profile and try again."
+	switch i.Entity.Type {
+	case "script":
+		noun, action = "script", "Please edit or delete the script and try again."
+	case "software_installer":
+		noun, action = "software", "Please edit or delete the software and try again."
+	case "setup_experience_script":
+		noun, action = "setup experience script", "Please edit or delete the setup experience script and try again."
+	}
+	return fmt.Sprintf(
+		"Custom host vital %q (used as $%s%d) is used by the %q %s in the %q fleet. %s",
+		i.CustomHostVitalName, CustomHostVitalPrefix, i.CustomHostVitalID, i.Entity.Name, noun, i.Entity.FleetName, action,
+	)
+}
+
+// CustomHostVitalUsedError wraps CustomHostVitalUsedInfo as an error, returned when
+// a custom host vital can't be deleted because it is still referenced.
+type CustomHostVitalUsedError struct {
+	CustomHostVitalUsedInfo
+}
+
+func (e *CustomHostVitalUsedError) Error() string {
+	return e.Message()
+}
+
 func ValidateCustomHostVitalName(name string) error {
 	if len(name) == 0 {
 		return NewInvalidArgumentError("name", "custom host vital name cannot be empty")
@@ -48,4 +153,39 @@ func ValidateCustomHostVitalName(name string) error {
 		return NewInvalidArgumentError("name", fmt.Sprintf("custom host vital name is too long: %s", name))
 	}
 	return nil
+}
+
+func ContainsCustomHostVitalIDs(text string) []uint {
+	suffixes := ContainsPrefixVars(text, CustomHostVitalPrefix)
+	if len(suffixes) == 0 {
+		return nil
+	}
+	seen := make(map[uint]struct{}, len(suffixes))
+	ids := make([]uint, 0, len(suffixes))
+	for _, s := range suffixes {
+		id, err := strconv.ParseUint(s, 10, 64)
+		if err != nil || id == 0 {
+			continue
+		}
+		if _, ok := seen[uint(id)]; ok {
+			continue
+		}
+		seen[uint(id)] = struct{}{}
+		ids = append(ids, uint(id))
+	}
+	return ids
+}
+
+// ContainsMalformedCustomHostVitalRefs returns the $FLEET_HOST_VITAL_<x> tokens in
+// text whose <x> is not a valid custom host vital ID (a positive integer), e.g. a
+// typo like $FLEET_HOST_VITAL_asset_tag.
+// Returned tokens omit the leading '$' (e.g. "FLEET_HOST_VITAL_asset_tag").
+func ContainsMalformedCustomHostVitalRefs(text string) []string {
+	var malformed []string
+	for _, s := range ContainsPrefixVars(text, CustomHostVitalPrefix) {
+		if id, err := strconv.ParseUint(s, 10, 64); err != nil || id == 0 {
+			malformed = append(malformed, CustomHostVitalPrefix+s)
+		}
+	}
+	return malformed
 }

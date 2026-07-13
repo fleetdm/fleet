@@ -138,6 +138,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}

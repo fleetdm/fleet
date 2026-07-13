@@ -356,34 +356,47 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	// Detect document format so we can escape the secret value appropriately.
+	expanded := expandDocumentVars(document, func(s string) (string, bool) {
+		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
+			return "", false
+		}
+		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
+		return val, ok
+	})
+
+	return expanded, secrets, nil
+}
+
+// expandDocumentVars runs fleet.MaybeExpand over document, resolving each
+// variable name via resolve and escaping the substituted value for the
+// document's format (JSON or XML) so an injected value can't break the
+// surrounding profile. resolve returns the raw (unescaped) value and whether the
+// variable was handled; unhandled variables are left in place. Shared by
+// ExpandEmbeddedSecrets ($FLEET_SECRET_) and ExpandCustomHostVitals
+// ($FLEET_HOST_VITAL_) so the format escaping has a single implementation.
+func expandDocumentVars(document string, resolve func(name string) (string, bool)) string {
 	// XML detection is aggressive because Windows profiles do not begin with <?xml.
 	trimmed := strings.TrimSpace(document)
 	documentIsXML := strings.HasPrefix(trimmed, "<")
 	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
-	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
-		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
+	return fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
+		val, ok := resolve(s)
+		if !ok {
 			return "", false
 		}
-		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
-
 		switch {
 		case documentIsJSON:
 			val = jsonEscapeString(val)
 		case documentIsXML:
 			var b strings.Builder
-			err = xml.EscapeText(&b, []byte(val))
-			if err != nil {
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
 				return "", false
 			}
 			val = b.String()
 		}
-
-		return val, ok
+		return val, true
 	})
-
-	return expanded, secrets, nil
 }
 
 // jsonEscapeString returns the JSON-escaped interior of a string value
