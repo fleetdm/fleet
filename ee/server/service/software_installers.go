@@ -1295,22 +1295,25 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz boo
 	// When installerID is set, target the specific package on a multi-package
 	// title. Nil falls back to the first-added default (single-package titles
 	// and pre-multi-package callers).
+	var meta *fleet.SoftwareInstaller
+	var err error
 	if installerID != nil {
 		if !skipAuthz {
 			if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
 				return nil, err
 			}
 		}
-		meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, teamID, titleID, *installerID, false)
+		// withScriptContents=false: only StorageID and Name are used below, so
+		// skip the script_contents join.
+		meta, err = svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, teamID, titleID, *installerID, false)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting pinned software installer metadata")
 		}
-		return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
-	}
-
-	meta, err := svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
-	if err != nil {
-		return nil, err
+	} else {
+		meta, err = svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)

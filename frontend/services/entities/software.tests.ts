@@ -4,8 +4,6 @@ import softwareAPI from "./software";
 jest.mock("services", () => ({
   __esModule: true,
   default: jest.fn(),
-  sendRequestWithHeaders: jest.fn(),
-  sendRequestWithProgressAndHeaders: jest.fn(),
 }));
 
 const mockSendRequest = sendRequest as jest.MockedFunction<typeof sendRequest>;
