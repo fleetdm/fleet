@@ -6664,10 +6664,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
 
 	latestMacOSVersion := "14.6.1"
-	latestMacOSBuild := "23G93"
-
 	latestIOSVersion := "17.6.1"
-	latestIOSBuild := "21G93"
 
 	testCases := []struct {
 		name           string
@@ -6707,8 +6704,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 				SoftwareUpdateDeviceID:      "J516sAP",
 			},
 			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-				OSVersion:    latestMacOSVersion,
-				BuildVersion: latestMacOSBuild,
+				OSVersion: latestMacOSVersion,
 			},
 		},
 		{
@@ -6798,8 +6794,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 				var details *fleet.MDMAppleSoftwareUpdateRequiredDetails
 				if tt.updateRequired != nil {
 					details = &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-						OSVersion:    latestIOSVersion,
-						BuildVersion: latestIOSBuild,
+						OSVersion: latestIOSVersion,
 					}
 				}
 
