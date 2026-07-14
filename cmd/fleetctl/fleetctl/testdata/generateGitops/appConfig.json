@@ -286,6 +286,7 @@
     },
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
+    "name_template": "No team Mac $FLEET_VAR_HOST_UUID",
     "windows_settings": {
       "custom_settings": []
     },

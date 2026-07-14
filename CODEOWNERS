@@ -102,9 +102,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/software                    @georgekarrv @cdcme
 
 # Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor @mostlikelee
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor @mostlikelee
-/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor
+/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor
+/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor 
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
 
 ##############################################################################################
@@ -143,6 +143,11 @@ go.mod @fleetdm/go
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
+# 🚀 GitHub workflows
+##############################################################################################
+/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
+
+##############################################################################################
 # 🌐 GitHub workflows
 ##############################################################################################
 /.github/workflows/markdown-link-check-config.json @eashaw
@@ -153,15 +158,10 @@ go.mod @fleetdm/go
 /.github/workflows/deploy-fleet-website.yml @eashaw
 
 ##############################################################################################
-# 🚀 GitHub workflows
-##############################################################################################
-/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
-
-##############################################################################################
 # 🤖 Claude Code configuration (agents, skills, rules, settings).
 # (Reviewed by the product group tech leads.)
 ##############################################################################################
-/.claude/ @JordanMontgomery @cdcme @lucasmrod @mostlikelee @getvictor 
+/.claude/ @JordanMontgomery @cdcme @lucasmrod @getvictor 
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

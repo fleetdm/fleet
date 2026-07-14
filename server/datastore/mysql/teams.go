@@ -167,11 +167,11 @@ var teamLabelsRefs = []string{
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
-	// Enqueue <Delete> commands for Windows profiles. This must run
-	// first because the main transaction deletes the config profile rows
-	// (which contain the SyncML bytes needed to generate <Delete> commands).
-	if err := ds.enqueueWindowsDeleteCommandsForTeam(ctx, tid); err != nil {
-		return ctxerr.Wrapf(ctx, err, "enqueuing windows delete commands for team %d", tid)
+	// Prepare the fleet's Windows profiles for deletion (retain their content so the profile-manager cron can build <Delete> commands
+	// later). This must run first because the main transaction deletes the config profile rows (which contain the SyncML bytes needed
+	// to generate <Delete> commands).
+	if err := ds.prepareWindowsProfilesForTeamDeletion(ctx, tid); err != nil {
+		return ctxerr.Wrapf(ctx, err, "preparing windows profiles for deletion for fleet %d", tid)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -216,6 +216,41 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
+		// Reconcile host-name enforcement for this team's hosts. Deleting the team
+		// reassigns them to "No team" via ON DELETE SET NULL (hosts are not
+		// deleted) and never routes through AddHostsToTeam, so the transfer
+		// reconcile can't act on them. Since "No team" can now carry its own host
+		// name template, these hosts must be enforced under it after the
+		// reassignment. This is done set-based (scoped by the team_id the hosts
+		// still carry) rather than by materializing host IDs, so deleting a large
+		// team can't overflow the statement's placeholder limit.
+		//
+		// First drop the team's existing rows...
+		if _, err = tx.ExecContext(ctx, `
+			DELETE hmadn
+			FROM host_mdm_apple_device_names hmadn
+			JOIN hosts h ON h.uuid = hmadn.host_uuid
+			WHERE h.team_id = ?`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting host device name enforcement for team %d", tid)
+		}
+		// ...then, when "No team" enforces a template, queue the team's eligible
+		// hosts under it. The hosts still carry team_id = tid here; the rows are
+		// host-keyed so they survive the reassignment below, and the cron resolves
+		// the No-team template per host on its next run.
+		var noTeamTemplate string
+		if err = sqlx.GetContext(ctx, tx, &noTeamTemplate, `SELECT `+deviceNameNoTeamTemplateExpr); err != nil {
+			return ctxerr.Wrapf(ctx, err, "resolving no-team name template for team %d deletion", tid)
+		}
+		if noTeamTemplate != "" {
+			if _, err = tx.ExecContext(ctx, `
+				INSERT INTO host_mdm_apple_device_names (host_uuid, status)
+				SELECT h.uuid, NULL`+deviceNameEligibleHostsJoins+`
+				WHERE `+deviceNameEligibleHostsWhere+`
+					AND h.team_id = ?`, tid); err != nil {
+				return ctxerr.Wrapf(ctx, err, "queuing host device name enforcement under no team for team %d deletion", tid)
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
@@ -230,10 +265,10 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
-// enqueueWindowsDeleteCommandsForTeam retains the content of the team's Windows config profiles (so the profile-manager cron can
+// prepareWindowsProfilesForTeamDeletion retains the content of the team's Windows config profiles (so the profile-manager cron can
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
-func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, tid uint) error {
+func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var profileUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &profileUUIDs,
@@ -245,7 +280,7 @@ func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, ti
 		}
 
 		// Copy from the live table before the DeleteTeam cascade removes the definitions; the definitions still exist here.
-		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, profileUUIDs); err != nil {
+		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
 

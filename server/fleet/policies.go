@@ -141,6 +141,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -260,6 +261,21 @@ func verifyPolicyPlatforms(platforms string) error {
 		}
 	}
 	return nil
+}
+
+// ValidatePolicyPlatformFilter validates the platform query parameter used to
+// filter policies on list/count endpoints. An empty string means "no filter"
+// and is always valid; otherwise the value must be a single supported
+// platform token.
+func ValidatePolicyPlatformFilter(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	switch platform {
+	case "windows", "linux", "darwin", "chrome":
+		return nil
+	}
+	return NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", or "chrome".`)
 }
 
 func verifyPatchPolicy(team string, typ string) error {
@@ -618,6 +634,9 @@ func (p PolicySpec) Verify() error {
 	}
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
+	}
+	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
+		return errPolicyFMASlugRequiresPatch
 	}
 	return p.VerifyLabelScopes()
 }

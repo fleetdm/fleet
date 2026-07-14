@@ -208,6 +208,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		macOSEnableEndUserAuthUpdated   bool
 		macOSManagedLocalAccountUpdated bool
 		conditionalAccessUpdated        bool
+		nameTemplateUpdated             bool
 	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -321,6 +322,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 		if payload.MDM.RequireBitLockerPIN.Valid {
 			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		}
+
+		if payload.MDM.HostNameTemplate.Set {
+			nameTemplate := payload.MDM.HostNameTemplate.Value
+			if nameTemplate != "" {
+				validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err)
+				}
+				nameTemplate = validated
+			}
+			nameTemplateUpdated = team.Config.MDM.HostNameTemplate != nameTemplate
+			team.Config.MDM.HostNameTemplate = nameTemplate
 		}
 
 		if payload.MDM.MacOSSetup != nil {
@@ -610,6 +624,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
+	if nameTemplateUpdated {
+		if err := svc.applyHostNameTemplateChange(ctx, team, team.Config.MDM.HostNameTemplate); err != nil {
+			return nil, err
 		}
 	}
 	if macOSEnableEndUserAuthUpdated {
@@ -1504,6 +1523,15 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	nameTemplate := spec.MDM.HostNameTemplate.Value
+	if nameTemplate != "" {
+		validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		nameTemplate = validated
+	}
+
 	invalid := &fleet.InvalidArgumentError{}
 	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
@@ -1585,6 +1613,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSetup:                 macOSSetup,
 				WindowsSettings:            spec.MDM.WindowsSettings,
 				AndroidSettings:            spec.MDM.AndroidSettings,
+				HostNameTemplate:           nameTemplate,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1643,6 +1672,12 @@ func (svc *Service) createTeamFromSpec(
 			fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &tm.ID, TeamName: &tm.Name},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
+
+	if nameTemplate != "" {
+		if err := svc.applyHostNameTemplateChange(ctx, tm, nameTemplate); err != nil {
+			return nil, err
 		}
 	}
 	return tm, nil
@@ -1770,6 +1805,20 @@ func (svc *Service) editTeamFromSpec(
 				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
 		}
 		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
+	}
+
+	var didUpdateHostNameTemplate bool
+	if spec.MDM.HostNameTemplate.Set {
+		nameTemplate := spec.MDM.HostNameTemplate.Value
+		if nameTemplate != "" {
+			validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			nameTemplate = validated
+		}
+		didUpdateHostNameTemplate = team.Config.MDM.HostNameTemplate != nameTemplate
+		team.Config.MDM.HostNameTemplate = nameTemplate
 	}
 
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
@@ -2037,6 +2086,12 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	if didUpdateHostNameTemplate {
+		if err := svc.applyHostNameTemplateChange(ctx, team, team.Config.MDM.HostNameTemplate); err != nil {
+			return err
+		}
+	}
+
 	// if the macos setup assistant was cleared, remove it for that team
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
 		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
@@ -2270,6 +2325,54 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func (svc *Service) updateTeamMDMHostNameTemplate(ctx context.Context, tm *fleet.Team, nameTemplate string) error {
+	if tm.Config.MDM.HostNameTemplate == nameTemplate {
+		return nil
+	}
+
+	tm.Config.MDM.HostNameTemplate = nameTemplate
+	if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+		return err
+	}
+
+	return svc.applyHostNameTemplateChange(ctx, tm, nameTemplate)
+}
+
+// applyHostNameTemplateChange reconciles host-name enforcement rows and emits
+// the edited_host_name_template activity for a template change.
+func (svc *Service) applyHostNameTemplateChange(ctx context.Context, team *fleet.Team, nameTemplate string) error {
+	var fleetID *uint
+	var fleetName *string
+	if team != nil {
+		fleetID, fleetName = &team.ID, &team.Name
+	}
+
+	if nameTemplate == "" {
+		if err := svc.ds.DeleteHostDeviceNameEnforcementForTeam(ctx, fleetID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host name enforcement for team")
+		}
+	} else if err := svc.ds.BulkUpsertHostDeviceNameEnforcement(ctx, fleetID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue host name enforcement for team")
+	}
+
+	var tmpl *string
+	if nameTemplate != "" {
+		tmpl = &nameTemplate
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedHostNameTemplate{
+			FleetID:          fleetID,
+			FleetName:        fleetName,
+			HostNameTemplate: tmpl,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for team host name template")
 	}
 	return nil
 }

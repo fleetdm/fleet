@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import commandAPI, {
   IGetCommandResultsResponse,
@@ -84,7 +84,7 @@ export const getStatusMessage = ({
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
-      ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
+      ? ` (${timeAgo(new Date(commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`

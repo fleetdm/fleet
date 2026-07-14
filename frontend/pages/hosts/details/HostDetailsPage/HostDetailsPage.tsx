@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -798,6 +798,13 @@ const HostDetailsPage = ({
       return new Promise(() => undefined);
     }
     return hostAPI.rotateRecoveryLockPassword(host.id);
+  }, [host?.id]);
+
+  const resendHostNameTemplate = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return Promise.resolve();
+    }
+    return hostAPI.resendNameTemplate(host.id);
   }, [host?.id]);
 
   const onChangeActivityTab = (tabIndex: number) => {
@@ -1739,12 +1746,14 @@ const HostDetailsPage = ({
                 isHostTeamAdmin ||
                 isHostTeamMaintainer
               }
+              canResendHostNameTemplate={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
               resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+              resendHostNameTemplate={resendHostNameTemplate}
               onProfileResent={refetchHostDetails}
             />
           )}
@@ -1875,8 +1884,8 @@ const HostDetailsPage = ({
                 const cmdDisplayName = getMdmCommandDisplayName(
                   result.request_type
                 );
-                const timeAgo = result.updated_at
-                  ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+                const timeAgoText = result.updated_at
+                  ? ` (${timeAgo(new Date(result.updated_at), {
                       addSuffix: true,
                     })})`
                   : "";
@@ -1898,7 +1907,7 @@ const HostDetailsPage = ({
                           )}
                           {" is pending on "}
                           <b>{result.hostname}</b>
-                          {`${timeAgo}.`}
+                          {`${timeAgoText}.`}
                         </span>
                       ) : (
                         <span>
