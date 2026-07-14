@@ -3,13 +3,18 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
+$stdoutLog = Join-Path $env:TEMP "docker-install-stdout.log"
+$stderrLog = Join-Path $env:TEMP "docker-install-stderr.log"
+
 function Write-InstallerLogs {
     $logCandidates = @(
+        $stdoutLog,
+        $stderrLog,
         "$env:LOCALAPPDATA\Docker\install-log*.txt",
         "$env:ProgramData\DockerDesktop\install-log*.txt"
     )
     foreach ($pattern in $logCandidates) {
-        Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object {
+        Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 } | ForEach-Object {
             Write-Host "--- $($_.FullName) (last 50 lines) ---"
             Get-Content $_.FullName -Tail 50 | ForEach-Object { Write-Host $_ }
         }
@@ -23,7 +28,7 @@ try {
     # per-user with --user instead: no admin needed, target is
     # %LOCALAPPDATA%\Programs\DockerDesktop, and uninstall info is written to
     # HKCU. --accept-license suppresses the subscription agreement prompt.
-    $process = Start-Process -FilePath "$exeFilePath" -ArgumentList "install","--user","--accept-license","--quiet" -PassThru
+    $process = Start-Process -FilePath "$exeFilePath" -ArgumentList "install","--user","--accept-license","--quiet" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
     # The installer process can keep running for several minutes after the
     # app is registered with Windows. Poll the HKCU uninstall key (osquery's
