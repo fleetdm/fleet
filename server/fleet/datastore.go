@@ -3147,6 +3147,8 @@ type Datastore interface {
 	// for the host.
 	ExpandCustomHostVitals(ctx context.Context, hostID uint, document string) (string, error)
 
+	UpsertCustomHostVitals(ctx context.Context, vitals []CustomHostVital) (created []CustomHostVital, deleted []CustomHostVital, err error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android
 

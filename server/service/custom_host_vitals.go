@@ -229,3 +229,72 @@ func (svc *Service) customHostVitalByID(ctx context.Context, id uint) (*fleet.Cu
 	}
 	return &vitals[0], nil
 }
+
+//////////////////////////////////////////////////////////////////////////////////
+// Upsert custom host vitals (spec)
+//////////////////////////////////////////////////////////////////////////////////
+
+func upsertCustomHostVitalsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.UpsertCustomHostVitalsRequest)
+	err := svc.UpsertCustomHostVitals(ctx, req.CustomHostVitals, req.DryRun)
+	return fleet.UpsertCustomHostVitalsResponse{Err: err}, nil
+}
+
+func (svc *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals []fleet.CustomHostVital, dryRun bool) error {
+	if err := svc.authz.Authorize(ctx, &fleet.CustomHostVital{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	seen := make(map[string]struct{}, len(customHostVitals))
+	for _, vital := range customHostVitals {
+		if err := fleet.ValidateCustomHostVitalName(vital.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "validate custom host vital name")
+		}
+		if _, ok := seen[vital.Name]; ok {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("custom_host_vitals", fmt.Sprintf("duplicate custom host vital name: %q", vital.Name)))
+		}
+		seen[vital.Name] = struct{}{}
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	created, deleted, err := svc.ds.UpsertCustomHostVitals(ctx, customHostVitals)
+	if err != nil {
+		if usedErr, ok := errors.AsType[*fleet.CustomHostVitalUsedError](err); ok {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: fmt.Sprintf("Couldn't delete. %s", usedErr.Error()),
+			}, "upsert custom host vitals")
+		}
+		return ctxerr.Wrap(ctx, err, "upsert custom host vitals")
+	}
+
+	user := authz.UserFromContext(ctx)
+	for _, vital := range created {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeCreatedCustomHostVital{
+				CustomHostVitalID:   vital.ID,
+				CustomHostVitalName: vital.Name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for custom host vital creation")
+		}
+	}
+	for _, vital := range deleted {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeDeletedCustomHostVital{
+				CustomHostVitalID:   vital.ID,
+				CustomHostVitalName: vital.Name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for custom host vital deletion")
+		}
+	}
+
+	return nil
+}

@@ -1822,6 +1822,8 @@ type UpdateCustomHostVitalFunc func(ctx context.Context, id uint, name string) (
 
 type DeleteCustomHostVitalFunc func(ctx context.Context, id uint) (name string, err error)
 
+type UpsertCustomHostVitalsFunc func(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error)
+
 type SetHostCustomHostVitalValueFunc func(ctx context.Context, hostID uint, vitalID uint, value string) error
 
 type GetHostCustomHostVitalsFunc func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error)
@@ -4853,6 +4855,9 @@ type DataStore struct {
 
 	DeleteCustomHostVitalFunc        DeleteCustomHostVitalFunc
 	DeleteCustomHostVitalFuncInvoked bool
+
+	UpsertCustomHostVitalsFunc        UpsertCustomHostVitalsFunc
+	UpsertCustomHostVitalsFuncInvoked bool
 
 	SetHostCustomHostVitalValueFunc        SetHostCustomHostVitalValueFunc
 	SetHostCustomHostVitalValueFuncInvoked bool
@@ -11649,6 +11654,13 @@ func (s *DataStore) DeleteCustomHostVital(ctx context.Context, id uint) (name st
 	s.DeleteCustomHostVitalFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteCustomHostVitalFunc(ctx, id)
+}
+
+func (s *DataStore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
+	s.mu.Lock()
+	s.UpsertCustomHostVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertCustomHostVitalsFunc(ctx, vitals)
 }
 
 func (s *DataStore) SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error {

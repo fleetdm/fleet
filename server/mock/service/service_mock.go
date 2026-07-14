@@ -920,6 +920,8 @@ type DeleteCustomHostVitalFunc func(ctx context.Context, id uint) error
 
 type SetHostCustomHostVitalValueFunc func(ctx context.Context, hostID uint, vitalID uint, value string) error
 
+type UpsertCustomHostVitalsFunc func(ctx context.Context, customHostVitals []fleet.CustomHostVital, dryRun bool) error
+
 type ListAPIEndpointsFunc func(ctx context.Context) (endpoints []fleet.APIEndpoint, err error)
 
 type ScimDetailsFunc func(ctx context.Context) (fleet.ScimDetails, error)
@@ -2304,6 +2306,9 @@ type Service struct {
 
 	SetHostCustomHostVitalValueFunc        SetHostCustomHostVitalValueFunc
 	SetHostCustomHostVitalValueFuncInvoked bool
+
+	UpsertCustomHostVitalsFunc        UpsertCustomHostVitalsFunc
+	UpsertCustomHostVitalsFuncInvoked bool
 
 	ListAPIEndpointsFunc        ListAPIEndpointsFunc
 	ListAPIEndpointsFuncInvoked bool
@@ -5507,6 +5512,13 @@ func (s *Service) SetHostCustomHostVitalValue(ctx context.Context, hostID uint, 
 	s.SetHostCustomHostVitalValueFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostCustomHostVitalValueFunc(ctx, hostID, vitalID, value)
+}
+
+func (s *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals []fleet.CustomHostVital, dryRun bool) error {
+	s.mu.Lock()
+	s.UpsertCustomHostVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertCustomHostVitalsFunc(ctx, customHostVitals, dryRun)
 }
 
 func (s *Service) ListAPIEndpoints(ctx context.Context) (endpoints []fleet.APIEndpoint, err error) {
