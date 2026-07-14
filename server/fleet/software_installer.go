@@ -1177,6 +1177,10 @@ const (
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
 	TeamID  uint `json:"team_id" renameto:"fleet_id"`
+	// InstallerID pins the token to a specific package on a multi-package
+	// title. Zero means "fall back to the first-added package" so single-package
+	// titles and pre-multi-package callers keep working.
+	InstallerID uint `json:"installer_id,omitempty"`
 }
 
 const SoftwareInstallerURLMaxLength = 4000

@@ -789,11 +789,18 @@ export default {
 
   getSoftwarePackageToken: (
     softwareTitleId: number,
-    teamId: number
+    teamId: number,
+    /** Pins the token to a specific package on a multi-package title. Omit for
+     * single-package titles to fall back to the first-added package. */
+    installerId?: number
   ): Promise<ISoftwareInstallTokenResponse> => {
     const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
-    )}?${buildQueryStringFromParams({ alt: "media", fleet_id: teamId })}`;
+    )}?${buildQueryStringFromParams({
+      alt: "media",
+      fleet_id: teamId,
+      installer_id: installerId,
+    })}`;
 
     return sendRequest("POST", path);
   },
