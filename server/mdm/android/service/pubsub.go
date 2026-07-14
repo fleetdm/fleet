@@ -829,6 +829,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 // version + security patch level pair is the vulnerability-relevant granularity
 // for Android (AMAPI exposes no "minor" version).
 func androidOSVersion(sw *androidmanagement.SoftwareInfo) string {
+	if sw == nil {
+		return ""
+	}
 	if sw.AndroidVersion == "" || sw.SecurityPatchLevel == "" {
 		return sw.AndroidVersion
 	}

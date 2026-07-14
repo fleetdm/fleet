@@ -1066,6 +1066,12 @@ func TestAndroidOSVersion(t *testing.T) {
 			expected:     "",
 			expectedHost: "Android",
 		},
+		{
+			name:         "nil software info does not panic",
+			sw:           nil,
+			expected:     "",
+			expectedHost: "Android",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.expected, androidOSVersion(tc.sw))
