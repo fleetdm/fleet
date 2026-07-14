@@ -108,7 +108,7 @@ A patch policy's `query` automatically updates. Hosts will fail this policy if t
 
 To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 
-To automatically patch the app when this policy fails and app is not open, set `patch_only_when_closed` to `true`. With this option Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run, and it doesn't retry 2 more times. Also, the `continuous_automations_enabled` is automatically set to `true`. 
+To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`. With this option Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run, and it doesn't retry 2 more times. Also, the `continuous_automations_enabled` is automatically set to `true`. 
 
 Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
