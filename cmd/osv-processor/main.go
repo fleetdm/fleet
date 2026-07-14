@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -23,14 +24,19 @@ type OSVData struct {
 	Affected      []Affected `json:"affected"`
 	Upstream      []string   `json:"upstream,omitempty"`
 	Related       []string   `json:"related,omitempty"`
+	Aliases       []string   `json:"aliases,omitempty"`
 }
 
 type Affected struct {
-	Package           Package        `json:"package"`
-	Ranges            []Range        `json:"ranges"`
-	Versions          []string       `json:"versions,omitempty"`
-	EcosystemSpecific map[string]any `json:"ecosystem_specific,omitempty"`
-	DatabaseSpecific  map[string]any `json:"database_specific,omitempty"`
+	Package           Package            `json:"package"`
+	Ranges            []Range            `json:"ranges"`
+	Versions          []string           `json:"versions,omitempty"`
+	EcosystemSpecific *EcosystemSpecific `json:"ecosystem_specific,omitempty"`
+	DatabaseSpecific  map[string]any     `json:"database_specific,omitempty"`
+}
+
+type EcosystemSpecific struct {
+	Severity string `json:"severity,omitempty"`
 }
 
 type Package struct {
@@ -90,9 +96,25 @@ type RHELArtifactData struct {
 	Vulnerabilities map[string][]ProcessedVuln `json:"vulnerabilities"`
 }
 
+// AndroidVuln represents a processed Android OS-level vulnerability.
+type AndroidVuln struct {
+	CVE      string `json:"cve"`
+	FixedSPL string `json:"fixed_spl"` // YYYY-MM-DD date when the fix was included
+	Severity string `json:"severity,omitempty"`
+}
+
+// AndroidArtifactData is the artifact format for Android OS vulnerabilities.
+type AndroidArtifactData struct {
+	SchemaVersion   string        `json:"schema_version"`
+	AndroidVersion  string        `json:"android_version"` // e.g. "16", "15", "14"
+	Generated       string        `json:"generated"`
+	TotalCVEs       int           `json:"total_cves"`
+	Vulnerabilities []AndroidVuln `json:"vulnerabilities"`
+}
+
 func main() {
-	platform := flag.String("platform", "ubuntu", "Platform to process: ubuntu or rhel")
-	inputDir := flag.String("input", "", "Input directory with OSV JSON files (default: /tmp/ubuntu-osv for ubuntu, /tmp/rhel-osv for rhel)")
+	platform := flag.String("platform", "ubuntu", "Platform to process: ubuntu, rhel, or android")
+	inputDir := flag.String("input", "", "Input directory with OSV JSON files (default: /tmp/ubuntu-osv for ubuntu, /tmp/rhel-osv for rhel, /tmp/android-osv for android)")
 	outputDir := flag.String("output", "./artifacts", "Output directory for artifacts")
 	versions := flag.String("versions", "", "Comma-separated versions to process (inclusive)")
 	excludeVersions := flag.String("exclude-versions", "", "Comma-separated versions to exclude (ignored if --versions is set)")
@@ -104,6 +126,8 @@ func main() {
 		switch *platform {
 		case "rhel":
 			*inputDir = "/tmp/rhel-osv"
+		case "android":
+			*inputDir = "/tmp/android-osv"
 		default:
 			*inputDir = "/tmp/ubuntu-osv"
 		}
@@ -134,8 +158,12 @@ func main() {
 		if err := runRHEL(cfg); err != nil {
 			log.Fatalf("Error: %v", err)
 		}
+	case "android":
+		if err := runAndroid(cfg); err != nil {
+			log.Fatalf("Error: %v", err)
+		}
 	default:
-		log.Fatalf("Unknown platform: %s (supported: ubuntu, rhel)", cfg.Platform)
+		log.Fatalf("Unknown platform: %s (supported: ubuntu, rhel, android)", cfg.Platform)
 	}
 }
 
@@ -768,6 +796,265 @@ func countTotalRHELCVEs(artifact *RHELArtifactData) int {
 }
 
 func writeRHELArtifact(path string, artifact *RHELArtifactData) (err error) {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := file.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	gzWriter := gzip.NewWriter(file)
+	defer func() {
+		if cerr := gzWriter.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	encoder := json.NewEncoder(gzWriter)
+
+	if err = encoder.Encode(artifact); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func androidSeverityRank(s string) int {
+	switch s {
+	case "Critical":
+		return 4
+	case "High":
+		return 3
+	case "Moderate":
+		return 2
+	case "Low":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// isAndroidVersion returns true if the prefix from an Android OSV range event
+// looks like a real Android major version (e.g. "9", "14", "12L", "8.1").
+// Excluding unmatchable prefixes: SoCVersion, Pixel-family specific, Kernel, Bootloader, Platform, Pixel Watch family
+func isAndroidVersion(s string) bool {
+	return len(s) > 0 && s[0] >= '0' && s[0] <= '9'
+}
+
+// parseAndroidRangeEvent parses an Android ECOSYSTEM range event value.
+// Android events are formatted as "<version-prefix>:<value>"
+//
+// Returns the major version and the value.
+//
+//	"16:2026-05-01"  -> ("16", "2026-05-01")
+//	"15-next:0"      -> ("15", "0")
+//	":0"             -> ("", "0")
+//	"SoCVersion:..."  -> ("SoCVersion", ...)
+func parseAndroidRangeEvent(event string) (majorVersion, value string) {
+	idx := strings.LastIndex(event, ":")
+	if idx < 0 {
+		return event, ""
+	}
+	prefix := event[:idx]
+	val := event[idx+1:]
+
+	major := prefix
+	if i := strings.Index(major, "-"); i >= 0 {
+		major = major[:i]
+	}
+
+	return major, val
+}
+
+func extractAndroidCVEIDs(osv *OSVData) []string {
+	var cves []string
+	for _, alias := range osv.Aliases {
+		if strings.HasPrefix(alias, "CVE-") {
+			cves = append(cves, alias)
+		}
+	}
+	return cves
+}
+
+func runAndroid(cfg Config) error {
+	if cfg.ChangedFilesToday != "" || cfg.ChangedFilesYesterday != "" {
+		return errors.New("--changed-files-today and --changed-files-yesterday are not supported with --platform android")
+	}
+
+	if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	startTime := time.Now()
+
+	targetVersions, excludedVersions := buildVersionFilter(cfg.Versions, cfg.ExcludeVersions)
+	log.Printf("Processing Android OSV files from %s", cfg.InputDir)
+
+	type androidVulnEntry struct {
+		cveID    string
+		fixedSPL string
+		severity string
+	}
+	collected := make(map[string]map[string]*androidVulnEntry) // version -> cveID -> entry
+
+	filesProcessed := 0
+	filesSkipped := 0
+
+	err := filepath.Walk(cfg.InputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".json") {
+			return nil
+		}
+
+		osvData, err := parseOSVFile(path)
+		if err != nil {
+			log.Printf("Failed to parse %s: %v", path, err)
+			filesSkipped++
+			return nil
+		}
+
+		cveIDs := extractAndroidCVEIDs(osvData)
+		if len(cveIDs) == 0 {
+			filesSkipped++
+			return nil
+		}
+
+		for _, affected := range osvData.Affected {
+			if affected.Package.Ecosystem != "Android" {
+				continue
+			}
+
+			severity := ""
+			if affected.EcosystemSpecific != nil {
+				severity = affected.EcosystemSpecific.Severity
+			}
+
+			for _, r := range affected.Ranges {
+				if r.Type != "ECOSYSTEM" {
+					continue
+				}
+
+				var fixedEvents []struct {
+					major    string
+					fixedSPL string
+				}
+				for _, event := range r.Events {
+					if event.Fixed == "" {
+						continue
+					}
+					major, spl := parseAndroidRangeEvent(event.Fixed)
+					if major == "" || spl == "" {
+						continue
+					}
+					if !isAndroidVersion(major) {
+						continue
+					}
+					fixedEvents = append(fixedEvents, struct {
+						major    string
+						fixedSPL string
+					}{major, spl})
+				}
+
+				for _, fe := range fixedEvents {
+					if targetVersions != nil {
+						if !targetVersions[fe.major] {
+							continue
+						}
+					} else if excludedVersions != nil {
+						if excludedVersions[fe.major] {
+							continue
+						}
+					}
+
+					for _, cveID := range cveIDs {
+						if collected[fe.major] == nil {
+							collected[fe.major] = make(map[string]*androidVulnEntry)
+						}
+						existing, exists := collected[fe.major][cveID]
+						if !exists {
+							collected[fe.major][cveID] = &androidVulnEntry{
+								cveID:    cveID,
+								fixedSPL: fe.fixedSPL,
+								severity: severity,
+							}
+						} else {
+							if fe.fixedSPL > existing.fixedSPL {
+								// Same CVE, later fixed date — keep the latest SPL
+								existing.fixedSPL = fe.fixedSPL
+							}
+							if androidSeverityRank(severity) > androidSeverityRank(existing.severity) {
+								existing.severity = severity
+							}
+						}
+					}
+				}
+			}
+		}
+
+		filesProcessed++
+		if filesProcessed%500 == 0 {
+			log.Printf("Processed %d files...", filesProcessed)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error walking directory: %w", err)
+	}
+
+	log.Printf("Processed %d files, skipped %d files in %s", filesProcessed, filesSkipped, time.Since(startTime).Round(time.Millisecond))
+	log.Printf("Discovered %d Android versions", len(collected))
+
+	totalCVEs := 0
+	for _, cveMap := range collected {
+		totalCVEs += len(cveMap)
+	}
+	log.Printf("Total Android CVEs across all versions: %d", totalCVEs)
+
+	for ver, cveMap := range collected {
+		var vulns []AndroidVuln
+		for _, entry := range cveMap {
+			vulns = append(vulns, AndroidVuln{
+				CVE:      entry.cveID,
+				FixedSPL: entry.fixedSPL,
+				Severity: entry.severity,
+			})
+		}
+
+		// Sort vulnerabilities by CVE for deterministic output.
+		slices.SortFunc(vulns, func(a, b AndroidVuln) int {
+			return strings.Compare(a.CVE, b.CVE)
+		})
+
+		artifact := &AndroidArtifactData{
+			SchemaVersion:   "1.0",
+			AndroidVersion:  ver,
+			Generated:       cfg.GeneratedTimestamp,
+			TotalCVEs:       len(vulns),
+			Vulnerabilities: vulns,
+		}
+
+		outputFile := filepath.Join(cfg.OutputDir, fmt.Sprintf("osv-android-%s-%s.json.gz", ver, cfg.DateStr))
+
+		if err := writeAndroidArtifact(outputFile, artifact); err != nil {
+			return fmt.Errorf("failed to write artifact for Android %s: %w", ver, err)
+		}
+
+		log.Printf("Android %s: %d CVEs -> %s", ver, artifact.TotalCVEs, outputFile)
+	}
+
+	log.Printf("Android processing completed in %s", time.Since(startTime).Round(time.Millisecond))
+
+	return nil
+}
+
+func writeAndroidArtifact(path string, artifact *AndroidArtifactData) (err error) {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
