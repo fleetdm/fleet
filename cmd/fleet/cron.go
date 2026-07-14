@@ -1902,6 +1902,9 @@ func newAppleMDMProfileManagerSchedule(
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
 		}),
+		schedule.WithJob("manage_apple_device_names", func(ctx context.Context) error {
+			return service.ReconcileHostDeviceNames(ctx, ds, commander, logger)
+		}),
 	)
 
 	return s, nil

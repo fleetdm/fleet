@@ -2812,6 +2812,149 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	}
 }
 
+func TestResendHostNameTemplate(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hid, UUID: "host-uuid-1", Platform: "darwin", TeamID: new(uint(1))}, nil
+	}
+
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	t.Run("resets a failed row and returns no error", func(t *testing.T) {
+		failed := fleet.MDMDeliveryFailed
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID, Status: &failed}, nil
+		}
+		ds.ResendHostDeviceNameFuncInvoked = false
+		ds.ResendHostDeviceNameFunc = func(ctx context.Context, hostUUID string) error { return nil }
+
+		require.NoError(t, svc.ResendHostNameTemplate(adminCtx, 1))
+		require.True(t, ds.ResendHostDeviceNameFuncInvoked)
+	})
+
+	t.Run("resets a verified row", func(t *testing.T) {
+		verified := fleet.MDMDeliveryVerified
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID, Status: &verified}, nil
+		}
+		ds.ResendHostDeviceNameFuncInvoked = false
+		ds.ResendHostDeviceNameFunc = func(ctx context.Context, hostUUID string) error { return nil }
+
+		require.NoError(t, svc.ResendHostNameTemplate(adminCtx, 1))
+		require.True(t, ds.ResendHostDeviceNameFuncInvoked)
+	})
+
+	t.Run("409 for pending, verifying, and queued (NULL) rows", func(t *testing.T) {
+		pending := fleet.MDMDeliveryPending
+		verifying := fleet.MDMDeliveryVerifying
+		for _, status := range []*fleet.MDMDeliveryStatus{&pending, &verifying, nil} {
+			ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+				return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID, Status: status}, nil
+			}
+			ds.ResendHostDeviceNameFuncInvoked = false
+
+			err := svc.ResendHostNameTemplate(adminCtx, 1)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "can't be resent")
+			require.False(t, ds.ResendHostDeviceNameFuncInvoked)
+		}
+	})
+
+	t.Run("404 when the host is not enforced", func(t *testing.T) {
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return nil, newNotFoundError()
+		}
+		ds.ResendHostDeviceNameFuncInvoked = false
+
+		err := svc.ResendHostNameTemplate(adminCtx, 1)
+		require.Error(t, err)
+		// The error carries a 404 status.
+		var statusErr interface{ Status() int }
+		require.ErrorAs(t, err, &statusErr)
+		require.Equal(t, http.StatusNotFound, statusErr.Status())
+		require.False(t, ds.ResendHostDeviceNameFuncInvoked)
+	})
+
+	t.Run("authz matches profile resend", func(t *testing.T) {
+		failed := fleet.MDMDeliveryFailed
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID, Status: &failed}, nil
+		}
+		ds.ResendHostDeviceNameFunc = func(ctx context.Context, hostUUID string) error { return nil }
+
+		// team observer on the host's team is denied
+		observerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
+		}})
+		require.Error(t, svc.ResendHostNameTemplate(observerCtx, 1))
+
+		// maintainer of a different team is denied
+		otherTeamCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}},
+		}})
+		require.Error(t, svc.ResendHostNameTemplate(otherTeamCtx, 1))
+
+		// maintainer of the host's team is allowed
+		teamMaintainerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}},
+		}})
+		require.NoError(t, svc.ResendHostNameTemplate(teamMaintainerCtx, 1))
+
+		// GitOps is allowed (parity with profile resend): GitOps manages host name
+		// templates, so it can also resend.
+		gitopsCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}})
+		require.NoError(t, svc.ResendHostNameTemplate(gitopsCtx, 1))
+	})
+
+	t.Run("no-team host resend works for a global admin", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hid, UUID: "no-team-uuid", Platform: "darwin", TeamID: nil}, nil
+		}
+		failed := fleet.MDMDeliveryFailed
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID, Status: &failed}, nil
+		}
+		ds.ResendHostDeviceNameFuncInvoked = false
+		ds.ResendHostDeviceNameFunc = func(ctx context.Context, hostUUID string) error { return nil }
+
+		require.NoError(t, svc.ResendHostNameTemplate(adminCtx, 1))
+		require.True(t, ds.ResendHostDeviceNameFuncInvoked)
+
+		// A team-scoped user is still forbidden on a No-team host: its team-scoped
+		// authz targets the global scope (host.TeamID == nil), which a team role
+		// can't write, and the uniform forbidden error can't be used as an oracle
+		// to distinguish No-team hosts from hosts in other teams.
+		ds.GetHostDeviceNameEnforcementFuncInvoked = false
+		teamMaintainerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}},
+		}})
+		err := svc.ResendHostNameTemplate(teamMaintainerCtx, 1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		require.False(t, ds.GetHostDeviceNameEnforcementFuncInvoked)
+	})
+
+	t.Run("free tier returns ErrMissingLicense before any authz or DB access", func(t *testing.T) {
+		freeDS := new(mock.Store)
+		freeSvc, freeCtx := newTestService(t, freeDS, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierFree}, SkipCreateTestUsers: true,
+		})
+		adminFreeCtx := viewer.NewContext(freeCtx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		err := freeSvc.ResendHostNameTemplate(adminFreeCtx, 1)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		// The license check short-circuits before loading the host or touching the row.
+		require.False(t, freeDS.HostLiteFuncInvoked)
+		require.False(t, freeDS.ResendHostDeviceNameFuncInvoked)
+	})
+}
+
 func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds := new(mock.Store)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.

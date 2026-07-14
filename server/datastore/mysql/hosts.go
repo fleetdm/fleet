@@ -664,6 +664,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_android_profiles":             "host_uuid",
 	"host_certificate_templates":            "host_uuid",
 	"host_mdm_apple_enrollment_permissions": "host_uuid",
+	"host_mdm_apple_device_names":           "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -1433,12 +1434,14 @@ func (ds *Datastore) applyHostFilters(
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
 	mdmRecoveryLockStatusJoin := ""
+	mdmDeviceNameStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
+		mdmDeviceNameStatusJoin = sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1491,6 +1494,7 @@ func (ds *Datastore) applyHostFilters(
     %s
 	%s
 	%s
+	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
@@ -1506,6 +1510,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
 		mdmRecoveryLockStatusJoin,
+		mdmDeviceNameStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 		hostMDMSeenJoin,
@@ -3642,6 +3647,16 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 
 				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, teamID); err != nil {
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+				}
+
+				// Reconcile host-name template enforcement against the destination
+				// team: eligible hosts moving into a template team get queued rows,
+				// and hosts moving to a template-less team or "No team" have their rows deleted.
+				// This runs after the team_id update above; teamID is the authoritative
+				// destination for the whole batch, so the template is resolved once
+				// rather than per row.
+				if err := reconcileHostDeviceNamesForTeamDB(ctx, tx, teamID, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam reconcile host device names")
 				}
 
 				return nil

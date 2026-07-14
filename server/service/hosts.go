@@ -1828,6 +1828,24 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// raw decryptable key status.
 				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
 
+				// populate host-name template enforcement status (macOS, iOS, iPadOS).
+				// Omitted entirely when the host has no enforcement row.
+				dnEnforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get host device name enforcement")
+				}
+				if dnEnforcement != nil {
+					// A NULL DB status is a queued row waiting; it renders as pending
+					status := fleet.HostNameSettingPending
+					if dnEnforcement.Status != nil {
+						status = fleet.HostNameSettingStatus(*dnEnforcement.Status)
+					}
+					host.MDM.OSSettings.HostName = &fleet.HostMDMHostNameSetting{
+						Status: status,
+						Detail: dnEnforcement.Detail,
+					}
+				}
+
 				// populate recovery lock password status for macOS hosts
 				if host.Platform == "darwin" {
 					rlpStatus, err := svc.ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
