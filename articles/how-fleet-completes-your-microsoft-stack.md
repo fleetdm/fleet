@@ -136,4 +136,5 @@ This was never a Microsoft-or-Fleet decision. It's a decision about whether "com
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-07-13">
+<meta name="articleImageUrl" value="../website/assets/images/articles/complete-your-microsoft-stack-1200x627@2x.png">
 <meta name="description" value="Intune, Entra, and Sentinel weren't built for depth on macOS and Linux. See how Fleet closes the gaps inside the Microsoft stack you already run.">
