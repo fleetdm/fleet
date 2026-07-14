@@ -39,8 +39,8 @@
       "type": "object",
       "additionalProperties": false,
       "anyOf": [
-        { "required": ["url"] },
-        { "required": ["hash_sha256"] }
+        { "required": ["url"], "errorMessage": "package requires \"url\" (custom package) or \"hash_sha256\" (already-uploaded package)." },
+        { "required": ["hash_sha256"], "errorMessage": "package requires \"url\" (custom package) or \"hash_sha256\" (already-uploaded package)." }
       ],
       "properties": {
         "url": { "type": "string", "description": "URL to download the installer from." },
@@ -59,7 +59,7 @@
     "appStoreApp": {
       "type": "object",
       "additionalProperties": false,
-      "anyOf": [{ "required": ["app_store_id"] }],
+      "anyOf": [{ "required": ["app_store_id"], "errorMessage": "app_store_apps entries require \"app_store_id\"." }],
       "properties": {
         "app_store_id": { "type": "string", "description": "Apple App Store ID of the app." },
         "self_service": { "type": "boolean" },
@@ -77,7 +77,7 @@
     "fleetMaintainedApp": {
       "type": "object",
       "additionalProperties": false,
-      "anyOf": [{ "required": ["slug"] }],
+      "anyOf": [{ "required": ["slug"], "errorMessage": "fleet_maintained_apps entries require \"slug\"." }],
       "properties": {
         "slug": { "type": "string", "description": "Fleet-maintained app slug, e.g. \"slack/darwin\"." },
         "version": { "type": "string", "description": "Pinned version, or omit for latest." },

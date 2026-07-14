@@ -7,7 +7,11 @@
           "description": "type: `string`"
         },
         "enable_activities_webhook": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -19,13 +23,21 @@
       "additionalProperties": false,
       "properties": {
         "activity_expiry_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "activity_expiry_window": {
           "description": "type: `integer`"
         },
         "preserve_host_activities_on_reenrollment": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -51,19 +63,39 @@
               "description": "type: `object`",
               "properties": {
                 "audit_allow_config": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "audit_allow_fim_events": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "audit_allow_process_events": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "audit_allow_sockets": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "audit_allow_user_events": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "augeas_lenses": {
                   "description": "type: `string`"
@@ -72,13 +104,25 @@
                   "description": "type: `string`"
                 },
                 "aws_debug": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "aws_disable_imdsv1_fallback": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "aws_enable_proxy": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "aws_firehose_endpoint": {
                   "description": "type: `string`"
@@ -99,7 +143,11 @@
                   "description": "type: `integer`"
                 },
                 "aws_kinesis_disable_log_status": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "aws_kinesis_endpoint": {
                   "description": "type: `string`"
@@ -108,7 +156,11 @@
                   "description": "type: `integer`"
                 },
                 "aws_kinesis_random_partition_key": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "aws_kinesis_region": {
                   "description": "type: `string`"
@@ -159,31 +211,67 @@
                   "description": "type: `integer`"
                 },
                 "decorations_top_level": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_audit": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_caching": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_database": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_decorators": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_distributed": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_events": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_hash_cache": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "disable_logging": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "distributed_denylist_duration": {
                   "description": "type: `integer`"
@@ -192,7 +280,11 @@
                   "description": "type: `integer`"
                 },
                 "distributed_loginfo": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "distributed_plugin": {
                   "description": "type: `string`"
@@ -213,16 +305,32 @@
                   "description": "type: `string`"
                 },
                 "enable_file_events": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "enable_foreign": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "enable_numeric_monitoring": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "ephemeral": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "events_expiry": {
                   "description": "type: `integer`"
@@ -231,13 +339,21 @@
                   "description": "type: `integer`"
                 },
                 "events_optimize": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "experiment_list": {
                   "description": "type: `string`"
                 },
                 "extensions_default_index": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "hash_cache_max": {
                   "description": "type: `integer`"
@@ -246,10 +362,18 @@
                   "description": "type: `string`"
                 },
                 "ignore_table_exceptions": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_event_type": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_kafka_acks": {
                   "description": "type: `string`"
@@ -270,13 +394,21 @@
                   "description": "type: `integer`"
                 },
                 "logger_numerics": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_path": {
                   "description": "type: `string`"
                 },
                 "logger_rotate": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_rotate_max_files": {
                   "description": "type: `integer`"
@@ -285,19 +417,31 @@
                   "description": "type: `integer`"
                 },
                 "logger_snapshot_event_type": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_syslog_facility": {
                   "description": "type: `integer`"
                 },
                 "logger_syslog_prepend_cee": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_tls_backoff_max": {
                   "description": "type: `integer`"
                 },
                 "logger_tls_compress": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "logger_tls_endpoint": {
                   "description": "type: `string`"
@@ -339,7 +483,11 @@
                   "description": "type: `integer`"
                 },
                 "schedule_lognames": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "schedule_max_drift": {
                   "description": "type: `integer`"
@@ -366,19 +514,35 @@
                   "description": "type: `integer`"
                 },
                 "thrift_verbose": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "tls_disable_status_log": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "verbose": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "yara_delay": {
                   "description": "type: `integer`"
                 },
                 "yara_sigurl_authenticate": {
-                  "description": "type: `boolean`"
+                  "description": "type: `boolean`",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 }
               },
               "type": [
@@ -529,7 +693,11 @@
           "description": "type: `string`"
         },
         "update_new_hosts": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -556,10 +724,18 @@
       "additionalProperties": false,
       "properties": {
         "bypass_disabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "microsoft_entra_connection_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "microsoft_entra_tenant_id": {
           "description": "type: `string`"
@@ -586,7 +762,11 @@
       "additionalProperties": false,
       "properties": {
         "android_enabled_and_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "apple_account_provisioning": {
           "$ref": "#/$defs/AppleAccountProvisioning",
@@ -595,10 +775,18 @@
         "apple_require_hardware_attestation": true,
         "apple_settings": true,
         "enable_disk_encryption": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_recovery_lock_password": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_turn_on_windows_mdm_manually": true,
         "ios_updates": {
@@ -642,13 +830,21 @@
           "description": "type: `MacOSSetup`"
         },
         "windows_enabled_and_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "windows_entra_client_ids": true,
         "windows_entra_tenant_ids": true,
         "windows_migration_enabled": true,
         "windows_require_bitlocker_pin": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "windows_settings": true,
         "windows_updates": {
@@ -668,7 +864,11 @@
           "description": "type: `string`"
         },
         "enable_failing_policies_webhook": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "host_batch_size": {
           "description": "type: `integer`"
@@ -706,10 +906,18 @@
           ]
         },
         "enable_host_users": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_software_inventory": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "historical_data": {
           "$ref": "#/$defs/HistoricalDataSettings",
@@ -748,7 +956,11 @@
           "description": "type: `GitOpsExceptions`"
         },
         "gitops_mode_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "repository_url": {
           "description": "type: `string`"
@@ -763,13 +975,25 @@
       "additionalProperties": false,
       "properties": {
         "labels": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "secrets": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "software": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -911,7 +1135,11 @@
           "description": "type: `SMTPSettings`"
         },
         "smtp_test": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "sso_settings": {
           "$ref": "#/$defs/SSOSettings",
@@ -945,16 +1173,32 @@
       "additionalProperties": false,
       "properties": {
         "calendar_events_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "conditional_access_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "continuous_automations_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "critical": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "description": {
           "description": "type: `string`"
@@ -967,7 +1211,12 @@
         },
         "install_software": {
           "anyOf": [
-            {},
+            {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             {
               "type": [
                 "object",
@@ -1046,7 +1295,11 @@
           "description": "type: `string`"
         },
         "webhooks_and_tickets_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1157,10 +1410,18 @@
       "additionalProperties": false,
       "properties": {
         "uptime": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "vulnerabilities": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1172,7 +1433,11 @@
       "additionalProperties": false,
       "properties": {
         "host_expiry_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "host_expiry_window": {
           "description": "type: `integer`"
@@ -1193,7 +1458,11 @@
           "description": "type: `string`"
         },
         "enable_host_status_webhook": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "host_percentage": {
           "description": "type: `number`"
@@ -1215,7 +1484,11 @@
       "additionalProperties": false,
       "properties": {
         "conditional_access_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "google_calendar": {
           "description": "type: `array\u003cGoogleCalendarIntegration\u003e`",
@@ -1270,10 +1543,18 @@
           "description": "type: `string`"
         },
         "enable_failing_policies": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_software_vulnerabilities": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "project_key": {
           "description": "type: `string`"
@@ -1349,7 +1630,11 @@
       "additionalProperties": false,
       "properties": {
         "android_enabled_and_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "android_settings": {
           "$ref": "#/$defs/AndroidSettings",
@@ -1363,10 +1648,18 @@
           "description": "type: `string`"
         },
         "apple_bm_enabled_and_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "apple_bm_terms_expired": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "apple_business": {
           "description": "type: `array\u003cobject\u003e`",
@@ -1395,7 +1688,11 @@
           ]
         },
         "apple_require_hardware_attestation": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "apple_server_url": {
           "description": "type: `string`"
@@ -1405,16 +1702,32 @@
           "description": "type: `MacOSSettings`"
         },
         "enable_disk_encryption": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_recovery_lock_password": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_turn_on_windows_mdm_manually": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enabled_and_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "end_user_authentication": {
           "$ref": "#/$defs/MDMEndUserAuthentication",
@@ -1462,7 +1775,11 @@
           ]
         },
         "windows_enabled_and_configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "windows_entra_client_ids": {
           "description": "type: `array\u003cstring\u003e`",
@@ -1481,10 +1798,18 @@
           ]
         },
         "windows_migration_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "windows_require_bitlocker_pin": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "windows_settings": {
           "$ref": "#/$defs/WindowsSettings",
@@ -1575,7 +1900,11 @@
       "additionalProperties": false,
       "properties": {
         "enable": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "mode": {
           "description": "type: `string`"
@@ -1623,7 +1952,11 @@
           ]
         },
         "enable_disk_encryption": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1635,7 +1968,11 @@
       "additionalProperties": false,
       "properties": {
         "apple_enable_release_device_manually": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "apple_setup_assistant": {
           "description": "type: `string`"
@@ -1644,28 +1981,52 @@
           "description": "type: `string`"
         },
         "enable_create_local_admin_account": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_end_user_authentication": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_managed_local_account": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_release_device_manually": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "end_user_local_account_type": {
           "description": "type: `string`"
         },
         "lock_end_user_info": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_bootstrap_package": {
           "description": "type: `string`"
         },
         "macos_manual_agent_install": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_script": {
           "description": "type: `string`"
@@ -1674,13 +2035,25 @@
           "description": "type: `string`"
         },
         "manual_agent_install": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "require_all_software_macos": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "require_all_software_windows": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "script": {
           "description": "type: `string`"
@@ -1764,18 +2137,21 @@
           "description": "type: `TeamSpecSoftwareAsset`"
         },
         "self_service": {
-          "description": "type: `boolean`"
-        },
-        "setup_experience": {
-          "description": "type: `boolean`"
-        },
-        "setup_experience_platforms": {
-          "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "description": "type: `boolean`",
           "type": [
-            "array",
+            "boolean",
             "null"
           ]
+        },
+        "setup_experience": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience_platform": {
+          "description": "type: `string`"
         },
         "slug": {
           "description": "type: `string`"
@@ -1848,13 +2224,21 @@
       "additionalProperties": false,
       "properties": {
         "automations_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "description": {
           "description": "type: `string`"
         },
         "discard_data": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "fleet": {
           "description": "type: `string`"
@@ -1888,7 +2272,11 @@
           "description": "type: `string`"
         },
         "observer_can_run": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "path": {
           "description": "type: `string`"
@@ -1921,19 +2309,35 @@
           "description": "type: `string`"
         },
         "configured": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "domain": {
           "description": "type: `string`"
         },
         "enable_smtp": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_ssl_tls": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_start_tls": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "password": {
           "description": "type: `string`"
@@ -1951,7 +2355,11 @@
           "description": "type: `string`"
         },
         "verify_ssl_certs": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1963,16 +2371,32 @@
       "additionalProperties": false,
       "properties": {
         "enable_jit_provisioning": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_jit_role_sync": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_sso": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_sso_idp_login": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "entity_id": {
           "description": "type: `string`"
@@ -2005,7 +2429,11 @@
       "additionalProperties": false,
       "properties": {
         "ai_features_disabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "debug_host_ids": {
           "description": "type: `array\u003cinteger\u003e`",
@@ -2016,31 +2444,59 @@
           ]
         },
         "deferred_save_host": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "discard_reports_data": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_analytics": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "live_query_disabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "live_reporting_disabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "query_report_cap": {
           "description": "type: `integer`"
         },
         "query_reports_disabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "report_cap": {
           "description": "type: `integer`"
         },
         "scripts_disabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "server_url": {
           "description": "type: `string`"
@@ -2055,7 +2511,11 @@
       "additionalProperties": false,
       "properties": {
         "always_download": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "categories": {
           "description": "type: `array\u003cstring\u003e`",
@@ -2127,18 +2587,21 @@
           "description": "type: `string`"
         },
         "self_service": {
-          "description": "type: `boolean`"
-        },
-        "setup_experience": {
-          "description": "type: `boolean`"
-        },
-        "setup_experience_platforms": {
-          "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "description": "type: `boolean`",
           "type": [
-            "array",
+            "boolean",
             "null"
           ]
+        },
+        "setup_experience": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "setup_experience_platform": {
+          "description": "type: `string`"
         },
         "slug": {
           "description": "type: `string`"
@@ -2211,7 +2674,11 @@
       "additionalProperties": false,
       "properties": {
         "enable_calendar_events": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "webhook_url": {
           "description": "type: `string`"
@@ -2226,7 +2693,11 @@
       "additionalProperties": false,
       "properties": {
         "conditional_access_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "google_calendar": {
           "$ref": "#/$defs/TeamGoogleCalendarIntegration",
@@ -2262,7 +2733,11 @@
       "additionalProperties": false,
       "properties": {
         "enable_failing_policies": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "project_key": {
           "description": "type: `string`"
@@ -2288,10 +2763,18 @@
           "description": "type: `MacOSSettings`"
         },
         "enable_disk_encryption": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_recovery_lock_password": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "ios_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
@@ -2318,7 +2801,11 @@
           "description": "type: `MacOSSetup`"
         },
         "windows_require_bitlocker_pin": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "windows_settings": {
           "$ref": "#/$defs/WindowsSettings",
@@ -2341,7 +2828,11 @@
           "description": "type: `string`"
         },
         "auto_update_enabled": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "auto_update_window_end": {
           "description": "type: `string`"
@@ -2404,10 +2895,18 @@
           "description": "type: `string`"
         },
         "self_service": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "setup_experience": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2448,7 +2947,11 @@
       "additionalProperties": false,
       "properties": {
         "enable_failing_policies": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "group_id": {
           "description": "type: `integer`"
@@ -2486,7 +2989,11 @@
           ]
         },
         "has_known_exploit": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "software_filters": {
           "description": "type: `array\u003cstring\u003e`",
@@ -2509,7 +3016,11 @@
           "description": "type: `string`"
         },
         "enable_vulnerabilities_webhook": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "host_batch_size": {
           "description": "type: `integer`"
@@ -2635,10 +3146,18 @@
           "description": "type: `string`"
         },
         "enable_failing_policies": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "enable_software_vulnerabilities": {
-          "description": "type: `boolean`"
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "group_id": {
           "description": "type: `integer`"

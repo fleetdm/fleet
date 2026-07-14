@@ -294,9 +294,18 @@ func relaxNulls(node any) {
 	case map[string]any:
 		if t, ok := n["type"].(string); ok && n["enum"] == nil {
 			switch t {
-			case "string", "integer", "number", "boolean":
+			case "string", "integer", "number":
+				// Left untyped. Strings frequently have unquoted YAML values (a
+				// version like 13.0 parses as a float) that would falsely fail a
+				// string check. Several Fleet ints are really string enums (e.g.
+				// label_membership_type is a Go uint marshaled as "dynamic") that
+				// would falsely fail an integer check. Value completion would also
+				// only ever offer null for these.
 				delete(n, "type")
-			case "object", "array":
+			case "boolean", "object", "array":
+				// Keep the type (so wrong types are caught) but tolerate an empty
+				// (null) placeholder value. yamlls will offer null in value
+				// completion for these, unavoidable when null is valid.
 				n["type"] = []any{t, "null"}
 			}
 		}
