@@ -1855,14 +1855,15 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		wantErr   string
 	}{
 		{name: "empty input", input: nil, extension: "sh", want: []string{}},
-		{name: "sh macos alias", input: []string{"macos"}, extension: "sh", want: []string{"darwin"}},
-		{name: "sh native only", input: []string{"linux"}, extension: "sh", want: []string{"linux"}},
-		{name: "sh both platforms", input: []string{"macos", "linux"}, extension: "sh", want: []string{"darwin", "linux"}},
-		{name: "sh dedupe canonical", input: []string{"macos", "darwin", "macos"}, extension: "sh", want: []string{"darwin"}},
-		{name: "sh case + whitespace", input: []string{" MacOS ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
-		{name: "pkg any rejected", input: []string{"macos"}, extension: "pkg", wantErr: `platform "macos" is not a valid "setup_experience_platforms" value for a .pkg package`},
-		{name: "msi any rejected", input: []string{"macos"}, extension: "msi", wantErr: `platform "macos" is not a valid "setup_experience_platforms" value for a .msi package`},
-		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platforms" value for a .sh package`},
+		{name: "sh darwin", input: []string{"darwin"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh linux", input: []string{"linux"}, extension: "sh", want: []string{"linux"}},
+		{name: "sh both platforms", input: []string{"darwin", "linux"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh dedupe", input: []string{"darwin", "DARWIN", "darwin"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh case + whitespace", input: []string{" Darwin ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh macos rejected", input: []string{"macos"}, extension: "sh", wantErr: `platform "macos" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
+		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
+		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
 	}
 

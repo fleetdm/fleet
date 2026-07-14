@@ -2043,9 +2043,11 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 	return scriptResult, nil
 }
 
-// normalizeSetupExperiencePlatforms canonicalizes, deduplicates, and
-// validates the incoming platforms against the extension's allowlist. Returns
-// an error on the first incompatible entry; empty input is legal.
+// normalizeSetupExperiencePlatforms lowercases, deduplicates, and validates
+// the incoming platforms against the extension's allowlist. The "macos" alias
+// is not accepted — only canonical tokens ("darwin", "linux"), consistent with
+// the query/policy `platform` field. Returns an error on the first
+// incompatible entry; empty input is legal.
 func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]string, error) {
 	allowed := fleet.AllowedSetupExperiencePlatformsForExtension(extension)
 	allowedSet := make(map[string]struct{}, len(allowed))
@@ -2055,21 +2057,22 @@ func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]
 	seen := make(map[string]struct{}, len(platforms))
 	out := make([]string, 0, len(platforms))
 	for _, raw := range platforms {
-		canonical := fleet.CanonicalPlatform(raw)
-		if canonical == "" {
+		// No canonicalization, so "macos" is rejected rather than mapped to "darwin".
+		platform := strings.ToLower(strings.TrimSpace(raw))
+		if platform == "" {
 			continue
 		}
-		if _, ok := allowedSet[canonical]; !ok {
+		if _, ok := allowedSet[platform]; !ok {
 			return nil, fmt.Errorf(
-				`platform %q is not a valid "setup_experience_platforms" value for a .%s package (allowed: %s)`,
+				`platform %q is not a valid "setup_experience_platform" value for a .%s package (allowed: %s)`,
 				raw, extension, strings.Join(allowed, ", "),
 			)
 		}
-		if _, ok := seen[canonical]; ok {
+		if _, ok := seen[platform]; ok {
 			continue
 		}
-		seen[canonical] = struct{}{}
-		out = append(out, canonical)
+		seen[platform] = struct{}{}
+		out = append(out, platform)
 	}
 	return out, nil
 }
@@ -3249,7 +3252,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.SetupExperiencePlatforms = &normalized
 
 				if slices.Contains(normalized, "darwin") && manualAgentInstall {
-					return errors.New(`Couldn't edit software. "setup_experience_platforms" cannot include macOS if "macos_manual_agent_install" is enabled.`)
+					return errors.New(`Couldn't edit software. "setup_experience_platform" cannot include macOS if "macos_manual_agent_install" is enabled.`)
 				}
 
 				nativeSelected := slices.Contains(normalized, installer.Platform)
@@ -3405,7 +3408,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	// Reconcile cross-platform setup experience selections when the incoming
-	// batch mentions them. A batch that never touches setup_experience_platforms
+	// batch mentions them. A batch that never touches setup_experience_platform
 	// leaves the cross-table alone so UI-set selections aren't clobbered.
 	if err := svc.reconcileGitOpsSetupExperienceCrossInstallers(ctx, ptr.ValOrZero(teamID), softwareInstallers); err != nil {
 		batchErr = fmt.Errorf("reconciling cross-platform setup experience selections: %w", err)
