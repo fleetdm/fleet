@@ -5371,6 +5371,20 @@
       "description": "Mountain Duck is a mounts servers and cloud storages as a disk on the desktop."
     },
     {
+      "name": "Mozilla VPN",
+      "slug": "mozilla-vpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.macos.FirefoxVPN",
+      "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
+    },
+    {
+      "name": "Mozilla VPN",
+      "slug": "mozilla-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla VPN",
+      "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
+    },
+    {
       "name": "MQTTX",
       "slug": "mqttx/darwin",
       "platform": "darwin",
