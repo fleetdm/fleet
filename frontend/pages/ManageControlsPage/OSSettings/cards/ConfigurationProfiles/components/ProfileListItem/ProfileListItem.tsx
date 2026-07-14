@@ -193,7 +193,7 @@ const ProfileListItem = ({
         <div className={`${subClass}__actions`}>
           <Button
             className={`${subClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             onClick={() => onClickInfo(profile)}
           >
             <Icon name="info" size="medium" />
@@ -201,7 +201,7 @@ const ProfileListItem = ({
           {isPremium && labels.length > 0 && (
             <Button
               className={`${subClass}__action-button`}
-              variant="icon"
+              variant="secondary"
               onClick={() => setProfileLabelsModalData({ ...profile })}
             >
               <Icon name="filter" />
@@ -209,7 +209,7 @@ const ProfileListItem = ({
           )}
           <Button
             className={`${subClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             onClick={onClickDownload}
           >
             <Icon name="download" />
@@ -220,7 +220,7 @@ const ProfileListItem = ({
                 <Button
                   disabled={disableChildren}
                   className={`${subClass}__action-button`}
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => onClickDelete(profile)}
                 >
                   <Icon name="trash" />
