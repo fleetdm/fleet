@@ -12,23 +12,27 @@
     justify-content: space-between;
     padding: $pad-small $pad-large;
 
-    .button > .children-wrapper {
+    .button {
       opacity: 0;
       transition: opacity 250ms;
-      pointer-events: none;
+
+      // Reveal on the button's own keyboard focus, not just row hover/focus —
+      // otherwise tabbing directly to a hidden row button never shows it.
+      &:focus-visible {
+        opacity: 1;
+      }
     }
 
     &.paginated-list__header {
-      .button > .children-wrapper {
+      .button {
         opacity: 1;
-        pointer-events: auto;
       }
     }
 
     &:hover,
     &:focus-within {
       cursor: default;
-      .button > .children-wrapper {
+      .button {
         opacity: 1;
       }
     }

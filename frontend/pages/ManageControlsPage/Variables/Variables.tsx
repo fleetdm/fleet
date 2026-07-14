@@ -114,22 +114,22 @@ const Variables = ({ router, location }: IVariablesProps) => {
             </span>
             <CopyButton
               copyText={getTokenFromVariableName(variable.name)}
-              variant="compact"
+              variant="secondary"
+              size="small"
             />
           </span>
         }
       />
       {canEdit && (
         <Button
-          variant="icon"
+          variant="secondary"
+          size="small"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteVariable(variable);
           }}
         >
-          <>
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </>
+          <Icon name="trash" size="small" />
         </Button>
       )}
     </>
@@ -224,12 +224,12 @@ const Variables = ({ router, location }: IVariablesProps) => {
           <GitOpsModeTooltipWrapper
             renderChildren={(disableChildren) => (
               <Button
-                variant="inverse"
+                variant="secondary"
                 size="small"
                 onClick={onClickAddVariable}
                 disabled={disableChildren}
               >
-                <Icon name="plus" />
+                <Icon name="plus" size="small" />
                 <span>Add custom variable</span>
               </Button>
             )}

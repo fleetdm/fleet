@@ -142,7 +142,7 @@ form,
   }
 
   // Override button width to auto unless icon-only or wide buttons which has fixed widths
-  .button:not(.button--icon):not(.button--icon__small):not(.button__wide) {
+  .button:not(.button--icon):not(.button--icon__small):not(.button__wide):not(.button--icon-only) {
     width: auto;
   }
 
