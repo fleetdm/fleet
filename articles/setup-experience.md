@@ -268,7 +268,6 @@ End users won't continue through setup experience unless they press Command (⌘
 
 App Store (VPP) apps are installed by Apple. Fleet sends an [InstallApplication](https://developer.apple.com/documentation/devicemanagement/install-application-command) MDM command, and the device downloads and installs the app from the App Store. As a result, VPP installs during setup depend on Apple's services and the device's connection to the App Store while it's still in Setup Assistant.
 
-
 Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
 
 To reduce these risks:
