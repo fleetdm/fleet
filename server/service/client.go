@@ -2077,10 +2077,6 @@ func (c *Client) DoGitOps(
 			}
 		}
 
-		if err := c.doGitOpsCustomHostVitals(incoming, logFn, dryRun); err != nil {
-			return nil, err
-		}
-
 		// Features
 		var features any
 		var ok bool
@@ -2297,6 +2293,14 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, err
 			}
+		}
+
+		// Custom host vitals are global-only and fully declarative: an absent
+		// `custom_host_vitals:` key clears all existing definitions. Runs last in
+		// this branch, after all local-only validation above, since it fetches
+		// current server state over the network to compute the diff.
+		if err := c.doGitOpsCustomHostVitals(incoming, logFn, dryRun); err != nil {
+			return nil, err
 		}
 
 	} else if !incoming.IsNoTeam() {
