@@ -16,6 +16,7 @@ import configAPI from "services/entities/config";
 import hostNameTemplateAPI from "services/entities/host_name_template";
 
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -191,24 +192,25 @@ const HostNameTemplate = ({
     );
   };
 
+  const scopeSuffix = isNoTeam ? "." : " in this fleet.";
+  const builtInVariablesUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/built-in-variables`;
+  const customVariablesUrl = getPathWithQueryParams(PATHS.CONTROLS_VARIABLES, {
+    fleet_id: currentTeamId,
+  });
+
+  const description = (
+    <>
+      Set a naming convention for all macOS, iOS, or iPadOS hosts{scopeSuffix}{" "}
+      Use <CustomLink text="built-in" url={builtInVariablesUrl} newTab /> or{" "}
+      <CustomLink text="custom" url={customVariablesUrl} /> variables to
+      differentiate between hosts.
+    </>
+  );
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Host names" alignLeftHeaderVertically />
-      <PageDescription
-        variant="right-panel"
-        content={
-          <>
-            Set a naming convention for all macOS, iOS, or iPadOS hosts{" "}
-            {isNoTeam ? "with no fleet" : "in this fleet"}. Use{" "}
-            <CustomLink
-              text="built-in"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/built-in-variables`}
-              newTab
-            />{" "}
-            variables to differentiate between hosts.
-          </>
-        }
-      />
+      <PageDescription variant="right-panel" content={description} />
       {renderCardBody()}
     </div>
   );
