@@ -557,8 +557,7 @@ software:
       self_service: true
       setup_experience: true
     - path: ../lib/onboarding-script.sh.package.yml
-      setup_experience_platforms:
-        - macos
+      setup_experience_platform: darwin
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "546505307"
@@ -611,7 +610,7 @@ software:
   - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
-- `setup_experience_platforms` lists every platform whose setup experience should include this package. When set, it's the single source of truth for the package's setup experience state and overrides `setup_experience` on the same package. Currently only `.sh` script-only packages are cross-platform-capable — `.sh` files run on macOS via `/bin/sh` in addition to their native Linux — so the supported list values are `macos` and `linux`. Examples: `[macos]` selects only for macOS (native Linux install-during-setup off); `[macos, linux]` selects for both; `[linux]` is equivalent to `setup_experience: true`; `[]` clears any prior selection. Omit the field entirely to leave existing selections unchanged.
+- `setup_experience_platform` is a comma-separated string listing every platform whose setup experience should include this package (consistent with the `platform` field on queries and policies). When set, it's the single source of truth for the package's setup experience state and overrides `setup_experience` on the same package. Only `.sh` script-only packages are cross-platform-capable — `.sh` files run on macOS in addition to their native Linux — so the supported values are `darwin` and `linux` (use `darwin`, not `macos`). Examples: `darwin` selects only for macOS (native Linux install-during-setup off); `darwin,linux` selects for both; `linux` is equivalent to `setup_experience: true`; an empty string clears any prior selection. Omit the field entirely to leave existing selections unchanged.
 
 ### packages
 
