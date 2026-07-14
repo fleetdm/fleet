@@ -1201,7 +1201,7 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz 
 	return meta, nil
 }
 
-func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error) {
+func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error) {
 	downloadRequested := alt == "media"
 	if !downloadRequested {
 		svc.authz.SkipAuthorization(ctx)
@@ -1220,6 +1220,11 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt stri
 	meta := fleet.SoftwareInstallerTokenMetadata{
 		TitleID: titleID,
 		TeamID:  *teamID,
+	}
+	// Nil installerID means "no per-package pin" — the token consumer falls
+	// back to the first-added package. Preserves single-package back-compat.
+	if installerID != nil {
+		meta.InstallerID = *installerID
 	}
 	metaByte, err := json.Marshal(meta)
 	if err != nil {
@@ -1274,7 +1279,7 @@ func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, token
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
-	teamID *uint,
+	teamID *uint, installerID *uint,
 ) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	downloadRequested := alt == "media"
 	if !downloadRequested {
@@ -1285,6 +1290,22 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz boo
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("fleet_id", "is required")
+	}
+
+	// When installerID is set, target the specific package on a multi-package
+	// title. Nil falls back to the first-added default (single-package titles
+	// and pre-multi-package callers).
+	if installerID != nil {
+		if !skipAuthz {
+			if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, teamID, titleID, *installerID, false)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting pinned software installer metadata")
+		}
+		return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
 	}
 
 	meta, err := svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)

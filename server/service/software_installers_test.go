@@ -183,7 +183,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
 
-			_, err = svc.DownloadSoftwareInstaller(ctx, false, "media", 1, tt.teamID)
+			_, err = svc.DownloadSoftwareInstaller(ctx, false, "media", 1, tt.teamID, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

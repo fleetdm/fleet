@@ -17468,6 +17468,51 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 		require.False(t, hasLastUninstall, "list packages[] must omit last_uninstall")
 	}
 
+	// --- Download token: installer_id pins the token to a specific package (#49239) ---
+	// Bug: the token endpoint ignored installer_id and always dispatched
+	// first-added, so the UI download button on any row of a multi-package title
+	// fetched A regardless of which row the user clicked.
+	readAllAndClose := func(t *testing.T, r *http.Response) []byte {
+		t.Helper()
+		defer r.Body.Close()
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		return b
+	}
+	tokenDownload := func(t *testing.T, args ...string) []byte {
+		t.Helper()
+		var tok getSoftwareInstallerTokenResponse
+		s.DoJSON("POST",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID),
+			nil, http.StatusOK, &tok, args...)
+		require.NotEmpty(t, tok.Token)
+		r := s.DoRawNoAuth("GET",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", titleID, tok.Token),
+			nil, http.StatusOK)
+		return readAllAndClose(t, r)
+	}
+	teamArg := []string{"team_id", fmt.Sprintf("%d", team.ID)}
+	// Omitting installer_id falls back to first-added (A), preserving single-package back-compat.
+	require.Equal(t, contentA, string(tokenDownload(t, teamArg...)),
+		"no installer_id defaults to first-added (A)")
+	// Explicit installer_id=A resolves to A.
+	require.Equal(t, contentA,
+		string(tokenDownload(t, append(teamArg, "installer_id", fmt.Sprintf("%d", installerA))...)),
+		"installer_id=A returns A's content")
+	// Explicit installer_id=B resolves to B (the fix).
+	require.Equal(t, contentB,
+		string(tokenDownload(t, append(teamArg, "installer_id", fmt.Sprintf("%d", installerB))...)),
+		"installer_id=B returns B's content, not first-added")
+
+	// Direct (non-token) download endpoint honors installer_id too.
+	rDirect := s.Do("GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID),
+		nil, http.StatusOK,
+		"team_id", fmt.Sprintf("%d", team.ID),
+		"installer_id", fmt.Sprintf("%d", installerB))
+	require.Equal(t, contentB, string(readAllAndClose(t, rDirect)),
+		"direct download with installer_id=B returns B")
+
 	// --- Edit without installer_id on a multi-package title -> 400 ---
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
