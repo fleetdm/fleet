@@ -403,13 +403,14 @@ const PackageForm = ({
   );
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
-  // 4.83 removed option/targets from the (single-package) Add page; the
-  // multi-package Add modal reintroduces the targets selector only, since
-  // each package on a multi-package title needs its own label scope. The
-  // options selector (self-service + categories) stays edit-only.
+  // Options selector (self-service + categories) stays edit-only. The target
+  // selector shows whenever a package is being staged — on Edit, in the
+  // multi-package Add modal, and on the single-package Add page once a file
+  // is chosen — because every package on a title needs its own label scope.
   const showSoftwareOptionsSelector = !gitOpsModeEnabled && isEditingSoftware;
   const showTargetLabelSelector =
-    !gitOpsModeEnabled && (isEditingSoftware || multiPackageContext);
+    !gitOpsModeEnabled &&
+    (isEditingSoftware || multiPackageContext || !!formData.software);
 
   const renderSoftwareOptionsSelector = () => (
     <SoftwareOptionsSelector
@@ -426,9 +427,10 @@ const PackageForm = ({
 
   const renderTargetLabelSelector = () => (
     <>
-      {multiPackageContext && (
+      {!isEditingSoftware && (
         <InfoBanner
-          icon="error-outline"
+          icon="info-outline"
+          iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
           borderRadius="medium"
         >

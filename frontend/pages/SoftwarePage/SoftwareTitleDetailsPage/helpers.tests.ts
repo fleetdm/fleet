@@ -1,5 +1,9 @@
 import { ISoftwareTitleDetails } from "interfaces/software";
-import { buildLibraryVersionRows, getInstallerCardInfo } from "./helpers";
+import {
+  buildLibraryVersionRows,
+  canDownloadInstallerRow,
+  getInstallerCardInfo,
+} from "./helpers";
 
 const v = (id: number, version: string) => ({
   id,
@@ -189,6 +193,28 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         isScriptPackage: false,
         isSelfService: false,
       });
+    });
+  });
+
+  describe("canDownloadInstallerRow", () => {
+    // Guards the observer-download regression: the button must stay hidden
+    // for any role that lacks installer read permission, even on the active
+    // row. Backend rejects observers with 403 (policy.rego installable_entity
+    // read), so the UI shouldn't offer the click.
+    it("shows the button only when the row is active AND the user has permission", () => {
+      expect(canDownloadInstallerRow(true, true)).toBe(true);
+    });
+
+    it("hides the button when the user lacks installer permission (e.g., observer)", () => {
+      expect(canDownloadInstallerRow(true, false)).toBe(false);
+    });
+
+    it("hides the button on inactive (rollback / older) rows even for authorized users", () => {
+      expect(canDownloadInstallerRow(false, true)).toBe(false);
+    });
+
+    it("hides the button when both conditions fail", () => {
+      expect(canDownloadInstallerRow(false, false)).toBe(false);
     });
   });
 });

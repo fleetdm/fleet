@@ -24,7 +24,10 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import { canWriteSoftware } from "utilities/permissions/permissions";
+import {
+  canDownloadSoftwareInstaller,
+  canWriteSoftware,
+} from "utilities/permissions/permissions";
 import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
@@ -56,7 +59,7 @@ import AddPackageModal from "./AddPackageModal";
 import PoliciesModal from "./PoliciesModal";
 import VersionsModal from "./VersionsModal";
 import { getDisplayedSoftwareName, mergePolicies } from "../helpers";
-import { buildLibraryVersionRows } from "./helpers";
+import { buildLibraryVersionRows, canDownloadInstallerRow } from "./helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
 
 const baseClass = "software-title-details-page";
@@ -109,6 +112,10 @@ const SoftwareTitleDetailsPage = ({
   });
 
   const canEditSoftware = canWriteSoftware(currentUser, currentTeamId ?? null);
+  const canDownloadInstaller = canDownloadSoftwareInstaller(
+    currentUser,
+    currentTeamId ?? null
+  );
 
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -373,7 +380,10 @@ const SoftwareTitleDetailsPage = ({
           pendingPath={statusPath("pending")}
           failedPath={statusPath("failed")}
           hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
-          canDownload={row.isActive}
+          canDownload={canDownloadInstallerRow(
+            row.isActive,
+            canDownloadInstaller
+          )}
           onBadgeClick={
             isFma && canEditSoftware
               ? () => setShowVersionsModal(true)
