@@ -12,9 +12,10 @@
 //   - constraint pushdown: a query with `WHERE type = '...'` (or `type IN (...)`)
 //     only runs the collectors it needs;
 //   - one process/connection snapshot per query (shared across mcp/agents/apps/
-//     sockets), skipped entirely when only ide_plugins is requested;
-//   - one home-directory enumeration and one MCP-config scan, shared between the
-//     mcp_server and sockets collectors.
+//     sockets), taken only when one of those types is requested;
+//   - one home-directory enumeration, shared by every collector except sockets
+//     and skipped for a sockets-only query; and one MCP-config scan, used only
+//     by the mcp_server collector.
 package ai_tools
 
 import (
@@ -94,7 +95,14 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 	}
 	has := func(t string) bool { _, ok := types[t]; return ok }
 
-	hs := homes.All()
+	// homes.All() feeds every collector except sockets (which works purely off
+	// the process/connection snapshot), so skip the home enumeration entirely for
+	// a sockets-only query.
+	var hs []homes.Home
+	if has("mcp_server") || has("ide_plugins") || has("agents") ||
+		has("apps") || has("agent_instruction") || has("browser_extension") {
+		hs = homes.All()
+	}
 
 	needProc := has("mcp_server") || has("agents") || has("apps") || has("sockets")
 	var snap *proc.Snapshot
