@@ -255,13 +255,13 @@ describe("Location vital", () => {
   } = {}) => {
     const baseOverrides = ade
       ? {
-        platform: "ios" as const,
-        mdm: createMockHostMdmData({ enrollment_status: "On (automatic)" }),
-      }
+          platform: "ios" as const,
+          mdm: createMockHostMdmData({ enrollment_status: "On (automatic)" }),
+        }
       : {
-        platform: "darwin" as const,
-        geolocation: createMockHostGeolocation(),
-      };
+          platform: "darwin" as const,
+          geolocation: createMockHostGeolocation(),
+        };
 
     const mockHost = createMockHost({ ...baseOverrides, ...hostOverrides });
     const toggleLocationModal = withToggle ? jest.fn() : undefined;
