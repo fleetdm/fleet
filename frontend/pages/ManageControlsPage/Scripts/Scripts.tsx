@@ -1,8 +1,6 @@
 import React from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import useTeamIdParam from "hooks/useTeamIdParam";
-
 import { FLEET_WEBSITE_URL } from "utilities/constants";
 
 import SideNav from "pages/admin/components/SideNav";
@@ -28,17 +26,14 @@ interface IScriptsProps {
   params: Params;
   router: InjectedRouter;
   location: ScriptsLocation;
+  // Undefined until the URL's fleet id resolves to an available fleet.
+  // Gate team-scoped queries on this being defined — anything fired during
+  // that window targets the wrong fleet.
+  teamIdForApi?: number;
 }
 
-const Scripts = ({ router, location, params }: IScriptsProps) => {
+const Scripts = ({ router, location, params, teamIdForApi }: IScriptsProps) => {
   const { section } = params;
-
-  const { teamIdForApi } = useTeamIdParam({
-    location,
-    router,
-    includeAllTeams: false,
-    includeNoTeam: true,
-  });
 
   const SCRIPTS_NAV_ITEMS = useScriptNavItems(teamIdForApi);
 
@@ -60,9 +55,8 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
 
   const CurrentCard = currentFormSection.Card;
 
-  // Hold render until useTeamIdParam has reconciled the URL fleet against
-  // availableTeams. Coercing undefined to API_NO_TEAM_ID caused the cards
-  // to fire team-0 requests before the correct fleet was known.
+  // Wait for the fleet id to resolve before mounting children — they fire
+  // team-scoped queries eagerly.
   if (teamIdForApi === undefined) {
     return <Spinner />;
   }

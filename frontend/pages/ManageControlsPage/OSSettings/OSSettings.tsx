@@ -17,10 +17,9 @@ interface IOSSettingsProps {
   params: Params;
   router: InjectedRouter;
   currentPage: number;
-  // Injected by ManageControlsPage via React.cloneElement; undefined for one
-  // render on refresh while useTeamIdParam reconciles the URL against
-  // availableTeams. Rendering during that window fires queries against the
-  // wrong fleet.
+  // Undefined until the URL's fleet id resolves to an available fleet.
+  // Gate team-scoped queries on this being defined — anything fired during
+  // that window targets the wrong fleet.
   teamIdForApi?: number;
   location: {
     search: string;
@@ -81,9 +80,8 @@ const OSSettings = ({
 
   const CurrentCard = currentFormSection.Card;
 
-  // Hold render until useTeamIdParam in the parent has reconciled the URL
-  // fleet against availableTeams. Mounting cards with an undefined/coerced
-  // team id fires API requests against the wrong fleet.
+  // Wait for the fleet id to resolve before mounting children — they fire
+  // team-scoped queries eagerly.
   if (teamIdForApi === undefined) {
     return <Spinner />;
   }
