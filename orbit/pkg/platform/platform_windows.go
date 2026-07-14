@@ -302,12 +302,26 @@ func wmiGetSMBiosUUID() (string, error) {
 	}
 	defer func() { _ = uuidVariant.Clear() }()
 
-	uuid := strings.TrimSpace(uuidVariant.ToString())
-	if uuid == "" {
+	uuidStr := strings.TrimSpace(uuidVariant.ToString())
+	if uuidStr == "" {
 		return "", errors.New("get UUID: WMI returned an empty UUID")
 	}
 
-	return uuid, nil
+	// Reject documented placeholder/filler UUIDs (all-zero, all-0xFF) that some
+	// firmware reports. WMI sources the UUID from the same SMBIOS System
+	// Information structure as the hardware fallback, so returning a sentinel
+	// value here would let it be used as the device UUID instead of falling
+	// through to hardwareGetSMBiosUUID (which already rejects these). Reuse the
+	// same sentinel check for parity between both paths.
+	parsedUUID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return "", fmt.Errorf("parse WMI UUID: %w", err)
+	}
+	if valid, err := isValidUUID(parsedUUID[:]); !valid {
+		return "", fmt.Errorf("get UUID: WMI returned an unusable UUID: %w", err)
+	}
+
+	return uuidStr, nil
 }
 
 // It performs a UUID sanity check on a given byte array
