@@ -3677,13 +3677,6 @@
       "description": "GOG Galaxy is a game client."
     },
     {
-      "name": "GOG Galaxy",
-      "slug": "gog-galaxy/windows",
-      "platform": "windows",
-      "unique_identifier": "GOG GALAXY",
-      "description": "GOG Galaxy is a game client."
-    },
-    {
       "name": "GoLand",
       "slug": "goland/darwin",
       "platform": "darwin",
@@ -6908,13 +6901,6 @@
       "slug": "reqable/darwin",
       "platform": "darwin",
       "unique_identifier": "com.reqable.macosx",
-      "description": "Reqable is an advanced API Debugging Proxy."
-    },
-    {
-      "name": "Reqable",
-      "slug": "reqable/windows",
-      "platform": "windows",
-      "unique_identifier": "Reqable",
       "description": "Reqable is an advanced API Debugging Proxy."
     },
     {
