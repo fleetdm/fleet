@@ -1,4 +1,4 @@
-pat# Audit logs
+# Audit logs
 
 Fleet logs activities.
 
