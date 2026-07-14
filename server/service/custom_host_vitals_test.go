@@ -214,6 +214,15 @@ func TestUpsertCustomHostVitals(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("rejects names that are duplicates under the case-insensitive collation", func(t *testing.T) {
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+			t.Fatal("UpsertCustomHostVitals should not be called for a case-only duplicate name")
+			return nil, nil, nil
+		}
+		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "function"}}, false)
+		require.Error(t, err)
+	})
+
 	t.Run("dry run validates without persisting", func(t *testing.T) {
 		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
 			t.Fatal("UpsertCustomHostVitals should not be called on a dry run")

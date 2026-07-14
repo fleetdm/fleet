@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"golang.org/x/text/unicode/norm"
 )
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -245,15 +247,21 @@ func (svc *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals
 		return err
 	}
 
-	seen := make(map[string]struct{}, len(customHostVitals))
+	// Names are unique in the database under the utf8mb4_unicode_ci collation
+	// (case-insensitive), so dedupe on that same basis rather than exact string
+	// equality -- otherwise two names differing only by case would pass this
+	// check and then fail as a raw DB duplicate-key error at insert time.
+	seen := make(map[string]string, len(customHostVitals)) // collation key -> original name
 	for _, vital := range customHostVitals {
 		if err := fleet.ValidateCustomHostVitalName(vital.Name); err != nil {
 			return ctxerr.Wrap(ctx, err, "validate custom host vital name")
 		}
-		if _, ok := seen[vital.Name]; ok {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("custom_host_vitals", fmt.Sprintf("duplicate custom host vital name: %q", vital.Name)))
+		key := norm.NFC.String(strings.ToLower(vital.Name))
+		if prev, ok := seen[key]; ok {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("custom_host_vitals",
+				fmt.Sprintf("duplicate custom host vital names: %q and %q must differ by more than letter case", prev, vital.Name)))
 		}
-		seen[vital.Name] = struct{}{}
+		seen[key] = vital.Name
 	}
 
 	if dryRun {
