@@ -80,3 +80,18 @@ type SetHostCustomHostVitalValueResponse struct {
 }
 
 func (r SetHostCustomHostVitalValueResponse) Error() error { return r.Err }
+
+//////////////////////////////////////////////////////////////////////////////////
+// Upsert custom host vitals (spec)
+//////////////////////////////////////////////////////////////////////////////////
+
+type UpsertCustomHostVitalsRequest struct {
+	DryRun           bool              `json:"dry_run"`
+	CustomHostVitals []CustomHostVital `json:"custom_host_vitals"`
+}
+
+type UpsertCustomHostVitalsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r UpsertCustomHostVitalsResponse) Error() error { return r.Err }

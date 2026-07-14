@@ -547,3 +547,75 @@ func (ds *Datastore) GetCustomHostVitals(ctx context.Context, ids []uint) ([]fle
 	}
 	return vitals, nil
 }
+
+func (ds *Datastore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
+	incomingNames := make(map[string]struct{}, len(vitals))
+	for _, v := range vitals {
+		incomingNames[v.Name] = struct{}{}
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		created, deleted = nil, nil
+
+		var existing []fleet.CustomHostVital
+		if err := sqlx.SelectContext(ctx, tx, &existing, `SELECT id, name FROM custom_host_vitals`); err != nil {
+			return ctxerr.Wrap(ctx, err, "list existing custom host vitals")
+		}
+
+		existingNames := make(map[string]struct{}, len(existing))
+		for _, e := range existing {
+			existingNames[e.Name] = struct{}{}
+			if _, ok := incomingNames[e.Name]; !ok {
+				deleted = append(deleted, e)
+			}
+		}
+
+		var toInsert []string
+		for _, v := range vitals {
+			if _, ok := existingNames[v.Name]; !ok {
+				toInsert = append(toInsert, v.Name)
+			}
+		}
+
+		for _, v := range deleted {
+			usedByInfo, err := ds.customHostVitalUsedBy(ctx, tx, v.ID, v.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking custom host vital references")
+			}
+			if usedByInfo != nil {
+				return ctxerr.Wrap(ctx, &fleet.CustomHostVitalUsedError{CustomHostVitalUsedInfo: *usedByInfo}, "found custom host vital in use")
+			}
+		}
+
+		if len(deleted) > 0 {
+			ids := make([]uint, 0, len(deleted))
+			for _, v := range deleted {
+				ids = append(ids, v.ID)
+			}
+			stmt, args, err := sqlx.In(`DELETE FROM custom_host_vitals WHERE id IN (?)`, ids)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete custom host vitals query")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete custom host vitals")
+			}
+		}
+
+		// Inserted one at a time (rather than a single multi-row INSERT) so each
+		// row's LastInsertId can be captured for the returned `created` list.
+		for _, name := range toInsert {
+			res, err := tx.ExecContext(ctx, `INSERT INTO custom_host_vitals (name) VALUES (?)`, name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert custom host vital")
+			}
+			id, _ := res.LastInsertId()
+			created = append(created, fleet.CustomHostVital{ID: uint(id), Name: name}) //nolint:gosec // dismiss G115
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return created, deleted, nil
+}

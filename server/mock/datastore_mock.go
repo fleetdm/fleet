@@ -1832,6 +1832,8 @@ type ValidateReferencedCustomHostVitalsFunc func(ctx context.Context, documents 
 
 type ExpandCustomHostVitalsFunc func(ctx context.Context, hostID uint, document string) (string, error)
 
+type UpsertCustomHostVitalsFunc func(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error)
+
 type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
 
 type GetEnterpriseByIDFunc func(ctx context.Context, id uint) (*android.EnterpriseDetails, error)
@@ -4868,6 +4870,9 @@ type DataStore struct {
 
 	ExpandCustomHostVitalsFunc        ExpandCustomHostVitalsFunc
 	ExpandCustomHostVitalsFuncInvoked bool
+
+	UpsertCustomHostVitalsFunc        UpsertCustomHostVitalsFunc
+	UpsertCustomHostVitalsFuncInvoked bool
 
 	CreateEnterpriseFunc        CreateEnterpriseFunc
 	CreateEnterpriseFuncInvoked bool
@@ -11684,6 +11689,13 @@ func (s *DataStore) ExpandCustomHostVitals(ctx context.Context, hostID uint, doc
 	s.ExpandCustomHostVitalsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandCustomHostVitalsFunc(ctx, hostID, document)
+}
+
+func (s *DataStore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
+	s.mu.Lock()
+	s.UpsertCustomHostVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertCustomHostVitalsFunc(ctx, vitals)
 }
 
 func (s *DataStore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {

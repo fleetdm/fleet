@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"golang.org/x/text/unicode/norm"
 )
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -228,4 +230,79 @@ func (svc *Service) customHostVitalByID(ctx context.Context, id uint) (*fleet.Cu
 		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("CustomHostVital").WithID(id))
 	}
 	return &vitals[0], nil
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+// Upsert custom host vitals (spec)
+//////////////////////////////////////////////////////////////////////////////////
+
+func upsertCustomHostVitalsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.UpsertCustomHostVitalsRequest)
+	err := svc.UpsertCustomHostVitals(ctx, req.CustomHostVitals, req.DryRun)
+	return fleet.UpsertCustomHostVitalsResponse{Err: err}, nil
+}
+
+func (svc *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals []fleet.CustomHostVital, dryRun bool) error {
+	if err := svc.authz.Authorize(ctx, &fleet.CustomHostVital{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Names are unique in the database under the utf8mb4_unicode_ci collation
+	// (case-insensitive), so dedupe on that same basis rather than exact string
+	// equality -- otherwise two names differing only by case would pass this
+	// check and then fail as a raw DB duplicate-key error at insert time.
+	seen := make(map[string]string, len(customHostVitals)) // collation key -> original name
+	for _, vital := range customHostVitals {
+		if err := fleet.ValidateCustomHostVitalName(vital.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "validate custom host vital name")
+		}
+		key := norm.NFC.String(strings.ToLower(vital.Name))
+		if prev, ok := seen[key]; ok {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("custom_host_vitals",
+				fmt.Sprintf("duplicate custom host vital names: %q and %q must differ by more than letter case", prev, vital.Name)))
+		}
+		seen[key] = vital.Name
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	created, deleted, err := svc.ds.UpsertCustomHostVitals(ctx, customHostVitals)
+	if err != nil {
+		if usedErr, ok := errors.AsType[*fleet.CustomHostVitalUsedError](err); ok {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: fmt.Sprintf("Couldn't delete. %s", usedErr.Error()),
+			}, "upsert custom host vitals")
+		}
+		return ctxerr.Wrap(ctx, err, "upsert custom host vitals")
+	}
+
+	user := authz.UserFromContext(ctx)
+	for _, vital := range created {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeCreatedCustomHostVital{
+				CustomHostVitalID:   vital.ID,
+				CustomHostVitalName: vital.Name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for custom host vital creation")
+		}
+	}
+	for _, vital := range deleted {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeDeletedCustomHostVital{
+				CustomHostVitalID:   vital.ID,
+				CustomHostVitalName: vital.Name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for custom host vital deletion")
+		}
+	}
+
+	return nil
 }

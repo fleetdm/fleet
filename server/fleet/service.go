@@ -1498,6 +1498,9 @@ type Service interface {
 	UpdateCustomHostVital(ctx context.Context, id uint, name string) (*CustomHostVital, error)
 	DeleteCustomHostVital(ctx context.Context, id uint) error
 	SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error
+	// UpsertCustomHostVitals declaratively reconciles custom host vital definitions (GitOps):
+	// names present are upserted, names absent from customHostVitals are deleted.
+	UpsertCustomHostVitals(ctx context.Context, customHostVitals []CustomHostVital, dryRun bool) error
 
 	// ListAPIEndpoints returns all API endpoints
 	ListAPIEndpoints(ctx context.Context) (endpoints []APIEndpoint, err error)

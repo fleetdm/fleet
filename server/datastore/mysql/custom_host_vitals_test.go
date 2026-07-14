@@ -22,6 +22,7 @@ func TestCustomHostVitals(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"CreateCustomHostVital", testCreateCustomHostVital},
+		{"UpsertCustomHostVitals", testUpsertCustomHostVitals},
 		{"ListCustomHostVitals", testListCustomHostVitals},
 		{"UpdateCustomHostVital", testUpdateCustomHostVital},
 		{"SetAndGetHostCustomHostVitals", testSetAndGetHostCustomHostVitals},
@@ -61,6 +62,90 @@ func testCreateCustomHostVital(t *testing.T, ds *Datastore) {
 	var aee fleet.AlreadyExistsError
 	require.ErrorAs(t, err, &aee)
 	require.Zero(t, dup.ID)
+}
+
+// vitalNames is a test helper that extracts the Name of each vital, for use with require.ElementsMatch.
+func vitalNames(vitals []fleet.CustomHostVital) []string {
+	out := make([]string, 0, len(vitals))
+	for _, v := range vitals {
+		out = append(out, v.Name)
+	}
+	return out
+}
+
+func testUpsertCustomHostVitals(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	list := func() []fleet.CustomHostVital {
+		vitals, _, _, err := ds.ListCustomHostVitals(ctx, fleet.ListOptions{})
+		require.NoError(t, err)
+		return vitals
+	}
+
+	// Empty incoming set against no existing definitions is a no-op.
+	created, deleted, err := ds.UpsertCustomHostVitals(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, created)
+	require.Empty(t, deleted)
+	require.Empty(t, list())
+
+	// Initial apply creates all named vitals.
+	created, deleted, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Department"}})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"Function", "Department"}, vitalNames(created))
+	require.Empty(t, deleted)
+	require.ElementsMatch(t, []string{"Function", "Department"}, vitalNames(list()))
+
+	byName := make(map[string]uint)
+	for _, v := range list() {
+		byName[v.Name] = v.ID
+	}
+	funcID := byName["Function"]
+
+	// Re-applying the same set keeps the existing rows (matched by name), not
+	// recreated, and reports no created/deleted vitals.
+	created, deleted, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Department"}})
+	require.NoError(t, err)
+	require.Empty(t, created)
+	require.Empty(t, deleted)
+	for _, v := range list() {
+		if v.Name == "Function" {
+			require.Equal(t, funcID, v.ID)
+		}
+	}
+
+	// A name absent from the incoming set ("Department") is deleted; a new name
+	// ("Role") is inserted.
+	created, deleted, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Role"}})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"Role"}, vitalNames(created))
+	require.ElementsMatch(t, []string{"Department"}, vitalNames(deleted))
+	require.ElementsMatch(t, []string{"Function", "Role"}, vitalNames(list()))
+
+	// Dropping a still-referenced name errors the whole call and leaves state unchanged.
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "collect.sh",
+		ScriptContents: fmt.Sprintf("echo $%s%d", fleet.CustomHostVitalPrefix, funcID),
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Role"}})
+	require.Error(t, err)
+	var useErr *fleet.CustomHostVitalUsedError
+	require.ErrorAs(t, err, &useErr)
+	require.Equal(t, funcID, useErr.CustomHostVitalID)                      //nolint:nilaway // cannot be nil due to require.ErrorAs above
+	require.Equal(t, "Function", useErr.CustomHostVitalName)                //nolint:nilaway // cannot be nil due to require.ErrorAs above
+	require.Equal(t, fleet.CustomHostVitalEntityScript, useErr.Entity.Type) //nolint:nilaway // cannot be nil due to require.ErrorAs above
+	require.ElementsMatch(t, []string{"Function", "Role"}, vitalNames(list()))
+
+	require.NoError(t, ds.DeleteScript(ctx, script.ID))
+
+	// An empty incoming set (the absent-key GitOps case) clears all definitions.
+	created, deleted, err = ds.UpsertCustomHostVitals(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, created)
+	require.ElementsMatch(t, []string{"Function", "Role"}, vitalNames(deleted))
+	require.Empty(t, list())
 }
 
 func testListCustomHostVitals(t *testing.T, ds *Datastore) {
