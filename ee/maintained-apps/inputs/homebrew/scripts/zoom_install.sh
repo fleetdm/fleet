@@ -48,7 +48,8 @@ CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 
 # Check if Zoom is running
 ZOOM_WAS_RUNNING=false
-if osascript -e "application id \"us.zoom.xos\" is running" 2>/dev/null; then
+ZOOM_RUNNING=$(osascript -e "application id \"us.zoom.xos\" is running" 2>/dev/null)
+if [[ "$ZOOM_RUNNING" == "true" ]]; then
   ZOOM_WAS_RUNNING=true
   quit_application 'us.zoom.xos' "$CONSOLE_USER"
 fi

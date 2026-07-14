@@ -1251,6 +1251,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 		hostDetailQueryPrefix + "disk_space_darwin":                       {},
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
+		hostDetailQueryPrefix + "certificates_windows":                    {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1729,6 +1730,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
 			EnableHostUsers:         true,
@@ -1931,6 +1935,9 @@ func TestDetailQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
 			EnableHostUsers:         true,

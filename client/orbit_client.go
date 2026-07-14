@@ -896,6 +896,7 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 		KeySlot:     lr.KeySlot,
 		Salt:        lr.Salt,
 		ClientError: lr.Err,
+		KeyType:     lr.KeyType,
 	}, &resp); err != nil {
 		return err
 	}

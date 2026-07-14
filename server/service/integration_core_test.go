@@ -8248,6 +8248,9 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// update MDM host name template
+	_ = s.Do("POST", "/api/latest/fleet/host_name_template", updateHostNameTemplateRequest{}, http.StatusPaymentRequired)
+
 	// Turn on MDM.
 	ctx := t.Context()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -15676,7 +15679,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			Source:         fleet.SystemHostCertificate,
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}

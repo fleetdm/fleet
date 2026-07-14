@@ -65,6 +65,7 @@ func TestPolicies(t *testing.T) {
 		{"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
 		{"TestCachedPolicyCountDeletesOnPolicyChange", testCachedPolicyCountDeletesOnPolicyChange},
 		{"TestPoliciesListOptions", testPoliciesListOptions},
+		{"TestPoliciesPlatformFilter", testPoliciesPlatformFilter},
 		{"TestPoliciesNameUnicode", testPoliciesNameUnicode},
 		{"TestPoliciesNameEmoji", testPoliciesNameEmoji},
 		{"TestPoliciesNameSort", testPoliciesNameSort},
@@ -145,7 +146,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{})
+	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	assert.Equal(t, q.Name, policies[0].Name)
@@ -163,7 +164,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteGlobalPolicies(context.Background(), []uint{policies[0].ID, policies[1].ID})
 	require.NoError(t, err)
 
-	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 }
@@ -195,7 +196,7 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	assert.Equal(t, "query1", policies[0].Name)
@@ -230,7 +231,7 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policies[0].ID, policies[1].ID})
 	require.NoError(t, err)
 
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
@@ -275,7 +276,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, "UPDATE policies SET script_id = ?", script.ID)
 		return err
 	})
-	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -331,7 +332,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, "UPDATE policies SET software_installer_id = ?", installerID)
 		return err
 	})
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -396,12 +397,119 @@ func testPoliciesListOptions(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{MatchQuery: "apple", OrderKey: "name", OrderDirection: fleet.OrderAscending})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{MatchQuery: "apple", OrderKey: "name", OrderDirection: fleet.OrderAscending}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 3)
 	assert.Equal(t, "apple", policies[0].Name)
 	assert.Equal(t, "apple pie", policies[1].Name)
 	assert.Equal(t, "rotten apple", policies[2].Name)
+}
+
+func testPoliciesPlatformFilter(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	ctx := t.Context()
+
+	// Cross-platform policy (empty platform string targets all platforms)
+	_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "cross-platform",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:     "macos-only",
+		Query:    "select 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:     "win-linux",
+		Query:    "select 1;",
+		Platform: "windows,linux",
+	})
+	require.NoError(t, err)
+
+	// Empty platform = no filter, returns all policies
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 3)
+
+	// darwin matches cross-platform (empty) + macos-only
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "darwin")
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+	names := []string{policies[0].Name, policies[1].Name}
+	assert.ElementsMatch(t, []string{"cross-platform", "macos-only"}, names)
+
+	// windows matches cross-platform + win-linux
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "windows")
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+	names = []string{policies[0].Name, policies[1].Name}
+	assert.ElementsMatch(t, []string{"cross-platform", "win-linux"}, names)
+
+	// linux matches cross-platform + win-linux
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "linux")
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+	names = []string{policies[0].Name, policies[1].Name}
+	assert.ElementsMatch(t, []string{"cross-platform", "win-linux"}, names)
+
+	// chrome matches only cross-platform (no chrome-targeted policies exist)
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "chrome")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, "cross-platform", policies[0].Name)
+
+	// CountPolicies is filtered consistently.
+	count, err := ds.CountPolicies(ctx, nil, "", "", "darwin")
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	count, err = ds.CountPolicies(ctx, nil, "", "", "chrome")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = ds.CountPolicies(ctx, nil, "", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	// Test team-scoped list / count with platform.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{
+		Name:     "team-darwin",
+		Query:    "select 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "team-all",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+
+	// ListMergedTeamPolicies with darwin: team-darwin, team-all, and the 2
+	// matching global policies (cross-platform, macos-only)
+	merged, err := ds.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{OrderKey: "name"}, "", "darwin")
+	require.NoError(t, err)
+	require.Len(t, merged, 4)
+
+	// ListTeamPolicies with windows: the team has no darwin-only policy, so
+	// we expect team-all (empty platform) + cross-platform + win-linux inherited.
+	teamPols, inherited, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{OrderKey: "name"}, fleet.ListOptions{OrderKey: "name"}, "", "windows")
+	require.NoError(t, err)
+	require.Len(t, teamPols, 1)
+	assert.Equal(t, "team-all", teamPols[0].Name)
+	require.Len(t, inherited, 2)
+	inheritedNames := []string{inherited[0].Name, inherited[1].Name}
+	assert.ElementsMatch(t, []string{"cross-platform", "win-linux"}, inheritedNames)
+
+	// CountMergedTeamPolicies with platform filter
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, team.ID, "", "", "darwin")
+	require.NoError(t, err)
+	assert.Equal(t, 4, mergedCount)
 }
 
 func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
@@ -481,7 +589,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 
-	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -498,7 +606,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -522,7 +630,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	)))
 
 	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	// host1: p now passing again (was failing), host2: p still passing
@@ -593,7 +701,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 
-	t1Pols, t1Inherited, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	t1Pols, t1Inherited, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, t1Pols, 1)
 	assert.Equal(t, uint(1), t1Pols[0].PassingHostCount)
@@ -607,7 +715,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), t1Inherited[1].PassingHostCount)
 	assert.Equal(t, uint(1), t1Inherited[1].FailingHostCount)
 
-	t2Pols, t2Inherited, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	t2Pols, t2Inherited, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, t2Pols, 2)
 	require.Equal(t, t2pol.ID, t2Pols[0].ID)
@@ -654,7 +762,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, prevPolicies, 0)
 
@@ -684,7 +792,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, globalPolicies, 1)
 
@@ -699,7 +807,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.AuthorID)
 	assert.Equal(t, user1.ID, *p2.AuthorID)
 
-	teamPolicies, inherited1, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inherited1, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	assert.Equal(t, q.Name, teamPolicies[0].Name)
@@ -711,7 +819,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	require.Len(t, inherited1, 1)
 	require.Equal(t, gpol, inherited1[0])
 
-	team2Policies, inherited2, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, inherited2, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	assert.Equal(t, q2.Name, team2Policies[0].Name)
@@ -726,7 +834,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{teamPolicies[0].ID})
 	require.NoError(t, err)
 
-	teamPolicies, inherited1, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inherited1, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 0)
 	require.Len(t, inherited1, 1)
@@ -790,7 +898,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.Nil(t, gpol1)
 
-	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, prevPolicies, 1)
 	requireLabels(t, []string{label1.Name, label2.Name}, prevPolicies[0].LabelsIncludeAny)
@@ -844,7 +952,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.True(t, p.CalendarEventsEnabled)
 	requireLabels(t, []string{label1.Name, label2.Name}, p.LabelsExcludeAny)
 
-	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, globalPolicies, len(prevPolicies))
 
@@ -864,7 +972,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.AuthorID)
 	assert.Equal(t, user1.ID, *p2.AuthorID)
 
-	teamPolicies, inherited1, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inherited1, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	assert.Equal(t, "query1", teamPolicies[0].Name)
@@ -879,7 +987,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.Len(t, inherited1, 1)
 	require.Equal(t, gpol, inherited1[0])
 
-	team2Policies, inherited2, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, inherited2, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	assert.Equal(t, "query2", team2Policies[0].Name)
@@ -991,7 +1099,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{teamPolicies[0].ID})
 	require.NoError(t, err)
 
-	teamPolicies, inherited1, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inherited1, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 0)
 	require.Len(t, inherited1, 1)
@@ -1006,7 +1114,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	assert.Equal(t, "query1", teamPolicies[0].Name)
@@ -1148,7 +1256,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderDescending,
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 
 	require.Len(t, merged, 2)
@@ -1158,14 +1266,14 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	// Test filter
 	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		MatchQuery: "query1",
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, gpol.ID, merged[0].ID)
 
 	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		MatchQuery: "query2",
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, team1policy.ID, merged[0].ID)
@@ -1186,7 +1294,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	// team 1 shows no host counts
 	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		OrderKey: "name",
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 2)
 	assert.Equal(t, gpol.ID, merged[0].ID)
@@ -1209,7 +1317,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	// team 1 shows host counts
 	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		OrderKey: "name",
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 2)
 	assert.Equal(t, gpol.ID, merged[0].ID)
@@ -1222,7 +1330,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	// team2 shows no host counts
 	merged, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{
 		OrderKey: "name",
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 2)
 	assert.Equal(t, gpol.ID, merged[0].ID)
@@ -1744,20 +1852,20 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount := func(tm1, tm1Inherited, tm2Inherited, global uint) {
 		t.Helper()
 		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
-		policies, inherited, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+		policies, inherited, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		assert.Equal(t, tm1, policies[0].PassingHostCount)
 		require.Len(t, inherited, 1)
 		assert.Equal(t, tm1Inherited, inherited[0].PassingHostCount)
 
-		policies, inherited, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+		policies, inherited, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 		require.NoError(t, err)
 		require.Len(t, policies, 0) // team 2 has no policies of its own
 		require.Len(t, inherited, 1)
 		assert.Equal(t, tm2Inherited, inherited[0].PassingHostCount)
 
-		policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		assert.Equal(t, global, policies[0].PassingHostCount)
@@ -1880,7 +1988,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 		},
 	}))
 
-	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, "query1"+unicode, policies[0].Name)
@@ -1897,7 +2005,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	}}, policies[0].LabelsIncludeAny)
 	assert.Equal(t, policies[0].Type, fleet.PolicyTypeDynamic)
 
-	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 	assert.Equal(t, "query2", teamPolicies[0].Name)
@@ -1924,7 +2032,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
 	assert.False(t, teamPolicies[1].CalendarEventsEnabled)
 
-	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, noTeamPolicies, 1)
 	assert.Equal(t, "query4", noTeamPolicies[0].Name)
@@ -1982,13 +2090,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 		},
 	}))
 
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
-	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
-	noTeamPolicies, _, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	noTeamPolicies, _, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, noTeamPolicies, 1)
 
@@ -2015,7 +2123,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Type:                  fleet.PolicyTypeDynamic,
 		},
 	}))
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -2037,7 +2145,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 		LabelID:   barLabel.ID,
 	})
 
-	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 
@@ -2135,7 +2243,7 @@ func testApplyPolicySpecDefaultType(t *testing.T, ds *Datastore) {
 		},
 	}))
 
-	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, "no-type-policy", policies[0].Name)
@@ -2248,11 +2356,11 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	}
 
 	// load the global policies
-	gPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	gPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, gPolicies, 3)
 	// load the team policies
-	tPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	tPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tPolicies, 3)
 
@@ -2303,10 +2411,10 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint64(3), globalHosts[hostLin].FailingPoliciesCount)
 
 	// Ensure policy passing and failing counts are correct
-	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, gPolicies, 3)
-	tPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	tPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tPolicies, 3)
 
@@ -2404,10 +2512,10 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint64(1), globalHosts[hostLin].FailingPoliciesCount)
 
 	// Ensure policy passing and failing counts are correct
-	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, gPolicies, 4)
-	tPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	tPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tPolicies, 4)
 
@@ -2426,10 +2534,10 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
-	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, gPolicies, 4)
-	tPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	tPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tPolicies, 4)
 
@@ -2682,7 +2790,7 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), globalPolicy.FailingHostCount)
-	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
@@ -2702,7 +2810,7 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
 	require.NoError(t, err)
 	assert.Equal(t, uint(0), globalPolicy.FailingHostCount)
-	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
@@ -2720,7 +2828,7 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	err = ds.SavePolicy(ctx, teamPolicy, false, true)
 	require.NoError(t, err)
 
-	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
@@ -3115,11 +3223,11 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// load the global policies
-	gpols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	gpols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, gpols, 2)
 	// load the team policies
-	tpols, _, err := ds.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	tpols, _, err := ds.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tpols, 2)
 
@@ -3684,7 +3792,7 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{
 		Page:    0,
 		PerPage: 20,
-	})
+	}, "")
 
 	assert.Equal(t, "global policy 0", policies[0].Name)
 	assert.Len(t, policies, 20)
@@ -3694,14 +3802,14 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{
 		Page:    1,
 		PerPage: 20,
-	})
+	}, "")
 
 	assert.Equal(t, "global policy 20", policies[0].Name)
 	assert.Len(t, policies, 10)
 	require.NoError(t, err)
 
 	// No list options returns all policies
-	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{})
+	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{}, "")
 	assert.Len(t, policies, 30)
 	require.NoError(t, err)
 }
@@ -3726,7 +3834,7 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	policies, _, err := ds.ListTeamPolicies(context.Background(), tm.ID, fleet.ListOptions{
 		Page:    0,
 		PerPage: 20,
-	}, fleet.ListOptions{}, "")
+	}, fleet.ListOptions{}, "", "")
 
 	assert.Equal(t, "team policy 0", policies[0].Name)
 	assert.Len(t, policies, 20)
@@ -3736,14 +3844,14 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	policies, _, err = ds.ListTeamPolicies(context.Background(), tm.ID, fleet.ListOptions{
 		Page:    1,
 		PerPage: 20,
-	}, fleet.ListOptions{}, "")
+	}, fleet.ListOptions{}, "", "")
 
 	assert.Equal(t, "team policy 20", policies[0].Name)
 	assert.Len(t, policies, 10)
 	require.NoError(t, err)
 
 	// No list options returns all policies
-	policies, _, err = ds.ListTeamPolicies(context.Background(), 1, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err = ds.ListTeamPolicies(context.Background(), 1, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	assert.Len(t, policies, 30)
 	require.NoError(t, err)
 }
@@ -3755,15 +3863,15 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no policies
-	globalCount, err := ds.CountPolicies(ctx, nil, "", "")
+	globalCount, err := ds.CountPolicies(ctx, nil, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, globalCount)
 
-	teamCount, err := ds.CountPolicies(ctx, &tm.ID, "", "")
+	teamCount, err := ds.CountPolicies(ctx, &tm.ID, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
-	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "", "")
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, mergedCount)
 
@@ -3773,15 +3881,15 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	globalCount, err = ds.CountPolicies(ctx, nil, "", "")
+	globalCount, err = ds.CountPolicies(ctx, nil, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 
-	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "", "")
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "", "")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, mergedCount)
 
@@ -3791,33 +3899,33 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "", "")
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 5, teamCount)
 
-	globalCount, err = ds.CountPolicies(ctx, nil, "", "")
+	globalCount, err = ds.CountPolicies(ctx, nil, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "", "")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 15, mergedCount)
 
 	// test filter
-	globalCount, err = ds.CountPolicies(ctx, nil, "global policy 1", "")
+	globalCount, err = ds.CountPolicies(ctx, nil, "global policy 1", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, globalCount)
 
-	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "team policy 1", "")
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "team policy 1", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, teamCount)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "policy 1", "")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "policy 1", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 2, mergedCount)
 
 	// test automation filter doesn't affect global policy count
-	globalCount, err = ds.CountPolicies(ctx, nil, "", "scripts")
+	globalCount, err = ds.CountPolicies(ctx, nil, "", "scripts", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 }
@@ -4020,7 +4128,7 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 	assert.True(t, IsDuplicate(err), err)
 
 	// Try to find policy with equivalent name
-	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: equivalentNames[1]})
+	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: equivalentNames[1]}, "")
 	assert.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, equivalentNames[0], policies[0].Name)
@@ -4040,7 +4148,7 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 
 	// ListTeamPolicies, including inherited policy
 	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(
-		context.Background(), team.ID, fleet.ListOptions{MatchQuery: equivalentNames[1]}, fleet.ListOptions{MatchQuery: equivalentNames[1]}, "",
+		context.Background(), team.ID, fleet.ListOptions{MatchQuery: equivalentNames[1]}, fleet.ListOptions{MatchQuery: equivalentNames[1]}, "", "",
 	)
 	assert.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
@@ -4049,10 +4157,10 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 	assert.Equal(t, equivalentNames[0], inheritedPolicies[0].Name)
 
 	// CountPolicies
-	count, err := ds.CountPolicies(context.Background(), &team.ID, equivalentNames[1], "")
+	count, err := ds.CountPolicies(context.Background(), &team.ID, equivalentNames[1], "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
-	count, err = ds.CountPolicies(context.Background(), nil, equivalentNames[1], "")
+	count, err = ds.CountPolicies(context.Background(), nil, equivalentNames[1], "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -4068,13 +4176,13 @@ func testPoliciesNameEmoji(t *testing.T, ds *Datastore) {
 	assert.Equal(t, emoji1, policyEmoji.Name)
 
 	// Try to find policy with emoji0
-	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: emoji0})
+	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: emoji0}, "")
 	assert.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, emoji0, policies[0].Name)
 
 	// Try to find policy with emoji1
-	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: emoji1})
+	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: emoji1}, "")
 	assert.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, emoji1, policies[0].Name)
@@ -4092,7 +4200,7 @@ func testPoliciesNameSort(t *testing.T, ds *Datastore) {
 	policies[0], err = ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "а"})
 	require.NoError(t, err)
 
-	policiesResult, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{OrderKey: "name"})
+	policiesResult, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{OrderKey: "name"}, "")
 	assert.NoError(t, err)
 	require.Len(t, policies, 3)
 	for i, policy := range policies {
@@ -5349,7 +5457,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 2)
 
@@ -5362,7 +5470,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, va1Meta.VPPAppsTeamsID, *vppPolicy1Team1.VPPAppsTeamsID)
 
-	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 2)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
@@ -5372,7 +5480,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, va2Meta.VPPAppsTeamsID, *vppPolicy2Team2.VPPAppsTeamsID)
 
-	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, noTeamPolicies, 2)
 	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
@@ -5415,7 +5523,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 2)
 	require.Nil(t, team1Policies[0].SoftwareInstallerID)
@@ -5535,7 +5643,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 2)
 	require.Nil(t, team2Policies[0].SoftwareInstallerID)
@@ -5611,7 +5719,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 2)
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
@@ -5631,7 +5739,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		)
 	})
 	require.False(t, countBiggerThanZero)
-	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 2)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
@@ -5672,7 +5780,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 2)
 	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
@@ -5726,7 +5834,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 2)
 	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
@@ -5872,7 +5980,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Tests on global domain.
-	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, globalPolicies, 2)
 	require.Equal(t, globalPolicy1.ID, globalPolicies[0].ID)
@@ -5888,7 +5996,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 		require.Equal(t, p, globalPolicy)
 		ids = append(ids, globalPolicy.ID)
 	}
-	c, err := ds.CountPolicies(ctx, nil, "", "")
+	c, err := ds.CountPolicies(ctx, nil, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	globalPoliciesByID, err := ds.PoliciesByID(ctx, ids)
@@ -5898,7 +6006,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, globalPoliciesByID[globalPolicies[1].ID], globalPolicies[1])
 
 	// Tests on team1 domain.
-	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Equal(t, policy1Team1.ID, teamPolicies[0].ID)
@@ -5922,13 +6030,13 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamPoliciesByID, 1)
 	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
-	c, err = ds.CountMergedTeamPolicies(ctx, team1.ID, "", "")
+	c, err = ds.CountMergedTeamPolicies(ctx, team1.ID, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 3, c)
-	c, err = ds.CountPolicies(ctx, &team1.ID, "", "")
+	c, err = ds.CountPolicies(ctx, &team1.ID, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 1, c)
-	mergedTeamPolicies, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, "")
+	mergedTeamPolicies, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, mergedTeamPolicies, 3)
 	require.Equal(t, policy1Team1.ID, mergedTeamPolicies[0].ID)
@@ -5942,7 +6050,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), mergedTeamPolicies[2].PassingHostCount)
 
 	// Tests on team2 domain.
-	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 	require.Equal(t, policy2Team2.ID, teamPolicies[0].ID)
@@ -5970,13 +6078,13 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Len(t, teamPoliciesByID, 2)
 	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
 	require.Equal(t, teamPoliciesByID[teamPolicies[1].ID], teamPolicies[1])
-	c, err = ds.CountMergedTeamPolicies(ctx, team2.ID, "", "")
+	c, err = ds.CountMergedTeamPolicies(ctx, team2.ID, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 4, c)
-	c, err = ds.CountPolicies(ctx, &team2.ID, "", "")
+	c, err = ds.CountPolicies(ctx, &team2.ID, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
-	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, "")
+	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, mergedTeamPolicies, 4)
 	require.Equal(t, policy2Team2.ID, mergedTeamPolicies[0].ID)
@@ -5993,7 +6101,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), mergedTeamPolicies[3].PassingHostCount)
 
 	// Tests on "No team" domain.
-	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 	require.Equal(t, policy0NoTeam.ID, teamPolicies[0].ID)
@@ -6021,13 +6129,13 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Len(t, teamPoliciesByID, 2)
 	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
 	require.Equal(t, teamPoliciesByID[teamPolicies[1].ID], teamPolicies[1])
-	c, err = ds.CountMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, "", "")
+	c, err = ds.CountMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 4, c)
-	c, err = ds.CountPolicies(ctx, ptr.Uint(fleet.PolicyNoTeamID), "", "")
+	c, err = ds.CountPolicies(ctx, new(fleet.PolicyNoTeamID), "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
-	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, "")
+	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, mergedTeamPolicies, 4)
 	require.Equal(t, policy0NoTeam.ID, mergedTeamPolicies[0].ID)
@@ -6804,7 +6912,7 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	var freshPolicy *fleet.Policy
 	for _, p := range allPolicies {
@@ -7663,7 +7771,7 @@ func testApplyPolicySpecsNeedsFullMembershipCleanupFlag(t *testing.T, ds *Datast
 	}))
 
 	// Find the policy by name so the test is not sensitive to other global policies created by concurrent tests.
-	pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	var pol *fleet.Policy
 	for _, p := range pols {
@@ -7763,7 +7871,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 			{Name: "retry recovery policy", Query: "select 1;", Type: fleet.PolicyTypeDynamic},
 		}))
-		pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 		require.NoError(t, err)
 		var pol *fleet.Policy
 		for _, p := range pols {
@@ -8075,7 +8183,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the policy was created with the expected auto-generated query and platform.
-	policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, "patch-valid-slug", policies[0].Name)
@@ -8101,7 +8209,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, previousID, policies[0].ID)
@@ -8264,7 +8372,7 @@ func testApplyPolicySpecsRenamePatchPolicyRegression43687(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 
-	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, "Adobe Reader up to date", policies[0].Name)
@@ -8286,7 +8394,7 @@ func testApplyPolicySpecsRenamePatchPolicyRegression43687(t *testing.T, ds *Data
 	require.NoError(t, err)
 
 	// The same row must now carry the new name (update, not delete + recreate).
-	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, originalID, policies[0].ID)
@@ -8422,7 +8530,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	merged, err := ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, "")
+	}, "", "")
 	require.NoError(t, err)
 
 	require.Len(t, merged, 8)
@@ -8435,7 +8543,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamWebhookPolicy.ID, merged[6].ID)
 	assert.Equal(t, teamPatchPolicy.ID, merged[7].ID)
 
-	mergedCount, err := ds.CountMergedTeamPolicies(ctx, 0, "", "")
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, 0, "", "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 8, mergedCount)
 
@@ -8443,14 +8551,14 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, "software")
+	}, "software", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 3)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
 	assert.Equal(t, teamPatchPolicy.ID, merged[2].ID)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "software")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "software", "")
 	require.NoError(t, err)
 	assert.Equal(t, 3, mergedCount)
 
@@ -8458,12 +8566,12 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, "scripts")
+	}, "scripts", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamScriptPolicy.ID, merged[0].ID)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "scripts")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "scripts", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, mergedCount)
 
@@ -8471,12 +8579,12 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, "calendar")
+	}, "calendar", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamCalendarPolicy.ID, merged[0].ID)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "calendar")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "calendar", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, mergedCount)
 
@@ -8484,12 +8592,12 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, "conditional_access")
+	}, "conditional_access", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamConditionalPolicy.ID, merged[0].ID)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "conditional_access")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "conditional_access", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, mergedCount)
 
@@ -8497,12 +8605,12 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, "other")
+	}, "other", "")
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamWebhookPolicy.ID, merged[0].ID)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "other")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "other", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, mergedCount)
 
@@ -8510,14 +8618,14 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	policies, _, err := ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}, fleet.ListOptions{}, "software")
+	}, fleet.ListOptions{}, "software", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 3)
 	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
 	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
 
-	mergedCount, err = ds.CountPolicies(ctx, ptr.Uint(0), "", "software")
+	mergedCount, err = ds.CountPolicies(ctx, new(uint(0)), "", "software", "")
 	require.NoError(t, err)
 	assert.Equal(t, 3, mergedCount)
 }
@@ -8563,7 +8671,7 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Get the policy to find its ID.
-	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	pol := policies[0]
@@ -8577,7 +8685,7 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the policy has a failing host count of 1.
-	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, uint(1), policies[0].FailingHostCount)
@@ -8600,7 +8708,7 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	}))
 
 	// Verify that policy stats were NOT reset.
-	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")

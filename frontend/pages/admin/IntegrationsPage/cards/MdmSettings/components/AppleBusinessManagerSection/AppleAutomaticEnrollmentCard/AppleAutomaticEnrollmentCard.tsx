@@ -43,7 +43,7 @@ const AppleAutomaticEnrollmentCard = ({
       header="Apple (macOS, iOS, iPadOS) company-owned and personal hosts enrollment"
       cta={
         <Button className="add-abm-button" onClick={viewDetails}>
-          Add ABM
+          Add AB
         </Button>
       }
     >

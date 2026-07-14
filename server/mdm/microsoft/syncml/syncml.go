@@ -172,8 +172,9 @@ const (
 )
 
 const (
-	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+	FleetBitLockerTargetLocURI  = "/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI   = "/Vendor/MSFT/Policy/Config/Update"
+	FleetRemoteWipeTargetLocURI = "/Vendor/MSFT/RemoteWipe"
 
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
@@ -283,12 +284,6 @@ const (
 	ReqSecTokenContextItemApplicationVersion   = "ApplicationVersion"
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
-
-	// APPRU query param expected by STS Auth endpoint
-	STSAuthAppRu = "appru"
-
-	// Login related query param expected by STS Auth endpoint
-	STSLoginHint = "login_hint"
 
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"

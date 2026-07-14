@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.4.1903",
+      "version": "1.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'best.swift.Notepad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'best.swift.Notepad' AND version_compare(bundle_short_version, '1.4.1903') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'best.swift.Notepad' AND version_compare(bundle_short_version, '1.5.1') < 0);"
       },
-      "installer_url": "https://github.com/notepadhq/notepadexe-public/releases/download/1.4.1903/Notepad.zip",
+      "installer_url": "https://github.com/notepadhq/notepadexe-public/releases/download/1.5.1/Notepad.zip",
       "install_script_ref": "17716d6a",
       "uninstall_script_ref": "abe56690",
-      "sha256": "0e6670cef59dcd74108879c59d7e1f5874bbafb21ffb7ae7ff8a05490aebe43e",
+      "sha256": "d54b31e839142ee8ed6bb68e19dd3e3f0443be5916db88c09d62caa57db46b38",
       "default_categories": [
         "Developer tools"
       ]

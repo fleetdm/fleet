@@ -492,6 +492,9 @@ Though not technically a part of GitHub itself, we feel like the security tools 
 | [OSSF Scorecard](https://github.com/ossf/scorecard) | Scan our GitHub repository for best practices and send problems to GitHub Security.                                                                  | [scorecard-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/scorecards-analysis.yml) |
 | [CodeQL](https://codeql.github.com/)                | Discover vulnerabilities across our codebase, both in the backend and frontend code.                                                                 | [codeql-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/codeql-analysis.yml)        |
 | [gosec](https://github.com/securego/gosec)          | Scan golang code for common security mistakes. We use gosec as one of the linters(static analysis tools used to identify problems in code) used by [golangci-lint](https://github.com/golangci/golangci-lint) | [golangci-lint.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/golangci-lint.yml)             |
+| [Trivy](https://github.com/aquasecurity/trivy)     | Scan Docker container images and build artifacts for vulnerabilities before each release.                                                            | Run as part of the release checklist                                                                           |
+
+In addition to CI-integrated scans, we run weekly AI-assisted security scans to identify vulnerability patterns that traditional SAST tools may miss.
 
 We are planning on adding [tfsec](https://github.com/aquasecurity/tfsec) to scan for configuration vulnerabilities in the Terraform code provided to deploy Fleet infrastructure in the cloud. 
 Once we have full coverage from a static analysis point of view, we will evaluate dynamic analysis
@@ -1903,6 +1906,8 @@ When using externally provided CVSSv4 scores, Fleet maps them like this:
 ### Disclosure
 
 Researchers who discover vulnerabilities in Fleet can disclose them through Fleet's [Vulnerability Disclosure Program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3) or by following the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy). Coordinated, non-public disclosures can also be sent to security@ (fleetdm.com) (PGP key on the repository security policy).
+
+In addition to the public VDP, Fleet operates a private bug bounty program for invited security researchers.
 
 The VDP scope covers the Fleet product source ([github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)) and the [REST API](https://fleetdm.com/docs/rest-api/rest-api). Marketing pages on fleetdm.com, third-party hosted services, and theoretical findings without a demonstrated exploit are out of scope.
 

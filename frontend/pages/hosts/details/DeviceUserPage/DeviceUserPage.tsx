@@ -804,8 +804,6 @@ const DeviceUserPage = ({
                   className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
-                  disableFullNameTooltip
-                  disableGroupsTooltip
                 />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
