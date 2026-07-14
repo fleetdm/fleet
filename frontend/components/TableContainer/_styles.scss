@@ -18,7 +18,7 @@
     align-content: center;
     display: flex;
     flex-direction: row;
-    gap: $gap-table-elements;
+    gap: $pad-small;
 
     > div {
       display: flex;
