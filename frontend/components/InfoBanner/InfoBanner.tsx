@@ -5,6 +5,7 @@ import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
 import Card from "components/Card";
+import { Colors } from "styles/var/colors";
 
 const baseClass = "info-banner";
 
@@ -24,6 +25,8 @@ export interface IInfoBannerProps {
    * switches from `space-between` to a left-aligned flex layout so the icon
    * groups with the text rather than getting pushed to the opposite edge. */
   icon?: IconNames;
+  /** Overrides the icon's default color when `icon` is set. */
+  iconColor?: Colors;
 }
 
 const InfoBanner = ({
@@ -35,6 +38,7 @@ const InfoBanner = ({
   cta,
   closable,
   icon,
+  iconColor,
 }: IInfoBannerProps) => {
   const wrapperClasses = classNames(
     baseClass,
@@ -49,7 +53,13 @@ const InfoBanner = ({
 
   const content = (
     <>
-      {icon && <Icon name={icon} className={`${baseClass}__leading-icon`} />}
+      {icon && (
+        <Icon
+          name={icon}
+          color={iconColor}
+          className={`${baseClass}__leading-icon`}
+        />
+      )}
       <div className={`${baseClass}__info`}>{children}</div>
 
       {(cta || closable) && (

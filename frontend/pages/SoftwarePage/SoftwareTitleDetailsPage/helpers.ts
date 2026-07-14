@@ -11,6 +11,16 @@ import { getDisplayedSoftwareName } from "../helpers";
 import { deriveAccordionRowState } from "./LibraryItemAccordion/helpers";
 import { LibraryItemBadgeState } from "./LibraryItemAccordion/LibraryItemAccordion";
 
+/** Row-level gate for the LibraryItemAccordion download button: shown only
+ * when the row is the active (currently-serving) version AND the user has
+ * installer read permission. Observers and any role excluded from
+ * `installable_entity` read in policy.rego return `false` here so the button
+ * is hidden rather than clicked into a backend 403. */
+export const canDownloadInstallerRow = (
+  rowIsActive: boolean,
+  hasInstallerReadPermission: boolean
+): boolean => rowIsActive && hasInstallerReadPermission;
+
 export interface InstallerCardInfo {
   softwareTitleName: string;
   softwareDisplayName: string;

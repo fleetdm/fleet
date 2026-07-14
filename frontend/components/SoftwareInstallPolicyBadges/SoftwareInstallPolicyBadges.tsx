@@ -36,6 +36,7 @@ const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
       position="top"
       showArrow
       underline={false}
+      fixedPositionStrategy
     >
       <Icon name="refresh" color="ui-fleet-black-75" />
     </TooltipWrapper>

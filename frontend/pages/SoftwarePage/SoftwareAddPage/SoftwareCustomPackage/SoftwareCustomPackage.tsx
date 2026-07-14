@@ -36,7 +36,11 @@ const baseClass = "software-custom-package";
 /** Shared GitOps-mode banner for the custom-package flows. Rendered by this
  * page (single-package add) and by `PackageForm`'s multi-package Add modal. */
 export const GitOpsCustomPackageBanner = () => (
-  <InfoBanner icon="error-outline" borderRadius="medium">
+  <InfoBanner
+    icon="info-outline"
+    iconColor="ui-fleet-black-50"
+    borderRadius="medium"
+  >
     Add custom packages in GitOps mode so Fleet can host your software. After
     adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
     doesn&apos;t delete it.{" "}
