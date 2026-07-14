@@ -14984,7 +14984,7 @@ Custom host vitals can be referenced in scripts and configuration profiles using
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }
@@ -15001,8 +15001,7 @@ Create custom host vitals for displaying custom fields on individual hosts.
 
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
-| name            | string  | body  | **Required.** The desired variable name, without the `FLEET_SECRET_` prefix. |
-| value           | string  | body  | **Required.** The value for the custom variable. |
+| name            | string  | body  | **Required.** The desired variable name, without the `FLEET_HOST_VITAL_` prefix. |
 
 #### Example
 
@@ -15012,7 +15011,7 @@ Create custom host vitals for displaying custom fields on individual hosts.
 
 ```json
 {
-  "name": "Asset tag",
+  "name": "Asset tag"
 }
 
 ```
@@ -15080,11 +15079,11 @@ Delete a custom host vital and clear its value on all hosts.
 
 Update the value of a custom host vital for a single host.
 
-`PUT /hosts/:host_id/custom_host_vitals/:id`
+`PUT /api/v1/fleet/hosts/:host_id/custom_host_vitals/:id`
 
 #### Example
 
-`PUT /hosts/123/custom_host_vitals/123`
+`PUT /api/v1/fleet/hosts/123/custom_host_vitals/123`
 
 ##### Request body
 
