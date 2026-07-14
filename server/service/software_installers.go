@@ -28,6 +28,7 @@ import (
 type uploadSoftwareInstallerRequest struct {
 	File              *multipart.FileHeader
 	TeamID            *uint
+	TitleID           *uint
 	InstallScript     string
 	PreInstallQuery   string
 	PostInstallScript string
@@ -366,6 +367,14 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.TeamID = ptr.Uint(uint(fleetID))
 	}
 
+	if v, ok := r.MultipartForm.Value["software_title_id"]; ok && len(v) > 0 && v[0] != "" {
+		id, err := strconv.ParseUint(v[0], 10, 32)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid software_title_id: %s", v[0])}
+		}
+		decoded.TitleID = new(uint(id))
+	}
+
 	val, ok = r.MultipartForm.Value["install_script"]
 	if ok && len(val) > 0 {
 		decoded.InstallScript = val[0]
@@ -480,6 +489,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:            req.TeamID,
+		TitleID:           req.TitleID,
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
 		PostInstallScript: req.PostInstallScript,

@@ -4371,10 +4371,16 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 	if payload.FleetMaintainedAppID == nil {
 		titleID, err := ds.getExistingSoftwareInstallerTitleID(ctx, payload)
 		if fleet.IsNotFound(err) {
+			if payload.TitleID != nil {
+				return &fleet.BadRequestError{Message: fmt.Sprintf(fleet.SoftwarePackageTitleMismatchMessage, payload.Filename)}
+			}
 			return nil
 		}
 		if err != nil {
 			return err
+		}
+		if payload.TitleID != nil && titleID != *payload.TitleID {
+			return &fleet.BadRequestError{Message: fmt.Sprintf(fleet.SoftwarePackageTitleMismatchMessage, payload.Filename)}
 		}
 
 		// A package can't repeat the same bytes within its title. Scripts also dedupe
