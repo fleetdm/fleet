@@ -2784,6 +2784,25 @@ This activity contains the following fields:
 }
 ```
 
+## edited_host_name_template
+
+Generated when a user edits the host name template for a fleet (or no fleet).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the host name template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the host name template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "name_template": The host name template, `null` if the template was cleared.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "name_template": "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
 ## rotated_managed_local_account_password
 
 Generated when a managed local account password is rotated.

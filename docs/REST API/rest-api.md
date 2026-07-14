@@ -1660,6 +1660,7 @@ None.
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
+    "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2644,6 +2645,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
+| name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in variables `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, and `$FLEET_VAR_HOST_PLATFORM`. An empty string clears the template. To set the template for a fleet, use the [Update host name template](#update-host-name-template) endpoint. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -4009,6 +4011,10 @@ Returns the information of the specified host.
         "disk_encryption": {
           "status": "verified",
           "detail": ""
+        },
+        "host_name": {
+          "status": "verified",
+          "detail": ""
         }
       },
       "profiles": [
@@ -4026,6 +4032,8 @@ Returns the information of the specified host.
   }
 }
 ```
+
+`mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
@@ -6639,6 +6647,8 @@ Deletes the label specified by ID.
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
+- [Update host name template](#update-host-name-template)
+- [Resend host name template](#resend-host-name-template)
 - [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
@@ -7090,6 +7100,66 @@ The summary can optionally be filtered by fleet ID.
   "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
+
+### Update host name template
+
+_Available in Fleet Premium_
+
+Sets a naming convention for all macOS, iOS, and iPadOS hosts in a fleet (or "Unassigned"). Fleet resolves the template per host, renames the host on the device via an Apple MDM command, and updates the host's name in Fleet.
+
+The template supports the built-in variables `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, and `$FLEET_VAR_HOST_PLATFORM` (also usable in the `${FLEET_VAR_...}` form). Custom (`$FLEET_SECRET_*`) variables aren't supported.
+
+Sending an empty `name_template` clears the template. Clearing the template stops enforcement but doesn't rename any host.
+
+`POST /api/v1/fleet/host_name_template`
+
+#### Parameters
+
+| Name          | Type    | In   | Description                                                                                                                    |
+| ------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------ |
+| fleet_id      | integer | body | The fleet ID to apply the host name template to. The template is applied to "Unassigned" hosts if the value is absent or `0`. |
+| name_template | string  | body | The host name template. Send an empty string to clear the template.                                                            |
+
+#### Example
+
+`POST /api/v1/fleet/host_name_template`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 5,
+  "name_template": "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
+##### Default response
+
+`204`
+
+### Resend host name template
+
+_Available in Fleet Premium_
+
+Resends the host name template MDM command to a host whose host name status is "failed" or "verified". The host's status returns to "pending" (shown as "Enforcing" in the UI) until the device applies the name again.
+
+`POST /api/v1/fleet/hosts/:id/name_template/resend`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                            |
+| ---- | ------- | ---- | ------------------------------------------------------ |
+| id   | integer | path | **Required.** The ID of the host to resend to.         |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/42/name_template/resend`
+
+##### Default response
+
+`Status: 202`
+
+If the host has no host name template enforced, the response is `404`. If the host name status is "pending" or "verifying", the response is `409`.
 
 ### Get OS settings (configuration profiles) status
 
