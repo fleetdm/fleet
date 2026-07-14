@@ -3182,13 +3182,13 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 	}
 	if err == nil && scimUser != nil {
 		// User exists in SCIM, create/update the mapping for additional attributes (idp_full_name, idp_groups, etc.).
-		if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+		if _, err := ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
 			// Log the error but don't fail the linkage since the main IDP mapping succeeded.
 			logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
 		}
 	} else {
 		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host.
-		if err := ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+		if _, err := ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
 			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 		}
 	}

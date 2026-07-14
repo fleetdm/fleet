@@ -230,6 +230,12 @@ func ComputeDeclarationDeltas(
 				needsInstall = true
 			case d.SecretsUpdatedAt != nil && (c.SecretsUpdatedAt == nil || c.SecretsUpdatedAt.Before(*d.SecretsUpdatedAt)):
 				needsInstall = true
+			case d.AssetsUpdatedAt != nil && (c.AssetsUpdatedAt == nil || c.AssetsUpdatedAt.Before(*d.AssetsUpdatedAt)):
+				// A referenced asset was edited (its uploaded_at moved forward)
+				// since we last delivered this declaration to the host. Re-deliver
+				// so the per-host effective token changes and the host re-fetches,
+				// even though the declaration's own content/token is unchanged.
+				needsInstall = true
 			case c.OperationType == "" || c.OperationType == fleet.MDMOperationTypeRemove:
 				needsInstall = true
 			case c.OperationType == fleet.MDMOperationTypeInstall && c.Status == nil:
@@ -254,6 +260,13 @@ func ComputeDeclarationDeltas(
 			if d.HasFleetVariables {
 				now := time.Now().UTC()
 				row.VariablesUpdatedAt = &now
+			}
+			// Stamp the referenced assets' latest uploaded_at so the per-host
+			// effective token folds it in (see fleet.EffectiveDDMToken) and stays
+			// idempotent: on the next reconcile c.AssetsUpdatedAt equals this value
+			// and no needless re-delivery is triggered.
+			if d.AssetsUpdatedAt != nil {
+				row.AssetsUpdatedAt = d.AssetsUpdatedAt
 			}
 			declRowsToWrite = append(declRowsToWrite, row)
 			markChanged(host.UUID, desiredScope)

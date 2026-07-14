@@ -23,7 +23,9 @@ import (
 	jwt "github.com/golang-jwt/jwt/v4"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/pssocrypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	jose "github.com/go-jose/go-jose/v3"
 )
@@ -42,11 +44,6 @@ type pssoServiceState struct {
 }
 
 const (
-	pssoSigningAlg = "ES256"
-	// pssoEncryptionAlg is the JWK `alg` published for the password-encryption
-	// key and the `alg` Apple uses in the embedded login-assertion JWE.
-	pssoEncryptionAlg = "ECDH-ES"
-
 	// The host app bundle ID is included alongside the extension's just in case;
 	// PSSO validates against the extension, but listing both is harmless and matches
 	// what the IdPs analyzed do.
@@ -398,11 +395,11 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 	// Reject unparseable key material up front: a bad PEM stored here would
 	// otherwise only surface as opaque verification failures at every
 	// subsequent login.
-	signingPub, err := parseECPublicKeyPEM([]byte(req.DeviceSigningKey))
+	signingPub, err := pssocrypto.ParseECPublicKeyPEM([]byte(req.DeviceSigningKey))
 	if err != nil {
 		return &fleet.BadRequestError{Message: "psso registration: signing key is not a valid P-256 public key"}
 	}
-	encryptionPub, err := parseECPublicKeyPEM([]byte(req.DeviceEncryptionKey))
+	encryptionPub, err := pssocrypto.ParseECPublicKeyPEM([]byte(req.DeviceEncryptionKey))
 	if err != nil {
 		return &fleet.BadRequestError{Message: "psso registration: encryption key is not a valid P-256 public key"}
 	}
@@ -413,18 +410,18 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 	// kid from the parsed public key and reject a submitted kid that doesn't
 	// match. The result is already canonical (base64url, no padding), so it's
 	// what we store below.
-	signingKID, err := devicePSSOKID(signingPub)
+	signingKID, err := pssocrypto.KIDFromRawECPoint(signingPub)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "derive psso signing key id")
 	}
-	if signingKID != canonicalizeKID(req.SigningKeyID) {
+	if signingKID != pssocrypto.CanonicalizeKID(req.SigningKeyID) {
 		return &fleet.BadRequestError{Message: "psso registration: signing key id does not match signing key"}
 	}
-	encryptionKID, err := devicePSSOKID(encryptionPub)
+	encryptionKID, err := pssocrypto.KIDFromRawECPoint(encryptionPub)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "derive psso encryption key id")
 	}
-	if encryptionKID != canonicalizeKID(req.EncryptionKeyID) {
+	if encryptionKID != pssocrypto.CanonicalizeKID(req.EncryptionKeyID) {
 		return &fleet.BadRequestError{Message: "psso registration: encryption key id does not match encryption key"}
 	}
 
@@ -491,9 +488,9 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 
 	// Key requests/exchanges carry a request_type and are dispatched first.
 	switch claims.RequestType {
-	case pssoRequestKey:
+	case pssocrypto.RequestKey:
 		return svc.handlePSSOKeyRequest(ctx, signKey.HostUUID, claims)
-	case pssoRequestExchange:
+	case pssocrypto.RequestExchange:
 		return svc.handlePSSOKeyExchange(ctx, signKey.HostUUID, claims)
 	}
 
@@ -502,29 +499,11 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 	// grant and ships the password inside an encrypted embedded assertion. Both
 	// land here and differ only in where handlePSSOPasswordLogin reads the
 	// password from.
-	if claims.GrantType == pssoGrantTypePassword || claims.GrantType == pssoGrantTypeJWTBearer {
+	if claims.GrantType == pssocrypto.GrantTypePassword || claims.GrantType == pssocrypto.GrantTypeJWTBearer {
 		return svc.handlePSSOPasswordLogin(ctx, settings, signKey.HostUUID, claims)
 	}
 	return nil, &fleet.BadRequestError{Message: "psso token: unsupported grant_type/request_type"}
 }
-
-// PSSO grant types in the login request JWT. With plaintext passwords Apple
-// sends grant_type=password; when the password is encrypted into the embedded
-// assertion it switches to the JWT-bearer grant and the password moves out of
-// the top-level claim into the (encrypted) assertion.
-const (
-	pssoGrantTypePassword  = "password"                                    //nolint:gosec // G101 not a credential, a grant type
-	pssoGrantTypeJWTBearer = "urn:ietf:params:oauth:grant-type:jwt-bearer" //nolint:gosec // G101 not a credential, a grant type
-)
-
-// JWE header `typ` media types. The first two are responses Fleet returns; the
-// last is the embedded login assertion the device sends when password
-// encryption is enabled.
-const (
-	pssoTypLoginResponse           = "platformsso-login-response+jwt"
-	pssoTypKeyResponse             = "platformsso-key-response+jwt"
-	pssoTypEncryptedLoginAssertion = "platformsso-encrypted-login-assertion+jwt"
-)
 
 // pssoDefaultTokenTTL is the id_token / refresh_token lifetime used when the
 // upstream IdP doesn't return an expires_in.
@@ -599,7 +578,7 @@ func buildPSSOIDTokenClaims(idpClaims *fleet.PSSOClaims, issuer, audience, nonce
 // Fleet validates the password against the upstream IdP, then returns the
 // resulting OIDC claims as a server-signed JWT wrapped in a JWE encrypted per
 // that recipe.
-func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet.PSSOSettings, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
+func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet.PSSOSettings, hostUUID string, claims *pssocrypto.TokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso password login: missing jwe_crypto recipe"}
 	}
@@ -674,7 +653,7 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 		return nil, ctxerr.Wrap(ctx, err, "marshal psso login response")
 	}
 
-	jwe, err := buildPSSOResponseJWE(payload, recipientPub, claims.JWECrypto.APV, pssoTypLoginResponse)
+	jwe, err := pssocrypto.BuildPartyInfoJWE(payload, recipientPub, claims.JWECrypto.APV, pssocrypto.TypLoginResponse)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build psso login response jwe")
 	}
@@ -686,7 +665,7 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 // enabled the Password claim is empty and the password lives in the encrypted
 // embedded assertion, which Fleet decrypts with its PSSO encryption key. The
 // username is always taken from the (signed) outer JWT, not the assertion.
-func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssoTokenClaims) (string, error) {
+func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssocrypto.TokenClaims) (string, error) {
 	if claims.Password != "" {
 		return claims.Password, nil
 	}
@@ -697,11 +676,11 @@ func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssoTo
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "load psso encryption key")
 	}
-	plaintext, err := decryptPSSOInboundJWE([]byte(claims.Assertion), encKey)
+	plaintext, err := pssocrypto.DecryptPartyInfoJWE([]byte(claims.Assertion), encKey, pssocrypto.TypEncryptedLoginAssertion)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "decrypt psso login assertion")
 	}
-	password, err := parseEmbeddedAssertionPassword(plaintext)
+	password, err := pssocrypto.ParseEmbeddedAssertionPassword(plaintext)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "parse psso login assertion")
 	}
@@ -715,7 +694,7 @@ func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssoTo
 // key_context} in a JWE (typ=platformsso-key-response+jwt) encrypted to the
 // device. key_context carries the provisioned PRIVATE key, sealed under a
 // server key, so the later key exchange can recover it statelessly.
-func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
+func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, claims *pssocrypto.TokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso key request: missing jwe_crypto recipe"}
 	}
@@ -757,7 +736,7 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, c
 		return nil, ctxerr.Wrap(ctx, err, "marshal key_request payload")
 	}
 
-	jwe, err := buildPSSOResponseJWE(payload, encPub, claims.JWECrypto.APV, pssoTypKeyResponse)
+	jwe, err := pssocrypto.BuildPartyInfoJWE(payload, encPub, claims.JWECrypto.APV, pssocrypto.TypKeyResponse)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build key_request JWE")
 	}
@@ -799,7 +778,7 @@ func (svc *Service) issuePSSOProvisionedCertificate(ctx context.Context, provisi
 // provisioned private key from key_context, computes the raw ECDH shared
 // secret against other_publickey (this is the unlock key), and returns
 // {iat, exp, key, key_context} in the same JWE envelope.
-func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
+func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, claims *pssocrypto.TokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso key exchange: missing jwe_crypto recipe"}
 	}
@@ -828,11 +807,11 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, 
 		return nil, &fleet.BadRequestError{Message: "psso key exchange: unsupported key_context purpose"}
 	}
 
-	otherRaw, err := decodeBase64Flexible(claims.OtherPublicKey)
+	otherRaw, err := pssocrypto.DecodeBase64Flexible(claims.OtherPublicKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decode other_publickey")
 	}
-	shared, err := computeECDHShared(provisioned, otherRaw)
+	shared, err := pssocrypto.ComputeECDHShared(provisioned, otherRaw)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "compute key exchange shared secret")
 	}
@@ -853,7 +832,7 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, 
 		return nil, ctxerr.Wrap(ctx, err, "marshal key_exchange payload")
 	}
 
-	jwe, err := buildPSSOResponseJWE(payload, encPub, claims.JWECrypto.APV, pssoTypKeyResponse)
+	jwe, err := pssocrypto.BuildPartyInfoJWE(payload, encPub, claims.JWECrypto.APV, pssocrypto.TypKeyResponse)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build key_exchange JWE")
 	}
@@ -889,7 +868,7 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 		{
 			Key:       &key.PublicKey,
 			KeyID:     kid,
-			Algorithm: pssoSigningAlg,
+			Algorithm: pssocrypto.SigningAlg,
 			Use:       "sig",
 		},
 		// The extension sets this key as loginRequestEncryptionPublicKey and
@@ -898,7 +877,7 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 		{
 			Key:       &encKey.PublicKey,
 			KeyID:     encKID,
-			Algorithm: pssoEncryptionAlg,
+			Algorithm: pssocrypto.EncryptionAlg,
 			Use:       "enc",
 		},
 	}}
@@ -913,6 +892,18 @@ type pssoAASA struct {
 
 type pssoAASAApps struct {
 	Apps []string `json:"apps"`
+}
+
+// pssoDevAASAAppIDs returns the local-development app ID override read from
+// FLEET_DEV_PSSO_AASA_APP_IDS (comma-separated <TeamID>.<BundleID>)
+func pssoDevAASAAppIDs() []string {
+	var ids []string
+	for id := range strings.SplitSeq(dev_mode.Env("FLEET_DEV_PSSO_AASA_APP_IDS"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // PSSOAASA returns the apple-app-site-association JSON Apple's framework
@@ -933,7 +924,14 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 		return nil, &notFoundError{}
 	}
 
-	ids := []string{fleetTeamID + "." + appBundleID, fleetTeamID + "." + extensionBundleID}
+	// A contributor testing locally signs the extension under their own
+	// (non-production) Apple Developer team, so the published app IDs must match
+	// that team. The FLEET_DEV_PSSO_AASA_APP_IDS override supplies them; it is
+	// honored only when the server runs with --dev (dev_mode.Env gates on it), so
+	// production only uses Fleet's built-in app IDs but dev servers allow the production
+	// binary or a local development override.
+	ids := pssoDevAASAAppIDs()
+	ids = append(ids, fleetTeamID+"."+appBundleID, fleetTeamID+"."+extensionBundleID)
 	doc := pssoAASA{
 		AuthSrv: pssoAASAApps{
 			Apps: ids,

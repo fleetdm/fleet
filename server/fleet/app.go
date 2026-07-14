@@ -274,6 +274,8 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	HostNameTemplate optjson.String `json:"name_template"`
+
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -496,6 +498,13 @@ type MacOSSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings                 []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
 	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
+
+	// Assets is a slice of Apple DDM asset (com.apple.asset) declaration file
+	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
+	// spec: this field is only populated while parsing a GitOps file so the
+	// assets can be applied via their own batch endpoint. It is intentionally
+	// omitted from ToMap/FromMap.
+	Assets []MDMProfileSpec `json:"assets,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }

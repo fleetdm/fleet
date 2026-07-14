@@ -235,7 +235,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return err
 	})
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
@@ -471,6 +471,21 @@ func (ts *withServer) LoginSSOUser(username, password string) string {
 // LoginMDMSSOUser initiates the MDM SSO flow, as Apple DEP enrollment would.
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
 	body, err := json.Marshal(initiateMDMSSORequest{Initiator: fleet.SSOInitiatorAppleMDMSSO})
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
+// LoginMDMSSOUserSetupExperience drives the Orbit Setup Experience MDM SSO flow
+// (Linux/Windows), which carries the device's host UUID through the SSO request
+// data. This exercises the mdmSSOHandleCallbackAuth path that persists the IdP
+// account for a known host, unlike LoginMDMSSOUser (Apple flow) where the host
+// UUID is not yet known. Returns the callback response (a redirect).
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+		HostUUID:  hostUUID,
+	})
 	require.NoError(ts.s.T(), err)
 	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
 	return res
