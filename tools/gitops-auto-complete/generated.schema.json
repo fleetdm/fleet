@@ -21,6 +21,7 @@
     },
     "ActivityExpirySettings": {
       "additionalProperties": false,
+      "description": "ActivityExpirySettings contains settings pertaining to automatic activities cleanup.",
       "properties": {
         "activity_expiry_enabled": {
           "description": "type: `boolean`",
@@ -33,7 +34,7 @@
           "description": "type: `integer`"
         },
         "preserve_host_activities_on_reenrollment": {
-          "description": "type: `boolean`",
+          "description": "PreserveHostActivitiesOnReenrollment controls whether existing host\nactivities, MDM commands, etc. are kept when a managed host re-enrolls.\nDefaults to true for upgraded installs (preserves prior behavior) and\nfalse for fresh installs.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -49,7 +50,7 @@
       "additionalProperties": false,
       "properties": {
         "command_line_flags": {
-          "description": "type: `object`",
+          "description": "CommandLineStartUpFlags are the osquery CLI_FLAGS\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -557,7 +558,7 @@
           ]
         },
         "extensions": {
-          "description": "type: `object`",
+          "description": "Extensions are the orbit managed extensions\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -565,11 +566,11 @@
         },
         "orbit": {
           "$ref": "#/$defs/OrbitAgentOptions",
-          "description": "type: `OrbitAgentOptions`"
+          "description": "Orbit-agent options. Kept separate from osquery so they bypass the\nosquery schema validator.\n\ntype: `OrbitAgentOptions`"
         },
         "overrides": {
           "$ref": "#/$defs/AgentOptionsOverrides",
-          "description": "type: `AgentOptionsOverrides`"
+          "description": "Overrides includes any platform-based overrides.\n\ntype: `AgentOptionsOverrides`"
         },
         "path": {},
         "paths": {
@@ -580,10 +581,10 @@
           ]
         },
         "script_execution_timeout": {
-          "description": "type: `integer`"
+          "description": "ScriptExecutionTimeout is the maximum time in seconds that a script can run.\n\ntype: `integer`"
         },
         "update_channels": {
-          "description": "type: `object`",
+          "description": "UpdateChannels holds the configured channels for fleetd components.\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -605,7 +606,7 @@
               "null"
             ]
           },
-          "description": "type: `object`",
+          "description": "Platforms is a map from platform name to the config override.\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -634,7 +635,7 @@
           ]
         },
         "configuration_profiles": {
-          "description": "type: `array\u003cobject\u003e`",
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
           "items": {
             "type": [
               "object",
@@ -647,7 +648,9 @@
           ]
         },
         "custom_settings": {
-          "description": "type: `array\u003cobject\u003e`",
+          "deprecated": true,
+          "deprecationMessage": "'custom_settings' is deprecated, use 'configuration_profiles' instead",
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
           "items": {
             "type": [
               "object",
@@ -667,15 +670,16 @@
     },
     "AppleAccountProvisioning": {
       "additionalProperties": false,
+      "description": "AppleAccountProvisioning is the macOS local account provisioning / Platform SSO password sync configuration stored on AppConfig.MDM.",
       "properties": {
         "oauth_idp_client_id": {
-          "description": "type: `string`"
+          "description": "OAuthIdPClientID is the client/application ID registered with the upstream IdP.\n\ntype: `string`"
         },
         "oauth_idp_client_secret": {
-          "description": "type: `string`"
+          "description": "OAuthIdPClientSecret is the client secret registered with the upstream IdP.\nStored in mdm_config_assets, not here; this field carries the masked value\nin API responses and the caller-supplied value on writes.\n\ntype: `string`"
         },
         "oauth_idp_token_url": {
-          "description": "type: `string`"
+          "description": "OAuthIdPTokenURL is the upstream OIDC token endpoint used for the ROPG\n(grant_type=password) flow at sign-in.\nOkta example:  https://dev-12345.okta.com/oauth2/default/v1/token\nEntra example: https://login.microsoftonline.com/\u003ctenant\u003e/oauth2/v2.0/token\n\ntype: `string`"
         }
       },
       "type": [
@@ -685,15 +689,16 @@
     },
     "AppleOSUpdateSettings": {
       "additionalProperties": false,
+      "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
       "properties": {
         "deadline": {
-          "description": "type: `string`"
+          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`"
         },
         "minimum_version": {
-          "description": "type: `string`"
+          "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`"
         },
         "update_new_hosts": {
-          "description": "type: `boolean`",
+          "description": "UpdateNewHosts if true, only enforce the latest macOS version for new hosts (during enrollment)\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -707,6 +712,7 @@
     },
     "BaseItem": {
       "additionalProperties": false,
+      "description": "BaseItem provides path/paths fields for types that can reference external files in GitOps YAML configurations.",
       "properties": {
         "path": {
           "description": "type: `string`"
@@ -722,6 +728,7 @@
     },
     "ConditionalAccessSettings": {
       "additionalProperties": false,
+      "description": "ConditionalAccessSettings holds the global settings for the \"Conditional access\" feature.",
       "properties": {
         "bypass_disabled": {
           "description": "type: `boolean`",
@@ -731,14 +738,14 @@
           ]
         },
         "microsoft_entra_connection_configured": {
-          "description": "type: `boolean`",
+          "description": "MicrosoftEntraConnectionConfigured is true when the tenant has been configured\nfor \"Conditional access\" on Entra and Fleet.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "microsoft_entra_tenant_id": {
-          "description": "type: `string`"
+          "description": "MicrosoftEntraTenantID is the Entra's tenant ID.\n\ntype: `string`"
         },
         "okta_assertion_consumer_service_url": {
           "description": "type: `string`"
@@ -750,7 +757,7 @@
           "description": "type: `string`"
         },
         "okta_idp_id": {
-          "description": "type: `string`"
+          "description": "Okta conditional access settings - using optjson for partial updates\nAll four fields must be set together or all must be empty.\n\ntype: `string`"
         }
       },
       "type": [
@@ -768,12 +775,19 @@
             "null"
           ]
         },
+        "android_settings": {
+          "$ref": "#/$defs/AndroidSettings",
+          "description": "type: `AndroidSettings`"
+        },
         "apple_account_provisioning": {
           "$ref": "#/$defs/AppleAccountProvisioning",
           "description": "type: `AppleAccountProvisioning`"
         },
         "apple_require_hardware_attestation": true,
-        "apple_settings": true,
+        "apple_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
         "enable_disk_encryption": {
           "description": "type: `boolean`",
           "type": [
@@ -798,9 +812,16 @@
           "description": "type: `AppleOSUpdateSettings`"
         },
         "macos_migration": true,
-        "macos_settings": true,
+        "macos_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "deprecated": true,
+          "deprecationMessage": "'macos_settings' is deprecated, use 'apple_settings' instead",
+          "description": "type: `MacOSSettings`"
+        },
         "macos_setup": {
           "$ref": "#/$defs/MacOSSetup",
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup' is deprecated, use 'setup_experience' instead",
           "description": "type: `MacOSSetup`"
         },
         "macos_updates": {
@@ -846,7 +867,10 @@
             "null"
           ]
         },
-        "windows_settings": true,
+        "windows_settings": {
+          "$ref": "#/$defs/WindowsSettings",
+          "description": "type: `WindowsSettings`"
+        },
         "windows_updates": {
           "$ref": "#/$defs/WindowsUpdates",
           "description": "type: `WindowsUpdates`"
@@ -859,22 +883,23 @@
     },
     "FailingPoliciesWebhookSettings": {
       "additionalProperties": false,
+      "description": "FailingPoliciesWebhookSettings holds the settings for failing policy webhooks.",
       "properties": {
         "destination_url": {
-          "description": "type: `string`"
+          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`"
         },
         "enable_failing_policies_webhook": {
-          "description": "type: `boolean`",
+          "description": "Enable indicates whether the webhook for failing policies is enabled.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "host_batch_size": {
-          "description": "type: `integer`"
+          "description": "HostBatchSize allows sending multiple requests in batches of hosts for each policy.\nA value of 0 means no batching.\n\ntype: `integer`"
         },
         "policy_ids": {
-          "description": "type: `array\u003cinteger\u003e`",
+          "description": "PolicyIDs is a list of policy IDs for which the webhook will be configured.\n\ntype: `array\u003cinteger\u003e`",
           "items": {},
           "type": [
             "array",
@@ -925,7 +950,7 @@
         },
         "vulnerability_exposure_historical_reporting": {
           "$ref": "#/$defs/VulnExposureFilterSettings",
-          "description": "type: `VulnExposureFilterSettings`"
+          "description": "VulnerabilityExposureHistoricalReporting holds the GitOps-managed default\nfilter state for the Vulnerability exposure dashboard chart. It is a\ndisplay-only concern: it seeds the chart's filter controls on load and\ndoes NOT affect what vulnerability data is collected. Premium-only.\n\nAll fields are pointers so the config has sparse/PATCH semantics: a field\npresent in YAML is persisted and respected by the frontend, while an\nomitted field stays nil and the frontend falls back to its own built-in\ndefault for that control.\n\ntype: `VulnExposureFilterSettings`"
         }
       },
       "type": [
@@ -935,12 +960,13 @@
     },
     "FleetDesktopSettings": {
       "additionalProperties": false,
+      "description": "FleetDesktopSettings contains settings used to configure Fleet Desktop.",
       "properties": {
         "alternative_browser_host": {
-          "description": "type: `string`"
+          "description": "AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;\nthis is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.\n\ntype: `string`"
         },
         "transparency_url": {
-          "description": "type: `string`"
+          "description": "TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.\n\ntype: `string`"
         }
       },
       "type": [
@@ -1003,9 +1029,10 @@
     },
     "GitOpsFleetSettings": {
       "additionalProperties": false,
+      "description": "GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (fleet-level).",
       "properties": {
         "agent_options": {
-          "description": "type: `object`",
+          "description": "AgentOptions is the options for osquery and Orbit.\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -1013,7 +1040,7 @@
         },
         "features": {
           "$ref": "#/$defs/Features",
-          "description": "type: `Features`"
+          "description": "the below aren't serialized as-is into config JSON column in the teams table\n\ntype: `Features`"
         },
         "host_expiry_settings": {
           "$ref": "#/$defs/HostExpirySettings",
@@ -1060,13 +1087,14 @@
     },
     "GitOpsOrgSettings": {
       "additionalProperties": false,
+      "description": "GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.",
       "properties": {
         "activity_expiry_settings": {
           "$ref": "#/$defs/ActivityExpirySettings",
           "description": "type: `ActivityExpirySettings`"
         },
         "agent_options": {
-          "description": "type: `object`",
+          "description": "AgentOptions holds osquery configuration.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -1075,15 +1103,15 @@
         "certificate_authorities": true,
         "conditional_access": {
           "$ref": "#/$defs/ConditionalAccessSettings",
-          "description": "type: `ConditionalAccessSettings`"
+          "description": "ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.\nNote: In API responses, this is combined with Microsoft Entra settings from the database.\n\ntype: `ConditionalAccessSettings`"
         },
         "features": {
           "$ref": "#/$defs/Features",
-          "description": "type: `Features`"
+          "description": "Features allows to globally enable or disable features\n\ntype: `Features`"
         },
         "fleet_desktop": {
           "$ref": "#/$defs/FleetDesktopSettings",
-          "description": "type: `FleetDesktopSettings`"
+          "description": "FleetDesktop holds settings for Fleet Desktop that can be changed via the API.\n\ntype: `FleetDesktopSettings`"
         },
         "gitops": {
           "$ref": "#/$defs/GitOpsConfig",
@@ -1118,7 +1146,7 @@
           ]
         },
         "scripts": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "Scripts is a slice of script file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for scripts is in MySQL.)\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -1132,10 +1160,10 @@
         },
         "smtp_settings": {
           "$ref": "#/$defs/SMTPSettings",
-          "description": "type: `SMTPSettings`"
+          "description": "SMTPSettings holds the SMTP integration settings.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `SMTPSettings`"
         },
         "smtp_test": {
-          "description": "type: `boolean`",
+          "description": "SMTPTest is a flag that if set will cause the server to test email configuration\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -1143,11 +1171,11 @@
         },
         "sso_settings": {
           "$ref": "#/$defs/SSOSettings",
-          "description": "type: `SSOSettings`"
+          "description": "SSOSettings is single sign on integration settings.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `SSOSettings`"
         },
         "vulnerability_settings": {
           "$ref": "#/$defs/VulnerabilitySettings",
-          "description": "type: `VulnerabilitySettings`"
+          "description": "VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software\n\ntype: `VulnerabilitySettings`"
         },
         "webhook_settings": {
           "$ref": "#/$defs/WebhookSettings",
@@ -1173,38 +1201,38 @@
       "additionalProperties": false,
       "properties": {
         "calendar_events_enabled": {
-          "description": "type: `boolean`",
+          "description": "CalendarEventsEnabled indicates whether calendar events are enabled for the policy.\n\nOnly applies to team policies.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "conditional_access_enabled": {
-          "description": "type: `boolean`",
+          "description": "ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.\n\nOnly applies to team policies.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "continuous_automations_enabled": {
-          "description": "type: `boolean`",
+          "description": "ContinuousAutomationsEnabled indicates whether software/script automations\nshould run on every failing policy result, not just on pass→fail transitions.\n\nOnly applies to team policies.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "critical": {
-          "description": "type: `boolean`",
+          "description": "Critical marks the policy as high impact.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "description": {
-          "description": "type: `string`"
+          "description": "Description describes the policy.\n\ntype: `string`"
         },
         "fleet": {
-          "description": "type: `string`"
+          "description": "Team is the name of the team.\n\ntype: `string`"
         },
         "fleet_maintained_app_slug": {
           "description": "type: `string`"
@@ -1259,7 +1287,7 @@
           ]
         },
         "name": {
-          "description": "type: `string`"
+          "description": "Name is the name of the policy.\n\ntype: `string`"
         },
         "path": {},
         "paths": {
@@ -1270,32 +1298,34 @@
           ]
         },
         "platform": {
-          "description": "type: `string`"
+          "description": "Platform is a comma-separated string to indicate the target platforms.\n\nEmpty string targets all platforms.\n\ntype: `string`"
         },
         "query": {
-          "description": "type: `string`"
+          "description": "Query is the policy's SQL query.\n\ntype: `string`"
         },
         "resolution": {
-          "description": "type: `string`"
+          "description": "Resolution describes how to solve a failing policy.\n\ntype: `string`"
         },
         "run_script": {
           "$ref": "#/$defs/PolicyRunScript",
           "description": "type: `PolicyRunScript`"
         },
         "script_id": {
-          "description": "type: `integer`"
+          "description": "ScriptID is the ID of the script associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the script ID is unset from the policy.\n\ntype: `integer`"
         },
         "software_title_id": {
-          "description": "type: `integer`"
+          "description": "SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the title ID is unset from the policy.\n\ntype: `integer`"
         },
         "team": {
-          "description": "type: `string`"
+          "deprecated": true,
+          "deprecationMessage": "'team' is deprecated, use 'fleet' instead",
+          "description": "Team is the name of the team.\n\ntype: `string`"
         },
         "type": {
           "description": "type: `string`"
         },
         "webhooks_and_tickets_enabled": {
-          "description": "type: `boolean`",
+          "description": "WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets\nshould be enabled for this policy. This is a gitops-only convenience that\ntranslates to adding the policy's ID to the failing_policies_webhook.policy_ids list.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -1356,10 +1386,11 @@
     },
     "GoogleCalendarApiKey": {
       "additionalProperties": false,
+      "description": "GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.",
       "properties": {
         "values": {
           "additionalProperties": {},
-          "description": "type: `object`",
+          "description": "Values contains the actual API key fields when not masked\n\ntype: `object`",
           "type": [
             "object",
             "null"
@@ -1389,16 +1420,17 @@
     },
     "GoogleWorkspaceIntegration": {
       "additionalProperties": false,
+      "description": "GoogleWorkspaceIntegration configures syncing IdP host vitals (users, groups, and departments) from Google Workspace via the Admin SDK Directory API, using a service account with domain-wide delegation.",
       "properties": {
         "api_key_json": {
           "$ref": "#/$defs/GoogleCalendarApiKey",
-          "description": "type: `GoogleCalendarApiKey`"
+          "description": "ApiKey holds the service account JSON (client_email, private_key). It reuses\nthe GoogleCalendarApiKey masking type because the credential format and the\nmasking/preserve-on-update behavior are identical.\n\ntype: `GoogleCalendarApiKey`"
         },
         "domain": {
-          "description": "type: `string`"
+          "description": "Domain is the Google Workspace primary domain whose directory is synced.\n\ntype: `string`"
         },
         "impersonated_user_email": {
-          "description": "type: `string`"
+          "description": "ImpersonatedUserEmail is the Google Workspace admin user that the service\naccount impersonates via domain-wide delegation. The Admin SDK Directory API\nonly accepts requests on behalf of a real admin user (the JWT Subject).\n\ntype: `string`"
         }
       },
       "type": [
@@ -1408,6 +1440,7 @@
     },
     "HistoricalDataSettings": {
       "additionalProperties": false,
+      "description": "HistoricalDataSettings controls per-dataset collection of the time-series rollups that drive the dashboard charts.",
       "properties": {
         "uptime": {
           "description": "type: `boolean`",
@@ -1431,6 +1464,7 @@
     },
     "HostExpirySettings": {
       "additionalProperties": false,
+      "description": "HostExpirySettings contains settings pertaining to automatic host expiry.",
       "properties": {
         "host_expiry_enabled": {
           "description": "type: `boolean`",
@@ -1482,9 +1516,10 @@
     },
     "Integrations": {
       "additionalProperties": false,
+      "description": "Integrations configures the integrations with external systems.",
       "properties": {
         "conditional_access_enabled": {
-          "description": "type: `boolean`",
+          "description": "ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for \"No team\".\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -1538,6 +1573,7 @@
     },
     "JiraIntegration": {
       "additionalProperties": false,
+      "description": "JiraIntegration configures an instance of an integration with the Jira system.",
       "properties": {
         "api_token": {
           "description": "type: `string`"
@@ -1618,6 +1654,8 @@
           "description": "type: `string`"
         },
         "team_id": {
+          "deprecated": true,
+          "deprecationMessage": "'team_id' is deprecated, use 'fleet_id' instead",
           "description": "type: `integer`"
         }
       },
@@ -1628,9 +1666,10 @@
     },
     "MDM": {
       "additionalProperties": false,
+      "description": "MDM is part of AppConfig and defines the mdm settings.",
       "properties": {
         "android_enabled_and_configured": {
-          "description": "type: `boolean`",
+          "description": "AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -1642,27 +1681,27 @@
         },
         "apple_account_provisioning": {
           "$ref": "#/$defs/AppleAccountProvisioning",
-          "description": "type: `AppleAccountProvisioning`"
+          "description": "AppleAccountProvisioning holds the macOS local account provisioning /\nPlatform SSO password sync configuration. The IdP client secret is stored\nin mdm_config_assets, not in this JSON; only the masked value is returned.\n\ntype: `AppleAccountProvisioning`"
         },
         "apple_bm_default_team": {
-          "description": "type: `string`"
+          "description": "Deprecated: use AppleBusinessManager instead\n\ntype: `string`"
         },
         "apple_bm_enabled_and_configured": {
-          "description": "type: `boolean`",
+          "description": "AppleBMEnabledAndConfigured is set to true if Fleet has been\nconfigured with the required Apple BM key pair or token. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "apple_bm_terms_expired": {
-          "description": "type: `boolean`",
+          "description": "AppleBMTermsExpired is set to true if an Apple Business request\nfailed due to Apple's terms and conditions having changed and need the\nuser to explicitly accept them. It cannot be set manually via the\nPATCH /config API, it is only set automatically, internally, by detecting\nthe 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM\nAPI.\n\nIt is set to true as soon as one of the ABM tokens receives this error\ncode, and is set to false only once all ABM tokens have agreed to the new\nterms.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "apple_business": {
-          "description": "type: `array\u003cobject\u003e`",
+          "description": "AppleBusinessManager defines the associations between AB tokens\nand the fleets used to assign hosts when they're ingested from Apple\nBusiness.\n\ntype: `array\u003cobject\u003e`",
           "items": {
             "type": [
               "object",
@@ -1675,7 +1714,9 @@
           ]
         },
         "apple_business_manager": {
-          "description": "type: `array\u003cobject\u003e`",
+          "deprecated": true,
+          "deprecationMessage": "'apple_business_manager' is deprecated, use 'apple_business' instead",
+          "description": "AppleBusinessManager defines the associations between AB tokens\nand the fleets used to assign hosts when they're ingested from Apple\nBusiness.\n\ntype: `array\u003cobject\u003e`",
           "items": {
             "type": [
               "object",
@@ -1688,14 +1729,14 @@
           ]
         },
         "apple_require_hardware_attestation": {
-          "description": "type: `boolean`",
+          "description": "AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for\ncertain Apple MDM enrollments.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "apple_server_url": {
-          "description": "type: `string`"
+          "description": "AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM\nrequests from fleetd requests on customer networks. AppleServerURL DNS should resolve to the\nsame IP as the Fleet Server URL.\nIf not set, the server will use Fleet server URL (recommended).\n\ntype: `string`"
         },
         "apple_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -1723,7 +1764,7 @@
           ]
         },
         "enabled_and_configured": {
-          "description": "type: `boolean`",
+          "description": "EnabledAndConfigured is set to true if Fleet has been\nconfigured with the required APNS and SCEP certificates. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\nTODO: should ideally be renamed to AppleEnabledAndConfigured, but it\nimplies a lot of changes to existing code across both frontend and\nbackend, should be done only after careful analysis.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -1733,13 +1774,14 @@
           "$ref": "#/$defs/MDMEndUserAuthentication",
           "description": "type: `MDMEndUserAuthentication`"
         },
+        "end_user_license_agreement": true,
         "ios_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
-          "description": "type: `AppleOSUpdateSettings`"
+          "description": "IOSUpdates defines the OS update settings for iOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
         "ipados_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
-          "description": "type: `AppleOSUpdateSettings`"
+          "description": "IPadOSUpdates defines the OS update settings for iPadOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
@@ -1747,15 +1789,19 @@
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
+          "deprecated": true,
+          "deprecationMessage": "'macos_settings' is deprecated, use 'apple_settings' instead",
           "description": "type: `MacOSSettings`"
         },
         "macos_setup": {
           "$ref": "#/$defs/MacOSSetup",
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup' is deprecated, use 'setup_experience' instead",
           "description": "type: `MacOSSetup`"
         },
         "macos_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
-          "description": "type: `AppleOSUpdateSettings`"
+          "description": "MacOSUpdates defines the OS update settings for macOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
         "setup_experience": {
           "$ref": "#/$defs/MacOSSetup",
@@ -1775,14 +1821,14 @@
           ]
         },
         "windows_enabled_and_configured": {
-          "description": "type: `boolean`",
+          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "windows_entra_client_ids": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -1817,7 +1863,7 @@
         },
         "windows_updates": {
           "$ref": "#/$defs/WindowsUpdates",
-          "description": "type: `WindowsUpdates`"
+          "description": "WindowsUpdates defines the OS update settings for Windows devices.\n\ntype: `WindowsUpdates`"
         }
       },
       "type": [
@@ -1827,21 +1873,22 @@
     },
     "MDMEndUserAuthentication": {
       "additionalProperties": false,
+      "description": "MDMEndUserAuthentication contains settings related to end user authentication to gate certain MDM features (eg: enrollment)",
       "properties": {
         "entity_id": {
-          "description": "type: `string`"
+          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`"
         },
         "idp_name": {
-          "description": "type: `string`"
+          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`"
         },
         "issuer_uri": {
-          "description": "type: `string`"
+          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`"
         },
         "metadata": {
-          "description": "type: `string`"
+          "description": "Metadata contains IDP metadata XML\n\ntype: `string`"
         },
         "metadata_url": {
-          "description": "type: `string`"
+          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`"
         }
       },
       "type": [
@@ -1851,9 +1898,10 @@
     },
     "MDMProfileSpec": {
       "additionalProperties": false,
+      "description": "MDMProfileSpec represents the spec used to define configuration profiles via yaml files.",
       "properties": {
         "labels": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -1861,7 +1909,7 @@
           ]
         },
         "labels_exclude_any": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "LabelsExcludeAll is a list of label names that the host must not be a\nmember of in order to receive the profile. It must not be a member of any\nof the listed labels.\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -1869,7 +1917,7 @@
           ]
         },
         "labels_include_all": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "LabelsIncludeAll is a list of label names that the host must be a member\nof in order to receive the profile. It must be a member of all listed\nlabels.\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -1877,7 +1925,7 @@
           ]
         },
         "labels_include_any": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "LabelsIncludeAny is a list of label names that the host must be a member\nof in order to receive the profile. It may be a member of\nany listed labels.\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -1898,6 +1946,7 @@
     },
     "MacOSMigration": {
       "additionalProperties": false,
+      "description": "MacOSMigration contains settings related to the MDM migration work flow.",
       "properties": {
         "enable": {
           "description": "type: `boolean`",
@@ -1920,9 +1969,10 @@
     },
     "MacOSSettings": {
       "additionalProperties": false,
+      "description": "MacOSSettings contains settings specific to macOS.",
       "properties": {
         "assets": {
-          "description": "type: `array\u003cMDMProfileSpec\u003e`",
+          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from ToMap/FromMap.\n\ntype: `array\u003cMDMProfileSpec\u003e`",
           "items": {
             "$ref": "#/$defs/MDMProfileSpec"
           },
@@ -1932,7 +1982,7 @@
           ]
         },
         "configuration_profiles": {
-          "description": "type: `array\u003cMDMProfileSpec\u003e`",
+          "description": "CustomSettings is a slice of configuration profile file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cMDMProfileSpec\u003e`",
           "items": {
             "$ref": "#/$defs/MDMProfileSpec"
           },
@@ -1942,7 +1992,9 @@
           ]
         },
         "custom_settings": {
-          "description": "type: `array\u003cMDMProfileSpec\u003e`",
+          "deprecated": true,
+          "deprecationMessage": "'custom_settings' is deprecated, use 'configuration_profiles' instead",
+          "description": "CustomSettings is a slice of configuration profile file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cMDMProfileSpec\u003e`",
           "items": {
             "$ref": "#/$defs/MDMProfileSpec"
           },
@@ -1966,6 +2018,7 @@
     },
     "MacOSSetup": {
       "additionalProperties": false,
+      "description": "MacOSSetup contains settings related to the setup of DEP enrolled devices.",
       "properties": {
         "apple_enable_release_device_manually": {
           "description": "type: `boolean`",
@@ -1978,6 +2031,8 @@
           "description": "type: `string`"
         },
         "bootstrap_package": {
+          "deprecated": true,
+          "deprecationMessage": "'bootstrap_package' is deprecated, use 'macos_bootstrap_package' instead",
           "description": "type: `string`"
         },
         "enable_create_local_admin_account": {
@@ -1995,6 +2050,8 @@
           ]
         },
         "enable_managed_local_account": {
+          "deprecated": true,
+          "deprecationMessage": "'enable_managed_local_account' is deprecated, use 'enable_create_local_admin_account' instead",
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2002,6 +2059,8 @@
           ]
         },
         "enable_release_device_manually": {
+          "deprecated": true,
+          "deprecationMessage": "'enable_release_device_manually' is deprecated, use 'apple_enable_release_device_manually' instead",
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2032,9 +2091,13 @@
           "description": "type: `string`"
         },
         "macos_setup_assistant": {
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup_assistant' is deprecated, use 'apple_setup_assistant' instead",
           "description": "type: `string`"
         },
         "manual_agent_install": {
+          "deprecated": true,
+          "deprecationMessage": "'manual_agent_install' is deprecated, use 'macos_manual_agent_install' instead",
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2056,6 +2119,8 @@
           ]
         },
         "script": {
+          "deprecated": true,
+          "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",
           "description": "type: `string`"
         },
         "software": {
@@ -2173,7 +2238,7 @@
       "additionalProperties": false,
       "properties": {
         "debug_logging_on_enroll_duration": {
-          "description": "type: `integer`"
+          "description": "DebugLoggingOnEnrollDuration is the number of seconds (0 to\nMaxOrbitDebugLoggingOnEnrollDurationSeconds) that every host enrolling\nunder this scope is stamped with orbit_debug_until = now() + duration.\n\ntype: `integer`"
         }
       },
       "type": [
@@ -2183,18 +2248,19 @@
     },
     "OrgInfo": {
       "additionalProperties": false,
+      "description": "OrgInfo contains general info about the organization using Fleet.",
       "properties": {
         "contact_url": {
-          "description": "type: `string`"
+          "description": "ContactURL is the URL displayed for users to contact support. By default,\nhttps://fleetdm.com/company/contact is used.\n\ntype: `string`"
         },
         "org_logo_url": {
-          "description": "type: `string`"
+          "description": "Deprecated: use OrgLogoURLDarkMode.\n\ntype: `string`"
         },
         "org_logo_url_dark_mode": {
           "description": "type: `string`"
         },
         "org_logo_url_light_background": {
-          "description": "type: `string`"
+          "description": "Deprecated: use OrgLogoURLLightMode.\n\ntype: `string`"
         },
         "org_logo_url_light_mode": {
           "description": "type: `string`"
@@ -2224,27 +2290,27 @@
       "additionalProperties": false,
       "properties": {
         "automations_enabled": {
-          "description": "type: `boolean`",
+          "description": "AutomationsEnabled is set to false if not set.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "description": {
-          "description": "type: `string`"
+          "description": "Description is the description of the query.\n\ntype: `string`"
         },
         "discard_data": {
-          "description": "type: `boolean`",
+          "description": "DiscardData indicates if the scheduled query results should be discarded (true)\nor kept (false) in a query report.\n\nIf not set, then the default value is false.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "fleet": {
-          "description": "type: `string`"
+          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`"
         },
         "interval": {
-          "description": "type: `integer`"
+          "description": "Interval is set to 0 if not set.\n\ntype: `integer`"
         },
         "labels_include_all": {
           "description": "type: `array\u003cstring\u003e`",
@@ -2263,16 +2329,16 @@
           ]
         },
         "logging": {
-          "description": "type: `string`"
+          "description": "Logging is set to \"snapshot\" if not set.\n\ntype: `string`"
         },
         "min_osquery_version": {
-          "description": "type: `string`"
+          "description": "MinOsqueryVersion is set to empty if not set.\n\ntype: `string`"
         },
         "name": {
-          "description": "type: `string`"
+          "description": "Name is the name of the query (which is unique in its team or globally).\nThis field must be non-empty.\n\ntype: `string`"
         },
         "observer_can_run": {
-          "description": "type: `boolean`",
+          "description": "ObserverCanRun is set to false if not set.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -2285,13 +2351,15 @@
           "description": "type: `string`"
         },
         "platform": {
-          "description": "type: `string`"
+          "description": "Platform is set to empty if not set when creating a query.\n\ntype: `string`"
         },
         "query": {
-          "description": "type: `string`"
+          "description": "Query is the actual osquery SQL query. This field must be non-empty.\n\ntype: `string`"
         },
         "team": {
-          "description": "type: `string`"
+          "deprecated": true,
+          "deprecationMessage": "'team' is deprecated, use 'fleet' instead",
+          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`"
         }
       },
       "type": [
@@ -2301,61 +2369,62 @@
     },
     "SMTPSettings": {
       "additionalProperties": false,
+      "description": "SMTPSettings is part of the AppConfig which defines the wire representation of the app config endpoints",
       "properties": {
         "authentication_method": {
-          "description": "type: `string`"
+          "description": "SMTPAuthenticationMethod authentication method smtp server will use\n\ntype: `string`"
         },
         "authentication_type": {
-          "description": "type: `string`"
+          "description": "SMTPAuthenticationType type of authentication for SMTP\n\ntype: `string`"
         },
         "configured": {
-          "description": "type: `boolean`",
+          "description": "SMTPConfigured is a flag that indicates if smtp has been successfully\ntested with the settings provided by an admin user.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "domain": {
-          "description": "type: `string`"
+          "description": "SMTPDomain optional domain for SMTP\n\ntype: `string`"
         },
         "enable_smtp": {
-          "description": "type: `boolean`",
+          "description": "SMTPEnabled indicates whether the user has selected that SMTP is\nenabled in the UI.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "enable_ssl_tls": {
-          "description": "type: `boolean`",
+          "description": "SMTPEnableSSLTLS whether to use SSL/TLS for SMTP\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "enable_start_tls": {
-          "description": "type: `boolean`",
+          "description": "SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "password": {
-          "description": "type: `string`"
+          "description": "SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`"
         },
         "port": {
-          "description": "type: `integer`"
+          "description": "SMTPPort port SMTP server will use\n\ntype: `integer`"
         },
         "sender_address": {
-          "description": "type: `string`"
+          "description": "SMTPSenderAddress is the email address that will appear in emails sent\nfrom Fleet\n\ntype: `string`"
         },
         "server": {
-          "description": "type: `string`"
+          "description": "SMTPServer is the host name of the SMTP server Fleet will use to send mail\n\ntype: `string`"
         },
         "user_name": {
-          "description": "type: `string`"
+          "description": "SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`"
         },
         "verify_ssl_certs": {
-          "description": "type: `boolean`",
+          "description": "SMTPVerifySSLCerts defaults to true but can be turned off if self signed\nSSL certs are used by the SMTP server\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -2369,55 +2438,56 @@
     },
     "SSOSettings": {
       "additionalProperties": false,
+      "description": "SSOSettings wire format for SSO settings",
       "properties": {
         "enable_jit_provisioning": {
-          "description": "type: `boolean`",
+          "description": "EnableJITProvisioning allows user accounts to be created the first time\nusers try to log in\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "enable_jit_role_sync": {
-          "description": "type: `boolean`",
+          "description": "EnableJITRoleSync is deprecated.\n\nEnableJITRoleSync sets whether the roles of existing accounts will be updated\nevery time SSO users log in (does not have effect if EnableJITProvisioning is false).\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "enable_sso": {
-          "description": "type: `boolean`",
+          "description": "EnableSSO flag to determine whether or not to enable SSO\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "enable_sso_idp_login": {
-          "description": "type: `boolean`",
+          "description": "EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated\nlogin.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "entity_id": {
-          "description": "type: `string`"
+          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`"
         },
         "idp_image_url": {
-          "description": "type: `string`"
+          "description": "IDPImageURL is a link to a logo or other image that is used for UX\n\ntype: `string`"
         },
         "idp_name": {
-          "description": "type: `string`"
+          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`"
         },
         "issuer_uri": {
-          "description": "type: `string`"
+          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`"
         },
         "metadata": {
-          "description": "type: `string`"
+          "description": "Metadata contains IDP metadata XML\n\ntype: `string`"
         },
         "metadata_url": {
-          "description": "type: `string`"
+          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`"
         },
         "sso_server_url": {
-          "description": "type: `string`"
+          "description": "SSOServerURL is an optional URL to use for SSO authentication.\nWhen set, SSO will only work from this URL, not from the server URL.\nThis is useful for organizations with separate URLs for admin access vs agent/API access.\n\ntype: `string`"
         }
       },
       "type": [
@@ -2427,6 +2497,7 @@
     },
     "ServerSettings": {
       "additionalProperties": false,
+      "description": "ServerSettings contains general settings about the Fleet application.",
       "properties": {
         "ai_features_disabled": {
           "description": "type: `boolean`",
@@ -2465,6 +2536,8 @@
           ]
         },
         "live_query_disabled": {
+          "deprecated": true,
+          "deprecationMessage": "'live_query_disabled' is deprecated, use 'live_reporting_disabled' instead",
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2479,9 +2552,13 @@
           ]
         },
         "query_report_cap": {
+          "deprecated": true,
+          "deprecationMessage": "'query_report_cap' is deprecated, use 'report_cap' instead",
           "description": "type: `integer`"
         },
         "query_reports_disabled": {
+          "deprecated": true,
+          "deprecationMessage": "'query_reports_disabled' is deprecated, use 'discard_reports_data' instead",
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2511,7 +2588,7 @@
       "additionalProperties": false,
       "properties": {
         "always_download": {
-          "description": "type: `boolean`",
+          "description": "AlwaysDownload disables conditional HTTP downloads using ETag headers.\nWhen false (the default), Fleet sends If-None-Match with the stored ETag\non subsequent downloads. If the server returns 304 Not Modified, the\ndownload is skipped entirely.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -2527,7 +2604,7 @@
         },
         "configuration": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
-          "description": "type: `TeamSpecSoftwareAsset`"
+          "description": "Configuration is the managed app configuration file path; only meaningful for .ipa packages.\n\ntype: `TeamSpecSoftwareAsset`"
         },
         "display_name": {
           "description": "type: `string`"
@@ -2584,7 +2661,7 @@
           "description": "type: `TeamSpecSoftwareAsset`"
         },
         "referenced_yaml_path": {
-          "description": "type: `string`"
+          "description": "ReferencedYamlPath is the resolved path of the file used to fill the\nsoftware package. Only present after parsing a GitOps file on the fleetctl\nside of processing. This is required to match a setup_experience.software to\nits corresponding software package, as we do this matching by yaml path.\n\nIt must be JSON-marshaled because it gets set during gitops file processing,\nwhich is then re-marshaled to JSON from this struct and later re-unmarshaled\nduring ApplyGroup...\n\ntype: `string`"
         },
         "self_service": {
           "description": "type: `boolean`",
@@ -2601,10 +2678,10 @@
           ]
         },
         "setup_experience_platform": {
-          "description": "type: `string`"
+          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`"
         },
         "slug": {
-          "description": "type: `string`"
+          "description": "FMA\n\ntype: `string`"
         },
         "uninstall_script": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
@@ -2691,9 +2768,10 @@
     },
     "TeamIntegrations": {
       "additionalProperties": false,
+      "description": "TeamIntegrations contains the configuration for external services' integrations for a specific team.",
       "properties": {
         "conditional_access_enabled": {
-          "description": "type: `boolean`",
+          "description": "ConditionalAccessEnabled indicates whether the conditional access feature is enabled on this team.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -2731,6 +2809,7 @@
     },
     "TeamJiraIntegration": {
       "additionalProperties": false,
+      "description": "TeamJiraIntegration configures an instance of an integration with the Jira system for a team.",
       "properties": {
         "enable_failing_policies": {
           "description": "type: `boolean`",
@@ -2786,10 +2865,14 @@
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
+          "deprecated": true,
+          "deprecationMessage": "'macos_settings' is deprecated, use 'apple_settings' instead",
           "description": "type: `MacOSSettings`"
         },
         "macos_setup": {
           "$ref": "#/$defs/MacOSSetup",
+          "deprecated": true,
+          "deprecationMessage": "'macos_setup' is deprecated, use 'setup_experience' instead",
           "description": "type: `MacOSSetup`"
         },
         "macos_updates": {
@@ -2828,7 +2911,7 @@
           "description": "type: `string`"
         },
         "auto_update_enabled": {
-          "description": "type: `boolean`",
+          "description": "Auto-update fields for VPP apps\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -2841,7 +2924,7 @@
           "description": "type: `string`"
         },
         "categories": {
-          "description": "type: `array\u003cstring\u003e`",
+          "description": "Categories is the list of names of software categories associated with this VPP app.\n\ntype: `array\u003cstring\u003e`",
           "items": {},
           "type": [
             "array",
@@ -2902,7 +2985,7 @@
           ]
         },
         "setup_experience": {
-          "description": "type: `boolean`",
+          "description": "InstallDuringSetup indicates whether a package should be incorporated into setup experience;\nif not supplied (Valid field is false) then the server-side value for setup experience membership\nis not changed, for compatibility with the old fleetctl apply format\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -2935,7 +3018,7 @@
         },
         "host_status_webhook": {
           "$ref": "#/$defs/HostStatusWebhookSettings",
-          "description": "type: `HostStatusWebhookSettings`"
+          "description": "HostStatusWebhook can be nil to match the TeamSpec webhook settings\n\ntype: `HostStatusWebhookSettings`"
         }
       },
       "type": [
@@ -2945,6 +3028,7 @@
     },
     "TeamZendeskIntegration": {
       "additionalProperties": false,
+      "description": "TeamZendeskIntegration configures an instance of an integration with the external Zendesk service for a team.",
       "properties": {
         "enable_failing_policies": {
           "description": "type: `boolean`",
@@ -2967,6 +3051,7 @@
     },
     "VulnExposureFilterSettings": {
       "additionalProperties": false,
+      "description": "VulnExposureFilterSettings is the persisted default filter state for the Vulnerability exposure (CVE) dashboard chart.",
       "properties": {
         "cvss_max": {
           "description": "type: `number`"
@@ -3011,19 +3096,20 @@
     },
     "VulnerabilitiesWebhookSettings": {
       "additionalProperties": false,
+      "description": "VulnerabilitiesWebhookSettings holds the settings for vulnerabilities webhooks.",
       "properties": {
         "destination_url": {
-          "description": "type: `string`"
+          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`"
         },
         "enable_vulnerabilities_webhook": {
-          "description": "type: `boolean`",
+          "description": "Enable indicates whether the webhook for vulnerabilities is enabled.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
         "host_batch_size": {
-          "description": "type: `integer`"
+          "description": "HostBatchSize allows sending multiple requests in batches of hosts for each vulnerable software found.\nA value of 0 means no batching.\n\ntype: `integer`"
         }
       },
       "type": [
@@ -3033,9 +3119,10 @@
     },
     "VulnerabilitySettings": {
       "additionalProperties": false,
+      "description": "VulnerabilitySettings is part of the AppConfig which defines how fleet will behave while scanning for vulnerabilities in the host software",
       "properties": {
         "databases_path": {
-          "description": "type: `string`"
+          "description": "DatabasesPath is the directory where fleet will store the different databases\n\ntype: `string`"
         }
       },
       "type": [
@@ -3059,7 +3146,7 @@
           "description": "type: `HostStatusWebhookSettings`"
         },
         "interval": {
-          "description": "type: `string`"
+          "description": "Interval is the interval for running the webhooks.\n\nThis value currently configures both the host status and failing policies webhooks.\n\ntype: `string`"
         },
         "vulnerabilities_webhook": {
           "$ref": "#/$defs/VulnerabilitiesWebhookSettings",
@@ -3075,7 +3162,7 @@
       "additionalProperties": false,
       "properties": {
         "configuration_profiles": {
-          "description": "type: `array\u003cobject\u003e`",
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
           "items": {
             "type": [
               "object",
@@ -3088,7 +3175,9 @@
           ]
         },
         "custom_settings": {
-          "description": "type: `array\u003cobject\u003e`",
+          "deprecated": true,
+          "deprecationMessage": "'custom_settings' is deprecated, use 'configuration_profiles' instead",
+          "description": "NOTE: These are only present here for informational purposes.\n(The source of truth for profiles is in MySQL.)\n\ntype: `array\u003cobject\u003e`",
           "items": {
             "type": [
               "object",
@@ -3108,6 +3197,7 @@
     },
     "WindowsUpdates": {
       "additionalProperties": false,
+      "description": "WindowsUpdates is part of AppConfig and defines the Windows update settings.",
       "properties": {
         "deadline_days": {
           "description": "type: `integer`"
@@ -3138,6 +3228,7 @@
     },
     "ZendeskIntegration": {
       "additionalProperties": false,
+      "description": "ZendeskIntegration configures an instance of an integration with the external Zendesk service.",
       "properties": {
         "api_token": {
           "description": "type: `string`"

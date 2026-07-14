@@ -107,9 +107,11 @@ type Controls struct {
 	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
 	Scripts                  []fleet.BaseItem                `json:"scripts"`
 
-	// Less-common controls keys left loose for now (accept anything).
-	MacOSSettings                   any `json:"macos_settings" renameto:"apple_settings"`
-	WindowsSettings                 any `json:"windows_settings"`
+	MacOSSettings   *fleet.MacOSSettings   `json:"macos_settings" renameto:"apple_settings"`
+	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
+	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
+
+	// Remaining keys left loose for now (accept anything).
 	MacOSMigration                  any `json:"macos_migration"`
 	WindowsMigrationEnabled         any `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually  any `json:"enable_turn_on_windows_mdm_manually"`
@@ -151,6 +153,21 @@ func typeMapper(t reflect.Type) *jsonschema.Schema {
 		return &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: scalar}, {Type: "object"}}}
 	}
 	return nil
+}
+
+// reflectProps reflects a struct and returns its top-level property schemas.
+func reflectProps(v any) map[string]any {
+	r := &jsonschema.Reflector{RequiredFromJSONSchemaTags: true, Mapper: typeMapper, KeyNamer: toSnake, ExpandedStruct: true}
+	raw, err := json.Marshal(r.Reflect(v))
+	if err != nil {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil
+	}
+	props, _ := m["properties"].(map[string]any)
+	return props
 }
 
 func schemaForType(t reflect.Type) *jsonschema.Schema {
@@ -255,18 +272,22 @@ func typeLabel(s map[string]any) string {
 	return ""
 }
 
-// addTypeDescriptions sets each property's description to its type so yamlls shows
-// it on hover (hover renders `description`, not the bare type). Must run before
-// relaxNulls strips scalar `type` fields.
+// addTypeDescriptions appends each property's type to its description so yamlls
+// shows it on hover (hover renders `description`, not the bare type). It keeps any
+// Go doc comment already set by AddGoComments and adds the type below it. Must run
+// before relaxNulls strips scalar `type` fields.
 func addTypeDescriptions(node any) {
 	switch n := node.(type) {
 	case map[string]any:
 		if props, ok := n["properties"].(map[string]any); ok {
 			for _, v := range props {
 				if ps, ok := v.(map[string]any); ok {
-					if _, has := ps["description"]; !has {
-						if lbl := typeLabel(ps); lbl != "" {
-							ps["description"] = "type: `" + lbl + "`"
+					if lbl := typeLabel(ps); lbl != "" {
+						tline := "type: `" + lbl + "`"
+						if d, ok := ps["description"].(string); ok && d != "" {
+							ps["description"] = d + "\n\n" + tline
+						} else {
+							ps["description"] = tline
 						}
 					}
 				}
@@ -320,16 +341,36 @@ func relaxNulls(node any) {
 }
 
 // addRenameAliases adds each renamed key as an alias next to its json-tag name so
-// both the old and new spellings validate (Fleet accepts both for backward compat).
+// both the old and new spellings validate (Fleet accepts both for backward compat),
+// and marks the legacy json-tag spelling deprecated (Fleet itself warns
+// "'<old>' is deprecated, use '<new>' instead"). The new spelling is not deprecated.
 func addRenameAliases(node any, renames map[string]string) {
 	switch n := node.(type) {
 	case map[string]any:
 		if props, ok := n["properties"].(map[string]any); ok {
 			for jsonName, renameName := range renames {
-				if sub, present := props[jsonName]; present {
-					if _, exists := props[renameName]; !exists {
+				sub, present := props[jsonName]
+				if !present {
+					continue
+				}
+				if _, exists := props[renameName]; !exists {
+					// Shallow-copy map schemas; `any`-typed fields are a bare `true`,
+					// so copy the value as-is.
+					if m, ok := sub.(map[string]any); ok {
+						alias := make(map[string]any, len(m))
+						for k, v := range m {
+							alias[k] = v
+						}
+						props[renameName] = alias
+					} else {
 						props[renameName] = sub
 					}
+				}
+				// Deprecate the legacy spelling. Only possible on object schemas; a
+				// bare `true` (from an `any` field) has nowhere to hang the marker.
+				if m, ok := sub.(map[string]any); ok {
+					m["deprecated"] = true
+					m["deprecationMessage"] = "'" + jsonName + "' is deprecated, use '" + renameName + "' instead"
 				}
 			}
 		}
@@ -380,6 +421,18 @@ func main() {
 		ExpandedStruct: true,
 	}
 
+	// Pull Fleet's Go doc comments into field descriptions (shown on hover).
+	// AddGoComments derives package paths from the walk dir relative to cwd, so
+	// run it from the repo root (two levels up from this tool).
+	if wd, err := os.Getwd(); err == nil {
+		if chErr := os.Chdir("../.."); chErr == nil {
+			const base = "github.com/fleetdm/fleet/v4"
+			_ = r.AddGoComments(base, "server/fleet")
+			_ = r.AddGoComments(base, "pkg/spec")
+			_ = os.Chdir(wd)
+		}
+	}
+
 	schema := r.Reflect(&GitOpsSpec{})
 
 	raw, err := json.Marshal(schema)
@@ -402,6 +455,22 @@ func main() {
 				props["config"] = map[string]any{
 					"type":       "object",
 					"properties": map[string]any{"options": opts},
+				}
+			}
+		}
+	}
+
+	// AppConfig/TeamConfig embed fleet.MDM, but GitOps allows extra mdm keys defined
+	// on spec.GitOpsMDM (e.g. end_user_license_agreement). Merge those in.
+	if gm := reflectProps(&spec.GitOpsMDM{}); gm != nil {
+		if defs, ok := doc["$defs"].(map[string]any); ok {
+			if mdm, ok := defs["MDM"].(map[string]any); ok {
+				if props, ok := mdm["properties"].(map[string]any); ok {
+					for k, v := range gm {
+						if _, exists := props[k]; !exists {
+							props[k] = v
+						}
+					}
 				}
 			}
 		}
