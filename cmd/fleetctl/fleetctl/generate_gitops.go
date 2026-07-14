@@ -2002,8 +2002,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
 	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
-	// Emitted as setup_experience_platforms so a UI-set non-native selection
-	// round-trips through generate → apply unchanged.
+	// Emitted as setup_experience_platform (comma-separated) so a UI-set
+	// non-native selection round-trips through generate → apply unchanged.
 	crossPlatformSelectionsByTitleID := make(map[uint][]string)
 
 	// Fill in InstallDuringSetup for software, as that information is only available
@@ -2043,7 +2043,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if pkg.Platform == fleet.CanonicalPlatform(crossTarget) {
 				continue
 			}
-			crossPlatformSelectionsByTitleID[t.ID] = append(crossPlatformSelectionsByTitleID[t.ID], crossTarget)
+			// Emit the canonical platform token ("darwin", not "macos") to match
+			// the query/policy/label `platform` convention.
+			crossPlatformSelectionsByTitleID[t.ID] = append(crossPlatformSelectionsByTitleID[t.ID], fleet.CanonicalPlatform(crossTarget))
 		}
 	}
 
@@ -2353,7 +2355,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["setup_experience"] = true
 			}
 			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
-				softwareSpec["setup_experience_platforms"] = crosses
+				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
 			}
 		} else {
 			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()

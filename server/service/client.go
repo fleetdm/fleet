@@ -1431,15 +1431,21 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
-		// Pointer-to-slice preserves the tri-state: nil = no change, empty =
-		// clear all cross-platform selections, non-empty = replace. The slice
-		// must stay non-nil so an empty list marshals as [] rather than null —
-		// null unmarshals server-side as "no change" and would silently swallow
-		// an explicit clear.
+		// setup_experience_platform is authored as a comma-separated string
+		// (consistent with the query/policy `platform` field); split it into the
+		// tri-state pointer-to-slice the batch payload uses: nil = no change,
+		// non-nil empty = clear all cross-platform selections, non-empty =
+		// replace. The slice must stay non-nil on an explicit empty value so it
+		// marshals as [] rather than null — null unmarshals server-side as "no
+		// change" and would silently swallow an explicit clear.
 		var setupExperiencePlatforms *[]string
-		if si.SetupExperiencePlatforms.Set {
-			ps := make([]string, len(si.SetupExperiencePlatforms.Value))
-			copy(ps, si.SetupExperiencePlatforms.Value)
+		if si.SetupExperiencePlatform.Set {
+			ps := make([]string, 0)
+			for tok := range strings.SplitSeq(si.SetupExperiencePlatform.Value, ",") {
+				if t := strings.TrimSpace(tok); t != "" {
+					ps = append(ps, t)
+				}
+			}
 			setupExperiencePlatforms = &ps
 		}
 
