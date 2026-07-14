@@ -29,6 +29,9 @@ try {
     # %LOCALAPPDATA%\Programs\DockerDesktop, and uninstall info is written to
     # HKCU. --accept-license suppresses the subscription agreement prompt.
     $process = Start-Process -FilePath "$exeFilePath" -ArgumentList "install","--user","--accept-license","--quiet" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+    # Cache the process handle; without this, .ExitCode is $null once the
+    # process exits.
+    $null = $process.Handle
 
     # The installer process can keep running for several minutes after the
     # app is registered with Windows. Poll the HKCU uninstall key (osquery's
