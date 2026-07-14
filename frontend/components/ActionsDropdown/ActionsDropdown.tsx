@@ -37,6 +37,15 @@ const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
   return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
+// "small-button" mirrors the bordered secondary button — see #35329
+const getControlBackgroundColor = (
+  variant: string | undefined,
+  isFocused: boolean
+) => {
+  if (isFocused) return COLORS["ui-fleet-black-5"];
+  return variant === "small-button" ? COLORS["ui-off-white"] : "initial";
+};
+
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
   switch (menuAlign) {
     case "right":
@@ -63,7 +72,9 @@ const CustomDropdownIndicator = (
   props: DropdownIndicatorProps<IDropdownOption, false>
 ) => {
   const { isFocused, selectProps } = props;
-  const variant = (selectProps as { variant?: "button" }).variant;
+  const variant = (selectProps as {
+    variant?: "button" | "brand-button" | "small-button";
+  }).variant;
 
   const color =
     isFocused ||
@@ -78,6 +89,7 @@ const CustomDropdownIndicator = (
       <Icon
         name="chevron-down"
         color={color}
+        size={variant === "small-button" ? "small" : undefined}
         className={`${baseClass}__icon`}
       />
     </components.DropdownIndicator>
@@ -202,10 +214,14 @@ const ActionsDropdown = ({
       flexDirection: "row",
       width: "max-content",
       // Need minHeight to override default
-      minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
-      padding: variant === "small-button" ? "4px" : "8px", // Match button padding
-      backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
-      border: 0,
+      minHeight: variant === "small-button" ? "28px" : "32px", // Match button height
+      padding: variant === "small-button" ? "4px 8px" : "8px", // Match button padding
+      backgroundColor: getControlBackgroundColor(variant, state.isFocused),
+      border:
+        variant === "small-button"
+          ? `1px solid ${COLORS["ui-fleet-black-25"]}` // Match secondary button border — see #35329
+          : 0,
+      boxSizing: "border-box",
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
@@ -219,7 +235,10 @@ const ActionsDropdown = ({
         },
       },
       "&:active": {
-        background: COLORS["ui-fleet-black-5"], // Match button hover
+        background:
+          variant === "small-button"
+            ? COLORS["ui-fleet-black-10"] // Match secondary button active — see #35329
+            : COLORS["ui-fleet-black-5"], // Match button hover
         ".actions-dropdown-select__indicator path": {
           stroke: COLORS["ui-fleet-black-75-down"],
         },
