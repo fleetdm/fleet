@@ -17125,7 +17125,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 
 	crossScript := "echo 'cross-platform hello'"
 	crossHash := sha256.Sum256([]byte(crossScript))
-	darwinOnly := []string{"macos"}
+	darwinOnly := []string{"darwin"}
 	crossPkg := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:                      "script://cross-hello.sh",
@@ -17135,7 +17135,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		},
 	}
 
-	// [macos] on a .sh (native=linux): cross-table row for darwin, install_during_setup stays off.
+	// [darwin] on a .sh (native=linux): cross-table row for darwin, install_during_setup stays off.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
 
@@ -17200,7 +17200,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	// alone (native "linux" is present), and the darwin cross-row is
 	// preserved. When SetupExperiencePlatforms is set it's authoritative for
 	// both the native flag and the cross-table.
-	bothPlatforms := []string{"macos", "linux"}
+	bothPlatforms := []string{"darwin", "linux"}
 	crossPkgBoth := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:                      "script://cross-hello.sh",
@@ -17249,18 +17249,18 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBad}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
 	failure = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
-	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platforms" value for a .sh package`)
+	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`)
 
-	// CR-4: multi-installer batch with mixed opt-in. Installer A opts into
-	// [macos]; installer B leaves SetupExperiencePlatforms nil. B's existing
+	// Multi-installer batch with mixed opt-in. Installer A opts into
+	// [darwin]; installer B leaves SetupExperiencePlatforms nil. B's existing
 	// darwin cross-row (seeded via a prior explicit apply) must survive the
 	// batch instead of being wiped by A's opt-in.
 	scriptB := "echo 'sibling'"
 	scriptBHash := sha256.Sum256([]byte(scriptB))
 	// First, give both A and B a darwin cross-row so we have prior state to
 	// preserve.
-	seedA := []string{"macos"}
-	seedB := []string{"macos"}
+	seedA := []string{"darwin"}
+	seedB := []string{"darwin"}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &seedA},
 		{URL: "script://sibling.sh", SHA256: hex.EncodeToString(scriptBHash[:]), InstallScript: scriptB, SetupExperiencePlatforms: &seedB},
