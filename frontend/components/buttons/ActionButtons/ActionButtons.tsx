@@ -112,7 +112,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           <DropdownButton
             showCaret={false}
             options={secondaryActions}
-            variant="inverse"
+            variant="secondary"
           >
             More options <Icon name="more" />
           </DropdownButton>
