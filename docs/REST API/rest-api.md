@@ -6008,7 +6008,7 @@ The host will only return a password if its managed account password status is "
 }
 ```
 
-### Release host from AB
+### Release host from Apple Business
 
 _Available in Fleet Premium_
 
@@ -6020,9 +6020,9 @@ This permanently removes the host from your AB, and cannot be added back automat
 
 #### Parameters
 
-| Name                          | Type    | In    | Description                                                                                        |
-| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
-| ids                           | array   | body  | **Required.** A list of host IDs to release from AB                                                |
+| Name                          | Type    | In    | Description                                                             |
+| ----------------------------- | ------  | ----  | -----------------------------------------------------------             |
+| ids                           | array   | body  | **Required.** A list of host IDs to release from Apple Business         |
 
 #### Example
 
