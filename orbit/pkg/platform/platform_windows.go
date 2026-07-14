@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/digitalocean/go-smbios/smbios"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
 	"github.com/google/uuid"
 	"github.com/hectane/go-acl"
 	"github.com/rs/zerolog/log"
@@ -224,22 +227,87 @@ func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	return processes, nil
 }
 
-// It obtains the BIOS UUID by calling "cmd.exe /c wmic csproduct get UUID" and parsing the results
+// wmiGetSMBiosUUID obtains the BIOS/hardware UUID by querying the WMI
+// Win32_ComputerSystemProduct class directly over COM.
+//
+// This replaces the previous implementation that shelled out to
+// "wmic csproduct get UUID". The wmic.exe CLI is removed as of Windows 11 25H2
+// (https://github.com/fleetdm/fleet/issues/34311), but the underlying WMI
+// service and Win32_ComputerSystemProduct class remain available. Querying WMI
+// over COM returns the exact same UUID string wmic did, so an existing host's
+// UUID — and the SHA256 hash derived from it for Windows MDM local management
+// registration — is unchanged.
 func wmiGetSMBiosUUID() (string, error) {
-	args := []string{"/C", "wmic csproduct get UUID"}
-	out, err := exec.Command("cmd", args...).Output()
+	// COM calls must be issued from a thread that has been initialized with
+	// CoInitializeEx, so pin this goroutine to its OS thread for the duration.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
+		var code uintptr
+		if oleErr, ok := errors.AsType[*ole.OleError](err); ok {
+			code = oleErr.Code()
+		}
+		switch code {
+		case uintptr(windows.S_FALSE):
+			// COM was already initialized on this thread with the same model;
+			// our call still counts as a reference that must be balanced.
+			defer ole.CoUninitialize()
+		case uintptr(windows.RPC_E_CHANGED_MODE):
+			// COM was already initialized with a different concurrency model.
+			// We can still make calls, but must not uninitialize it.
+		default:
+			return "", fmt.Errorf("CoInitializeEx: %w", err)
+		}
+	} else {
+		defer ole.CoUninitialize()
+	}
+
+	unknown, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("create SWbemLocator: %w", err)
 	}
-	uuidOutputStr := string(out)
-	if len(uuidOutputStr) == 0 {
-		return "", errors.New("get UUID: output from wmi is empty")
+	defer unknown.Release()
+
+	locator, err := unknown.QueryInterface(ole.IID_IDispatch)
+	if err != nil {
+		return "", fmt.Errorf("query IDispatch: %w", err)
 	}
-	outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
-	if len(outputByLines) < 2 {
-		return "", errors.New("get UUID: unexpected output")
+	defer locator.Release()
+
+	serviceRaw, err := oleutil.CallMethod(locator, "ConnectServer", nil, `\\.\ROOT\CIMV2`)
+	if err != nil {
+		return "", fmt.Errorf("connect to WMI: %w", err)
 	}
-	return strings.TrimSpace(outputByLines[1]), nil
+	service := serviceRaw.ToIDispatch()
+	defer service.Release()
+
+	resultRaw, err := oleutil.CallMethod(service, "ExecQuery", "SELECT UUID FROM Win32_ComputerSystemProduct")
+	if err != nil {
+		return "", fmt.Errorf("execute WMI query: %w", err)
+	}
+	result := resultRaw.ToIDispatch()
+	defer result.Release()
+
+	itemRaw, err := oleutil.CallMethod(result, "ItemIndex", 0)
+	if err != nil {
+		return "", fmt.Errorf("fetch WMI result row: %w", err)
+	}
+	item := itemRaw.ToIDispatch()
+	defer item.Release()
+
+	uuidVariant, err := oleutil.GetProperty(item, "UUID")
+	if err != nil {
+		return "", fmt.Errorf("read UUID property: %w", err)
+	}
+	defer func() { _ = uuidVariant.Clear() }()
+
+	uuid := strings.TrimSpace(uuidVariant.ToString())
+	if uuid == "" {
+		return "", errors.New("get UUID: WMI returned an empty UUID")
+	}
+
+	return uuid, nil
 }
 
 // It performs a UUID sanity check on a given byte array
