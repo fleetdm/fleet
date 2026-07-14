@@ -250,6 +250,74 @@ func addPathRefs(doc map[string]any) {
 	}
 }
 
+// requiredSources says each software item must specify at least one source key.
+// Fleet enforces this in validation code, not via struct tags, so it's authored
+// explicitly here. `path` is always accepted (the item is defined in another file).
+var requiredSources = []struct {
+	def     string
+	keys    []string
+	message string
+}{
+	{"SoftwarePackageSpec", []string{"url", "hash_sha256", "path"}, "A package must set one of: url, hash_sha256, or path."},
+	{"TeamSpecAppStoreApp", []string{"app_store_id", "path"}, "An app_store_apps entry must set app_store_id (or path)."},
+	{"MaintainedAppSpec", []string{"slug", "path"}, "A fleet_maintained_apps entry must set slug (or path)."},
+}
+
+// strictStringKeys are the source/identifier keys kept as strict `string` (no null,
+// not untyped) so a wrong-typed value like `url: 12345` is caught. They pair with
+// requiredSources and are always present-and-a-string when used. Applied after
+// relaxNulls, which would otherwise drop their type.
+var strictStringKeys = map[string][]string{
+	"SoftwarePackageSpec": {"url", "hash_sha256"},
+	"TeamSpecAppStoreApp": {"app_store_id"},
+	"MaintainedAppSpec":   {"slug"},
+}
+
+func typeSourceKeys(doc map[string]any) {
+	defs, ok := doc["$defs"].(map[string]any)
+	if !ok {
+		return
+	}
+	for def, keys := range strictStringKeys {
+		d, ok := defs[def].(map[string]any)
+		if !ok {
+			continue
+		}
+		props, ok := d["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, k := range keys {
+			if p, ok := props[k].(map[string]any); ok {
+				p["type"] = "string"
+			}
+		}
+	}
+}
+
+// addRequiredSources injects an anyOf of required branches (each with the same
+// errorMessage) so the item is valid when any one source key is present.
+func addRequiredSources(doc map[string]any) {
+	defs, ok := doc["$defs"].(map[string]any)
+	if !ok {
+		return
+	}
+	for _, rs := range requiredSources {
+		def, ok := defs[rs.def].(map[string]any)
+		if !ok {
+			continue
+		}
+		branches := make([]any, 0, len(rs.keys))
+		for _, k := range rs.keys {
+			branches = append(branches, map[string]any{
+				"required":     []any{k},
+				"errorMessage": rs.message,
+			})
+		}
+		def["anyOf"] = branches
+	}
+}
+
 // typeLabel returns a short type name for a property schema, for hover text.
 func typeLabel(s map[string]any) string {
 	if ref, ok := s["$ref"].(string); ok {
@@ -479,7 +547,9 @@ func main() {
 	addTypeDescriptions(doc)
 	addRenameAliases(doc, renames)
 	addPathRefs(doc)
+	addRequiredSources(doc)
 	relaxNulls(doc)
+	typeSourceKeys(doc)
 
 	out, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {

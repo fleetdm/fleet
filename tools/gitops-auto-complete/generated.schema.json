@@ -2144,6 +2144,20 @@
     },
     "MaintainedAppSpec": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or path).",
+          "required": [
+            "slug"
+          ]
+        },
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or path).",
+          "required": [
+            "path"
+          ]
+        }
+      ],
       "properties": {
         "categories": {
           "description": "type: `array\u003cstring\u003e`",
@@ -2219,7 +2233,8 @@
           "description": "type: `string`"
         },
         "slug": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": "string"
         },
         "uninstall_script": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
@@ -2586,6 +2601,26 @@
     },
     "SoftwarePackageSpec": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A package must set one of: url, hash_sha256, or path.",
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "errorMessage": "A package must set one of: url, hash_sha256, or path.",
+          "required": [
+            "hash_sha256"
+          ]
+        },
+        {
+          "errorMessage": "A package must set one of: url, hash_sha256, or path.",
+          "required": [
+            "path"
+          ]
+        }
+      ],
       "properties": {
         "always_download": {
           "description": "AlwaysDownload disables conditional HTTP downloads using ETag headers.\nWhen false (the default), Fleet sends If-None-Match with the stored ETag\non subsequent downloads. If the server returns 304 Not Modified, the\ndownload is skipped entirely.\n\ntype: `boolean`",
@@ -2610,7 +2645,8 @@
           "description": "type: `string`"
         },
         "hash_sha256": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": "string"
         },
         "icon": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
@@ -2688,7 +2724,8 @@
           "description": "type: `TeamSpecSoftwareAsset`"
         },
         "url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": "string"
         },
         "version": {
           "description": "type: `string`"
@@ -2906,9 +2943,24 @@
     },
     "TeamSpecAppStoreApp": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id (or path).",
+          "required": [
+            "app_store_id"
+          ]
+        },
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id (or path).",
+          "required": [
+            "path"
+          ]
+        }
+      ],
       "properties": {
         "app_store_id": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": "string"
         },
         "auto_update_enabled": {
           "description": "Auto-update fields for VPP apps\n\ntype: `boolean`",
