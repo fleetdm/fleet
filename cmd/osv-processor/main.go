@@ -823,14 +823,14 @@ func writeRHELArtifact(path string, artifact *RHELArtifactData) (err error) {
 }
 
 func androidSeverityRank(s string) int {
-	switch s {
-	case "Critical":
+	switch strings.ToLower(s) {
+	case "critical":
 		return 4
-	case "High":
+	case "high":
 		return 3
-	case "Moderate":
+	case "moderate", "medium":
 		return 2
-	case "Low":
+	case "low":
 		return 1
 	default:
 		return 0
@@ -839,9 +839,20 @@ func androidSeverityRank(s string) int {
 
 // isAndroidVersion returns true if the prefix from an Android OSV range event
 // looks like a real Android major version (e.g. "9", "14", "12L", "8.1").
-// Excluding unmatchable prefixes: SoCVersion, Pixel-family specific, Kernel, Bootloader, Platform, Pixel Watch family
+// Must start with a digit and contain only digits, dots, and uppercase letters
+// (for "12L"). This excludes unmatchable prefixes (SoCVersion, Pixel-family
+// specific, Kernel, etc.) and prevents malformed values from being used in
+// output filenames.
 func isAndroidVersion(s string) bool {
-	return len(s) > 0 && s[0] >= '0' && s[0] <= '9'
+	if len(s) == 0 || s[0] < '0' || s[0] > '9' {
+		return false
+	}
+	for _, c := range s {
+		if (c < '0' || c > '9') && c != '.' && (c < 'A' || c > 'Z') {
+			return false
+		}
+	}
+	return true
 }
 
 // parseAndroidRangeEvent parses an Android ECOSYSTEM range event value.
