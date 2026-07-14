@@ -67,6 +67,11 @@ type Stats struct {
 	androidCommandAcks             int
 	androidCertVerifications       int
 	androidErrors                  int
+	pssoRegistrations              int
+	pssoLogins                     int
+	pssoKeyRequests                int
+	pssoKeyExchanges               int
+	pssoErrors                     int
 
 	l sync.Mutex
 }
@@ -430,6 +435,36 @@ func (s *Stats) IncrementAndroidErrors() {
 	s.androidErrors++
 }
 
+func (s *Stats) IncrementPSSORegistrations() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.pssoRegistrations++
+}
+
+func (s *Stats) IncrementPSSOLogins() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.pssoLogins++
+}
+
+func (s *Stats) IncrementPSSOKeyRequests() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.pssoKeyRequests++
+}
+
+func (s *Stats) IncrementPSSOKeyExchanges() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.pssoKeyExchanges++
+}
+
+func (s *Stats) IncrementPSSOErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.pssoErrors++
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -440,7 +475,7 @@ func (s *Stats) Log() {
 	}
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, mdm user enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm user sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, mdm user commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm user errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm user tokens success: %d, ddm tokens errors: %d, ddm user tokens errors: %d, ddm declaration items success: %d, ddm user declaration items success: %d, ddm declaration items errors: %d, ddm user declaration items errors: %d, ddm activation success: %d, ddm user activation success: %d, ddm activation errors: %d, ddm user activation errors: %d, ddm configuration success: %d, ddm user configuration success: %d, ddm configuration errors: %d, ddm user configuration errors: %d, ddm asset success: %d, ddm user asset success: %d, ddm asset errors: %d, ddm user asset errors: %d, ddm status success: %d, ddm user status success: %d, ddm status errors: %d, ddm user status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android cert verifications: %d, android errors: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, mdm user enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm user sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, mdm user commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm user errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm user tokens success: %d, ddm tokens errors: %d, ddm user tokens errors: %d, ddm declaration items success: %d, ddm user declaration items success: %d, ddm declaration items errors: %d, ddm user declaration items errors: %d, ddm activation success: %d, ddm user activation success: %d, ddm activation errors: %d, ddm user activation errors: %d, ddm configuration success: %d, ddm user configuration success: %d, ddm configuration errors: %d, ddm user configuration errors: %d, ddm asset success: %d, ddm user asset success: %d, ddm asset errors: %d, ddm user asset errors: %d, ddm status success: %d, ddm user status success: %d, ddm status errors: %d, ddm user status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android cert verifications: %d, android errors: %d, psso registrations: %d, psso logins: %d, psso key requests: %d, psso key exchanges: %d, psso errors: %d",
 		time.Since(s.StartTime).Round(time.Second),
 		errorRate,
 		s.osqueryEnrollments,
@@ -501,6 +536,11 @@ func (s *Stats) Log() {
 		s.androidCommandAcks,
 		s.androidCertVerifications,
 		s.androidErrors,
+		s.pssoRegistrations,
+		s.pssoLogins,
+		s.pssoKeyRequests,
+		s.pssoKeyExchanges,
+		s.pssoErrors,
 	)
 }
 

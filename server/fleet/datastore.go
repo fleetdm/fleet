@@ -388,9 +388,11 @@ type Datastore interface {
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
-	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
-	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
+	// Returns any resent certificate activities that need to be created.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]ActivityTypeResentCertificate, error)
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
@@ -1788,6 +1790,94 @@ type Datastore interface {
 	// to prevent leakage into the re-animated row on re-enroll. Returns the number
 	// of rows soft-deleted.
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple host name enforcement
+
+	// BulkUpsertHostDeviceNameEnforcement creates (or resets to queued) host-name
+	// enforcement rows for every host in the given scope that is eligible for the
+	// host-name template (Apple platform, enrolled in Fleet's MDM, not a personal
+	// BYOD enrollment). A nil (or 0) teamID scopes to "No team" (team_id IS NULL);
+	// a non-nil teamID scopes to that fleet. Existing rows are reset to a NULL
+	// status so the cron re-enqueues the command. Called when a template is set or
+	// changed.
+	BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error
+
+	// DeleteHostDeviceNameEnforcementForTeam removes all host-name enforcement
+	// rows for hosts in the given scope (nil/0 teamID = "No team"). Called when a
+	// template is cleared; no rename command is sent.
+	DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID *uint) error
+
+	// ListHostsPendingDeviceNameCommand returns up to limit hosts whose
+	// enforcement row is queued (status IS NULL), joined with the host details the
+	// cron needs to resolve the template and enqueue a Settings/DeviceName command.
+	ListHostsPendingDeviceNameCommand(ctx context.Context, limit int) ([]HostDeviceNamePending, error)
+
+	// DeactivateHostDeviceNameCommands marks any still-active DeviceName command
+	// previously enqueued for the given hosts as inactive in the MDM command queue.
+	// The cron calls this before enqueuing fresh rename commands for re-queued rows
+	// so a stale, never-executed command (device offline or replying NotNow) can't
+	// be run out of order after the new one and leave the device on the old name.
+	DeactivateHostDeviceNameCommands(ctx context.Context, hostUUIDs []string) error
+
+	// SetHostDeviceNameStatus records the outcome of processing a host's queued
+	// enforcement row, keyed by host UUID. It sets the row's status, expected
+	// device name, and detail, and sets command_uuid to commandUUID (nil clears
+	// it). The cron uses it two ways:
+	//   - a command was sent: status=pending, commandUUID=<the enqueued command>,
+	//     expectedName=<resolved name>, detail="";
+	//   - no command was sent (resolve outcome): status=verified when the host
+	//     already matches the resolved name, or failed when it can't be applied
+	//     (e.g. exceeds Apple's 63-byte limit), commandUUID=nil so a stale prior
+	//     command result can't overwrite the outcome.
+	SetHostDeviceNameStatus(ctx context.Context, hostUUID string, status MDMDeliveryStatus, commandUUID *string, expectedName, detail string) error
+
+	// UpdateHostDeviceNameStatusFromCommand updates the enforcement row matching
+	// the given command UUID based on the command result: acknowledged=true (the
+	// device applied the rename) moves the row to verifying and also renames the
+	// host in Fleet in the same transaction — setting the host's computer name and
+	// hostname to the row's expected name and updating its display name — so the
+	// row transition and the Fleet-side rename are atomic; acknowledged=false (the
+	// device returned an error) moves the row to failed and records detail.
+	//
+	// A host holds only its most recently sent command UUID (one row per host),
+	// so a result for a superseded command (e.g. the template was re-saved or the
+	// admin clicked Resend before an earlier command acked) will not match and a
+	// not-found error is returned. Callers MUST treat that not-found as "stale
+	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
+	// processes commands FIFO and ends on the latest name, which the matching
+	// (newest) command's result records.
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+
+	// UpdateHostDeviceNameStatusFromReport reconciles the enforcement row for a
+	// host against the name reported by the device (mutating). reportedName is the
+	// host's current name as observed at a name-ingestion site: the DeviceName in
+	// the iOS/iPadOS refetch result, or computer_name from macOS osquery
+	// system_info. It only acts on rows in the verifying or verified state: a
+	// match moves the row to verified; a mismatch moves it to failed (drift). Rows
+	// in any other state, or hosts with no row, are left untouched.
+	//
+	// A mismatch on a row that entered verifying only recently is ignored (the
+	// row stays verifying): a report generated before the device applied the
+	// rename can arrive after the acknowledgment and still carry the old name,
+	// and treating it as drift would strand the host at failed until an explicit
+	// resend. The stale window is the agent's collect-to-submit latency, so a
+	// small fixed grace covers it.
+	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error
+
+	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the
+	// given host, or a not-found error if the host has no row.
+	GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*HostDeviceNameEnforcement, error)
+
+	// ResendHostDeviceName resets a host's enforcement row to a NULL status so the
+	// cron re-enqueues the Settings/DeviceName command on its next run.
+	ResendHostDeviceName(ctx context.Context, hostUUID string) error
+
+	// ReconcileHostDeviceNamesForHosts upserts or deletes enforcement rows for the
+	// given hosts based on each host's current team template: eligible hosts whose
+	// team has a non-empty template get a queued row; all others have their row
+	// removed. Called after host transfer or enrollment.
+	ReconcileHostDeviceNamesForHosts(ctx context.Context, hostIDs []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Managed local account
@@ -3291,9 +3381,9 @@ type Datastore interface {
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
-	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
-	DeleteScimUser(ctx context.Context, id uint) error
+	DeleteScimUser(ctx context.Context, id uint) ([]ActivityTypeResentCertificate, error)
 	// ListScimUsers retrieves a list of SCIM users with optional filtering
 	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 	// CreateScimGroup creates a new SCIM group in the database

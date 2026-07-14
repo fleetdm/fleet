@@ -12,6 +12,19 @@ APPEX_DIR="$CONTENTS_DIR/PlugIns/FleetPSSOExtension.appex"
 APPEX_CONTENTS_DIR="$APPEX_DIR/Contents"
 APPEX_MACOS_DIR="$APPEX_CONTENTS_DIR/MacOS"
 
+# --- Identity & signing (all optional; production defaults) -----------------
+# For local development a contributor signs under their own (non-production)
+# Apple Developer team, which owns different bundle IDs than Fleet's. Override
+# these to produce a dev-signed bundle. Left unset, the script behaves exactly
+# as before: a compile-only bundle that CI signs separately with Fleet's certs.
+# See the "Local PSSO development" contributor guide.
+APP_BUNDLE_ID="${APP_BUNDLE_ID:-com.fleetdm.fleet-desktop}"
+EXT_BUNDLE_ID="${EXT_BUNDLE_ID:-com.fleetdm.fleet-desktop.pssoextension}"
+TEAM_ID="${TEAM_ID:-8VBZ3948LU}"
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-}" # e.g. "Apple Development: you@example.com (XXXXXXXXXX)"; empty => no signing
+APP_PROFILE="${APP_PROFILE:-}"           # path to the host-app .provisionprofile (required to sign)
+EXT_PROFILE="${EXT_PROFILE:-}"           # path to the extension .provisionprofile (required to sign)
+
 echo "Building Fleet Desktop..."
 
 rm -rf "$BUILD_DIR"
@@ -41,6 +54,7 @@ rm "$BUILD_DIR/FleetDesktop-arm64" "$BUILD_DIR/FleetDesktop-x86_64"
 
 # Copy Info.plist
 cp "$SRC_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $APP_BUNDLE_ID" "$CONTENTS_DIR/Info.plist"
 
 # Copy app icon and Fleet logo into Resources
 mkdir -p "$CONTENTS_DIR/Resources"
@@ -82,12 +96,48 @@ lipo -create \
 rm "$BUILD_DIR/FleetPSSOExtension-arm64" "$BUILD_DIR/FleetPSSOExtension-x86_64"
 
 cp "$EXT_SRC_DIR/Info.plist" "$APPEX_CONTENTS_DIR/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $EXT_BUNDLE_ID" "$APPEX_CONTENTS_DIR/Info.plist"
 
 # Keep the embedded extension's version in lockstep with the host app.
 APP_SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS_DIR/Info.plist")
 APP_BUILD_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS_DIR/Info.plist")
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_SHORT_VERSION" "$APPEX_CONTENTS_DIR/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_BUILD_VERSION" "$APPEX_CONTENTS_DIR/Info.plist"
+
+# --- Optional code signing (local development) ------------------------------
+# The associated-domains entitlements are Apple-managed; codesign only honors
+# them with a matching provisioning profile embedded in the bundle. This mirrors
+# CI's inside-out signing (extension first, then host app), but with the dev
+# team's identity, bundle IDs, and profiles.
+if [ -n "$SIGNING_IDENTITY" ]; then
+    echo "Signing under team $TEAM_ID with identity: $SIGNING_IDENTITY"
+    if [ -z "$APP_PROFILE" ] || [ -z "$EXT_PROFILE" ]; then
+        echo "ERROR: SIGNING_IDENTITY is set but APP_PROFILE / EXT_PROFILE are not." >&2
+        echo "Signing without an embedded profile leaves the restricted associated-domains" >&2
+        echo "entitlements unauthorized, so Platform SSO will not engage." >&2
+        exit 1
+    fi
+
+    # Substitute the dev team + bundle IDs into throwaway copies of the committed
+    # entitlements so the sealed application-identifier matches the signed binary.
+    APP_ENT="$BUILD_DIR/FleetDesktop.dev.entitlements"
+    EXT_ENT="$BUILD_DIR/FleetPSSOExtension.dev.entitlements"
+    cp "$SRC_DIR/FleetDesktop.entitlements" "$APP_ENT"
+    cp "$EXT_SRC_DIR/FleetPSSOExtension.entitlements" "$EXT_ENT"
+    /usr/libexec/PlistBuddy -c "Set :com.apple.application-identifier $TEAM_ID.$APP_BUNDLE_ID" "$APP_ENT"
+    /usr/libexec/PlistBuddy -c "Set :com.apple.developer.team-identifier $TEAM_ID" "$APP_ENT"
+    /usr/libexec/PlistBuddy -c "Set :com.apple.application-identifier $TEAM_ID.$EXT_BUNDLE_ID" "$EXT_ENT"
+    /usr/libexec/PlistBuddy -c "Set :com.apple.developer.team-identifier $TEAM_ID" "$EXT_ENT"
+
+    cp "$EXT_PROFILE" "$APPEX_CONTENTS_DIR/embedded.provisionprofile"
+    cp "$APP_PROFILE" "$CONTENTS_DIR/embedded.provisionprofile"
+
+    codesign --force --options runtime --sign "$SIGNING_IDENTITY" \
+        --entitlements "$EXT_ENT" "$APPEX_DIR"
+    codesign --force --options runtime --sign "$SIGNING_IDENTITY" \
+        --entitlements "$APP_ENT" "$APP_DIR"
+    codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+fi
 
 echo "Build complete: $APP_DIR"
 echo "  embedded extension: $APPEX_DIR"

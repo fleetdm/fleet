@@ -477,6 +477,19 @@ type agent struct {
 	isMDMUserEnrolled   bool
 	isMDMUserEnrolledMu sync.Mutex
 
+	// pssoDevice simulates the macOS Platform SSO extension. It is non-nil only
+	// for the subset of macOS MDM agents selected for PSSO (see pssoParams.prob)
+	// and rides on macMDMClient (sharing its UUID). pssoParams holds its config.
+	pssoDevice *mdmtest.TestApplePSSODevice
+	pssoParams pssoParams
+	// pssoTokenReady is closed (once) by the MDM loop when it extracts the
+	// Fleet-signed registration token from a delivered PSSO profile. The PSSO
+	// loop blocks on it before registering. Non-nil only when pssoDevice is set.
+	pssoTokenReady chan struct{}
+	// pssoTokenCaptured short-circuits token extraction once it has succeeded.
+	// Only the (single) MDM loop goroutine touches it.
+	pssoTokenCaptured atomic.Bool
+
 	// Note that the following ddm variables do not need a mutex because they are only
 	// accessed in the MDM goroutine (and then only in the DDM handling function), and never
 	// read/written concurrently.
@@ -612,6 +625,28 @@ type softwareInstaller struct {
 	mu                     *sync.Mutex
 }
 
+// pssoParams configures the Apple Platform SSO (PSSO) simulation for macOS MDM
+// agents. prob selects which subset of enrolled Macs exercise PSSO; the rest of
+// the fields drive the per-device state machine (see runMacosPSSOLoop).
+type pssoParams struct {
+	// prob is the fraction of macOS MDM agents that also simulate PSSO [0, 1].
+	prob float64
+	// clientID is the IdP/extension client ID. It must match the Fleet server's
+	// account provisioning config. Empty disables PSSO regardless of prob.
+	clientID string
+	// username and password are the IdP credentials used for logins. They must
+	// be accepted by the IdP the Fleet server proxies to.
+	username string
+	password string
+	// interval is the window over which initial registrations are staggered and
+	// recurring logins/key operations are spread and repeated.
+	interval time.Duration
+	// loginProb and keyProb gate a login and a key request/exchange,
+	// respectively, during each interval after the initial registration.
+	loginProb float64
+	keyProb   float64
+}
+
 func newAgent(
 	agentIndex int,
 	hostCount int,
@@ -645,6 +680,7 @@ func newAgent(
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	psso pssoParams,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -759,6 +795,21 @@ func newAgent(
 		agent.winMDMWake = make(chan struct{}, 1)
 	}
 
+	// A subset of macOS MDM agents also simulate Platform SSO. The PSSO device
+	// rides on the MDM client (it reuses its UUID and reads the registration
+	// token out of an MDM-delivered profile), so it only makes sense when the
+	// agent is an enrolled Mac.
+	if macMDMClient != nil && psso.clientID != "" && rand.Float64() < psso.prob {
+		pssoDevice, err := mdmtest.NewApplePSSODevice(macMDMClient, serverAddress, psso.clientID)
+		if err != nil {
+			log.Printf("agent %d: creating PSSO device: %s", agentIndex, err)
+		} else {
+			agent.pssoDevice = pssoDevice
+			agent.pssoParams = psso
+			agent.pssoTokenReady = make(chan struct{})
+		}
+	}
+
 	// Initialize host identity client
 	agent.hostIdentityClient = hostidentity.NewClient(hostidentity.Config{
 		ServerAddress: serverAddress,
@@ -871,6 +922,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		}
 
 		go a.runMacosMDMLoop()
+		if a.pssoDevice != nil {
+			go a.runMacosPSSOLoop()
+		}
 	}
 
 	//
@@ -1258,6 +1312,20 @@ func (a *agent) runMacosMDMLoop() {
 						break INNER_FOR_LOOP
 					}
 				} else {
+					// The profile installed successfully. If it's the PSSO
+					// profile, capture the Fleet-signed registration token it
+					// carries and unblock the PSSO loop — the token only reaches
+					// the device this way, so this is the trigger for device
+					// registration. Done before Acknowledge, which advances
+					// mdmCommandPayload to the next command. A profile the device
+					// reports as failed (above) must not trigger registration.
+					if a.pssoDevice != nil && !a.pssoTokenCaptured.Load() {
+						if tok, terr := a.pssoDevice.RegistrationTokenFromCommand(mdmCommandPayload); terr == nil && tok != "" {
+							a.pssoTokenCaptured.Store(true)
+							close(a.pssoTokenReady)
+						}
+					}
+
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
 						log.Printf("MDM Acknowledge request failed: %s", err)
@@ -1484,6 +1552,115 @@ func (a *agent) runMacosMDMLoop() {
 			}
 		}
 	}
+}
+
+// runMacosPSSOLoop simulates a macOS Platform SSO extension for the subset of
+// MDM agents selected for PSSO. It waits for the Fleet-signed registration token
+// to arrive in an MDM-delivered profile, registers the device once, then mimics
+// real macOS by spreading occasional logins and offline-unlock key operations
+// across a long interval rather than checking in every tick.
+func (a *agent) runMacosPSSOLoop() {
+	// The registration token only reaches the device inside an MDM-delivered
+	// PSSO profile. Until the operator uploads that profile and the server
+	// reconciles it onto this host, there is nothing to do.
+	<-a.pssoTokenReady
+
+	// Stagger initial device registrations across the interval so many agents
+	// coming online together don't register in lockstep.
+	time.Sleep(a.pssoJitter())
+
+	if err := a.pssoRegister(); err != nil {
+		return
+	}
+	// A freshly registered device does one login and one key request/exchange
+	// during setup ("one of each").
+	a.pssoLogin()
+	a.pssoKeyRequestExchange()
+
+	// With no interval configured there is no recurring activity to simulate.
+	if a.pssoParams.interval <= 0 {
+		return
+	}
+	for {
+		a.runMacosPSSOInterval()
+	}
+}
+
+// runMacosPSSOInterval performs at most one login and one key request/exchange,
+// each gated by its own probability and scheduled at an independent random
+// offset within the interval so traffic from many agents doesn't align on
+// interval boundaries. It always consumes ~one interval of wall-clock so the
+// effective rate stays close to once per interval.
+func (a *agent) runMacosPSSOInterval() {
+	start := time.Now()
+
+	type pssoStep struct {
+		at time.Duration
+		fn func()
+	}
+	var steps []pssoStep
+	if rand.Float64() < a.pssoParams.loginProb {
+		steps = append(steps, pssoStep{at: a.pssoJitter(), fn: a.pssoLogin})
+	}
+	if rand.Float64() < a.pssoParams.keyProb {
+		steps = append(steps, pssoStep{at: a.pssoJitter(), fn: a.pssoKeyRequestExchange})
+	}
+	sort.Slice(steps, func(i, j int) bool { return steps[i].at < steps[j].at })
+
+	for _, s := range steps {
+		if d := s.at - time.Since(start); d > 0 {
+			time.Sleep(d)
+		}
+		s.fn()
+	}
+	if d := a.pssoParams.interval - time.Since(start); d > 0 {
+		time.Sleep(d)
+	}
+}
+
+// pssoJitter returns a random offset in [0, interval).
+func (a *agent) pssoJitter() time.Duration {
+	if a.pssoParams.interval <= 0 {
+		return 0
+	}
+	return time.Duration(rand.Int63n(int64(a.pssoParams.interval)))
+}
+
+func (a *agent) pssoRegister() error {
+	if err := a.pssoDevice.Register(); err != nil {
+		log.Printf("PSSO registration failed: %s", err)
+		a.stats.IncrementPSSOErrors()
+		return err
+	}
+	a.stats.IncrementPSSORegistrations()
+	return nil
+}
+
+func (a *agent) pssoLogin() {
+	if _, err := a.pssoDevice.Login(a.pssoParams.username, a.pssoParams.password, mdmtest.PSSOLoginOptions{}); err != nil {
+		log.Printf("PSSO login failed: %s", err)
+		a.stats.IncrementPSSOErrors()
+		return
+	}
+	a.stats.IncrementPSSOLogins()
+}
+
+// pssoKeyRequestExchange runs a key request followed by the key exchange it
+// enables (the exchange echoes the context from the request), mirroring the
+// offline-unlock key provisioning a real device performs as a unit.
+func (a *agent) pssoKeyRequestExchange() {
+	if _, err := a.pssoDevice.KeyRequest(); err != nil {
+		log.Printf("PSSO key request failed: %s", err)
+		a.stats.IncrementPSSOErrors()
+		return
+	}
+	a.stats.IncrementPSSOKeyRequests()
+	if _, err := a.pssoDevice.KeyExchange(); err != nil {
+		log.Printf("PSSO key exchange failed: %s", err)
+		a.stats.IncrementPSSOErrors()
+		return
+	}
+	a.stats.IncrementPSSOKeyExchanges()
 }
 
 func (a *agent) runWindowsMDMLoop() {
@@ -3696,6 +3873,14 @@ func main() {
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 
+		mdmPSSOProb      = flag.Float64("mdm_psso_prob", 0.0, "Probability of an MDM-enrolled macOS host also simulating Apple Platform SSO [0, 1]. Requires the Fleet server to have account provisioning configured and the PSSO profile assigned to the host")
+		mdmPSSOClientID  = flag.String("mdm_psso_client_id", "", "Apple Platform SSO IdP/extension client ID. Must match the Fleet server's account provisioning config; PSSO is skipped when empty")
+		mdmPSSOUsername  = flag.String("mdm_psso_username", "", "Username used for Platform SSO logins (must be accepted by the IdP the Fleet server proxies to)")
+		mdmPSSOPassword  = flag.String("mdm_psso_password", "", "Password used for Platform SSO logins")
+		mdmPSSOInterval  = flag.Duration("mdm_psso_interval", 4*time.Hour, "Interval over which Platform SSO device registrations are staggered and, afterwards, logins/key operations recur (spread within each interval)")
+		mdmPSSOLoginProb = flag.Float64("mdm_psso_login_prob", 1.0, "Probability of a Platform SSO login during each interval after the initial registration [0, 1]")
+		mdmPSSOKeyProb   = flag.Float64("mdm_psso_key_prob", 0.1, "Probability of a Platform SSO key request/exchange during each interval after the initial registration [0, 1]")
+
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
 
@@ -3967,6 +4152,15 @@ func main() {
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			pssoParams{
+				prob:      *mdmPSSOProb,
+				clientID:  *mdmPSSOClientID,
+				username:  *mdmPSSOUsername,
+				password:  *mdmPSSOPassword,
+				interval:  *mdmPSSOInterval,
+				loginProb: *mdmPSSOLoginProb,
+				keyProb:   *mdmPSSOKeyProb,
+			},
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

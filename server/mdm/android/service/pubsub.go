@@ -1067,7 +1067,8 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 
-	svc.logger.DebugContext(ctx, "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+	svc.logger.DebugContext(ctx, "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion,
+		"non_compliance_count", len(device.NonComplianceDetails))
 
 	// Get all host_mdm_android_profiles that are pending or failed due to non compliance reasons,
 	// and included_in_policy_version <= device.AppliedPolicyVersion. That way we can either fully
@@ -1079,6 +1080,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		svc.logger.ErrorContext(ctx, "error getting pending profiles", "err", err)
 		return
 	}
+
+	svc.logger.DebugContext(ctx, "pending install profiles for verification", "host_uuid", hostUUID,
+		"pending_count", len(pendingInstallProfiles), "applied_policy_version", appliedPolicyVersion)
 
 	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
@@ -1119,6 +1123,23 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 					policyRequestUUID = *profile.PolicyRequestUUID
 				}
 			}
+		}
+
+		if policyRequestUUID == "" {
+			var nilPolicyReqCount, nilVersionCount int
+			for _, p := range pendingInstallProfiles {
+				if p.PolicyRequestUUID == nil {
+					nilPolicyReqCount++
+				}
+				if p.IncludedInPolicyVersion == nil {
+					nilVersionCount++
+				}
+			}
+			svc.logger.WarnContext(ctx, "no matching policy request UUID found for non-compliance verification",
+				"host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion,
+				"pending_profiles", len(pendingInstallProfiles),
+				"nil_policy_request_uuid", nilPolicyReqCount, "nil_included_in_policy_version", nilVersionCount,
+				"non_compliance_count", len(device.NonComplianceDetails))
 		}
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.

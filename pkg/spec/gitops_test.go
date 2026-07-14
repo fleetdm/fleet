@@ -409,6 +409,49 @@ func TestValidGitOpsYaml(t *testing.T) {
 	}
 }
 
+func TestGitOpsHostNameTemplate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid string parses", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template: \"iPad $FLEET_VAR_HOST_HARDWARE_SERIAL\"\n"
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		nameTemplate, ok := gitops.Controls.NameTemplate.(string)
+		require.True(t, ok, "name_template should be a string")
+		require.Equal(t, "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL", nameTemplate)
+	})
+
+	t.Run("integer value rejected", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template: 42\n"
+		_, err := gitOpsFromString(t, config)
+		require.ErrorContains(t, err, "name_template")
+		require.ErrorContains(t, err, "must be a string")
+	})
+
+	t.Run("map value rejected", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template:\n    foo: bar\n"
+		_, err := gitOpsFromString(t, config)
+		require.ErrorContains(t, err, "name_template")
+		require.ErrorContains(t, err, "must be a string")
+	})
+
+	t.Run("null value treated as absent", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template:\n"
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		require.Nil(t, gitops.Controls.NameTemplate)
+	})
+
+	t.Run("Set returns true when only name_template present", func(t *testing.T) {
+		c := GitOpsControls{NameTemplate: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"}
+		require.True(t, c.Set())
+	})
+}
+
 func TestDuplicatePolicyNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
