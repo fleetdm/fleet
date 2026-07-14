@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.4.1",
+      "version": "6.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.meetfranz.franz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.meetfranz.franz' AND version_compare(bundle_short_version, '6.4.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.meetfranz.franz' AND version_compare(bundle_short_version, '6.5.0') < 0);"
       },
-      "installer_url": "https://github.com/meetfranz/franz-6/releases/download/v6.4.1/Franz-arm64.dmg",
+      "installer_url": "https://github.com/meetfranz/franz-6/releases/download/v6.5.0/Franz-arm64.dmg",
       "install_script_ref": "8c009aad",
       "uninstall_script_ref": "acd2d9b1",
-      "sha256": "473baf26b35990815e499e73726626207f8d3ef9fa50766d7eb7280899a07368",
+      "sha256": "e19518c8d419fe5324201a43596c48b692e69a72bc455e474955a84a7cc8465b",
       "default_categories": [
         "Communication"
       ]
