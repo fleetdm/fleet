@@ -564,6 +564,7 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 
 type UploadSoftwareInstallerPayload struct {
 	TeamID               *uint
+	TitleID              *uint
 	InstallScript        string
 	PreInstallQuery      string
 	PostInstallScript    string

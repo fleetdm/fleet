@@ -71,6 +71,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
+		{"SoftwareInstallerTitleIDValidation", testSoftwareInstallerTitleIDValidation},
 		{"MatchOrCreateSoftwareInstallerDuplicateConflicts", testMatchOrCreateSoftwareInstallerDuplicateConflicts},
 		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 		{"GetSoftwareTitlesForInstallAll", testGetSoftwareTitlesForInstallAll},
@@ -6055,6 +6056,78 @@ func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
 		`, v2ID)
 	})
 	require.Zero(t, pending, "re-submitting the active FMA version must cancel its pending installs")
+}
+
+func testSoftwareInstallerTitleIDValidation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	payload := func(title, bundleID, filename, storageID string) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			StorageID:        storageID,
+			Filename:         filename,
+			Title:            title,
+			BundleIdentifier: bundleID,
+			Extension:        "pkg",
+			Source:           "apps",
+			Platform:         "darwin",
+			Version:          "1.0",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team.ID,
+		}
+	}
+
+	_, targetTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload("Target", "com.example.target", "target.pkg", "target-v1"))
+	require.NoError(t, err)
+	_, otherTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload("Other", "com.example.other", "other.pkg", "other-v1"))
+	require.NoError(t, err)
+
+	matching := payload("Target", "com.example.target", "target-v2.pkg", "target-v2")
+	matching.TitleID = &targetTitleID
+	_, gotTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, matching)
+	require.NoError(t, err)
+	require.Equal(t, targetTitleID, gotTitleID)
+
+	rowCounts := func() (titles, installers int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &titles, `SELECT COUNT(*) FROM software_titles`); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &installers, `SELECT COUNT(*) FROM software_installers`)
+		})
+		return titles, installers
+	}
+
+	assertRejectedWithoutWrites := func(p *fleet.UploadSoftwareInstallerPayload) {
+		t.Helper()
+		beforeTitles, beforeInstallers := rowCounts()
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p)
+		require.ErrorContains(t, err, fmt.Sprintf(fleet.SoftwarePackageTitleMismatchMessage, p.Filename))
+		afterTitles, afterInstallers := rowCounts()
+		require.Equal(t, beforeTitles, afterTitles)
+		require.Equal(t, beforeInstallers, afterInstallers)
+	}
+
+	mismatching := payload("Target", "com.example.target", "target-mismatch.pkg", "target-mismatch")
+	mismatching.TitleID = &otherTitleID
+	assertRejectedWithoutWrites(mismatching)
+
+	nonexistentTitleID := uint(999999)
+	nonexistent := payload("Target", "com.example.target", "target-nonexistent.pkg", "target-nonexistent")
+	nonexistent.TitleID = &nonexistentTitleID
+	assertRejectedWithoutWrites(nonexistent)
+
+	noResolvedTitle := payload("New", "com.example.new", "new.pkg", "new")
+	noResolvedTitle.TitleID = &targetTitleID
+	assertRejectedWithoutWrites(noResolvedTitle)
+
+	withoutTitleID := payload("Unspecified", "com.example.unspecified", "unspecified.pkg", "unspecified")
+	_, newTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, withoutTitleID)
+	require.NoError(t, err)
+	require.NotZero(t, newTitleID)
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Datastore) {
