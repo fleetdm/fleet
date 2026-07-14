@@ -3516,13 +3516,6 @@
       "description": "Garmin Express is an update maps and software, sync with Garmin Connect and register your device."
     },
     {
-      "name": "Garmin Express",
-      "slug": "garmin-express/windows",
-      "platform": "windows",
-      "unique_identifier": "Garmin Express",
-      "description": ""
-    },
-    {
       "name": "Gather Town",
       "slug": "gather/darwin",
       "platform": "darwin",
@@ -3640,13 +3633,6 @@
       "platform": "darwin",
       "unique_identifier": "ag.zigz.GitFinder",
       "description": "GitFinder is a git client with Finder integration."
-    },
-    {
-      "name": "GitHub CLI",
-      "slug": "github-cli/windows",
-      "platform": "windows",
-      "unique_identifier": "GitHub CLI",
-      "description": ""
     },
     {
       "name": "GitHub Copilot for Xcode",
@@ -3782,13 +3768,6 @@
       "description": "GoodSync is a file synchronisation and backup software."
     },
     {
-      "name": "GoodSync",
-      "slug": "goodsync/windows",
-      "platform": "windows",
-      "unique_identifier": "GoodSync",
-      "description": ""
-    },
-    {
       "name": "Google Ads Editor",
       "slug": "google-ads-editor/windows",
       "platform": "windows",
@@ -3873,13 +3852,6 @@
       "description": "GPG Suite is a collection of tools to protect your emails and files."
     },
     {
-      "name": "Gpg4win",
-      "slug": "gpg4win/windows",
-      "platform": "windows",
-      "unique_identifier": "Gpg4win",
-      "description": ""
-    },
-    {
       "name": "gPodder",
       "slug": "gpodder/darwin",
       "platform": "darwin",
@@ -3955,13 +3927,6 @@
       "platform": "windows",
       "unique_identifier": "Groove OmniDialer",
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
-    },
-    {
-      "name": "gsudo",
-      "slug": "gsudo/windows",
-      "platform": "windows",
-      "unique_identifier": "gsudo",
-      "description": ""
     },
     {
       "name": "Nota Gyazo GIF",
@@ -7896,13 +7861,6 @@
       "platform": "darwin",
       "unique_identifier": "com.makkuk.Stillcolor",
       "description": "Stillcolor is a tool to disable temporal dithering on Apple Silicon Macs."
-    },
-    {
-      "name": "Streamlabs Desktop",
-      "slug": "streamlabs/windows",
-      "platform": "windows",
-      "unique_identifier": "Streamlabs Desktop",
-      "description": ""
     },
     {
       "name": "Stretchly",

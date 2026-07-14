@@ -429,7 +429,6 @@ import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
 import Git from "./Git";
 import Gitfinder from "./Gitfinder";
-import GithubCli from "./GithubCli";
 import GithubCopilotForXcode from "./GithubCopilotForXcode";
 import GitHubDesktop from "./GitHubDesktop";
 import Gitify from "./Gitify";
@@ -452,7 +451,6 @@ import GoogleEarthPro from "./GoogleEarthPro";
 import GoogleGemini from "./GoogleGemini";
 import GoogleWebDesigner from "./GoogleWebDesigner";
 import GoToMeeting from "./GoToMeeting";
-import Gpg4Win from "./Gpg4Win";
 import GpgKeychain from "./GpgKeychain";
 import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
@@ -462,7 +460,6 @@ import Graphviz from "./Graphviz";
 import Grepwin from "./Grepwin";
 import Grids from "./Grids";
 import GrooveOmniDialer from "./GrooveOmniDialer";
-import Gsudo from "./Gsudo";
 import Gyazo from "./Gyazo";
 import Hammerspoon from "./Hammerspoon";
 import HandbrakeApp from "./HandbrakeApp";
@@ -933,7 +930,6 @@ import Steam from "./Steam";
 import Steermouse from "./Steermouse";
 import Stellarium from "./Stellarium";
 import Stillcolor from "./Stillcolor";
-import Streamlabs from "./Streamlabs";
 import Stretchly from "./Stretchly";
 import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
@@ -1551,7 +1547,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gimp: Gimp,
   git: Git,
   gitfinder: Gitfinder,
-  "github cli": GithubCli,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
   gitify: Gitify,
@@ -1579,7 +1574,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
-  gpg4win: Gpg4Win,
   gpodder: Gpodder,
   grammarly: GrammarlyDesktop,
   grandperspective: Grandperspective,
@@ -1589,7 +1583,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   grepwin: Grepwin,
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
-  gsudo: Gsudo,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
   hazel: Hazel,
@@ -2066,7 +2059,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   stellarium: Stellarium,
   stillcolor: Stillcolor,
   "stream deck": ElgatoStreamDeck,
-  "streamlabs desktop": Streamlabs,
   stretchly: Stretchly,
   "sublime merge": SublimeMerge,
   "sublime text": SublimeText,
