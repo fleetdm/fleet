@@ -1,0 +1,2717 @@
+{
+  "$defs": {
+    "ActivitiesWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`"
+        },
+        "enable_activities_webhook": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ActivityExpirySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_expiry_enabled": {
+          "description": "type: `boolean`"
+        },
+        "activity_expiry_window": {
+          "description": "type: `integer`"
+        },
+        "preserve_host_activities_on_reenrollment": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AgentOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "command_line_flags": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "config": {
+          "description": "type: `object`",
+          "properties": {
+            "options": {
+              "additionalProperties": false,
+              "description": "type: `object`",
+              "properties": {
+                "audit_allow_config": {
+                  "description": "type: `boolean`"
+                },
+                "audit_allow_fim_events": {
+                  "description": "type: `boolean`"
+                },
+                "audit_allow_process_events": {
+                  "description": "type: `boolean`"
+                },
+                "audit_allow_sockets": {
+                  "description": "type: `boolean`"
+                },
+                "audit_allow_user_events": {
+                  "description": "type: `boolean`"
+                },
+                "augeas_lenses": {
+                  "description": "type: `string`"
+                },
+                "aws_access_key_id": {
+                  "description": "type: `string`"
+                },
+                "aws_debug": {
+                  "description": "type: `boolean`"
+                },
+                "aws_disable_imdsv1_fallback": {
+                  "description": "type: `boolean`"
+                },
+                "aws_enable_proxy": {
+                  "description": "type: `boolean`"
+                },
+                "aws_firehose_endpoint": {
+                  "description": "type: `string`"
+                },
+                "aws_firehose_period": {
+                  "description": "type: `integer`"
+                },
+                "aws_firehose_region": {
+                  "description": "type: `string`"
+                },
+                "aws_firehose_stream": {
+                  "description": "type: `string`"
+                },
+                "aws_imdsv2_request_attempts": {
+                  "description": "type: `integer`"
+                },
+                "aws_imdsv2_request_interval": {
+                  "description": "type: `integer`"
+                },
+                "aws_kinesis_disable_log_status": {
+                  "description": "type: `boolean`"
+                },
+                "aws_kinesis_endpoint": {
+                  "description": "type: `string`"
+                },
+                "aws_kinesis_period": {
+                  "description": "type: `integer`"
+                },
+                "aws_kinesis_random_partition_key": {
+                  "description": "type: `boolean`"
+                },
+                "aws_kinesis_region": {
+                  "description": "type: `string`"
+                },
+                "aws_kinesis_stream": {
+                  "description": "type: `string`"
+                },
+                "aws_profile_name": {
+                  "description": "type: `string`"
+                },
+                "aws_proxy_host": {
+                  "description": "type: `string`"
+                },
+                "aws_proxy_password": {
+                  "description": "type: `string`"
+                },
+                "aws_proxy_port": {
+                  "description": "type: `integer`"
+                },
+                "aws_proxy_scheme": {
+                  "description": "type: `string`"
+                },
+                "aws_proxy_username": {
+                  "description": "type: `string`"
+                },
+                "aws_region": {
+                  "description": "type: `string`"
+                },
+                "aws_secret_access_key": {
+                  "description": "type: `string`"
+                },
+                "aws_session_token": {
+                  "description": "type: `string`"
+                },
+                "aws_sts_arn_role": {
+                  "description": "type: `string`"
+                },
+                "aws_sts_region": {
+                  "description": "type: `string`"
+                },
+                "aws_sts_session_name": {
+                  "description": "type: `string`"
+                },
+                "aws_sts_timeout": {
+                  "description": "type: `integer`"
+                },
+                "buffered_log_max": {
+                  "description": "type: `integer`"
+                },
+                "decorations_top_level": {
+                  "description": "type: `boolean`"
+                },
+                "disable_audit": {
+                  "description": "type: `boolean`"
+                },
+                "disable_caching": {
+                  "description": "type: `boolean`"
+                },
+                "disable_database": {
+                  "description": "type: `boolean`"
+                },
+                "disable_decorators": {
+                  "description": "type: `boolean`"
+                },
+                "disable_distributed": {
+                  "description": "type: `boolean`"
+                },
+                "disable_events": {
+                  "description": "type: `boolean`"
+                },
+                "disable_hash_cache": {
+                  "description": "type: `boolean`"
+                },
+                "disable_logging": {
+                  "description": "type: `boolean`"
+                },
+                "distributed_denylist_duration": {
+                  "description": "type: `integer`"
+                },
+                "distributed_interval": {
+                  "description": "type: `integer`"
+                },
+                "distributed_loginfo": {
+                  "description": "type: `boolean`"
+                },
+                "distributed_plugin": {
+                  "description": "type: `string`"
+                },
+                "distributed_tls_max_attempts": {
+                  "description": "type: `integer`"
+                },
+                "distributed_tls_read_endpoint": {
+                  "description": "type: `string`"
+                },
+                "distributed_tls_write_endpoint": {
+                  "description": "type: `string`"
+                },
+                "dns_resolver_refresh_interval": {
+                  "description": "type: `integer`"
+                },
+                "docker_socket": {
+                  "description": "type: `string`"
+                },
+                "enable_file_events": {
+                  "description": "type: `boolean`"
+                },
+                "enable_foreign": {
+                  "description": "type: `boolean`"
+                },
+                "enable_numeric_monitoring": {
+                  "description": "type: `boolean`"
+                },
+                "ephemeral": {
+                  "description": "type: `boolean`"
+                },
+                "events_expiry": {
+                  "description": "type: `integer`"
+                },
+                "events_max": {
+                  "description": "type: `integer`"
+                },
+                "events_optimize": {
+                  "description": "type: `boolean`"
+                },
+                "experiment_list": {
+                  "description": "type: `string`"
+                },
+                "extensions_default_index": {
+                  "description": "type: `boolean`"
+                },
+                "hash_cache_max": {
+                  "description": "type: `integer`"
+                },
+                "host_identifier": {
+                  "description": "type: `string`"
+                },
+                "ignore_table_exceptions": {
+                  "description": "type: `boolean`"
+                },
+                "logger_event_type": {
+                  "description": "type: `boolean`"
+                },
+                "logger_kafka_acks": {
+                  "description": "type: `string`"
+                },
+                "logger_kafka_brokers": {
+                  "description": "type: `string`"
+                },
+                "logger_kafka_compression": {
+                  "description": "type: `string`"
+                },
+                "logger_kafka_topic": {
+                  "description": "type: `string`"
+                },
+                "logger_min_status": {
+                  "description": "type: `integer`"
+                },
+                "logger_min_stderr": {
+                  "description": "type: `integer`"
+                },
+                "logger_numerics": {
+                  "description": "type: `boolean`"
+                },
+                "logger_path": {
+                  "description": "type: `string`"
+                },
+                "logger_rotate": {
+                  "description": "type: `boolean`"
+                },
+                "logger_rotate_max_files": {
+                  "description": "type: `integer`"
+                },
+                "logger_rotate_size": {
+                  "description": "type: `integer`"
+                },
+                "logger_snapshot_event_type": {
+                  "description": "type: `boolean`"
+                },
+                "logger_syslog_facility": {
+                  "description": "type: `integer`"
+                },
+                "logger_syslog_prepend_cee": {
+                  "description": "type: `boolean`"
+                },
+                "logger_tls_backoff_max": {
+                  "description": "type: `integer`"
+                },
+                "logger_tls_compress": {
+                  "description": "type: `boolean`"
+                },
+                "logger_tls_endpoint": {
+                  "description": "type: `string`"
+                },
+                "logger_tls_max_lines": {
+                  "description": "type: `integer`"
+                },
+                "logger_tls_max_linesize": {
+                  "description": "type: `integer`"
+                },
+                "logger_tls_period": {
+                  "description": "type: `integer`"
+                },
+                "nullvalue": {
+                  "description": "type: `string`"
+                },
+                "numeric_monitoring_filesystem_path": {
+                  "description": "type: `string`"
+                },
+                "numeric_monitoring_plugins": {
+                  "description": "type: `string`"
+                },
+                "numeric_monitoring_pre_aggregation_time": {
+                  "description": "type: `integer`"
+                },
+                "pack_delimiter": {
+                  "description": "type: `string`"
+                },
+                "pack_refresh_interval": {
+                  "description": "type: `integer`"
+                },
+                "read_max": {
+                  "description": "type: `integer`"
+                },
+                "schedule_default_interval": {
+                  "description": "type: `integer`"
+                },
+                "schedule_epoch": {
+                  "description": "type: `integer`"
+                },
+                "schedule_lognames": {
+                  "description": "type: `boolean`"
+                },
+                "schedule_max_drift": {
+                  "description": "type: `integer`"
+                },
+                "schedule_reload": {
+                  "description": "type: `integer`"
+                },
+                "schedule_splay_percent": {
+                  "description": "type: `integer`"
+                },
+                "schedule_timeout": {
+                  "description": "type: `integer`"
+                },
+                "specified_identifier": {
+                  "description": "type: `string`"
+                },
+                "table_delay": {
+                  "description": "type: `integer`"
+                },
+                "thrift_string_size_limit": {
+                  "description": "type: `integer`"
+                },
+                "thrift_timeout": {
+                  "description": "type: `integer`"
+                },
+                "thrift_verbose": {
+                  "description": "type: `boolean`"
+                },
+                "tls_disable_status_log": {
+                  "description": "type: `boolean`"
+                },
+                "verbose": {
+                  "description": "type: `boolean`"
+                },
+                "yara_delay": {
+                  "description": "type: `integer`"
+                },
+                "yara_sigurl_authenticate": {
+                  "description": "type: `boolean`"
+                }
+              },
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "extensions": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "orbit": {
+          "$ref": "#/$defs/OrbitAgentOptions",
+          "description": "type: `OrbitAgentOptions`"
+        },
+        "overrides": {
+          "$ref": "#/$defs/AgentOptionsOverrides",
+          "description": "type: `AgentOptionsOverrides`"
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "script_execution_timeout": {
+          "description": "type: `integer`"
+        },
+        "update_channels": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AgentOptionsOverrides": {
+      "additionalProperties": false,
+      "properties": {
+        "platforms": {
+          "additionalProperties": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AndroidSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "certificates": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration_profiles": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "custom_settings": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AppleAccountProvisioning": {
+      "additionalProperties": false,
+      "properties": {
+        "oauth_idp_client_id": {
+          "description": "type: `string`"
+        },
+        "oauth_idp_client_secret": {
+          "description": "type: `string`"
+        },
+        "oauth_idp_token_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "AppleOSUpdateSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "deadline": {
+          "description": "type: `string`"
+        },
+        "minimum_version": {
+          "description": "type: `string`"
+        },
+        "update_new_hosts": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "BaseItem": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "type: `string`"
+        },
+        "paths": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ConditionalAccessSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "bypass_disabled": {
+          "description": "type: `boolean`"
+        },
+        "microsoft_entra_connection_configured": {
+          "description": "type: `boolean`"
+        },
+        "microsoft_entra_tenant_id": {
+          "description": "type: `string`"
+        },
+        "okta_assertion_consumer_service_url": {
+          "description": "type: `string`"
+        },
+        "okta_audience_uri": {
+          "description": "type: `string`"
+        },
+        "okta_certificate": {
+          "description": "type: `string`"
+        },
+        "okta_idp_id": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Controls": {
+      "additionalProperties": false,
+      "properties": {
+        "android_enabled_and_configured": {
+          "description": "type: `boolean`"
+        },
+        "apple_account_provisioning": {
+          "$ref": "#/$defs/AppleAccountProvisioning",
+          "description": "type: `AppleAccountProvisioning`"
+        },
+        "apple_require_hardware_attestation": true,
+        "apple_settings": true,
+        "enable_disk_encryption": {
+          "description": "type: `boolean`"
+        },
+        "enable_recovery_lock_password": {
+          "description": "type: `boolean`"
+        },
+        "enable_turn_on_windows_mdm_manually": true,
+        "ios_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "ipados_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "macos_migration": true,
+        "macos_settings": true,
+        "macos_setup": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "macos_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "type: `array\u003cBaseItem\u003e`",
+          "items": {
+            "$ref": "#/$defs/BaseItem"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "setup_experience": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "windows_enabled_and_configured": {
+          "description": "type: `boolean`"
+        },
+        "windows_entra_client_ids": true,
+        "windows_entra_tenant_ids": true,
+        "windows_migration_enabled": true,
+        "windows_require_bitlocker_pin": {
+          "description": "type: `boolean`"
+        },
+        "windows_settings": true,
+        "windows_updates": {
+          "$ref": "#/$defs/WindowsUpdates",
+          "description": "type: `WindowsUpdates`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "FailingPoliciesWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`"
+        },
+        "enable_failing_policies_webhook": {
+          "description": "type: `boolean`"
+        },
+        "host_batch_size": {
+          "description": "type: `integer`"
+        },
+        "policy_ids": {
+          "description": "type: `array\u003cinteger\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Features": {
+      "additionalProperties": false,
+      "properties": {
+        "additional_queries": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "detail_query_overrides": {
+          "additionalProperties": {},
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "enable_host_users": {
+          "description": "type: `boolean`"
+        },
+        "enable_software_inventory": {
+          "description": "type: `boolean`"
+        },
+        "historical_data": {
+          "$ref": "#/$defs/HistoricalDataSettings",
+          "description": "type: `HistoricalDataSettings`"
+        },
+        "vulnerability_exposure_historical_reporting": {
+          "$ref": "#/$defs/VulnExposureFilterSettings",
+          "description": "type: `VulnExposureFilterSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "FleetDesktopSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "alternative_browser_host": {
+          "description": "type: `string`"
+        },
+        "transparency_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "exceptions": {
+          "$ref": "#/$defs/GitOpsExceptions",
+          "description": "type: `GitOpsExceptions`"
+        },
+        "gitops_mode_enabled": {
+          "description": "type: `boolean`"
+        },
+        "repository_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsExceptions": {
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "description": "type: `boolean`"
+        },
+        "secrets": {
+          "description": "type: `boolean`"
+        },
+        "software": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsFleetSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_options": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "features": {
+          "$ref": "#/$defs/Features",
+          "description": "type: `Features`"
+        },
+        "host_expiry_settings": {
+          "$ref": "#/$defs/HostExpirySettings",
+          "description": "type: `HostExpirySettings`"
+        },
+        "integrations": {
+          "$ref": "#/$defs/TeamIntegrations",
+          "description": "type: `TeamIntegrations`"
+        },
+        "mdm": {
+          "$ref": "#/$defs/TeamMDM",
+          "description": "type: `TeamMDM`"
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "secrets": true,
+        "software": {
+          "$ref": "#/$defs/SoftwareSpec",
+          "description": "type: `SoftwareSpec`"
+        },
+        "webhook_settings": {
+          "$ref": "#/$defs/TeamWebhookSettings",
+          "description": "type: `TeamWebhookSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsOrgSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_expiry_settings": {
+          "$ref": "#/$defs/ActivityExpirySettings",
+          "description": "type: `ActivityExpirySettings`"
+        },
+        "agent_options": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "certificate_authorities": true,
+        "conditional_access": {
+          "$ref": "#/$defs/ConditionalAccessSettings",
+          "description": "type: `ConditionalAccessSettings`"
+        },
+        "features": {
+          "$ref": "#/$defs/Features",
+          "description": "type: `Features`"
+        },
+        "fleet_desktop": {
+          "$ref": "#/$defs/FleetDesktopSettings",
+          "description": "type: `FleetDesktopSettings`"
+        },
+        "gitops": {
+          "$ref": "#/$defs/GitOpsConfig",
+          "description": "type: `GitOpsConfig`"
+        },
+        "host_expiry_settings": {
+          "$ref": "#/$defs/HostExpirySettings",
+          "description": "type: `HostExpirySettings`"
+        },
+        "host_settings": {
+          "$ref": "#/$defs/Features",
+          "description": "type: `Features`"
+        },
+        "integrations": {
+          "$ref": "#/$defs/Integrations",
+          "description": "type: `Integrations`"
+        },
+        "mdm": {
+          "$ref": "#/$defs/MDM",
+          "description": "type: `MDM`"
+        },
+        "org_info": {
+          "$ref": "#/$defs/OrgInfo",
+          "description": "type: `OrgInfo`"
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "secrets": true,
+        "server_settings": {
+          "$ref": "#/$defs/ServerSettings",
+          "description": "type: `ServerSettings`"
+        },
+        "smtp_settings": {
+          "$ref": "#/$defs/SMTPSettings",
+          "description": "type: `SMTPSettings`"
+        },
+        "smtp_test": {
+          "description": "type: `boolean`"
+        },
+        "sso_settings": {
+          "$ref": "#/$defs/SSOSettings",
+          "description": "type: `SSOSettings`"
+        },
+        "vulnerability_settings": {
+          "$ref": "#/$defs/VulnerabilitySettings",
+          "description": "type: `VulnerabilitySettings`"
+        },
+        "webhook_settings": {
+          "$ref": "#/$defs/WebhookSettings",
+          "description": "type: `WebhookSettings`"
+        },
+        "yara_rules": {
+          "description": "type: `array\u003cYaraRule\u003e`",
+          "items": {
+            "$ref": "#/$defs/YaraRule"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsPolicySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "calendar_events_enabled": {
+          "description": "type: `boolean`"
+        },
+        "conditional_access_enabled": {
+          "description": "type: `boolean`"
+        },
+        "continuous_automations_enabled": {
+          "description": "type: `boolean`"
+        },
+        "critical": {
+          "description": "type: `boolean`"
+        },
+        "description": {
+          "description": "type: `string`"
+        },
+        "fleet": {
+          "description": "type: `string`"
+        },
+        "fleet_maintained_app_slug": {
+          "description": "type: `string`"
+        },
+        "install_software": {
+          "anyOf": [
+            {},
+            {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          ],
+          "description": "type: `boolean or object`"
+        },
+        "labels_exclude_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "type: `string`"
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "type: `string`"
+        },
+        "query": {
+          "description": "type: `string`"
+        },
+        "resolution": {
+          "description": "type: `string`"
+        },
+        "run_script": {
+          "$ref": "#/$defs/PolicyRunScript",
+          "description": "type: `PolicyRunScript`"
+        },
+        "script_id": {
+          "description": "type: `integer`"
+        },
+        "software_title_id": {
+          "description": "type: `integer`"
+        },
+        "team": {
+          "description": "type: `string`"
+        },
+        "type": {
+          "description": "type: `string`"
+        },
+        "webhooks_and_tickets_enabled": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GitOpsSoftware": {
+      "additionalProperties": false,
+      "properties": {
+        "app_store_apps": {
+          "description": "type: `array\u003cTeamSpecAppStoreApp\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamSpecAppStoreApp"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "fleet_maintained_apps": {
+          "description": "type: `array\u003cMaintainedAppSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MaintainedAppSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "packages": {
+          "description": "type: `array\u003cSoftwarePackageSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/SoftwarePackageSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GoogleCalendarApiKey": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "additionalProperties": {},
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GoogleCalendarIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "api_key_json": {
+          "$ref": "#/$defs/GoogleCalendarApiKey",
+          "description": "type: `GoogleCalendarApiKey`"
+        },
+        "domain": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "GoogleWorkspaceIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "api_key_json": {
+          "$ref": "#/$defs/GoogleCalendarApiKey",
+          "description": "type: `GoogleCalendarApiKey`"
+        },
+        "domain": {
+          "description": "type: `string`"
+        },
+        "impersonated_user_email": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HistoricalDataSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "uptime": {
+          "description": "type: `boolean`"
+        },
+        "vulnerabilities": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostExpirySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "host_expiry_enabled": {
+          "description": "type: `boolean`"
+        },
+        "host_expiry_window": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostStatusWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "days_count": {
+          "description": "type: `integer`"
+        },
+        "destination_url": {
+          "description": "type: `string`"
+        },
+        "enable_host_status_webhook": {
+          "description": "type: `boolean`"
+        },
+        "host_percentage": {
+          "description": "type: `number`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostsSlice": {
+      "items": {},
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "Integrations": {
+      "additionalProperties": false,
+      "properties": {
+        "conditional_access_enabled": {
+          "description": "type: `boolean`"
+        },
+        "google_calendar": {
+          "description": "type: `array\u003cGoogleCalendarIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/GoogleCalendarIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "google_workspace": {
+          "description": "type: `array\u003cGoogleWorkspaceIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/GoogleWorkspaceIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "jira": {
+          "description": "type: `array\u003cJiraIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/JiraIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "zendesk": {
+          "description": "type: `array\u003cZendeskIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/ZendeskIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "JiraIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "api_token": {
+          "description": "type: `string`"
+        },
+        "enable_failing_policies": {
+          "description": "type: `boolean`"
+        },
+        "enable_software_vulnerabilities": {
+          "description": "type: `boolean`"
+        },
+        "project_key": {
+          "description": "type: `string`"
+        },
+        "url": {
+          "description": "type: `string`"
+        },
+        "username": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "LabelSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "criteria": {
+          "description": "type: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "type: `string`"
+        },
+        "fleet_id": {
+          "description": "type: `integer`"
+        },
+        "hosts": {
+          "$ref": "#/$defs/HostsSlice",
+          "description": "type: `HostsSlice`"
+        },
+        "id": {
+          "description": "type: `integer`"
+        },
+        "label_membership_type": {
+          "description": "type: `integer`"
+        },
+        "label_type": {
+          "description": "type: `integer`"
+        },
+        "name": {
+          "description": "type: `string`"
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "type: `string`"
+        },
+        "query": {
+          "description": "type: `string`"
+        },
+        "team_id": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MDM": {
+      "additionalProperties": false,
+      "properties": {
+        "android_enabled_and_configured": {
+          "description": "type: `boolean`"
+        },
+        "android_settings": {
+          "$ref": "#/$defs/AndroidSettings",
+          "description": "type: `AndroidSettings`"
+        },
+        "apple_account_provisioning": {
+          "$ref": "#/$defs/AppleAccountProvisioning",
+          "description": "type: `AppleAccountProvisioning`"
+        },
+        "apple_bm_default_team": {
+          "description": "type: `string`"
+        },
+        "apple_bm_enabled_and_configured": {
+          "description": "type: `boolean`"
+        },
+        "apple_bm_terms_expired": {
+          "description": "type: `boolean`"
+        },
+        "apple_business": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "apple_business_manager": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "apple_require_hardware_attestation": {
+          "description": "type: `boolean`"
+        },
+        "apple_server_url": {
+          "description": "type: `string`"
+        },
+        "apple_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`"
+        },
+        "enable_recovery_lock_password": {
+          "description": "type: `boolean`"
+        },
+        "enable_turn_on_windows_mdm_manually": {
+          "description": "type: `boolean`"
+        },
+        "enabled_and_configured": {
+          "description": "type: `boolean`"
+        },
+        "end_user_authentication": {
+          "$ref": "#/$defs/MDMEndUserAuthentication",
+          "description": "type: `MDMEndUserAuthentication`"
+        },
+        "ios_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "ipados_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "macos_migration": {
+          "$ref": "#/$defs/MacOSMigration",
+          "description": "type: `MacOSMigration`"
+        },
+        "macos_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "macos_setup": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "macos_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "setup_experience": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "volume_purchasing_program": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "windows_enabled_and_configured": {
+          "description": "type: `boolean`"
+        },
+        "windows_entra_client_ids": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "windows_entra_tenant_ids": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "windows_migration_enabled": {
+          "description": "type: `boolean`"
+        },
+        "windows_require_bitlocker_pin": {
+          "description": "type: `boolean`"
+        },
+        "windows_settings": {
+          "$ref": "#/$defs/WindowsSettings",
+          "description": "type: `WindowsSettings`"
+        },
+        "windows_updates": {
+          "$ref": "#/$defs/WindowsUpdates",
+          "description": "type: `WindowsUpdates`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MDMEndUserAuthentication": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "description": "type: `string`"
+        },
+        "idp_name": {
+          "description": "type: `string`"
+        },
+        "issuer_uri": {
+          "description": "type: `string`"
+        },
+        "metadata": {
+          "description": "type: `string`"
+        },
+        "metadata_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MDMProfileSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "type: `string`"
+        },
+        "paths": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MacOSMigration": {
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "description": "type: `boolean`"
+        },
+        "mode": {
+          "description": "type: `string`"
+        },
+        "webhook_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MacOSSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "assets": {
+          "description": "type: `array\u003cMDMProfileSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MDMProfileSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration_profiles": {
+          "description": "type: `array\u003cMDMProfileSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MDMProfileSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "custom_settings": {
+          "description": "type: `array\u003cMDMProfileSpec\u003e`",
+          "items": {
+            "$ref": "#/$defs/MDMProfileSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MacOSSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "apple_enable_release_device_manually": {
+          "description": "type: `boolean`"
+        },
+        "apple_setup_assistant": {
+          "description": "type: `string`"
+        },
+        "bootstrap_package": {
+          "description": "type: `string`"
+        },
+        "enable_create_local_admin_account": {
+          "description": "type: `boolean`"
+        },
+        "enable_end_user_authentication": {
+          "description": "type: `boolean`"
+        },
+        "enable_managed_local_account": {
+          "description": "type: `boolean`"
+        },
+        "enable_release_device_manually": {
+          "description": "type: `boolean`"
+        },
+        "end_user_local_account_type": {
+          "description": "type: `string`"
+        },
+        "lock_end_user_info": {
+          "description": "type: `boolean`"
+        },
+        "macos_bootstrap_package": {
+          "description": "type: `string`"
+        },
+        "macos_manual_agent_install": {
+          "description": "type: `boolean`"
+        },
+        "macos_script": {
+          "description": "type: `string`"
+        },
+        "macos_setup_assistant": {
+          "description": "type: `string`"
+        },
+        "manual_agent_install": {
+          "description": "type: `boolean`"
+        },
+        "require_all_software_macos": {
+          "description": "type: `boolean`"
+        },
+        "require_all_software_windows": {
+          "description": "type: `boolean`"
+        },
+        "script": {
+          "description": "type: `string`"
+        },
+        "software": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "MaintainedAppSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "icon": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "post_install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "pre_install_query": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "self_service": {
+          "description": "type: `boolean`"
+        },
+        "setup_experience": {
+          "description": "type: `boolean`"
+        },
+        "setup_experience_platforms": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "slug": {
+          "description": "type: `string`"
+        },
+        "uninstall_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "version": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "OrbitAgentOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "debug_logging_on_enroll_duration": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "OrgInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "contact_url": {
+          "description": "type: `string`"
+        },
+        "org_logo_url": {
+          "description": "type: `string`"
+        },
+        "org_logo_url_dark_mode": {
+          "description": "type: `string`"
+        },
+        "org_logo_url_light_background": {
+          "description": "type: `string`"
+        },
+        "org_logo_url_light_mode": {
+          "description": "type: `string`"
+        },
+        "org_name": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "PolicyRunScript": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Query": {
+      "additionalProperties": false,
+      "properties": {
+        "automations_enabled": {
+          "description": "type: `boolean`"
+        },
+        "description": {
+          "description": "type: `string`"
+        },
+        "discard_data": {
+          "description": "type: `boolean`"
+        },
+        "fleet": {
+          "description": "type: `string`"
+        },
+        "interval": {
+          "description": "type: `integer`"
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "logging": {
+          "description": "type: `string`"
+        },
+        "min_osquery_version": {
+          "description": "type: `string`"
+        },
+        "name": {
+          "description": "type: `string`"
+        },
+        "observer_can_run": {
+          "description": "type: `boolean`"
+        },
+        "path": {
+          "description": "type: `string`"
+        },
+        "paths": {
+          "description": "type: `string`"
+        },
+        "platform": {
+          "description": "type: `string`"
+        },
+        "query": {
+          "description": "type: `string`"
+        },
+        "team": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SMTPSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "authentication_method": {
+          "description": "type: `string`"
+        },
+        "authentication_type": {
+          "description": "type: `string`"
+        },
+        "configured": {
+          "description": "type: `boolean`"
+        },
+        "domain": {
+          "description": "type: `string`"
+        },
+        "enable_smtp": {
+          "description": "type: `boolean`"
+        },
+        "enable_ssl_tls": {
+          "description": "type: `boolean`"
+        },
+        "enable_start_tls": {
+          "description": "type: `boolean`"
+        },
+        "password": {
+          "description": "type: `string`"
+        },
+        "port": {
+          "description": "type: `integer`"
+        },
+        "sender_address": {
+          "description": "type: `string`"
+        },
+        "server": {
+          "description": "type: `string`"
+        },
+        "user_name": {
+          "description": "type: `string`"
+        },
+        "verify_ssl_certs": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SSOSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "enable_jit_provisioning": {
+          "description": "type: `boolean`"
+        },
+        "enable_jit_role_sync": {
+          "description": "type: `boolean`"
+        },
+        "enable_sso": {
+          "description": "type: `boolean`"
+        },
+        "enable_sso_idp_login": {
+          "description": "type: `boolean`"
+        },
+        "entity_id": {
+          "description": "type: `string`"
+        },
+        "idp_image_url": {
+          "description": "type: `string`"
+        },
+        "idp_name": {
+          "description": "type: `string`"
+        },
+        "issuer_uri": {
+          "description": "type: `string`"
+        },
+        "metadata": {
+          "description": "type: `string`"
+        },
+        "metadata_url": {
+          "description": "type: `string`"
+        },
+        "sso_server_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ServerSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "ai_features_disabled": {
+          "description": "type: `boolean`"
+        },
+        "debug_host_ids": {
+          "description": "type: `array\u003cinteger\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "deferred_save_host": {
+          "description": "type: `boolean`"
+        },
+        "discard_reports_data": {
+          "description": "type: `boolean`"
+        },
+        "enable_analytics": {
+          "description": "type: `boolean`"
+        },
+        "live_query_disabled": {
+          "description": "type: `boolean`"
+        },
+        "live_reporting_disabled": {
+          "description": "type: `boolean`"
+        },
+        "query_report_cap": {
+          "description": "type: `integer`"
+        },
+        "query_reports_disabled": {
+          "description": "type: `boolean`"
+        },
+        "report_cap": {
+          "description": "type: `integer`"
+        },
+        "scripts_disabled": {
+          "description": "type: `boolean`"
+        },
+        "server_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SoftwarePackageSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "always_download": {
+          "description": "type: `boolean`"
+        },
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "display_name": {
+          "description": "type: `string`"
+        },
+        "hash_sha256": {
+          "description": "type: `string`"
+        },
+        "icon": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "post_install_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "pre_install_query": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "referenced_yaml_path": {
+          "description": "type: `string`"
+        },
+        "self_service": {
+          "description": "type: `boolean`"
+        },
+        "setup_experience": {
+          "description": "type: `boolean`"
+        },
+        "setup_experience_platforms": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "slug": {
+          "description": "type: `string`"
+        },
+        "uninstall_script": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "url": {
+          "description": "type: `string`"
+        },
+        "version": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "SoftwareSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "app_store_apps": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "fleet_maintained_apps": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "packages": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamGoogleCalendarIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "enable_calendar_events": {
+          "description": "type: `boolean`"
+        },
+        "webhook_url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamIntegrations": {
+      "additionalProperties": false,
+      "properties": {
+        "conditional_access_enabled": {
+          "description": "type: `boolean`"
+        },
+        "google_calendar": {
+          "$ref": "#/$defs/TeamGoogleCalendarIntegration",
+          "description": "type: `TeamGoogleCalendarIntegration`"
+        },
+        "jira": {
+          "description": "type: `array\u003cTeamJiraIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamJiraIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "zendesk": {
+          "description": "type: `array\u003cTeamZendeskIntegration\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamZendeskIntegration"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamJiraIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "enable_failing_policies": {
+          "description": "type: `boolean`"
+        },
+        "project_key": {
+          "description": "type: `string`"
+        },
+        "url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamMDM": {
+      "additionalProperties": false,
+      "properties": {
+        "android_settings": {
+          "$ref": "#/$defs/AndroidSettings",
+          "description": "type: `AndroidSettings`"
+        },
+        "apple_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "enable_disk_encryption": {
+          "description": "type: `boolean`"
+        },
+        "enable_recovery_lock_password": {
+          "description": "type: `boolean`"
+        },
+        "ios_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "ipados_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "macos_settings": {
+          "$ref": "#/$defs/MacOSSettings",
+          "description": "type: `MacOSSettings`"
+        },
+        "macos_setup": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "macos_updates": {
+          "$ref": "#/$defs/AppleOSUpdateSettings",
+          "description": "type: `AppleOSUpdateSettings`"
+        },
+        "setup_experience": {
+          "$ref": "#/$defs/MacOSSetup",
+          "description": "type: `MacOSSetup`"
+        },
+        "windows_require_bitlocker_pin": {
+          "description": "type: `boolean`"
+        },
+        "windows_settings": {
+          "$ref": "#/$defs/WindowsSettings",
+          "description": "type: `WindowsSettings`"
+        },
+        "windows_updates": {
+          "$ref": "#/$defs/WindowsUpdates",
+          "description": "type: `WindowsUpdates`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecAppStoreApp": {
+      "additionalProperties": false,
+      "properties": {
+        "app_store_id": {
+          "description": "type: `string`"
+        },
+        "auto_update_enabled": {
+          "description": "type: `boolean`"
+        },
+        "auto_update_window_end": {
+          "description": "type: `string`"
+        },
+        "auto_update_window_start": {
+          "description": "type: `string`"
+        },
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "display_name": {
+          "description": "type: `string`"
+        },
+        "icon": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {},
+        "paths": {
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "type: `string`"
+        },
+        "self_service": {
+          "description": "type: `boolean`"
+        },
+        "setup_experience": {
+          "description": "type: `boolean`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecSoftwareAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "failing_policies_webhook": {
+          "$ref": "#/$defs/FailingPoliciesWebhookSettings",
+          "description": "type: `FailingPoliciesWebhookSettings`"
+        },
+        "host_status_webhook": {
+          "$ref": "#/$defs/HostStatusWebhookSettings",
+          "description": "type: `HostStatusWebhookSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamZendeskIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "enable_failing_policies": {
+          "description": "type: `boolean`"
+        },
+        "group_id": {
+          "description": "type: `integer`"
+        },
+        "url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "VulnExposureFilterSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "cvss_max": {
+          "description": "type: `number`"
+        },
+        "cvss_min": {
+          "description": "type: `number`"
+        },
+        "epss_max": {
+          "description": "type: `number`"
+        },
+        "epss_min": {
+          "description": "type: `number`"
+        },
+        "exclude_vulnerabilities": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "has_known_exploit": {
+          "description": "type: `boolean`"
+        },
+        "software_filters": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {},
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "VulnerabilitiesWebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`"
+        },
+        "enable_vulnerabilities_webhook": {
+          "description": "type: `boolean`"
+        },
+        "host_batch_size": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "VulnerabilitySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "databases_path": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "WebhookSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "activities_webhook": {
+          "$ref": "#/$defs/ActivitiesWebhookSettings",
+          "description": "type: `ActivitiesWebhookSettings`"
+        },
+        "failing_policies_webhook": {
+          "$ref": "#/$defs/FailingPoliciesWebhookSettings",
+          "description": "type: `FailingPoliciesWebhookSettings`"
+        },
+        "host_status_webhook": {
+          "$ref": "#/$defs/HostStatusWebhookSettings",
+          "description": "type: `HostStatusWebhookSettings`"
+        },
+        "interval": {
+          "description": "type: `string`"
+        },
+        "vulnerabilities_webhook": {
+          "$ref": "#/$defs/VulnerabilitiesWebhookSettings",
+          "description": "type: `VulnerabilitiesWebhookSettings`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "WindowsSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "configuration_profiles": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "custom_settings": {
+          "description": "type: `array\u003cobject\u003e`",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "WindowsUpdates": {
+      "additionalProperties": false,
+      "properties": {
+        "deadline_days": {
+          "description": "type: `integer`"
+        },
+        "grace_period_days": {
+          "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "YaraRule": {
+      "additionalProperties": false,
+      "properties": {
+        "contents": {
+          "description": "type: `string`"
+        },
+        "name": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ZendeskIntegration": {
+      "additionalProperties": false,
+      "properties": {
+        "api_token": {
+          "description": "type: `string`"
+        },
+        "email": {
+          "description": "type: `string`"
+        },
+        "enable_failing_policies": {
+          "description": "type: `boolean`"
+        },
+        "enable_software_vulnerabilities": {
+          "description": "type: `boolean`"
+        },
+        "group_id": {
+          "description": "type: `integer`"
+        },
+        "url": {
+          "description": "type: `string`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_options": {
+      "$ref": "#/$defs/AgentOptions",
+      "description": "type: `AgentOptions`"
+    },
+    "controls": {
+      "$ref": "#/$defs/Controls",
+      "description": "type: `Controls`"
+    },
+    "labels": {
+      "description": "type: `array\u003cLabelSpec\u003e`",
+      "items": {
+        "$ref": "#/$defs/LabelSpec"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "type: `string`"
+    },
+    "org_settings": {
+      "$ref": "#/$defs/GitOpsOrgSettings",
+      "description": "type: `GitOpsOrgSettings`"
+    },
+    "policies": {
+      "description": "type: `array\u003cGitOpsPolicySpec\u003e`",
+      "items": {
+        "$ref": "#/$defs/GitOpsPolicySpec"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "reports": {
+      "description": "type: `array\u003cQuery\u003e`",
+      "items": {
+        "$ref": "#/$defs/Query"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "settings": {
+      "$ref": "#/$defs/GitOpsFleetSettings",
+      "description": "type: `GitOpsFleetSettings`"
+    },
+    "software": {
+      "$ref": "#/$defs/GitOpsSoftware",
+      "description": "type: `GitOpsSoftware`"
+    }
+  },
+  "type": [
+    "object",
+    "null"
+  ]
+}

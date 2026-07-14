@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fleet GitOps software (hardcoded test)",
+  "description": "Hand-written test schema loosely mirroring pkg/spec GitOpsSoftware. NOT generated from the Go struct.",
+  "type": "object",
+  "properties": {
+    "software": {
+      "type": "object",
+      "description": "Software Fleet should manage for this team.",
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "type": "array",
+          "description": "Custom software packages (installers) hosted at a URL.",
+          "items": { "$ref": "#/definitions/package" }
+        },
+        "app_store_apps": {
+          "type": "array",
+          "description": "Apple App Store (VPP) apps.",
+          "items": { "$ref": "#/definitions/appStoreApp" }
+        },
+        "fleet_maintained_apps": {
+          "type": "array",
+          "description": "Fleet-maintained apps (FMA).",
+          "items": { "$ref": "#/definitions/fleetMaintainedApp" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "description": "Path to a file relative to this YAML." }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        { "required": ["url"] },
+        { "required": ["hash_sha256"] }
+      ],
+      "properties": {
+        "url": { "type": "string", "description": "URL to download the installer from." },
+        "self_service": { "type": "boolean", "description": "Let end users install this on demand from Fleet Desktop." },
+        "install_script": { "$ref": "#/definitions/asset" },
+        "post_install_script": { "$ref": "#/definitions/asset" },
+        "uninstall_script": { "$ref": "#/definitions/asset" },
+        "pre_install_query": { "$ref": "#/definitions/asset" },
+        "labels_include_any": { "type": "array", "items": { "type": "string" } },
+        "labels_exclude_any": { "type": "array", "items": { "type": "string" } },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "setup_experience": { "type": "boolean", "description": "Install during macOS setup experience." },
+        "hash_sha256": { "type": "string" }
+      }
+    },
+    "appStoreApp": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["app_store_id"] }],
+      "properties": {
+        "app_store_id": { "type": "string", "description": "Apple App Store ID of the app." },
+        "self_service": { "type": "boolean" },
+        "platform": {
+          "type": "string",
+          "description": "Target platform for this VPP app.",
+          "enum": ["darwin", "ios", "ipados"]
+        },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "labels_include_any": { "type": "array", "items": { "type": "string" } },
+        "labels_exclude_any": { "type": "array", "items": { "type": "string" } },
+        "setup_experience": { "type": "boolean" }
+      }
+    },
+    "fleetMaintainedApp": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["slug"] }],
+      "properties": {
+        "slug": { "type": "string", "description": "Fleet-maintained app slug, e.g. \"slack/darwin\"." },
+        "version": { "type": "string", "description": "Pinned version, or omit for latest." },
+        "self_service": { "type": "boolean" },
+        "install_script": { "$ref": "#/definitions/asset" },
+        "post_install_script": { "$ref": "#/definitions/asset" },
+        "uninstall_script": { "$ref": "#/definitions/asset" },
+        "pre_install_query": { "$ref": "#/definitions/asset" },
+        "labels_include_any": { "type": "array", "items": { "type": "string" } },
+        "labels_exclude_any": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
