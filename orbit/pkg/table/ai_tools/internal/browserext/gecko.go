@@ -101,11 +101,21 @@ func collectGeckoProfile(profilePath, browser, profileName string, h homes.Home)
 // when the registry's userPermissions.origins is empty. Bounded 1 MiB read,
 // mirroring ide/jetbrains.go's jar reader.
 func hostPermsFromXPI(xpiPath string) []string {
-	zr, err := zip.OpenReader(xpiPath)
+	// Open through fsutil.OpenRegular so a .xpi planted as a symlink or special
+	// file cannot steer the root scan at another target or block it.
+	xf, err := fsutil.OpenRegular(xpiPath)
 	if err != nil {
 		return nil
 	}
-	defer func() { _ = zr.Close() }()
+	defer func() { _ = xf.Close() }()
+	fi, err := xf.Stat()
+	if err != nil {
+		return nil
+	}
+	zr, err := zip.NewReader(xf, fi.Size())
+	if err != nil {
+		return nil
+	}
 	for _, f := range zr.File {
 		if f.Name != "manifest.json" {
 			continue
@@ -130,7 +140,7 @@ func hostPermsFromXPI(xpiPath string) []string {
 
 // geckoProfiles returns the profiles for one Gecko root, parsing profiles.ini
 // and falling back to globbing when it is absent or yields nothing.
-func geckoProfiles(root string) []geckoProfile {
+func geckoProfiles(root, home string) []geckoProfile {
 	b, err := fsutil.ReadFileBounded(filepath.Join(root, "profiles.ini"))
 	if err != nil {
 		return globGeckoProfiles(root)
@@ -143,6 +153,12 @@ func geckoProfiles(root string) []geckoProfile {
 			p := curPath
 			if curRel {
 				p = filepath.Join(root, filepath.FromSlash(curPath))
+			}
+			// profiles.ini is user-writable; a relative Path containing ".." or an
+			// absolute Path could point outside the user's home. Contain it so the
+			// root scanner is not steered at an arbitrary location.
+			if !underHome(home, p) {
+				return
 			}
 			out = append(out, geckoProfile{name: filepath.Base(p), path: p})
 		}

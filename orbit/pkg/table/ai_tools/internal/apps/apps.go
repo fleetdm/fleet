@@ -82,6 +82,36 @@ func Scan(homesList []homes.Home, snap *proc.Snapshot) []App {
 	return out
 }
 
+// containsWordBoundary reports whether want appears in pn delimited by
+// non-alphanumeric characters (or the string edges). Several processNames tokens
+// are short, common substrings (e.g. "dia", "jan"); a plain strings.Contains
+// would falsely match unrelated processes like "mediaanalysisd", marking an app
+// Running with an unrelated PID. It scans every occurrence so a bounded match
+// later in the string is still found.
+func containsWordBoundary(pn, want string) bool {
+	if want == "" {
+		return false
+	}
+	for from := 0; from <= len(pn)-len(want); {
+		i := strings.Index(pn[from:], want)
+		if i < 0 {
+			return false
+		}
+		i += from
+		before := i == 0 || !isAlnum(pn[i-1])
+		after := i+len(want) == len(pn) || !isAlnum(pn[i+len(want)])
+		if before && after {
+			return true
+		}
+		from = i + 1
+	}
+	return false
+}
+
+func isAlnum(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
 // matchKnown finds the AI app a set of identifying strings belongs to.
 func matchKnown(tokens ...string) (knownApp, bool) {
 	hay := strings.ToLower(strings.Join(tokens, "\x00"))
@@ -127,7 +157,7 @@ func markRunning(a *App, k knownApp, snap *proc.Snapshot) {
 			continue
 		}
 		for _, want := range k.processNames {
-			if pn == want || strings.Contains(pn, want) {
+			if pn == want || containsWordBoundary(pn, want) {
 				a.Running, a.PID = 1, pid
 				return
 			}

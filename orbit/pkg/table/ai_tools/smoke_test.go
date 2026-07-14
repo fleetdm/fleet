@@ -10,7 +10,7 @@ import (
 // unconstrained (all types), then with a type='ide_plugins' constraint to prove
 // pushdown returns only that type. Opt-in (AED_SMOKE=1) — reads live state.
 //
-//	AED_SMOKE=1 go test -run TestSmokeLiveHost -v ./tables/
+//	AED_SMOKE=1 go test -run TestSmokeLiveHost -v ./orbit/pkg/table/ai_tools/
 func TestSmokeLiveHost(t *testing.T) {
 	if os.Getenv("AED_SMOKE") != "1" {
 		t.Skip("set AED_SMOKE=1 to run the live-host smoke test")

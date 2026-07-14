@@ -13,6 +13,7 @@
 package instructions
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +36,7 @@ type Instruction struct {
 	Scope         string // user | project
 	SHA256        string
 	Size          int64
-	RiskFlags     string // injection_markers, hidden_unicode, world_readable
+	RiskFlags     string // injection_markers, hidden_unicode, world_writable
 	Markers       string // matched injection-marker keywords, comma-separated
 }
 
@@ -128,7 +129,10 @@ func build(h homes.Home, path, tool, scope string) Instruction {
 		Path: path, Name: filepath.Base(path), Tool: tool, Scope: scope,
 		SHA256: fsutil.SHA256(path),
 	}
-	if fi, err := os.Stat(path); err == nil {
+	// Lstat, not Stat: a probe path under a user-writable home could be a symlink
+	// to a root-only file, and following it would leak that file's size across a
+	// privilege boundary (SHA256 above already refuses symlinks).
+	if fi, err := os.Lstat(path); err == nil && fi.Mode().IsRegular() {
 		in.Size = fi.Size()
 	}
 
@@ -186,9 +190,11 @@ func scanContent(path string) (markers []string, hiddenUnicode bool) {
 	}
 	defer func() { _ = f.Close() }()
 
-	buf := make([]byte, maxReadBytes)
-	n, _ := f.Read(buf)
-	content := string(buf[:n])
+	// io.ReadAll over a bounded reader: a single f.Read may return a short read
+	// (common on networked home dirs), which would silently truncate the scanned
+	// window and miss markers past the truncation point.
+	raw, _ := io.ReadAll(io.LimitReader(f, maxReadBytes))
+	content := string(raw)
 	low := strings.ToLower(content)
 
 	for _, m := range injectionMarkers {

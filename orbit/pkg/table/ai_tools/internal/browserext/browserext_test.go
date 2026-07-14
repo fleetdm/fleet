@@ -327,17 +327,33 @@ func TestGeckoXPIHostPermFallback(t *testing.T) {
 }
 
 func TestGeckoProfilesINI(t *testing.T) {
-	root := t.TempDir()
+	home := t.TempDir()
+	root := filepath.Join(home, ".mozilla", "firefox")
 	writeFile(t, filepath.Join(root, "Profiles", "abcd.default-release", "extensions.json"), `{"addons":[]}`)
 	writeFile(t, filepath.Join(root, "profiles.ini"),
 		"[Profile0]\nName=default-release\nIsRelative=1\nPath=Profiles/abcd.default-release\nDefault=1\n\n[General]\nVersion=2\n")
 
-	profs := geckoProfiles(root)
+	profs := geckoProfiles(root, home)
 	if len(profs) != 1 {
 		t.Fatalf("geckoProfiles found %d want 1: %+v", len(profs), profs)
 	}
 	if filepath.Base(profs[0].path) != "abcd.default-release" {
 		t.Errorf("profile path=%q want .../abcd.default-release", profs[0].path)
+	}
+}
+
+// TestGeckoProfilesINIRejectsEscape verifies a profiles.ini Path that escapes
+// the user's home (relative ".." or absolute) is not returned, so the root
+// scanner cannot be steered outside the home by a user-writable profiles.ini.
+func TestGeckoProfilesINIRejectsEscape(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(home, ".mozilla", "firefox")
+	writeFile(t, filepath.Join(root, "profiles.ini"),
+		"[Profile0]\nName=rel\nIsRelative=1\nPath=../../../../../../etc\n\n"+
+			"[Profile1]\nName=abs\nIsRelative=0\nPath=/etc\n")
+
+	if profs := geckoProfiles(root, home); len(profs) != 0 {
+		t.Errorf("expected no profiles for out-of-home paths, got %+v", profs)
 	}
 }
 

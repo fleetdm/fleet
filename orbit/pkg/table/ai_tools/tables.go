@@ -1,4 +1,4 @@
-// Package tables exposes a single, unified osquery table — ai_tools —
+// Package ai_tools exposes a single, unified osquery table — ai_tools —
 // covering every AI-tool type (MCP servers, IDE plugins, AI agent
 // CLIs, AI desktop apps, live AI/MCP sockets, agent instruction files, and browser extensions)
 // through one schema with a `type` discriminator, security `risk_flags` and
@@ -86,6 +86,12 @@ func columnDefs() []table.ColumnDefinition {
 
 func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, error) {
 	types := requestedTypes(qc)
+	// A query that constrains type to only invalid values yields no collectors;
+	// return early before the (potentially expensive) home enumeration and
+	// process snapshot.
+	if len(types) == 0 {
+		return []map[string]string{}, nil
+	}
 	has := func(t string) bool { _, ok := types[t]; return ok }
 
 	hs := homes.All()
@@ -141,6 +147,9 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 		}
 	}
 	if has("apps") {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		for _, a := range apps.Scan(hs, snap) {
 			rows = append(rows, appRow(a))
 		}
@@ -230,7 +239,7 @@ func mcpRow(s mcp.Server) map[string]string {
 		"env_keys":     s.EnvKeys,
 		"scope":        s.Scope,
 		"source_type":  s.Source,
-		"enabled":      itoa(s.Enabled),
+		"enabled":      enabledStr(s.Enabled),
 		"capabilities": s.Capabilities,
 		"launch_hash":  s.LaunchHash,
 	})
@@ -343,6 +352,20 @@ func browserExtRow(e browserext.Extension) map[string]string {
 		"from_webstore":    fromWebstoreStr(e.FromWebstore),
 		"signed_state":     signedStateStr(e.SignedState),
 	})
+}
+
+// enabledStr renders the tri-state MCP "enabled" flag as a label so an
+// explicitly-disabled server (0) survives compactJSON (which drops "" and "0")
+// and is not silently indistinguishable from unset.
+func enabledStr(v int) string {
+	switch v {
+	case 1:
+		return "true"
+	case 0:
+		return "false"
+	default:
+		return "" // unknown
+	}
 }
 
 // fromWebstoreStr renders the tri-state webstore flag as a label so a "false"

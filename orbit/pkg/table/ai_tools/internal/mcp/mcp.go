@@ -293,10 +293,9 @@ func parseClaudeJSON(path string) []Server {
 		return nil
 	}
 	out := mapToServers(top.MCPServers)
-	for proj, p := range top.Projects {
+	for _, p := range top.Projects {
 		for _, s := range mapToServers(p.MCPServers) {
 			s.Scope = "project"
-			_ = proj
 			out = append(out, s)
 		}
 	}

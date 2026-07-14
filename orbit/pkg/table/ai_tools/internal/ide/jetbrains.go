@@ -133,11 +133,22 @@ func readPluginFromDir(dir string) (ideaPlugin, string) {
 }
 
 func readPluginXMLFromJar(jarPath string) ([]byte, bool) {
-	zr, err := zip.OpenReader(jarPath)
+	// Open through fsutil.OpenRegular so a .jar planted as a symlink or special
+	// file in a user-writable plugin dir can't steer the root scan at another
+	// target or block it; zip.OpenReader would open the path directly.
+	jf, err := fsutil.OpenRegular(jarPath)
 	if err != nil {
 		return nil, false
 	}
-	defer zr.Close()
+	defer func() { _ = jf.Close() }()
+	fi, err := jf.Stat()
+	if err != nil {
+		return nil, false
+	}
+	zr, err := zip.NewReader(jf, fi.Size())
+	if err != nil {
+		return nil, false
+	}
 	for _, f := range zr.File {
 		if f.Name == "META-INF/plugin.xml" {
 			rc, err := f.Open()

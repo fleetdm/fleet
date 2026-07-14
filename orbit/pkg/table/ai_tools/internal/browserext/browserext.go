@@ -224,7 +224,7 @@ func Scan(h homes.Home) []Extension {
 		}
 	}
 	for _, root := range geckoRoots(r) {
-		for _, prof := range geckoProfiles(root.dir) {
+		for _, prof := range geckoProfiles(root.dir, h.Dir) {
 			out = append(out, collectGeckoProfile(prof.path, root.label, prof.name, h)...)
 		}
 	}

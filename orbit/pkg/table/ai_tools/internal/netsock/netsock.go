@@ -58,7 +58,11 @@ func Collect(snap *proc.Snapshot) []Socket {
 		case strings.EqualFold(c.Status, "LISTEN"):
 			sock.Direction = "listen"
 			classifyListen(&sock)
-		case strings.EqualFold(c.Status, "ESTABLISHED") || (c.RemotePort != 0 && c.RemoteIP != ""):
+		case strings.EqualFold(c.Status, "ESTABLISHED") ||
+			(c.Status == "" && c.RemotePort != 0 && c.RemoteIP != ""):
+			// Accept ESTABLISHED, or a connection with remote addressing but no
+			// reported status (some platforms omit it). Named transient states
+			// (TIME_WAIT, CLOSE_WAIT, ...) fall through to default and are ignored.
 			sock.Direction = "established"
 			classifyEstablished(&sock)
 		default:

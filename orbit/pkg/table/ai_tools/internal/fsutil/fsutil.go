@@ -33,15 +33,17 @@ const maxReadFileBytes = 64 << 20 // 64 MiB
 // root-only file) nor block on a FIFO/device. Callers that stream (rather than
 // read the whole file) use this directly.
 //
-// Three guards, defending against a hostile local user racing the scanner:
+// Four guards, defending against a hostile local user racing the scanner:
 //   - os.Lstat up front rejects symlinks and non-regular files (fast path);
+//   - O_NOFOLLOW on the open (unix), so opening fails outright if the final
+//     component is a symlink — the open never follows one;
 //   - O_NONBLOCK on the open, so a file swapped for a FIFO in the Lstat→open
 //     window still returns immediately instead of blocking the root daemon;
 //   - a post-open fstat that re-checks IsRegular AND confirms (via os.SameFile)
 //     that the opened file is the same inode Lstat saw. This closes the
-//     stat→open TOCTOU race: if the path was swapped for a symlink (which the
-//     open would follow) or any other file after the Lstat, the fstat identity
-//     no longer matches and the open is refused.
+//     stat→open TOCTOU race on platforms without O_NOFOLLOW: if the path was
+//     swapped for another file after the Lstat, the fstat identity no longer
+//     matches and the open is refused.
 func OpenRegular(path string) (*os.File, error) {
 	lfi, err := os.Lstat(path)
 	if err != nil {
@@ -50,7 +52,7 @@ func OpenRegular(path string) (*os.File, error) {
 	if !lfi.Mode().IsRegular() {
 		return nil, os.ErrInvalid
 	}
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0) // #nosec G304 -- path discovered by a curated collector; opened non-blocking, regular-only, with a post-open identity re-check
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK|openNoFollow, 0) // #nosec G304 -- path discovered by a curated collector; opened non-following, non-blocking, regular-only, with a post-open identity re-check
 	if err != nil {
 		return nil, err
 	}
