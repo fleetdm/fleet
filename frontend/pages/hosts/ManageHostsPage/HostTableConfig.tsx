@@ -384,7 +384,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Status
   {
     title: "Status",
-    Header: (cellProps: IHostTableHeaderProps) => {
+    Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={
@@ -394,16 +394,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
             </>
           }
           className="status-header"
+          fixedPositionStrategy
         >
           Status
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "status",
@@ -581,7 +577,10 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     title: "Agent",
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
-        <TooltipWrapper tipContent="Currently only supported for macOS, Windows, Linux, and ChromeOS.">
+        <TooltipWrapper
+          tipContent="Currently only supported for macOS, Windows, Linux, and ChromeOS."
+          fixedPositionStrategy
+        >
           Agent
         </TooltipWrapper>
       );
@@ -685,7 +684,10 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     title: "Last restarted",
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
-        <TooltipWrapper tipContent="Currently only supported for macOS, Windows, and Linux.">
+        <TooltipWrapper
+          tipContent="Currently only supported for macOS, Windows, and Linux."
+          fixedPositionStrategy
+        >
           Last restarted
         </TooltipWrapper>
       );
