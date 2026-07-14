@@ -633,6 +633,7 @@ import Moonlight from "./Moonlight";
 import Morgen from "./Morgen";
 import Mos from "./Mos";
 import MountainDuck from "./MountainDuck";
+import MozillaVpn from "./MozillaVpn";
 import Mqttx from "./Mqttx";
 import MullvadBrowser from "./MullvadBrowser";
 import MullvadVpn from "./MullvadVpn";
@@ -1747,6 +1748,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mos: Mos,
   "mountain duck": MountainDuck,
   "mozilla firefox": Firefox,
+  "mozilla vpn": MozillaVpn,
   mqttx: Mqttx,
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
