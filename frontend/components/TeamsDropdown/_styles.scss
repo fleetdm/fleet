@@ -1,17 +1,77 @@
-// Most dropdown styling lives in customStyles for react-select-5.
-// The rules below cover the custom in-menu search row and the "add fleet"
-// button that react-select can't style through its styles prop.
+.team-dropdown-wrapper {
+  // Shrink to fit the Button so the menu (positioned at left: 0 of the
+  // react-select root, which spans the wrapper) doesn't overflow way off to
+  // the side when the wrapper is dropped into a block-level page header.
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+
+  &--disabled {
+    pointer-events: none;
+  }
+}
 
 .team-dropdown {
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 0;
+
+    // Button renders label + chevron inside <div class="children-wrapper">.
+    // The gap has to live there — not on the button itself.
+    .children-wrapper {
+      gap: $pad-small;
+    }
+
+    &--form-field {
+      padding: 8px 16px;
+      background-color: $ui-light-grey;
+      border-radius: $border-radius;
+    }
+  }
+
+  &__button-label {
+    color: $core-fleet-black;
+    font-weight: 600;
+    font-size: 24px;
+    line-height: normal;
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__button--form-field &__button-label {
+    font-size: $x-small;
+  }
+
+  &__icon {
+    svg {
+      transition: transform 0.25s ease;
+    }
+
+    &--open svg {
+      transform: rotate(180deg);
+    }
+  }
+
   &__search-row {
     display: flex;
     align-items: center;
+    // When the search input isn't rendered (few fleets), the "+" button sits
+    // alone on the right so its position doesn't shift between menu open
+    // states with different team counts.
+    justify-content: flex-end;
     gap: $pad-small;
-    padding-bottom: $pad-small;
     position: sticky;
     top: 0;
+    // Negative horizontal margins + matching padding extend the opaque
+    // background beyond the menuList's inner padding so options scrolling up
+    // can't peek through the sides of the search row.
+    margin: 0 (-$pad-small) 0;
+    padding: $pad-small $pad-small 0;
     background-color: $core-fleet-white;
-    z-index: 1;
+    z-index: 2;
   }
 
   &__search-field {
@@ -61,6 +121,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
     width: 36px;
     height: 36px;
     padding: 0;
@@ -82,6 +143,43 @@
 
     &:active {
       background-color: $ui-fleet-black-10;
+    }
+  }
+
+  &__options-spacer {
+    height: $pad-small;
+  }
+
+  &__add-team-footer {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    width: 100%;
+    // Match the option row padding so the "+" icon lines up with option text.
+    padding: 10px 8px;
+    margin-top: $pad-xsmall;
+    background: none;
+    border: 0;
+    border-radius: $border-radius;
+    font-family: "Inter", sans-serif;
+    font-size: $x-small;
+    font-weight: 600;
+    color: $core-fleet-black;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background-color: $ui-fleet-black-5;
+      outline: none;
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-10;
+    }
+
+    .icon svg path {
+      fill: $core-fleet-black;
     }
   }
 }
