@@ -241,9 +241,9 @@ func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtConte
 	// (not by the $FLEET_HOST_VITAL_<id> token), so they need a structured check
 	// rather than the content-token scan above.
 	var labels []struct {
-		Name     string          `db:"name"`
-		FleetName string         `db:"team_name"`
-		Criteria json.RawMessage `db:"criteria"`
+		Name      string          `db:"name"`
+		FleetName string          `db:"team_name"`
+		Criteria  json.RawMessage `db:"criteria"`
 	}
 	labelStmt := `SELECT l.name, COALESCE(t.name, 'Unassigned') AS team_name, l.criteria
 		FROM labels l
