@@ -3093,7 +3093,7 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 		if len(toAdd) > 0 {
 			logFn("[+] would've created %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
 		}
-		return nil
+		return c.SaveCustomHostVitals(desired, true)
 	}
 
 	if len(toDelete) > 0 {

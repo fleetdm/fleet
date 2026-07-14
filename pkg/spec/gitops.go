@@ -535,9 +535,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
-		// "labels", "software", and "custom_host_vitals" are special cases where omitting may be a
-		// no-op (based on exception settings), rather than a directive to clear settings. settings
-		// keys were handled above.
+		// "labels" and "software" are special cases where omitting may be a no-op (based on
+		// exception settings), rather than a directive to clear settings.
+		// "custom_host_vitals" has no exception setting -- omitting it always means clear-all -- but still needs its own
+		// presence tracking (parseCustomHostVitals below), so it's excluded from the generic
+		// null-default handling too. settings keys were handled above.
 		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "custom_host_vitals" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}

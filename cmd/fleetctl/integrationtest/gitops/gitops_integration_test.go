@@ -350,6 +350,15 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsCustomHostVitals() {
 		}
 	}
 
+	// A dry run still sends the request to the server (with DryRun set), so
+	// server-side validation -- like the collation-aware duplicate-name check,
+	// which is not enforced by the local diff -- is still exercised without
+	// persisting.
+	globalFileDupe := s.customHostVitalsGlobalYAML("  - name: Asset tag\n  - name: asset tag\n")
+	_, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileDupe, "--dry-run"})
+	require.ErrorContains(t, err, "duplicate custom host vital names")
+	require.ElementsMatch(t, []string{"Asset tag", "Role"}, names(listVitals()))
+
 	// A script referencing $FLEET_HOST_VITAL_<id> for "Asset tag" blocks its
 	// removal: applying a config that drops it from custom_host_vitals errors
 	// the whole run, and no vitals are removed.
