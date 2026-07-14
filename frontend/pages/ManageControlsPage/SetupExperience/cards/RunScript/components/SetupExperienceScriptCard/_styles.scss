@@ -20,13 +20,8 @@
 
   &__actions {
     display: flex;
-    gap: $pad-medium;
+    gap: $pad-small;
     flex: 1;
     justify-content: flex-end;
-  }
-
-  &__download-button,
-  &__delete-button {
-    padding: 11px; // TODO: use a padding value from existing variables. talk to design.
   }
 }
