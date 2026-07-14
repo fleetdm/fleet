@@ -279,6 +279,10 @@ export type RecoveryLockPasswordStatus =
   | "removing_enforcement"
   | "failed";
 
+// The host name template statuses are exactly the profile-delivery statuses, so
+// we alias MdmProfileStatus rather than re-declaring the same union.
+export type HostNameSettingStatus = MdmProfileStatus;
+
 export interface IMdmSSOResponse {
   url: string;
 }
