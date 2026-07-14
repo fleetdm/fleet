@@ -40,11 +40,7 @@ func All() []Home {
 			return
 		}
 		seen[dir] = struct{}{}
-		username := filepath.Base(dir)
-		uid := ""
-		if u, err := user.Lookup(username); err == nil {
-			uid = u.Uid
-		}
+		uid, username := owner(dir, fi)
 		out = append(out, Home{UID: uid, Username: username, Dir: dir})
 	}
 
@@ -69,6 +65,28 @@ func All() []Home {
 		add(h)
 	}
 	return out
+}
+
+// owner returns the uid/username to attribute rows under dir to. It derives
+// them from the directory's actual owner (via stat) rather than the directory
+// name, so a low-privilege user who creates a directory named after another
+// account (e.g. /Users/root) cannot forge the uid/username attribution columns.
+// When ownership can't be read from the OS (e.g. Windows), it falls back to the
+// directory name.
+func owner(dir string, fi os.FileInfo) (uid, username string) {
+	if ownerUID, ok := statOwnerUID(fi); ok {
+		if u, err := user.LookupId(ownerUID); err == nil {
+			return ownerUID, u.Username
+		}
+		// The owner uid is authoritative even when it maps to no named account;
+		// do not guess a username from the (attacker-influenced) directory name.
+		return ownerUID, ""
+	}
+	username = filepath.Base(dir)
+	if u, err := user.Lookup(username); err == nil {
+		return u.Uid, username
+	}
+	return "", username
 }
 
 func listChildren(parent string, skipLower []string, add func(string)) {
