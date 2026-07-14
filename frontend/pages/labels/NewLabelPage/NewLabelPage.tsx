@@ -244,10 +244,17 @@ const NewLabelPage = ({
   // only when neither source is available.
   let hostVitalsTooltipContent: React.ReactNode;
   if (!idpConfigured && !hasCustomHostVitals) {
-    hostVitalsTooltipContent = (
+    // IdP criteria are Premium-only, so a Free-tier admin can't "configure your
+    // IdP" — point them at the custom host vital path instead.
+    hostVitalsTooltipContent = isPremiumTier ? (
       <>
         To use host vitals labels, configure your IdP in integration settings or
         add a custom host vital.
+      </>
+    ) : (
+      <>
+        To use host vitals labels, add a custom host vital. Identity provider
+        (IdP) group and department criteria are available in Fleet Premium.
       </>
     );
   }
