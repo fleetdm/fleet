@@ -227,8 +227,16 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
-// computeRawChecksum computes the checksum for a software entry
-// The calculation must match the one in softwareChecksumComputedColumn
+// ComputeRawChecksum computes the checksum for a software entry.
+//
+// This is the SOLE source of truth for the software checksum. The checksum is
+// stored on insert from this value and is never recomputed in SQL during normal
+// operation. Do not add a parallel SQL implementation of this calculation: a
+// SQL formula that drifts from this one (e.g. a different field order) silently
+// produces a different checksum for identical software, which orphans existing
+// rows and creates duplicate software entries. If a bulk recomputation is ever
+// needed, round-trip the rows through this function rather than re-encoding the
+// field list or order in SQL.
 func (s Software) ComputeRawChecksum() ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID, s.Name}

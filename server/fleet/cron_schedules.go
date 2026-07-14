@@ -32,6 +32,7 @@ const (
 	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
+	CronSoftwareChecksumMigration    CronScheduleName = "software_checksum_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
 	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
 	// name embeds the version onto the title owned by the Fleet-maintained app's

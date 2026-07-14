@@ -2312,6 +2312,35 @@ func cronUpgradeCodeSoftwareMigration(
 	return s, nil
 }
 
+// cronSoftwareChecksumMigration merges duplicate software inventory entries left
+// behind by the software checksum field-ordering change in Fleet v4.76.0. It runs
+// once shortly after startup and can be re-triggered with
+// `fleetctl trigger --name software_checksum_migration`.
+func cronSoftwareChecksumMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSoftwareChecksumMigration)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = logger.With("cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return ds.ReconcileSoftwareChecksums(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,

@@ -3303,6 +3303,273 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 	return nil
 }
 
+// Reconciliation tuning for repairing pre-v4.76.0 software checksums. These are
+// vars (not consts) so tests can lower them to exercise batching.
+var (
+	// reconcileGroupsPerRun caps how many duplicate software groups are fetched and
+	// repaired per iteration; the loop repeats until none remain.
+	reconcileGroupsPerRun = 500
+	// reconcileRepointBatch bounds how many rows each host-reference statement
+	// touches, keeping every transaction small even for widely-installed software.
+	// (Fleet migrations run in a single transaction and cannot batch, which is why
+	// this repair lives in a cron where we control transaction size.)
+	reconcileRepointBatch = 1000
+)
+
+// softwareChecksumDupGroup is one row of the duplicate-detection query: an identity
+// shared by more than one software row. The identity columns must stay in sync with
+// Software.ComputeRawChecksum.
+type softwareChecksumDupGroup struct {
+	Name             string `db:"name"`
+	Version          string `db:"version"`
+	Source           string `db:"source"`
+	BundleIdentifier string `db:"bundle_identifier"`
+	Release          string `db:"release"`
+	Arch             string `db:"arch"`
+	Vendor           string `db:"vendor"`
+	ExtensionFor     string `db:"extension_for"`
+	ExtensionID      string `db:"extension_id"`
+	ApplicationID    string `db:"application_id"`
+	UpgradeCode      string `db:"upgrade_code"`
+	MemberCount      int    `db:"member_count"`
+	// Members is "id:checksumhex" per row, joined with ",". Encoding both in one
+	// token keeps ids and checksums aligned. A duplicate group has only a handful of
+	// members (one per historical checksum formula), so GROUP_CONCAT won't truncate;
+	// MemberCount is checked against the parsed list to catch it if it ever does.
+	Members string `db:"members"`
+}
+
+// software rebuilds the fleet.Software identity so its canonical checksum can be
+// recomputed via ComputeRawChecksum (the sole source of truth).
+func (g softwareChecksumDupGroup) software() fleet.Software {
+	sw := fleet.Software{
+		Name: g.Name, Version: g.Version, Source: g.Source,
+		BundleIdentifier: g.BundleIdentifier, Release: g.Release, Arch: g.Arch,
+		Vendor: g.Vendor, ExtensionFor: g.ExtensionFor, ExtensionID: g.ExtensionID,
+	}
+	if g.ApplicationID != "" {
+		appID := g.ApplicationID
+		sw.ApplicationID = &appID
+	}
+	if g.UpgradeCode != "" {
+		upgradeCode := g.UpgradeCode
+		sw.UpgradeCode = &upgradeCode
+	}
+	return sw
+}
+
+// ReconcileSoftwareChecksums repairs software rows whose checksum was computed
+// with the pre-v4.76.0 field ordering. Such rows no longer match the checksum
+// the current ingestion path computes, so a second row gets inserted for the
+// same software, producing duplicate inventory entries (same name/version/source,
+// different checksum, split host counts).
+//
+// This is a one-shot migration: it runs to completion, merging every duplicate
+// group onto a single canonical row (the one whose stored checksum equals
+// ComputeRawChecksum). It is idempotent — re-running finds nothing to do — so it
+// is safe to re-trigger (fleetctl trigger --name software_checksum_migration).
+func (ds *Datastore) ReconcileSoftwareChecksums(ctx context.Context) error {
+	ds.logger.InfoContext(ctx, "software checksum migration starting")
+
+	// COALESCE the nullable columns so NULL and '' group together, matching
+	// ComputeRawChecksum which treats an empty application_id/upgrade_code as absent.
+	findGroupsStmt := `
+		SELECT
+			name, version, source, COALESCE(bundle_identifier, '') AS bundle_identifier,
+			` + "`release`" + `, arch, vendor, extension_for, extension_id,
+			COALESCE(application_id, '') AS application_id,
+			COALESCE(upgrade_code, '') AS upgrade_code,
+			COUNT(*) AS member_count,
+			GROUP_CONCAT(CONCAT(id, ':', LOWER(HEX(checksum)))) AS members
+		FROM software
+		GROUP BY
+			name, version, source, COALESCE(bundle_identifier, ''), ` + "`release`" + `,
+			arch, vendor, extension_for, extension_id,
+			COALESCE(application_id, ''), COALESCE(upgrade_code, '')
+		HAVING COUNT(*) > 1
+		LIMIT ?`
+
+	total := 0
+	// Each iteration merges up to reconcileGroupsPerRun groups (deleting their stale
+	// rows), so the duplicate count strictly decreases and the loop terminates. There
+	// is no covering index for this GROUP BY, so each iteration is a full-table scan;
+	// acceptable for a one-shot background job, and a full batch is rare.
+	for {
+		// Read from the primary: each iteration merges groups (writes) and then
+		// re-scans, so a lagging replica could return groups we already merged.
+		var groups []softwareChecksumDupGroup
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &groups, findGroupsStmt, reconcileGroupsPerRun); err != nil {
+			return ctxerr.Wrap(ctx, err, "find duplicate software groups")
+		}
+		for _, g := range groups {
+			if err := ds.reconcileSoftwareGroup(ctx, g); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile software group")
+			}
+		}
+		total += len(groups)
+		// A short batch means we fetched every remaining group and just resolved them,
+		// so another scan would find nothing.
+		if len(groups) < reconcileGroupsPerRun {
+			break
+		}
+	}
+
+	ds.logger.InfoContext(ctx, "software checksum migration complete", "groups_merged", total)
+	return nil
+}
+
+// reconcileSoftwareGroup merges a single duplicate group onto its canonical row.
+func (ds *Datastore) reconcileSoftwareGroup(ctx context.Context, g softwareChecksumDupGroup) error {
+	sw := g.software()
+	canonical, err := sw.ComputeRawChecksum()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "compute canonical checksum")
+	}
+	canonicalHex := hex.EncodeToString(canonical)
+
+	type member struct {
+		id       uint64
+		checksum string
+	}
+	var parsed []member
+	for tok := range strings.SplitSeq(g.Members, ",") {
+		idStr, cksum, ok := strings.Cut(tok, ":")
+		if !ok {
+			return ctxerr.New(ctx, fmt.Sprintf("malformed reconciliation member token %q", tok))
+		}
+		// Keep the id as uint64 (its parsed type) throughout: it is only ever passed
+		// as a SQL bind argument, so there is no need to narrow it to uint.
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parse software id")
+		}
+		parsed = append(parsed, member{id: id, checksum: cksum})
+	}
+	if len(parsed) != g.MemberCount {
+		// GROUP_CONCAT truncated the member list (group_concat_max_len). Fail loudly
+		// rather than merge against a partial view of the group.
+		return ctxerr.New(ctx, fmt.Sprintf("reconciliation member list truncated: got %d of %d for %s/%s/%s",
+			len(parsed), g.MemberCount, sw.Name, sw.Version, sw.Source))
+	}
+	if len(parsed) < 2 {
+		// A duplicate group always has at least two members; nothing to merge otherwise.
+		return nil
+	}
+
+	// Survivor is the row whose stored checksum already equals canonical.
+	survivorIdx := -1
+	for i, m := range parsed {
+		if m.checksum == canonicalHex {
+			survivorIdx = i
+			break
+		}
+	}
+
+	if survivorIdx == -1 {
+		// No member matches canonical: fix the first member's checksum in place and
+		// make it the survivor. This cannot collide on the unique checksum index —
+		// any row with the canonical checksum shares this identity and would be in
+		// this group, and none here has it.
+		survivorIdx = 0
+		if _, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE software SET checksum = ? WHERE id = ?`, canonical, parsed[0].id); err != nil {
+			return ctxerr.Wrap(ctx, err, "fix software checksum in place")
+		}
+		ds.logger.DebugContext(ctx, "software checksum migration: fixed checksum in place",
+			"name", sw.Name, "version", sw.Version, "source", sw.Source,
+			"software_id", parsed[0].id, "old_checksum", parsed[0].checksum, "new_checksum", canonicalHex)
+	}
+
+	survivorID := parsed[survivorIdx].id
+	for i, m := range parsed {
+		if i == survivorIdx {
+			continue
+		}
+		moved, err := ds.mergeSoftwareRow(ctx, m.id, survivorID)
+		if err != nil {
+			return err
+		}
+		ds.logger.DebugContext(ctx, "software checksum migration: merged duplicate software",
+			"name", sw.Name, "version", sw.Version, "source", sw.Source,
+			"survivor_id", survivorID, "stale_id", m.id,
+			"stale_checksum", m.checksum, "canonical_checksum", canonicalHex, "hosts_repointed", moved)
+	}
+	return nil
+}
+
+// mergeSoftwareRow repoints all host references from staleID onto survivorID in
+// bounded batches, then deletes the now-unreferenced stale software row. Returns
+// the number of host_software rows repointed.
+func (ds *Datastore) mergeSoftwareRow(ctx context.Context, staleID, survivorID uint64) (int64, error) {
+	// host_software has a composite PK (host_id, software_id). If a host is linked to
+	// both rows, repointing the stale link would collide with the survivor's. Resolve
+	// those collisions by deleting the redundant stale link first (the derived table
+	// lets us reference host_software in the subquery of its own DELETE), then repoint
+	// the rest with a plain UPDATE. This avoids UPDATE IGNORE, whose skipped rows would
+	// make a LIMIT-batched loop terminate early and drop still-movable links.
+	if _, err := ds.execReconcileBatches(ctx,
+		`DELETE FROM host_software
+		 WHERE software_id = ?
+		   AND host_id IN (SELECT host_id FROM (SELECT host_id FROM host_software WHERE software_id = ?) surv)
+		 LIMIT ?`, staleID, survivorID); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete colliding host_software links")
+	}
+	moved, err := ds.execReconcileBatches(ctx,
+		`UPDATE host_software SET software_id = ? WHERE software_id = ? LIMIT ?`, survivorID, staleID)
+	if err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "repoint host_software")
+	}
+
+	// host_software_installed_paths has no unique (host_id, software_id), so a plain
+	// repoint cannot collide.
+	if _, err := ds.execReconcileBatches(ctx,
+		`UPDATE host_software_installed_paths SET software_id = ? WHERE software_id = ? LIMIT ?`,
+		survivorID, staleID); err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "repoint host_software_installed_paths")
+	}
+
+	// kernel_host_counts is a derived aggregate with no cascade; drop the stale rows so
+	// no dangling software_id remains (recomputed by the kernel counters).
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM kernel_host_counts WHERE software_id = ?`, staleID); err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "delete stale kernel host counts")
+	}
+	// Deleting the stale software row cascades software_cpe (FK ON DELETE CASCADE).
+	// software_cve and software_host_counts for the stale id are removed by the
+	// existing orphan-cleanup crons, matching cleanupUnusedSoftware's behavior.
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM software WHERE id = ?`, staleID); err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "delete stale software row")
+	}
+	return moved, nil
+}
+
+// execReconcileBatches runs stmt repeatedly, appending reconcileRepointBatch as the
+// final bound argument (the statement must end with `LIMIT ?`), until a run affects
+// fewer rows than the batch size. Returns the total number of rows affected. Keeping
+// each statement to a bounded row count keeps its transaction small.
+func (ds *Datastore) execReconcileBatches(ctx context.Context, stmt string, args ...any) (int64, error) {
+	// The args and batch size are constant across iterations, so build the full
+	// argument list once (args... followed by the LIMIT value).
+	fullArgs := append(append([]any{}, args...), reconcileRepointBatch)
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fullArgs...)
+		if err != nil {
+			return total, err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, err
+		}
+		total += n
+		if n < int64(reconcileRepointBatch) {
+			break
+		}
+	}
+	return total, nil
+}
+
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
 	defer func(start time.Time) {
