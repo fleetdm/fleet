@@ -557,7 +557,7 @@ software:
       self_service: true
       setup_experience: true
     - path: ../lib/onboarding-script.sh.package.yml
-      setup_experience_platform: darwin
+      setup_experience_platform: darwin, linux
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "546505307"
