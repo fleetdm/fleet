@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -96,7 +97,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
-	if len(*p.Name) > fleet.MaxTeamNameLength {
+	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 	}
 	if fleet.IsReservedTeamName(*p.Name) {
@@ -187,7 +188,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
-		if len(*payload.Name) > fleet.MaxTeamNameLength {
+		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
 		if fleet.IsReservedTeamName(*payload.Name) {
@@ -1332,7 +1333,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if spec.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
 		}
-		if len(spec.Name) > fleet.MaxTeamNameLength {
+		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
 		if fleet.IsReservedTeamName(spec.Name) {

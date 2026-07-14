@@ -31,7 +31,7 @@ import {
 
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
-  MAX_ENTITY_NAME_LENGTH,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
@@ -521,7 +521,7 @@ const PolicyForm = ({
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
           disabled={gitOpsModeEnabled}
-          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }

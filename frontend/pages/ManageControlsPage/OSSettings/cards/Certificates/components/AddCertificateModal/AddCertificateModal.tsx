@@ -4,7 +4,7 @@ import { SingleValue } from "react-select-5";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
-  MAX_ENTITY_NAME_LENGTH,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 
 import paths from "router/paths";
@@ -206,7 +206,7 @@ const AddCertModal = ({
           helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
           parseTarget
           placeholder="VPN certificate"
-          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="subjectName"

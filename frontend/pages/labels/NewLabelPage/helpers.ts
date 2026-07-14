@@ -58,7 +58,7 @@ type IMessageFunc = (formData: INewLabelFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 type IFormValidationKey = keyof Pick<
   INewLabelFormData,
-  "name" | "description" | "labelQuery" | "vitalValue"
+  "name" | "labelQuery" | "vitalValue"
 >;
 
 interface IValidation {
@@ -84,9 +84,6 @@ const FORM_VALIDATIONS: IFormValidations = {
         message: "Label name must be present",
       },
     ],
-  },
-  description: {
-    validations: [],
   },
   labelQuery: {
     validations: [
@@ -157,9 +154,6 @@ export const validateNewLabelFormData = (
         case "name":
           formValidation.name = { isValid: true };
           break;
-        case "description":
-          formValidation.description = { isValid: true };
-          break;
         case "labelQuery":
           formValidation.labelQuery = { isValid: true };
           break;
@@ -176,9 +170,6 @@ export const validateNewLabelFormData = (
       switch (objKey) {
         case "name":
           formValidation.name = { isValid: false, message };
-          break;
-        case "description":
-          formValidation.description = { isValid: false, message };
           break;
         case "labelQuery":
           formValidation.labelQuery = { isValid: false, message };

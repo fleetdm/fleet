@@ -8,7 +8,7 @@ export interface ILabelFormValidation {
 
 type IMessageFunc = (formData: ILabelFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof ILabelFormData;
+type IFormValidationKey = Extract<keyof ILabelFormData, "name">;
 
 interface IValidation {
   name: string;
@@ -33,9 +33,6 @@ const FORM_VALIDATIONS: IFormValidations = {
         message: "Label name must be present",
       },
     ],
-  },
-  description: {
-    validations: [],
   },
 };
 
@@ -64,9 +61,6 @@ export const validateLabelFormData = (
         case "name":
           formValidation.name = { isValid: true };
           break;
-        case "description":
-          formValidation.description = { isValid: true };
-          break;
         default: {
           const _exhaustiveCheck: never = objKey;
           break;
@@ -78,9 +72,6 @@ export const validateLabelFormData = (
       switch (objKey) {
         case "name":
           formValidation.name = { isValid: false, message };
-          break;
-        case "description":
-          formValidation.description = { isValid: false, message };
           break;
         default: {
           const _exhaustiveCheck: never = objKey;

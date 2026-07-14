@@ -18,7 +18,7 @@ import {
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
-  MAX_ENTITY_NAME_LENGTH,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 
 import { CommaSeparatedPlatformString } from "interfaces/platform";
@@ -240,7 +240,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"

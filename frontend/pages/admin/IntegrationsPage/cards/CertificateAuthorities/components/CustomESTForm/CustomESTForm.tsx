@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
-import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
@@ -64,7 +64,7 @@ const CustomESTForm = ({
         parseTarget
         placeholder="WIFI_CERTIFICATE"
         helpText="Letters, numbers, and underscores only."
-        inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
         label="URL"

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
-import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
@@ -93,7 +93,7 @@ const DigicertForm = ({
         helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_DIGICERT_DATA_WIFI_CERTIFICATE)."
         parseTarget
         placeholder="WIFI_CERTIFICATE"
-        inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
         name="url"

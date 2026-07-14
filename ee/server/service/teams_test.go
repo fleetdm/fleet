@@ -145,6 +145,13 @@ func TestNewTeamNameValidation(t *testing.T) {
 			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
 			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
 		},
+		{
+			// Guards against regressing to byte-based length checks, which
+			// would reject multibyte names that fit within the character cap.
+			name:     "multibyte name at max character length is accepted",
+			teamName: new(strings.Repeat("日", fleet.MaxTeamNameLength)),
+			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -278,6 +285,11 @@ func TestModifyTeamNameValidation(t *testing.T) {
 			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
 			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
 		},
+		{
+			name:     "multibyte name at max character length is accepted",
+			teamName: new(strings.Repeat("日", fleet.MaxTeamNameLength)),
+			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -397,6 +409,11 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 			name:     "name over max length is rejected",
 			teamName: strings.Repeat("a", fleet.MaxTeamNameLength+1),
 			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
+		},
+		{
+			name:     "multibyte name at max character length is accepted",
+			teamName: strings.Repeat("日", fleet.MaxTeamNameLength),
+			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
 		},
 	}
 

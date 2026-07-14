@@ -20,7 +20,7 @@ import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { ITeamConfig } from "interfaces/team";
 import useDeepEffect from "hooks/useDeepEffect";
-import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import configAPI from "services/entities/config";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -343,7 +343,7 @@ const SaveNewPolicyModal = ({
           label="Name"
           autofocus
           disabled={disableForm}
-          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"

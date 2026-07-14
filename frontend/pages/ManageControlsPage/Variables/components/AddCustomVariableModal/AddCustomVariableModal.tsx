@@ -6,7 +6,7 @@ import { hasStatusKey, getErrorReason } from "interfaces/errors";
 import variablesAPI from "services/entities/variables";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
-  MAX_ENTITY_NAME_LENGTH,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
@@ -120,7 +120,7 @@ const AddCustomVariableModal = ({
             </span>
           }
           error={formValidation.name?.message}
-          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           onChange={onInputChange}

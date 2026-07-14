@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 import selfServiceCategoriesAPI from "services/entities/self_service_categories";
 import { hasStatusKey } from "interfaces/errors";
-import { MAX_ENTITY_NAME_LENGTH } from "utilities/constants";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
@@ -72,7 +72,7 @@ const AddCategoryModal = ({
           error={error}
           autofocus
           ignore1password
-          inputOptions={{ maxLength: MAX_ENTITY_NAME_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <div className="modal-cta-wrap">
           <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>
