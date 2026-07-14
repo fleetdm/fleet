@@ -68,25 +68,23 @@ func All() []Home {
 }
 
 // owner returns the uid/username to attribute rows under dir to. It derives
-// them from the directory's actual owner (via stat) rather than the directory
-// name, so a low-privilege user who creates a directory named after another
-// account (e.g. /Users/root) cannot forge the uid/username attribution columns.
-// When ownership can't be read from the OS (e.g. Windows), it falls back to the
-// directory name.
+// them from the directory's actual owner — the numeric owner uid on Unix, the
+// owner SID on Windows — rather than the directory name, so a low-privilege user
+// who creates a directory named after another account (e.g. /Users/root or
+// C:\Users\Administrator2) cannot forge the uid/username attribution columns.
+//
+// When ownership can't be read, it reports it as unknown ("", "") and never
+// falls back to the (attacker-influenced) directory name.
 func owner(dir string, fi os.FileInfo) (uid, username string) {
-	if ownerUID, ok := statOwnerUID(fi); ok {
-		if u, err := user.LookupId(ownerUID); err == nil {
-			return ownerUID, u.Username
-		}
-		// The owner uid is authoritative even when it maps to no named account;
-		// do not guess a username from the (attacker-influenced) directory name.
-		return ownerUID, ""
+	ownerUID, ok := statOwnerUID(dir, fi)
+	if !ok {
+		return "", ""
 	}
-	username = filepath.Base(dir)
-	if u, err := user.Lookup(username); err == nil {
-		return u.Uid, username
+	// user.LookupId resolves a numeric uid on Unix and a SID string on Windows.
+	if u, err := user.LookupId(ownerUID); err == nil {
+		return ownerUID, u.Username
 	}
-	return "", username
+	return ownerUID, ""
 }
 
 func listChildren(parent string, skipLower []string, add func(string)) {

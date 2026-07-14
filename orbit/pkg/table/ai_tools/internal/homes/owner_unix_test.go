@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build unix
 
 package homes
 
@@ -34,7 +34,7 @@ func TestOwnerUsesStatNotName(t *testing.T) {
 	if uid != cur.Uid {
 		t.Errorf("uid = %q, want the real owner %q (must be read from stat, not the name)", uid, cur.Uid)
 	}
-	if username == "root" {
-		t.Errorf("username = %q, forged from the directory name; want the real owner %q", username, cur.Username)
+	if username != cur.Username {
+		t.Errorf("username = %q, want the real owner %q (must be resolved from the owner uid, not the name)", username, cur.Username)
 	}
 }
