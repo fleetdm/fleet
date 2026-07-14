@@ -33,6 +33,16 @@ export const getVitalValuePlaceholder = (vital: LabelHostVitalsCriterion) => {
   return "Value";
 };
 
+export const getCriterionHelpText = (vital: LabelHostVitalsCriterion) => {
+  if (vital === "end_user_idp_group") {
+    return "Label criteria is based on the end user's IdP group.";
+  }
+  if (vital === "end_user_idp_department") {
+    return "Label criteria is based on the end user's IdP department.";
+  }
+  return "Label criteria is based on the selected custom host vital.";
+};
+
 export interface INewLabelFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };

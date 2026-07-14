@@ -57,6 +57,7 @@ import {
   buildCriterionOptionValue,
   parseCriterionOptionValue,
   getVitalValuePlaceholder,
+  getCriterionHelpText,
 } from "./helpers";
 
 interface ICriterionOption {
@@ -569,8 +570,6 @@ const NewLabelPage = ({
             ? buildCriterionOptionValue(customHostVitalId)
             : vital;
 
-        const isCustomVitalSelected = vital === CUSTOM_HOST_VITAL_CRITERION;
-
         return (
           <div className={`${baseClass}__host_vitals-fields`}>
             <label className="form-field__label" htmlFor="criterion-and-value">
@@ -599,9 +598,7 @@ const NewLabelPage = ({
               />
             </span>
             <span className="form-field__help-text">
-              {isCustomVitalSelected
-                ? "Label criteria is based on the selected custom host vital."
-                : "Currently, label criteria can be IdP group, department, or a custom host vital."}
+              {getCriterionHelpText(vital)}
             </span>
           </div>
         );

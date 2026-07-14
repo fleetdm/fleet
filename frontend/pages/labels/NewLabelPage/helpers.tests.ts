@@ -4,6 +4,7 @@ import {
   buildCriterionOptionValue,
   parseCriterionOptionValue,
   getVitalValuePlaceholder,
+  getCriterionHelpText,
 } from "./helpers";
 
 describe("NewLabelPage helpers", () => {
@@ -54,6 +55,20 @@ describe("NewLabelPage helpers", () => {
     it("returns a generic placeholder for custom host vitals", () => {
       expect(getVitalValuePlaceholder(CUSTOM_HOST_VITAL_CRITERION)).toBe(
         "Value"
+      );
+    });
+  });
+
+  describe("getCriterionHelpText", () => {
+    it("is specific to the selected criterion", () => {
+      expect(getCriterionHelpText("end_user_idp_group")).toBe(
+        "Label criteria is based on the end user's IdP group."
+      );
+      expect(getCriterionHelpText("end_user_idp_department")).toBe(
+        "Label criteria is based on the end user's IdP department."
+      );
+      expect(getCriterionHelpText(CUSTOM_HOST_VITAL_CRITERION)).toBe(
+        "Label criteria is based on the selected custom host vital."
       );
     });
   });
