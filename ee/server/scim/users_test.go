@@ -381,8 +381,8 @@ func TestUserHandlerDelete(t *testing.T) {
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
-		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) error {
-			return nil
+		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return nil
@@ -419,8 +419,8 @@ func TestUserHandlerDelete(t *testing.T) {
 			return fleet.ErrLastGlobalAdmin
 		}
 		// SCIM user deletion should still succeed
-		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) error {
-			return nil
+		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 
 		handler := mocks.newTestHandler()
@@ -439,8 +439,8 @@ func TestUserHandlerDelete(t *testing.T) {
 			return nil, platform_mysql.NotFound("ScimUser")
 		}
 		// DeleteScimUser is still called to ensure triggerResendProfilesForIDPUserDeleted runs
-		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) error {
-			return platform_mysql.NotFound("ScimUser")
+		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, platform_mysql.NotFound("ScimUser")
 		}
 
 		handler := mocks.newTestHandler()
@@ -539,8 +539,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
@@ -580,8 +580,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 
 		handler := mocks.newTestHandler()
@@ -607,8 +607,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 
 		handler := mocks.newTestHandler()
@@ -636,8 +636,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 			return nil, platform_mysql.NotFound("ScimUser")
 		}
 		// ReplaceScimUser returns a wrapped AlreadyExistsError (race condition: concurrent update took the username)
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
 		}
 
 		handler := mocks.newTestHandler()
@@ -667,8 +667,8 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 			return existingScimUser, nil
 		}
 		// ReplaceScimUser returns a validation error (field too long)
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return &fleet.SCIMValidationError{Field: "given_name", Message: "exceeds maximum length of 255 characters"}
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, &fleet.SCIMValidationError{Field: "given_name", Message: "exceeds maximum length of 255 characters"}
 		}
 
 		handler := mocks.newTestHandler()
@@ -697,8 +697,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
@@ -739,8 +739,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
@@ -777,8 +777,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 
 		handler := mocks.newTestHandler()
@@ -808,8 +808,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return nil
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 
 		handler := mocks.newTestHandler()
@@ -840,8 +840,8 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 			return existingScimUser, nil
 		}
 		// ReplaceScimUser returns a wrapped AlreadyExistsError (race condition: concurrent update took the username)
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
-			return fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
 		}
 
 		handler := mocks.newTestHandler()
@@ -878,9 +878,9 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		}
 
 		var replacedUser *fleet.ScimUser
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 			replacedUser = user
-			return nil
+			return nil, nil
 		}
 
 		handler := mocks.newTestHandler()
@@ -1041,9 +1041,9 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 			return existingUser, nil
 		}
 		var saved *fleet.ScimUser
-		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 			saved = user
-			return nil
+			return nil, nil
 		}
 		return mocks, existingUser, &saved
 	}

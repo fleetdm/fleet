@@ -63,7 +63,7 @@ Time management for the CEO is essential.  The Executive Assistant processes the
 
 ### Check LinkedIn for new activity 
 
-Once a day the Executive Assistant will check LinkedIn for unread messages and pending connect request. 
+Once a day the Executive Assistant will check LinkedIn for unread messages and pending connect requests. 
 
   1. Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A) and bring up the messaging window.
   2. Filter out all read messages by clicking "filter" and then "Unread".

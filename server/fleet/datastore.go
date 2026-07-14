@@ -388,9 +388,11 @@ type Datastore interface {
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
-	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
-	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
+	// Returns any resent certificate activities that need to be created.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]ActivityTypeResentCertificate, error)
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
@@ -958,11 +960,11 @@ type Datastore interface {
 	// and resets automation retry attempts, identical to a query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 
-	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
+	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -1061,8 +1063,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string, platform string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -2972,6 +2974,14 @@ type Datastore interface {
 	//
 
 	SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
+	// SetSetupExperienceCrossInstallersForInstaller replaces the
+	// setup_experience_software_installers rows for a single installer on a
+	// team with rows for the given platforms. Callers reconciling multiple
+	// installers should invoke this once per installer.
+	SetSetupExperienceCrossInstallersForInstaller(ctx context.Context, installerID uint, teamID uint, platforms []string) error
+	// GetSoftwareInstallerIDsByTeamAndFilenamePlatform resolves installer IDs
+	// from zipped (filename, platform) pairs on the given team.
+	GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx context.Context, teamID uint, filenames []string, platforms []string) ([]SoftwareInstallerLookupRow, error)
 	ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 
 	// SetHostAwaitingConfiguration sets a boolean indicating whether or not the given host is
@@ -3168,7 +3178,7 @@ type Datastore interface {
 	AndroidDatastore
 
 	// NewMDMAndroidConfigProfile creates a new Android MDM config profile.
-	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile, usesFleetVars []FleetVarName) (*MDMAndroidConfigProfile, error)
 
 	// GetMDMAndroidConfigProfile returns the Android MDM profile corresponding
 	// to the specified profile uuid.
@@ -3283,9 +3293,9 @@ type Datastore interface {
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
-	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
-	DeleteScimUser(ctx context.Context, id uint) error
+	DeleteScimUser(ctx context.Context, id uint) ([]ActivityTypeResentCertificate, error)
 	// ListScimUsers retrieves a list of SCIM users with optional filtering
 	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 	// CreateScimGroup creates a new SCIM group in the database
@@ -3529,6 +3539,29 @@ type Datastore interface {
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple Platform SSO (PSSO)
+
+	// SetOrUpdatePSSODevice persists a Mac's PSSO registration: the device row
+	// plus the given key rows in a single transaction. Keys are upserted by
+	// kid; existing keys for the host are left in place so they keep working
+	// after a re-registration.
+	SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []PSSOKey) error
+
+	// GetPSSODevice returns the PSSO registration record for the given host
+	// UUID, or a notFound error if the host isn't registered.
+	GetPSSODevice(ctx context.Context, hostUUID string) (*PSSODevice, error)
+
+	// GetPSSOKey looks up a registered device key by its kid.
+	GetPSSOKey(ctx context.Context, kid string) (*PSSOKey, error)
+
+	// ListPSSOKeys returns all keys registered for the given host UUID.
+	ListPSSOKeys(ctx context.Context, hostUUID string) ([]*PSSOKey, error)
+
+	// DeletePSSODevice removes a host's PSSO registration and, via cascade,
+	// all of its registered keys. Deleting an unregistered host is a no-op.
+	DeletePSSODevice(ctx context.Context, hostUUID string) error
+
 	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
 	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
 
@@ -3558,9 +3591,19 @@ type Datastore interface {
 
 	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
 	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
+	GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*DownloadableDDMAsset, error)
 	GetAppleDDMAssetForDownload(ctx context.Context, assetUUID string) (*DownloadableDDMAsset, error)
 	CreateAppleDDMAsset(ctx context.Context, name, identifier string, data []byte, teamID *uint) (string, error)
 	DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error
+	GetAppleDDMAssetsReferencedByDeclarations(ctx context.Context, declarationUUIDs []string) ([]*DDMAsset, error)
+	// BatchSetAppleDDMAssets sets the complete desired set of Apple DDM assets
+	// for a team: it upserts the given assets (matched by identifier) and
+	// deletes any existing assets not in the set. It returns a ConflictError if
+	// an incoming asset changes the type of an existing asset with the same
+	// identifier, or if a to-be-deleted asset is still referenced by a
+	// declaration. It returns the names of the assets it created, edited, and
+	// deleted so the caller can log the corresponding activities.
+	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
 }
 
 type AndroidDatastore interface {

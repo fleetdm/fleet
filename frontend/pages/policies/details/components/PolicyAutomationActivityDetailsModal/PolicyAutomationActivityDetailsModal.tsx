@@ -1,5 +1,6 @@
 import React from "react";
 
+import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import PATHS from "router/paths";
 
@@ -34,6 +35,28 @@ const PolicyAutomationActivityDetailsModal = ({
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
   const { status, created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
+  const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
+
+  // A code-style output block with a copy button. Renders nothing when empty.
+  const renderOutputSection = (label: string, value: string | null) =>
+    value ? (
+      <Textarea
+        key={label}
+        variant="code"
+        label={
+          <div className={`${baseClass}__details-label`}>
+            <span>{label}</span>
+            <CopyButton
+              copyText={value}
+              size="small"
+              ariaLabel={`Copy ${label.toLowerCase()}`}
+            />
+          </div>
+        }
+      >
+        {value}
+      </Textarea>
+    ) : null;
 
   return (
     <Modal title="Details" onExit={onCancel} className={baseClass}>
@@ -66,22 +89,20 @@ const PolicyAutomationActivityDetailsModal = ({
             </span>
           }
         />
-        {detailOutput && (
-          <Textarea
-            variant="code"
-            label={
-              <div className={`${baseClass}__details-label`}>
-                <span>Details</span>
-                <CopyButton
-                  copyText={detailOutput}
-                  size="small"
-                  ariaLabel="Copy details"
-                />
-              </div>
-            }
-          >
-            {detailOutput}
-          </Textarea>
+        {isSoftwareInstall ? (
+          <>
+            {renderOutputSection(
+              "Pre-install query output",
+              activity.pre_install_output
+            )}
+            {renderOutputSection("Details", activity.output)}
+            {renderOutputSection(
+              "Post-install script output",
+              activity.post_install_output
+            )}
+          </>
+        ) : (
+          renderOutputSection("Details", detailOutput || null)
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>

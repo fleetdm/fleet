@@ -181,6 +181,20 @@ export interface IMdmProfile {
   labels_include_all?: IProfileLabel[];
   labels_include_any?: IProfileLabel[];
   labels_exclude_any?: IProfileLabel[];
+  // Apple DDM PayloadScope: "User" for user-scoped declarations, "System"
+  // otherwise. Note this differs from the host details endpoint, which reports
+  // the derived channel as lowercase "user"/"device" (see ProfileScope).
+  scope?: PayloadScope | null;
+}
+
+/** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */
+export interface IMdmAsset {
+  asset_uuid: string;
+  name: string;
+  identifier: string;
+  created_at: string;
+  uploaded_at: string | null;
+  checksum: string;
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
@@ -192,6 +206,8 @@ export type MdmDDMProfileStatus =
 
 export type ProfileOperationType = "remove" | "install";
 export type ProfileScope = "device" | "user";
+/** Apple DDM declaration PayloadScope as returned by the profiles list endpoint. */
+export type PayloadScope = "System" | "User";
 
 export interface IHostMdmProfile {
   profile_uuid: string;

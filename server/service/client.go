@@ -485,6 +485,34 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 	return result, nil
 }
 
+// getAssetsContents reads and env-expands the Apple DDM asset files referenced
+// by the given specs, returning them as batch payloads. As with profiles,
+// FLEET_SECRET_ variables are left for the server to expand.
+func getAssetsContents(baseDir string, assets []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMAppleDDMAssetBatchPayload, error) {
+	result := make([]fleet.MDMAppleDDMAssetBatchPayload, 0, len(assets))
+	seenNames := make(map[string]struct{}, len(assets))
+	for _, asset := range assets {
+		filePath := resolveApplyRelativePath(baseDir, asset.Path)
+		fileContents, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("applying assets: %w", err)
+		}
+		if expandEnv {
+			fileContents, err = spec.ExpandEnvBytesIgnoreSecrets(fileContents)
+			if err != nil {
+				return nil, fmt.Errorf("expanding environment on file %q: %w", asset.Path, err)
+			}
+		}
+		name := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+		if _, isDuplicate := seenNames[name]; isDuplicate {
+			return nil, errors.New(fmtDuplicateNameErrMsg(name))
+		}
+		seenNames[name] = struct{}{}
+		result = append(result, fleet.MDMAppleDDMAssetBatchPayload{Name: name, Contents: fileContents})
+	}
+	return result, nil
+}
+
 // fileContent is used to store the name of a file and its content.
 type fileContent struct {
 	Filename string
@@ -722,6 +750,23 @@ func (c *Client) ApplyGroup(
 		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
+		// Apply DDM assets before profiles/declarations so a declaration in the
+		// same GitOps run can reference an asset uploaded alongside it.
+		if macosAssets := extractAppCfgMacOSAssets(specs.AppConfig); len(macosAssets) > 0 {
+			assetContents, err := getAssetsContents(baseDir, macosAssets, opts.ExpandEnvConfigProfiles)
+			if err != nil {
+				return nil, nil, nil, nil, err
+			}
+			if err := c.applyDDMAssets("", assetContents, opts.ApplySpecOptions); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("applying assets: %w", err)
+			}
+			if opts.DryRun {
+				logfn("[+] would've applied DDM assets\n")
+			} else {
+				logfn("[+] applied DDM assets\n")
+			}
+		}
+
 		if (windowsCustomSettings != nil || macosCustomSettings != nil || androidCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings)+len(androidCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, androidCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
@@ -778,6 +823,17 @@ func (c *Client) ApplyGroup(
 				return nil, nil, nil, nil, fmt.Errorf("Team %s: %w", k, err)
 			}
 			tmFileContents[k] = fileContents
+		}
+
+		// Resolve DDM asset files up front so missing-file errors surface early.
+		tmAssetSpecs := extractTmSpecsMDMAssets(specs.Teams)
+		tmAssetContents := make(map[string][]fleet.MDMAppleDDMAssetBatchPayload, len(tmAssetSpecs))
+		for k, assetSpecs := range tmAssetSpecs {
+			assetContents, err := getAssetsContents(baseDir, assetSpecs, opts.ExpandEnvConfigProfiles)
+			if err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Team %s: %w", k, err)
+			}
+			tmAssetContents[k] = assetContents
 		}
 
 		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
@@ -996,6 +1052,27 @@ func (c *Client) ApplyGroup(
 					getTeamName = func(teamName string) string {
 						return key
 					}
+				}
+			}
+		}
+
+		// Apply DDM assets before profiles/declarations so a declaration in the
+		// same GitOps run can reference an asset uploaded alongside it.
+		if len(tmAssetContents) > 0 {
+			for tmName, assets := range tmAssetContents {
+				currentTeamName := getTeamName(tmName)
+				teamID, ok := teamIDsByName[currentTeamName]
+				if opts.DryRun && (teamID == 0 || !ok) {
+					logfn("[+] would've applied DDM assets for new fleet %s\n", tmName)
+					continue
+				}
+				if opts.DryRun {
+					logfn("[+] would've applied DDM assets for fleet %s\n", tmName)
+				} else {
+					logfn("[+] applying DDM assets for fleet %s\n", tmName)
+				}
+				if err := c.applyDDMAssets(currentTeamName, assets, teamOpts.ApplySpecOptions); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("applying assets for fleet %q: %w", tmName, err)
 				}
 			}
 		}
@@ -1354,24 +1431,43 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		// setup_experience_platform is authored as a comma-separated string
+		// (consistent with the query/policy `platform` field); split it into the
+		// tri-state pointer-to-slice the batch payload uses: nil = no change,
+		// non-nil empty = clear all cross-platform selections, non-empty =
+		// replace. The slice must stay non-nil on an explicit empty value so it
+		// marshals as [] rather than null — null unmarshals server-side as "no
+		// change" and would silently swallow an explicit clear.
+		var setupExperiencePlatforms *[]string
+		if si.SetupExperiencePlatform.Set {
+			ps := make([]string, 0)
+			for tok := range strings.SplitSeq(si.SetupExperiencePlatform.Value, ",") {
+				if t := strings.TrimSpace(tok); t != "" {
+					ps = append(ps, t)
+				}
+			}
+			setupExperiencePlatforms = &ps
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
-			URL:                urlValue,
-			SelfService:        si.SelfService,
-			PreInstallQuery:    qc,
-			InstallScript:      string(ic),
-			PostInstallScript:  string(pc),
-			UninstallScript:    string(us),
-			InstallDuringSetup: installDuringSetup,
-			LabelsIncludeAny:   si.LabelsIncludeAny,
-			LabelsExcludeAny:   si.LabelsExcludeAny,
-			LabelsIncludeAll:   si.LabelsIncludeAll,
-			SHA256:             sha256Value,
-			Categories:         si.Categories,
-			DisplayName:        si.DisplayName,
-			IconPath:           si.Icon.Path,
-			IconHash:           iconHash,
-			AlwaysDownload:     si.AlwaysDownload,
-			Configuration:      cfg,
+			URL:                      urlValue,
+			SelfService:              si.SelfService,
+			PreInstallQuery:          qc,
+			InstallScript:            string(ic),
+			PostInstallScript:        string(pc),
+			UninstallScript:          string(us),
+			InstallDuringSetup:       installDuringSetup,
+			SetupExperiencePlatforms: setupExperiencePlatforms,
+			LabelsIncludeAny:         si.LabelsIncludeAny,
+			LabelsExcludeAny:         si.LabelsExcludeAny,
+			LabelsIncludeAll:         si.LabelsIncludeAll,
+			SHA256:                   sha256Value,
+			Categories:               si.Categories,
+			DisplayName:              si.DisplayName,
+			IconPath:                 si.Icon.Path,
+			IconHash:                 iconHash,
+			AlwaysDownload:           si.AlwaysDownload,
+			Configuration:            cfg,
 		}
 
 		if si.Slug != nil {
@@ -1582,6 +1678,73 @@ func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSp
 
 func extractAppCfgAndroidCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
 	return extractAppCfgCustomSettings(appCfg, "android_settings")
+}
+
+// extractMacOSAssetSpecs returns the Apple DDM asset specs from a macos_settings
+// value, which may be a fleet.MacOSSettings struct (GitOps) or a raw map
+// (fleetctl apply).
+func extractMacOSAssetSpecs(macOSSettings any) []fleet.MDMProfileSpec {
+	switch v := macOSSettings.(type) {
+	case fleet.MacOSSettings:
+		return v.Assets
+	case *fleet.MacOSSettings:
+		return v.Assets
+	case map[string]any:
+		raw, ok := v["assets"].([]any)
+		if !ok {
+			return nil
+		}
+		specs := make([]fleet.MDMProfileSpec, 0, len(raw))
+		for _, a := range raw {
+			if m, ok := a.(map[string]any); ok {
+				if path, ok := m["path"].(string); ok && path != "" {
+					specs = append(specs, fleet.MDMProfileSpec{Path: path})
+				}
+			}
+		}
+		return specs
+	}
+	return nil
+}
+
+func extractAppCfgMacOSAssets(appCfg any) []fleet.MDMProfileSpec {
+	asMap, ok := appCfg.(map[string]any)
+	if !ok {
+		return nil
+	}
+	mmdm, ok := asMap["mdm"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return extractMacOSAssetSpecs(mmdm["macos_settings"])
+}
+
+// extractTmSpecsMDMAssets returns the Apple DDM asset specs keyed by team name.
+func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMProfileSpec {
+	var m map[string][]fleet.MDMProfileSpec
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name string `json:"name"`
+			MDM  struct {
+				MacOSSettings struct {
+					Assets []fleet.MDMProfileSpec `json:"assets"`
+				} `json:"macos_settings"`
+			} `json:"mdm"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name == "" || len(spec.MDM.MacOSSettings.Assets) == 0 {
+			continue
+		}
+		if m == nil {
+			m = make(map[string][]fleet.MDMProfileSpec)
+		}
+		m[spec.Name] = spec.MDM.MacOSSettings.Assets
+	}
+	return m
 }
 
 func extractAppCfgScripts(appCfg interface{}) []string {
@@ -2221,6 +2384,13 @@ func (c *Client) DoGitOps(
 		macOSMigration := mdmAppConfig["macos_migration"].(map[string]interface{})
 		if enable, ok := macOSMigration["enable"]; !ok || enable == nil {
 			macOSMigration["enable"] = false
+		}
+		// Put in default value for apple_account_provisioning to clear the
+		// configuration if it's not set in the gitops config.
+		if incoming.Controls.AppleAccountProvisioning != nil {
+			mdmAppConfig["apple_account_provisioning"] = incoming.Controls.AppleAccountProvisioning
+		} else {
+			mdmAppConfig["apple_account_provisioning"] = map[string]any{}
 		}
 		// Put in default values for windows_enabled_and_configured
 		mdmAppConfig["windows_enabled_and_configured"] = incoming.Controls.WindowsEnabledAndConfigured
@@ -3145,7 +3315,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
-			if !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.

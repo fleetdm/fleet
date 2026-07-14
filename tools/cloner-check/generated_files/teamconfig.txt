@@ -57,6 +57,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]strin
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	Assets	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
@@ -126,6 +127,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsIncludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	InstallDuringSetup	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	SetupExperiencePlatform	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Configuration	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
@@ -151,6 +153,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsExcludeAny	[]st
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Categories	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	InstallDuringSetup	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	SetupExperiencePlatform	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwareSpec	AppStoreApps	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.TeamSpecAppStoreApp]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.TeamSpecAppStoreApp]	Set	bool
