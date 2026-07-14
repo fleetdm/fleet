@@ -409,6 +409,49 @@ func TestValidGitOpsYaml(t *testing.T) {
 	}
 }
 
+func TestGitOpsHostNameTemplate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid string parses", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template: \"iPad $FLEET_VAR_HOST_HARDWARE_SERIAL\"\n"
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		nameTemplate, ok := gitops.Controls.NameTemplate.(string)
+		require.True(t, ok, "name_template should be a string")
+		require.Equal(t, "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL", nameTemplate)
+	})
+
+	t.Run("integer value rejected", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template: 42\n"
+		_, err := gitOpsFromString(t, config)
+		require.ErrorContains(t, err, "name_template")
+		require.ErrorContains(t, err, "must be a string")
+	})
+
+	t.Run("map value rejected", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template:\n    foo: bar\n"
+		_, err := gitOpsFromString(t, config)
+		require.ErrorContains(t, err, "name_template")
+		require.ErrorContains(t, err, "must be a string")
+	})
+
+	t.Run("null value treated as absent", func(t *testing.T) {
+		config := getTeamConfig([]string{"controls"})
+		config += "controls:\n  name_template:\n"
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		require.Nil(t, gitops.Controls.NameTemplate)
+	})
+
+	t.Run("Set returns true when only name_template present", func(t *testing.T) {
+		c := GitOpsControls{NameTemplate: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"}
+		require.True(t, c.Set())
+	})
+}
+
 func TestDuplicatePolicyNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -3302,6 +3345,50 @@ func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
 	})
 }
 
+func TestGitOpsAppleAccountProvisioning(t *testing.T) {
+	t.Parallel()
+
+	const aapControls = `
+controls:
+  apple_account_provisioning:
+    oauth_idp_token_url: https://idp.example.com/oauth2/v1/token
+    oauth_idp_client_id: client-id
+    oauth_idp_client_secret: super-secret
+`
+
+	t.Run("parsed in global config", func(t *testing.T) {
+		t.Parallel()
+		config := getGlobalConfig([]string{"controls"}) + aapControls
+		path, basePath := createTempFile(t, "", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		require.NotNil(t, gitops.Controls.AppleAccountProvisioning)
+		aap := gitops.Controls.AppleAccountProvisioning
+		assert.Equal(t, "https://idp.example.com/oauth2/v1/token", aap.OAuthIdPTokenURL.Value)
+		assert.Equal(t, "client-id", aap.OAuthIdPClientID.Value)
+		assert.Equal(t, "super-secret", aap.OAuthIdPClientSecret.Value)
+		assert.True(t, gitops.Controls.Set())
+	})
+
+	t.Run("nil when omitted", func(t *testing.T) {
+		t.Parallel()
+		config := getGlobalConfig(nil)
+		path, basePath := createTempFile(t, "", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Nil(t, gitops.Controls.AppleAccountProvisioning)
+	})
+
+	t.Run("rejected in a specific team's file", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"controls"}) + aapControls
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "apple_account_provisioning can only be configured in the global configuration")
+	})
+}
+
 func TestUnknownKeyDetection(t *testing.T) {
 	t.Parallel()
 
@@ -3775,6 +3862,49 @@ unknown_policy_pkg_field: bad
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown_policy_pkg_field")
 	})
+}
+
+// TestControlsAppleSettingsAssets verifies that controls.apple_settings.assets
+// are parsed like profiles: paths are resolved and any Fleet secrets referenced
+// in the asset files are collected.
+func TestControlsAppleSettingsAssets(t *testing.T) {
+	t.Setenv("FLEET_SECRET_WALLPAPER", "s3cret")
+
+	dir := t.TempDir()
+	assetsDir := filepath.Join(dir, "lib", "assets")
+	require.NoError(t, os.MkdirAll(assetsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetsDir, "wallpaper.json"),
+		[]byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.wallpaper","Payload":{"Reference":{"DataURL":"https://example.com/$FLEET_SECRET_WALLPAPER"}}}`), 0o644))
+
+	config := `
+controls:
+  apple_settings:
+    assets:
+      - path: ./lib/assets/wallpaper.json
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+
+	macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+	require.True(t, ok, "apple_settings not parsed")
+	require.Len(t, macSettings.Assets, 1)
+	require.True(t, filepath.IsAbs(macSettings.Assets[0].Path), "asset path should be resolved to absolute")
+	require.Contains(t, gitops.FleetSecrets, "FLEET_SECRET_WALLPAPER")
 }
 
 // TestControlsNewKeyNames verifies that the new multi-platform key names
@@ -4992,6 +5122,30 @@ policies:
     type: patch
     platform: darwin
     fleet_maintained_app_slug: firefox/darwin
+`,
+		},
+		{
+			name: "dynamic policy with base fleet_maintained_app_slug is rejected",
+			policies: `
+policies:
+  - name: Install Google Chrome
+    type: dynamic
+    platform: darwin
+    query: "SELECT 1;"
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+`,
+			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies"},
+		},
+		{
+			name: "dynamic policy with install_software true and no slug is allowed (does nothing)",
+			policies: `
+policies:
+  - name: Some dynamic policy
+    type: dynamic
+    platform: darwin
+    query: "SELECT 1;"
+    install_software: true
 `,
 		},
 	}

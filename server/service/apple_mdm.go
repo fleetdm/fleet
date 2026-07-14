@@ -74,6 +74,7 @@ var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarSCEPRenewalID, fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
+	fleet.FleetVarPSSODeviceRegistrationToken,
 }
 
 // fleetVarsSupportedInDDMDeclarations is the list of Fleet variables
@@ -530,6 +531,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 
+	if slices.Contains(fleetVars, string(fleet.FleetVarPSSODeviceRegistrationToken)) {
+		if lic == nil || !lic.IsPremium() {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Variable %s requires a Fleet Premium license.", fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix())}
+		}
+		if err := validatePSSORegistrationTokenVariable(contents); err != nil {
+			return nil, err
+		}
+	}
+
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
 		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
@@ -538,6 +548,78 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	}
 
 	return fleetVars, nil
+}
+
+// extensibleSSOProfileContent is the subset of an Apple configuration profile
+// used to validate placement of the PSSO device registration token variable.
+type extensibleSSOProfileContent struct {
+	PayloadContent []extensibleSSOPayload `plist:"PayloadContent"`
+}
+
+type extensibleSSOPayload struct {
+	PayloadType         string `plist:"PayloadType"`
+	ExtensionIdentifier string `plist:"ExtensionIdentifier"`
+	RegistrationToken   string `plist:"RegistrationToken"`
+	PlatformSSO         struct {
+		UseSharedDeviceKeys bool `plist:"UseSharedDeviceKeys"`
+	} `plist:"PlatformSSO"`
+}
+
+// validatePSSORegistrationTokenVariable enforces that
+// $FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN appears only as the RegistrationToken
+// value of a Fleet Platform SSO v2 payload — a com.apple.extensiblesso payload
+// whose ExtensionIdentifier starts with "com.fleetdm" and whose PlatformSSO
+// dictionary sets UseSharedDeviceKeys to true — and nowhere else in the profile.
+// This stops an admin from leaking the device registration token into another
+// payload (e.g. a third-party IdP extension) or field.
+func validatePSSORegistrationTokenVariable(contents string) error {
+	re := fleet.FleetVarPSSODeviceRegistrationTokenRegexp
+	totalOccurrences := len(re.FindAllString(contents, -1))
+	if totalOccurrences == 0 {
+		return nil
+	}
+
+	// Guard against a Fleet variable inside a <data> field elsewhere in the
+	// profile breaking the plist unmarshal (mirrors the DigiCert/SCEP validators).
+	escaped := variables.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
+		return base64.StdEncoding.EncodeToString([]byte(match))
+	})
+
+	var prof extensibleSSOProfileContent
+	if err := plist.Unmarshal([]byte(escaped), &prof); err != nil {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse Platform SSO payload with Fleet variables: %s", err.Error())}
+	}
+
+	varWithPrefix := fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix()
+	varWithBraces := fleet.FleetVarPSSODeviceRegistrationToken.WithBraces()
+
+	validPlacements := 0
+	for _, p := range prof.PayloadContent {
+		if p.PayloadType != "com.apple.extensiblesso" {
+			continue
+		}
+		if p.RegistrationToken != varWithPrefix && p.RegistrationToken != varWithBraces {
+			continue
+		}
+		if !strings.HasPrefix(p.ExtensionIdentifier, "com.fleetdm") {
+			return &fleet.BadRequestError{Message: fmt.Sprintf(
+				"Variable %s is only allowed in a Fleet Platform SSO payload (the ExtensionIdentifier must start with \"com.fleetdm\").",
+				varWithPrefix)}
+		}
+		if !p.PlatformSSO.UseSharedDeviceKeys {
+			return &fleet.BadRequestError{Message: fmt.Sprintf(
+				"Variable %s requires the Platform SSO payload to set UseSharedDeviceKeys to true.",
+				varWithPrefix)}
+		}
+		validPlacements++
+	}
+
+	if validPlacements != totalOccurrences {
+		return &fleet.BadRequestError{Message: fmt.Sprintf(
+			"Variable %s is only allowed in the RegistrationToken of a Fleet Platform SSO payload.",
+			varWithPrefix)}
+	}
+	return nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
@@ -961,6 +1043,12 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
+	assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "handling declaration asset references")
+	}
+	d.AssetReferenceUUIDs = assetRefs
+
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
@@ -985,6 +1073,101 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 
 	return decl, nil
+}
+
+func (svc *Service) handleDeclarationAssetReferences(ctx context.Context, decl *fleet.MDMAppleDeclaration, assets []*fleet.DDMAsset) ([]string, error) {
+	assetRefs, err := findAssetReferences(string(decl.RawJSON))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(assetRefs) == 0 {
+		return nil, nil
+	}
+
+	if assets == nil {
+		// List all assets for the given team
+		assets, err = svc.ds.ListAppleDDMAssets(ctx, decl.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing DDM assets")
+		}
+	}
+
+	assetsByIdentifier := make(map[string]string, len(assets))
+	for _, asset := range assets {
+		assetsByIdentifier[asset.Identifier] = asset.AssetUUID
+	}
+
+	assetReferenceUUIDs := make([]string, 0, len(assetRefs))
+	for _, ref := range assetRefs {
+		assetUUID, ok := assetsByIdentifier[ref]
+		if !ok {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. Asset (%q) doesn't exist. Make sure the asset is uploaded in OS Settings > Configuration profiles > Assets before referencing it in a profile.", ref),
+			}
+		}
+		assetReferenceUUIDs = append(assetReferenceUUIDs, assetUUID)
+	}
+
+	return assetReferenceUUIDs, nil
+}
+
+// findAssetReferences walks the raw declaration JSON recursively to find any DDM Asset references
+// it returns a list of asset identifiers, or an error.
+func findAssetReferences(contents string) ([]string, error) {
+	var root map[string]any
+	if err := json.Unmarshal([]byte(contents), &root); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message: "invalid declaration JSON",
+		}
+	}
+
+	payload, ok := root["Payload"]
+	if !ok {
+		return nil, &fleet.BadRequestError{
+			Message: `declaration is missing required "Payload" key`,
+		}
+	}
+
+	refs := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	var walk func(node any) error
+	walk = func(node any) error {
+		switch v := node.(type) {
+		case map[string]any:
+			for key, child := range v {
+				if strings.HasSuffix(key, "AssetReference") {
+					ref, ok := child.(string)
+					if !ok || ref == "" {
+						return &fleet.BadRequestError{
+							Message: fmt.Sprintf(`expected "%s" to be a non-empty string`, key),
+						}
+					}
+					if _, exists := seen[ref]; !exists {
+						seen[ref] = struct{}{}
+						refs = append(refs, ref)
+					}
+				}
+				if err := walk(child); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, item := range v {
+				if err := walk(item); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	if err := walk(payload); err != nil {
+		return nil, err
+	}
+
+	return refs, nil
 }
 
 func validateDeclarationFleetVariables(contents string, lic license.LicenseChecker) ([]string, error) {
@@ -3096,6 +3279,26 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 	return nil
 }
 
+// updateAppConfigMDMHostNameTemplate saves the "No team" host name template on
+// the global AppConfig.MDM struct and reconciles enforcement.
+func (svc *Service) updateAppConfigMDMHostNameTemplate(ctx context.Context, nameTemplate string) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	if ac.MDM.HostNameTemplate.Value == nameTemplate {
+		return nil
+	}
+
+	ac.MDM.HostNameTemplate = optjson.SetString(nameTemplate)
+	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+		return ctxerr.Wrap(ctx, err, "save app config for host name template")
+	}
+
+	return svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, nameTemplate)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a bootstrap package
 ////////////////////////////////////////////////////////////////////////////////
@@ -3669,6 +3872,238 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 	return fleet.ErrMissingLicense
 }
 
+type listAppleDDMAssetsRequest struct {
+	TeamID *uint `query:"fleet_id,optional"`
+}
+
+type listAppleDDMAssetsResponse struct {
+	Assets []*fleet.DDMAsset `json:"assets"`
+	Err    error             `json:"error,omitempty"`
+}
+
+func (r listAppleDDMAssetsResponse) Error() error { return r.Err }
+
+func listAppleDDMAssetsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listAppleDDMAssetsRequest)
+	assets, err := svc.ListAppleDDMAssets(ctx, req.TeamID)
+	if err != nil {
+		return listAppleDDMAssetsResponse{Err: err}, nil
+	}
+	return listAppleDDMAssetsResponse{Assets: assets}, nil
+}
+
+func (svc *Service) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getAppleDDMAssetRequest struct {
+	AssetUUID string `url:"asset_uuid"`
+	Alt       string `query:"alt,optional"`
+}
+
+func (r getAppleDDMAssetRequest) ValidateRequest() error {
+	if r.Alt != "" && strings.ToLower(r.Alt) != "media" {
+		return &fleet.BadRequestError{Message: "Alt query param value is invalid. Supported values are empty and \"media\""}
+	}
+	return nil
+}
+
+type getAppleDDMAssetResponse struct {
+	Asset *fleet.DDMAsset `json:",omitempty"`
+	Err   error           `json:"error,omitempty"`
+}
+
+func (r getAppleDDMAssetResponse) Error() error { return r.Err }
+
+type downloadAppleDDMAssetResponse struct {
+	Name string
+	Data []byte
+	Err  error `json:"error,omitempty"`
+}
+
+func (r downloadAppleDDMAssetResponse) Error() error { return r.Err }
+
+func (r downloadAppleDDMAssetResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(r.Data)))
+	w.Header().Set("Content-Type", "application/json")                                   // We know we return JSON, if we ever serve other files we need a generic octet-stream
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename=%q`, r.Name)) // make the caller download the file
+	if n, err := w.Write(r.Data); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func getAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getAppleDDMAssetRequest)
+
+	if strings.ToLower(req.Alt) == "media" {
+		name, data, err := svc.DownloadAppleDDMAsset(ctx, req.AssetUUID)
+		if err != nil {
+			return downloadAppleDDMAssetResponse{Err: err}, nil
+		}
+		return downloadAppleDDMAssetResponse{Name: name, Data: data}, nil
+	}
+
+	asset, err := svc.GetAppleDDMAsset(ctx, req.AssetUUID)
+	if err != nil {
+		return getAppleDDMAssetResponse{Err: err}, nil
+	}
+	return getAppleDDMAssetResponse{Asset: asset}, nil
+}
+
+func (svc *Service) GetAppleDDMAsset(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+func (svc *Service) DownloadAppleDDMAsset(ctx context.Context, assetUUID string) (name string, data []byte, err error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", nil, fleet.ErrMissingLicense
+}
+
+type createAppleDDMAssetRequest struct {
+	TeamID *uint
+	Asset  *multipart.FileHeader
+}
+
+func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	decoded := new(createAppleDDMAssetRequest)
+
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	val, ok := r.MultipartForm.Value["fleet_id"]
+	if !ok || len(val) < 1 {
+		// default is no team
+		decoded.TeamID = new(uint(0))
+	} else {
+		fleetID, err := strconv.ParseUint(val[0], 10, 32) // nolint:staticcheck // it's used...
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
+		}
+		decoded.TeamID = new(uint(fleetID))
+	}
+
+	fhs, ok := r.MultipartForm.File["asset"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for asset"}
+	}
+	decoded.Asset = fhs[0]
+
+	if !strings.HasSuffix(decoded.Asset.Filename, ".json") {
+		return nil, &fleet.BadRequestError{Message: "Invalid file type for asset. Only \".json\" files are allowed"}
+	}
+
+	return decoded, nil
+}
+
+type createAppleDDMAssetResponse struct {
+	AssetUUID string `json:"asset_uuid,omitempty"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r createAppleDDMAssetResponse) Error() error { return r.Err }
+
+func createAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createAppleDDMAssetRequest)
+	f, err := req.Asset.Open()
+	if err != nil {
+		return createAppleDDMAssetResponse{Err: err}, nil
+	}
+	defer f.Close()
+	assetData, err := io.ReadAll(f)
+	if err != nil {
+		return createAppleDDMAssetResponse{Err: err}, nil
+	}
+	assetName := strings.TrimSuffix(req.Asset.Filename, ".json")
+	assetUUID, err := svc.CreateAppleDDMAsset(ctx, req.TeamID, assetName, assetData)
+	if err != nil {
+		return createAppleDDMAssetResponse{Err: err}, nil
+	}
+	return createAppleDDMAssetResponse{AssetUUID: assetUUID}, nil
+}
+
+func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name string, data []byte) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}
+
+type deleteAppleDDMAssetRequest struct {
+	AssetUUID string `url:"asset_uuid"`
+}
+
+type deleteAppleDDMAssetResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteAppleDDMAssetResponse) Error() error { return r.Err }
+
+func (r deleteAppleDDMAssetResponse) Status() int { return http.StatusNoContent }
+
+func deleteAppleDDMAssetEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteAppleDDMAssetRequest)
+	if err := svc.DeleteAppleDDMAsset(ctx, req.AssetUUID); err != nil {
+		return deleteAppleDDMAssetResponse{Err: err}, nil
+	}
+	return deleteAppleDDMAssetResponse{}, nil
+}
+
+func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+type batchSetAppleDDMAssetsRequest struct {
+	TeamID   *uint                                `json:"-" query:"fleet_id,optional"`
+	TeamName string                               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	DryRun   bool                                 `json:"-" query:"dry_run,optional"`
+	Assets   []fleet.MDMAppleDDMAssetBatchPayload `json:"assets"`
+}
+
+type batchSetAppleDDMAssetsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetAppleDDMAssetsResponse) Error() error { return r.Err }
+
+func (r batchSetAppleDDMAssetsResponse) Status() int { return http.StatusNoContent }
+
+func batchSetAppleDDMAssetsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchSetAppleDDMAssetsRequest)
+	if err := svc.BatchSetAppleDDMAssets(ctx, req.TeamID, req.TeamName, req.Assets, req.DryRun); err != nil {
+		return batchSetAppleDDMAssetsResponse{Err: err}, nil
+	}
+	return batchSetAppleDDMAssetsResponse{}, nil
+}
+
+func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
@@ -4204,6 +4639,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 	// to fetch their device information periodically.
 	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
 		return svc.handleRefetch(r, cmdResult)
+	}
+
+	// Results of the Settings/DeviceName command that enforces a team's host
+	// name template are routed by their UUID prefix rather than a "Settings"
+	// request-type case: other features may send Settings commands carrying
+	// different items, so the prefix scopes handling to renames.
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.DeviceNameCommandUUIDPrefix) {
+		return nil, svc.handleDeviceNameCommandResult(r.Context, cmdResult)
 	}
 
 	// We explicitly get the request type because it comes empty. There's a
@@ -5311,6 +5754,78 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 	return nil
 }
 
+// handleDeviceNameCommandResult processes the result of a Settings/DeviceName
+// command sent to enforce a team's host name template. On acknowledgment the
+// host is renamed in Fleet right away — the device just applied the name, so
+// the next osquery/DeviceInformation ingest confirms the rename (verifying →
+// verified) instead of reverting an optimistic early write. On error the
+// enforcement row lands failed with Apple's error chain; the cron only picks
+// up queued rows, so a failed command is not retried until an admin resends.
+func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx context.Context, cmdResult *mdm.CommandResults) error {
+	status := cmdResult.Status
+	detail := ""
+	switch status {
+	case fleet.MDMAppleStatusAcknowledged:
+		// A Settings command can report per-item failures inside an
+		// acknowledged result; this command carries a single DeviceName item,
+		// so any item-level error means the rename failed.
+		if itemDetail, itemFailed := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemFailed {
+			status = fleet.MDMAppleStatusError
+			detail = itemDetail
+		}
+	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+		detail = apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
+	default:
+		// Idle/NotNow — the command hasn't completed yet; nothing to record.
+		return nil
+	}
+
+	if status == fleet.MDMAppleStatusAcknowledged {
+		// On acknowledgment the datastore moves the row to verifying and renames
+		// the host in Fleet in the same transaction. A not-found means the row
+		// tracks a newer command (template re-saved or resend clicked before this
+		// result arrived); this result is stale and the newer command's result
+		// carries the final name, so it's ignored.
+		if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "update device name row from acknowledged command")
+		}
+		return nil
+	}
+
+	if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail); err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "update device name row from failed command")
+	}
+	return nil
+}
+
+// deviceNameSettingsItemError inspects a Settings command acknowledgment for
+// per-item statuses: each item in the Settings array of the response can
+// individually report an Error even when the overall command is Acknowledged.
+// It returns a human-readable detail and true when any item failed.
+func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, bool) {
+	var ack struct {
+		Settings []struct {
+			Status     string           `plist:"Status"`
+			ErrorChain []mdm.ErrorChain `plist:"ErrorChain"`
+		} `plist:"Settings"`
+	}
+	if err := plist.Unmarshal(raw, &ack); err != nil {
+		// A malformed per-item array shouldn't fail the acknowledged command.
+		logger.WarnContext(ctx, "unmarshal Settings command acknowledgment for per-item statuses", "err", err)
+		return "", false
+	}
+	for _, item := range ack.Settings {
+		if item.Status != "" && item.Status != fleet.MDMAppleStatusAcknowledged {
+			detail := apple_mdm.FmtErrorChain(item.ErrorChain)
+			if detail == "" {
+				detail = "Settings item returned status " + item.Status + "."
+			}
+			return detail, true
+		}
+	}
+	return "", false
+}
+
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix) {
 		// Caller should have checked this, but just in case we'll return an error.
@@ -5434,6 +5949,20 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
+
+	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
+		// Reconcile the host-name enforcement row (if any) against the name the
+		// device reported: confirms a rename (verifying → verified) or records
+		// drift (verified → failed). No-op for hosts without a row. A failure here
+		// is logged rather than returned: the refetch results are already
+		// persisted, this is a non-critical verify transition the next refetch
+		// will redo, and aborting would fail the whole MDM check-in. Mirrors the
+		// macOS osquery hook (server/service/osquery.go).
+		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName); err != nil {
+			svc.logger.ErrorContext(ctx, "update host device name status from refetch", "host_uuid", host.UUID, "err", err)
+		}
+	}
+
 	// Skip the disk space update when either capacity field is missing/invalid,
 	// since the percent-available calculation divides by deviceCapacity.
 	if deviceCapacityOK && availableDeviceCapacityOK && deviceCapacity > 0 {
@@ -6207,6 +6736,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
+	configurationUUIDs := []string{}
 	var removeDeclarationUUIDsToUpdateToPending []string
 	for _, d := range di {
 		if d.OperationType == nil {
@@ -6236,14 +6766,31 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			}
 		}
 
-		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt)
+		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt, d.AssetsUpdatedAt)
 		configurations = append(configurations, fleet.MDMAppleDDMManifest{
 			Identifier:  d.Identifier,
 			ServerToken: effectiveToken,
 		})
+		configurationUUIDs = append(configurationUUIDs, d.DeclarationUUID)
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
 			ServerToken: effectiveToken,
+		})
+	}
+
+	referencedAssets, err := svc.ds.GetAppleDDMAssetsReferencedByDeclarations(ctx, configurationUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting referenced assets")
+	}
+
+	ddmAssets := []fleet.MDMAppleDDMManifest{}
+	for _, asset := range referencedAssets {
+		ddmAssets = append(ddmAssets, fleet.MDMAppleDDMManifest{
+			Identifier: asset.Identifier,
+			// Match how configurations/activations serve their ServerToken: a hex
+			// string of the token. asset.Checksum holds the raw binary(16) token, so
+			// hex-encode it here rather than emitting raw bytes through JSON.
+			ServerToken: hex.EncodeToString(asset.Checksum),
 		})
 	}
 
@@ -6252,6 +6799,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	type tokenSorting struct {
 		token              string
 		variablesUpdatedAt *time.Time
+		assetsUpdatedAt    *time.Time
 		uploadedAt         time.Time
 		declarationUUID    string
 	}
@@ -6262,6 +6810,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			sorting := tokenSorting{
 				token:              d.ServerToken,
 				variablesUpdatedAt: d.VariablesUpdatedAt,
+				assetsUpdatedAt:    d.AssetsUpdatedAt,
 				uploadedAt:         d.UploadedAt,
 				declarationUUID:    d.DeclarationUUID,
 			}
@@ -6278,11 +6827,15 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	})
 	var tokenBuilder strings.Builder
 	for _, t := range tokens {
+		// Must match MySQL's CONCAT order and DATETIME(6) string representation
+		// used in MDMAppleDDMDeclarationsToken:
+		//   HEX(mad.token) + IFNULL(variables_updated_at, '') + IFNULL(assets_updated_at, '')
 		tokenBuilder.WriteString(t.token)
 		if t.variablesUpdatedAt != nil {
-			// Must match MySQL's DATETIME(6) string representation used in
-			// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
 			tokenBuilder.WriteString(t.variablesUpdatedAt.Format("2006-01-02 15:04:05.000000"))
+		}
+		if t.assetsUpdatedAt != nil {
+			tokenBuilder.WriteString(t.assetsUpdatedAt.Format("2006-01-02 15:04:05.000000"))
 		}
 	}
 
@@ -6298,7 +6851,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		Declarations: fleet.MDMAppleDDMManifestItems{
 			Activations:    activations,
 			Configurations: configurations,
-			Assets:         []fleet.MDMAppleDDMManifest{},
+			Assets:         ddmAssets,
 			Management:     []fleet.MDMAppleDDMManifest{},
 		},
 		DeclarationsToken: token,
@@ -6332,9 +6885,44 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 		return svc.handleActivationDeclaration(ctx, parts, hostUUID, scope)
 	case "configuration":
 		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID, scope)
+	case "asset":
+		return svc.handleDeclarationAsset(ctx, parts, hostUUID)
 	default:
 		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, ctxerr.Errorf(ctx, "declaration type not supported: %s", parts[1]))
 	}
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationAsset(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	assetIdentifier := parts[2]
+
+	asset, err := svc.ds.GetAppleDDMAssetForDelivery(ctx, assetIdentifier, hostUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting asset by identifier")
+	}
+
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(asset.Data))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expanding embedded secrets for identifier:%s", parts[2]))
+	}
+
+	var tempd map[string]any
+	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
+	}
+
+	// asset.Checksum is the generated token column, MD5(raw_json + secrets_updated_at),
+	// so it already reflects secret updates. Serve it hex-encoded to match how the
+	// manifest advertises this asset's ServerToken (see handleDeclarationItems).
+	tempd["ServerToken"] = hex.EncodeToString(asset.Checksum)
+
+	b, err := json.Marshal(tempd)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
+	}
+	return b, nil
 }
 
 func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string, scope fleet.PayloadScope) ([]byte, error) {
@@ -6357,7 +6945,7 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
   },
   "ServerToken": "%s",
   "Type": "com.apple.activation.simple"
-}`, parts[2], references, fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt))
+}`, parts[2], references, fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt, d.AssetsUpdatedAt))
 
 	return []byte(response), nil
 }
@@ -6394,7 +6982,7 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	// normally stripped at delivery time since it is not a part of the Apple
 	// schema and unused by the device.
 	delete(tempd, "PayloadScope")
-	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
+	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt, d.AssetsUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
 
 	b, err := json.Marshal(tempd)
 	if err != nil {

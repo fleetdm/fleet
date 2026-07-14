@@ -178,6 +178,8 @@ type GitOpsControls struct {
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration any               `json:"macos_migration"`
 
+	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
+
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
 	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
@@ -194,6 +196,7 @@ type GitOpsControls struct {
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
+	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
@@ -207,7 +210,9 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
+		c.AppleAccountProvisioning != nil ||
+		c.NameTemplate != nil
 }
 
 type Policy struct {
@@ -309,6 +314,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
 	packageLevel.SelfService = spec.SelfService
 	packageLevel.Configuration = spec.Configuration
 
@@ -1134,6 +1140,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	// Validate unknown keys in controls section.
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
+
+	// apple_account_provisioning is a global-only MDM setting (it maps to global
+	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
+	// global configuration (or the no-team/unassigned file).
+	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		multiError = multierror.Append(multiError, fmt.Errorf(
+			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename))
+	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
 
@@ -1174,6 +1188,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	// Validate that name_template, if present, is a string.
+	if result.Controls.NameTemplate != nil {
+		if _, ok := result.Controls.NameTemplate.(string); !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
@@ -1207,6 +1228,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				return multierror.Append(multiError, err)
 			}
 		}
+
+		// Apple DDM assets follow the same path/paths + secret handling as
+		// profiles, so reuse the same expansion and resolution helpers.
+		macOSSettings.Assets, errs = expandBaseItems(macOSSettings.Assets, controlsDir, "asset", GlobExpandOptions{
+			AllowedExtensions: map[string]bool{".json": true},
+			LogFn:             logFn,
+		})
+		multiError = multierror.Append(multiError, errs...)
+		for i := range macOSSettings.Assets {
+			err := resolveAndUpdateProfilePath(&macOSSettings.Assets[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}
@@ -1837,6 +1873,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
+		} else if item.FleetMaintainedAppSlug != "" {
+			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName

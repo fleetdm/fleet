@@ -1942,7 +1942,13 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	}
 	cp.LabelsExcludeAny = excludeLabels
 
-	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
+	foundVars := variables.Find(string(data))
+	varNames := make([]fleet.FleetVarName, 0, len(foundVars))
+	for _, v := range foundVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
+
+	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp, varNames)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -2354,6 +2360,25 @@ func (svc *Service) BatchSetMDMProfiles(
 			Identifier:     identifier,
 			FleetVariables: varNames,
 		})
+	}
+
+	// Resolve DDM asset references for declarations so the batch path links each
+	// declaration to the assets it references (mirroring the single-upload
+	// path). GitOps applies assets before declarations, so referenced assets
+	// already exist by this point.
+	if len(appleDeclsSlice) > 0 {
+		assets, err := svc.ds.ListAppleDDMAssets(ctx, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing DDM assets")
+		}
+		for _, d := range appleDeclsSlice {
+			d.TeamID = tmID
+			assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, assets)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "handling declaration asset references")
+			}
+			d.AssetReferenceUUIDs = assetRefs
+		}
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
@@ -3040,6 +3065,133 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption, requireBitLockerPIN)
 	}
 	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Update MDM host name template
+////////////////////////////////////////////////////////////////////////////////
+
+type updateHostNameTemplateRequest struct {
+	FleetID          *uint  `json:"fleet_id"`
+	HostNameTemplate string `json:"name_template"`
+}
+
+type updateHostNameTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateHostNameTemplateResponse) Error() error { return r.Err }
+
+func (r updateHostNameTemplateResponse) Status() int { return http.StatusNoContent }
+
+func updateHostNameTemplateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateHostNameTemplateRequest)
+	if err := svc.UpdateMDMHostNameTemplate(ctx, req.FleetID, req.HostNameTemplate); err != nil {
+		return updateHostNameTemplateResponse{Err: err}, nil
+	}
+	return updateHostNameTemplateResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint, nameTemplate string) error {
+	if !license.IsPremium(ctx) {
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMissingLicense
+	}
+
+	if err := svc.authz.Authorize(ctx,
+		fleet.MDMAppleSettingsPayload{TeamID: fleetID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if nameTemplate != "" {
+		validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		nameTemplate = validated
+	}
+
+	if fleetID != nil && *fleetID > 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.EnterpriseOverrides.UpdateTeamMDMHostNameTemplate(ctx, tm, nameTemplate)
+	}
+	return svc.updateAppConfigMDMHostNameTemplate(ctx, nameTemplate)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /hosts/{host_id:[0-9]+}/name_template/resend
+////////////////////////////////////////////////////////////////////////////////
+
+type resendHostNameTemplateRequest struct {
+	HostID uint `url:"host_id"`
+}
+
+type resendHostNameTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendHostNameTemplateResponse) Error() error { return r.Err }
+
+func (r resendHostNameTemplateResponse) Status() int { return http.StatusAccepted }
+
+func resendHostNameTemplateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*resendHostNameTemplateRequest)
+
+	if err := svc.ResendHostNameTemplate(ctx, req.HostID); err != nil {
+		return resendHostNameTemplateResponse{Err: err}, nil
+	}
+
+	return resendHostNameTemplateResponse{}, nil
+}
+
+func (svc *Service) ResendHostNameTemplate(ctx context.Context, hostID uint) error {
+	if !license.IsPremium(ctx) {
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMissingLicense
+	}
+
+	// Coarse gate before loading the host. We use selective_list (like the profile
+	// resend) so GitOps tokens are admitted here — GitOps manages host name
+	// templates (controls.name_template), so it must also be able to resend.
+	// Team-scoped enforcement is the ActionResend check below, once the host's team
+	// is known (that policy admits GitOps for the host's team too).
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// Host names are enforced for both fleets and "No team", so a nil TeamID is
+	// valid here; whether the host is actually enforced is decided by the presence
+	// of an enforcement row below (404 when absent).
+	enforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostName", "Unable to match host name to host.").WithStatus(http.StatusNotFound), "getting host device name enforcement")
+		}
+		return ctxerr.Wrap(ctx, err, "getting host device name enforcement")
+	}
+
+	// A NULL status is a queued row. Pending and verifying rows can't be resent.
+	if enforcement.Status == nil || *enforcement.Status == fleet.MDMDeliveryPending || *enforcement.Status == fleet.MDMDeliveryVerifying {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostName", `Couldn't resend. Host names with "pending" or "verifying" status can't be resent.`).WithStatus(http.StatusConflict), "check host name status")
+	}
+
+	if err := svc.ds.ResendHostDeviceName(ctx, host.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resending host device name")
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

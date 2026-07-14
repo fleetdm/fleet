@@ -46,6 +46,8 @@ export interface IPolicyAutomationActivity {
   host_display_name: string;
   status: PolicyAutomationActivityStatus;
   output: string | null;
+  pre_install_output: string | null;
+  post_install_output: string | null;
 }
 
 export interface IPolicy {

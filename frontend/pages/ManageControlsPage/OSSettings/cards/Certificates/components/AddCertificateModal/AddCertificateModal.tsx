@@ -87,10 +87,13 @@ const AddCertModal = ({
   );
   const caPartials = cAResp ?? [];
 
-  const caDropdownOptions = caPartials.map((cAP) => ({
-    value: cAP.id.toString(),
-    label: cAP.name,
-  }));
+  // Only custom SCEP CAs are supported for Android certificate profiles.
+  const caDropdownOptions = caPartials
+    .filter((cAP) => cAP.type === "custom_scep_proxy")
+    .map((cAP) => ({
+      value: cAP.id.toString(),
+      label: cAP.name,
+    }));
 
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };

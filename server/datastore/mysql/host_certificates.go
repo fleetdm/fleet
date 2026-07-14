@@ -367,6 +367,13 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
+	// Whether osquery could read at least one user's certificate store in this report. SINGLE-USER ASSUMPTION: we treat
+	// "any user cert observed" as "the target user's store was readable", which holds when the device has one primary
+	// user.
+	anyUserCertObserved := slices.ContainsFunc(certs, func(c *fleet.HostCertificateRecord) bool {
+		return c.Source == fleet.UserHostCertificate
+	})
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := insertHostCertsDB(ctx, tx, toInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host certs")
@@ -409,8 +416,133 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		if err := insertHostMDMManagedCertDB(ctx, tx, hostMDMManagedCertsToInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host mdm managed cert rows")
 		}
+
+		// A proxied Windows SCEP profile sits in "verifying" until the certificate it requested is observed on the host.
+		// The managed-cert updates above set not_valid_after/serial when a reported cert matched the profile's
+		// renewal-ID marker, so a matched-and-valid managed-cert row is the signal that the certificate landed. Flip
+		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error).
+		if err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "verify windows scep profiles from observed certs")
+		}
+
+		// Backstop: a proxied Windows SCEP profile that never gets its certificate would otherwise sit in
+		// "verifying" forever. Once the grace period has elapsed and this report proves we could read the store
+		// where the certificate belongs but it isn't there, fail it. Runs after the flip above, so anything still
+		// "verifying" here has no observed certificate.
+		if err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved); err != nil {
+			return ctxerr.Wrap(ctx, err, "fail stuck windows scep profiles")
+		}
 		return nil
 	})
+}
+
+// windowsSCEPVerificationGracePeriod is how long a proxied Windows SCEP profile may stay in "verifying" (measured from
+// the host's ACK of the profile, i.e. host_mdm_windows_profiles.updated_at) before an ingest that proves the relevant
+// certificate store was readable, yet lacks the certificate, is treated as a failure.
+const windowsSCEPVerificationGracePeriod = time.Hour
+
+// windowsSCEPCertNotFoundDetail is the failure detail recorded when the verification backstop fires.
+const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate on the host after profile was delivered."
+
+// failStuckWindowsSCEPProfilesDB is the verification backstop for proxied Windows SCEP profiles. It runs on certificate
+// ingestion (so an offline host, or one whose agent can't enumerate certificates, never ingests and is never failed)
+// and marks a profile "failed" only when we have positive evidence the certificate is missing:
+//
+//   - Device-scoped profiles (SyncML uses the ./Device SCEP node): the LocalMachine store is always readable when
+//     osquery reports, so any ingest past the grace period with the certificate still absent is a genuine failure.
+//   - User-scoped profiles (SyncML uses the ./User SCEP node): the certificate lives in a user's store, which osquery
+//     can read only while that user is logged in. We fail only when this report includes at least one user
+//     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
+//     ./User Windows profile targets, so we assume the device has one primary user.
+func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) error {
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	graceSeconds := int(windowsSCEPVerificationGracePeriod.Seconds())
+
+	var query string
+	var args []any
+	if anyUserCertObserved {
+		// System and user scope observed. No need to inspect the profile's SyncML scope.
+		query = `
+			UPDATE host_mdm_windows_profiles hwmp
+			JOIN host_mdm_managed_certificates hmmc
+				ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
+			SET hwmp.status = ?, hwmp.detail = ?
+			WHERE hwmp.host_uuid = ?
+				AND hwmp.operation_type = ?
+				AND hwmp.status = ?
+				AND hmmc.type IN (?)
+				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)`
+		args = []any{
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, hostUUID, fleet.MDMOperationTypeInstall,
+			fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds,
+		}
+	} else {
+		// Only the LocalMachine store is provably readable this run. Restrict to device-scoped profiles (SyncML
+		// without a ./User SCEP node); a user-scoped certificate may just be waiting for its user to log in.
+		query = `
+			UPDATE host_mdm_windows_profiles hwmp
+			JOIN host_mdm_managed_certificates hmmc
+				ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
+			JOIN mdm_windows_configuration_profiles cp
+				ON cp.profile_uuid = hwmp.profile_uuid
+			SET hwmp.status = ?, hwmp.detail = ?
+			WHERE hwmp.host_uuid = ?
+				AND hwmp.operation_type = ?
+				AND hwmp.status = ?
+				AND hmmc.type IN (?)
+				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
+				AND cp.syncml NOT LIKE ?`
+		args = []any{
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, hostUUID, fleet.MDMOperationTypeInstall,
+			fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds, "%/User/Vendor/MSFT/ClientCertificateInstall/SCEP%",
+		}
+	}
+
+	stmt, inArgs, err := sqlx.In(query, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building windows scep backstop query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, inArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "failing stuck windows scep profiles")
+	}
+	return nil
+}
+
+// verifyWindowsSCEPProfilesFromObservedCertsDB flips a host's proxied Windows SCEP install profiles from "verifying" or
+// "failed" to "verified" once their managed-certificate row shows a certificate was observed (its serial/validity dates
+// were populated by the renewal-ID matcher in UpdateHostCertificates). Current validity is intentionally NOT required:
+// observing that the CA issued a certificate matching this profile's renewal-ID proves the enrollment succeeded, so we
+// mark it verified regardless of the certificate's lifetime. A short-lived certificate that has since expired is a
+// renewal concern (handled by RenewMDMManagedCertificates), not a verification failure.
+func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	stmt, args, err := sqlx.In(`
+		UPDATE host_mdm_windows_profiles hwmp
+		JOIN host_mdm_managed_certificates hmmc
+			ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
+		SET hwmp.status = ?, hwmp.detail = ''
+		WHERE hwmp.host_uuid = ?
+			AND hwmp.operation_type = ?
+			AND hwmp.status IN (?, ?)
+			AND hmmc.type IN (?)
+			AND hmmc.not_valid_after IS NOT NULL`,
+		fleet.MDMDeliveryVerified, hostUUID, fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed, caTypeStrs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building windows scep verify query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
+	}
+	return nil
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints

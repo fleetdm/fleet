@@ -772,6 +772,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
+	// This section handles MDM "assets", specifically for Apple DDM.
+	mdmAppleMW.GET("/api/_version_/fleet/assets", listAppleDDMAssetsEndpoint, listAppleDDMAssetsRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/assets/{asset_uuid}", getAppleDDMAssetEndpoint, getAppleDDMAssetRequest{})
+	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxMDMAssetSize).POST("/api/_version_/fleet/assets", createAppleDDMAssetEndpoint, createAppleDDMAssetRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/assets/{asset_uuid}", deleteAppleDDMAssetEndpoint, deleteAppleDDMAssetRequest{})
+	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/assets/batch", batchSetAppleDDMAssetsEndpoint, batchSetAppleDDMAssetsRequest{})
+
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
@@ -837,6 +844,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/name_template/resend", resendHostNameTemplateEndpoint, resendHostNameTemplateRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles/resend/batch", batchResendMDMProfileToHostsEndpoint, batchResendMDMProfileToHostsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/{profile_uuid}/status", getMDMConfigProfileStatusEndpoint, getMDMConfigProfileStatusRequest{})
 
@@ -844,6 +852,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// It was only used to set disk encryption.
 	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
 	ue.POST("/api/_version_/fleet/disk_encryption", updateDiskEncryptionEndpoint, updateDiskEncryptionRequest{})
+	ue.POST("/api/_version_/fleet/host_name_template", updateHostNameTemplateEndpoint, updateHostNameTemplateRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
@@ -1091,6 +1100,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollTokenPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
 	// Deprecated: Non unique token enrollment is deprecated in favour of AccountDrivenEnrollTokenPath. This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
+
+	// Apple Platform SSO (PSSO) endpoints, used by Fleet's Platform SSO
+	// extension. Unauthenticated at the HTTP layer: the token endpoint
+	// authenticates protocol-level via JWTs signed with registered device
+	// keys, and all endpoints are gated in the service layer on the feature
+	// being configured. Request bodies are capped at the endpointer's default
+	// size limit. The related /.well-known/apple-app-site-association document
+	// is served from the root mux (see registerPSSO).
+	ne.POST(pssoNoncePath, pssoNonceEndpoint, pssoNonceRequest{})
+	ne.POST(pssoRegistrationPath, pssoRegistrationEndpoint, pssoRegistrationRequest{})
+	ne.POST(pssoTokenPath, pssoTokenEndpoint, pssoTokenRequest{})
+	ne.GET(pssoJWKSPath, pssoJWKSEndpoint, pssoJWKSRequest{})
 	// This is for OAUTH2 token based auth
 	// ne.POST(apple_mdm.EnrollPath+"/token", mdmAppleAccountEnrollTokenEndpoint, mdmAppleAccountEnrollTokenRequest{})
 
@@ -1322,6 +1343,7 @@ func RegisterAppleMDMProtocolServices(
 	profileService nanomdm_service.ProfileService,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	svc fleet.Service,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
@@ -1331,6 +1353,9 @@ func RegisterAppleMDMProtocolServices(
 	}
 	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
+	}
+	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
+		return fmt.Errorf("psso: %w", err)
 	}
 	return nil
 }
@@ -1364,6 +1389,22 @@ func registerMDMServiceDiscovery(
 	})
 	mux.Handle(apple_mdm.ServiceDiscoveryTokenPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryTokenPath, fleetConfig))
 	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
+	return nil
+}
+
+func registerPSSO(
+	mux *http.ServeMux,
+	svc fleet.Service,
+	logger *slog.Logger,
+	fleetConfig config.FleetConfig,
+) error {
+	// Only the apple-app-site-association document is served from the root
+	// *http.ServeMux: Apple's CDN fetches it at a spec-defined /.well-known
+	// path that can't live under /api. The rest of the PSSO endpoints are
+	// registered on the unauthenticated endpointer in attachFleetAPIRoutes.
+	pssoLogger := logger.With("component", "mdm-apple-psso")
+	handler := pssoAASAHandler(svc, pssoLogger)
+	mux.Handle(pssoAASAPath, otel.WrapHandler(handler, pssoAASAPath, fleetConfig))
 	return nil
 }
 
