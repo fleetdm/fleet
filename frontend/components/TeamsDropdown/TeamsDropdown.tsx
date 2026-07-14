@@ -1,18 +1,22 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
   GroupBase,
+  MenuListProps,
   OptionProps,
+  SelectInstance,
   StylesConfig,
 } from "react-select-5";
+import { browserHistory } from "react-router";
+import classnames from "classnames";
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
 import { FONT_SIZES, FONT_WEIGHTS } from "styles/var/fonts";
 
-import classnames from "classnames";
-
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
@@ -21,6 +25,21 @@ import {
 } from "interfaces/team";
 
 import Icon from "components/Icon";
+
+// Augment react-select's selectProps so we can pass search + focus handlers
+// down into the custom MenuList component.
+declare module "react-select-5/dist/declarations/src/Select" {
+  export interface Props<
+    Option,
+    IsMulti extends boolean,
+    Group extends GroupBase<Option>
+  > {
+    searchQuery?: string;
+    onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onClickAddTeam?: () => void;
+    showAddTeamButton?: boolean;
+  }
+}
 
 export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
   value: number; // Redefine the value property to be just number
@@ -52,6 +71,20 @@ const generateDropdownOptions = (
   return filtered;
 };
 
+const filterOptionsBySearch = (
+  options: INumberDropdownOption[],
+  searchQuery: string
+) => {
+  const query = searchQuery.toLowerCase().trim();
+  if (query === "") {
+    return options;
+  }
+  return options.filter((option) => {
+    if (typeof option.label !== "string") return false;
+    return option.label.toLowerCase().includes(query);
+  });
+};
+
 const getOptionBackgroundColor = (
   state: OptionProps<
     INumberDropdownOption,
@@ -77,6 +110,71 @@ interface ITeamsDropdownProps {
 
 const baseClass = "team-dropdown";
 
+type ICustomMenuListProps = MenuListProps<INumberDropdownOption, false>;
+
+const CustomMenuList = (props: ICustomMenuListProps) => {
+  const { selectProps, children } = props;
+  const {
+    searchQuery,
+    onChangeSearchQuery,
+    onClickAddTeam,
+    showAddTeamButton,
+  } = selectProps;
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <components.MenuList {...props}>
+      <div className={`${baseClass}__search-row`}>
+        <div className={`${baseClass}__search-field`}>
+          <Icon name="search" />
+          <input
+            ref={inputRef}
+            className={`${baseClass}__search-input`}
+            type="text"
+            name="team-search-input"
+            placeholder="Search fleets"
+            value={searchQuery ?? ""}
+            // Prevent the mousedown from moving focus to the input via the
+            // browser's default — that would blur react-select's internal
+            // input and close the menu. We focus the input ourselves so the
+            // user can still type.
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              inputRef.current?.focus();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            // Stop keydowns from bubbling to react-select — otherwise Space,
+            // arrows, Enter would trigger option selection instead of typing.
+            onKeyDown={(e) => e.stopPropagation()}
+            onChange={onChangeSearchQuery}
+          />
+        </div>
+        {showAddTeamButton && (
+          <button
+            type="button"
+            className={`${baseClass}__add-team-button`}
+            aria-label="Add fleet"
+            onMouseDown={(e) => {
+              // Prevent focus transfer / react-select blur so the click
+              // handler fires on a menu that's still mounted.
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClickAddTeam?.();
+            }}
+          >
+            <Icon name="plus" />
+          </button>
+        )}
+      </div>
+      {children}
+    </components.MenuList>
+  );
+};
+
 const TeamsDropdown = ({
   currentUserTeams,
   selectedTeamId,
@@ -88,6 +186,10 @@ const TeamsDropdown = ({
   onClose,
   asFormField = false,
 }: ITeamsDropdownProps): JSX.Element => {
+  const { isGlobalAdmin } = useContext(AppContext);
+  const [searchQuery, setSearchQuery] = useState("");
+  const selectRef = useRef<SelectInstance<INumberDropdownOption, false>>(null);
+
   const teamOptions: INumberDropdownOption[] = useMemo(
     () =>
       generateDropdownOptions(
@@ -96,6 +198,11 @@ const TeamsDropdown = ({
         includeNoTeams
       ),
     [currentUserTeams, includeAllTeams, includeNoTeams]
+  );
+
+  const filteredOptions = useMemo(
+    () => filterOptionsBySearch(teamOptions, searchQuery),
+    [teamOptions, searchQuery]
   );
 
   const selectedValue = teamOptions.find(
@@ -108,6 +215,25 @@ const TeamsDropdown = ({
     disabled: isDisabled || undefined,
   });
 
+  const handleMenuOpen = () => {
+    onOpen?.();
+  };
+
+  const handleMenuClose = () => {
+    setSearchQuery("");
+    onClose?.();
+  };
+
+  const onChangeSearchQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
+    event.stopPropagation();
+    setSearchQuery(event.target.value);
+  };
+
+  const onClickAddTeam = () => {
+    selectRef.current?.blur();
+    browserHistory.push(PATHS.ADMIN_FLEETS);
+  };
+
   const CustomDropdownIndicator = (
     props: DropdownIndicatorProps<
       INumberDropdownOption,
@@ -115,9 +241,9 @@ const TeamsDropdown = ({
       GroupBase<INumberDropdownOption>
     >
   ) => {
-    const { isFocused, selectProps } = props;
+    const { isFocused, selectProps: dropdownSelectProps } = props;
     const color =
-      isFocused || selectProps.menuIsOpen
+      isFocused || dropdownSelectProps.menuIsOpen
         ? "core-fleet-black"
         : "ui-fleet-black-75";
 
@@ -231,21 +357,24 @@ const TeamsDropdown = ({
       overflow: "hidden",
       border: 0,
       marginTop: 0,
-      minWidth: "330px",
+      minWidth: "340px",
       maxHeight: "none",
       position: "absolute",
       left: "0",
       animation: "fade-in 150ms ease-out",
     }),
-    // Placeholder is never shown on teams dropdown
     menuList: (baseStyles) => ({
       ...baseStyles,
+      // Search row provides the top padding via its own margin so options
+      // scroll under a sticky-feeling search area with no gap.
       padding: PADDING["pad-small"],
+      paddingTop: 0,
       ".team-dropdown__menu-notice--no-options": {
         textAlign: "left",
         color: COLORS["ui-fleet-black-50"],
         fontSize: FONT_SIZES["xx-small"],
         fontWeight: FONT_WEIGHTS.regular,
+        padding: "10px 8px",
       },
     }),
     valueContainer: (baseStyles) => ({
@@ -288,28 +417,35 @@ const TeamsDropdown = ({
   return (
     <div className={dropdownWrapperClasses}>
       <Select<INumberDropdownOption, false>
-        options={teamOptions}
+        ref={selectRef}
+        options={filteredOptions}
         placeholder="All fleets"
         onChange={(newValue) => {
           if (newValue) {
             onChange(newValue.value);
           }
-          // If newValue is null or undefined, we don't call onChange
         }}
         isDisabled={isDisabled}
-        isSearchable
+        // Native react-select search is disabled — we use our own visible
+        // search input rendered by CustomMenuList.
+        isSearchable={false}
+        onMenuOpen={handleMenuOpen}
+        onMenuClose={handleMenuClose}
         noOptionsMessage={() => "No matching fleets"}
         styles={customStyles}
         components={{
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
+          MenuList: CustomMenuList,
         }}
         value={teamOptions.find((option) => option.value === selectedValue)}
         isOptionSelected={() => false} // Hides any styling on selected option
         className={baseClass}
         classNamePrefix={baseClass}
-        onMenuOpen={onOpen}
-        onMenuClose={onClose}
+        searchQuery={searchQuery}
+        onChangeSearchQuery={onChangeSearchQuery}
+        onClickAddTeam={onClickAddTeam}
+        showAddTeamButton={!!isGlobalAdmin}
       />
     </div>
   );
