@@ -206,7 +206,7 @@ policies:
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
-  patch_only_when_closed: true
+  patch_when_closed: true
 - name: Slack
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
   resolution: Install the latest version from self-service.
@@ -703,7 +703,7 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables). If a [patch policy](#patch-policy) has `patch_only_when_closed` set to `true`, Fleet manages this query and rejects this field.
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables). If a [patch policy](#patch-policy) has `patch_when_closed` set to `true`, Fleet manages this query and rejects this field.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
