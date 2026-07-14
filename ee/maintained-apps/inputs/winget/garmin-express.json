@@ -1,0 +1,15 @@
+{
+  "name": "Garmin Express",
+  "slug": "garmin-express/windows",
+  "package_identifier": "Garmin.Express",
+  "unique_identifier": "Garmin Express",
+  "ignore_hash": true,
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/garmin-express_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/garmin-express_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

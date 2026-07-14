@@ -1,0 +1,12 @@
+{
+  "name": "GitHub CLI",
+  "slug": "github-cli/windows",
+  "package_identifier": "GitHub.cli",
+  "unique_identifier": "GitHub CLI",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

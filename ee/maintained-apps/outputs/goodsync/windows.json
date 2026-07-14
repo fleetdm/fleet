@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "12.11.4.4",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'GoodSync' AND publisher = 'Siber Systems Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoodSync' AND publisher = 'Siber Systems Inc.' AND version_compare(version, '12.11.4.4') < 0);"
+      },
+      "installer_url": "https://www.goodsync.com/download/GoodSync-vsub-Setup.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "a5e29a97",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "a5e29a97": "# Uninstalls GoodSync (MSI). GoodSync runs a tray app (GoodSync.exe) and a\n# background sync/connect service that hold files open, so a plain msiexec /x can\n# report success while leaving the ARP entry behind. Stop the service and\n# processes first, then resolve the ProductCode from the registry by DisplayName\n# and uninstall via msiexec.\n\n$softwareName = \"GoodSync\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$successCodes = @(0, 3010, 1641)\n$exitCode = $null\n\ntry {\n\nforeach ($svc in @(\"GsServer\", \"GoodSync\", \"GoodSyncServer\")) {\n    Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue\n}\nforeach ($p in @(\"GoodSync\", \"gs-server\", \"gsync\", \"GoodSyncServer\")) {\n    Stop-Process -Name $p -Force -ErrorAction SilentlyContinue\n}\nStart-Sleep -Seconds 3\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys | Where-Object { $_.DisplayName -eq $softwareName } | Select-Object -First 1\nif (-not $selected) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\n$productCode = $selected.PSChildName\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    $raw = $selected.UninstallString\n    if ($raw -match '(\\{[0-9A-Fa-f-]+\\})') { $productCode = $matches[1] }\n}\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    Write-Host \"Could not determine ProductCode for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstalling product code: $productCode\"\n$process = Start-Process msiexec.exe `\n    -ArgumentList \"/x $productCode /qn /norestart\" -NoNewWindow -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($successCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n"
+  }
+}

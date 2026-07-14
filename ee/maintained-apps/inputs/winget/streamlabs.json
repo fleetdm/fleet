@@ -1,0 +1,15 @@
+{
+  "name": "Streamlabs Desktop",
+  "slug": "streamlabs/windows",
+  "package_identifier": "Streamlabs.Streamlabs",
+  "unique_identifier": "Streamlabs Desktop",
+  "fuzzy_match_name": "Streamlabs Desktop%",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/streamlabs_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/streamlabs_uninstall.ps1",
+  "default_categories": [
+    "Communication"
+  ]
+}

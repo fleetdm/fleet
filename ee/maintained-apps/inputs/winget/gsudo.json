@@ -1,0 +1,12 @@
+{
+  "name": "gsudo",
+  "slug": "gsudo/windows",
+  "package_identifier": "gerardog.gsudo",
+  "unique_identifier": "gsudo",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -3474,11 +3474,53 @@
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
     },
     {
+      "name": "Gadwin PrintScreen Pro",
+      "slug": "gadwin-printscreen-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
+      "description": ""
+    },
+    {
+      "name": "Gadwin PrintScreen",
+      "slug": "gadwin-printscreen/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
+      "description": ""
+    },
+    {
+      "name": "Gadwin ScreenRecorder",
+      "slug": "gadwin-screenrecorder/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
+      "description": ""
+    },
+    {
+      "name": "Galaxy Modeler",
+      "slug": "galaxy-modeler/windows",
+      "platform": "windows",
+      "unique_identifier": "Galaxy Modeler",
+      "description": ""
+    },
+    {
+      "name": "Garmin BaseCamp",
+      "slug": "garmin-basecamp/windows",
+      "platform": "windows",
+      "unique_identifier": "Garmin BaseCamp",
+      "description": ""
+    },
+    {
       "name": "Garmin Express",
       "slug": "garmin-express/darwin",
       "platform": "darwin",
       "unique_identifier": "com.garmin.renu.client",
       "description": "Garmin Express is an update maps and software, sync with Garmin Connect and register your device."
+    },
+    {
+      "name": "Garmin Express",
+      "slug": "garmin-express/windows",
+      "platform": "windows",
+      "unique_identifier": "Garmin Express",
+      "description": ""
     },
     {
       "name": "Gather Town",
@@ -3544,6 +3586,13 @@
       "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
     },
     {
+      "name": "GeoGebra Classic",
+      "slug": "geogebra-classic/windows",
+      "platform": "windows",
+      "unique_identifier": "GeoGebra Classic",
+      "description": ""
+    },
+    {
       "name": "Gephi",
       "slug": "gephi/darwin",
       "platform": "darwin",
@@ -3591,6 +3640,13 @@
       "platform": "darwin",
       "unique_identifier": "ag.zigz.GitFinder",
       "description": "GitFinder is a git client with Finder integration."
+    },
+    {
+      "name": "GitHub CLI",
+      "slug": "github-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub CLI",
+      "description": ""
     },
     {
       "name": "GitHub Copilot for Xcode",
@@ -3649,11 +3705,25 @@
       "description": "Glyphs is a font editor."
     },
     {
+      "name": "Go",
+      "slug": "go/windows",
+      "platform": "windows",
+      "unique_identifier": "Go Programming Language",
+      "description": ""
+    },
+    {
       "name": "Go2Shell",
       "slug": "go2shell/darwin",
       "platform": "darwin",
       "unique_identifier": "com.zipzapmac.Go2Shell",
       "description": "Go2Shell is an opens a terminal window to the current directory in Finder."
+    },
+    {
+      "name": "GoAnywhere OpenPGP Studio",
+      "slug": "goanywhere-openpgp-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "GoAnywhere OpenPGP Studio",
+      "description": ""
     },
     {
       "name": "Godot Engine",
@@ -3698,11 +3768,32 @@
       "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
+      "name": "GoldenDict-ng",
+      "slug": "goldendict-ng/windows",
+      "platform": "windows",
+      "unique_identifier": "GoldenDict-ng",
+      "description": ""
+    },
+    {
       "name": "GoodSync",
       "slug": "goodsync/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sibersystems.goodsyncmac2000",
       "description": "GoodSync is a file synchronisation and backup software."
+    },
+    {
+      "name": "GoodSync",
+      "slug": "goodsync/windows",
+      "platform": "windows",
+      "unique_identifier": "GoodSync",
+      "description": ""
+    },
+    {
+      "name": "Google Ads Editor",
+      "slug": "google-ads-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Ads Editor",
+      "description": ""
     },
     {
       "name": "Google Chrome",
@@ -3754,6 +3845,13 @@
       "description": "Google Gemini is a native desktop AI assistant from Google."
     },
     {
+      "name": "Google Web Designer",
+      "slug": "google-web-designer/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Web Designer",
+      "description": ""
+    },
+    {
       "name": "GoToMeeting",
       "slug": "gotomeeting/darwin",
       "platform": "darwin",
@@ -3773,6 +3871,13 @@
       "platform": "darwin",
       "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
+    },
+    {
+      "name": "Gpg4win",
+      "slug": "gpg4win/windows",
+      "platform": "windows",
+      "unique_identifier": "Gpg4win",
+      "description": ""
     },
     {
       "name": "gPodder",
@@ -3817,6 +3922,20 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Graphviz",
+      "slug": "graphviz/windows",
+      "platform": "windows",
+      "unique_identifier": "Graphviz",
+      "description": ""
+    },
+    {
+      "name": "grepWin",
+      "slug": "grepwin/windows",
+      "platform": "windows",
+      "unique_identifier": "grepWin",
+      "description": ""
+    },
+    {
       "name": "Grids",
       "slug": "grids/darwin",
       "platform": "darwin",
@@ -3836,6 +3955,13 @@
       "platform": "windows",
       "unique_identifier": "Groove OmniDialer",
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
+    },
+    {
+      "name": "gsudo",
+      "slug": "gsudo/windows",
+      "platform": "windows",
+      "unique_identifier": "gsudo",
+      "description": ""
     },
     {
       "name": "Nota Gyazo GIF",
@@ -7770,6 +7896,13 @@
       "platform": "darwin",
       "unique_identifier": "com.makkuk.Stillcolor",
       "description": "Stillcolor is a tool to disable temporal dithering on Apple Silicon Macs."
+    },
+    {
+      "name": "Streamlabs Desktop",
+      "slug": "streamlabs/windows",
+      "platform": "windows",
+      "unique_identifier": "Streamlabs Desktop",
+      "description": ""
     },
     {
       "name": "Stretchly",
