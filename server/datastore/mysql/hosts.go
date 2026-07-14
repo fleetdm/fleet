@@ -4977,27 +4977,24 @@ func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID
 }
 
 func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-	var allResentCerts []fleet.ActivityTypeResentCertificate
+	var resentCerts []fleet.ActivityTypeResentCertificate
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		allResentCerts = nil
-		// Remove any existing SCIM user mapping for this host
-		delCerts, err := deleteHostSCIMUserMapping(ctx, tx, hostID)
-		if err != nil {
+		resentCerts = nil
+		if _, err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
 			return err
 		}
-		allResentCerts = append(allResentCerts, delCerts...)
 
-		assocCerts, err := associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		certs, err := associateHostWithScimUser(ctx, tx, hostID, scimUserID)
 		if err != nil {
 			return err
 		}
-		allResentCerts = append(allResentCerts, assocCerts...)
+		resentCerts = certs
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return allResentCerts, nil
+	return resentCerts, nil
 }
 
 func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
