@@ -2642,7 +2642,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	hostID2 := uint(2)
 
 	// Create new host-SCIM user mapping
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
 	require.NoError(t, err)
 
 	// Verify the mapping was created
@@ -2654,7 +2654,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, scimUserID)
 
 	// Test 2: Update existing host-SCIM user mapping
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
 	require.NoError(t, err)
 
 	// Verify the mapping was updated (should now point to user2)
@@ -2673,7 +2673,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, count)
 
 	// Test 3: Create mapping for a different host
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
 	require.NoError(t, err)
 
 	// Verify both hosts have mappings
@@ -2691,7 +2691,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, count)
 
 	// Update mapping back to original user for hostID1
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
 	require.NoError(t, err)
 
 	// Verify hostID1 now maps to user1
@@ -2703,7 +2703,7 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 
 	// Error case - non-existent SCIM user
 	nonExistentUserID := uint(999999)
-	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "foreign key constraint")
 

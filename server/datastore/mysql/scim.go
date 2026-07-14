@@ -1266,25 +1266,32 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
-func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
+func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	// check that this user is indeed the scim IdP user for this host (and not an
 	// extra, unused one)
 	user, err := getScimUserLiteByHostID(ctx, tx, hostID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if updatedScimUserID != user.ID {
 		// host is not impacted, updated user is not its IdP user
-		return nil
+		return nil, nil
 	}
-	return triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID}, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vars []any) ([]fleet.ActivityTypeResentCertificate, error) {
@@ -1355,6 +1362,7 @@ func selectCertTemplatesToResend(ctx context.Context, tx sqlx.ExtContext, hostID
 			HostDisplayName:       fleet.HostDisplayName(r.ComputerName, r.Hostname, r.HardwareModel, r.HardwareSerial),
 			CertificateTemplateID: r.CertificateTemplateID,
 			CertificateName:       r.CertificateName,
+			Automated:             true,
 		})
 	}
 	return activities, nil

@@ -388,9 +388,11 @@ type Datastore interface {
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
-	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
-	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
+	// Returns any resent certificate activities that need to be created.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]ActivityTypeResentCertificate, error)
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)

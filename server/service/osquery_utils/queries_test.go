@@ -2730,15 +2730,15 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		return nil, common_mysql.NotFound("SCIMUser")
 	}
 
-	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, baseSCIMUser.ID, scimUserID)
-		return nil
+		return nil, nil
 	}
 
-	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 		require.Equal(t, host.ID, hostID)
-		return nil
+		return nil, nil
 	}
 
 	testCases := []struct {
