@@ -1,0 +1,1 @@
+- Android hosts now report their OS version folded with the security patch level (e.g. "Android 16 (2026-05-01)"), so distinct patch levels appear as separate OS versions in the Software > OS aggregation and host filters. Devices that do not report a patch level fall back to the bare major version.
