@@ -296,9 +296,9 @@ type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, 
 
 type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
-type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) error
+type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error)
 
-type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) error
+type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error)
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
@@ -6280,14 +6280,14 @@ func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
 	return s.DeleteHostIDPFunc(ctx, id)
 }
 
-func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
+func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.SetOrUpdateHostSCIMUserMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostSCIMUserMappingFunc(ctx, hostID, scimUserID)
 }
 
-func (s *DataStore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
+func (s *DataStore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.DeleteHostSCIMUserMappingFuncInvoked = true
 	s.mu.Unlock()

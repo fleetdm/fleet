@@ -1867,6 +1867,7 @@ type ActivityTypeResentCertificate struct {
 	HostDisplayName       string `json:"host_display_name"`
 	CertificateTemplateID uint   `json:"certificate_template_id"`
 	CertificateName       string `json:"certificate_name"`
+	Automated             bool   `json:"-"`
 }
 
 func (a ActivityTypeResentCertificate) ActivityName() string {
@@ -1875,6 +1876,10 @@ func (a ActivityTypeResentCertificate) ActivityName() string {
 
 func (a ActivityTypeResentCertificate) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeResentCertificate) WasFromAutomation() bool {
+	return a.Automated
 }
 
 type ActivityTypeEditedHostIdpData struct {
