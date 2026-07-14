@@ -109,7 +109,7 @@
   &__input-container--has-actions {
     display: flex;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-small;
 
     .input-field {
       flex: 1;
@@ -119,7 +119,7 @@
 
   &__action-buttons {
     display: flex;
-    gap: $pad-xsmall;
+    gap: $pad-small;
     flex-shrink: 0;
   }
 
