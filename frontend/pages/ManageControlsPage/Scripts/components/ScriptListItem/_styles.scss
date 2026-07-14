@@ -37,10 +37,12 @@
     }
   }
 
-  &__action-button {
-    width: 40px;
-    height: 40px;
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
   }
+
   &__details {
     display: flex;
     gap: $pad-xxsmall;
