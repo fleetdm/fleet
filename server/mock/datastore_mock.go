@@ -1822,8 +1822,6 @@ type UpdateCustomHostVitalFunc func(ctx context.Context, id uint, name string) (
 
 type DeleteCustomHostVitalFunc func(ctx context.Context, id uint) (name string, err error)
 
-type UpsertCustomHostVitalsFunc func(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error)
-
 type SetHostCustomHostVitalValueFunc func(ctx context.Context, hostID uint, vitalID uint, value string) error
 
 type GetHostCustomHostVitalsFunc func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error)
@@ -1833,6 +1831,8 @@ type GetCustomHostVitalsFunc func(ctx context.Context, ids []uint) ([]fleet.Cust
 type ValidateReferencedCustomHostVitalsFunc func(ctx context.Context, documents []string) error
 
 type ExpandCustomHostVitalsFunc func(ctx context.Context, hostID uint, document string) (string, error)
+
+type UpsertCustomHostVitalsFunc func(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error)
 
 type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
 
@@ -4856,9 +4856,6 @@ type DataStore struct {
 	DeleteCustomHostVitalFunc        DeleteCustomHostVitalFunc
 	DeleteCustomHostVitalFuncInvoked bool
 
-	UpsertCustomHostVitalsFunc        UpsertCustomHostVitalsFunc
-	UpsertCustomHostVitalsFuncInvoked bool
-
 	SetHostCustomHostVitalValueFunc        SetHostCustomHostVitalValueFunc
 	SetHostCustomHostVitalValueFuncInvoked bool
 
@@ -4873,6 +4870,9 @@ type DataStore struct {
 
 	ExpandCustomHostVitalsFunc        ExpandCustomHostVitalsFunc
 	ExpandCustomHostVitalsFuncInvoked bool
+
+	UpsertCustomHostVitalsFunc        UpsertCustomHostVitalsFunc
+	UpsertCustomHostVitalsFuncInvoked bool
 
 	CreateEnterpriseFunc        CreateEnterpriseFunc
 	CreateEnterpriseFuncInvoked bool
@@ -11656,13 +11656,6 @@ func (s *DataStore) DeleteCustomHostVital(ctx context.Context, id uint) (name st
 	return s.DeleteCustomHostVitalFunc(ctx, id)
 }
 
-func (s *DataStore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
-	s.mu.Lock()
-	s.UpsertCustomHostVitalsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpsertCustomHostVitalsFunc(ctx, vitals)
-}
-
 func (s *DataStore) SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error {
 	s.mu.Lock()
 	s.SetHostCustomHostVitalValueFuncInvoked = true
@@ -11696,6 +11689,13 @@ func (s *DataStore) ExpandCustomHostVitals(ctx context.Context, hostID uint, doc
 	s.ExpandCustomHostVitalsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandCustomHostVitalsFunc(ctx, hostID, document)
+}
+
+func (s *DataStore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
+	s.mu.Lock()
+	s.UpsertCustomHostVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertCustomHostVitalsFunc(ctx, vitals)
 }
 
 func (s *DataStore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
