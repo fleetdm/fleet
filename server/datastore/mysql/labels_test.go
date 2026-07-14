@@ -102,6 +102,7 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsWithPlatformChange", testApplyLabelSpecsWithPlatformChange},
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 		{"UpdateLabelMembershipByHostCriteriaIDP", testUpdateLabelMembershipByHostCriteriaIDP},
+		{"UpdateLabelMembershipByHostCriteriaCustomHostVital", testUpdateLabelMembershipByHostCriteriaCustomHostVital},
 		{"TeamLabels", testTeamLabels},
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
@@ -3010,6 +3011,105 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
 
 	_ = team2 // team2 is used only to give host2 an out-of-team membership.
+}
+
+// testUpdateLabelMembershipByHostCriteriaCustomHostVital exercises the real
+// custom-host-vital query path: membership is a host's stored value for a
+// specific custom_host_vital_id matching the criterion value. It verifies
+// multi-host isolation (one host's value doesn't leak to another), that the
+// criterion is scoped to its vital id (a matching value on a different vital
+// does not count), and that team-scoped labels only include in-team hosts.
+func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-team2"})
+	require.NoError(t, err)
+
+	// host1 -> team1, host2 -> team2, host3 -> global, host4 -> global.
+	hosts := make([]*fleet.Host, 4)
+	teamIDs := []*uint{&team1.ID, &team2.ID, nil, nil}
+	for i := range 4 {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("chv-%d", i)),
+			NodeKey:        new(fmt.Sprintf("chv-%d", i)),
+			UUID:           fmt.Sprintf("chv-uuid%d", i),
+			Hostname:       fmt.Sprintf("chv-host%d.local", i),
+			HardwareSerial: fmt.Sprintf("chv-hwd%d", i),
+			Platform:       "darwin",
+			TeamID:         teamIDs[i],
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	vitalA, err := ds.CreateCustomHostVital(ctx, "Department")
+	require.NoError(t, err)
+	vitalB, err := ds.CreateCustomHostVital(ctx, "Function")
+	require.NoError(t, err)
+
+	// host1 & host4: vitalA = "Engineering" (should match).
+	// host2: vitalA = "Sales" (wrong value -> excluded).
+	// host3: vitalB = "Engineering" (right value but wrong vital -> excluded),
+	//        and vitalA = "Sales" so it also has a value for the target vital.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[0].ID, vitalA.ID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[2].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[2].ID, vitalB.ID, "Engineering"))
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital:             new("custom_host_vital"),
+		Value:             new("Engineering"),
+		CustomHostVitalID: &vitalA.ID,
+	})
+	require.NoError(t, err)
+
+	newCHVLabel := func(name string, teamID *uint) *fleet.Label {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			TeamID:              teamID,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		})
+		require.NoError(t, err)
+		return lbl
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Global label: host1 and host4 (vitalA = "Engineering"). host2 has the
+	// wrong value, host3 matches the value only on vitalB.
+	globalLabel := newCHVLabel("chv-global", nil)
+	updated, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 2, updated.HostCount)
+	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[3].ID}, hostIDs(globalHosts))
+
+	// Team1 label: only host1, even though host4 also matches (it's global).
+	team1Label := newCHVLabel("chv-team1-label", &team1.ID)
+	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	require.NoError(t, err)
+	require.Equal(t, 1, updated.HostCount)
+	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
+
+	// Changing a host's value re-computes membership: host4 leaves, host2 joins.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Engineering"))
+	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 2, updated.HostCount)
+	globalHosts, err = ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID}, hostIDs(globalHosts))
+
+	_ = team2 // team2 only gives host2 an out-of-team membership.
 }
 
 func hostIDs(hosts []*fleet.Host) []uint {

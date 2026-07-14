@@ -485,6 +485,7 @@ const (
 	HostVitalTypeDomestic   HostVitalType = iota // Domestic vitals are those that are stored in the host table
 	HostVitalTypeForeign                         // Foreign vitals are those that are stored in a separate table and joined to the host table
 	HostVitalTypeAdditional                      // Additional vitals are those that are stored in the host_additional table as a JSON blob
+	HostVitalTypeCustom                          // Custom vitals are stored per-host in host_custom_host_vitals, scoped by a custom_host_vital_id
 )
 
 type HostVital struct {
@@ -527,6 +528,15 @@ var hostVitals = map[string]HostVital{
 		DataType:          "string",
 		ForeignVitalGroup: ptr.String("idp"),
 		Path:              "scim_users.department",
+	},
+	// custom_host_vital does not self-identify which vital (unlike the IDP enum
+	// values); the criterion's custom_host_vital_id selects it and scopes the
+	// per-host value join built in parseHostVitalCriteria.
+	"custom_host_vital": {
+		Name:      "Custom host vital",
+		VitalType: HostVitalTypeCustom,
+		DataType:  "string",
+		Path:      "host_custom_host_vitals.value",
 	},
 }
 

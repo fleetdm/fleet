@@ -271,7 +271,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, "apple_profile", useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntityAppleProfile, useErr.Entity.Type)
 		require.Equal(t, "Name0", useErr.Entity.Name)
 		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
 
@@ -299,7 +299,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, "apple_declaration", useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntityAppleDeclaration, useErr.Entity.Type)
 		require.Equal(t, "decl-1", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
@@ -319,7 +319,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, "windows_profile", useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntityWindowsProfile, useErr.Entity.Type)
 		require.Equal(t, "zoo", useErr.Entity.Name)
 		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
 
@@ -340,7 +340,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, "script", useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntityScript, useErr.Entity.Type)
 		require.Equal(t, "collect.sh", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
@@ -372,7 +372,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, "software_installer", useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntitySoftwareInstaller, useErr.Entity.Type)
 		require.Equal(t, "chv-del-title", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
@@ -392,11 +392,41 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, "setup_experience_script", useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntitySetupExperienceScript, useErr.Entity.Type)
 		require.Equal(t, "setup.sh", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
 		require.NoError(t, ds.DeleteSetupExperienceScript(ctx, &foobarTeam.ID))
+	})
+
+	t.Run("host vitals labels", func(t *testing.T) {
+		// A host-vitals label references the vital by id in its criteria JSON,
+		// not via the $FLEET_HOST_VITAL_<id> token.
+		criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+			Vital:             new("custom_host_vital"),
+			Value:             new("Engineering"),
+			CustomHostVitalID: &id,
+		})
+		require.NoError(t, err)
+		label, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:                "chv-del-label",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		})
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityLabel, useErr.Entity.Type)
+		require.Equal(t, "chv-del-label", useErr.Entity.Name)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: test.UserAdmin}))
 	})
 
 	// With all references removed, delete now succeeds.
