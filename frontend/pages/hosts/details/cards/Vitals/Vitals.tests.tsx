@@ -4,6 +4,7 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
+import { HostPlatform } from "interfaces/platform";
 
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Vitals from "./Vitals";
@@ -571,7 +572,7 @@ describe("Last restarted vital", () => {
     "renders Last restarted for supported platform: %s",
     (platform) => {
       const mockHost = createMockHost({
-        platform: platform as Parameters<typeof createMockHost>[0]["platform"],
+        platform: platform as HostPlatform,
         last_restarted_at: "2023-01-01T00:00:00Z",
       });
 
@@ -585,7 +586,7 @@ describe("Last restarted vital", () => {
     "does not render Last restarted for unsupported platform: %s",
     (platform) => {
       const mockHost = createMockHost({
-        platform: platform as Parameters<typeof createMockHost>[0]["platform"],
+        platform: platform as HostPlatform,
         last_restarted_at: "2023-01-01T00:00:00Z",
       });
 
