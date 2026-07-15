@@ -1188,10 +1188,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
-	// Validate that name_template, if present, is a string.
+	// Validate that name_template, if present, is a string, and collect any
+	// $FLEET_SECRET_ it references so GitOps uploads it (its placeholder is left
+	// in the template for the server to validate and expand).
 	if result.Controls.NameTemplate != nil {
-		if _, ok := result.Controls.NameTemplate.(string); !ok {
+		if tmpl, ok := result.Controls.NameTemplate.(string); !ok {
 			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
+		} else if err := LookupEnvSecrets(tmpl, result.FleetSecrets); err != nil {
+			multiError = multierror.Append(multiError, err)
 		}
 	}
 

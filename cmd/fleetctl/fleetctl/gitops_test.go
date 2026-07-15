@@ -7434,14 +7434,32 @@ software:
 		require.Contains(t, err.Error(), "is not supported in host name templates")
 	})
 
-	// 4b. A secret variable is rejected at the GitOps env-expansion layer (before
-	// the server), since $FLEET_SECRET_* is only allowed in profiles and scripts.
-	t.Run("secret variable rejected at expansion", func(t *testing.T) {
+	// 4b. A custom (secret) variable is allowed in name_template: GitOps preserves
+	// the placeholder (does not expand it) for the server to validate/expand, and
+	// uploads the referenced secret like any other GitOps secret.
+	t.Run("secret variable allowed and preserved", func(t *testing.T) {
+		t.Setenv("FLEET_SECRET_FOO", "someValue")
+		// The base mock provides ValidateEmbeddedSecretsFunc (used by scripts/batch),
+		// so leave it alone; only the secret-upload func needs a stub here.
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secretVariables []fleet.SecretVariable) error { return nil }
+		ds.UpsertSecretVariablesFuncInvoked = false
+
 		yml := writeYAML(t, teamYAML(`  name_template: "iPad $FLEET_SECRET_FOO"`))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		// the placeholder is stored on the team (not the expanded value)
+		require.Equal(t, "iPad $FLEET_SECRET_FOO", savedTeam.Config.MDM.HostNameTemplate)
+		// the referenced secret was collected from the env and uploaded
+		require.True(t, ds.UpsertSecretVariablesFuncInvoked)
+	})
+
+	// 4c. A secret referenced in name_template that isn't set in the environment
+	// fails during GitOps parsing (same as profiles/scripts).
+	t.Run("secret variable missing from env is rejected", func(t *testing.T) {
+		yml := writeYAML(t, teamYAML(`  name_template: "iPad $FLEET_SECRET_NOT_SET"`))
 		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "FLEET_SECRET_")
-		require.Contains(t, err.Error(), "only allowed in profiles and scripts")
+		require.Contains(t, err.Error(), "FLEET_SECRET_NOT_SET")
 	})
 
 	// 5. name_template in org-level controls sets the global ("No team") template.
