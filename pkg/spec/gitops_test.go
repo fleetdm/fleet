@@ -97,7 +97,7 @@ func TestNormalizeMDMSSOConfig(t *testing.T) {
 	orgSettings := map[string]any{
 		"mdm": map[string]any{
 			"end_user_authentication": map[string]any{
-				"idp_name":     "  Example IdP  ",
+				"idp_name":     "  Example IdP\n\r",
 				"entity_id":    "  https://idp.example.com/entity  ",
 				"metadata":     "  <xml>metadata</xml>  ",
 				"metadata_url": "  https://idp.example.com/metadata  ",

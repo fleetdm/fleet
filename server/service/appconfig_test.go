@@ -1498,7 +1498,7 @@ func TestMDMConfig(t *testing.T) {
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{
 					SSOProviderSettings: fleet.SSOProviderSettings{
 						EntityID: "  fleet  ",
-						Metadata: "  not-empty  ",
+						Metadata: "  not-empty\r\n",
 						IDPName:  "  onelogin  ",
 					},
 				},
