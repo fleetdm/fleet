@@ -1,6 +1,6 @@
 name: ai_tools
 description: |-
-  Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.
+  Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, agent instruction files, and browser extensions. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.
 platforms:
   - darwin
   - windows
@@ -36,10 +36,16 @@ examples: |-
   ```
   SELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';
   ```
+
+  List AI browser extensions and their risk flags.
+
+  ```
+  SELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';
+  ```
 notes: The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
 columns:
   - name: type
-    description: "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, or `agent_instruction`."
+    description: "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, `agent_instruction`, or `browser_extension`."
     type: text
     required: false
   - name: name
@@ -87,7 +93,7 @@ columns:
     type: integer
     required: false
   - name: risk_flags
-    description: "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `bypass_permissions`, `injection_markers`, `hidden_unicode`."
+    description: "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`."
     type: text
     required: false
   - name: sha256

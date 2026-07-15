@@ -230,19 +230,19 @@
   },
   {
     "name": "ai_tools",
-    "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.",
+    "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, agent instruction files, and browser extensions. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.",
     "platforms": [
       "darwin",
       "windows",
       "linux"
     ],
     "evented": false,
-    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```",
+    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```\n\nList AI browser extensions and their risk flags.\n\n```\nSELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';\n```",
     "notes": "The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\\Users\\*`), not just the daemon account's. Running as root provides full visibility across all users.",
     "columns": [
       {
         "name": "type",
-        "description": "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, or `agent_instruction`.",
+        "description": "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, `agent_instruction`, or `browser_extension`.",
         "type": "text",
         "required": false
       },
@@ -314,7 +314,7 @@
       },
       {
         "name": "risk_flags",
-        "description": "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `bypass_permissions`, `injection_markers`, `hidden_unicode`.",
+        "description": "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`.",
         "type": "text",
         "required": false
       },
