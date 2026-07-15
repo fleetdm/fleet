@@ -519,6 +519,10 @@ func (ds *Datastore) getExistingSoftwareInstallerTitleID(ctx context.Context, pa
 	}
 }
 
+func (ds *Datastore) MatchSoftwareTitleIDForInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	return ds.getExistingSoftwareInstallerTitleID(ctx, payload)
+}
+
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, tx sqlx.ExtContext, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	selectStmt, selectArgs := softwareInstallerTitleSelect(payload)
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`

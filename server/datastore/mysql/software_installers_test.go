@@ -86,6 +86,87 @@ func TestSoftwareInstallers(t *testing.T) {
 	}
 }
 
+func TestMatchSoftwareTitleIDForInstaller(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer TruncateTables(t, ds)
+	ctx := t.Context()
+
+	insertTitle := func(name, source string, bundleIdentifier, upgradeCode any) uint {
+		t.Helper()
+		var titleID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source, bundle_identifier, upgrade_code, extension_for) VALUES (?, ?, ?, ?, '')`,
+				name, source, bundleIdentifier, upgradeCode); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &titleID, `SELECT id FROM software_titles WHERE name = ? AND source = ?`, name, source)
+		})
+		return titleID
+	}
+
+	bundleTitleID := insertTitle("Stored App Name", "apps", "com.example.app", nil)
+	upgradeTitleID := insertTitle("Stored Windows Name", "programs", nil, "{EXAMPLE-UPGRADE-CODE}")
+	nameTitleID := insertTitle("Stored Package Name", "deb_packages", nil, nil)
+
+	t.Run("bundle identifier", func(t *testing.T) {
+		titleID, err := ds.MatchSoftwareTitleIDForInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Different Installer Name",
+			Source:           "apps",
+			BundleIdentifier: "com.example.app",
+		})
+		require.NoError(t, err)
+		require.Equal(t, bundleTitleID, titleID)
+	})
+
+	t.Run("upgrade code", func(t *testing.T) {
+		titleID, err := ds.MatchSoftwareTitleIDForInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:       "Different Installer Name",
+			Source:      "programs",
+			UpgradeCode: "{EXAMPLE-UPGRADE-CODE}",
+		})
+		require.NoError(t, err)
+		require.Equal(t, upgradeTitleID, titleID)
+	})
+
+	t.Run("name and source", func(t *testing.T) {
+		titleID, err := ds.MatchSoftwareTitleIDForInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:  "Stored Package Name",
+			Source: "deb_packages",
+		})
+		require.NoError(t, err)
+		require.Equal(t, nameTitleID, titleID)
+	})
+
+	for _, tt := range []struct {
+		name    string
+		payload *fleet.UploadSoftwareInstallerPayload
+	}{
+		{
+			name: "bundle identifier not found",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Unknown App",
+				Source:           "apps",
+				BundleIdentifier: "com.example.unknown",
+			},
+		},
+		{
+			name: "upgrade code not found",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:       "Unknown Windows App",
+				Source:      "programs",
+				UpgradeCode: "{UNKNOWN-UPGRADE-CODE}",
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ds.MatchSoftwareTitleIDForInstaller(ctx, tt.payload)
+			require.Error(t, err)
+			require.True(t, fleet.IsNotFound(err))
+		})
+	}
+}
+
 func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })

@@ -1582,6 +1582,8 @@ type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installer
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error)
 
+type MatchSoftwareTitleIDForInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
+
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
 type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID uint, installerID uint) (bool, error)
@@ -4523,6 +4525,9 @@ type DataStore struct {
 
 	MatchOrCreateSoftwareInstallerFunc        MatchOrCreateSoftwareInstallerFunc
 	MatchOrCreateSoftwareInstallerFuncInvoked bool
+
+	MatchSoftwareTitleIDForInstallerFunc        MatchSoftwareTitleIDForInstallerFunc
+	MatchSoftwareTitleIDForInstallerFuncInvoked bool
 
 	GetSoftwareInstallerMetadataByIDFunc        GetSoftwareInstallerMetadataByIDFunc
 	GetSoftwareInstallerMetadataByIDFuncInvoked bool
@@ -10884,6 +10889,13 @@ func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload 
 	s.MatchOrCreateSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.MatchOrCreateSoftwareInstallerFunc(ctx, payload)
+}
+
+func (s *DataStore) MatchSoftwareTitleIDForInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	s.mu.Lock()
+	s.MatchSoftwareTitleIDForInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.MatchSoftwareTitleIDForInstallerFunc(ctx, payload)
 }
 
 func (s *DataStore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {

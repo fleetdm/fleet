@@ -519,6 +519,15 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 		}
 
+		// Fleet-maintained apps can't have their package replaced; return the FMA message before the
+		// extension and identity checks so it isn't masked by a more generic error.
+		if existingInstaller.FleetMaintainedAppID != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer file changed for fleet maintained app installer"),
+			}
+		}
+
 		if newInstallerExtension != existingInstaller.Extension {
 			return nil, &fleet.BadRequestError{
 				Message:     "The selected package is for a different file type.",
@@ -526,7 +535,15 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		}
 
-		if payloadForNewInstallerFile.Title != software.Name {
+		// Reject only when the replacement neither resolves to this title by identity nor keeps the
+		// same name. The name fallback avoids rejecting a same-named new version when identity can't
+		// confirm it (e.g. a Windows MSI whose upgrade_code changed between versions).
+		resolvedTitleID, err := svc.ds.MatchSoftwareTitleIDForInstaller(ctx, payloadForNewInstallerFile)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "resolving title for updated installer")
+		}
+		identityMatches := err == nil && resolvedTitleID == payload.TitleID
+		if !identityMatches && payloadForNewInstallerFile.Title != software.Name {
 			return nil, &fleet.BadRequestError{
 				Message:     "The selected package is for different software.",
 				InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
@@ -563,13 +580,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
-		}
-
-		if existingInstaller.FleetMaintainedAppID != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer file changed for fleet maintained app installer"),
-			}
 		}
 	}
 
