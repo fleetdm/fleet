@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260710184259, Down_20260710184259)
+	MigrationClient.AddMigration(Up_20260715214831, Down_20260715214831)
 }
 
-func Up_20260710184259(tx *sql.Tx) error {
+func Up_20260715214831(tx *sql.Tx) error {
 	// A title can now hold several packages. dedup_token drives the new unique key. Custom
 	// rows resolve it to storage_id so they dedupe by content hash, letting different builds of
 	// one version coexist. FMA rows resolve it to version, leaving the per-version rows that
@@ -98,6 +98,6 @@ func Up_20260710184259(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260710184259(tx *sql.Tx) error {
+func Down_20260715214831(tx *sql.Tx) error {
 	return nil
 }
