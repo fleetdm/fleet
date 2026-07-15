@@ -722,6 +722,7 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	t.Helper()
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
+	defaultMockCustomHostVitalsValidation(ds)
 	svc := &Service{
 		authz:  authorizer,
 		ds:     ds,
@@ -747,6 +748,7 @@ func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmoc
 	t.Helper()
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
+	defaultMockCustomHostVitalsValidation(ds)
 	baseSvc := new(svcmock.Service)
 	svc := &Service{
 		Service: baseSvc,
@@ -1165,6 +1167,14 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		require.NotEqual(t, storageID, updated.StorageID)
 		require.True(t, state.ds.SaveInstallerUpdatesFuncInvoked)
 	})
+}
+
+// Software installer and setup-experience uploads validate referenced custom
+// host vitals, so mock-backed tests that don't care about it needn't stub it.
+func defaultMockCustomHostVitalsValidation(ds fleet.Datastore) {
+	if mockDS, ok := ds.(*mock.Store); ok && mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
+		mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+	}
 }
 
 func TestAddScriptPackageMetadata(t *testing.T) {
