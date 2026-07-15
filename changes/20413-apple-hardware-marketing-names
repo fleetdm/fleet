@@ -1,4 +1,1 @@
-- Added marketing name display for Apple devices (macOS, iOS, iPadOS) on the
-  Hosts and Host details pages.
-- The "Hardware model" field now shows human-readable names (e.g. "MacBook Pro
-  (16-inch, 2021)") instead of raw identifiers (e.g. "MacBookPro18,1").
+- Added marketing name display for Apple devices (macOS, iOS, iPadOS) on the Hosts and Host details pages. The "Hardware model" field now shows human-readable names (e.g. "MacBook Pro (16-inch, 2021)") instead of raw identifiers (e.g. "MacBookPro18,1").
