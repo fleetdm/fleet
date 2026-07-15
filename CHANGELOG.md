@@ -1,4 +1,4 @@
-## Fleet 4.89.0 (Jun 29, 2026)
+## Fleet 4.89.0 (Jul 15, 2026)
 
 ### IT Admins
 - Added the ability to target a policy to hosts using a combination of "include" and "exclude" labels.
