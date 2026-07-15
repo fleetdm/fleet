@@ -2769,6 +2769,54 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	require.True(t, isTracked(labelsOnlyTracked.ProfileUUID), "a labels-only edit must not untrack an OS-update profile")
+
+	// A content-changing edit must retain the outgoing version so the
+	// profile-manager cron can build <Delete> commands for LocURIs the new
+	// content drops (same guarantee as the GitOps edit path). Labels-only and
+	// identical-content edits retain nothing.
+	priorContents := func(profileUUID string) [][]byte {
+		var rows [][]byte
+		err := ds.writer(ctx).SelectContext(ctx, &rows,
+			`SELECT syncml FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profileUUID)
+		require.NoError(t, err)
+		return rows
+	}
+	retainOriginal := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/RetainOriginal</LocURI></Target></Item></Replace>")
+	retainProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Prior Content Retention Profile",
+		SyncML: retainOriginal,
+	}, nil)
+	require.NoError(t, err)
+
+	retainLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-retention-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: retainProfile.ProfileUUID,
+		Name:        retainProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: retainLabel.Name, LabelID: retainLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	require.Empty(t, priorContents(retainProfile.ProfileUUID), "a labels-only edit must not retain prior content")
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: retainProfile.ProfileUUID,
+		Name:        retainProfile.Name,
+		SyncML:      retainOriginal,
+	}, nil)
+	require.NoError(t, err)
+	require.Empty(t, priorContents(retainProfile.ProfileUUID), "re-uploading identical content must not retain prior content")
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: retainProfile.ProfileUUID,
+		Name:        retainProfile.Name,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/RetainChanged</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	retained := priorContents(retainProfile.ProfileUUID)
+	require.Len(t, retained, 1, "a content-changing edit must retain the outgoing version")
+	require.Equal(t, retainOriginal, retained[0])
 }
 
 // identified by its (unique) name.
