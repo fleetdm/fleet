@@ -14154,7 +14154,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. Only applies if `features.enable_software_inventory` is not enabled globally. |
+| enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. Only applies if `features.enable_software_inventory` is not enabled globally.  If this key is omitted, the previously-configured value does not change. |
 | historical_data         | object  | See [features.historical_data](#features-historical-data). |
 
 ##### features.historical_data
