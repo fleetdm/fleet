@@ -33958,6 +33958,47 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesInstallPrec
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostBoth.ID, titleID), nil, http.StatusAccepted, &resp)
 	require.Equal(t, installerA, queuedInstallerID(hostBoth.ID))
 
+	var installAUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installAUUID, `
+			SELECT execution_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id = ?
+			ORDER BY id DESC LIMIT 1`, hostBoth.ID, installerA)
+	})
+	_, err = s.ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                hostBoth.ID,
+		InstallUUID:           installAUUID,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	installBUUID, err := s.ds.InsertSoftwareInstallRequest(ctx, hostBoth.ID, installerB, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = s.ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                hostBoth.ID,
+		InstallUUID:           installBUUID,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	var hostSoftwareResp getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", hostBoth.ID), nil, http.StatusOK, &hostSoftwareResp,
+		"include_available_for_install", "true")
+	var title *fleet.HostSoftwareWithInstaller
+	for _, software := range hostSoftwareResp.Software {
+		if software.ID == titleID {
+			title = software
+			break
+		}
+	}
+	require.NotNil(t, title)
+	require.NotNil(t, title.SoftwarePackage)
+	require.Equal(t, "pkgA.deb", title.SoftwarePackage.Name)
+	require.Equal(t, "1.0", title.SoftwarePackage.Version)
+	require.Equal(t, new(fleet.SoftwareInstalled), title.Status)
+	require.NotNil(t, title.SoftwarePackage.LastInstall)
+	require.Equal(t, installAUUID, title.SoftwarePackage.LastInstall.InstallUUID)
+
 	// Host in only labelB matches only pkgB → pkgB installs (never the first-added pkgA).
 	hostSecond := newLinuxHost("second", []uint{labelB.ID})
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostSecond.ID, titleID), nil, http.StatusAccepted, &resp)
