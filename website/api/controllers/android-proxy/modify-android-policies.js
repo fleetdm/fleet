@@ -24,6 +24,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
     policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
     managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
@@ -56,13 +57,6 @@ module.exports = {
       throw 'unauthorized';
     }
 
-    // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
-    let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
-    // Return a 404 response if this Android enterprise is no longer managed by Fleet.
-    if(!isEnterpriseManagedByFleet) {
-      throw 'notFound';
-    }
-
     // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
     let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
@@ -87,6 +81,9 @@ module.exports = {
       return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept({ status: 400 }, (err) => {
       return {'invalidPolicy': `Attempted to update a policy with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
     }).intercept({ status: 404 }, (err) => {
       return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err) => {

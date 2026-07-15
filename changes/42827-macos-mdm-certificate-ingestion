@@ -1,0 +1,1 @@
+* Surface hardware-bound ACME certificates on macOS host vitals by retrieving them via the MDM `CertificateList` command when an ACME-bearing configuration profile is installed or re-installed.

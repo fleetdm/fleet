@@ -57,7 +57,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -3180,7 +3179,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 
 	// Record policy results - all fail
-	err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 		noTeamPol1.ID: new(false), // Fails and is in webhook config
 		noTeamPol2.ID: new(false), // Fails and is in webhook config
 		noTeamPol3.ID: new(false), // Fails but NOT in webhook config
@@ -4270,8 +4269,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NotNil(t, gpResp.Policy)
 
 	// add a policy execution
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(ctx, host,
-		map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil)))
 
 	// add a policy to team
 	oldToken := s.token
@@ -5594,10 +5593,10 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// add a failing policy execution
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			ctx, host1,
 			map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil,
-		),
+		)),
 	)
 
 	// populate software for hosts
@@ -5861,10 +5860,10 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: new(true)}, time.Now(), false, nil)))
 
 	hh := getHostHealthResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
@@ -6577,7 +6576,7 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{})
 	require.NoError(s.T(), err)
 
-	err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
 		createPol1.Policy.ID: new(false),
 		createPol2.Policy.ID: new(false),
 		createPol3.Policy.ID: new(false), // This policy is not activated for automation in config.
@@ -7716,7 +7715,7 @@ func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() 
 		Critical:    false,
 	})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false, nil)))
 
 	// Any 'invalid' policies should be ignored.
 	desktopRes := fleetDesktopResponse{}
@@ -17118,6 +17117,181 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		return sqlx.GetContext(ctx, q, &storedURL, `SELECT url FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, "hello world.sh")
 	})
 	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
+
+	// Fresh team so filename collisions from earlier assertions don't leak in.
+	crossTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "cross"})
+	require.NoError(t, err)
+
+	crossScript := "echo 'cross-platform hello'"
+	crossHash := sha256.Sum256([]byte(crossScript))
+	darwinOnly := []string{"darwin"}
+	crossPkg := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:                      "script://cross-hello.sh",
+			SHA256:                   hex.EncodeToString(crossHash[:]),
+			InstallScript:            crossScript,
+			SetupExperiencePlatforms: &darwinOnly,
+		},
+	}
+
+	// [darwin] on a .sh (native=linux): cross-table row for darwin, install_during_setup stays off.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+
+	var crossRows []struct {
+		SoftwareInstallerID uint   `db:"software_installer_id"`
+		Platform            string `db:"platform"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "expected exactly one cross-platform selection")
+	require.Equal(t, "darwin", crossRows[0].Platform)
+	require.NotZero(t, crossRows[0].SoftwareInstallerID)
+
+	var installDuringSetup bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
+	})
+	require.False(t, installDuringSetup, "linux not selected → install_during_setup should stay false")
+
+	// Omitting the field on re-apply leaves the cross-table alone — the batch
+	// only reconciles when at least one payload opts in, so UI-set selections
+	// aren't clobbered by callers that don't know about the field.
+	crossPkgNoField := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgNoField}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "omitting the field is a no-op; prior selection survives")
+
+	// Explicit empty list opts into reconcile with nothing selected → clears.
+	emptyPlatforms := []string{}
+	crossPkgEmpty := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &emptyPlatforms},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgEmpty}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Empty(t, crossRows, "explicit empty list clears the cross-table row")
+
+	// Re-apply is idempotent.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "cross-table row should be restored on re-apply")
+
+	// Both platforms in the list: install_during_setup flips on from the list
+	// alone (native "linux" is present), and the darwin cross-row is
+	// preserved. When SetupExperiencePlatforms is set it's authoritative for
+	// both the native flag and the cross-table.
+	bothPlatforms := []string{"darwin", "linux"}
+	crossPkgBoth := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:                      "script://cross-hello.sh",
+			SHA256:                   hex.EncodeToString(crossHash[:]),
+			InstallScript:            crossScript,
+			SetupExperiencePlatforms: &bothPlatforms,
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBoth}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
+	})
+	require.True(t, installDuringSetup, "native in list should set install_during_setup=1 without a separate setup_experience bool")
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "darwin cross-row still present when [macos, linux] is set")
+
+	// Native-only in the list is equivalent to setup_experience: true:
+	// install_during_setup=1, cross-table cleared for this installer.
+	linuxOnly := []string{"linux"}
+	crossPkgNative := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &linuxOnly},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgNative}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "cross-hello.sh")
+	})
+	require.True(t, installDuringSetup, "native-only list keeps install_during_setup=1")
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, crossTeam.ID)
+	})
+	require.Empty(t, crossRows, "native-only list clears the cross-table for this installer")
+
+	// Extension/platform mismatch: windows on a .sh.
+	var failure string
+	windows := []string{"windows"}
+	crossPkgBad := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &windows},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBad}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	failure = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`)
+
+	// Multi-installer batch with mixed opt-in. Installer A opts into
+	// [darwin]; installer B leaves SetupExperiencePlatforms nil. B's existing
+	// darwin cross-row (seeded via a prior explicit apply) must survive the
+	// batch instead of being wiped by A's opt-in.
+	scriptB := "echo 'sibling'"
+	scriptBHash := sha256.Sum256([]byte(scriptB))
+	// First, give both A and B a darwin cross-row so we have prior state to
+	// preserve.
+	seedA := []string{"darwin"}
+	seedB := []string{"darwin"}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &seedA},
+		{URL: "script://sibling.sh", SHA256: hex.EncodeToString(scriptBHash[:]), InstallScript: scriptB, SetupExperiencePlatforms: &seedB},
+	}}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ? ORDER BY software_installer_id`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 2, "seed step: both installers should have darwin rows")
+
+	// Now re-apply with A opting into [] (clear) and B leaving the field
+	// nil. B's row must survive.
+	empty := []string{}
+	mixed := []*fleet.SoftwareInstallerPayload{
+		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &empty},
+		{URL: "script://sibling.sh", SHA256: hex.EncodeToString(scriptBHash[:]), InstallScript: scriptB},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: mixed}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &crossRows,
+			`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ? ORDER BY software_installer_id`, crossTeam.ID)
+	})
+	require.Len(t, crossRows, 1, "A's row cleared by explicit []; B's row untouched by nil")
+
+	var siblingID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &siblingID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "sibling.sh")
+	})
+	require.Equal(t, siblingID, crossRows[0].SoftwareInstallerID, "surviving row should be sibling.sh (B)")
 }
 
 // 1. host reports software
@@ -21025,10 +21199,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	// Count is the total number of platform-specific maintained apps: an app's
-	// macOS and Windows entries are counted separately, even though the UI
-	// combines them into a single row. The full unfiltered list returns one row
-	// per app, so the count equals the number of rows returned.
+	// Count is the total number of installable platform entries: an app's macOS
+	// and Windows entries are separately installable (one Add button each), so
+	// they count separately even though the UI combines them into a single row.
+	// The unfiltered list returns every platform row, so here the count equals the
+	// number of rows returned.
 	require.Equal(t, len(expectedApps), listMAResp.Count)
 
 	sortFMAs := func(a, b fleet.MaintainedApp) int {
@@ -25496,7 +25671,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 
 	createdUserID, err := s.ds.CreateScimUser(ctx, scimUser)
 	require.NoError(t, err)
-	defer func() { _ = s.ds.DeleteScimUser(ctx, createdUserID) }()
+	defer func() { _, _ = s.ds.DeleteScimUser(ctx, createdUserID) }()
 
 	// Test IDP device mapping with premium license and valid SCIM user
 	var putResp putHostDeviceMappingResponse
@@ -26331,7 +26506,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		require.NoError(t, err)
 
 		// Record a failing result for this policy on the host
-		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+		_, err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 		require.NoError(t, err)
 
 		// Bypass should fail with 400 Bad Request
@@ -26373,7 +26548,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		})
 		require.NoError(t, err)
 
-		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		_, err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 			caPolicy.ID:    new(true),  // passing
 			nonCAPolicy.ID: new(false), // failing
 		}, time.Now(), false, nil)
@@ -31139,7 +31314,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 	invalidName := "batch-invalid-" + t.Name()
 
 	assertNonePersisted := func(label string) {
-		policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 		require.NoError(t, err)
 		for _, p := range policies {
 			require.NotEqual(t, validAnyName, p.Name, "%s: no spec from rejected batch should persist", label)
@@ -31182,7 +31357,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 		},
 	}, http.StatusOK)
 
-	policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	byName := make(map[string]*fleet.Policy, len(policies))
 	for _, p := range policies {
@@ -31508,14 +31683,20 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	attach(continuousPolicy.ID, continuousScript.ID)
 	attach(transitionPolicy.ID, transitionScript.ID)
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
-	completePendingScripts := func() {
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
+	bothPass := map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)}
+	completePendingScripts := func() int {
 		pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
 		require.NoError(t, err)
 		for _, hs := range pending {
@@ -31526,12 +31707,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 					*host.OrbitNodeKey, hs.ExecutionID,
 				)), http.StatusOK, &orbitPostScriptResp)
 		}
+		return len(pending)
 	}
 	// countExecutionsFor returns the number of script executions queued for a
-	// given (policy, script) pair on this host. Scripts are activated as soon
-	// as they are queued (NewHostScriptExecutionRequest calls
-	// activateNextUpcomingActivity), so they appear in host_script_results
-	// immediately — no need to also look at upcoming_activities.
+	// given (policy, script) pair on this host. Only one script activity is
+	// activated at a time per host, and a queued script only appears in
+	// host_script_results once activated — a script queued behind a pending one
+	// shows up only after the pending one completes.
 	countExecutionsFor := func(policyID, scriptID uint) int {
 		var count int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -31554,38 +31736,52 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 		}, 2*time.Second, 100*time.Millisecond, msgAndArgs...)
 	}
 
-	// Only one script can be activated at a time per host, so each step
-	// submits one policy result, waits for the script to record, then completes
-	// it before moving on (mirrors TestPolicyAutomationsContinuousSoftwareInstaller).
-	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
+	// waitForCountsAndDrain waits for the expected per-policy execution counts,
+	// completing pending scripts between polls (queued scripts only become
+	// visible as the ones ahead of them complete), then drains any remainder so
+	// the next step starts with no pending script executions.
+	waitForCountsAndDrain := func(wantContinuous, wantTransition int, msgAndArgs ...any) {
 		t.Helper()
-		submitPolicyResult(policyID, false)
-		require.EventuallyWithT(t, func(t *assert.CollectT) {
-			assert.Equal(t, wantCount, countFn(), msg)
-		}, 5*time.Second, 100*time.Millisecond)
-		completePendingScripts()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			completePendingScripts()
+			if continuousCount() == wantContinuous && transitionCount() == wantTransition {
+				break
+			}
+			if time.Now().After(deadline) {
+				require.Equal(t, wantContinuous, continuousCount(), msgAndArgs...)
+				require.Equal(t, wantTransition, transitionCount(), msgAndArgs...)
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		for range 10 {
+			if completePendingScripts() == 0 {
+				return
+			}
+		}
+		require.FailNow(t, "pending scripts did not drain")
 	}
 
-	// First failing result: pass→fail transition queues the script on both.
-	step(continuousPolicy.ID, 1, continuousCount, "first script run for continuous policy")
-	step(transitionPolicy.ID, 1, transitionCount, "first script run for transition policy")
+	// First failing results: pass→fail transition queues the script on both.
+	submitPolicyResults(bothFail)
+	waitForCountsAndDrain(1, 1, "first script run for both policies")
 
-	// Second failing result (fail→fail): only the continuous policy re-queues.
-	step(continuousPolicy.ID, 2, continuousCount, "continuous policy fires on every failing result")
-	submitPolicyResult(transitionPolicy.ID, false)
+	// Second failing results (fail→fail): only the continuous policy re-queues.
+	submitPolicyResults(bothFail)
+	waitForCountsAndDrain(2, 1, "continuous policy fires on every failing result")
 	assertCountStable(1, transitionCount, "default policy must not re-trigger on fail→fail")
 
-	// Third failing result: continuous still re-triggers, default still does not.
-	step(continuousPolicy.ID, 3, continuousCount, "continuous policy fires on every failing result")
-	submitPolicyResult(transitionPolicy.ID, false)
+	// Third failing results: continuous still re-triggers, default still does not.
+	submitPolicyResults(bothFail)
+	waitForCountsAndDrain(3, 1, "continuous policy fires on every failing result")
 	assertCountStable(1, transitionCount)
 
 	// Final: both policies pass. Neither should queue a script — passing
 	// results never trigger automations, regardless of continuous mode.
 	continuousBefore := continuousCount()
 	transitionBefore := transitionCount()
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(bothPass)
 	assertCountStable(continuousBefore, continuousCount, "continuous policy must not trigger script on passing result")
 	assertCountStable(transitionBefore, transitionCount, "transition policy must not trigger script on passing result")
 }
@@ -31819,13 +32015,18 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		}, http.StatusOK, &resp)
 	}
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
 	completePendingInstall := func() {
 		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
 		require.NoError(t, err)
@@ -31852,26 +32053,30 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		return count
 	}
 
-	// First fail: both policies queue an install (pass→fail transition).
-	submitPolicyResult(continuousPolicy.ID, false)
+	// First fail for the continuous policy (transition still passing): the
+	// pass→fail transition queues an install. Both policies share the installer,
+	// so their first failures are staggered across writes — a pending install
+	// blocks queueing another one for the same installer.
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(true)})
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 1, countInstallsFor(continuousPolicy.ID))
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
-	submitPolicyResult(transitionPolicy.ID, false)
+
+	// Transition policy now fails for the first time (pass→fail): queues its
+	// install. The continuous policy keeps failing (fail→fail) within the policy
+	// update interval: it is throttled. A successful install requests a host
+	// refetch that re-runs policies immediately, so without throttling this
+	// would be a tight install→refetch→re-run loop. It must NOT re-queue until
+	// the interval elapses.
+	submitPolicyResults(bothFail)
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 1, countInstallsFor(transitionPolicy.ID))
 	}, 5*time.Second, 100*time.Millisecond)
-	completePendingInstall()
-
-	// Second fail (fail→fail) within the policy update interval: the continuous policy
-	// is throttled. A successful install requests a host refetch that re-runs policies
-	// immediately, so without throttling this would be a tight install→refetch→re-run
-	// loop. It must NOT re-queue until the interval elapses.
-	submitPolicyResult(continuousPolicy.ID, false)
 	require.Never(t, func() bool {
 		return countInstallsFor(continuousPolicy.ID) != 1
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+	completePendingInstall()
 
 	// Age the last successful install past the policy update interval; the next failing
 	// result must re-queue (the retry happens on the next interval). The cooldown is
@@ -31887,14 +32092,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		})
 	}
 	ageInstaller()
-	submitPolicyResult(continuousPolicy.ID, false)
+	submitPolicyResults(bothFail)
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must re-fire after the cooldown elapses")
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
 
-	submitPolicyResult(transitionPolicy.ID, false)
-	// Poll for a window so a delayed enqueue doesn't slip past a one-shot check.
+	// The transition policy kept failing across the writes above (fail→fail):
+	// it must never have re-queued. Poll for a window so a delayed enqueue
+	// doesn't slip past a one-shot check.
 	require.Never(t, func() bool {
 		return countInstallsFor(transitionPolicy.ID) != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
@@ -31903,8 +32109,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	// results never trigger automations, regardless of continuous mode.
 	continuousBefore := countInstallsFor(continuousPolicy.ID)
 	transitionBefore := countInstallsFor(transitionPolicy.ID)
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)})
 	require.Never(t, func() bool {
 		return countInstallsFor(continuousPolicy.ID) != continuousBefore
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")
@@ -32650,542 +32855,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
 }
 
-func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
-	t := s.T()
-	ctx := context.Background()
-	installAllActivityName := fleet.ActivityTypeInstalledAllSelfServiceSoftware{}.ActivityName()
-
-	installAll := func(token string, expectedStatus int, qp ...string) {
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token), nil, expectedStatus, qp...)
-	}
-	deviceInstall := func(token string, titleID uint) {
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleID), nil, http.StatusAccepted)
-	}
-	countRows := func(query string, args ...any) int {
-		var n int
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &n, query, args...)
-		})
-		return n
-	}
-	// queued software-install titles for a host, in insertion (queue) order
-	queuedTitles := func(hostID uint) []string {
-		var titles []string
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &titles, `
-				SELECT st.name
-				FROM upcoming_activities ua
-				JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
-				JOIN software_titles st ON st.id = siua.software_title_id
-				WHERE ua.host_id = ? AND ua.activity_type = 'software_install'
-				ORDER BY ua.id`, hostID)
-		})
-		return titles
-	}
-	// create a no-team or team self-service deb installer, returning its title id
-	newInstaller := func(name string, teamID *uint, selfService bool, labels fleet.LabelIdentsWithScope, categoryIDs ...uint) uint {
-		tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
-		require.NoError(t, err)
-		_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-			StorageID:       name + "-storage",
-			Filename:        name + ".deb",
-			Title:           name,
-			Extension:       "deb",
-			Source:          "deb_packages",
-			Platform:        "linux",
-			Version:         "1.0",
-			InstallScript:   "install",
-			UninstallScript: "uninstall",
-			InstallerFile:   tfr,
-			SelfService:     selfService,
-			UserID:          s.users["admin1@example.com"].ID,
-			TeamID:          teamID,
-			ValidatedLabels: &labels,
-			CategoryIDs:     categoryIDs,
-		})
-		require.NoError(t, err)
-		return titleID
-	}
-	// complete the host's currently-activated (head) install with the given exit code
-	completeActivatedInstall := func(host *fleet.Host, exitCode int) {
-		var uid string
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT execution_id FROM host_software_installs WHERE host_id = ? AND status = 'pending_install' LIMIT 1`, host.ID)
-		})
-		require.NotEmpty(t, uid, "expected an activated install to complete")
-		s.Do("POST", "/api/fleet/orbit/software_install/result",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": %d, "install_script_output": "done"}`, *host.OrbitNodeKey, uid, exitCode)),
-			http.StatusNoContent)
-	}
-
-	// --- VPP + in-house installs are exercised by the runs below (not only one
-	// dedicated test). A stateless mock stands in for Apple's VPP API, Apple MDM is
-	// enabled, and a global VPP token is inserted. ---
-	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasSuffix(r.URL.Path, "/disassociate"):
-			_, _ = w.Write([]byte(`{"eventId":"d"}`))
-		case strings.Contains(r.URL.Path, "associate"):
-			_, _ = w.Write([]byte(`{"eventId":"evt"}`))
-		case strings.Contains(r.URL.Path, "assets"):
-			var assets []vpp.Asset
-			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
-				assets = []vpp.Asset{{AdamID: adamID, PricingParam: "STDQ", AvailableCount: 12}}
-			}
-			_ = json.NewEncoder(w).Encode(map[string][]vpp.Asset{"assets": assets})
-		default:
-			_, _ = w.Write([]byte(`{"locationName":"Fleet","countryISO2ACode":"US"}`))
-		}
-	}))
-	t.Cleanup(vppSrv.Close)
-	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
-
-	appCfg, err := s.ds.AppConfig(ctx)
-	require.NoError(t, err)
-	appCfg.MDM.EnabledAndConfigured = true
-	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
-	// MDM.EnabledAndConfigured is set by the server (from APNs/SCEP config), so the
-	// config API ignores it — the test sets it directly. That write bypasses the running
-	// server's separate cached AppConfig (1s TTL), so read it back through the server
-	// until the cache reflects the change the VPP installs need.
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		var acResp appConfigResponse
-		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		assert.True(c, acResp.MDM.EnabledAndConfigured)
-	}, 5*time.Second, 100*time.Millisecond)
-	t.Cleanup(func() {
-		ac, err := s.ds.AppConfig(ctx)
-		require.NoError(t, err)
-		ac.MDM.EnabledAndConfigured = false
-		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-	})
-	test.CreateInsertGlobalVPPToken(t, s.ds)
-
-	// MDM-connect an Apple host (required for VPP candidacy and because activation
-	// of either Apple type enqueues an MDM command).
-	newMDMHost := func(platform, suffix string, teamID *uint) (*fleet.Host, string) {
-		host := createOrbitEnrolledHost(t, platform, suffix, s.ds)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID})))
-		host.TeamID = teamID
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.HardwareSerial, host.Platform, host.TeamID)
-			return err
-		})
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1, ?)`,
-				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID, time.Now())
-			return err
-		})
-		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "Fleet", "", false))
-		token := suffix + "-tok"
-		createDeviceTokenForHost(t, s.ds, host.ID, token)
-		return host, token
-	}
-	adamSeq := 0
-	newVPPApp := func(name string, teamID *uint, labels *fleet.LabelIdentsWithScope) uint {
-		adamSeq++
-		app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-			Name:             name,
-			BundleIdentifier: "com.example." + name,
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID:        fleet.VPPAppID{AdamID: fmt.Sprint(adamSeq), Platform: fleet.MacOSPlatform},
-				SelfService:     true,
-				ValidatedLabels: labels,
-			},
-		}, teamID)
-		require.NoError(t, err)
-		return app.TitleID
-	}
-
-	t.Run("install statuses", func(t *testing.T) {
-		host := createOrbitEnrolledHost(t, "ubuntu", "ia-st", s.ds)
-		token := "ia-st-token" //nolint:gosec // G101: test value only
-		createDeviceTokenForHost(t, s.ds, host.ID, token)
-		t.Cleanup(func() {
-			require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
-				return err
-			})
-		})
-
-		// bad device token -> 401; nothing available to install -> 202 with no rows or roll-up
-		s.DoRawNoAuth("POST", "/api/latest/fleet/device/not-a-token/software/install_all", nil, http.StatusUnauthorized)
-		installAll(token, http.StatusAccepted)
-		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
-		s.lastActivityOfTypeDoesNotMatch(installAllActivityName, "", 0)
-
-		// Which self-service installs qualify (statuses, inventory, label/category/team
-		// scoping, alphabetical order) is covered in testGetSoftwareTitlesForInstallAll;
-		// here we verify the endpoint queues those installs, records the activities, and
-		// is idempotent. "installed" is a smoke check that an installed title stays out.
-		newInstaller("available", nil, true, fleet.LabelIdentsWithScope{})
-		newInstaller("also-available", nil, true, fleet.LabelIdentsWithScope{})
-		installedID := newInstaller("installed", nil, true, fleet.LabelIdentsWithScope{})
-		pendingID := newInstaller("pending", nil, true, fleet.LabelIdentsWithScope{})
-
-		// the host's queue runs one install at a time, so finish each before the next
-		deviceInstall(token, installedID)
-		completeActivatedInstall(host, 0) // -> installed, must be skipped
-		deviceInstall(token, pendingID)   // -> pending head, must be left untouched
-
-		// install_all queues only the available titles, in name order, after the
-		// already-pending title (which it leaves untouched and does not duplicate)
-		installAll(token, http.StatusAccepted)
-		require.Equal(t, []string{"pending", "also-available", "available"}, queuedTitles(host.ID))
-		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
-			host.ID, host.DisplayName()), 0)
-
-		// every queued install surfaces as a pending, self-service installed_software activity
-		var upcoming listHostUpcomingActivitiesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcoming)
-		require.Len(t, upcoming.Activities, 3)
-		var actTitles []string
-		for _, act := range upcoming.Activities {
-			require.Equal(t, fleet.ActivityTypeInstalledSoftware{}.ActivityName(), act.Type)
-			var d fleet.ActivityTypeInstalledSoftware
-			require.NoError(t, json.Unmarshal(*act.Details, &d))
-			require.True(t, d.SelfService)
-			require.Equal(t, string(fleet.SoftwareInstallPending), d.Status)
-			actTitles = append(actTitles, d.SoftwareTitle)
-		}
-		require.ElementsMatch(t, []string{"pending", "also-available", "available"}, actTitles)
-
-		// idempotent: a second call adds nothing
-		installAll(token, http.StatusAccepted)
-		require.Len(t, queuedTitles(host.ID), 3)
-
-		// the same MDM-enrolled darwin host installs custom packages (chrome, zoom) and a
-		// VPP app (slack); install_all queues them intermixed, sorted by name (not grouped
-		// by type). (In-house apps are iOS/iPadOS-only and the device endpoint is desktop-
-		// only, so those installs are covered in the MDM suite, not here.)
-		macTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-statuses"})
-		require.NoError(t, err)
-		macHost, macTok := newMDMHost("darwin", "av-statuses", &macTeam.ID)
-		newMacOSInstaller := func(name string) {
-			tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
-			require.NoError(t, err)
-			_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-				StorageID:       name + "-storage",
-				Filename:        name + ".pkg",
-				Title:           name,
-				Extension:       "pkg",
-				Source:          "apps",
-				Platform:        "darwin",
-				Version:         "1.0",
-				InstallScript:   "install",
-				UninstallScript: "uninstall",
-				InstallerFile:   tfr,
-				SelfService:     true,
-				UserID:          s.users["admin1@example.com"].ID,
-				TeamID:          &macTeam.ID,
-				ValidatedLabels: &fleet.LabelIdentsWithScope{},
-			})
-			require.NoError(t, err)
-		}
-		newMacOSInstaller("chrome")          // custom package
-		newMacOSInstaller("zoom")            // custom package
-		newVPPApp("slack", &macTeam.ID, nil) // VPP app; sorts between the packages
-		installAll(macTok, http.StatusAccepted)
-
-		// the package and VPP installs queue intermixed, in name order
-		var macHostUpcoming listHostUpcomingActivitiesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", macHost.ID), nil, http.StatusOK, &macHostUpcoming)
-		var macQueued []string
-		for _, act := range macHostUpcoming.Activities {
-			var d struct {
-				SoftwareTitle string `json:"software_title"`
-			}
-			require.NoError(t, json.Unmarshal(*act.Details, &d))
-			macQueued = append(macQueued, d.SoftwareTitle)
-		}
-		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
-	})
-
-	t.Run("coexists with existing and incoming activities", func(t *testing.T) {
-		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-		require.NoError(t, err)
-		host := createOrbitEnrolledHost(t, "ubuntu", "ia-act", s.ds)
-		token := "ia-act-token" //nolint:gosec // G101: test value only
-		createDeviceTokenForHost(t, s.ds, host.ID, token)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-
-		aID := newInstaller("act-a", &team.ID, true, fleet.LabelIdentsWithScope{})
-		newInstaller("act-b", &team.ID, true, fleet.LabelIdentsWithScope{})
-		newInstaller("act-c", &team.ID, true, fleet.LabelIdentsWithScope{})
-
-		// a manual install of A is already pending before install_all runs
-		deviceInstall(token, aID)
-		require.Equal(t, []string{"act-a"}, queuedTitles(host.ID))
-
-		// install_all appends the remaining titles behind A without re-queueing A
-		installAll(token, http.StatusAccepted)
-		require.Equal(t, []string{"act-a", "act-b", "act-c"}, queuedTitles(host.ID))
-		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
-			host.ID, host.DisplayName()), 0)
-
-		// the queue drains in order
-		for range 3 {
-			completeActivatedInstall(host, 0)
-		}
-		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
-		require.Equal(t, 3, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
-
-		// an install request arriving after install_all coexists and drains too
-		dID := newInstaller("act-d", &team.ID, true, fleet.LabelIdentsWithScope{})
-		deviceInstall(token, dID)
-		completeActivatedInstall(host, 0)
-		require.Equal(t, 4, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
-
-		// an install request racing install_all on the same host must not corrupt the
-		// queue: exactly one activated head, every install request present
-		host2 := createOrbitEnrolledHost(t, "ubuntu", "ia-act2", s.ds)
-		token2 := "ia-act2-token" //nolint:gosec // G101: test value only
-		createDeviceTokenForHost(t, s.ds, host2.ID, token2)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
-
-		client := s.server.Client()
-		var wg sync.WaitGroup
-		var instErr, allErr error
-		var instStatus, allStatus int
-		wg.Add(2)
-		go func() {
-			defer wg.Done()
-			req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token2, aID), nil)
-			if err != nil {
-				instErr = err
-				return
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				instErr = err
-				return
-			}
-			resp.Body.Close()
-			instStatus = resp.StatusCode
-		}()
-		go func() {
-			defer wg.Done()
-			req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token2), nil)
-			if err != nil {
-				allErr = err
-				return
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				allErr = err
-				return
-			}
-			resp.Body.Close()
-			allStatus = resp.StatusCode
-		}()
-		wg.Wait()
-		require.NoError(t, instErr)
-		require.NoError(t, allErr)
-		require.Equal(t, http.StatusAccepted, allStatus)
-		// the single install may win (202) or find the title already queued by
-		// install_all (400); either way the queue must stay consistent
-		require.Contains(t, []int{http.StatusAccepted, http.StatusBadRequest}, instStatus)
-		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'pending_install'`, host2.ID))
-		require.GreaterOrEqual(t, len(queuedTitles(host2.ID)), 4)
-
-		// double-queue: if another endpoint queues a title behind an activated head
-		// while install_all's title list (read before that) still includes it,
-		// install_all queues a second copy. Its per-install reset only cancels
-		// ACTIVATED installs, so the not-yet-activated concurrent install survives.
-		// This reproduces that interleaving deterministically using install_all's exact
-		// insert sequence (ResetNonPolicyInstallAttempts + InsertSoftwareInstallRequest).
-		host3 := createOrbitEnrolledHost(t, "ubuntu", "ia-dq", s.ds)
-		token3 := "ia-dq-token" //nolint:gosec // G101: test value only
-		createDeviceTokenForHost(t, s.ds, host3.ID, token3)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host3.ID})))
-
-		headID := newInstaller("dq-head", &team.ID, true, fleet.LabelIdentsWithScope{})
-		fooID := newInstaller("dq-foo", &team.ID, true, fleet.LabelIdentsWithScope{})
-		deviceInstall(token3, headID) // activated head
-		deviceInstall(token3, fooID)  // queued behind the head, not yet activated
-
-		var fooInstallerID uint
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &fooInstallerID, `SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`, fooID, team.ID)
-		})
-		require.NoError(t, s.ds.ResetNonPolicyInstallAttempts(ctx, host3.ID, fooInstallerID))
-		_, err = s.ds.InsertSoftwareInstallRequest(ctx, host3.ID, fooInstallerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true})
-		require.NoError(t, err)
-
-		require.Equal(t, 2, countRows(`
-			SELECT COUNT(*) FROM upcoming_activities ua
-			JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
-			JOIN software_titles st ON st.id = siua.software_title_id
-			WHERE ua.host_id = ? AND st.name = 'dq-foo'`, host3.ID))
-
-		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
-		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-activities"})
-		require.NoError(t, err)
-		vppHost, vppTok := newMDMHost("darwin", "av-activities", &vppTeam.ID)
-		newVPPApp("vpp-activities", &vppTeam.ID, nil)
-		installAll(vppTok, http.StatusAccepted)
-		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
-
-		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
-	})
-
-	t.Run("category label and team scoping", func(t *testing.T) {
-		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-		require.NoError(t, err)
-
-		// a no-team installer must never be queued for a team host
-		newInstaller("global-app", nil, true, fleet.LabelIdentsWithScope{})
-		t.Cleanup(func() {
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
-				return err
-			})
-		})
-
-		// hostA exercises team + label scoping
-		hostA := createOrbitEnrolledHost(t, "ubuntu", "ia-sc-a", s.ds)
-		tokenA := "ia-sc-a-token" //nolint:gosec // G101: test value only
-		createDeviceTokenForHost(t, s.ds, hostA.ID, tokenA)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostA.ID})))
-
-		lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-lbl", Query: "select 1"})
-		require.NoError(t, err)
-		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostA, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
-		includeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
-		excludeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
-
-		newInstaller("team-app", &team.ID, true, fleet.LabelIdentsWithScope{})
-		newInstaller("lbl-in", &team.ID, true, includeLbl)
-		newInstaller("lbl-out", &team.ID, true, excludeLbl)
-
-		// in scope: team-app and the include-any match; the exclude-any title and the
-		// no-team installer are skipped
-		installAll(tokenA, http.StatusAccepted)
-		require.ElementsMatch(t, []string{"team-app", "lbl-in"}, queuedTitles(hostA.ID))
-
-		// hostB exercises category scoping
-		hostB := createOrbitEnrolledHost(t, "ubuntu", "ia-sc-b", s.ds)
-		tokenB := "ia-sc-b-token" //nolint:gosec // G101: test value only
-		createDeviceTokenForHost(t, s.ds, hostB.ID, tokenB)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostB.ID})))
-
-		cat, err := s.ds.NewSoftwareCategory(ctx, team.ID, t.Name()+"-cat")
-		require.NoError(t, err)
-		newInstaller("cat-app", &team.ID, true, fleet.LabelIdentsWithScope{}, cat.ID)
-
-		// scoped to the category -> only its title, and the roll-up carries the category
-		installAll(tokenB, http.StatusAccepted, "category_id", fmt.Sprint(cat.ID))
-		require.Equal(t, []string{"cat-app"}, queuedTitles(hostB.ID))
-		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": %d, "self_service_category_name": %q, "software_titles_count": 1}`,
-			hostB.ID, hostB.DisplayName(), cat.ID, cat.Name), 0)
-
-		// nonexistent category, or a category on another fleet -> 400
-		installAll(tokenB, http.StatusBadRequest, "category_id", "9999999")
-		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
-		require.NoError(t, err)
-		otherCat, err := s.ds.NewSoftwareCategory(ctx, otherTeam.ID, t.Name()+"-othercat")
-		require.NoError(t, err)
-		installAll(tokenB, http.StatusBadRequest, "category_id", fmt.Sprint(otherCat.ID))
-
-		// VPP label scoping: include-any (host is a member) is queued, exclude-any is skipped
-		vppHost, vppToken := newMDMHost("darwin", "sc-vpp", &team.ID)
-		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, vppHost, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
-		newVPPApp("vpp-in", &team.ID, &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}})
-		newVPPApp("vpp-out", &team.ID, &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}})
-		installAll(vppToken, http.StatusAccepted)
-		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
-
-		require.NoError(t, s.ds.DeleteTeam(ctx, otherTeam.ID))
-		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
-	})
-
-	t.Run("multiple hosts", func(t *testing.T) {
-		const (
-			numHosts      = 5
-			numInstallers = 5
-		)
-		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-		require.NoError(t, err)
-		for i := range numInstallers {
-			newInstaller(fmt.Sprintf("mh-%d", i), &team.ID, true, fleet.LabelIdentsWithScope{})
-		}
-		type hostToken struct {
-			host  *fleet.Host
-			token string
-		}
-		hosts := make([]hostToken, numHosts)
-		for i := range numHosts {
-			h := createOrbitEnrolledHost(t, "ubuntu", fmt.Sprintf("mh-%d", i), s.ds)
-			require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID})))
-			tok := fmt.Sprintf("mh-tok-%d", i)
-			createDeviceTokenForHost(t, s.ds, h.ID, tok)
-			hosts[i] = hostToken{h, tok}
-		}
-
-		// every host fires install_all at once (require can't run off the test goroutine)
-		client := s.server.Client()
-		statuses := make([]int, numHosts)
-		errs := make([]error, numHosts)
-		var wg sync.WaitGroup
-		for i := range hosts {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", hosts[i].token), nil)
-				if err != nil {
-					errs[i] = err
-					return
-				}
-				resp, err := client.Do(req)
-				if err != nil {
-					errs[i] = err
-					return
-				}
-				resp.Body.Close()
-				statuses[i] = resp.StatusCode
-			}(i)
-		}
-		wg.Wait()
-
-		for i := range hosts {
-			require.NoErrorf(t, errs[i], "host %d", i)
-			require.Equalf(t, http.StatusAccepted, statuses[i], "host %d", i)
-		}
-
-		// each host queued exactly its installers, with no lost or cross-host rows
-		for i := range hosts {
-			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
-		}
-
-		// re-running queues nothing new, then drain every host's queue
-		for i := range hosts {
-			installAll(hosts[i].token, http.StatusAccepted)
-			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
-		}
-		for i := range hosts {
-			for range numInstallers {
-				completeActivatedInstall(hosts[i].host, 0)
-			}
-			require.Zerof(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, hosts[i].host.ID), "host %d", i)
-			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, hosts[i].host.ID), "host %d", i)
-		}
-
-		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
-
-		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
-		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-multihost"})
-		require.NoError(t, err)
-		vppHost, vppTok := newMDMHost("darwin", "av-multihost", &vppTeam.ID)
-		newVPPApp("vpp-multihost", &vppTeam.ID, nil)
-		installAll(vppTok, http.StatusAccepted)
-		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
-	})
-}
-
 func (s *integrationEnterpriseTestSuite) TestDeviceSelfServiceCategories() {
 	t := s.T()
 	ctx := context.Background()
@@ -33833,4 +33502,101 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	activityName := fleet.ActivityTypeEditedHostNameTemplate{}.ActivityName()
+	activityDetails := func(nameTemplate string) string {
+		jsonTemplate := "null"
+		if nameTemplate != "" {
+			jsonTemplate = fmt.Sprintf("%q", nameTemplate)
+		}
+		return fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %s}`, team.ID, team.Name, jsonTemplate)
+	}
+	getTemplate := func() string {
+		var getResp getTeamResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+		return getResp.Team.Config.MDM.HostNameTemplate
+	}
+
+	// PATCH /teams/{id} with an invalid template is rejected
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(`{"mdm": {"name_template": "X-$FLEET_SECRET_Y"}}`), http.StatusUnprocessableEntity)
+	require.Empty(t, getTemplate())
+
+	// PATCH sets the template and logs the activity
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"mdm": {"name_template": %q}}`, tmpl)), http.StatusOK, &tmResp)
+	require.Equal(t, tmpl, tmResp.Team.Config.MDM.HostNameTemplate)
+	require.Equal(t, tmpl, getTemplate())
+	activityID := s.lastActivityMatches(activityName, activityDetails(tmpl), 0)
+
+	// re-PATCHing the identical template logs no duplicate activity
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"mdm": {"name_template": %q}}`, tmpl)), http.StatusOK, &tmResp)
+	s.lastActivityMatches("", "", activityID)
+
+	// a PATCH without the key leaves the template untouched
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(`{"mdm": {"windows_require_bitlocker_pin": false}}`), http.StatusOK, &tmResp)
+	require.Equal(t, tmpl, getTemplate())
+
+	// team-spec apply: an invalid template is rejected, even in dry-run
+	specWith := func(mdm map[string]any) map[string]any {
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": mdm}}}
+	}
+	s.Do("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": "X-$FLEET_VAR_NOPE"}), http.StatusUnprocessableEntity)
+	require.Equal(t, tmpl, getTemplate())
+	s.Do("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": "X-$FLEET_VAR_NOPE"}), http.StatusUnprocessableEntity, "dry_run", "true")
+	require.Equal(t, tmpl, getTemplate())
+
+	// a valid dry-run does not persist the change
+	s.Do("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": "DR-$FLEET_VAR_HOST_UUID"}), http.StatusOK, "dry_run", "true")
+	require.Equal(t, tmpl, getTemplate())
+
+	// spec apply sets a new template and logs the activity
+	const specTmpl = "iPad $FLEET_VAR_HOST_UUID"
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": specTmpl}), http.StatusOK, &applyResp)
+	require.Equal(t, specTmpl, getTemplate())
+	activityID = s.lastActivityOfTypeMatches(activityName, activityDetails(specTmpl), 0)
+
+	// re-applying the same spec logs no duplicate activity
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": specTmpl}), http.StatusOK, &applyResp)
+	s.lastActivityOfTypeMatches(activityName, "", activityID)
+
+	// a spec without the key leaves the template untouched
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{}), http.StatusOK, &applyResp)
+	require.Equal(t, specTmpl, getTemplate())
+
+	// an empty string clears the template and logs a null-template activity
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": ""}), http.StatusOK, &applyResp)
+	require.Empty(t, getTemplate())
+	s.lastActivityOfTypeMatches(activityName, activityDetails(""), 0)
+
+	// creating a new team from a spec with a template applies it and logs the activity
+	newTeamName := t.Name() + "-new"
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		map[string]any{"specs": []any{map[string]any{"name": newTeamName, "mdm": map[string]any{"name_template": tmpl}}}},
+		http.StatusOK, &applyResp)
+	newTeam, err := s.ds.TeamByName(ctx, newTeamName)
+	require.NoError(t, err)
+	require.Equal(t, tmpl, newTeam.Config.MDM.HostNameTemplate)
+	s.lastActivityOfTypeMatches(activityName,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, newTeam.ID, newTeam.Name, tmpl), 0)
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/text/unicode/norm"
@@ -310,6 +311,41 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 			}
 		}
 
+		// 5. Check if the secret variable is used in a host name template, on a
+		// team or on "No team" (the global app config). The template is stored as
+		// the unexpanded $FLEET_SECRET_* placeholder in the config JSON.
+		var nameTemplateContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&nameTemplateContents,
+			// A team's name_template is a plain string that always serializes into
+			// the config JSON (as "" when unset), and the No-team template is an
+			// optjson that serializes to null when unset, so filter both on a
+			// non-empty resolved value rather than IS NOT NULL.
+			`SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+			FROM teams t
+			WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+			UNION ALL
+			SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			'No team' AS team_name, json_value->>'$.mdm.name_template' AS contents
+			FROM app_config_json
+			WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get host name template contents")
+		}
+		for _, c := range nameTemplateContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
 		if _, err := tx.ExecContext(ctx, `DELETE FROM secret_variables WHERE id = ?`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete secret variable")
 		}
@@ -497,6 +533,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 			// We need to send base64 encoded data in the <data> field.
 			encoded := base64.StdEncoding.EncodeToString([]byte(*details.UnlockToken))
 			secretValues[secretType] = encoded
+		case fleet.HostSecretPSSODeviceRegistrationToken:
+			token, err := ds.mintPSSODeviceRegistrationToken(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
+			}
+			secretValues[secretType] = token
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}
@@ -533,6 +575,26 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 	})
 
 	return expanded, nil
+}
+
+// mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
+// registration token bound to hostUUID, using the PSSO signing key asset. The
+// token is not stored: it is minted fresh for the requesting host each time the
+// profile is delivered, so it never lands in the database or on /mdm/commands.
+func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUUID string) (string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading psso signing key")
+	}
+	asset, ok := assets[fleet.MDMAssetPSSOSigningKey]
+	if !ok || len(asset.Value) == 0 {
+		return "", ctxerr.New(ctx, "psso signing key asset is missing; configure Platform SSO first")
+	}
+	token, err := regtoken.MintFromPEM(asset.Value, hostUUID, time.Now())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "minting psso device registration token")
+	}
+	return token, nil
 }
 
 // getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.
