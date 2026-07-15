@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"slices"
@@ -41,6 +42,11 @@ var nameTemplateVarRegexp = func() *regexp.Regexp {
 	return regexp.MustCompile(fmt.Sprintf(`\$FLEET_VAR_(%[1]s)\b|\$\{FLEET_VAR_(%[1]s)\}`, alt))
 }()
 
+// nameTemplateSecretRegexp matches a $FLEET_SECRET_NAME / ${FLEET_SECRET_NAME}
+// custom (secret) variable token. Secret values are only known at resolve time
+// so this is used to strip secret tokens out of a template when computing its fixed-text byte floor.
+var nameTemplateSecretRegexp = regexp.MustCompile(`\$` + ServerSecretPrefix + `\w+|\$\{` + ServerSecretPrefix + `\w+\}`)
+
 // ValidateHostNameTemplate validates a host name template and returns the
 // normalized (trimmed) template that callers should persist.
 func ValidateHostNameTemplate(tmpl string) (string, error) {
@@ -63,12 +69,7 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 		}
 	}
 
-	// Secret variables ($FLEET_SECRET_*) are never allowed in name templates.
-	if len(ContainsPrefixVars(tmpl, ServerSecretPrefix)) > 0 {
-		return "", NewInvalidArgumentError("name_template", "Secret variables aren't supported in host name templates.")
-	}
-
-	// Every Fleet variable used must be in the allow-list.
+	// Every built-in Fleet variable used must be in the allow-list.
 	for _, v := range variables.Find(tmpl) {
 		if !slices.Contains(fleetVarsSupportedInHostNameTemplates, FleetVarName(v)) {
 			return "", NewInvalidArgumentError("name_template",
@@ -78,16 +79,45 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 
 	// The resolved name must fit Apple's device name limit. Stripping the
 	// variables yields the shortest a resolved name can be (a variable may
-	// resolve to an empty value), so if the fixed text alone exceeds the limit no
-	// host can ever get a valid name — reject it now rather than silently failing
-	// every host at resolve time. Per-host overflow from variable expansion is
+	// resolve to an empty value — including a secret, which can be set to an
+	// empty string), so if the fixed text alone exceeds the limit no host can
+	// ever get a valid name — reject it now rather than silently failing every
+	// host at resolve time. Per-host overflow from variable/secret expansion is
 	// still caught by the cron when it resolves against a host's actual values.
-	if literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, ""); len(literal) > MaxResolvedHostNameBytes {
+	literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, "")
+	literal = nameTemplateSecretRegexp.ReplaceAllString(literal, "")
+	if len(literal) > MaxResolvedHostNameBytes {
 		return "", NewInvalidArgumentError("name_template",
 			fmt.Sprintf("Host name template's fixed text can't be longer than %d bytes (the device name limit).", MaxResolvedHostNameBytes))
 	}
 
 	return tmpl, nil
+}
+
+// ValidateHostNameTemplateWithSecrets validates a host name template
+// syntactically (see ValidateHostNameTemplate) and additionally verifies that
+// every custom (secret, $FLEET_SECRET_*) variable it references is defined in
+// the datastore, mirroring how scripts and profiles validate embedded secrets at
+// save time. It returns the normalized template to persist.
+func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl string) (string, error) {
+	validated, err := ValidateHostNameTemplate(tmpl)
+	if err != nil {
+		return "", err
+	}
+	if len(ContainsPrefixVars(validated, ServerSecretPrefix)) > 0 {
+		if err := ds.ValidateEmbeddedSecrets(ctx, []string{validated}); err != nil {
+			// A referenced-but-undefined secret is a user input error (422); surface
+			// the underlying message (which names the missing secret) as an
+			// invalid-argument error. Any other error (e.g. a DB failure) is an
+			// infrastructure problem and must propagate as-is (500), not be
+			// misreported as invalid input.
+			if IsMissingSecretsError(err) {
+				return "", NewInvalidArgumentError("name_template", err.Error())
+			}
+			return "", err
+		}
+	}
+	return validated, nil
 }
 
 // hostNameTemplatePlatformDisplayNames maps a host's osquery platform to the
