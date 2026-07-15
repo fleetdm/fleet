@@ -462,7 +462,7 @@ const HostDetailsPage = ({
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
               notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `Vitals are taking longer than expected to load.`
               );
               resetHostRefetchStates();
             }
