@@ -4015,7 +4015,7 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 
 	t.Run("invalid templates are rejected", func(t *testing.T) {
 		for _, tc := range []struct{ name, tmpl string }{
-			{"unsupported variable", "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"},
+			{"unsupported CA variable", "WS-$FLEET_VAR_NDES_SCEP_CHALLENGE"},
 			{"control characters", "WS-\x07"},
 			{"too long", strings.Repeat("a", 256)},
 		} {
