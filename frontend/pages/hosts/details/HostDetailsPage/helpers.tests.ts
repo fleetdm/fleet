@@ -43,4 +43,18 @@ describe("canShowMyDeviceButton", () => {
     });
     expect(canShowMyDeviceButton(host)).toBe(false);
   });
+
+  // Only wipe-related states hide the button. Other transient states leave the
+  // end-user page reachable, so the button stays visible.
+  it("returns true for non-wipe transient states like clear_passcode", () => {
+    const host = createMockHost({
+      fleet_desktop_version: "1.22.1",
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        pending_action: "clear_passcode",
+      },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(true);
+  });
 });
