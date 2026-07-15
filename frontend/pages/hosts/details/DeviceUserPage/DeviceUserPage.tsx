@@ -951,7 +951,7 @@ const DeviceUserPage = ({
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
                   {isLoadingDupDetails ? (
-                    <Spinner includeContainer={false} centered={false} />
+                    <Spinner centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}
