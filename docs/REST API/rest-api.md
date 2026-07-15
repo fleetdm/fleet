@@ -1843,6 +1843,22 @@ None.
          }
       }
     ],
+    "google_workspace": [
+      {
+        "domain": "example.com",
+        "impersonated_user_email": "admin@example.com",
+        "api_key_json": {
+           "type": "service_account",
+           "project_id": "fleet-idp-sync",
+           "private_key_id": "<private key id>",
+           "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+           "client_email": "fleet-idp-sync@fleet-idp-sync.iam.gserviceaccount.com",
+           "client_id": "<client id>",
+           "token_uri": "https://oauth2.googleapis.com/token",
+           "universe_domain": "googleapis.com"
+         }
+      }
+    ],
     "jira": [],
     "zendesk": []
   },
@@ -2165,6 +2181,13 @@ Modifies the Fleet's configuration with the supplied information.
     "google_calendar": [
       {
         "domain": "",
+        "api_key_json": null
+      }
+    ],
+    "google_workspace": [
+      {
+        "domain": "",
+        "impersonated_user_email": "",
         "api_key_json": null
       }
     ],
@@ -2530,6 +2553,7 @@ _Available in Fleet Premium._
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
 
 <br/>
 
@@ -2578,6 +2602,20 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### integrations.google_workspace
+
+_Available in Fleet Premium._
+
+`integrations.google_workspace` is an array of objects with the following structure. When set, Fleet syncs identity provider (IdP) host vitals from your Google Workspace directory, and SCIM provisioning is ignored.
+
+| Name                    | Type   | Description   |
+| ----------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| domain                  | string | Your Google Workspace primary domain whose directory is synced.                                                              |
+| impersonated_user_email | string | A Google Workspace admin the service account impersonates via domain-wide delegation.                                        |
+| api_key_json            | object | The service account JSON key (with domain-wide delegation enabled) used to authenticate to the Google Workspace directory.   |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -2597,6 +2635,13 @@ _Available in Fleet Premium._
     "google_calendar": [
       {
         "domain": "https://domain.com",
+        "api_key_json": "<API KEY JSON>"
+      }
+    ],
+    "google_workspace": [
+      {
+        "domain": "example.com",
+        "impersonated_user_email": "admin@example.com",
         "api_key_json": "<API KEY JSON>"
       }
     ]
@@ -11969,6 +12014,32 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+For Fleet-maintained apps, the `software_package` object includes two additional fields:
+
+- `pinned_version`: The version the app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). Omitted when the app automatically updates to the latest version.
+- `fleet_maintained_versions`: The versions Fleet has cached and that are available to pin or roll back to. Each entry includes `id`, `version`, and `uploaded_at`. For example:
+```json
+"software_package": {
+  "name": "GoogleChrome.pkg",
+  "version": "149.0.7827.54",
+  "platform": "darwin",
+  "fleet_maintained_app_id": 12,
+  "pinned_version": "149.0.7827.54",
+  "fleet_maintained_versions": [
+    {
+      "id": 36818,
+      "version": "149.0.7827.54",
+      "uploaded_at": "2026-06-04T17:47:23Z"
+    },
+    {
+      "id": 36817,
+      "version": "148.0.7794.0",
+      "uploaded_at": "2026-05-21T11:02:55Z"
+    }
+  ]
+}
+```
+
 For in-house iOS apps, the `software_package` field is populated with package information.
 
 For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_app` is populated with information from the store. For example:
@@ -12188,9 +12259,9 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
 | fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
 | install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
@@ -12277,13 +12348,13 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| version | string | body | Only available for Fleet-maintained apps. Pins the app to specific or major version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). To pin to the major version, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will continuously download the latest version until the app updates to 148.0. |
+| version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
