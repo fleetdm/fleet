@@ -193,7 +193,7 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	// advertise higher versions (e.g. "9.0") must not be rejected by an exact-match allow-list.
 	atLeastMin, err := enrollmentVersionAtLeast(req.Body.Discover.Request.RequestVersion, syncml.MinSupportedEnrollmentVersion)
 	if err != nil {
-		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q is not a valid version: %s",
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q is not a valid version: %w",
 			req.Body.Discover.Request.RequestVersion, err)
 	}
 	if !atLeastMin {
