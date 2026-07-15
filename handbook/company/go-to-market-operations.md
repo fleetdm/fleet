@@ -379,6 +379,22 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
 
 
+### Generate a customer quote
+
+After a quote is approved, generate a PDF to send to the customer. The Salesforce PDF builder handles standard quotes, but quotes with custom terms require additional steps.
+
+To generate a quote with custom terms:
+
+1. Navigate to the approved quote record in Salesforce.
+2. In the **"Terms"** field, copy and paste the full general terms. Add any custom language after the general terms.
+
+   > All terms for the quote must be in the **"Terms"** field. If the quote includes custom language, paste the general terms first, then add the custom terms below them.
+
+3. Click **"Generate PDF"** and select the **"Promises or custom terms"** template. This template reflects any content entered in the "Terms" field.
+4. Click **"Create PDF"** and review the preview for accuracy.
+5. Submit the generated PDF for Zay Hanlon's approval before sending to the customer.
+
+
 ### Remove a contact from the "Top contacts" list in Salesforce
 
 1. Navigate to the contact.
