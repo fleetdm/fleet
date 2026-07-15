@@ -7,47 +7,60 @@ const baseClass = "tag";
 
 export type TagType = "static" | "clickable" | "dismissible";
 
-interface ITagProps {
-  type?: TagType;
+interface ITagBaseProps {
   children: React.ReactNode;
-  /** Required when `type` is `"clickable"` */
-  onClick?: () => void;
-  /** Required when `type` is `"dismissible"` */
-  onDismiss?: () => void;
-  /** Accessible name (and native tooltip) for the dismiss button */
-  dismissLabel?: string;
   disabled?: boolean;
   className?: string;
 }
 
-const Tag = ({
-  type = "static",
-  children,
-  onClick,
-  onDismiss,
-  dismissLabel = "Remove",
-  disabled,
-  className,
-}: ITagProps) => {
+interface IStaticTagProps extends ITagBaseProps {
+  type?: "static";
+  onClick?: never;
+  onDismiss?: never;
+  dismissLabel?: never;
+}
+
+interface IClickableTagProps extends ITagBaseProps {
+  type: "clickable";
+  onClick: () => void;
+  onDismiss?: never;
+  dismissLabel?: never;
+}
+
+interface IDismissibleTagProps extends ITagBaseProps {
+  type: "dismissible";
+  onClick?: never;
+  onDismiss: () => void;
+  /** Accessible name (and native tooltip) for the dismiss button. Defaults to "Remove". */
+  dismissLabel?: string;
+}
+
+type ITagProps = IStaticTagProps | IClickableTagProps | IDismissibleTagProps;
+
+const Tag = (props: ITagProps) => {
+  const { children, disabled, className } = props;
+
   const classNames = classnames(baseClass, className, {
-    [`${baseClass}--clickable`]: type === "clickable",
-    [`${baseClass}--dismissible`]: type === "dismissible",
+    [`${baseClass}--clickable`]: props.type === "clickable",
+    [`${baseClass}--dismissible`]: props.type === "dismissible",
   });
 
-  if (type === "clickable") {
+  if (props.type === "clickable") {
     return (
       <button
         type="button"
         className={classNames}
         disabled={disabled}
-        onClick={onClick}
+        onClick={props.onClick}
       >
         {children}
       </button>
     );
   }
 
-  if (type === "dismissible") {
+  if (props.type === "dismissible") {
+    const dismissLabel = props.dismissLabel ?? "Remove";
+
     return (
       <span className={classNames}>
         <span className={`${baseClass}__label`}>{children}</span>
@@ -55,7 +68,7 @@ const Tag = ({
           type="button"
           className={`${baseClass}__dismiss`}
           disabled={disabled}
-          onClick={onDismiss}
+          onClick={props.onDismiss}
           aria-label={dismissLabel}
           title={dismissLabel}
         >
