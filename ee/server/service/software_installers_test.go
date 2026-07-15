@@ -890,7 +890,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 	t.Run("bundle identifier allows a different title name on a targeted package", func(t *testing.T) {
 		contents, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
 		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, true)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			require.Equal(t, "DummyApp", payload.Title)
 			require.Equal(t, "apps", payload.Source)
 			require.Equal(t, "com.example.dummy", payload.BundleIdentifier)
@@ -914,7 +914,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 	t.Run("upgrade code allows a different title name", func(t *testing.T) {
 		contents, storageID := readInstaller(t, "../../../server/service/testdata/software-installers/fleet-osquery.msi")
 		state := setup(t, "Fleet agent", "fleet-osquery.msi", "msi", "windows", storageID, []string{"{70A53353-01E5-424B-8819-ED882B3805D9}"}, false)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			require.Equal(t, "Fleet osquery", payload.Title)
 			require.Equal(t, "programs", payload.Source)
 			require.NotEmpty(t, payload.UpgradeCode)
@@ -943,7 +943,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		t.Run("different software is rejected when "+tt.name, func(t *testing.T) {
 			contents, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
 			state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, false)
-			state.ds.MatchSoftwareTitleIDForInstallerFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 				return tt.resolvedTitleID, tt.resolveErr
 			}
 
@@ -962,7 +962,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 	t.Run("different upgrade code is rejected", func(t *testing.T) {
 		contents, storageID := readInstaller(t, "../../../server/service/testdata/software-installers/fleet-osquery.msi")
 		state := setup(t, "Fleet agent", "fleet-osquery.msi", "msi", "windows", storageID, []string{"{70A53353-01E5-424B-8819-ED882B3805D9}"}, false)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			require.NotEmpty(t, payload.UpgradeCode)
 			return 0, &notFoundError{}
 		}
@@ -982,7 +982,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		_, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
 		msiContents, _ := readInstaller(t, "../../../server/service/testdata/software-installers/fleet-osquery.msi")
 		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, false)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			t.Fatal("identity resolver must not run before the extension check")
 			return 0, nil
 		}
@@ -994,13 +994,13 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 			InstallerFile: newReplacement(t, msiContents),
 		})
 		require.ErrorContains(t, err, "The selected package is for a different file type.")
-		require.False(t, state.ds.MatchSoftwareTitleIDForInstallerFuncInvoked)
+		require.False(t, state.ds.GetExistingSoftwareInstallerTitleIDFuncInvoked)
 	})
 
 	t.Run("non-file edit does not resolve identity", func(t *testing.T) {
 		_, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
 		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, false)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			t.Fatal("identity resolver must not run without a replacement file")
 			return 0, nil
 		}
@@ -1019,7 +1019,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, targetInstallerID, updated.InstallerID)
 		require.True(t, updated.SelfService)
-		require.False(t, state.ds.MatchSoftwareTitleIDForInstallerFuncInvoked)
+		require.False(t, state.ds.GetExistingSoftwareInstallerTitleIDFuncInvoked)
 	})
 
 	t.Run("same-named package with an unresolved identity is accepted via the name fallback", func(t *testing.T) {
@@ -1027,7 +1027,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		// name fallback must still accept it.
 		contents, storageID := readInstaller(t, "../../../server/service/testdata/software-installers/fleet-osquery.msi")
 		state := setup(t, "Fleet osquery", "fleet-osquery.msi", "msi", "windows", storageID, []string{"{70A53353-01E5-424B-8819-ED882B3805D9}"}, false)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			require.Equal(t, "Fleet osquery", payload.Title)
 			return 0, &notFoundError{}
 		}
@@ -1046,7 +1046,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 	t.Run("different software is rejected on a targeted multi-package installer", func(t *testing.T) {
 		contents, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
 		state := setup(t, "Different Osquery Name", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, true)
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			return titleID + 1, nil // resolves to a different title
 		}
 
@@ -1068,7 +1068,7 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, false)
 		fmaID := uint(7)
 		state.installer.FleetMaintainedAppID = &fmaID
-		state.ds.MatchSoftwareTitleIDForInstallerFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 			t.Fatal("identity resolver must not run for a fleet-maintained app")
 			return 0, nil
 		}
@@ -1080,8 +1080,90 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 			InstallerFile: newReplacement(t, contents),
 		})
 		require.ErrorContains(t, err, "The package can't be changed for Fleet-maintained apps.")
-		require.False(t, state.ds.MatchSoftwareTitleIDForInstallerFuncInvoked)
+		require.False(t, state.ds.GetExistingSoftwareInstallerTitleIDFuncInvoked)
 		require.False(t, state.ds.SaveInstallerUpdatesFuncInvoked)
+	})
+
+	t.Run("identity resolving to a different title is rejected even when the name matches", func(t *testing.T) {
+		// Guards the wrong-software overwrite: the title name equals the uploaded package's extracted
+		// name ("DummyApp"), but its identity resolves to a different title, so it must be rejected.
+		contents, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
+		state := setup(t, "DummyApp", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, false)
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			return titleID + 1, nil // resolves to a different existing title
+		}
+
+		_, err := state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleID,
+			TeamID:        &state.teamID,
+			Filename:      "dummy_installer.pkg",
+			InstallerFile: newReplacement(t, contents),
+		})
+		require.ErrorContains(t, err, "The selected package is for different software.")
+		require.False(t, state.ds.SaveInstallerUpdatesFuncInvoked)
+		require.Equal(t, storageID, state.installer.StorageID)
+	})
+
+	t.Run("targeted installer upgrade code accepts a renamed title without a title lookup", func(t *testing.T) {
+		// A sibling MSI whose own upgrade_code differs from the title's: the title lookup can't see it
+		// (returns not-found), and the title was renamed so the name fallback also fails — but the
+		// edited installer's own upgrade_code matches, so the fast path accepts without hitting the DB.
+		contents, storageID := readInstaller(t, "../../../server/service/testdata/software-installers/fleet-osquery.msi")
+		state := setup(t, "Renamed osquery title", "fleet-osquery.msi", "msi", "windows", storageID, []string{"{70A53353-01E5-424B-8819-ED882B3805D9}"}, false)
+		state.installer.UpgradeCode = "{B681CB20-107E-428A-9B14-2D3C1AFED244}" // fleet-osquery.msi's own upgrade code
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			t.Fatal("title lookup must be skipped when the upgrade code fast path matches")
+			return 0, nil
+		}
+
+		updated, err := state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleID,
+			TeamID:        &state.teamID,
+			Filename:      "fleet-osquery.msi",
+			InstallerFile: newReplacement(t, contents),
+		})
+		require.NoError(t, err)
+		require.NotEqual(t, storageID, updated.StorageID)
+		require.False(t, state.ds.GetExistingSoftwareInstallerTitleIDFuncInvoked)
+		require.True(t, state.ds.SaveInstallerUpdatesFuncInvoked)
+	})
+
+	t.Run("a datastore error resolving identity is propagated", func(t *testing.T) {
+		contents, storageID := readInstaller(t, "testdata/dummy_installer.pkg")
+		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", storageID, []string{"com.example.dummy"}, false)
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			return 0, errors.New("datastore boom")
+		}
+
+		_, err := state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleID,
+			TeamID:        &state.teamID,
+			Filename:      "dummy_installer.pkg",
+			InstallerFile: newReplacement(t, contents),
+		})
+		require.ErrorContains(t, err, "resolving title for updated installer")
+		require.False(t, state.ds.SaveInstallerUpdatesFuncInvoked)
+	})
+
+	t.Run("name-only package resolving to a different title falls through to the name check", func(t *testing.T) {
+		// A name-only package (no bundle id / upgrade code): the resolver's name branch has no
+		// LIMIT/ORDER BY and can match multiple same-named titles ambiguously, so a "different title"
+		// result must not reject on its own — it falls through to the name check, which matches here.
+		contents, storageID := readInstaller(t, "../../../server/service/testdata/software-installers/vim.deb")
+		state := setup(t, "vim", "vim.deb", "deb", "linux", storageID, []string{"vim"}, false)
+		state.ds.GetExistingSoftwareInstallerTitleIDFunc = func(context.Context, *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			return titleID + 1, nil // ambiguous name-only match returns another same-named title
+		}
+
+		updated, err := state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleID,
+			TeamID:        &state.teamID,
+			Filename:      "vim.deb",
+			InstallerFile: newReplacement(t, contents),
+		})
+		require.NoError(t, err)
+		require.NotEqual(t, storageID, updated.StorageID)
+		require.True(t, state.ds.SaveInstallerUpdatesFuncInvoked)
 	})
 }
 

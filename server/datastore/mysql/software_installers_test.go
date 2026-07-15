@@ -86,7 +86,7 @@ func TestSoftwareInstallers(t *testing.T) {
 	}
 }
 
-func TestMatchSoftwareTitleIDForInstaller(t *testing.T) {
+func TestGetExistingSoftwareInstallerTitleID(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer TruncateTables(t, ds)
 	ctx := t.Context()
@@ -110,7 +110,7 @@ func TestMatchSoftwareTitleIDForInstaller(t *testing.T) {
 	nameTitleID := insertTitle("Stored Package Name", "deb_packages", nil, nil)
 
 	t.Run("bundle identifier", func(t *testing.T) {
-		titleID, err := ds.MatchSoftwareTitleIDForInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		titleID, err := ds.GetExistingSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
 			Title:            "Different Installer Name",
 			Source:           "apps",
 			BundleIdentifier: "com.example.app",
@@ -120,7 +120,7 @@ func TestMatchSoftwareTitleIDForInstaller(t *testing.T) {
 	})
 
 	t.Run("upgrade code", func(t *testing.T) {
-		titleID, err := ds.MatchSoftwareTitleIDForInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		titleID, err := ds.GetExistingSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
 			Title:       "Different Installer Name",
 			Source:      "programs",
 			UpgradeCode: "{EXAMPLE-UPGRADE-CODE}",
@@ -130,7 +130,7 @@ func TestMatchSoftwareTitleIDForInstaller(t *testing.T) {
 	})
 
 	t.Run("name and source", func(t *testing.T) {
-		titleID, err := ds.MatchSoftwareTitleIDForInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		titleID, err := ds.GetExistingSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
 			Title:  "Stored Package Name",
 			Source: "deb_packages",
 		})
@@ -160,7 +160,7 @@ func TestMatchSoftwareTitleIDForInstaller(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ds.MatchSoftwareTitleIDForInstaller(ctx, tt.payload)
+			_, err := ds.GetExistingSoftwareInstallerTitleID(ctx, tt.payload)
 			require.Error(t, err)
 			require.True(t, fleet.IsNotFound(err))
 		})

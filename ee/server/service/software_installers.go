@@ -524,29 +524,49 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if existingInstaller.FleetMaintainedAppID != nil {
 			return nil, &fleet.BadRequestError{
 				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer file changed for fleet maintained app installer"),
+				InternalErr: ctxerr.New(ctx, "installer file changed for fleet maintained app installer"),
 			}
 		}
 
 		if newInstallerExtension != existingInstaller.Extension {
 			return nil, &fleet.BadRequestError{
 				Message:     "The selected package is for a different file type.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
+				InternalErr: ctxerr.New(ctx, "installer extension mismatch"),
 			}
 		}
 
-		// Reject only when the replacement neither resolves to this title by identity nor keeps the
-		// same name. The name fallback avoids rejecting a same-named new version when identity can't
-		// confirm it (e.g. a Windows MSI whose upgrade_code changed between versions).
-		resolvedTitleID, err := svc.ds.MatchSoftwareTitleIDForInstaller(ctx, payloadForNewInstallerFile)
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "resolving title for updated installer")
-		}
-		identityMatches := err == nil && resolvedTitleID == payload.TitleID
-		if !identityMatches && payloadForNewInstallerFile.Title != software.Name {
-			return nil, &fleet.BadRequestError{
-				Message:     "The selected package is for different software.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
+		// The replacement must be the same software as the installer being edited. Its extracted
+		// identity (bundle id for apps, upgrade code for Windows, else name) must point at this title.
+		// A bare name match is accepted only when no title claims the identity — so a re-keyed MSI or
+		// re-bundled pkg still edits — while another app's package, which resolves to a different title,
+		// is rejected even when the names coincide. A package that changes both its name and its
+		// upgrade code at once can't be tied to the edited installer, so it is rejected (as before).
+		switch {
+		case payloadForNewInstallerFile.UpgradeCode != "" && payloadForNewInstallerFile.UpgradeCode == existingInstaller.UpgradeCode:
+			// Same Windows product as the edited installer (a sibling MSI whose upgrade code can differ
+			// from the title's); trusted fast path, skip the title lookup entirely.
+		default:
+			resolvedTitleID, err := svc.ds.GetExistingSoftwareInstallerTitleID(ctx, payloadForNewInstallerFile)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "resolving title for updated installer")
+			}
+			switch {
+			case err == nil && resolvedTitleID == payload.TitleID:
+				// Identity resolves to this title.
+			case err == nil && (payloadForNewInstallerFile.BundleIdentifier != "" || payloadForNewInstallerFile.UpgradeCode != ""):
+				// A strong identifier (bundle id / upgrade code) resolves to a different existing title:
+				// different software, even if the names coincide. Name-only matches are excluded here
+				// because the resolver's name branch can match multiple same-named titles ambiguously.
+				return nil, &fleet.BadRequestError{
+					Message:     "The selected package is for different software.",
+					InternalErr: ctxerr.Errorf(ctx, "installer resolves to title %d, editing title %d", resolvedTitleID, payload.TitleID),
+				}
+			case payloadForNewInstallerFile.Title != software.Name:
+				// No authoritative identity claims this package and the name does not match either.
+				return nil, &fleet.BadRequestError{
+					Message:     "The selected package is for different software.",
+					InternalErr: ctxerr.New(ctx, "installer identity not found and name mismatch"),
+				}
 			}
 		}
 
