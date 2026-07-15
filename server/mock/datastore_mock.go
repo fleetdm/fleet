@@ -254,7 +254,7 @@ type HostIDsByIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, 
 
 type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
-type HostMemberOfAllLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+type HostMembershipForLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
 
 type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
@@ -2544,8 +2544,8 @@ type DataStore struct {
 	HostIDsByOSIDFunc        HostIDsByOSIDFunc
 	HostIDsByOSIDFuncInvoked bool
 
-	HostMemberOfAllLabelsFunc        HostMemberOfAllLabelsFunc
-	HostMemberOfAllLabelsFuncInvoked bool
+	HostMembershipForLabelsFunc        HostMembershipForLabelsFunc
+	HostMembershipForLabelsFuncInvoked bool
 
 	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
 	HostIDsByOSVersionFuncInvoked bool
@@ -6268,11 +6268,11 @@ func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, li
 	return s.HostIDsByOSIDFunc(ctx, osID, offset, limit)
 }
 
-func (s *DataStore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
+func (s *DataStore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	s.mu.Lock()
-	s.HostMemberOfAllLabelsFuncInvoked = true
+	s.HostMembershipForLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostMemberOfAllLabelsFunc(ctx, hostID, labelNames)
+	return s.HostMembershipForLabelsFunc(ctx, hostID, labelNames)
 }
 
 func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
