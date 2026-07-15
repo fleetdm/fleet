@@ -5166,6 +5166,12 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 // filterOutOfScopeFailedHostSoftwareInstalls removes failed install entries that are not in
 // the osquery inventory and whose installer is out of label scope, so they don't surface
 // as available software on the host. Maps are mutated in place.
+// filterOutOfScopeFailedHostSoftwareInstalls drops titles the host is out of scope for and not
+// osquery-reporting as installed, whose status is a failed install, so a stale failed attempt on a
+// title the host can no longer install doesn't linger. For a multi-package title the Status read
+// here is the provisional per-title value (the first-added installer with a record, ordered by the
+// query): out-of-scope titles are never pinned by applyResolvedInstallerStatus, so the prune
+// deliberately reflects the first-added installer's outcome. Non-failed out-of-scope titles are kept.
 func filterOutOfScopeFailedHostSoftwareInstalls(
 	bySoftwareTitleID map[uint]*hostSoftware,
 	byVPPAdamID map[string]*hostSoftware,
