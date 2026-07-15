@@ -7428,7 +7428,7 @@ software:
 
 	// 4. An invalid variable surfaces the server's 422 validation message through fleetctl.
 	t.Run("invalid variable rejected", func(t *testing.T) {
-		yml := writeYAML(t, teamYAML(`  name_template: "$FLEET_VAR_HOST_END_USER_IDP_GROUPS"`))
+		yml := writeYAML(t, teamYAML(`  name_template: "$FLEET_VAR_NDES_SCEP_CHALLENGE"`))
 		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "is not supported in host name templates")
@@ -7517,7 +7517,7 @@ software:
 		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
 		require.NoError(t, os.WriteFile(noTeamPath, []byte(`
 controls:
-  name_template: "$FLEET_VAR_HOST_END_USER_IDP_GROUPS"
+  name_template: "$FLEET_VAR_NDES_SCEP_CHALLENGE"
 policies:
 name: No team
 software:
