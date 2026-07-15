@@ -375,8 +375,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, varNames)
 	if err != nil {
-		var existsErr endpointer.ExistsErrorInterface
-		if errors.As(err, &existsErr) {
+		if existsErr, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			msg := SameProfileNameUploadErrorMsg
 			if re, ok := existsErr.(interface{ Resource() string }); ok {
 				if re.Resource() == "MDMAppleConfigProfile.PayloadIdentifier" {
@@ -1132,14 +1131,9 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *existing.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, existing.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of the declaration before we update it
@@ -1171,21 +1165,23 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		}
 	} else {
 		// no new content -- only labels are being changed.
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking license")
-		}
-		if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
-			if lic == nil || !lic.IsPremium() {
-				return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for declaration profile label scoping")
-			}
-		}
-		if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+		if err := svc.checkLabelsOnlyProfileUpdate(ctx, labelsInclude, labelsExcludeAny); err != nil {
+			return err
 		}
 		includeLabels, excludeLabels, err := svc.validateDeclarationLabelSets(ctx, teamID, labelsInclude, labelsExcludeAny)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validating labels")
+		}
+		// SetOrUpdateMDMAppleDeclaration always rewrites the declaration's
+		// variable associations from varNames, so re-derive them from the
+		// unchanged content the same way the create path does -- otherwise a
+		// labels-only edit would wipe them while the content still uses them.
+		expanded, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(existing.RawJSON))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "expanding secrets for existing declaration")
+		}
+		for _, v := range variables.Find(expanded) {
+			varNames = append(varNames, fleet.FleetVarName(v))
 		}
 		decl = &fleet.MDMAppleDeclaration{
 			Name:             existing.Name,
@@ -1193,6 +1189,9 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			TeamID:           existing.TeamID,
 			RawJSON:          existing.RawJSON,
 			SecretsUpdatedAt: existing.SecretsUpdatedAt,
+			// the upsert writes scope unconditionally, so the unchanged
+			// content's scope must be carried over or it would be cleared
+			Scope: existing.Scope,
 		}
 		switch labelsMembershipMode {
 		case fleet.LabelsIncludeAll:
@@ -1204,8 +1203,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 	}
 
 	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {
-		var existsErr endpointer.ExistsErrorInterface
-		if errors.As(err, &existsErr) {
+		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			err = fleet.NewInvalidArgumentError("profile", "Couldn't edit. A configuration profile with this identifier already exists.").WithStatus(http.StatusConflict)
 		}
 		return ctxerr.Wrap(ctx, err)
@@ -1691,7 +1689,7 @@ func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1709,7 +1707,7 @@ func (svc *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, 
 }
 
 func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1728,7 +1726,7 @@ func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileUUID st
 }
 
 func (svc *Service) GetMDMAppleDeclaration(ctx context.Context, profileUUID string) (*fleet.MDMAppleDeclaration, error) {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1772,7 +1770,7 @@ func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{
 // that the uploaded profile's identifier/name match the existing profile's,
 // then performs the atomic datastore update and logs the edit activity.
 func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1782,14 +1780,9 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *existing.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, existing.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we update it
@@ -1818,17 +1811,8 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		}
 	} else {
 		// no new content -- only labels are being changed.
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking license")
-		}
-		if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
-			if lic == nil || !lic.IsPremium() {
-				return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
-			}
-		}
-		if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+		if err := svc.checkLabelsOnlyProfileUpdate(ctx, labelsInclude, labelsExcludeAny); err != nil {
+			return err
 		}
 		includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 		if err != nil {
@@ -1850,8 +1834,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 	cp.ProfileUUID = profileUUID
 
 	if _, err := svc.ds.UpdateMDMAppleConfigProfile(ctx, *cp, varNames); err != nil {
-		var existsErr endpointer.ExistsErrorInterface
-		if errors.As(err, &existsErr) {
+		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict)
 		}
 		return ctxerr.Wrap(ctx, err)
@@ -1880,7 +1863,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 }
 
 func (svc *Service) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1899,7 +1882,7 @@ func (svc *Service) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Contex
 }
 
 func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1909,14 +1892,9 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var teamName string
-	teamID := *cp.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, cp.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we delete the profile
@@ -1960,7 +1938,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 }
 
 func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
-	// first we perform a perform basic authz check
+	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1997,14 +1975,9 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		}
 	}
 
-	var teamName string
-	teamID := *decl.TeamID
-	if teamID >= 1 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		teamName = tm.Name
+	teamID, teamName, err := svc.resolveProfileTeam(ctx, decl.TeamID)
+	if err != nil {
+		return err
 	}
 
 	// now we can do a specific authz check based on team id of profile before we delete the profile

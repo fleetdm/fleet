@@ -960,7 +960,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		ProfileUUID: initial.ProfileUUID,
 		Name:        initial.Name,
 		RawJSON:     newRawJSON,
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, initial.ProfileUUID, updated.ProfileUUID)
 	require.JSONEq(t, string(newRawJSON), string(updated.RawJSON))
@@ -978,7 +978,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		ProfileUUID: initial.ProfileUUID,
 		Name:        "A Different Name",
 		RawJSON:     newRawJSON,
-	})
+	}, nil)
 	require.ErrorContains(t, err, "must match the existing profile's name")
 
 	// updating a nonexistent profile returns a not-found error
@@ -986,7 +986,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		ProfileUUID: "g" + uuid.NewString(),
 		Name:        "Does Not Exist",
 		RawJSON:     newRawJSON,
-	})
+	}, nil)
 	require.True(t, fleet.IsNotFound(err))
 
 	// labels replace the previous set entirely rather than merging with it
@@ -1000,7 +1000,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelName: label1.Name, LabelID: label1.ID},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
@@ -1013,7 +1013,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelName: label2.Name, LabelID: label2.ID},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
@@ -1026,7 +1026,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
 		ProfileUUID: initial.ProfileUUID,
 		Name:        initial.Name,
-	})
+	}, nil)
 	require.NoError(t, err)
 	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
@@ -1052,7 +1052,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
 			{LabelName: includeAnyLabel.Name, LabelID: includeAnyLabel.ID},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 	stored, err = ds.GetMDMAndroidConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
 	require.NoError(t, err)
@@ -1066,7 +1066,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 			{LabelName: excludeAnyLabel.Name, LabelID: excludeAnyLabel.ID},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 	stored, err = ds.GetMDMAndroidConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
 	require.NoError(t, err)
@@ -1095,7 +1095,7 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelName: combinedLabel.Name, LabelID: combinedLabel.ID},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	stored, err = ds.GetMDMAndroidConfigProfile(ctx, combined.ProfileUUID)
@@ -1103,6 +1103,47 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(combinedRawJSON), string(stored.RawJSON))
 	require.Len(t, stored.LabelsIncludeAll, 1)
 	require.Equal(t, combinedLabel.Name, stored.LabelsIncludeAll[0].LabelName)
+
+	// Fleet variables used in the new content are persisted, a labels-only
+	// edit (no new content) leaves them untouched, and a content edit that
+	// drops the last variable clears the stale association.
+	varNamesStmt := `
+		SELECT fv.name
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.android_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	varProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Android Fleet Vars Profile",
+		RawJSON: []byte(`{"managedConfiguration": {"platform": "$FLEET_VAR_HOST_PLATFORM"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostPlatform})
+	require.NoError(t, err)
+	varLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-labels-only-vars-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Name:        varProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: varLabel.Name, LabelID: varLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	var varNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostPlatform)}, varNames,
+		"a labels-only edit must preserve the profile's variable associations")
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Name:        varProfile.Name,
+		RawJSON:     []byte(`{"managedConfiguration": {"platform": "static"}}`),
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "a content edit that drops the last Fleet variable must clear the stale association")
 }
 
 func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {

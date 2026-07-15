@@ -2560,6 +2560,21 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			} else if err := untrackWindowsUpdateConfigProfileDB(ctx, tx, cp.ProfileUUID); err != nil {
 				return err
 			}
+
+			// variable associations are only touched when new content was
+			// uploaded: within a content update the call must be unconditional
+			// (unlike the create path) so an edit which removes the profile's
+			// last Fleet variable still clears the stale association --
+			// batchSetProfileVariableAssociationsDB always deletes existing
+			// associations for the given profile UUIDs before optionally
+			// re-inserting. On a labels-only update the content -- and thus its
+			// variables -- didn't change, and clearing them here would break
+			// variable-driven resends (e.g. IdP email changes).
+			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
+			}, "windows", false); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
+			}
 		}
 
 		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsIncludeAny)+len(cp.LabelsExcludeAny))
@@ -2589,25 +2604,13 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			return ctxerr.Wrap(ctx, err, "updating windows profile label associations")
 		}
 
-		// called unconditionally (unlike the create path) so that an edit which
-		// removes the profile's last Fleet variable still clears the stale
-		// association -- batchSetProfileVariableAssociationsDB always deletes
-		// existing associations for the given profile UUIDs before optionally
-		// re-inserting, so a single-entry call with an empty FleetVariables
-		// list correctly clears without inserting anything new.
-		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
-			{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
-		}, "windows", false); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
-		}
-
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	updated, err := ds.GetMDMWindowsConfigProfile(ctx, cp.ProfileUUID)
+	updated, err := ds.GetMDMWindowsConfigProfile(ctxdb.RequirePrimary(ctx, true), cp.ProfileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get updated windows config profile")
 	}
