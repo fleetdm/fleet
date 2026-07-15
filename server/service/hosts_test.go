@@ -5491,3 +5491,134 @@ func TestListHostsIgnoresPremiumOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestReorderCSVColumnAfter(t *testing.T) {
+	cases := []struct {
+		name     string
+		recs     [][]string
+		col      string
+		afterCol string
+		want     [][]string
+	}{
+		{
+			name: "moves a column that comes after its target",
+			recs: [][]string{
+				{"a", "model", "b", "c", "marketing"},
+				{"1", "m1", "2", "3", "mk1"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b", "c"},
+				{"1", "m1", "mk1", "2", "3"},
+			},
+		},
+		{
+			name: "reorders every data row",
+			recs: [][]string{
+				{"a", "model", "b", "marketing"},
+				{"1", "m1", "2", "mk1"},
+				{"3", "m2", "4", "mk2"},
+				{"5", "m3", "6", "mk3"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+				{"1", "m1", "mk1", "2"},
+				{"3", "m2", "mk2", "4"},
+				{"5", "m3", "mk3", "6"},
+			},
+		},
+		{
+			name: "moves a column that comes before its target",
+			recs: [][]string{
+				{"marketing", "a", "model", "b"},
+				{"mk1", "1", "m1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+				{"1", "m1", "mk1", "2"},
+			},
+		},
+		{
+			name: "already immediately after target is unchanged",
+			recs: [][]string{
+				{"model", "marketing", "b"},
+				{"m1", "mk1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"model", "marketing", "b"},
+				{"m1", "mk1", "2"},
+			},
+		},
+		{
+			name: "header-only records are reordered",
+			recs: [][]string{
+				{"a", "marketing", "model", "b"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+			},
+		},
+		{
+			name: "missing col is a no-op",
+			recs: [][]string{
+				{"model", "b"},
+				{"m1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"model", "b"},
+				{"m1", "2"},
+			},
+		},
+		{
+			name: "missing afterCol is a no-op",
+			recs: [][]string{
+				{"marketing", "b"},
+				{"mk1", "2"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"marketing", "b"},
+				{"mk1", "2"},
+			},
+		},
+		{
+			name:     "empty records is a no-op",
+			recs:     [][]string{},
+			col:      "marketing",
+			afterCol: "model",
+			want:     [][]string{},
+		},
+		{
+			name: "ragged rows are padded without panicking",
+			recs: [][]string{
+				{"a", "model", "b", "marketing"},
+				{"1", "m1"},
+			},
+			col:      "marketing",
+			afterCol: "model",
+			want: [][]string{
+				{"a", "model", "marketing", "b"},
+				{"1", "m1", "", ""},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			reorderCSVColumnAfter(c.recs, c.col, c.afterCol)
+			require.Equal(t, c.want, c.recs)
+		})
+	}
+}
