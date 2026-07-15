@@ -158,8 +158,12 @@ func enrollmentVersionAtLeast(v, minVersion string) (bool, error) {
 			vNum = n
 		}
 		if i < len(minParts) {
-			// minVersion is a compile-time constant we control, so it is assumed well-formed.
-			minNum, _ = strconv.Atoi(minParts[i])
+			// minVersion is expected to be well-formed, but validate it so we don't silently accept bad values.
+			n, err := strconv.Atoi(minParts[i])
+			if err != nil {
+				return false, fmt.Errorf("invalid minVersion component %q", minParts[i])
+			}
+			minNum = n
 		}
 		if vNum != minNum {
 			return vNum > minNum, nil
