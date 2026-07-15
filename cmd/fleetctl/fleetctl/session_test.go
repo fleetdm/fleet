@@ -31,6 +31,6 @@ func TestEarlySessionCheck(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(config), configFilePerms)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"get", "queries", "--config", configPath})
+	_, err = runAppNoChecks([]string{"get", "queries", "--config", configPath})
 	require.ErrorIs(t, err, service.ErrUnauthenticated)
 }

@@ -145,7 +145,9 @@ This is the server name or IP address used by the client certificate.
 
 ### mysql_max_open_conns
 
-The maximum open connections to the database.
+The maximum open connections from each Fleet server to the database. This value should be less than the database's maximum connection limit.
+
+If your database has 100 connections available and you have up to 3 Fleet servers running, this value should be 30 to avoid opening more connections than the database can handle and still leave a small buffer.
 
 - Default value: 50
 - Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
@@ -596,6 +598,35 @@ A value of 0 means no timeout.
     write_timeout: 5s
   ```
 
+### redis_host_cache_enabled
+
+Enables a Redis-backed cache that fronts host lookups on the osquery and orbit auth paths.
+When enabled, Fleet caches authenticated host records in Redis to reduce MySQL load on
+high-volume check-in endpoints. Disable to bypass the cache and serve every check-in directly
+from MySQL.
+
+- Default value: true
+- Environment variable: `FLEET_REDIS_HOST_CACHE_ENABLED`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_enabled: true
+  ```
+
+### redis_host_cache_ttl
+
+Base TTL for entries in the Redis-backed host lookup cache. Each entry's actual TTL is jittered
+by ±10% to avoid synchronized expiry waves. Must be greater than 0 when `redis_host_cache_enabled`
+is true; to disable the cache, set `redis_host_cache_enabled=false` instead of zeroing this value.
+
+- Default value: 60s
+- Environment variable: `FLEET_REDIS_HOST_CACHE_TTL`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_ttl: 60s
+  ```
+
 ## Server
 
 ### server_address
@@ -935,6 +966,18 @@ When enabled, Fleet server will require HTTP message signatures for all incoming
     require_http_message_signature: true
   ```
 
+### auth_sso_rate_limit_per_minute
+
+The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/rest-api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).
+
+- Default value: 10
+- Environment variable: `FLEET_AUTH_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  auth:
+    sso_rate_limit_per_minute: 200
+  ```
+
 ## App
 
 ### app_token_key_size
@@ -1126,7 +1169,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1140,7 +1183,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1384,7 +1427,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), [`splunk`](#splunk), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -1470,6 +1513,37 @@ A comma-delimited set of log topics to disable. If a topic is included in both t
   ```yaml
   logging:
     disable_topics: deprecated-field-names
+  ```
+
+### logging_tracing_enabled
+
+Whether or not to enable tracing. When enabled, the Fleet server exports traces (and, when `logging_otel_logs_enabled` is also set, logs) to an [OpenTelemetry](https://opentelemetry.io/) collector over OTLP.
+
+The export destination and resource attributes are configured through the standard OpenTelemetry SDK environment variables, the most common being:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - the OTLP collector endpoint, e.g. `http://localhost:4317`.
+- `OTEL_SERVICE_NAME` - the service name reported with each span (defaults to `fleet`).
+
+See the [OpenTelemetry SDK environment variable reference](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for the full list, and [Traces](https://fleetdm.com/docs/deploy/reference-architectures#traces) for how Fleet samples traces in production.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+  ```
+
+### logging_otel_logs_enabled
+
+Whether or not to export logs to an OpenTelemetry collector in addition to stderr. Requires `logging_tracing_enabled` to be `true` so that exported log records can be correlated with traces.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    otel_logs_enabled: true
   ```
 
 ## Filesystem
@@ -2453,6 +2527,106 @@ Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
     timeout: 1m
   ```
 
+## Splunk
+
+Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
+
+### splunk_url
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The base URL of the Splunk HEC endpoint (e.g. `https://splunk.example.com:8088`).
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_URL`
+- Config file format:
+  ```yaml
+  splunk:
+    url: https://splunk.example.com:8088
+  ```
+
+### splunk_token
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The HEC authentication token.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_TOKEN`
+- Config file format:
+  ```yaml
+  splunk:
+    token: your-hec-token
+  ```
+
+### splunk_index
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The Splunk index to send events to. If empty, the HEC token's default index is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_INDEX`
+- Config file format:
+  ```yaml
+  splunk:
+    index: main
+  ```
+
+### splunk_source
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The source value for events sent to Splunk. If empty, the HEC token's default source is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE`
+- Config file format:
+  ```yaml
+  splunk:
+    source: fleet
+  ```
+
+### splunk_source_type
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The sourcetype value for events sent to Splunk. If empty, the HEC token's default sourcetype is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE_TYPE`
+- Config file format:
+  ```yaml
+  splunk:
+    source_type: fleet:json
+  ```
+
+### splunk_insecure_skip_verify
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+Skip TLS certificate verification when connecting to the Splunk HEC endpoint. Useful for development environments with self-signed certificates.
+
+- Default value: `false`
+- Environment variable: `FLEET_SPLUNK_INSECURE_SKIP_VERIFY`
+- Config file format:
+  ```yaml
+  splunk:
+    insecure_skip_verify: true
+  ```
+
 ## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
@@ -2542,6 +2716,20 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
   ```yaml
   ses:
     ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
+  ```
+
+### ses_sender_domain
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+Optionally set the domain used in the `From` address for SES emails. When configured, Fleet sends mail as `do-not-reply@<domain>`. If omitted, Fleet keeps the current behavior and uses the hostname from `server_settings.server_url`.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SENDER_DOMAIN`
+- Config file format:
+  ```yaml
+  ses:
+    sender_domain: notifications.example.com
   ```
 
 ### ses_sts_assume_role_arn
@@ -2664,6 +2852,25 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
   ```yaml
   s3:
    software_installers_sts_external_id: your_unique_id
+  ```
+
+### s3_software_installers_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_software_installers_endpoint_url` set to `https://storage.googleapis.com`.
+This is incompatible with `s3_software_installers_access_key_id`,
+`s3_software_installers_secret_access_key`, and `s3_software_installers_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcs_iam_auth: true
   ```
 
 ### s3_software_installers_endpoint_url
@@ -2827,6 +3034,25 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
      carves_sts_external_id: your_unique_id
   ```
 
+### s3_carves_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+This is incompatible with `s3_carves_access_key_id`,
+`s3_carves_secret_access_key`, and `s3_carves_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    carves_gcs_iam_auth: true
+  ```
+
 ### s3_carves_endpoint_url
 
 > Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
@@ -2847,6 +3073,51 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
   ```yaml
   s3:
      carves_force_s3_path_style: false
+  ```
+
+### s3_carves_cleanup_disabled
+
+When `true`, the S3 carve store skips the periodic reconciliation that marks carves whose S3
+object no longer exists as expired. Set this if you rely solely on the bucket lifecycle policy
+to remove carve objects and do not need the `expired` flag reconciled. This applies only to the
+S3 carve store; it has no effect when carves are stored in MySQL.
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_DISABLED`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_disabled: true
+  ```
+
+### s3_carves_cleanup_max_per_run
+
+The maximum number of carves the S3 cleanup reconciles per run, which also bounds
+the number of S3 `HeadObject` requests a single run makes. A larger carve backlog
+is drained across subsequent runs. Raise this to drain a large backlog faster, at
+the cost of more work per run; lower it to reduce each run's impact on the shared
+cleanup schedule.
+
+- Default value: 1000
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_MAX_PER_RUN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_max_per_run: 1000
+  ```
+
+### s3_carves_cleanup_concurrency
+
+The number of concurrent S3 `HeadObject` probes the carve cleanup performs. Kept
+modest by default to stay well under S3's per-prefix request rate; lower it if you
+observe throttling, or raise it to speed up a backlog's probe phase.
+
+- Default value: 32
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_CONCURRENCY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_concurrency: 32
   ```
 
 ### s3_carves_region
@@ -3421,31 +3692,33 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_os_updates_and_filevault
+### mdm.enable_custom_filevault
+
+> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
 
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for OS updates and FileVault management, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
 
-> Enabling this option may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet manages under the hood for these features.
+> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_os_updates_and_filevault: true
+    enable_custom_filevault: false
   ```
 
 ### mdm.allow_all_declarations
 
-Allows all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) to be sent, bypassing all safety checks. By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.89](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
 
-Currently, Fleet only supports device-scoped declarations. User-scoped declarations are [coming soon](https://github.com/fleetdm/fleet/issues/38986).
-
-> Enabling this option bypasses all safety checks for declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
+If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
 [Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+Enabling this bypasses checks for forbidden declaration types, reserved identifiers, and required prefixes.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`

@@ -14,10 +14,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
+
+const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
 
 // Sentinel errors for recovery lock rotation
 var (
@@ -306,7 +309,7 @@ func ValidateNoSecretsInProfileName(xmlContent []byte) error {
 	return nil
 }
 
-func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
+func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomFileVault bool) error {
 	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
@@ -317,7 +320,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomOSUpdatesAndFile
 	}
 
 	// then screen the payload content for reserved identifiers, names, and types
-	return cp.Mobileconfig.ScreenPayloads(allowCustomOSUpdatesAndFileVault)
+	return cp.Mobileconfig.ScreenPayloads(allowCustomFileVault)
 }
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
@@ -439,6 +442,134 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Scope              PayloadScope
 }
 
+// AppleHostReconcileInfo is a per-host record used by the batched Apple
+// profile reconciler. It contains only the fields needed to decide which
+// profiles should be installed on the host given its team, platform, and
+// label membership.
+type AppleHostReconcileInfo struct {
+	HostID           uint       `db:"id"`
+	UUID             string     `db:"uuid"`
+	TeamID           *uint      `db:"team_id"`
+	Platform         string     `db:"platform"`
+	LabelUpdatedAt   time.Time  `db:"label_updated_at"`
+	DeviceEnrolledAt *time.Time `db:"device_enrolled_at"`
+}
+
+// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own
+// team (the "no team" / global scope), NOT a fallback for teamed hosts:
+// a host with team_id=5 matches profiles with team_id=5 only, it does
+// not also inherit team_id=0 profiles. Equality between EffectiveTeamID
+// and a profile's team_id is the correct match check.
+func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
+// AppleProfileIncludeMode aliases the platform-neutral include mode; see
+// MDMProfileIncludeMode in mdm_reconcile.go.
+type AppleProfileIncludeMode = MDMProfileIncludeMode
+
+const (
+	AppleProfileIncludeNone = MDMProfileIncludeNone
+	AppleProfileIncludeAll  = MDMProfileIncludeAll
+	AppleProfileIncludeAny  = MDMProfileIncludeAny
+)
+
+// AppleProfileLabelRef aliases the platform-neutral label reference; see
+// MDMProfileLabelRef in mdm_reconcile.go.
+type AppleProfileLabelRef = MDMProfileLabelRef
+
+// AppleLabeledEntity aliases the platform-neutral label-gated entity view;
+// see MDMLabeledEntity in mdm_reconcile.go. Both AppleProfileForReconcile
+// and AppleDeclarationForReconcile implement it so the same dispatcher and
+// handlers run against both Apple reconcilers as well as other platforms'
+// reconcilers.
+type AppleLabeledEntity = MDMLabeledEntity
+
+// AppleProfileForReconcile is the profile data needed by the batched
+// reconciler to compute desired state per host in memory.
+//
+// Include and exclude labels are stored separately so a profile can carry
+// both: applicability becomes (include gate passes) AND (exclude gate
+// passes), with each gate skipped when its slice is empty.
+type AppleProfileForReconcile struct {
+	ProfileUUID       string
+	ProfileIdentifier string
+	ProfileName       string
+	TeamID            uint // 0 means global
+	Checksum          []byte
+	SecretsUpdatedAt  *time.Time
+	Scope             PayloadScope
+	IncludeMode       AppleProfileIncludeMode
+	IncludeLabels     []AppleProfileLabelRef
+	ExcludeLabels     []AppleProfileLabelRef
+}
+
+// AppleLabeledEntity implementation.
+func (p *AppleProfileForReconcile) GetTeamID() uint                          { return p.TeamID }
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode  { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
+func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
+
+// HasBrokenLabel reports whether any include or exclude label on the
+// profile references a deleted label. Used to keep broken-label profiles
+// exempt from removal (matches legacy behaviour: a profile with a broken
+// label is never auto-removed from a host that already has it).
+func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
+	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
+}
+
+// AppleDeclarationForReconcile is the declaration data needed by the
+// batched DDM reconciler. The label-gating fields mirror
+// AppleProfileForReconcile exactly so the same dispatcher and handlers
+// run against both — there is no second copy of the team / platform /
+// label logic to fall out of sync.
+type AppleDeclarationForReconcile struct {
+	DeclarationUUID       string
+	DeclarationIdentifier string
+	DeclarationName       string
+	TeamID                uint // 0 means global
+	Token                 []byte
+	SecretsUpdatedAt      *time.Time
+	Scope                 PayloadScope
+	IncludeMode           AppleProfileIncludeMode
+	IncludeLabels         []AppleProfileLabelRef
+	ExcludeLabels         []AppleProfileLabelRef
+	// HasFleetVariables is true if the declaration references any $FLEET_VAR_*.
+	// The reconciler sets VariablesUpdatedAt on the host declaration row so the
+	// host knows to re-deliver when variable values change.
+	//
+	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
+	// where we extract the secrets and their last update time.
+	HasFleetVariables bool
+
+	// AssetsUpdatedAt is the most recent uploaded_at across every DDM asset this
+	// declaration references, or nil if it references no assets. The reconciler
+	// stamps it onto the host declaration row's assets_updated_at so that editing
+	// a referenced asset (which bumps its uploaded_at) changes the per-host
+	// effective token and re-syncs the host, even when the declaration's own
+	// content/token is unchanged. Mirrors HasFleetVariables/VariablesUpdatedAt.
+	AssetsUpdatedAt *time.Time
+}
+
+// AppleLabeledEntity implementation.
+func (d *AppleDeclarationForReconcile) GetTeamID() uint                         { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
+func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
+	return d.IncludeLabels
+}
+
+func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef {
+	return d.ExcludeLabels
+}
+
+// HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
+func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {
+	return anyMDMLabelBroken(d.IncludeLabels) || anyMDMLabelBroken(d.ExcludeLabels)
+}
+
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
 // encryption profiles. Each host may be counted in only one of six mutually-exclusive categories:
 // Verified, Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
@@ -540,7 +671,7 @@ type MDMAppleSetupPayload struct {
 	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
 	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account"`
+	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
 	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
 }
 
@@ -549,18 +680,37 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 	return "mdm_apple_settings"
 }
 
+// Validate validates the MDMAppleSetupPayload and updates the provided MacOSSetup with the new values if they are valid.
+// It returns an error if any of the values are invalid, and a boolean indicating whether any updates were made to the MacOSSetup.
+func (p MDMAppleSetupPayload) Validate(macOSSetupConfig *MacOSSetup) (didUpdate bool, err error) {
+	if p.EndUserLocalAccountType != nil {
+		if !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
+			return false, NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+		}
+		if PrimaryAccountType(*p.EndUserLocalAccountType).RequiresLocalAdminAccount() && (!macOSSetupConfig.EnableManagedLocalAccount.Valid || !macOSSetupConfig.EnableManagedLocalAccount.Value) {
+			return false, NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, *p.EndUserLocalAccountType))
+		}
+
+		if !macOSSetupConfig.EndUserLocalAccountType.Valid || macOSSetupConfig.EndUserLocalAccountType.Value != *p.EndUserLocalAccountType {
+			macOSSetupConfig.EndUserLocalAccountType = optjson.SetString(*p.EndUserLocalAccountType)
+			didUpdate = true
+		}
+	}
+	return didUpdate, nil
+}
+
 // HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
 	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
-	// server in Apple Busines Manager (AB).
+	// server in Apple Business (AB).
 	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
-	// MDM server in Apple Busines Manager (AB).
+	// MDM server in Apple Business (AB).
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
-	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
-	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`
+	// ABMTokenID is the ID of the AB token that was used to make this DEP assignment.
+	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id" renameto:"ab_token_id"`
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
@@ -721,6 +871,11 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
 
+	// Scope is the channel the declaration is delivered on, parsed from the
+	// declaration's top-level PayloadScope. "System" (the default) targets the
+	// device channel; "User" targets the user channel (macOS only).
+	Scope PayloadScope `db:"scope" json:"scope"`
+
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
@@ -733,24 +888,37 @@ type MDMAppleDeclaration struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
+	// AssetReferenceUUIDs are the UUIDs of the DDM assets referenced by this
+	// declaration, resolved from the declaration's asset references. Used to
+	// populate mdm_apple_declaration_asset_references in the batch-set path.
+	AssetReferenceUUIDs []string `db:"-" json:"-"`
+
 	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+	AssetsUpdatedAt    *time.Time `db:"assets_updated_at" json:"-"`
 }
 
-// EffectiveDDMToken computes the per-declaration token that incorporates both
-// the static content hash and the host-specific variables_updated_at timestamp.
-// When variablesUpdatedAt is nil (declaration has no Fleet variables), the
-// effective token equals the static token unchanged.
-func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string {
-	if variablesUpdatedAt == nil {
+// EffectiveDDMToken computes the per-declaration token that incorporates the
+// static content hash together with the host-specific variables_updated_at
+// and/or assets_updated_at timestamps. When both are nil (the declaration
+// references no Fleet variables or DDM assets), the effective token equals
+// the static token unchanged.
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time, assetsUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil && assetsUpdatedAt == nil {
 		return staticToken
 	}
 	// Must match MySQL's DATETIME(6) string representation used in
-	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '') and IFNULL(hmad.assets_updated_at, '').
 	hasher := md5.New() // nolint:gosec // used for declarative management token
-	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	hasher.Write([]byte(staticToken))
+	if variablesUpdatedAt != nil {
+		hasher.Write([]byte(variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
+	if assetsUpdatedAt != nil {
+		hasher.Write([]byte(assetsUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
@@ -758,41 +926,53 @@ type MDMAppleRawDeclaration struct {
 	// Type is the "Type" field on the raw declaration JSON.
 	Type       string `json:"Type"`
 	Identifier string `json:"Identifier"`
+	// PayloadScope is a Fleet extension (not part of Apple's DDM schema) . It is
+	// parsed at upload (defaulting to "System") to set the scope column; the key is
+	// left in raw_json and stripped only when the declaration is served to a device
+	// so the delivered JSON stays valid Apple DDM (see handleConfigurationDeclaration).
+	PayloadScope PayloadScope `json:"PayloadScope"`
+}
+
+// ScopeOrDefault returns the declaration's PayloadScope, defaulting to
+// PayloadScopeSystem (device channel) when unset for backwards compatibility.
+func (r *MDMAppleRawDeclaration) ScopeOrDefault() PayloadScope {
+	if r.PayloadScope == "" {
+		return PayloadScopeSystem
+	}
+	return r.PayloadScope
+}
+
+// ValidateScope ensures a user-provided top-level PayloadScope is one of the
+// supported values. An empty scope is allowed (defaults to System).
+func (r *MDMAppleRawDeclaration) ValidateScope() error {
+	switch r.PayloadScope {
+	case "", PayloadScopeSystem, PayloadScopeUser:
+		return nil
+	default:
+		return NewInvalidArgumentError("PayloadScope", fmt.Sprintf("Invalid PayloadScope %q. Supported values are \"System\" and \"User\".", r.PayloadScope))
+	}
 }
 
 // ForbiddenDeclTypes is a set of declaration types that are not allowed to be
 // added by users into Fleet.
 var ForbiddenDeclTypes = map[string]struct{}{
-	"com.apple.configuration.account.caldav":               {},
-	"com.apple.configuration.account.carddav":              {},
-	"com.apple.configuration.account.exchange":             {},
-	"com.apple.configuration.account.google":               {},
-	"com.apple.configuration.account.ldap":                 {},
-	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.screensharing.connection":     {},
-	"com.apple.configuration.security.certificate":         {},
-	"com.apple.configuration.security.identity":            {},
-	"com.apple.configuration.security.passkey.attestation": {},
-	"com.apple.configuration.services.configuration-files": {},
-	"com.apple.configuration.watch.enrollment":             {},
+	"com.apple.configuration.watch.enrollment": {},
+	"com.apple.configuration.account.google":   {},
 }
 
-func (r *MDMAppleRawDeclaration) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
+func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
 
-	// Check against types we don't allow
-	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		if !allowCustomOSUpdatesAndFileVault {
-			return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
-		}
-	}
-
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+		return NewInvalidArgumentError(r.Type, r.Type+" is a forbidden declaration type.")
 	}
 
 	if r.Type == "com.apple.configuration.management.status-subscriptions" {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
+	}
+
+	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
 	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
@@ -848,12 +1028,23 @@ type MDMAppleHostDeclaration struct {
 	// VariablesUpdatedAt tracks when the Fleet variable values for this host
 	// were last computed. Non-null only for declarations that use Fleet variables.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+
+	// AssetsUpdatedAt tracks when the Fleet asset values for this host
+	// were last computed. Non-null only for declarations that use Fleet assets.
+	AssetsUpdatedAt *time.Time `db:"assets_updated_at" json:"-"`
+
+	// Scope is the channel this declaration is delivered on for the host,
+	// mirrored from the declaration's scope so the DDM serving queries can
+	// filter per channel. "System" (default) is the device channel, "User" the
+	// user channel.
+	Scope PayloadScope `db:"scope" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
 	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
+	assetsEqual := p.AssetsUpdatedAt == nil && other.AssetsUpdatedAt == nil || p.AssetsUpdatedAt != nil && other.AssetsUpdatedAt != nil && p.AssetsUpdatedAt.Equal(*other.AssetsUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -862,8 +1053,10 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Token == other.Token &&
+		p.Scope == other.Scope &&
 		secretsEqual &&
-		varsEqual
+		varsEqual &&
+		assetsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -935,6 +1128,10 @@ type MDMAppleDDMDeclarationItem struct {
 	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
 	// ServerToken field is just for the static token of the DDM.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// AssetsUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the assets'
+	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
+	// ServerToken field is just for the static token of the DDM.
+	AssetsUpdatedAt *time.Time `db:"assets_updated_at"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
@@ -1080,19 +1277,20 @@ type MDMBootstrapPackageStore interface {
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
 type MDMAppleMachineInfo struct {
-	IMEI                        string `plist:"IMEI,omitempty"`
-	Language                    string `plist:"LANGUAGE,omitempty"`
-	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
-	MEID                        string `plist:"MEID,omitempty"`
-	OSVersion                   string `plist:"OS_VERSION"`
-	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
-	Product                     string `plist:"PRODUCT"`
-	Serial                      string `plist:"SERIAL"`
-	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
-	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
-	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
-	UDID                        string `plist:"UDID"`
-	Version                     string `plist:"VERSION"`
+	IMEI                            string `plist:"IMEI,omitempty"`
+	Language                        string `plist:"LANGUAGE,omitempty"`
+	MandatorySoftwareUpdateRequired bool   `plist:"MANDATORY_SOFTWARE_UPDATE_REQUIRED,omitempty"`
+	MDMCanRequestSoftwareUpdate     bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
+	MEID                            string `plist:"MEID,omitempty"`
+	OSVersion                       string `plist:"OS_VERSION"`
+	PairingToken                    string `plist:"PAIRING_TOKEN,omitempty"`
+	Product                         string `plist:"PRODUCT"`
+	Serial                          string `plist:"SERIAL"`
+	SoftwareUpdateDeviceID          string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion        string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+	SupplementalOSVersionExtra      string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
+	UDID                            string `plist:"UDID"`
+	Version                         string `plist:"VERSION"`
 }
 
 // macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
@@ -1270,6 +1468,33 @@ const (
 // feature is enabled.
 const ManagedLocalAccountUsername = "_fleetadmin"
 
+// PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
+// Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
+// if `SetPrimarySetupAccountAsRegularUser` or `SkipPrimarySetupAccountCreation` is true, you must configure a local admin account.
+type PrimaryAccountType string
+
+const (
+	// The end user account will be created as an admin
+	PrimaryAccountTypeAdmin PrimaryAccountType = "admin"
+	// The end user account will be created as a standard user, but requires a local admin account to be configured.
+	PrimaryAccountTypeStandard PrimaryAccountType = "standard"
+	// The screen to setup a primary account will be skipped, and a local admin account must be configured.
+	PrimaryAccountTypeNone PrimaryAccountType = "none"
+)
+
+func IsValidPrimaryAccountType(accountType string) bool {
+	switch PrimaryAccountType(accountType) {
+	case PrimaryAccountTypeAdmin, PrimaryAccountTypeStandard, PrimaryAccountTypeNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t PrimaryAccountType) RequiresLocalAdminAccount() bool {
+	return t == PrimaryAccountTypeStandard || t == PrimaryAccountTypeNone
+}
+
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
 	Latitude  float64 `db:"latitude"`
@@ -1316,4 +1541,87 @@ type HostManagedLocalAccountAutoRotationInfo struct {
 	DisplayName      string `db:"display_name"`
 	AccountUUID      string `db:"account_uuid"`
 	InitiatedByFleet bool   `db:"initiated_by_fleet"`
+}
+
+type ADUEEnrollmentChallenge struct {
+	ID             uint       `db:"id"`
+	IdPAccountUUID string     `db:"idp_account_uuid"`
+	ABMTokenID     *uint      `db:"abm_token_id"`
+	ExpiresAt      time.Time  `db:"expires_at"`
+	UsedAt         *time.Time `db:"used_at"`
+}
+
+// DDMAsset is the JSON representation of an asset, only excluding the raw json.
+type DDMAsset struct {
+	AssetUUID  string     `db:"asset_uuid" json:"asset_uuid"`
+	Name       string     `db:"name" json:"name"`
+	Identifier string     `db:"identifier" json:"identifier"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt *time.Time `db:"uploaded_at" json:"uploaded_at"`
+	Checksum   []byte     `db:"token" json:"checksum"`
+	TeamID     *uint      `db:"team_id" json:"-"` // Retrieve team ID for logic, but do not return it in JSON.
+}
+
+// DownloadableDDMAsset is a service struct that contains the DDMAsset for logic checks, and the raw JSON for serving back to the caller.
+type DownloadableDDMAsset struct {
+	DDMAsset
+	Data []byte `db:"raw_json" json:"-"`
+}
+
+// MDMAppleDDMAssetBatchPayload is a single asset in a batch-set assets request,
+// as received from the client (e.g. GitOps): the file name and its raw JSON
+// contents.
+type MDMAppleDDMAssetBatchPayload struct {
+	Name     string `json:"name"`
+	Contents []byte `json:"contents"`
+}
+
+// MDMAppleDDMAssetToSet is a fully-validated asset to upsert as part of a batch
+// set. The service resolves Identifier and Type from the asset contents before
+// handing it to the datastore.
+type MDMAppleDDMAssetToSet struct {
+	Name       string
+	Identifier string
+	Type       string
+	Data       []byte
+}
+
+// MDMAppleDDMAssetsBatchChanges reports which assets a BatchSetAppleDDMAssets
+// call created, edited, or deleted, so the caller can log the corresponding
+// activities. Each slice holds asset names.
+type MDMAppleDDMAssetsBatchChanges struct {
+	Created []string
+	Edited  []string
+	Deleted []string
+}
+
+type RawDDMAsset struct {
+	Type       string             `json:"Type"`
+	Identifier string             `json:"Identifier"`
+	Payload    RawDDMAssetPayload `json:"Payload"`
+}
+
+type RawDDMAssetPayload struct {
+	Reference      RawDDMAssetPayloadReference `json:"Reference"`
+	Authentication json.RawMessage             `json:"Authentication"` // We don't care about the inner, we use it for checking existence
+}
+
+// Struct describing the AssetData reference payload structure
+// https://developer.apple.com/documentation/devicemanagement/assetdatareferenceobject (asset data is used as an example here)
+type RawDDMAssetPayloadReference struct {
+	ContentType string `json:"ContentType,omitempty"`
+	DataURL     string `json:"DataURL"`
+	HashSHA256  string `json:"Hash-SHA-256,omitempty"`
+	Size        int64  `json:"Size,omitempty"`
+}
+
+// DDMAssetAuthz is used to check user authorization to read/write an
+// DDM asset.
+type DDMAssetAuthz struct {
+	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (d DDMAssetAuthz) AuthzType() string {
+	return "ddm_asset"
 }

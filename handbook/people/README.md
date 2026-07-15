@@ -9,6 +9,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 |:--------------------------------|:----------------------------------------------------------------------|
 | Head of People | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 | Executive Assistant | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
+| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 
 
 ## Contact us
@@ -20,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Responsibilities
 
-The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. 
+The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. For Content Specialist responsibilities, see the [Marketing](https://fleetdm.com/handbook/marketing#team) page. 
 
 > Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
@@ -135,8 +136,8 @@ When People receives [notification of a Fleetie's role changing](https://fleetdm
       - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
     - For updating Remote (non-US Fleeties):
       - Log in to Remote and navigate to "Requests".
-      - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendement". 
-      - Follow Remote's prompts to complete the amendement. 
+      - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendment". 
+      - Follow Remote's prompts to complete the amendment. 
       - Take any relevant follow-up steps as directed by Remote in order to make the required changes to the Fleetie's profile. 
 
 
@@ -252,7 +253,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 4. Once compensation decisions have been finalized, the Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Remote): 
    - In Gusto, navigate to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendement. 
+   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendment. 
 7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
@@ -325,7 +326,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 1. Log in to your [Gusto admin account](https://gusto.com/).
 2. Navigate to "Benefits" and select "Renewal survey".
 3. Complete the survey questions, aiming for minimal changes.
-4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+4. Approximately 2-3 months after survey completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
 
 
@@ -359,7 +360,7 @@ Every Friday, e-group members [report their KPIs for the week](https://docs.goog
   
 1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
 2. Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and the Head of People.
-3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
+3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formatting (CMD+⇧+V) back into the same cell. The formula will now look like this:
 4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
 5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
 

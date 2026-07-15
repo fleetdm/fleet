@@ -114,6 +114,38 @@ func TestBuildInstallApplicationCommand_VPP(t *testing.T) {
 	}
 }
 
+func TestBuildInstallApplicationCommand_UserEnrollmentOmitsChangeManagementState(t *testing.T) {
+	// Apple rejects ChangeManagementState on the Account-Driven User Enrollment
+	// channel. The builder must omit the key when IsUserEnrollment is set.
+	cases := []struct {
+		name             string
+		isUserEnrollment bool
+		wantContains     bool
+	}{
+		{"managed enrollment includes ChangeManagementState", false, true},
+		{"user enrollment omits ChangeManagementState", true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := string(BuildInstallApplicationCommand(InstallApplicationParams{
+				CommandUUID:      "uuid-1",
+				HostPlatform:     "ios",
+				ITunesStoreID:    "1",
+				IsUserEnrollment: c.isUserEnrollment,
+			}))
+			if c.wantContains {
+				require.Contains(t, out, "<key>ChangeManagementState</key>")
+			} else {
+				require.NotContains(t, out, "<key>ChangeManagementState</key>")
+			}
+			// In either case the output must still be a valid plist.
+			var parsed map[string]any
+			_, err := plist.Unmarshal([]byte(out), &parsed)
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestBuildInstallApplicationCommand_FullPlistDocumentNormalized(t *testing.T) {
 	fullDoc := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

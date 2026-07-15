@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.6.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team' AND version_compare(version, '4.6.1') < 0);"
+      },
+      "installer_url": "https://cloud.r-project.org/bin/windows/base/old/4.6.1/R-4.6.1-win.exe",
+      "install_script_ref": "1c98e2a1",
+      "uninstall_script_ref": "76fa8c37",
+      "sha256": "c5424c40cd70ef85765a55d2ff96bb602b5f30ed536938ff004f14db5db3c2df",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "1c98e2a1": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\ntry {\n\n# R for Windows uses an Inno Setup installer. /VERYSILENT installs with no UI,\n# /SUPPRESSMSGBOXES suppresses prompts, /NORESTART prevents reboots. Fleet runs\n# elevated (SYSTEM), so the installer installs machine-wide.\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "76fa8c37": "# Locates R for Windows' Inno Setup uninstaller from the registry and runs it\n# silently. The DisplayName embeds the version (e.g. \"R for Windows 4.6.0\"), so\n# match by prefix and require the R Core Team publisher.\n\n$displayNameLike = \"R for Windows*\"\n$publisherLike = \"R Core Team*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\n$selected = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike\n  }\n  if ($items) { $selected = $items | Select-Object -First 1; break }\n}\n\nif (-not $selected -or (-not $selected.UninstallString -and -not $selected.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Best-effort: stop R processes so the uninstaller doesn't fail on locked files.\nforeach ($proc in @('Rgui', 'Rterm', 'Rscript')) {\n  Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue\n}\n\n$uninstallCommand = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\n\n# Split the uninstall string into exe + args, handling quoted, unquoted-with-spaces,\n# and bare-token forms.\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# Inno Setup silent uninstall flags.\nforeach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')) {\n    if ($existingArgs -notmatch [regex]::Escape($flag)) {\n        $existingArgs = (\"$existingArgs $flag\").Trim()\n    }\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

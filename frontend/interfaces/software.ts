@@ -99,6 +99,7 @@ export type SoftwareCategory =
   | "Developer tools"
   | "Productivity"
   | "Security"
+  | "Support"
   | "Utilities";
 
 export interface ISoftwarePackageStatus {
@@ -115,9 +116,11 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
-interface IFleetMaintainedVersion {
+export interface IFleetMaintainedVersion {
   id: number;
   version: string;
+  filename: string;
+  uploaded_at: string;
 }
 
 export interface ISoftwarePackage {
@@ -147,7 +150,12 @@ export interface ISoftwarePackage {
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
+  /** Version pin: null/absent = Latest, exact version = exact pin, caret
+   * ("^149") = major-version pin. */
+  pinned_version?: string | null;
   hash_sha256?: string | null;
+  /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
+  configuration?: string;
 }
 
 export interface IAppStoreApp {
@@ -176,6 +184,8 @@ export interface IAppStoreApp {
   labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
+  /** Typed as string but Android configs arrive as a parsed object at runtime
+   * (backend sends json.RawMessage which Axios auto-parses). */
   configuration?: string;
 }
 
@@ -771,6 +781,53 @@ export const getInstallUninstallStatusPredicate = (
   );
 };
 
+// Passive-voice variants used for self-service activity rendering, where the
+// activity reads "<software> was installed on this host (self-service)." with
+// no actor.
+const INSTALL_STATUS_PREDICATES_PASSIVE: Record<
+  EnhancedSoftwareInstallUninstallStatus | "pending",
+  string
+> = {
+  pending: "is pending",
+  installed: "was installed",
+  uninstalled: "was uninstalled",
+  pending_install: "is pending install",
+  failed_install: "installation failed",
+  pending_uninstall: "is pending uninstall",
+  failed_uninstall: "uninstallation failed",
+  ran_script: "was run",
+  failed_script: "run failed",
+  pending_script: "is pending run",
+} as const;
+
+export const getInstallUninstallStatusPredicatePassive = (
+  status: string | undefined,
+  isScriptPackage = false
+) => {
+  if (!status) {
+    return INSTALL_STATUS_PREDICATES_PASSIVE.pending;
+  }
+
+  if (isScriptPackage) {
+    switch (status.toLowerCase()) {
+      case "installed":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.ran_script;
+      case "pending_install":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.pending_script;
+      case "failed_install":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.failed_script;
+      default:
+        break;
+    }
+  }
+
+  return (
+    INSTALL_STATUS_PREDICATES_PASSIVE[
+      status.toLowerCase() as keyof typeof INSTALL_STATUS_PREDICATES_PASSIVE
+    ] || INSTALL_STATUS_PREDICATES_PASSIVE.pending
+  );
+};
+
 export const aggregateInstallStatusCounts = (
   packageStatuses: ISoftwarePackage["status"]
 ) => ({
@@ -834,6 +891,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
+  slug: string; // "<app-token>/<platform>", e.g. "figma/darwin"; the token uniquely identifies an app across its platform entries
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
@@ -868,6 +926,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(

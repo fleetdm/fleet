@@ -41,7 +41,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries?team_id=13": RESPONSES.teamQueries,
     "queries/113/report?order_key=host_name&order_direction=asc":
       RESPONSES.queryReport,
-    "custom_variables?page=*&per_page=*": RESPONSES.secrets,
+    "custom_variables?page=*&per_page=*": RESPONSES.variables,
   },
   POST: {
     // request body is ISelectedTargets
@@ -62,10 +62,10 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       platform: "linux",
     },
     "autofill/policies": RESPONSES.aiAutofillPolicy,
-    custom_variables: RESPONSES.addSecret,
+    custom_variables: RESPONSES.addVariable,
   },
   DELETE: {
-    "custom_variables/*": RESPONSES.deleteSecret,
+    "custom_variables/*": RESPONSES.deleteVariable,
   },
 } as IResponses;
 

@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
 import { IHostPolicy } from "interfaces/policy";
 
 import HostPolicies from "./HostPolicies";
+import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
 
 const createMockHostPolicy = (
   overrides?: Partial<IHostPolicy>
@@ -33,6 +34,7 @@ const baseProps = {
   policies: [] as IHostPolicy[],
   isLoading: false,
   togglePolicyDetailsModal: noop,
+  closePolicyDetailsModal: noop,
   hostPlatform: "darwin",
 };
 
@@ -116,5 +118,119 @@ describe("HostPolicies", () => {
       screen.getByText(/policies are not supported for this host/i)
     ).toBeInTheDocument();
     expect(screen.queryByText("No policies checked")).not.toBeInTheDocument();
+  });
+
+  it("keeps the current pagination page when a policy is selected after first page", async () => {
+    const policies = Array.from({ length: 25 }, (_, i) =>
+      createMockHostPolicy({ id: i + 1, name: `Policy ${i + 1}` })
+    );
+
+    const Wrapper = () => {
+      const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+        null
+      );
+
+      const openModal = useCallback((p: IHostPolicy) => {
+        setSelectedPolicy(p);
+      }, []);
+
+      const closeModal = useCallback(() => {
+        setSelectedPolicy(null);
+      }, []);
+
+      return (
+        <>
+          <HostPolicies
+            {...baseProps}
+            policies={policies}
+            togglePolicyDetailsModal={openModal}
+            closePolicyDetailsModal={closeModal}
+          />
+          {selectedPolicy && (
+            <PolicyDetailsModal onCancel={closeModal} policy={selectedPolicy} />
+          )}
+        </>
+      );
+    };
+
+    const { user } = renderWithSetup(<Wrapper />);
+
+    // Each policy name renders twice (visible cell + truncation tooltip).
+    // Page 1 shows the first 20 policies.
+    expect(screen.queryAllByText("Policy 1").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Policy 21")).toHaveLength(0);
+
+    // Go to page 2.
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    expect(screen.queryAllByText("Policy 1")).toHaveLength(0);
+    expect(screen.queryAllByText("Policy 21").length).toBeGreaterThan(0);
+
+    // Select a policy on page 2 (opens the details modal). Click the row
+    // rather than the name cell, which is a router Link.
+    const policyRow = screen.getAllByText("Policy 25")[0].closest("tr");
+    expect(policyRow).not.toBeNull();
+    await user.click(policyRow as HTMLElement);
+
+    // Confirm the click actually selected the policy and opened the modal —
+    // otherwise the page-retention assertions below could pass trivially.
+    // "Resolve:" only renders inside PolicyDetailsModal.
+    expect(screen.getByText("Resolve:")).toBeInTheDocument();
+
+    // The table should still be on page 2 — Policy 21 belongs to page 2 and
+    // is not rendered by the modal.
+    expect(screen.queryAllByText("Policy 21").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Policy 1")).toHaveLength(0);
+  });
+
+  it("closes the policy details modal when HostPolicies unmounts", async () => {
+    // Simulates the policies tab unmounting (e.g. the user presses the
+    // browser back button from /hosts/:id/policies to /hosts/:id, or
+    // switches to a different host details tab). The modal state lives
+    // in the parent (HostDetailsPage / DeviceUserPage), so the parent owns it here too.
+    const policy = createMockHostPolicy({ name: "Failing policy" });
+
+    const Wrapper = ({ showPolicies }: { showPolicies: boolean }) => {
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+        null
+      );
+
+      const openModal = useCallback((p: IHostPolicy) => {
+        setSelectedPolicy(p);
+        setIsModalOpen(true);
+      }, []);
+
+      const closeModal = useCallback(() => {
+        setSelectedPolicy(null);
+        setIsModalOpen(false);
+      }, []);
+
+      return (
+        <>
+          <button type="button" onClick={() => openModal(policy)}>
+            open modal
+          </button>
+          {showPolicies && (
+            <HostPolicies
+              {...baseProps}
+              policies={[policy]}
+              togglePolicyDetailsModal={openModal}
+              closePolicyDetailsModal={closeModal}
+            />
+          )}
+          {isModalOpen && selectedPolicy && (
+            <PolicyDetailsModal onCancel={closeModal} policy={selectedPolicy} />
+          )}
+        </>
+      );
+    };
+
+    const { user, rerender } = renderWithSetup(<Wrapper showPolicies />);
+
+    await user.click(screen.getByRole("button", { name: /open modal/i }));
+    // "Resolve:" only renders inside PolicyDetailsModal.
+    expect(screen.getByText("Resolve:")).toBeInTheDocument();
+    rerender(<Wrapper showPolicies={false} />);
+    expect(screen.queryByText("Resolve:")).not.toBeInTheDocument();
   });
 });

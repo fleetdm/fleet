@@ -8,6 +8,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
   windows_entra_tenant_ids: [],
+  windows_entra_client_ids: [],
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
@@ -164,6 +165,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
+    google_workspace: [],
   },
   logging: {
     debug: false,

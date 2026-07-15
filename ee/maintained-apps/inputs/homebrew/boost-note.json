@@ -1,0 +1,10 @@
+{
+  "name": "Boost Note",
+  "unique_identifier": "com.boostio.boostnote",
+  "token": "boost-note",
+  "installer_format": "dmg",
+  "slug": "boost-note/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

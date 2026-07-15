@@ -1,0 +1,10 @@
+{
+  "name": "MongoDB Compass",
+  "slug": "mongodb-compass/windows",
+  "package_identifier": "MongoDB.Compass.Full",
+  "unique_identifier": "MongoDB Compass",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

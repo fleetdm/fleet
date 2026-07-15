@@ -1,0 +1,10 @@
+{
+  "name": "Commander",
+  "unique_identifier": "com.krzyzanowskim.Commander",
+  "token": "commander",
+  "installer_format": "zip",
+  "slug": "commander/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

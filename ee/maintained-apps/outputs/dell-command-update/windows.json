@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "5.7.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.' AND version_compare(version, '5.7.0') < 0);"
+      },
+      "installer_url": "https://dl.dell.com/FOLDER14424243M/1/Dell-Command-Update-Application_RXT5N_WIN64_5.7.0_A00.EXE",
+      "install_script_ref": "9f0e4526",
+      "uninstall_script_ref": "7a313b8a",
+      "sha256": "b6d0d06edf25a7d9092208b2686502e031deda5ccb2d283ba8a434b27891f3cf",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "7a313b8a": "$displayNameLike = \"Dell Command*Update*\"\n$publisherLike = \"Dell Inc.*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\n$entry = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike\n  }\n  if ($items) { $entry = $items | Select-Object -First 1; break }\n}\n\nif (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"DellCommandUpdate\" -Force -ErrorAction SilentlyContinue\nStop-Process -Name \"dcu-cli\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nif ($exePath -match '(?i)msiexec') {\n    if ($existingArgs -notmatch '(?i)/qn') { $existingArgs = (\"$existingArgs /qn\").Trim() }\n    if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = (\"$existingArgs /norestart\").Trim() }\n} else {\n    if ($existingArgs -notmatch '(?i)(^|\\s)/s(\\s|$)') { $existingArgs = (\"$existingArgs /s\").Trim() }\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "9f0e4526": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n$ExpectedExitCodes = @(0, 2, 6, 1641, 3010, 1223)\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/s\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

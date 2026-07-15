@@ -97,15 +97,19 @@ describe("Software inventory table", () => {
 
     expect(screen.getByText("No software detected")).toBeInTheDocument();
     expect(
-      screen.getByText("Expecting to see software? Check back later.")
+      screen.getByText(
+        "Recently installed software will appear after the next scheduled check-in."
+      )
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
-    expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Updated")).toBeNull();
-    expect(screen.queryByText("Add filters")).toBeNull();
+    expect(
+      screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /add filters/i })).toBeDisabled();
+    expect(screen.getByText("Show versions")).toBeInTheDocument();
   });
 
-  it("Renders the page-wide empty state hiding vulnerability filtering when search query does not exist but versions toggle is applied", () => {
+  it("Keeps controls enabled when versions toggle is applied but no data so users can toggle back", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -144,10 +148,16 @@ describe("Software inventory table", () => {
 
     expect(screen.getByText("No software detected")).toBeInTheDocument();
     expect(
-      screen.getByText("Expecting to see software? Check back later.")
+      screen.getByText(
+        "Recently installed software will appear after the next scheduled check-in."
+      )
     ).toBeInTheDocument();
-    expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Add filters")).toBeNull();
+    // Controls stay enabled so users can toggle back to the titles view,
+    // which may have installers even when the versions view is empty.
+    expect(
+      screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /add filters/i })).toBeEnabled();
   });
 
   it("Renders the empty search state and vulnerability filtering when search query does not exist but vulnerability filter is applied", () => {

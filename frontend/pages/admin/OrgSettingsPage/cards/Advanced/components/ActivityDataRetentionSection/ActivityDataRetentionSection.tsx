@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -6,6 +6,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Dropdown from "components/forms/fields/Dropdown";
 import { getCustomDropdownOptions } from "utilities/helpers";
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
+import { AppContext } from "context/app";
 
 import { IAdvancedSectionProps } from "../../Advanced";
 
@@ -13,6 +14,8 @@ const ActivityDataRetentionSection = ({
   onInputChange,
   formData,
 }: IAdvancedSectionProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const {
     disableQueryReports,
     deleteActivities,
@@ -125,33 +128,33 @@ const ActivityDataRetentionSection = ({
         renderChildren={(disableChildren) => (
           <Checkbox
             disabled={disableChildren}
-            onChange={onInputChange}
+            onChange={() =>
+              onInputChange({
+                name: "disableQueryReports",
+                value: !disableQueryReports,
+              })
+            }
             name="disableQueryReports"
-            value={disableQueryReports}
-            parseTarget
+            value={!disableQueryReports}
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  <>
-                    Disabling stored results will decrease database usage,{" "}
-                    <br />
-                    but will prevent you from accessing report results in
-                    <br />
-                    Fleet and will delete existing results. This can also be{" "}
-                    <br />
-                    disabled on a per-report basis by enabling &quot;Discard{" "}
-                    <br />
-                    data&quot;.{" "}
-                    <em>
-                      (Default: <b>Off</b>)
-                    </em>
-                  </>
+                  Disabling stored results will decrease database usage,
+                  <br />
+                  but will prevent you from accessing report results in
+                  <br />
+                  Fleet and will delete existing results. This can also be
+                  <br />
+                  disabled on a per-report basis.{" "}
+                  <em>
+                    (Default: <b>On</b>)
+                  </em>
                 </>
               )
             }
-            helpText="Enabling this setting will delete all existing report results in Fleet."
+            helpText="Disabling this setting will delete all existing report results in Fleet."
           >
-            Disable stored results
+            Store report results
           </Checkbox>
         )}
       />
@@ -160,53 +163,63 @@ const ActivityDataRetentionSection = ({
         renderChildren={(disableChildren) => (
           <Checkbox
             disabled={disableChildren}
-            onChange={onInputChange}
+            onChange={() =>
+              onInputChange({
+                name: "disableHostsActive",
+                value: !disableHostsActive,
+              })
+            }
             name="disableHostsActive"
-            value={disableHostsActive}
-            parseTarget
+            value={!disableHostsActive}
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When enabled, Fleet stops collecting hourly hosts online
+                  When disabled, Fleet stops collecting hourly hosts online
                   <br />
                   data used by the dashboard chart.{" "}
                   <em>
-                    (Default: <strong>Off</strong>)
+                    (Default: <strong>On</strong>)
                   </em>
                 </>
               )
             }
           >
-            Disable hosts online
+            Hosts online historical reporting
           </Checkbox>
         )}
       />
-      <GitOpsModeTooltipWrapper
-        position="left"
-        renderChildren={(disableChildren) => (
-          <Checkbox
-            disabled={disableChildren}
-            onChange={onInputChange}
-            name="disableVulnerabilities"
-            value={disableVulnerabilities}
-            parseTarget
-            labelTooltipContent={
-              !disableChildren && (
-                <>
-                  When enabled, Fleet stops collecting historical
-                  <br />
-                  vulnerability-exposure data used by the dashboard chart.{" "}
-                  <em>
-                    (Default: <strong>Off</strong>)
-                  </em>
-                </>
-              )
-            }
-          >
-            Disable vulnerabilities
-          </Checkbox>
-        )}
-      />
+      {isPremiumTier && (
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={() =>
+                onInputChange({
+                  name: "disableVulnerabilities",
+                  value: !disableVulnerabilities,
+                })
+              }
+              name="disableVulnerabilities"
+              value={!disableVulnerabilities}
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When disabled, Fleet stops collecting historical
+                    <br />
+                    vulnerability exposure data used by the dashboard chart.{" "}
+                    <em>
+                      (Default: <strong>On</strong>)
+                    </em>
+                  </>
+                )
+              }
+            >
+              Vulnerability exposure historical reporting
+            </Checkbox>
+          )}
+        />
+      )}
     </SettingsSection>
   );
 };

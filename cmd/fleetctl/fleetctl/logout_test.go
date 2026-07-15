@@ -25,6 +25,6 @@ func TestLogout(t *testing.T) {
 		return nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"logout"}))
+	assert.Empty(t, runAppForTest(t, []string{"logout"}))
 	assert.True(t, ds.DestroySessionFuncInvoked)
 }

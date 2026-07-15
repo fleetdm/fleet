@@ -1,0 +1,224 @@
+- name: macOS - User .npmrc min-release-age at least 0.5 days
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users u
+      WHERE u.directory LIKE '/Users/%'
+        AND CAST(u.uid AS BIGINT) >= 500
+        AND u.directory NOT LIKE '/Users/Guest%'
+        AND u.directory NOT LIKE '/Users/Shared%'
+        AND COALESCE(TRIM(u.shell), '') NOT IN (
+          '',
+          '/usr/bin/false',
+          '/bin/false',
+          '/sbin/nologin',
+          '/usr/sbin/nologin',
+          '/usr/bin/nologin'
+        )
+        AND (
+          EXISTS (
+            SELECT 1 FROM file_lines fl
+            WHERE fl.path = u.directory || '/.npmrc'
+              AND lower(replace(trim(COALESCE(fl.line, '')), ' ', '')) LIKE 'min-release-age=%'
+              AND CAST(
+                trim(
+                  CASE
+                    WHEN instr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      '#'
+                    ) > 0 THEN substr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      1,
+                      instr(
+                        substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                        '#'
+                      ) - 1
+                    )
+                    ELSE substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1)
+                  END
+                ) AS REAL
+              ) < 0.5
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM file_lines fl
+            WHERE fl.path = u.directory || '/.npmrc'
+              AND lower(replace(trim(COALESCE(fl.line, '')), ' ', '')) LIKE 'min-release-age=%'
+              AND CAST(
+                trim(
+                  CASE
+                    WHEN instr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      '#'
+                    ) > 0 THEN substr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      1,
+                      instr(
+                        substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                        '#'
+                      ) - 1
+                    )
+                    ELSE substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1)
+                  END
+                ) AS REAL
+              ) >= 0.5
+          )
+        )
+    );
+  critical: true
+  description: >-
+    For each interactive local user under /Users (excluding Guest and Shared), requires ~/.npmrc to define
+    min-release-age as a number of at least 0.5 days (npm publish delay), and fails if the key is missing, unparseable,
+    or set below 0.5. Values above 0.5 are left as-is. Other .npmrc lines are not evaluated by this policy.
+  resolution: >-
+    Fleet can run the remediation script when this policy fails. If it still fails after a refetch, contact #help-it.
+  platform: darwin
+  labels_include_any:
+    - Hosts with npm package inventory
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/configure-npmrc-min-release-age.sh
+
+- name: Linux - User .npmrc min-release-age at least 0.5 days
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users u
+      WHERE u.directory LIKE '/home/%'
+        AND CAST(u.uid AS BIGINT) >= 1000
+        AND COALESCE(TRIM(u.shell), '') NOT IN (
+          '',
+          '/usr/bin/false',
+          '/bin/false',
+          '/sbin/nologin',
+          '/usr/sbin/nologin',
+          '/usr/bin/nologin'
+        )
+        AND (
+          EXISTS (
+            SELECT 1 FROM file_lines fl
+            WHERE fl.path = u.directory || '/.npmrc'
+              AND lower(replace(trim(COALESCE(fl.line, '')), ' ', '')) LIKE 'min-release-age=%'
+              AND CAST(
+                trim(
+                  CASE
+                    WHEN instr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      '#'
+                    ) > 0 THEN substr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      1,
+                      instr(
+                        substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                        '#'
+                      ) - 1
+                    )
+                    ELSE substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1)
+                  END
+                ) AS REAL
+              ) < 0.5
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM file_lines fl
+            WHERE fl.path = u.directory || '/.npmrc'
+              AND lower(replace(trim(COALESCE(fl.line, '')), ' ', '')) LIKE 'min-release-age=%'
+              AND CAST(
+                trim(
+                  CASE
+                    WHEN instr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      '#'
+                    ) > 0 THEN substr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      1,
+                      instr(
+                        substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                        '#'
+                      ) - 1
+                    )
+                    ELSE substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1)
+                  END
+                ) AS REAL
+              ) >= 0.5
+          )
+        )
+    );
+  critical: true
+  description: >-
+    For each interactive local user under /home with UID at least 1000, requires ~/.npmrc to define min-release-age as
+    a number of at least 0.5 days (npm publish delay), and fails if the key is missing, unparseable, or set below 0.5.
+    Values above 0.5 are left as-is. Other .npmrc lines are not evaluated by this policy.
+  resolution: >-
+    Fleet can run the remediation script when this policy fails. If it still fails after a refetch, contact #help-it.
+  platform: linux
+  labels_include_any:
+    - Hosts with npm package inventory
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/configure-npmrc-min-release-age.sh
+
+- name: Windows - User .npmrc min-release-age at least 0.5 days
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users u
+      WHERE lower(u.directory) LIKE 'c:%users%'
+        AND u.username NOT IN ('Public', 'Default', 'Default User', 'All Users')
+        AND (
+          EXISTS (
+            SELECT 1 FROM file_lines fl
+            WHERE fl.path = replace(u.directory, '/', char(92)) || char(92) || '.npmrc'
+              AND lower(replace(trim(COALESCE(fl.line, '')), ' ', '')) LIKE 'min-release-age=%'
+              AND CAST(
+                trim(
+                  CASE
+                    WHEN instr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      '#'
+                    ) > 0 THEN substr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      1,
+                      instr(
+                        substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                        '#'
+                      ) - 1
+                    )
+                    ELSE substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1)
+                  END
+                ) AS REAL
+              ) < 0.5
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM file_lines fl
+            WHERE fl.path = replace(u.directory, '/', char(92)) || char(92) || '.npmrc'
+              AND lower(replace(trim(COALESCE(fl.line, '')), ' ', '')) LIKE 'min-release-age=%'
+              AND CAST(
+                trim(
+                  CASE
+                    WHEN instr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      '#'
+                    ) > 0 THEN substr(
+                      substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                      1,
+                      instr(
+                        substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1),
+                        '#'
+                      ) - 1
+                    )
+                    ELSE substr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), instr(lower(replace(trim(COALESCE(fl.line, '')), ' ', '')), '=') + 1)
+                  END
+                ) AS REAL
+              ) >= 0.5
+          )
+        )
+    );
+  critical: true
+  description: >-
+    For each local user profile under C:\Users (excluding built-in accounts such as Public and Default), requires a
+    .npmrc in that profile defining min-release-age as at least 0.5 days, and fails if the key is missing, unparseable,
+    or set below 0.5. Values above 0.5 are left as-is. Other .npmrc lines are not evaluated by this policy.
+  resolution: >-
+    Fleet can run the remediation script when this policy fails. If it still fails after a refetch, contact #help-it.
+  platform: windows
+  labels_include_any:
+    - Hosts with npm package inventory
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/configure-npmrc-min-release-age.ps1

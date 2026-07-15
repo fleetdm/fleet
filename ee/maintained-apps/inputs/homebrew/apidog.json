@@ -1,0 +1,10 @@
+{
+  "name": "Apidog",
+  "unique_identifier": "com.apidog.app",
+  "token": "apidog",
+  "installer_format": "dmg",
+  "slug": "apidog/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

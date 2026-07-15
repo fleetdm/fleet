@@ -23,12 +23,12 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -61,9 +61,9 @@ type withDS struct {
 
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
-	ts.ds, ts.dbConns = mysql.CreateNamedMySQLDSWithConns(t, dbName)
+	ts.ds, ts.dbConns = mysqltest.CreateNamedMySQLDSWithConns(t, dbName)
 	// remove any migration-created labels
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
 		return err
 	})
@@ -155,13 +155,13 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM policies;`)
 		return err
 	})
 
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		if err != nil {
 			return err
@@ -180,10 +180,29 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
+	// Null label_id references in MDM profile/declaration label tables before deleting labels,
+	// since the application layer now blocks label deletion while referenced by a profile.
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL`); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			// Clear profile label associations first so DeleteLabel isn't blocked
+			// by the FK constraint that prevents deleting referenced labels.
+			mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+				if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID); err != nil {
+					return err
+				}
+				_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID)
+				return err
+			})
 			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
@@ -211,12 +230,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	}
 
 	// Clean scripts in "No team" (the others are deleted in ts.ds.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM scripts WHERE global_or_team_id = 0;`)
 		return err
 	})
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
@@ -243,41 +262,41 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	require.NoError(t, err)
 
 	// delete orphaned scripts
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM scripts`)
 		return err
 	})
 
 	// delete orphaned host_script_results
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results`)
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM secret_variables")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM fleet_maintained_apps; ")
 		return err
 	})
 	// Most tests reference FMAs by ID, and the expect the records to be inserted starting with 1, so we need to reset the auto increment.
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "ALTER TABLE fleet_maintained_apps AUTO_INCREMENT = 1;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
 		return err
 	})
@@ -390,7 +409,7 @@ func (ts *withServer) getTestToken(email string, password string) string {
 }
 
 func GetToken(t *testing.T, email string, password string, serverURL string) string {
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
@@ -452,6 +471,21 @@ func (ts *withServer) LoginSSOUser(username, password string) string {
 // LoginMDMSSOUser initiates the MDM SSO flow, as Apple DEP enrollment would.
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
 	body, err := json.Marshal(initiateMDMSSORequest{Initiator: fleet.SSOInitiatorAppleMDMSSO})
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
+// LoginMDMSSOUserSetupExperience drives the Orbit Setup Experience MDM SSO flow
+// (Linux/Windows), which carries the device's host UUID through the SSO request
+// data. This exercises the mdmSSOHandleCallbackAuth path that persists the IdP
+// account for a known host, unlike LoginMDMSSOUser (Apple flow) where the host
+// UUID is not yet known. Returns the callback response (a redirect).
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+		HostUUID:  hostUUID,
+	})
 	require.NoError(ts.s.T(), err)
 	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
 	return res
@@ -526,9 +560,13 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	return resp
 }
 
-func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password, token string) *http.Response {
+	initiator := fleet.SSOInitiatorAccountDrivenEnroll
+	if token != "" {
+		initiator = fmt.Sprintf("%s:%s", initiator, token)
+	}
 	requestParams := initiateMDMSSORequest{
-		Initiator:      fleet.SSOInitiatorAccountDrivenEnroll,
+		Initiator:      initiator,
 		UserIdentifier: username + "@example.com",
 	}
 	body, err := json.Marshal(requestParams)

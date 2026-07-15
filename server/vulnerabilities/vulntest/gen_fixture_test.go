@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
@@ -123,8 +123,8 @@ func TestGenerateVulnFixtures(t *testing.T) {
 		t.Skip("set GENERATE_FIXTURES=1 to run this test")
 	}
 
-	ds := mysql.CreateMySQLDS(t)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	defer mysqltest.TruncateTables(t, ds)
 
 	testdataRoot := vulntest.TestdataRoot
 

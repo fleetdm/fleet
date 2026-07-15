@@ -1,19 +1,25 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
-import { ISecret } from "interfaces/secrets";
+import variablesAPI, {
+  IListVariablesResponse,
+} from "services/entities/variables";
+import { IVariable } from "interfaces/variables";
 
 import { AppContext } from "context/app";
 
-import { stringToClipboard } from "utilities/copy_text";
-import { FLEET_WEBSITE_URL } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  FLEET_WEBSITE_URL,
+} from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -24,17 +30,23 @@ import DeleteCustomVariableModal from "./components/DeleteCustomVariableModal";
 
 const baseClass = "variables";
 
-export const SECRETS_PAGE_SIZE = 20;
+export const VARIABLES_PAGE_SIZE = 20;
 
-const Variables = () => {
-  const paginatedListRef = useRef<IPaginatedListHandle<ISecret>>(null);
+interface IVariablesProps {
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { add_variable?: string };
+  };
+}
 
-  const [copyMessage, setCopyMessage] = useState("");
-  const [copiedSecretName, setCopiedSecretName] = useState("");
-  const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+const Variables = ({ router, location }: IVariablesProps) => {
+  const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [secretToDelete, setSecretToDelete] = useState<ISecret | undefined>();
+  const [variableToDelete, setVariableToDelete] = useState<
+    IVariable | undefined
+  >();
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageNumber, setPageNumber] = useState(0);
 
@@ -44,106 +56,66 @@ const Variables = () => {
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
-  const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
+  const apiParams = { page: pageNumber, per_page: VARIABLES_PAGE_SIZE };
   const { data, isFetching: isLoading, refetch } = useQuery<
-    IListSecretsResponse,
+    IListVariablesResponse,
     Error,
-    IListSecretsResponse
-  >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
+    IListVariablesResponse
+  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
 
-  // Open add modal via query param (e.g. from command palette)
+  // Open the Add variable modal via deep-link (e.g. from the command
+  // palette). Gate on the same predicate the in-page button uses — the
+  // param must not bypass admin/maintainer-only authoring. Strip the
+  // param either way so refreshes don't keep trying.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("add_variable") === "1") {
+    if (location.query.add_variable !== "1") return;
+    if (canEdit) {
       setShowAddModal(true);
-      params.delete("add_variable");
-      const qs = params.toString();
-      window.history.replaceState(
-        {},
-        "",
-        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-      );
     }
-  }, []);
+    const { add_variable, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, canEdit]);
 
-  const onClickAddSecret = () => {
+  const onClickAddVariable = () => {
     setShowAddModal(true);
   };
 
-  const onSaveSecret = () => {
+  const onSaveVariable = () => {
     setShowAddModal(false);
     refetch();
   };
 
-  const onDeleteSecret = () => {
+  const onDeleteVariable = () => {
     setShowDeleteModal(false);
     refetch();
   };
 
-  const onClickDeleteSecret = (secret: ISecret) => {
-    setSecretToDelete(secret);
+  const onClickDeleteVariable = (variable: IVariable) => {
+    setVariableToDelete(variable);
     setShowDeleteModal(true);
   };
 
-  const getTokenFromSecretName = (secretName: string): string => {
-    return `$FLEET_SECRET_${secretName.toUpperCase()}`;
+  const getTokenFromVariableName = (variableName: string): string => {
+    return `$FLEET_SECRET_${variableName.toUpperCase()}`;
   };
 
-  const onCopySecretName = (evt: React.MouseEvent, secretName: string) => {
-    evt.preventDefault();
-
-    if (copyMessageTimeoutIdRef.current) {
-      clearTimeout(copyMessageTimeoutIdRef.current);
-    }
-
-    setCopiedSecretName(secretName);
-    stringToClipboard(getTokenFromSecretName(secretName))
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    copyMessageTimeoutIdRef.current = setTimeout(() => {
-      setCopyMessage("");
-      setCopiedSecretName("");
-    }, 1000);
-
-    return false;
-  };
-
-  // Cleanup timeout on unmount.
-  useEffect(() => {
-    return () => {
-      if (copyMessageTimeoutIdRef.current) {
-        clearTimeout(copyMessageTimeoutIdRef.current);
-      }
-    };
-  }, []);
-
-  const renderSecretRow = (secret: ISecret) => (
+  const renderVariableRow = (variable: IVariable) => (
     <>
       <ListItem
-        title={secret.name.toUpperCase()}
+        title={variable.name.toUpperCase()}
         details={
           <span>
-            <span className="secret-details__text">
+            <span className="variable-details__text">
               Updated{" "}
-              <HumanTimeDiffWithDateTip timeString={secret.updated_at} /> &bull;{" "}
-              {getTokenFromSecretName(secret.name)}
+              <HumanTimeDiffWithDateTip timeString={variable.updated_at} />{" "}
+              &bull; {getTokenFromVariableName(variable.name)}
             </span>
-            <Button
-              variant="unstyled"
-              className={`${baseClass}__copy-secret-icon`}
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
-                onCopySecretName(e, secret.name)
-              }
-            >
-              <Icon name="copy" />
-            </Button>
-            {copyMessage && copiedSecretName === secret.name && (
-              <span
-                className={`${baseClass}__copy-message`}
-              >{`${copyMessage} `}</span>
-            )}
+            <CopyButton
+              copyText={getTokenFromVariableName(variable.name)}
+              variant="compact"
+            />
           </span>
         }
       />
@@ -152,7 +124,7 @@ const Variables = () => {
           variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
-            onClickDeleteSecret(secret);
+            onClickDeleteVariable(variable);
           }}
         >
           <>
@@ -163,52 +135,35 @@ const Variables = () => {
     </>
   );
 
-  const renderPageDescription = () => (
-    <PageDescription
-      variant="tab-panel"
-      content={
-        <>
-          {isPremiumTier
-            ? "Manage custom variables that will be available in scripts and profiles across all fleets."
-            : "Manage custom variables that will be available in scripts and profiles."}{" "}
-          <CustomLink
-            text="Learn more"
-            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-            newTab
-          />
-        </>
-      }
-    />
-  );
+  const isEmpty = !isLoading && data?.count === 0;
 
-  if (isLoading) {
-    return (
-      <div className={baseClass}>
-        <div className={`${baseClass}__page-header`}>
-          {renderPageDescription()}
-        </div>
+  const renderContent = () => {
+    if (isLoading) {
+      return (
         <div className={`${baseClass}__loading`}>
           <Spinner />
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (data?.count === 0) {
-    return (
-      <div className={baseClass}>
-        <div className={`${baseClass}__page-header`}>
-          {renderPageDescription()}
-        </div>
+    if (isEmpty) {
+      return (
         <EmptyState
           variant="header-list"
-          header="No custom variables created yet"
-          info="Add a custom variable to make it available in scripts and profiles."
+          header="No custom variables"
+          info={
+            canEdit
+              ? "Add a custom variable to make it available in scripts and profiles."
+              : "No custom variables are available for scripts and profiles."
+          }
           primaryButton={
             canEdit ? (
               <GitOpsModeTooltipWrapper
                 renderChildren={(disableChildren) => (
-                  <Button onClick={onClickAddSecret} disabled={disableChildren}>
+                  <Button
+                    onClick={onClickAddVariable}
+                    disabled={disableChildren}
+                  >
                     Add custom variable
                   </Button>
                 )}
@@ -216,45 +171,18 @@ const Variables = () => {
             ) : undefined
           }
         />
-        {showAddModal && (
-          <AddCustomVariableModal
-            onCancel={() => setShowAddModal(false)}
-            onSave={onSaveSecret}
-          />
-        )}
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__page-header`}>
-        {renderPageDescription()}
-        {canEdit && (
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <Button
-                variant="inverse"
-                size="small"
-                onClick={onClickAddSecret}
-                disabled={disableChildren}
-              >
-                <Icon name="plus" />
-                <span>Add custom variable</span>
-              </Button>
-            )}
-          />
-        )}
-      </div>
-      <PaginatedList<ISecret>
+    return (
+      <PaginatedList<IVariable>
         ref={paginatedListRef}
-        pageSize={SECRETS_PAGE_SIZE}
-        renderItemRow={renderSecretRow}
+        pageSize={VARIABLES_PAGE_SIZE}
+        renderItemRow={renderVariableRow}
         count={data?.count || 0}
         data={data?.custom_variables || []}
         currentPage={pageNumber}
         onChangePage={setPageNumber}
-        onClickRow={(secret) => secret}
         heading={
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
@@ -271,17 +199,55 @@ const Variables = () => {
           </span>
         }
       />
+    );
+  };
+
+  return (
+    <div className={baseClass}>
+      <div className={`${baseClass}__page-header`}>
+        <PageDescription
+          variant="tab-panel"
+          content={
+            <>
+              {isPremiumTier
+                ? "Manage custom variables that will be available in scripts and profiles across all fleets."
+                : "Manage custom variables that will be available in scripts and profiles."}{" "}
+              <CustomLink
+                text="Learn more"
+                url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+                newTab
+              />
+            </>
+          }
+        />
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="inverse"
+                size="small"
+                onClick={onClickAddVariable}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" />
+                <span>Add custom variable</span>
+              </Button>
+            )}
+          />
+        )}
+      </div>
+      {renderContent()}
       {showAddModal && (
         <AddCustomVariableModal
           onCancel={() => setShowAddModal(false)}
-          onSave={onSaveSecret}
+          onSave={onSaveVariable}
         />
       )}
       {showDeleteModal && (
         <DeleteCustomVariableModal
-          secret={secretToDelete}
+          variable={variableToDelete}
           onExit={() => setShowDeleteModal(false)}
-          onDeleteSecret={onDeleteSecret}
+          onDeleteVariable={onDeleteVariable}
         />
       )}
     </div>

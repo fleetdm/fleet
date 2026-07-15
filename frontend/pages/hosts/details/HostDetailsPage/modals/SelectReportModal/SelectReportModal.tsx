@@ -173,7 +173,7 @@ const SelectReportModal = ({
             canCreateReport ? (
               <>
                 <Button variant="link" onClick={onRunCustomReport}>
-                  Create a report
+                  Add a report
                 </Button>{" "}
                 to run.
               </>
@@ -255,9 +255,7 @@ const SelectReportModal = ({
       {renderDescription()}
       {renderReports()}
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel} variant="inverse">
-          Close
-        </Button>
+        <Button onClick={onCancel}>Close</Button>
       </div>
     </Modal>
   );

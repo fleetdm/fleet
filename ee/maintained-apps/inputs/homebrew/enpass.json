@@ -1,0 +1,10 @@
+{
+  "name": "Enpass",
+  "unique_identifier": "in.sinew.Enpass-Desktop",
+  "token": "enpass",
+  "installer_format": "pkg",
+  "slug": "enpass/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -29,7 +29,7 @@ interface IRequestCertAuthorityResponse {
   certificate: string;
 }
 
-export type IAddCertAuthorityBody =
+export type IAddCertAuthorityFormData =
   | { digicert: ICertificatesDigicert }
   | { ndes_scep_proxy: ICertificatesNDES }
   | { custom_scep_proxy: ICertificatesCustomSCEP }
@@ -37,7 +37,7 @@ export type IAddCertAuthorityBody =
   | { smallstep: ICertificatesSmallstep }
   | { custom_est_proxy: ICertificatesCustomEST };
 
-export type IEditCertAuthorityBody =
+export type IEditCertAuthorityFormData =
   | { digicert: Partial<ICertificatesDigicert> }
   | { ndes_scep_proxy: Partial<ICertificatesNDES> }
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
@@ -56,6 +56,7 @@ export interface IQueryKeyGetCerts extends IGetCertsParams {
 export interface ICertificate {
   id: number;
   name: string;
+  subject_name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
   subject_alternative_name?: string;
@@ -86,7 +87,7 @@ export default {
   },
 
   addCertificateAuthority: (
-    certData: IAddCertAuthorityBody
+    certData: IAddCertAuthorityFormData
   ): Promise<IAddCertAuthorityResponse> => {
     const { CERTIFICATE_AUTHORITIES } = endpoints;
     return sendRequest("POST", CERTIFICATE_AUTHORITIES, certData);
@@ -94,7 +95,7 @@ export default {
 
   editCertificateAuthority: (
     id: number,
-    updateData: IEditCertAuthorityBody
+    updateData: IEditCertAuthorityFormData
   ): Promise<void> => {
     const { CERTIFICATE_AUTHORITY } = endpoints;
     return sendRequest("PATCH", CERTIFICATE_AUTHORITY(id), updateData);

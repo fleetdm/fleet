@@ -15,25 +15,48 @@
     min-height: 300px; // Prevents category dropdown from being cut off from short software list's UI
   }
 
-  &__header-filters {
+  &__content {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    gap: $gap-table-elements;
+  }
+
+  &__header-filters {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: $pad-medium;
     align-items: center;
+
+    // Pushes the install-all button (and any following siblings) to the right
+    // edge whether or not CategoryFilter renders on the left. Works at all
+    // widths — on the narrow layout below it keeps Install all flush right on
+    // row 2.
+    &__install-all {
+      margin-left: auto;
+    }
 
     .search-field__tooltip-container {
       width: 100%;
     }
   }
 
+  // Under $break-sm AND when CategoryFilter is rendered: search jumps to its
+  // own full-width top row, leaving CategoryFilter (left) and Install all
+  // (right) on row 2. Skip the row-wrap when there are no categories — the
+  // remaining Install all + Search comfortably fit on one row at any width.
+  &__header-filters--with-categories {
+    @media (max-width: ($break-sm - 1)) {
+      .software-self-service__header-filters__search {
+        order: -1;
+        flex-basis: 100%;
+      }
+    }
+  }
+
   &__table {
     display: flex;
-    flex-direction: row;
-
-    > *:nth-child(2) {
-      flex-grow: 1;
-    }
+    flex-direction: column;
 
     .data-table-block .data-table__wrapper {
       margin-top: 0;
@@ -99,31 +122,5 @@
     }
   }
 
-  .categories-menu {
-    display: none;
-  }
-
-  // Custom breakpoint to fit table with categories
-  @media (min-width: 1070px) {
-    .categories-menu {
-      display: flex;
-    }
-
-    &__categories-dropdown {
-      display: none;
-    }
-  }
 }
 
-.unsupported-self-service {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  text-align: center;
-
-  .header {
-    font-weight: $bold;
-  }
-}

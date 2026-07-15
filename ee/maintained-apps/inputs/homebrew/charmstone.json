@@ -1,0 +1,10 @@
+{
+  "name": "Charmstone",
+  "unique_identifier": "com.knollsoft.CharmstonePro",
+  "token": "charmstone",
+  "installer_format": "dmg",
+  "slug": "charmstone/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

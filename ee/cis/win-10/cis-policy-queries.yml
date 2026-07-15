@@ -456,7 +456,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Create symbolic links' is set to 'Administrators or NT VIRTUAL MACHINE\Virtual Machines'
+  name: CIS - Ensure 'Create symbolic links' is set to 'Administrators'
   platforms: win10
   platform: windows
   description: |
@@ -764,7 +764,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Configure 'Log on as a service'
+  name: CIS - Ensure 'Log on as a service' is configured
   platforms: win10
   platform: windows
   description: |
@@ -4448,7 +4448,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Enable Certificate Padding'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (SecGuide.admx/adml) is required
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\Wintrust\Config\EnableCertPaddingCheck' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\Wintrust\Config\EnableCertPaddingCheck' AND (data = 1 OR data = '1'));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -8640,25 +8640,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Turn off Microsoft Defender AntiVirus' is set to 'Disabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting turns off Microsoft Defender Antivirus. If the setting is configured to Disabled, Microsoft Defender Antivirus runs and computers are scanned for malware and other potentially unwanted software.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Turn off Microsoft Defender AntiVirus'
-    Note: This Group Policy path is provided by the Group Policy template WindowsDefender.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\DisableAntiSpyware' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Allow auditing events in Microsoft Defender Application Guard' is set to 'Enabled'
   platforms: win10
   platform: windows
@@ -9279,25 +9260,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting denies access to the retail catalog in the Microsoft Store, but displays the private store.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Only display the private store within the Microsoft Store'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RequirePrivateStoreOnly' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Turn off Automatic Download and Install of updates' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -9887,7 +9849,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableAppInstaller' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -10273,3 +10235,365 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: rachelelysia
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure multicast DNS (mDNS) protocol' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines if the DNS client will perform name resolution over Multicast DNS (mDNS), which performs local network name and service discovery without a central DNS server.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure multicast DNS (mDNS) protocol'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DnsClient.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMDNS' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off default IPv6 DNS Servers' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the DNS client will use the default IPv6 DNS server addresses provided by Windows.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Turn off default IPv6 DNS Servers'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DnsClient.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DisableIPv6DefaultDnsServers' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer Local Archive Malware Scan Override' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the ability to override malware scans when installing an archive file, using a local manifest, or via command line arguments in the Windows Package Manager.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer Local Archive Malware Scan Override'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableLocalArchiveMalwareScanOverride' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer Microsoft Store Source Certificate Validation Bypass' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the Windows Package Manager validates the Microsoft Store certificate hash to match a known Microsoft Store certificate when initiating a connection to the Microsoft Store source.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Enable App Installer Microsoft Store Source Certificate Validation Bypass'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableBypassCertificatePinningForMicrosoftStore' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Windows Package Manager command line interfaces' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether a user can perform actions using the Windows Package Manager through a command line interface (Windows CLI or PowerShell).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable Windows Package Manager command line interfaces'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableWindowsPackageManagerCommandLineInterfaces' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not apply the Mark of the Web tag to files copied from insecure sources' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether files sourced from insecure locations are tagged with the Mark of the Web (MOTW). When Disabled, MOTW tagging remains active so downstream security controls can evaluate the file's origin.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Do not apply the Mark of the Web tag to files copied from insecure sources'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Explorer.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer\DisableMotWOnInsecurePathCopy' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Control whether exclusions are visible to local users' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus exclusions are visible to local users. When Enabled, only administrators can view and manage exclusions.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Control whether exclusions are visible to local users'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\HideExclusionsFromLocalUsers' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable EDR in block mode' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus Endpoint Detection and Response (EDR) is enabled in block mode, providing additional protection when a primary antivirus solution is running in passive mode. This capability requires Microsoft Defender for Endpoint Plan 2.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Features\Enable EDR in block mode'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Features\PassiveRemediation' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Convert warn verdict to block' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus network protection will convert a warn verdict into a block, preventing the network traffic rather than only warning the user.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Network Inspection System\Convert warn verdict to block'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\NIS\EnableConvertWarnToBlock' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure real-time protection and Security Intelligence Updates during OOBE' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether Real-time Protection and Security Intelligence Updates are enabled during the Out of Box Experience (OOBE).
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Real-Time Protection\Configure real-time protection and Security Intelligence Updates during OOBE'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection\OobeEnableRtpAndSigUpdate' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Remote Encryption Protection Mode' is set to 'Enabled: Audit' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures the Brute-Force Protection / Remote Encryption Protection feature in Microsoft Defender Antivirus, which can detect and respond to attempts to remotely encrypt files. Audit records the activity; Block prevents it.
+    The recommended state for this setting is: Enabled: Audit or higher (Audit or Block).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Audit' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Brute-Force Protection\Configure Remote Encryption Protection Mode'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Brute Force Protection\BruteForceProtectionConfiguredState' AND (data = 1 OR data = 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Brute-Force Protection aggressiveness' is set to 'Enabled: Medium' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures how aggressively Brute-Force Protection in Microsoft Defender Antivirus detects and blocks attempts to forcibly sign in to a system.
+    The recommended state for this setting is: Enabled: Medium or higher (Medium or High).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Medium' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Brute-Force Protection\Configure Brute-Force Protection aggressiveness'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Brute Force Protection\BruteForceProtectionAggressiveness' AND (data = 1 OR data = 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure how aggressively Remote Encryption Protection blocks threats' is set to 'Enabled: Medium' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures how aggressively Remote Encryption Protection in Microsoft Defender Antivirus blocks malicious IP addresses involved in remote encryption attempts.
+    The recommended state for this setting is: Enabled: Medium or higher (Medium or High).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Medium' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Remote Encryption Protection\Configure how aggressively Remote Encryption Protection blocks threats'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Remote Encryption Protection\RemoteEncryptionProtectionAggressiveness' AND (data = 1 OR data = 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Scan excluded files and directories during quick scans' is set to 'Enabled: 1'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting manages whether Microsoft Defender Antivirus scans excluded files and directories when running a Quick Scan.
+    The recommended state for this setting is: Enabled: 1.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 1':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Scan excluded files and directories during quick scans'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Scan\QuickScanIncludeExclusions' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Trigger a quick scan after X days without any scans' is set to 'Enabled: 7'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures the number of days after the last scan (of any type) before an aggressive Quick Scan is automatically triggered by Microsoft Defender Antivirus.
+    The recommended state for this setting is: Enabled: 7.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 7':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Trigger a quick scan after X days without any scans'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Scan\DaysUntilAggressiveCatchupQuickScan' AND data = 7);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on Basic feed authentication over HTTP' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether RSS feeds can be authenticated using the Basic authentication scheme over an unencrypted HTTP connection.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\RSS Feeds\Turn on Basic feed authentication over HTTP'
+    Note: This Group Policy path is provided by the Group Policy template InetRes.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Internet Explorer\Feeds\AllowBasicAuthInClear' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure the transmission of the user's password in the content of MPR notifications sent by winlogon.' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether winlogon includes a user's password in the content of Multiple Provider Router (MPR) notifications. When Disabled, winlogon sends MPR notifications with empty password fields. This setting was previously named 'Enable MPR notifications for the system'.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Logon Options\Configure the transmission of the user's password in the content of MPR notifications sent by winlogon.'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinLogon.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v1.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableMPR' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    WinHTTP implements the client HTTP stack and provides developers with a Win32 API and COM Automation component for sending HTTP requests, and it supports auto-discovery of a proxy configuration via the Web Proxy Auto-Discovery (WPAD) protocol.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\WinHTTP Web Proxy Auto-Discovery Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinHttpAutoProxySvc\Start' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service enables the use of keyboards, mice, gamepads, and other input devices with the GameInput API.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\GameInput Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\GameInputSvc\Start' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2

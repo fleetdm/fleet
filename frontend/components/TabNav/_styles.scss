@@ -4,7 +4,6 @@
 // ManageControlsPage omits the key here and uses __fade (keyed by tab index)
 // so only top-level tab switches animate, not sub-route navigation.
 .tab-nav-routed-content {
-  margin-top: $gap-page-component; // Mirror .react-tabs__tab-panel--selected
   animation: fade-in 250ms ease-out;
 
   &__fade {

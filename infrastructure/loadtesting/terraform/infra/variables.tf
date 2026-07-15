@@ -43,6 +43,17 @@ variable "database_instance_count" {
   }
 }
 
+variable "mysql_max_open_conns" {
+  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. A single Aurora instance sees roughly fleet_task_count * mysql_max_open_conns, up to 2x that on one instance during a failover or with no read replicas (when reader traffic falls back to the writer)."
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.mysql_max_open_conns > 0
+    error_message = "var.mysql_max_open_conns must be greater than 0 (0 means unlimited in database/sql, which can exhaust Aurora max_connections)."
+  }
+}
+
 variable "redis_instance_size" {
   description = "The instance size for Elasticache nodes"
   type        = string
@@ -57,6 +68,39 @@ variable "redis_instance_count" {
   validation {
     condition     = var.redis_instance_count >= 1
     error_message = "var.redis_instance_count must be greater than or equal to 1."
+  }
+}
+
+# Optional Valkey support. Defaults keep Redis 7.1. For Valkey, set all three, e.g.:
+#   -var=redis_engine=valkey -var=redis_engine_version=8.0 -var=redis_parameter_group_family=valkey8
+variable "redis_engine" {
+  description = "The Elasticache engine to use: \"redis\" or \"valkey\"."
+  type        = string
+  default     = "redis"
+
+  validation {
+    condition     = contains(["redis", "valkey"], var.redis_engine)
+    error_message = "var.redis_engine must be either \"redis\" or \"valkey\"."
+  }
+}
+
+variable "redis_engine_version" {
+  description = "The Elasticache engine version (e.g. \"7.1\" for Redis, \"8.0\" for Valkey)."
+  type        = string
+  default     = "7.1"
+}
+
+variable "redis_parameter_group_family" {
+  description = "The Elasticache parameter group family (e.g. \"redis7\", \"valkey7\", \"valkey8\"). Must match the engine and version."
+  type        = string
+  default     = "redis7"
+
+  # Family must match the engine ("redis*" / "valkey*"). Versions aren't pinned here;
+  # bad version/family pairs fail at apply. Find valid pairs with:
+  #   aws elasticache describe-cache-engine-versions --engine <engine>
+  validation {
+    condition     = startswith(var.redis_parameter_group_family, var.redis_engine)
+    error_message = "var.redis_parameter_group_family must match var.redis_engine: use a \"redis*\" family (e.g. redis7) for the \"redis\" engine, or a \"valkey*\" family (e.g. valkey7, valkey8) for the \"valkey\" engine."
   }
 }
 

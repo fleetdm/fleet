@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -19,7 +19,7 @@ import (
 
 func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	ctx := t.Context()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	ddmService := MDMAppleDDMService{
 		ds:     ds,
 		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
@@ -57,14 +57,14 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	// Helper function to set up device and enrollment records
 	setupDeviceAndEnrollment := func(t *testing.T, hostUUID, hardwareSerial string) {
 		// Insert the device record first (required for foreign key constraints)
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`,
 				hostUUID, hardwareSerial, "test")
 			return err
 		})
 
 		// Insert a record into nano_enrollments table (required for foreign key constraints)
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1, time.Now())
 			return err
@@ -78,7 +78,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		if status != "" {
 			statusPtr = ptr.String(status)
 		}
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			// First, get the right token of the declaration
 			err := sqlx.GetContext(ctx, q, &token,
 				"SELECT HEX(token) as token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declarationUUID)
@@ -127,7 +127,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	// Helper function to check if a declaration has status "pending"
 	checkDeclarationStatus := func(t *testing.T, hostUUID, declarationUUID, expectedStatus string) {
 		var status string
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			db := q.(*sqlx.DB)
 			return db.QueryRowContext(ctx, `
 				SELECT status FROM host_mdm_apple_declarations 
@@ -139,7 +139,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 
 	// Helper function to set the uploaded_at timestamp for a host declaration
 	setDeclarationUploadedAt := func(t *testing.T, declarationUUID string, timestamp time.Time) {
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				UPDATE mdm_apple_declarations 
 				SET uploaded_at = ?
@@ -166,7 +166,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		token := insertHostDeclaration(t, hostUUID, declaration.DeclarationUUID, "pending", "install", declaration.Identifier)
 
 		// Get the expected declarations token from the DB.
-		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
 		require.NoError(t, err)
 
 		// Call DeclarativeManagement and verify response
@@ -198,7 +198,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		response := callDeclarativeManagementAndVerify(t, hostUUID, 0, 0)
 
 		// Get the expected declarations token from the DB.
-		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
 		require.NoError(t, err)
 
 		// Verify the token in the response matches the expected token
@@ -226,7 +226,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		insertHostDeclaration(t, hostUUID, declaration3.DeclarationUUID, "pending", "remove", declaration3.Identifier)
 
 		// Get the expected declarations token from the DB.
-		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
 		require.NoError(t, err)
 
 		// Call DeclarativeManagement and verify response
@@ -276,7 +276,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		insertHostDeclaration(t, hostUUID, declaration3.DeclarationUUID, "", "remove", declaration3.Identifier)
 
 		// Get the expected declarations token from the DB.
-		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
 		require.NoError(t, err)
 
 		// Call DeclarativeManagement and verify response
@@ -342,7 +342,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		setDeclarationUploadedAt(t, declaration8.DeclarationUUID, sameTimestamp.Add(3*time.Hour))
 
 		// Get the expected declarations token from the DB.
-		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
 		require.NoError(t, err)
 
 		// Call DeclarativeManagement and verify response
@@ -406,5 +406,123 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		require.Contains(t, activationTokens, token6)
 		require.Contains(t, activationTokens, token7)
 		require.Contains(t, activationTokens, token8)
+	})
+
+	t.Run("UserChannelScopeIsolation", func(t *testing.T) {
+		hostUUID := "test-host-uuid-user-scope"
+		hardwareSerial := "ABC123-USER-SCOPE"
+		userEnrollmentID := hostUUID + ":user-1"
+
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+		// Add a user-channel enrollment for the same device.
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_users (id, device_id, user_short_name, user_long_name) VALUES (?, ?, ?, ?)`,
+				"user-1", hostUUID, "u", "user")
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				userEnrollmentID, hostUUID, "user-1", "User", "topic", "push_magic", "token_hex_user", 1, time.Now())
+			return err
+		})
+
+		// A device-scoped and a user-scoped declaration.
+		deviceDecl := createDeclaration(t, "user-scope-device-decl", "DeviceDecl", "com.example.userscope.device")
+		userDeclRaw := &fleet.MDMAppleDeclaration{
+			DeclarationUUID: "user-scope-user-decl",
+			Name:            "UserDecl",
+			Identifier:      "com.example.userscope.user",
+			RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.userscope.user"}`),
+			Scope:           fleet.PayloadScopeUser,
+		}
+		userDecl, err := ds.NewMDMAppleDeclaration(ctx, userDeclRaw, nil)
+		require.NoError(t, err)
+
+		insertScopedHostDeclaration := func(declUUID, identifier string, scope fleet.PayloadScope) {
+			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				var token string
+				if err := sqlx.GetContext(ctx, q, &token, "SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", declUUID); err != nil {
+					return err
+				}
+				_, err := q.ExecContext(ctx, `
+					INSERT INTO host_mdm_apple_declarations
+					(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier, scope)
+					VALUES (?, ?, 'pending', 'install', UNHEX(?), ?, ?)`,
+					hostUUID, declUUID, token, identifier, scope)
+				return err
+			})
+		}
+		insertScopedHostDeclaration(deviceDecl.DeclarationUUID, deviceDecl.Identifier, fleet.PayloadScopeSystem)
+		insertScopedHostDeclaration(userDecl.DeclarationUUID, userDecl.Identifier, fleet.PayloadScopeUser)
+
+		callChannel := func(enrollID *mdm.EnrollID) fleet.MDMAppleDDMDeclarationItemsResponse {
+			req := mdm.Request{Context: ctx, EnrollID: enrollID}
+			dm := mdm.DeclarativeManagement{}
+			dm.UDID = hostUUID
+			dm.Endpoint = "declaration-items"
+			response, err := ddmService.DeclarativeManagement(&req, &dm)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+			var parsed fleet.MDMAppleDDMDeclarationItemsResponse
+			require.NoError(t, json.Unmarshal(response, &parsed))
+			return parsed
+		}
+
+		// Device channel: only the device declaration, and the token matches the
+		// SQL-computed System token (parity).
+		deviceResp := callChannel(&mdm.EnrollID{ID: hostUUID})
+		require.Len(t, deviceResp.Declarations.Configurations, 1)
+		require.Equal(t, deviceDecl.Identifier, deviceResp.Declarations.Configurations[0].Identifier)
+		sysToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeSystem)
+		require.NoError(t, err)
+		require.Equal(t, sysToken.DeclarationsToken, deviceResp.DeclarationsToken)
+
+		// User channel (EnrollID with ParentID set): only the user declaration, and
+		// the token matches the SQL-computed User token (parity).
+		userResp := callChannel(&mdm.EnrollID{ID: userEnrollmentID, ParentID: hostUUID})
+		require.Len(t, userResp.Declarations.Configurations, 1)
+		require.Equal(t, userDecl.Identifier, userResp.Declarations.Configurations[0].Identifier)
+		userToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID, fleet.PayloadScopeUser)
+		require.NoError(t, err)
+		require.Equal(t, userToken.DeclarationsToken, userResp.DeclarationsToken)
+
+		// The two channels produce different tokens.
+		require.NotEqual(t, deviceResp.DeclarationsToken, userResp.DeclarationsToken)
+	})
+
+	t.Run("DeliveryStripsPayloadScope", func(t *testing.T) {
+		hostUUID := "test-host-uuid-strip"
+		hardwareSerial := "ABC123-STRIP"
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		// The stored declaration retains the Fleet-only top-level PayloadScope key
+		// (it's only stripped at delivery).
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			DeclarationUUID: "strip-decl",
+			Name:            "StripDecl",
+			Identifier:      "com.example.strip",
+			RawJSON:         []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.strip","PayloadScope":"System","Payload":{"Enabled":true}}`),
+			Scope:           fleet.PayloadScopeSystem,
+		}, nil)
+		require.NoError(t, err)
+		require.Contains(t, string(decl.RawJSON), "PayloadScope", "stored raw_json keeps PayloadScope")
+
+		insertHostDeclaration(t, hostUUID, decl.DeclarationUUID, "pending", "install", decl.Identifier)
+
+		// Fetch the full configuration declaration served to the device.
+		req := mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}}
+		dm := mdm.DeclarativeManagement{}
+		dm.UDID = hostUUID
+		dm.Endpoint = "declaration/configuration/" + decl.Identifier
+		response, err := ddmService.DeclarativeManagement(&req, &dm)
+		require.NoError(t, err)
+
+		var served map[string]any
+		require.NoError(t, json.Unmarshal(response, &served))
+		require.NotContains(t, served, "PayloadScope", "PayloadScope must be stripped from the declaration served to the device")
+		require.Equal(t, "com.example.strip", served["Identifier"])
+		require.Contains(t, served, "ServerToken")
 	})
 }

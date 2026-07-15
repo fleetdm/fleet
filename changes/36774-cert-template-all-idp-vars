@@ -1,0 +1,1 @@
+* Added support for all IdP variables and host platform in certificate template subject names and SANs.

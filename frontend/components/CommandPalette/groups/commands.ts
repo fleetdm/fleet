@@ -1,0 +1,522 @@
+import paths from "router/paths";
+
+import { ICommandItem, ICommandPaletteContext } from "../helpers";
+import { IDerivedContext } from "./derivations";
+
+const buildCommandsItems = (
+  ctx: ICommandPaletteContext,
+  derived: IDerivedContext
+): ICommandItem[] => {
+  const {
+    search,
+    canAccessSettings,
+    canRunLiveReport,
+    canWrite,
+    canEditCustomVariable,
+    canAddSoftware,
+    isTechnician,
+    isPremiumTier,
+    isPrimoMode,
+    isDarkMode,
+    withTeamId,
+    onToggleDarkMode,
+    onViewHost,
+    onViewSoftware,
+    onViewSoftwareLibrary,
+    onViewReport,
+    onViewPolicy,
+  } = ctx;
+  const {
+    hasTeamOrUnassigned,
+    isGitOpsMode,
+    switchesFromUnassigned,
+    defaultDestination,
+  } = derived;
+
+  return [
+    // Add new pack — companion to the "Packs" page in pages.ts. Shares
+    // the same search-regex condition. Kept here so the Commands group
+    // stays self-contained.
+    ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
+      ? [
+          {
+            id: "new-pack",
+            label: "Add new pack",
+            group: "Commands" as const,
+            path: paths.NEW_PACK,
+            keywords: ["packs", "add new pack", "create new pack"],
+          },
+        ]
+      : []),
+
+    // View commands — open picker pages with searchable lists. Placed at
+    // the top of the Commands group so view actions appear before write
+    // actions like Add hosts within this group.
+    {
+      id: "view-host",
+      label: "View host",
+      group: "Commands" as const,
+      keywords: [
+        "host",
+        "device",
+        "find host",
+        "open host",
+        "host details",
+        "endpoint",
+        "machine",
+        "search host",
+        "search hosts",
+      ],
+      onAction: onViewHost,
+      opensPickerPage: true,
+    },
+    {
+      id: "view-software",
+      label: "View software inventory",
+      group: "Commands" as const,
+      keywords: [
+        "software",
+        "app",
+        "application",
+        "package",
+        "find software",
+        "open software",
+        "title",
+        "version",
+        "search software",
+        "search software inventory",
+        "inventory",
+      ],
+      onAction: onViewSoftware,
+      opensPickerPage: true,
+    },
+    // View software library — Premium-only and hidden on "All fleets" since
+    // libraries are per-fleet.
+    ...(isPremiumTier && hasTeamOrUnassigned
+      ? [
+          {
+            id: "view-software-library",
+            label: "View software library",
+            group: "Commands" as const,
+            keywords: [
+              "library",
+              "installable",
+              "install",
+              "available",
+              "package",
+              "vpp",
+              "fma",
+              "fleet-maintained",
+              "fleet maintained",
+              "app store",
+              "google play",
+              "search software library",
+              "search library",
+            ],
+            onAction: onViewSoftwareLibrary,
+            opensPickerPage: true,
+          },
+        ]
+      : []),
+    {
+      id: "view-report",
+      label: "View report",
+      group: "Commands" as const,
+      keywords: [
+        "report",
+        "query",
+        "queries",
+        "sql",
+        "saved query",
+        "find report",
+        "open report",
+        "search report",
+        "search reports",
+      ],
+      onAction: onViewReport,
+      opensPickerPage: true,
+    },
+    {
+      id: "view-policy",
+      label: "View policy",
+      group: "Commands" as const,
+      keywords: [
+        "policy",
+        "compliance",
+        "failing",
+        "device health",
+        "find policy",
+        "open policy",
+        "search policy",
+        "search policies",
+      ],
+      onAction: onViewPolicy,
+      opensPickerPage: true,
+    },
+
+    // Actions — users who can write
+    ...(canWrite
+      ? [
+          {
+            id: "add-hosts",
+            label: "Add hosts",
+            group: "Commands" as const,
+            path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
+            keywords: [
+              "enroll",
+              "install",
+              "fleetd",
+              "device",
+              "create hosts",
+              "new hosts",
+              "register hosts",
+              "onboard",
+              "provision",
+            ],
+          },
+          {
+            id: "add-report",
+            label: "Add report",
+            group: "Commands" as const,
+            path: withTeamId(paths.NEW_REPORT),
+            keywords: ["create report", "new report", "sql"],
+            teamName: defaultDestination,
+          },
+          {
+            id: "add-policy",
+            label: "Add policy",
+            group: "Commands" as const,
+            path: withTeamId(paths.NEW_POLICY),
+            keywords: [
+              "create policy",
+              "new policy",
+              "compliance",
+              "device health",
+            ],
+          },
+          // Software add actions require Premium + a team or unassigned
+          // (not "All fleets"). Each destination page renders a
+          // <PremiumFeatureMessage /> in Free. Also gated on
+          // `canAddSoftware` which mirrors SoftwarePage's "Add software"
+          // button — global admin/maintainer or admin/maintainer of the
+          // CURRENT team (not any team). Excludes technicians and
+          // cross-team admins/maintainers who would otherwise pass the
+          // broad `canWrite` check above.
+          ...(isPremiumTier && hasTeamOrUnassigned && canAddSoftware
+            ? [
+                {
+                  id: "add-fleet-maintained-app",
+                  label: "Add Fleet-maintained app",
+                  group: "Commands" as const,
+                  path: withTeamId(paths.SOFTWARE_ADD_FLEET_MAINTAINED),
+                  keywords: [
+                    "install",
+                    "software",
+                    "managed app",
+                    "fma",
+                    "create fleet-maintained app",
+                    "new fleet-maintained app",
+                    "add fleet maintained app",
+                    "create fleet maintained app",
+                    "new fleet maintained app",
+                    "create fma app",
+                    "new fma app",
+                    "add fma app",
+                    "create app",
+                    "new app",
+                    "add app",
+                  ],
+                },
+                {
+                  id: "add-vpp-app",
+                  label: "Add VPP app",
+                  group: "Commands" as const,
+                  path: withTeamId(
+                    `${paths.SOFTWARE_ADD_APP_STORE}?platform=apple`
+                  ),
+                  keywords: [
+                    "app store",
+                    "volume purchase",
+                    "apple",
+                    "ios",
+                    "ipados",
+                    "macos",
+                    "create vpp app",
+                    "new vpp app",
+                    "create app",
+                    "new app",
+                    "add app",
+                  ],
+                },
+                {
+                  id: "add-android-app-store-app",
+                  label: "Add Android app store app",
+                  group: "Commands" as const,
+                  path: withTeamId(
+                    `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
+                  ),
+                  keywords: [
+                    "google play",
+                    "android",
+                    "play store",
+                    "create android app",
+                    "new android app",
+                    "add android app",
+                    "create app",
+                    "new app",
+                    "add app",
+                  ],
+                },
+                {
+                  id: "add-custom-package",
+                  label: "Add custom package",
+                  group: "Commands" as const,
+                  path: withTeamId(paths.SOFTWARE_ADD_PACKAGE),
+                  keywords: [
+                    "install",
+                    "upload",
+                    "software",
+                    "add package",
+                    "create package",
+                    "new package",
+                    "create custom package",
+                    "new custom package",
+                    "pkg",
+                    "ipa",
+                    "msi",
+                    "exe",
+                    "ps1",
+                    "deb",
+                    "rpm",
+                    "tar.gz",
+                    "tarballs",
+                    "sh",
+                  ],
+                },
+                {
+                  id: "add-self-service-category",
+                  label: "Add self-service category",
+                  group: "Commands" as const,
+                  // SelfServiceCategoriesPage opens its Add modal on
+                  // `?add_category=1`, mirroring the Variables/Scripts pattern.
+                  path: withTeamId(
+                    `${paths.SOFTWARE_LIBRARY_CATEGORIES}?add_category=1`
+                  ),
+                  keywords: [
+                    "add category",
+                    "create category",
+                    "new category",
+                    "self service",
+                    "self-service",
+                    "create self-service category",
+                    "new self-service category",
+                    "categories",
+                  ],
+                },
+              ]
+            : []),
+          // Script and variable actions require a team or unassigned
+          // (not "All fleets"). Scripts also hide for technicians —
+          // ScriptLibrary.tsx disables the page button for them.
+          ...(hasTeamOrUnassigned && !isTechnician
+            ? [
+                {
+                  id: "add-script",
+                  label: "Add script",
+                  group: "Commands" as const,
+                  // ScriptLibrary opens its add-script modal on
+                  // `?add_script=1`, mirroring the Variables page pattern.
+                  path: withTeamId(
+                    `${paths.CONTROLS_SCRIPTS_LIBRARY}?add_script=1`
+                  ),
+                  keywords: [
+                    "upload script",
+                    "shell",
+                    "sh",
+                    "ps1",
+                    "create script",
+                    "new script",
+                    "bash",
+                    "powershell",
+                    "automation",
+                  ],
+                },
+                // Custom Variables: page-side `canEdit` is global admin
+                // or global maintainer only — team admins/maintainers and
+                // technicians (all `canWrite`) can't actually create one,
+                // so hide the palette entry rather than route them to a
+                // read-only page. Not Premium-gated.
+                ...(canEditCustomVariable
+                  ? [
+                      {
+                        id: "add-custom-variable",
+                        label: "Add custom variable",
+                        group: "Commands" as const,
+                        path: withTeamId(
+                          `${paths.CONTROLS_VARIABLES}?add_variable=1`
+                        ),
+                        keywords: [
+                          "secret",
+                          "scripts",
+                          "profiles",
+                          "add variable",
+                          "create variable",
+                          "new variable",
+                          "new custom variable",
+                          "create custom variable",
+                        ],
+                      },
+                    ]
+                  : []),
+              ]
+            : []),
+          {
+            id: "manage-enroll-secrets",
+            label: "Manage enroll secrets",
+            group: "Commands" as const,
+            path: withTeamId(`${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`),
+            keywords: ["enrollment", "token", "fleetd", "enroll secret"],
+          },
+        ]
+      : []),
+
+    // Run live report — Observer+ users can also run live queries.
+    // Placed here so it sits adjacent to Run live policy below.
+    ...(canRunLiveReport
+      ? [
+          {
+            id: "run-live-report",
+            label: "Run live report",
+            group: "Commands" as const,
+            path: withTeamId(paths.NEW_REPORT),
+            keywords: [
+              "osquery",
+              "sql",
+              "live",
+              "ad hoc",
+              "query",
+              "run report",
+              "execute report",
+              "execute live report",
+            ],
+            teamName: switchesFromUnassigned,
+          },
+        ]
+      : []),
+
+    // Actions (continued) — users who can write
+    ...(canWrite
+      ? [
+          {
+            id: "run-live-policy",
+            label: "Run live policy",
+            group: "Commands" as const,
+            path: withTeamId(paths.NEW_POLICY),
+            keywords: [
+              "check",
+              "compliance",
+              "live",
+              "ad hoc",
+              "run policy",
+              "execute policy",
+              "execute live policy",
+            ],
+          },
+          {
+            id: "add-label",
+            label: "Add label",
+            group: "Commands" as const,
+            path: paths.NEW_LABEL,
+            keywords: [
+              "create label",
+              "new label",
+              "group hosts",
+              "filter",
+              "dynamic",
+              "manual",
+              "tag",
+              "group",
+            ],
+          },
+          ...(canAccessSettings
+            ? [
+                {
+                  id: "add-user",
+                  label: "Add user",
+                  group: "Commands" as const,
+                  path: paths.ADMIN_USERS_NEW_HUMAN,
+                  keywords: [
+                    "new user",
+                    "create user",
+                    "invite",
+                    "account",
+                    "human user",
+                  ],
+                },
+                {
+                  id: "add-api-only-user",
+                  label: "Add API-only user",
+                  group: "Commands" as const,
+                  path: paths.ADMIN_USERS_NEW_API,
+                  keywords: [
+                    "api user",
+                    "api only user",
+                    "service account",
+                    "token",
+                    "create api user",
+                    "create api only user",
+                    "gitops user",
+                    "add user",
+                    "create user",
+                  ],
+                },
+                // Add fleet — Premium-only, hidden in Primo Mode, and
+                // hidden in GitOps Mode (ManageFleetsPage disables the
+                // primary action in all three states).
+                ...(isPremiumTier && !isPrimoMode && !isGitOpsMode
+                  ? [
+                      {
+                        id: "create-fleet",
+                        label: "Add fleet",
+                        group: "Commands" as const,
+                        path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
+                        keywords: [
+                          "new fleet",
+                          "add fleet",
+                          "team",
+                          "create team",
+                          "add team",
+                          "new team",
+                        ],
+                      },
+                    ]
+                  : []),
+              ]
+            : []),
+        ]
+      : []),
+
+    // Theme toggle and Sign out — always available. Theme is a per-user
+    // UI preference, not a write against Fleet data (setThemeMode is
+    // exposed to every signed-in user via My Account → Theme), so it
+    // sits outside the canWrite gate alongside Sign out.
+    {
+      id: "toggle-dark-mode",
+      // isDarkMode comes through as reactive state from the parent
+      // so the label re-renders when the theme flips externally.
+      label: isDarkMode ? "Switch to light mode" : "Switch to dark mode",
+      group: "Commands" as const,
+      keywords: ["dark mode", "light mode", "theme", "toggle"],
+      onAction: onToggleDarkMode,
+    },
+    {
+      id: "sign-out",
+      label: "Sign out",
+      path: paths.LOGOUT,
+      group: "Commands" as const,
+      keywords: ["logout", "log out", "exit", "quit"],
+    },
+  ];
+};
+
+export default buildCommandsItems;

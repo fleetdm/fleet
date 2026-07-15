@@ -1,9 +1,94 @@
 import React from "react";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
+
+export type AutomationDisplayType =
+  | "software"
+  | "script"
+  | "calendar"
+  | "conditional_access"
+  | "other";
+
+interface ISoftwareAutomationData {
+  type: "software";
+  name: string;
+  /** Raw software name passed to SoftwareIcon for name-based fallback matching.
+   * Display-name overrides won't match the known-icon lookup (e.g. FMAs without
+   * a custom icon_url), so we keep the raw name available alongside `name`. */
+  iconName: string;
+  softwareTitleId: number;
+  iconUrl?: string | null;
+}
+
+interface INonSoftwareAutomationData {
+  type: Exclude<AutomationDisplayType, "software">;
+  name: string;
+  iconName?: never;
+  softwareTitleId?: never;
+  iconUrl?: never;
+}
+
+export type IAutomationData =
+  | ISoftwareAutomationData
+  | INonSoftwareAutomationData;
+
+/** Returns an ordered list of automations configured for a policy. */
+export const getAutomationsForPolicy = (
+  policy: Pick<
+    IPolicyStats,
+    | "install_software"
+    | "run_script"
+    | "calendar_events_enabled"
+    | "conditional_access_enabled"
+    | "webhook"
+  >,
+  otherAutomationType?: OtherAutomationType
+): IAutomationData[] => {
+  const automations: IAutomationData[] = [];
+
+  if (policy.install_software) {
+    automations.push({
+      type: "software",
+      name: getDisplayedSoftwareName(
+        policy.install_software.name,
+        policy.install_software.display_name
+      ),
+      iconName: policy.install_software.name,
+      softwareTitleId: policy.install_software.software_title_id,
+      iconUrl: policy.install_software.icon_url,
+    });
+  }
+  if (policy.run_script) {
+    automations.push({
+      type: "script",
+      name: policy.run_script.name,
+    });
+  }
+  if (policy.calendar_events_enabled) {
+    automations.push({
+      type: "calendar",
+      name: "Maintenance window",
+    });
+  }
+  if (policy.conditional_access_enabled) {
+    automations.push({
+      type: "conditional_access",
+      name: "Conditional access",
+    });
+  }
+  if (policy.webhook === "On") {
+    automations.push({
+      type: "other",
+      name: otherAutomationType === "ticket" ? "Ticket" : "Webhook",
+    });
+  }
+
+  return automations;
+};
 
 /** Creates a readable JSX element from the error message */
 export const getInstallSoftwareErrorMessage = (
@@ -67,36 +152,4 @@ export const getRunScriptErrorMessage = (
   });
 
   return <>Could not update policy. {jsxElement}</>;
-};
-
-/** Derives a comma-separated string of automation types enabled for a policy.
- *  Returns "---" if no automations are enabled. */
-export const getAutomationTypesString = (policy: {
-  install_software?: { software_title_id: number };
-  run_script?: { id: number };
-  calendar_events_enabled: boolean;
-  conditional_access_enabled: boolean;
-  webhook?: string;
-}): string => {
-  const types: string[] = [];
-
-  if (policy.install_software) {
-    types.push("Software");
-  }
-  if (policy.run_script) {
-    types.push("Script");
-  }
-  if (policy.calendar_events_enabled) {
-    types.push("Calendar");
-  }
-  if (policy.conditional_access_enabled) {
-    types.push("Conditional access");
-  }
-  if (policy.webhook === "On") {
-    types.push("Other");
-  }
-
-  if (types.length === 0) return DEFAULT_EMPTY_CELL_VALUE;
-  // Lowercase all types after the first to match sentence-case display
-  return types.map((t, i) => (i === 0 ? t : t.toLowerCase())).join(", ");
 };

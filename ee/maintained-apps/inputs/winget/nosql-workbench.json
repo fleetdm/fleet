@@ -1,0 +1,12 @@
+{
+  "name": "NoSQL Workbench",
+  "slug": "nosql-workbench/windows",
+  "package_identifier": "Amazon.NoSQLWorkbench",
+  "unique_identifier": "NoSQL Workbench",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/nosql-workbench_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/nosql-workbench_uninstall.ps1"
+}

@@ -165,12 +165,21 @@ const PolicyResults = ({
     }
 
     if (finishedWithNoResults) {
+      const hostVerb = targetsTotalCount === 1 ? "host is" : "hosts are";
+      const errorsMessage = errors?.length ? (
+        <>
+          {" "}
+          or review the <strong>Errors</strong> tab for details
+        </>
+      ) : null;
       return (
         <EmptyState
-          header="Your live report returned no results"
-          info={`Expecting to see results? Check to see if the host${
-            targetsTotalCount > 1 ? "s" : ""
-          } you targeted reported "Online" or check out the "Errors" table.`}
+          header="No results returned"
+          info={
+            <>
+              Check whether the {hostVerb} online{errorsMessage}.
+            </>
+          }
         />
       );
     }
@@ -229,7 +238,11 @@ const PolicyResults = ({
   });
 
   return (
-    <div className={baseClass}>
+    // `notranslate`: Chrome's auto-translate wraps text nodes in <font> elements,
+    // detaching nodes React holds refs to. As live results stream in and cells
+    // unmount, React's removeChild throws NotFoundError and error-boundaries the
+    // page (#48277). Excluding this streaming subtree from translation avoids it.
+    <div className={`${baseClass} notranslate`}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
         numHostsResponded={uiHostCounts.total}

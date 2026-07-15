@@ -17,7 +17,7 @@ func (c *Client) GetHosts(query string) ([]fleet.HostResponse, error) {
 	return responseBody.Hosts, err
 }
 
-func (c *Client) GetHost(id uint) (*HostDetailResponse, error) {
+func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", id)
 	var responseBody getHostResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
@@ -26,7 +26,7 @@ func (c *Client) GetHost(id uint) (*HostDetailResponse, error) {
 
 // HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
 // node_key.
-func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error) {
+func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/hosts/identifier/"+identifier
 	var responseBody getHostResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)

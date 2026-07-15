@@ -12,6 +12,7 @@ import {
   MdmEnrollmentStatus,
   BootstrapPackageStatus,
   DiskEncryptionStatus,
+  HostNameSettingStatus,
 } from "./mdm";
 import { HostPlatform } from "./platform";
 
@@ -118,6 +119,11 @@ export type RecoveryLockPasswordStatus =
   | "pending"
   | "failed";
 
+export interface IHostMdmHostNameSetting {
+  status: HostNameSettingStatus;
+  detail: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
@@ -129,6 +135,7 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  host_name?: IHostMdmHostNameSetting;
   managed_local_account?: {
     status: string | null;
     password_available: boolean;
@@ -151,7 +158,13 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
+export type HostMdmPendingAction =
+  | "unlock"
+  | "lock"
+  | "wipe"
+  | "clear_passcode"
+  | "location"
+  | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -173,6 +186,15 @@ export interface IHostMdmData {
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
+  /**
+   * wipe/lock/clear_passcode_allowed indicate whether the corresponding MDM
+   * commands are permitted for this host based on the AccessRights delivered
+   * in the host's manual (SCEP/ACME) enrollment profile. They are only
+   * populated for the host-details endpoint; absent on list-hosts payloads.
+   */
+  wipe_allowed?: boolean;
+  lock_allowed?: boolean;
+  clear_passcode_allowed?: boolean;
 }
 
 export interface IHostMaintenanceWindow {
@@ -238,8 +260,12 @@ export interface IHostResponse {
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
+  /** @deprecated use `org_logo_url_dark_mode` */
   org_logo_url: string;
+  /** @deprecated use `org_logo_url_light_mode` */
   org_logo_url_light_background: string;
+  org_logo_url_dark_mode?: string;
+  org_logo_url_light_mode?: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;

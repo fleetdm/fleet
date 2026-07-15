@@ -15,6 +15,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
@@ -199,8 +200,8 @@ func assertVulns(
 
 func BenchmarkTestOvalAnalyzer(b *testing.B) {
 	b.Run("Ubuntu", func(b *testing.B) {
-		ds := mysql.CreateMySQLDS(b)
-		defer mysql.TruncateTables(b, ds)
+		ds := mysqltest.CreateMySQLDS(b)
+		defer mysqltest.TruncateTables(b, ds)
 
 		vulnPath := b.TempDir()
 
@@ -230,8 +231,8 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 	})
 
 	b.Run("RHEL", func(b *testing.B) {
-		ds := mysql.CreateMySQLDS(b)
-		defer mysql.TruncateTables(b, ds)
+		ds := mysqltest.CreateMySQLDS(b)
+		defer mysqltest.TruncateTables(b, ds)
 
 		vulnPath := b.TempDir()
 
@@ -288,8 +289,8 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 
 func TestOvalAnalyzer(t *testing.T) {
 	t.Run("analyzing RHEL software", func(t *testing.T) {
-		ds := mysql.CreateMySQLDS(t)
-		defer mysql.TruncateTables(t, ds)
+		ds := mysqltest.CreateMySQLDS(t)
+		defer mysqltest.TruncateTables(t, ds)
 
 		vulnPath := t.TempDir()
 
@@ -346,8 +347,8 @@ func TestOvalAnalyzer(t *testing.T) {
 	// does not work with Docker) and extracted all installed software vulnerabilities, then I had
 	// the VMs join my local dev env, and extracted the installed software from the database.
 	t.Run("analyzing Ubuntu software", func(t *testing.T) {
-		ds := mysql.CreateMySQLDS(t)
-		defer mysql.TruncateTables(t, ds)
+		ds := mysqltest.CreateMySQLDS(t)
+		defer mysqltest.TruncateTables(t, ds)
 
 		vulnPath := t.TempDir()
 
@@ -380,6 +381,25 @@ func TestOvalAnalyzer(t *testing.T) {
 			platform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
 			_, err := loadDef(platform, "")
 			require.Error(t, err, "invalid vulnerabity path")
+		})
+
+		// Regression test for https://github.com/fleetdm/fleet/issues/45602:
+		// loadDef must refuse a definition file with no rules, otherwise an empty/corrupted
+		// artifact would cause every existing vulnerability for the platform to be deleted.
+		t.Run("rejects empty definition file", func(t *testing.T) {
+			vulnPath := t.TempDir()
+
+			for _, platform := range []Platform{
+				NewPlatform("ubuntu", "Ubuntu 22.04.0"),
+				NewPlatform("rhel", "Red Hat Enterprise Linux 9.0.0"),
+			} {
+				fileName := platform.ToFilename(time.Now(), "json")
+				require.NoError(t, os.WriteFile(filepath.Join(vulnPath, fileName), []byte(`{"Definitions":null}`), 0o644))
+
+				_, err := loadDef(platform, vulnPath)
+				require.Error(t, err, "loadDef should reject %s definition with no rules", platform)
+				require.Contains(t, err.Error(), "no rules")
+			}
 		})
 	})
 }

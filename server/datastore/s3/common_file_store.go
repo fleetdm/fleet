@@ -35,8 +35,6 @@ type commonFileStore struct {
 	*s3store
 	pathPrefix string
 	fileLabel  string // how to call the file in error messages
-
-	gcs bool
 }
 
 func isGCS(endpointURL string) bool {

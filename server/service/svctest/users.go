@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,7 +78,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 // GetToken posts to /api/latest/fleet/login and returns the auth token. It
 // fails the test on any error.
 func GetToken(t *testing.T, email string, password string, serverURL string) string {
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    email,
 		Password: password,
 	}

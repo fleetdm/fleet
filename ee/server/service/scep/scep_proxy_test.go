@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -63,7 +66,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnPageFromFile := func(path string) []byte {
 		dat, err := os.ReadFile(path)
 		require.NoError(t, err)
-		datUTF16, err := utf16FromString(string(dat))
+		datUTF16, err := sceptest.UTF16FromString(string(dat))
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
@@ -74,14 +77,14 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 
 	// Catch ths issue when NDES password cache is full
 	returnPage = func() []byte {
-		return returnPageFromFile("./testdata/mscep_admin_cache_full.html")
+		return returnPageFromFile("./sceptest/testdata/mscep_admin_cache_full.html")
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "the password cache is full")
 
 	// Catch ths issue when account has insufficient permissions
 	returnPage = func() []byte {
-		return returnPageFromFile("./testdata/mscep_admin_insufficient_permissions.html")
+		return returnPageFromFile("./sceptest/testdata/mscep_admin_insufficient_permissions.html")
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "does not have sufficient permissions")
@@ -95,7 +98,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 
 	// All good
 	returnPage = func() []byte {
-		return returnPageFromFile("./testdata/mscep_admin_password.html")
+		return returnPageFromFile("./sceptest/testdata/mscep_admin_password.html")
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
@@ -103,12 +106,52 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	// Test UTF-8 response (like Okta returns) - should also work with auto-detection
 	returnPage = func() []byte {
 		// Return UTF-8 directly without converting to UTF-16
-		dat, err := os.ReadFile("./testdata/mscep_admin_password.html")
+		dat, err := os.ReadFile("./sceptest/testdata/mscep_admin_password.html")
 		require.NoError(t, err)
 		return dat
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
+}
+
+// TestGetNDESSCEPChallenge_BasicAuthFronted verifies that Fleet works
+// against an "NDES Admin URL" fronted by Okta or another gateway that
+// uses HTTP Basic auth instead of NTLM. v0.1.1 of go-ntlmssp made the
+// Basic-auth fallback opt-in via AllowBasicAuth; this test fails if that
+// field is unset because the upstream Negotiator returns the probe 401
+// to the caller without ever sending credentials.
+func TestGetNDESSCEPChallenge_BasicAuthFronted(t *testing.T) {
+	t.Parallel()
+
+	const challengeBody = `<HTML><BODY>The enrollment challenge password is: <B> ABC123XYZ </B></BODY></HTML>`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			// Mimic Okta-fronted NDES: probe gets 401 with Basic challenge.
+			w.Header().Set("WWW-Authenticate", `Basic realm=https://integrator-5691053.okta.com`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if strings.HasPrefix(r.Header.Get("Authorization"), "Basic ") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(challengeBody))
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+
+	proxy := fleet.NDESSCEPProxyCA{
+		AdminURL: server.URL,
+		Username: "admin",
+		Password: "password",
+	}
+
+	logger := slog.New(slog.DiscardHandler)
+	svc := NewSCEPConfigService(logger, nil)
+	challenge, err := svc.GetNDESSCEPChallenge(t.Context(), proxy)
+	require.NoError(t, err, "Fleet must fall back to Basic auth when the upstream advertises only Basic; v0.1.1 made this opt-in via AllowBasicAuth")
+	require.Equal(t, "ABC123XYZ", challenge)
 }
 
 func TestDecodeHTMLResponse(t *testing.T) {
@@ -180,7 +223,7 @@ func TestDecodeHTMLResponse(t *testing.T) {
 
 func TestValidateSCEPURL(t *testing.T) {
 	t.Parallel()
-	srv := NewTestSCEPServer(t)
+	srv := sceptest.NewTestSCEPServer(t)
 
 	proxy := fleet.NDESSCEPProxyCA{
 		URL: srv.URL + "/scep",
@@ -417,7 +460,10 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+		// a-profile-uuid is an Apple profile, so the expired-challenge resend
+		// routes through ResendHostCertificateProfile (resets retries + clears
+		// the stale command). Windows/Android profiles use ResendHostMDMProfile.
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)
 			return nil
@@ -428,8 +474,8 @@ func TestValidateIdentifier(t *testing.T) {
 		_, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "challenge password has expired")
-		assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
-		ds.ResendHostMDMProfileFuncInvoked = false
+		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		ds.ResendHostCertificateProfileFuncInvoked = false
 	})
 
 	t.Run("NDES challenge not expired", func(t *testing.T) {
@@ -780,7 +826,7 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			return errors.New("resend failed")
 		}
 		svc := newTestService(ds)
@@ -788,7 +834,7 @@ func TestValidateIdentifier(t *testing.T) {
 		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
 		_, err := svc.validateIdentifier(ctx, identifier, true)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "resending host mdm profile")
+		assert.Contains(t, err.Error(), "resending host profile after expired challenge")
 	})
 
 	t.Run("default CA name is NDES", func(t *testing.T) {
@@ -1118,4 +1164,89 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.True(t, ds.ConsumeChallengeFuncInvoked)
 		ds.ConsumeChallengeFuncInvoked = false
 	})
+}
+
+func TestClassifySCEPProxyError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"nil", nil, "unknown error"},
+		{"deadline exceeded", context.DeadlineExceeded, "timeout"},
+		{"wrapped deadline", fmt.Errorf("doing PKIOperation: %w", context.DeadlineExceeded), "timeout"},
+		{"net timeout", os.ErrDeadlineExceeded, "timeout"}, // implements net.Error with Timeout() == true
+		{"http 500", errors.New("http request failed with status 500 Internal Server Error, msg: boom"), "HTTP 500"},
+		{"http 403", errors.New("http request failed with status 403 Forbidden, msg: denied"), "HTTP 403"},
+		{"connection refused", errors.New("dial tcp 10.0.0.1:80: connect: connection refused"), "connection refused"},
+		{"dns", errors.New("dial tcp: lookup ca.invalid: no such host"), "DNS resolution error"},
+		{"generic", errors.New("something unexpected happened"), "upstream error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, classifySCEPProxyError(tc.err))
+		})
+	}
+}
+
+func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	newSvc := func(ds *mock.DataStore) *scepProxyService {
+		return &scepProxyService{ds: ds, debugLogger: logger}
+	}
+	const winID = "host-uuid,w-profile-uuid,ca,challenge"
+	upstreamErr := errors.New("http request failed with status 500 Internal Server Error, msg: boom")
+
+	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		var gotDetail string
+		ds.SetMDMWindowsHostProfileFailedFunc = func(_ context.Context, hostUUID, profileUUID, detail string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "w-profile-uuid", profileUUID)
+			gotDetail = detail
+			return nil
+		}
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
+	})
+
+	t.Run("records with a live context even when the request deadline is exceeded", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, _, _, _ string) error {
+			// The write must be detached from the expired request context (WithoutCancel), or it would fail to persist
+			// the failure we just observed. This assertion is what actually guards that detach.
+			assert.NoError(t, ctx.Err())
+			return nil
+		}
+		// Deadline already in the past (as after an upstream timeout): ctx.Err() is DeadlineExceeded, which must NOT
+		// skip recording - only true cancellation does.
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+		defer cancel()
+		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", upstreamErr)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+	})
+
+	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
+	canceledCtx, cancelFn := context.WithCancel(context.Background())
+	cancelFn()
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		id   string
+		err  error
+	}{
+		{"a canceled upstream error", context.Background(), winID, context.Canceled},
+		{"a canceled request context", canceledCtx, winID, upstreamErr},
+		{"a non-Windows profile", context.Background(), "host-uuid,a-apple-profile,ca,challenge", upstreamErr},
+		{"a malformed identifier", context.Background(), "garbage-without-commas", upstreamErr},
+	} {
+		t.Run("skips "+tc.name, func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.SetMDMWindowsHostProfileFailedFunc = func(context.Context, string, string, string) error {
+				t.Fatalf("must not record a failure for %s", tc.name)
+				return nil
+			}
+			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", tc.err)
+		})
+	}
 }

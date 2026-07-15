@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path":
+		case "ok", "docker-desktop", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -120,6 +120,7 @@ func TestIngestValidations(t *testing.T) {
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.electron.dockerdesktop", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"cannot provide pre-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
@@ -128,9 +129,11 @@ func TestIngestValidations(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
 			i := &brewIngester{
-				logger:  slog.New(slog.DiscardHandler),
-				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-				baseURL: srv.URL + "/",
+				logger:           slog.New(slog.DiscardHandler),
+				client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+				baseURL:          srv.URL + "/",
+				retryInterval:    time.Millisecond,
+				retryMaxAttempts: 3,
 			}
 
 			out, err := i.ingestOne(ctx, c.inputApp)
@@ -149,13 +152,103 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
 			}
 
-			require.Equal(t,
-				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
-				out.Queries.Patched,
-			)
+			if c.inputApp.Token == "docker-desktop" {
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop' AND path NOT LIKE '%.back' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			} else {
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+					out.Queries.Patched,
+				)
+			}
 
 		})
 	}
+}
+
+// TestIngestRetriesTransientErrors verifies that transient brew API failures
+// (e.g. the 503s GitHub Pages intermittently returns for formulae.brew.sh) are
+// retried instead of aborting the whole ingestion run, while permanent failures
+// still return after exhausting attempts.
+func TestIngestRetriesTransientErrors(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("recovers after transient 503s", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hits++
+			// Fail the first two attempts, then succeed.
+			if hits < 3 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(brewCask{
+				Token:   "ok",
+				Name:    []string{"ok"},
+				URL:     "https://example.com",
+				Version: "1.0",
+			})
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 5,
+		}
+
+		out, err := i.ingestOne(ctx, inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+		require.Equal(t, 3, hits, "should have retried until success")
+	})
+
+	t.Run("gives up after exhausting attempts", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 3,
+		}
+
+		_, err := i.ingestOne(ctx, inputApp{Token: "fail", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.ErrorContains(t, err, "brew API returned status 503")
+		require.Equal(t, 3, hits, "should have attempted exactly retryMaxAttempts times")
+	})
+
+	t.Run("does not retry 404", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 5,
+		}
+
+		_, err := i.ingestOne(ctx, inputApp{Token: "notfound", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.ErrorContains(t, err, "app not found in brew API")
+		require.Equal(t, 1, hits, "404 is permanent and must not be retried")
+	})
 }
 
 // TestIngestCaskPath verifies that when an input app sets cask_path, the

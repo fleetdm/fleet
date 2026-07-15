@@ -171,9 +171,9 @@ describe("CheckerboardViz", () => {
   });
 
   it("stretches the color ramp across the dataset's min/max when relativeScale is true", async () => {
-    // All values fall in the 0–20% range, which the default fixed-threshold
-    // ramp would collapse entirely into level-1 (with 0% pinned to level-0).
-    // Relative scaling should rescale the non-zero values across levels 1–5.
+    // Relative scaling is based on absolute min/max, not percentage.
+    // This test data validates that by setting the percentage to 1 for all non-zero points,
+    // and verifying that we still get a color spread.
     const points: IFormattedDataPoint[] = [
       {
         timestamp: "2026-03-01T00:00:00",
@@ -185,31 +185,31 @@ describe("CheckerboardViz", () => {
         timestamp: "2026-03-01T02:00:00",
         label: "Mar 1, 2am",
         value: 4,
-        percentage: 4,
+        percentage: 1,
       },
       {
         timestamp: "2026-03-01T04:00:00",
         label: "Mar 1, 4am",
         value: 8,
-        percentage: 8,
+        percentage: 1,
       },
       {
         timestamp: "2026-03-01T06:00:00",
         label: "Mar 1, 6am",
         value: 12,
-        percentage: 12,
+        percentage: 1,
       },
       {
         timestamp: "2026-03-01T08:00:00",
         label: "Mar 1, 8am",
         value: 16,
-        percentage: 16,
+        percentage: 1,
       },
       {
         timestamp: "2026-03-01T10:00:00",
         label: "Mar 1, 10am",
         value: 20,
-        percentage: 20,
+        percentage: 1,
       },
     ];
 
@@ -315,6 +315,60 @@ describe("CheckerboardViz", () => {
     for (let level = 1; level <= 5; level += 1) {
       expect(classNames.some((c) => c.includes(`--level-${level}`))).toBe(true);
     }
+  });
+
+  it("renders all non-zero cells at the brightest level when relativeScale has a single distinct value", async () => {
+    // With only one distinct non-zero value there's no range to grade
+    // against (min === max). Rather than collapsing everything to the
+    // dimmest level, every non-zero cell should render at level-5.
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 0,
+        percentage: 0,
+      },
+      {
+        timestamp: "2026-03-01T02:00:00",
+        label: "Mar 1, 2am",
+        value: 7,
+        percentage: 1,
+      },
+      {
+        timestamp: "2026-03-01T04:00:00",
+        label: "Mar 1, 4am",
+        value: 7,
+        percentage: 1,
+      },
+      {
+        timestamp: "2026-03-01T06:00:00",
+        label: "Mar 1, 6am",
+        value: 7,
+        percentage: 1,
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz data={points} selectedDays={1} relativeScale />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    const classNames = Array.from(container.querySelectorAll("rect")).map(
+      (r) => r.getAttribute("class") || ""
+    );
+    // 0% still renders at level-0.
+    expect(classNames.some((c) => c.includes("--level-0"))).toBe(true);
+    // Every non-zero cell renders at the brightest level (5)...
+    classNames
+      .filter((c) => !c.includes("--level-0"))
+      .forEach((c) => {
+        expect(c).toContain("--level-5");
+      });
+    // ...and none fall through to the dimmest non-zero level (1).
+    expect(classNames.some((c) => c.includes("--level-1"))).toBe(false);
   });
 
   it("trims leading days when given more days than selectedDays", async () => {
@@ -599,5 +653,152 @@ describe("CheckerboardViz", () => {
     ).length;
     // 11 of 12 rows should be level-0 (only slot 0 has data)
     expect(level0Count).toBe(11);
+  });
+
+  describe("current timeframe and future cells", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      // Pin "now" to 9am on Mar 2 — slot 4 (floor(9 / 2)) of the second day
+      // in the generated data. Mar 1 is in the past, Mar 2 slot 4 is current,
+      // and everything after (Mar 2 slots 5+ and all of Mar 3) is the future.
+      jest.setSystemTime(new Date("2026-03-02T09:00:00"));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("outlines exactly the slot that contains 'now' with the current-cell class", async () => {
+      const data = generateData(3);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCells = container.querySelectorAll(
+        "rect.checkerboard-viz__cell--current"
+      );
+      expect(currentCells).toHaveLength(1);
+    });
+
+    it("shows 'No data' in the tooltip for the current timeframe even when it has a value", async () => {
+      // The current slot carries a non-zero value in the generated data, but
+      // it's still being collected, so the tooltip reads "No data".
+      const data = generateData(3);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCell = container.querySelector(
+        "rect.checkerboard-viz__cell--current"
+      );
+      fireEvent.mouseEnter(currentCell as Element);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".chart-card__tooltip-value")
+        ).toHaveTextContent("No data");
+      });
+    });
+
+    it("shows 'No data' (not the formatter output) for future timeframes", async () => {
+      const formatter = jest.fn(
+        ({ value }: { value: number }) => `${value} hosts`
+      );
+      const data = generateData(3);
+      const { container } = renderWithSetup(
+        <CheckerboardViz
+          data={data}
+          selectedDays={14}
+          tooltipFormatter={formatter}
+        />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The last rendered cell is the final slot of the latest day (Mar 3),
+      // which is entirely in the future.
+      const rects = container.querySelectorAll("rect");
+      const futureCell = rects[rects.length - 1];
+      expect(futureCell.getAttribute("aria-label")).toContain("No data");
+
+      fireEvent.mouseEnter(futureCell);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".chart-card__tooltip-value")
+        ).toHaveTextContent("No data");
+      });
+    });
+
+    it("renders the current timeframe cell at level-0 even when it carries a value", async () => {
+      // The current slot has a non-zero value in the generated data, but it's
+      // still being collected ("No data"), so its fill must match — level-0,
+      // not a graded color. Regression test for #47977.
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCell = container.querySelector(
+        "rect.checkerboard-viz__cell--current"
+      );
+      expect(currentCell).not.toBeNull();
+      expect(currentCell).toHaveClass("checkerboard-viz__cell--level-0");
+    });
+
+    it("renders future timeframe cells at level-0", async () => {
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The last rendered cell is the final slot of the latest day (Mar 3),
+      // entirely in the future — its fill should match its "No data" tooltip.
+      const rects = container.querySelectorAll("rect");
+      const futureCell = rects[rects.length - 1];
+      expect(futureCell.getAttribute("aria-label")).toContain("No data");
+      expect(futureCell.getAttribute("class")).toContain("--level-0");
+    });
+
+    it("still reports the value for past timeframes", async () => {
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The first rendered cell is Mar 1 slot 0 — comfortably in the past.
+      const pastCell = container.querySelector("rect") as SVGRectElement;
+      expect(pastCell.getAttribute("aria-label")).not.toContain("No data");
+
+      fireEvent.mouseEnter(pastCell);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".chart-card__tooltip-value")
+        ).toHaveTextContent("50% of hosts");
+      });
+    });
   });
 });

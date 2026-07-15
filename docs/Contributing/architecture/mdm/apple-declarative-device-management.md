@@ -129,16 +129,21 @@ The profiles names must be unique across all platforms and profile types for a g
 
 * As mentioned earlier, label restrictions (include any, include all and exclude any) are supported for DDM profiles, same as for other types of profiles.
 * Fleet secrets [are supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L885-L888) and are expanded with their values when the declaration is sent to the host.
-* Fleet _variables_ [are **not** supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) for DDM.
+* The following Fleet _variables_ are supported for DDM:
+  - `$FLEET_VAR_HOST_HARDWARE_SERIAL`
+  - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`
+  - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`
+  - `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`
+  - `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`
+  - `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`
+  - `$FLEET_VAR_HOST_UUID`
+  - `$FLEET_VAR_HOST_PLATFORM`
 * DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.
 * DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
 * DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
 * DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
-* DDM profiles cannot be delivered to a user-channel currently, so user-scoped payloads are not supported (if they pass validation, they will be delivered to the device channel).
+* DDM profiles can be delivered to either the device channel or the user channel (macOS only). A declaration selects its channel via a Fleet-specific top-level `PayloadScope` key (`"System"` — the default — or `"User"`); Fleet parses it at upload and records the channel in the `scope` column. The key is left in the stored `raw_json` (so the declaration round-trips and its content hash still reflects scope changes) and is stripped only when the declaration is served to a device, so the JSON the device receives stays valid Apple DDM.
 
-## Special Cases
-
-- **Setup assistant**: As of Fleet v4.70.0, DDM profiles are ignored during the setup assistant phase of a macOS device. This is because Apple does not currently support the DDM protocol in this phase, it always returns a "NotNow" response to the `DeclarativeManagement` MDM command, so Fleet cannot wait for DDM profiles to be delivered before releasing the device so we ignore them and wait for after the device is configured to send them.
 
 ## Related Resources
 

@@ -22,6 +22,7 @@ import LastUpdatedText from "components/LastUpdatedText";
 import Slider from "components/forms/fields/Slider";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import Icon from "components/Icon";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
@@ -137,12 +138,11 @@ const SoftwareLibraryTable = ({
     return generateLibraryTableConfig(router, teamId);
   }, [data, router, teamId]);
 
-  // Determines if a user should be able to filter or search in the table
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
 
-  const showFilterHeaders =
-    isSoftwareEnabled && (hasData || hasQuery || selfServiceOnly);
+  const isTrulyEmpty = !hasData && !hasQuery && !selfServiceOnly;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const handleSelfServiceToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -195,14 +195,28 @@ const SoftwareLibraryTable = ({
     );
   };
 
+  const onClickCategories = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY_CATEGORIES, {
+        fleet_id: teamId,
+      })
+    );
+  };
+
   const renderCustomControls = () => {
     return (
-      <Slider
-        value={selfServiceOnly}
-        onChange={handleSelfServiceToggle}
-        inactiveText="Self-service only"
-        activeText="Self-service only"
-      />
+      <div className={`${baseClass}__controls`}>
+        <Button variant="inverse" onClick={onClickCategories}>
+          <Icon name="settings" /> Categories
+        </Button>
+        <Slider
+          value={selfServiceOnly}
+          onChange={handleSelfServiceToggle}
+          inactiveText="Self-service only"
+          activeText="Self-service only"
+          disabled={controlsDisabled}
+        />
+      </div>
     );
   };
 
@@ -272,11 +286,11 @@ const SoftwareLibraryTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={showFilterHeaders}
+        searchable
+        disableSearch={controlsDisabled}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        additionalQueries={String(selfServiceOnly)}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customControl={renderCustomControls}
         stackControls
         renderCount={renderSoftwareCount}
         renderTableHelpText={renderTableHelpText}
