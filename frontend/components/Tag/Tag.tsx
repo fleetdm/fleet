@@ -31,7 +31,7 @@ interface IDismissibleTagProps extends ITagBaseProps {
   type: "dismissible";
   onClick?: never;
   onDismiss: () => void;
-  /** Accessible name (and native tooltip) for the dismiss button. Defaults to "Remove". */
+  /** Accessible name (and native tooltip) for the dismiss button. Defaults to "Dismiss". */
   dismissLabel?: string;
 }
 
@@ -59,7 +59,7 @@ const Tag = (props: ITagProps) => {
   }
 
   if (props.type === "dismissible") {
-    const dismissLabel = props.dismissLabel ?? "Remove";
+    const dismissLabel = props.dismissLabel ?? "Dismiss";
 
     return (
       <span className={classNames}>

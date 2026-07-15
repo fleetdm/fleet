@@ -44,7 +44,7 @@ describe("Tag", () => {
             Apple Silicon macOS hosts
           </Tag>
         ),
-      buttonName: "Remove",
+      buttonName: "Dismiss",
     },
   ])(
     "disables the $case tag's button when disabled is set",
@@ -76,7 +76,7 @@ describe("Tag", () => {
       </Tag>
     );
 
-    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   });
 
   it("uses dismissLabel as the dismiss button's accessible name when provided", () => {
