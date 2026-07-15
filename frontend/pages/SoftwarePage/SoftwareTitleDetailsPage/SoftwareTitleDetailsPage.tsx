@@ -620,6 +620,10 @@ const SoftwareTitleDetailsPage = ({
     return (
       <AddPackageModal
         softwareTitleId={softwareId}
+        softwareTitleName={getDisplayedSoftwareName(
+          title.name,
+          title.display_name
+        )}
         teamId={teamIdForApi}
         existingPackageName={existingPackageName}
         onExit={() => setShowAddPackageModal(false)}

@@ -164,7 +164,9 @@ const SoftwareCustomPackage = ({
         )
       );
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, formData.software?.name), {
+        response: e,
+      });
     }
     setUploadDetails(null);
   };
