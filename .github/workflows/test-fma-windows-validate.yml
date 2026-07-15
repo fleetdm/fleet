@@ -2,7 +2,7 @@
 # apps on a runner whose native architecture matches the apps' installer
 # architecture (arm64 apps on windows-11-arm, x64/x86/neutral apps on the x64
 # runner). Called by test-fma-windows-pr-only.yml and test-fma-windows.yml with
-# a matrix produced by .github/scripts/partition-fma-windows-by-arch.sh.
+# a matrix produced by .github/scripts/partition-fma-apps.sh.
 name: Validate Fleet Maintained Apps - Windows
 
 on:
