@@ -680,6 +680,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
+			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -813,6 +814,24 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 			multiError = multierror.Append(multiError, errors.New(
 				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
 			))
+		}
+	}
+	return multiError
+}
+
+// normalizeMDMSSOConfig, normalizes the MDM SSO configuration by trimming whitespaces.
+func normalizeMDMSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
+		if sso, ok := mdm["end_user_authentication"].(map[string]any); ok {
+			idpName, _ := sso["idp_name"].(string)
+			entityID, _ := sso["entity_id"].(string)
+			metadata, _ := sso["metadata"].(string)
+			metadataURL, _ := sso["metadata_url"].(string)
+
+			sso["idp_name"] = strings.TrimSpace(idpName)
+			sso["entity_id"] = strings.TrimSpace(entityID)
+			sso["metadata"] = strings.TrimSpace(metadata)
+			sso["metadata_url"] = strings.TrimSpace(metadataURL)
 		}
 	}
 	return multiError

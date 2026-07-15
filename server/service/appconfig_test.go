@@ -606,13 +606,13 @@ func TestSSOProviderSettingsOverwriteMDM(t *testing.T) {
 
 	t.Run("REST PATCH preserves partial-update behavior", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, false /* overwrite */)
+		validateSSOProviderSettings(&incomingMissingMetadata, existing, invalid, false /* overwrite */)
 		assert.False(t, invalid.HasErrors())
 	})
 
 	t.Run("GitOps overwrite rejects empty metadata", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, true /* overwrite */)
+		validateSSOProviderSettings(&incomingMissingMetadata, existing, invalid, true /* overwrite */)
 		require.True(t, invalid.HasErrors())
 		assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 	})
@@ -1152,6 +1152,50 @@ func TestMDMConfig(t *testing.T) {
 	}))
 	t.Cleanup(depSrv.Close)
 
+	defaultMDMAppConfig := func(changes ...func(*fleet.MDM)) fleet.MDM {
+		mdm := fleet.MDM{
+			HostNameTemplate: optjson.String{Set: true},
+			AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+				OAuthIdPTokenURL: optjson.String{Set: true},
+				OAuthIdPClientID: optjson.String{Set: true},
+			},
+			AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+			DeprecatedAppleBMDefaultTeam: "",
+			MacOSSetup: fleet.MacOSSetup{
+				BootstrapPackage:            optjson.String{Set: true},
+				MacOSSetupAssistant:         optjson.String{Set: true},
+				EnableReleaseDeviceManually: optjson.SetBool(false),
+				EnableManagedLocalAccount:   optjson.SetBool(false),
+				EndUserLocalAccountType:     optjson.SetString("admin"),
+				LockEndUserInfo:             optjson.SetBool(false),
+				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+				Script:                      optjson.String{Set: true},
+				ManualAgentInstall:          optjson.Bool{Set: true},
+			},
+			MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+			IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+			IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+			WindowsSettings: fleet.WindowsSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			},
+			AndroidSettings: fleet.AndroidSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			},
+			RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+			EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+			WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+			WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+		}
+
+		for _, change := range changes {
+			change(&mdm)
+		}
+		return mdm
+	}
+
 	const licenseErr = "missing or invalid license"
 	const notFoundErr = "not found"
 	testCases := []struct {
@@ -1166,41 +1210,7 @@ func TestMDMConfig(t *testing.T) {
 		{
 			name:        "nochange",
 			licenseTier: "free",
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(),
 		},
 		{
 			name:          "newDefaultTeamNoLicense",
@@ -1226,42 +1236,9 @@ func TestMDMConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				DeprecatedAppleBMDefaultTeam: "foobar",
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.DeprecatedAppleBMDefaultTeam = "foobar"
+			}),
 		},
 		{
 			name:        "foundEdit",
@@ -1269,42 +1246,9 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				DeprecatedAppleBMDefaultTeam: "foobar",
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.DeprecatedAppleBMDefaultTeam = "foobar"
+			}),
 		},
 		{
 			name:          "ssoFree",
@@ -1319,42 +1263,9 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{EntityID: "foo"}
+			}),
 		},
 		{
 			name:        "ssoAllFields",
@@ -1365,46 +1276,13 @@ func TestMDMConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
 					EntityID:    "fleet",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
-				}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+				}
+			}),
 		},
 		{
 			name:        "ssoShortEntityID",
@@ -1415,46 +1293,13 @@ func TestMDMConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
 					EntityID:    "f",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
-				}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+				}
+			}),
 		},
 		{
 			name:        "ssoMissingMetadata",
@@ -1494,42 +1339,9 @@ func TestMDMConfig(t *testing.T) {
 			newMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
-			expectedMDM: fleet.MDM{
-				HostNameTemplate: optjson.String{Set: true},
-				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
-					OAuthIdPTokenURL: optjson.String{Set: true},
-					OAuthIdPClientID: optjson.String{Set: true},
-				},
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EnableDiskEncryption = optjson.SetBool(false)
+			}),
 		},
 		{
 			name:        "try to disable disk encryption with TPM PIN enabled",
@@ -1678,6 +1490,26 @@ func TestMDMConfig(t *testing.T) {
 				},
 			},
 			expectedError: `is required to be enabled when using "none" for the end_user_local_account_type`,
+		},
+		{
+			name:        "end user auth fields strips leading and trailing whitespace",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "  fleet  ",
+						Metadata: "  not-empty  ",
+						IDPName:  "  onelogin  ",
+					},
+				},
+			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+					EntityID: "fleet",
+					Metadata: "not-empty",
+					IDPName:  "onelogin",
+				}
+			}),
 		},
 	}
 

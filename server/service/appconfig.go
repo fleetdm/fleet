@@ -2054,7 +2054,7 @@ func (svc *Service) validateMDM(
 		// TODO: look into blocking the case of a user-created API call that clears required EUA
 		// settings while a team still has EUA enabled.
 		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
+		validateSSOProviderSettings(&mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation
@@ -2371,7 +2371,7 @@ func (svc *Service) validateVPPAssignments(
 // If this is a GitOps run (overwrite=true), all required fields must be present.
 // Otherwise we're doing a patch, so it's ok for fields to be missing as long
 // as we have persisted values for them.
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+func validateSSOProviderSettings(incoming *fleet.SSOProviderSettings, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
 		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
@@ -2395,6 +2395,12 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 			invalid.Append("metadata_url", "must be either https or http")
 		}
 	}
+
+	// trim whitespace from the incoming values so that we don't persist them with leading/trailing whitespace
+	incoming.Metadata = strings.TrimSpace(incoming.Metadata)
+	incoming.MetadataURL = strings.TrimSpace(incoming.MetadataURL)
+	incoming.EntityID = strings.TrimSpace(incoming.EntityID)
+	incoming.IDPName = strings.TrimSpace(incoming.IDPName)
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, lic *fleet.LicenseInfo, overwrite bool) {
@@ -2404,7 +2410,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
+		validateSSOProviderSettings(&p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
