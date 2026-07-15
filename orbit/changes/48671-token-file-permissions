@@ -1,0 +1,1 @@
+- Restricted device auth token file permissions on disk and updated how the token is passed to Fleet Desktop.

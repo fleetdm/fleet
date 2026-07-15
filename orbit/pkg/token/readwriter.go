@@ -46,8 +46,7 @@ func (rw *ReadWriter) LoadOrGenerate() error {
 	_, err := rw.Read()
 	switch {
 	case err == nil:
-		// ensure the file is readable by other processes, old versions of Orbit
-		// used to chmod this file with 0o600
+		// ensure the file is only readable by root (the owner)
 		if err := rw.setChmod(); err != nil {
 			return fmt.Errorf("loading token file, chmod %q: %w", rw.Path, err)
 		}
@@ -96,12 +95,12 @@ func (rw *ReadWriter) Write(id string) error {
 		}
 	}
 
-	err := os.WriteFile(rw.Path, []byte(id), constant.DefaultWorldReadableFileMode)
+	err := os.WriteFile(rw.Path, []byte(id), constant.DefaultFileMode)
 	if err != nil {
 		return fmt.Errorf("write identifier file %q: %w", rw.Path, err)
 	}
 
-	// ensure the file is readable by other processes, os.WriteFile does not
+	// ensure the file is only readable by root, os.WriteFile does not
 	// modify permissions if the file already exists
 	if err := rw.setChmod(); err != nil {
 		return fmt.Errorf("write identifier file, chmod %q: %w", rw.Path, err)
@@ -123,7 +122,7 @@ func (rw *ReadWriter) Write(id string) error {
 }
 
 func (rw *ReadWriter) setChmod() error {
-	return os.Chmod(rw.Path, constant.DefaultWorldReadableFileMode)
+	return os.Chmod(rw.Path, constant.DefaultFileMode)
 }
 
 func (rw *ReadWriter) StartRotation() func() {

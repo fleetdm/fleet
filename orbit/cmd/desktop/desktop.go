@@ -94,9 +94,10 @@ func main() {
 		runWithPermanentError(permanentError)
 	}
 
+	deviceToken := os.Getenv("FLEET_DESKTOP_DEVICE_TOKEN")
 	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
-	if identifierPath == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
+	if deviceToken == "" && identifierPath == "" {
+		log.Fatal().Msg("missing FLEET_DESKTOP_DEVICE_TOKEN or FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH environment variable")
 	}
 
 	fleetURL := os.Getenv("FLEET_DESKTOP_FLEET_URL")
@@ -195,9 +196,17 @@ func main() {
 		// Initialize menu manager with systray factory
 		menuManager := menu.NewManager(version, menu.NewSystrayFactory())
 
-		tokenReader := token.Reader{Path: identifierPath}
-		if _, err := tokenReader.Read(); err != nil {
-			log.Fatal().Err(err).Msg("error reading device token from file")
+		var tokenReader token.Reader
+		if deviceToken != "" {
+			// Token provided directly by Orbit via environment variable.
+			// This avoids reading the token file, which is restricted to root.
+			tokenReader.SetCached(deviceToken)
+		} else {
+			// Fallback: read from file (backwards compatibility with older Orbit).
+			tokenReader.Path = identifierPath
+			if _, err := tokenReader.Read(); err != nil {
+				log.Fatal().Err(err).Msg("error reading device token from file")
+			}
 		}
 
 		var insecureSkipVerify bool
@@ -218,6 +227,12 @@ func main() {
 		}
 
 		client.WithInvalidTokenRetry(func() string {
+			if tokenReader.Path == "" {
+				// Token was provided via env var; we can't refresh from file.
+				// Orbit will restart Desktop with the new token after rotation.
+				log.Info().Msg("token provided via env var, cannot refresh from file; Orbit will restart Desktop with new token")
+				return ""
+			}
 			log.Debug().Msg("refetching token from disk for API retry")
 			newToken, err := tokenReader.Read()
 			if err != nil {

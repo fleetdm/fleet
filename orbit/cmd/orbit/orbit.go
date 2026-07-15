@@ -1961,37 +1961,48 @@ func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
-	url, err := url.Parse(d.fleetURL)
+	fleetURL, err := url.Parse(d.fleetURL)
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
-	}
-	deviceURL, err := url.Parse(d.fleetURL)
-	if err != nil {
-		return fmt.Errorf("invalid fleet-url: %w", err)
-	}
-	deviceURL.Path = path.Join(url.Path, "device", d.trw.GetCached())
-	opts := []execuser.Option{
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
-
-		// TODO(roperzh): this env var is keept only for backwards compatibility,
-		// we should remove it once we think is safe
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
-
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
-
-		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
-		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
-	}
-	if d.fleetRootCA != "" {
-		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
-	}
-	if d.insecure {
-		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
 	for {
+		// Get the current token for this Desktop launch. Each iteration
+		// of the loop picks up the latest token so that a restart after
+		// rotation gives Desktop the fresh value.
+		launchedToken := d.trw.GetCached()
+
+		deviceURL, err := url.Parse(d.fleetURL)
+		if err != nil {
+			return fmt.Errorf("invalid fleet-url: %w", err)
+		}
+		deviceURL.Path = path.Join(fleetURL.Path, "device", launchedToken)
+
+		opts := []execuser.Option{
+			execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", fleetURL.String()),
+			execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
+
+			// Pass the token value directly so Desktop does not need to
+			// read the root-owned identifier file on disk.
+			execuser.WithEnv("FLEET_DESKTOP_DEVICE_TOKEN", launchedToken),
+
+			// TODO(roperzh): this env var is keept only for backwards compatibility,
+			// we should remove it once we think is safe
+			execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
+
+			execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
+			execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
+
+			execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
+			execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
+		}
+		if d.fleetRootCA != "" {
+			opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
+		}
+		if d.insecure {
+			opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
+		}
+
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
 			//
@@ -2041,6 +2052,17 @@ func (d *desktopRunner) Execute() error {
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
 		if done := retry(15*time.Second, true, d.interruptCh, func() bool {
+			// Check if the device token has rotated since we launched Desktop.
+			// If so, kill Desktop so the outer loop restarts it with the new token.
+			if currentToken := d.trw.GetCached(); currentToken != "" && currentToken != launchedToken {
+				log.Info().Msg("device token rotated, restarting fleet-desktop with new token")
+				if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+					!errors.Is(err, platform.ErrProcessNotFound) &&
+					!errors.Is(err, platform.ErrComChannelNotFound) {
+					log.Error().Err(err).Msg("desktop terminate on token rotation")
+				}
+				return false // exit monitoring, restart Desktop with new token
+			}
 			switch _, err := platform.GetProcessesByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.

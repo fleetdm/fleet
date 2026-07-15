@@ -126,3 +126,34 @@ func TestGetCached(t *testing.T) {
 	cached := tr.GetCached()
 	require.Equal(t, "test", cached)
 }
+
+func TestInMemoryMode(t *testing.T) {
+	t.Run("SetCached sets token without file", func(t *testing.T) {
+		tr := Reader{}
+		tr.SetCached("my-token")
+		require.Equal(t, "my-token", tr.GetCached())
+	})
+
+	t.Run("Read returns cached value when Path is empty", func(t *testing.T) {
+		tr := Reader{}
+		tr.SetCached("my-token")
+		token, err := tr.Read()
+		require.NoError(t, err)
+		require.Equal(t, "my-token", token)
+	})
+
+	t.Run("HasChanged returns false when Path is empty", func(t *testing.T) {
+		tr := Reader{}
+		tr.SetCached("my-token")
+		changed, err := tr.HasChanged()
+		require.NoError(t, err)
+		require.False(t, changed)
+	})
+
+	t.Run("Read returns empty string when no token set", func(t *testing.T) {
+		tr := Reader{}
+		token, err := tr.Read()
+		require.NoError(t, err)
+		require.Empty(t, token)
+	})
+}

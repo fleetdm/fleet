@@ -16,8 +16,13 @@ type Reader struct {
 }
 
 // Read returns the token value from the file only if the file is
-// expired or the cached value is empty
+// expired or the cached value is empty. If no Path is set,
+// it returns the cached value directly (in-memory mode).
 func (r *Reader) Read() (string, error) {
+	if r.Path == "" {
+		return r.GetCached(), nil
+	}
+
 	changed, err := r.HasChanged()
 	if err != nil {
 		return "", err
@@ -32,10 +37,22 @@ func (r *Reader) Read() (string, error) {
 	return r.GetCached(), nil
 }
 
+// SetCached sets the cached token value directly without reading from a file.
+// This is used when the token is provided via an environment variable.
+func (r *Reader) SetCached(token string) {
+	r.mu.Lock()
+	r.cached = token
+	r.mtime = time.Now()
+	r.mu.Unlock()
+}
+
 // HasChanged checks if the in-memory `value` has changed by comparing
 // the chached `r.mtime` value with the `mtime` of the file at
-// `r.path`
+// `r.path`. If no path is set (in-memory mode), returns false.
 func (r *Reader) HasChanged() (bool, error) {
+	if r.Path == "" {
+		return false, nil
+	}
 	info, err := os.Stat(r.Path)
 	if err != nil {
 		return false, err

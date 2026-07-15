@@ -25,7 +25,7 @@ func TestLoadOrGenerate(t *testing.T) {
 
 		stat, err := os.Stat(file)
 		require.NoError(t, err)
-		require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
+		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 	})
 
 	t.Run("returns the file value if it exists", func(t *testing.T) {
@@ -47,22 +47,23 @@ func TestLoadOrGenerate(t *testing.T) {
 
 		stat, err = os.Stat(file.Name())
 		require.NoError(t, err)
-		require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
+		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 		require.Equal(t, oldMtime, stat.ModTime())
 	})
 
-	t.Run("sets the file mode to DefaultWorldReadableFileMode if exists", func(t *testing.T) {
+	t.Run("sets the file mode to DefaultFileMode if exists with wrong perms", func(t *testing.T) {
 		file, err := os.CreateTemp("", "identifier")
 		require.NoError(t, err)
 		_, err = file.WriteString("test")
 		require.NoError(t, err)
 		defer os.Remove(file.Name())
 
-		err = file.Chmod(constant.DefaultFileMode)
+		// Start with world-readable permissions (old behavior)
+		err = file.Chmod(constant.DefaultWorldReadableFileMode)
 		require.NoError(t, err)
 		stat, err := file.Stat()
 		require.NoError(t, err)
-		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
+		require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
 
 		rw := NewReadWriter(file.Name(), nil)
 		err = rw.LoadOrGenerate()
@@ -71,9 +72,10 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "test", token)
 
+		// After LoadOrGenerate, the file should be restricted to owner-only
 		stat, err = file.Stat()
 		require.NoError(t, err)
-		require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
+		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 	})
 
 	t.Run("errors for other reasons", func(t *testing.T) {
@@ -108,7 +110,7 @@ func TestRotate(t *testing.T) {
 	require.NotEmpty(t, token)
 	stat, err := file.Stat()
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
+	require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 
 	err = rw.Rotate()
 	require.NoError(t, err)
@@ -118,7 +120,7 @@ func TestRotate(t *testing.T) {
 	require.NotEqual(t, token, newToken)
 	stat, err = file.Stat()
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
+	require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 }
 
 func TestRotator(t *testing.T) {
