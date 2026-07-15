@@ -16,6 +16,7 @@ export default {
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
+  CONTROLS_HOST_NAME_TEMPLATE: `${URL_PREFIX}/controls/os-settings/host-name-template`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_USERS: `${URL_PREFIX}/controls/setup-experience/users`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
@@ -72,6 +73,7 @@ export default {
   ADMIN_INTEGRATIONS_SSO: `${INTEGRATIONS_PREFIX}/sso`,
   ADMIN_INTEGRATIONS_SSO_FLEET_USERS: `${INTEGRATIONS_PREFIX}/sso/fleet-users`,
   ADMIN_INTEGRATIONS_SSO_END_USERS: `${INTEGRATIONS_PREFIX}/sso/end-users`,
+  ADMIN_INTEGRATIONS_FPSSO: `${INTEGRATIONS_PREFIX}/account-provisioning`,
   ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK: `${INTEGRATIONS_PREFIX}/host-status-webhook`,
 
   ADMIN_FLEETS: `${URL_PREFIX}/settings/fleets`,

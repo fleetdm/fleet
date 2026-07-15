@@ -397,7 +397,7 @@ const ChartCard = ({
       );
     }
     if (isLoading) {
-      return <Spinner includeContainer={false} verticalPadding="small" />;
+      return <Spinner verticalPadding="small" />;
     }
     if (error) {
       return <DataError />;

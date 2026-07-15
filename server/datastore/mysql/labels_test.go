@@ -95,7 +95,7 @@ func TestLabels(t *testing.T) {
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
-		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
+		{"HostMembershipForLabels", testHostMembershipForLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
@@ -1924,16 +1924,14 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
 }
 
-func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	//
 	// Setup test
 	// - h1 member of 'All hosts', 'Foobar' and 'Zoobar'
 	// - h2 member of 'All hosts' and 'Foobar'
-	// - h3 member of 'All hosts' and 'Zoobar'
-	// - h4 member of 'All hosts'
-	// - h5 member of no labels
+	// - h3 member of no labels
 	//
 
 	allHostsLabel, err := ds.NewLabel(ctx,
@@ -1966,8 +1964,8 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            name,
 			Hostname:        "foo.local" + name,
 		})
@@ -1978,130 +1976,76 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 	h1 := newHostFunc("h1")
 	h2 := newHostFunc("h2")
 	h3 := newHostFunc("h3")
-	h4 := newHostFunc("h4")
-	h5 := newHostFunc("h5")
-	_ = h5
 
 	err = ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
+		zoobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	err = ds.RecordLabelQueryExecutions(ctx, h2, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, h3, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, h4, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-
-	//
-	// Run tests for HostMemberOfAllLabels
-	//
 
 	for _, tc := range []struct {
 		name           string
 		hostID         uint
 		labelNames     []string
-		expectedResult bool
+		expectedResult map[string]struct{}
 	}{
 		{
-			name:           "nonexistent host",
+			name:           "h1 is member of all three labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}, zoobarLabel.Name: {}},
+		},
+		{
+			name:           "h1 is member of a subset of labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
+		},
+		{
+			name:           "h2 is member of some but not all labels",
+			hostID:         h2.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
+		},
+		{
+			name:           "nonexistent labels are not included",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, "nonexistent-label"},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}},
+		},
+		{
+			name:           "case-insensitive match preserves requested casing",
+			hostID:         h1.ID,
+			labelNames:     []string{"foobar", "ZOOBAR"},
+			expectedResult: map[string]struct{}{"foobar": {}, "ZOOBAR": {}},
+		},
+		{
+			name:           "nonexistent host returns empty result",
 			hostID:         999,
 			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: false,
+			expectedResult: map[string]struct{}{},
 		},
 		{
-			name:           "h1 does not belong to nonexistent label",
-			hostID:         h1.ID,
-			labelNames:     []string{"Non existent label"},
-			expectedResult: false,
-		},
-		{
-			name:           "h1 does not belong to All hosts + nonexistent label",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, "Non existent label"},
-			expectedResult: false,
-		},
-		{
-			name:           "h1 belongs to the given subset of labels",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h1 belongs to all the given labels",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h1 member of empty label set",
-			hostID:         h1.ID,
-			labelNames:     []string{},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 belongs to all the given labels",
-			hostID:         h2.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 does not belongs to all the given labels",
-			hostID:         h2.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h2 belongs to the given label",
-			hostID:         h2.ID,
-			labelNames:     []string{foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 does not belong to the given label",
-			hostID:         h2.ID,
-			labelNames:     []string{zoobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h3 belongs to all the given labels",
+			name:           "h3 is member of no labels",
 			hostID:         h3.ID,
-			labelNames:     []string{allHostsLabel.Name, zoobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h4 belongs to all the given labels",
-			hostID:         h4.ID,
-			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h4 does not belong to the given labels",
-			hostID:         h4.ID,
-			labelNames:     []string{foobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h5 does not belong to the given labels",
-			hostID:         h5.ID,
-			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: false,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]struct{}{},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := ds.HostMemberOfAllLabels(ctx, tc.hostID, tc.labelNames)
+			result, err := ds.HostMembershipForLabels(ctx, tc.hostID, tc.labelNames)
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedResult, v)
+			if tc.expectedResult == nil {
+				require.Nil(t, result)
+			} else {
+				require.Equal(t, tc.expectedResult, result)
+			}
 		})
 	}
 }

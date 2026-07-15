@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "12.4.2",
+      "version": "12.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(bundle_short_version, '12.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(bundle_short_version, '12.4.3') < 0);"
       },
-      "installer_url": "https://cdn-downloads.ableton.com/channels/12.4.2/ableton_live_suite_12.4.2_universal.dmg",
+      "installer_url": "https://cdn-downloads.ableton.com/channels/12.4.3/ableton_live_suite_12.4.3_universal.dmg",
       "install_script_ref": "547cfe4e",
       "uninstall_script_ref": "04a14b48",
-      "sha256": "d7129207e71cb3480cb7f6f1d654ccdf38b6cf37de545f505224f063ce86545e",
+      "sha256": "7f2704799c6a21a08f78ff7200d8738416e3e6431f4cbbc9219c372102c3838a",
       "default_categories": [
         "Productivity"
       ]

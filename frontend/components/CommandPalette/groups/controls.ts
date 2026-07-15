@@ -7,7 +7,12 @@ const buildControlsItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
-  const { canAccessControls, isPremiumTier, isTechnician, withTeamId } = ctx;
+  const {
+    canAccessControls,
+    isPremiumTier,
+    isAdminOrMaintainer,
+    withTeamId,
+  } = ctx;
   const { hasTeamOrUnassigned } = derived;
 
   // Controls pages don't support "All fleets" (includeAllTeams: false),
@@ -90,9 +95,8 @@ const buildControlsItems = (
               },
             ]
           : []),
-        // Certificates and Passwords — Premium-only, and not
-        // available to technicians.
-        ...(isPremiumTier && !isTechnician
+        // Certificates and Passwords — Premium-only, admin/maintainer only.
+        ...(isPremiumTier && isAdminOrMaintainer
           ? [
               {
                 id: "controls-certificates",
@@ -113,6 +117,24 @@ const buildControlsItems = (
                 label: "Passwords",
                 path: withTeamId(paths.CONTROLS_PASSWORDS),
                 keywords: ["rotation", "recovery", "macos", "laps"],
+              },
+            ]
+          : []),
+        // Host names — Premium-only, admin/maintainer only. Supported for
+        // both fleets and "No team" / Unassigned.
+        ...(isPremiumTier && isAdminOrMaintainer
+          ? [
+              {
+                id: "controls-host-name-template",
+                label: "Host names",
+                path: withTeamId(paths.CONTROLS_HOST_NAME_TEMPLATE),
+                keywords: [
+                  "rename",
+                  "naming",
+                  "template",
+                  "convention",
+                  "device name",
+                ],
               },
             ]
           : []),
